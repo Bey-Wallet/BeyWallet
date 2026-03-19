@@ -9,19 +9,22 @@ import {
     ScrollView,
     View,
     ListItem,
+    Input,
 } from 'tamagui';
 import {
     QrCode,
     Copy,
     Share2,
     Check,
-    AlertCircle,
     Sprout,
     ShieldCheck,
     ShieldOff,
     RefreshCw,
     Building2,
     ChevronDown,
+    ChevronUp,
+    AlertCircle,
+    Zap,
 } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { NumericKeypad } from '../../components/UI/NumericKeypad';
@@ -36,18 +39,19 @@ import { useWalletStore } from '../../store/walletStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '../../services/currencyService';
+import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
+// NUT-18: Cashu Payment Request
+import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type RequestStep = 'amount' | 'result';
 
 interface RequestEcashStageProps {
-    /** Called to navigate back when on the result stage */
     onClose?: () => void;
 }
 
-// ─── Detail Row (same pattern as nostr-profile & PendingTokenLayout) ─────────
+// ─── Detail Row ───────────────────────────────────────────────────────────────
 
 function DetailItem({
     label,
@@ -64,34 +68,16 @@ function DetailItem({
 }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">
-                {label}
-            </Text>
+            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
-                <Text
-                    fontSize="$5"
-                    fontWeight="800"
-                    color="$color"
-                    numberOfLines={1}
-                    style={{ maxWidth: 180 }}
-                >
+                <Text fontSize="$4" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
                     {value}
                 </Text>
                 {onShare && (
-                    <Button
-                        size="$2"
-                        chromeless
-                        icon={<Share2 size={16} color="$gray10" />}
-                        onPress={onShare}
-                    />
+                    <Button size="$2" chromeless icon={<Share2 size={16} color="$gray10" />} onPress={onShare} />
                 )}
                 {isCopyable && (
-                    <Button
-                        size="$2"
-                        chromeless
-                        icon={<Copy size={16} color="$gray10" />}
-                        onPress={onCopy}
-                    />
+                    <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
                 )}
             </XStack>
         </XStack>
@@ -105,17 +91,20 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     const [amount, setAmount] = useState('0');
     const [localInputValue, setLocalInputValue] = useState('0');
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const [note, setNote] = useState('');
+    const [showNote, setShowNote] = useState(false);
 
-    // Draft QR — replaced with real mint call when logic is implemented
-    const [qrValue, setQrValue] = useState<string | null>(null);
+    // NUT-18 payment request
+    const [creqString, setCreqString] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [generateError, setGenerateError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const toast = useToastController();
 
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
+    const { secondaryCurrency, npub } = useSettingsStore();
 
     const activeMint = mints.find(
         (m) => m.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
@@ -133,19 +122,17 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     });
 
     const currencySymbol = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
-
     const amtNum = parseInt(amount, 10) || 0;
-    const isValidAmount = amtNum > 0;
+    const isValidAmount = amtNum > 0 && !!activeMintUrl;
 
-    // ── Conversion label shown below the main amount ─────────────────────────
+    // ── Conversion labels ─────────────────────────────────────────────────────
     const conversionLabel = React.useMemo(() => {
         if (!btcData?.price) return '~';
         if (inputMode === 'SATS') {
             const val = currencyService.convertSatsToCurrency(amtNum, btcData.price);
             return `${currencySymbol}${val.toFixed(2)}`;
-        } else {
-            return `₿${amtNum}`;
         }
+        return `₿${amtNum}`;
     }, [amtNum, btcData?.price, inputMode, currencySymbol]);
 
     const fiatValueLabel = React.useMemo(() => {
@@ -154,7 +141,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
         return `${currencySymbol}${val.toFixed(2)}`;
     }, [amtNum, btcData?.price, currencySymbol]);
 
-    // ── Keypad change ────────────────────────────────────────────────────────
+    // ── Keypad ────────────────────────────────────────────────────────────────
     const onKeypadChange = (val: string) => {
         setLocalInputValue(val);
         if (inputMode === 'SATS') {
@@ -179,45 +166,73 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
         }
     };
 
-    // ── Mint selection ───────────────────────────────────────────────────────
+    // ── Mint selection ────────────────────────────────────────────────────────
     const handleSelectMint = (mintUrl: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setActiveMint(mintUrl);
         sheetRef.current?.dismiss();
     };
 
-    // ── Draft generate (TODO: replace with real mint call) ───────────────────
-    const handleGenerate = useCallback(async () => {
-        if (!isValidAmount) return;
+    // ── Generate NUT-18 Cashu Payment Request ─────────────────────────────────
+    const handleGenerate = useCallback(() => {
+        if (!isValidAmount || !activeMintUrl) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setIsGenerating(true);
-        // Simulate async mint call
-        await new Promise((r) => setTimeout(r, 800));
-        const draftToken = `cashuAEYEREQUEST_DRAFT_${Date.now()}_${amtNum}sats`;
-        setQrValue(draftToken);
-        setIsGenerating(false);
-        setStep('result');
-    }, [amtNum, isValidAmount]);
+        setGenerateError(null);
 
-    // ── Copy / Share ─────────────────────────────────────────────────────────
+        try {
+            // NUT-18: PaymentRequest(transport, id, amount, unit, mints, description)
+            // NOSTR transport using the user's npub
+            const transports = npub ? [
+                {
+                    type: PaymentRequestTransportType.NOSTR,
+                    target: npub,
+                    tags: [], // no extra tags needed for standard routing
+                }
+            ] : [];
+
+            const pr = new PaymentRequest(
+                transports,           // transport — NOSTR if available
+                undefined,            // no id
+                amtNum,               // amount in sats
+                'sat',                // unit
+                [activeMintUrl],      // accepted mints
+                note.trim() || undefined, // optional memo
+            );
+
+            const encoded = pr.toEncodedRequest(); // → "creqA..."
+            setCreqString(encoded);
+            setStep('result');
+        } catch (err: any) {
+            console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
+            setGenerateError(err?.message || 'Failed to generate request');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            setIsGenerating(false);
+        }
+    }, [amtNum, isValidAmount, activeMintUrl, note]);
+
+    // ── Copy / Share ──────────────────────────────────────────────────────────
     const handleCopy = useCallback(async () => {
-        if (!qrValue) return;
-        await Clipboard.setStringAsync(qrValue);
+        if (!creqString) return;
+        await Clipboard.setStringAsync(creqString);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setCopied(true);
-        toast.show('Copied!', { message: 'Token copied to clipboard' });
+        toast.show('Copied!', { message: 'Payment request copied to clipboard' });
         setTimeout(() => setCopied(false), 2000);
-    }, [qrValue]);
+    }, [creqString]);
 
     const handleShare = useCallback(async () => {
-        if (!qrValue) return;
+        if (!creqString) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await Share.share({ message: qrValue });
-    }, [qrValue]);
+        // Wallets like Minibits accept "cashu:" prefix for payment requests too
+        await Share.share({ message: creqString });
+    }, [creqString]);
 
     const handleReset = () => {
         setStep('amount');
-        setQrValue(null);
+        setCreqString(null);
+        setGenerateError(null);
         setCopied(false);
     };
 
@@ -227,10 +242,9 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     if (step === 'amount') {
         return (
             <YStack flex={1} p="$4" justify="space-between">
-                {/* ── Card (mirrors AmountStage layout) ──────────────────── */}
+                {/* ── Card ──────────────────────────────────────────────────── */}
                 <YStack
                     width="100%"
-                    height={300}
                     rounded="$4"
                     borderWidth={0.5}
                     borderColor="$borderColor"
@@ -252,20 +266,18 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                         justify="space-between"
                         pressStyle={{ bg: '$color5', opacity: 0.8, rounded: '$4' }}
                     >
-                        <XStack gap="$2" items="center">
-                            <Building2 size={18} strokeWidth={2.5} color="$color" />
-                        </XStack>
+                        <Building2 size={18} strokeWidth={2.5} color="$color" />
                         <Text fontWeight="800" fontSize="$4">{mintName}</Text>
                         <ChevronDown size={18} strokeWidth={2.5} color="$color" />
                     </XStack>
 
                     {/* Amount display */}
-                    <YStack items="center" gap="$1">
+                    <YStack items="center" gap="$1" py="$5">
                         <Text color="$gray10" fontSize="$3">How much to request?</Text>
                         <H1
                             fontWeight="400"
                             letterSpacing={-2}
-                            py="$4"
+                            py="$3"
                             color={amtNum === 0 ? '$gray7' : '$color'}
                         >
                             {inputMode === 'SATS'
@@ -285,39 +297,84 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                         </Button>
                     </YStack>
 
-                    {/* Bottom info row */}
+                    {/* Optional note row */}
                     <XStack
                         width="100%"
-                        p="$3"
                         borderTopWidth={1}
                         borderTopColor="$color3"
-                        justify="center"
+                        px="$3"
+                        py="$2"
                         items="center"
+                        gap="$2"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setShowNote((v) => !v);
+                        }}
+                        pressStyle={{ opacity: 0.7 }}
                     >
-                        <Text color="$gray10" fontWeight="400" fontSize="$3">
-                            Generates a Cashu payment request QR
+                        <Text fontSize="$3" color="$gray9" flex={1}>
+                            {note || 'Add a note (optional)'}
                         </Text>
+                        {showNote ? <ChevronUp size={16} color="$gray9" /> : <ChevronDown size={16} color="$gray9" />}
                     </XStack>
+
+                    {showNote && (
+                        <XStack width="100%" px="$3" py="$2" borderTopWidth={0.5} borderTopColor="$color3">
+                            <Input
+                                value={note}
+                                onChangeText={setNote}
+                                placeholder="What's this for?"
+                                bg="transparent"
+                                borderWidth={0}
+                                flex={1}
+                                fontSize="$3"
+                                p={0}
+                                placeholderTextColor="$gray8"
+                                autoFocus
+                                maxLength={80}
+                            />
+                        </XStack>
+                    )}
                 </YStack>
 
-                {/* ── Keypad ─────────────────────────────────────────────── */}
+                {/* ── Error ────────────────────────────────────────────────── */}
+                {generateError && (
+                    <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
+                        <AlertCircle size={18} color="$red10" />
+                        <Text color="$red10" fontSize="$3" flex={1}>{generateError}</Text>
+                    </XStack>
+                )}
+
+                {!activeMintUrl && (
+                    <XStack bg="$orange3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
+                        <AlertCircle size={18} color="$orange10" />
+                        <Text color="$orange10" fontSize="$3" flex={1}>Select a mint to generate a request</Text>
+                    </XStack>
+                )}
+                
+                {!npub && (
+                    <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
+                        <AlertCircle size={18} color="$red10" />
+                        <Text color="$red10" fontSize="$3" flex={1}>Nostr profile required to receive directly. Go to Profile to generate.</Text>
+                    </XStack>
+                )}
+
+                {/* ── Keypad ───────────────────────────────────────────────── */}
                 <NumericKeypad
                     showAmountDisplay={false}
                     value={localInputValue}
                     onValueChange={onKeypadChange}
                     onConfirm={handleGenerate}
-                    confirmLabel={isGenerating ? 'Generating…' : 'Generate QR'}
-                    confirmDisabled={!isValidAmount || isGenerating}
+                    confirmLabel={isGenerating ? 'Generating…' : 'Generate Request'}
+                    confirmDisabled={!isValidAmount || isGenerating || !npub}
                     confirmIcon={isGenerating ? <Spinner size="small" /> : <QrCode size={20} />}
                     isLoading={isGenerating}
                 />
 
-                {/* ── Mint bottom sheet ───────────────────────────────────── */}
+                {/* ── Mint bottom sheet ─────────────────────────────────────── */}
                 <AppBottomSheet ref={sheetRef} snapPoints={['50%', '85%']}>
                     <YStack p="$4" gap="$3" flex={1}>
-                        <XStack justify="space-between" items="center" mb="$2">
-                            <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
-                        </XStack>
+                        <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
                         <BottomSheetScrollView showsVerticalScrollIndicator={false}>
                             <YStack gap="$2" pb="$4">
                                 {mints.length === 0 ? (
@@ -362,7 +419,9 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // RESULT STAGE — QR + Detail Table 
+    // RESULT STAGE — NUT-18 creqA QR + detail table
+    // When sender scans this, their wallet pre-fills amount + mint
+    // and sends ecash directly to us
     // ────────────────────────────────────────────────────────────────────────
     return (
         <YStack flex={1} bg="$background">
@@ -370,29 +429,52 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ flexGrow: 1 }}
             >
-                <YStack flex={1} px="$4" pb="$8" gap="$6">
+                <YStack flex={1} px="$4" pb="$8" gap="$4">
+
+                    {/* ── Hint banner ────────────────────────────────────────── */}
+                    <XStack
+                        mt="$4"
+                        px="$4"
+                        py="$2"
+                        rounded="$4"
+                        items="center"
+                        gap="$2"
+                        bg="$color3"
+                        borderWidth={0.5}
+                        borderColor="$borderColor"
+                    >
+                        <Zap size={14} color="$accent9" />
+                        <Text fontSize="$2" color="$gray10" flex={1}>
+                            Share or display this QR. The sender's Cashu wallet will automatically fill in the amount and mint.
+                        </Text>
+                    </XStack>
+
                     {/* ── QR Code ──────────────────────────────────────────── */}
-                    <YStack items="center" gap="$4" mt="$4">
-                        <View bg="white" p="$3" rounded="$5">
-                            {qrValue ? (
+                    <YStack items="center" gap="$4">
+                        <View
+                            bg="white"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+                            p="$3"
+                            rounded="$5"
+                        >
+                            {creqString ? (
                                 <QRCode
-                                    value={qrValue}
-                                    size={310}
+                                    value={creqString}
+                                    size={320}
                                     backgroundColor="white"
                                     color="black"
                                     quietZone={8}
                                 />
                             ) : (
-                                <YStack width={240} height={240} items="center" justify="center">
+                                <YStack width={320} height={320} items="center" justify="center">
                                     <Spinner size={36} color="$accent9" />
                                 </YStack>
                             )}
                         </View>
-
-
                     </YStack>
 
-                    {/* ── Detail Table (nostr-profile pattern) ─────────────── */}
+                    {/* ── Detail Table ─────────────────────────────────────── */}
                     <YStack
                         gap="$0"
                         bg="$gray2"
@@ -403,14 +485,12 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                         <DetailItem label="Amount" value={`₿${amtNum} sats`} />
                         <DetailItem label="Fiat" value={fiatValueLabel} />
                         <DetailItem label="Unit" value="SATOSHIS" />
+                        <DetailItem label="Mint" value={mintName} />
+                        {note ? <DetailItem label="Note" value={note} /> : null}
                         <DetailItem
-                            label="Mint"
-                            value={mintName}
-                        />
-                        <DetailItem
-                            label="Token"
-                            value={qrValue ? `${qrValue.slice(0, 12)}…${qrValue.slice(-6)}` : '—'}
-                            isCopyable={!!qrValue}
+                            label="Request"
+                            value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
+                            isCopyable={!!creqString}
                             onCopy={handleCopy}
                             onShare={handleShare}
                         />
@@ -441,7 +521,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                                 onPress={handleCopy}
                                 pressStyle={{ scale: 0.97 }}
                             >
-                                {copied ? 'Copied!' : 'Copy Token'}
+                                {copied ? 'Copied!' : 'Copy Request'}
                             </Button>
                         </XStack>
 

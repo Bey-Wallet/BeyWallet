@@ -134,6 +134,7 @@ export function HistoryScreen() {
             eventService.on('history:updated', handleUpdate),
             eventService.on('receive:created', handleUpdate),
             eventService.on('send:created', handleUpdate),
+            eventService.on('mint-quote:redeemed', handleUpdate),
         ];
 
         return () => {
@@ -174,7 +175,7 @@ export function HistoryScreen() {
         switch (type) {
             case 'send': return 'Sent';
             case 'receive': return 'Received';
-            case 'mint': return 'Minted';
+            case 'mint': return 'Received (LN)';
             case 'melt': return 'Melted';
             case 'swap': return 'Swapped';
             default: return type;

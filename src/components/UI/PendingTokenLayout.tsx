@@ -181,7 +181,7 @@ export function PendingTokenLayout({
         <YStack flex={1} bg="$background" width="100%">
             {/* QR Code */}
             <YStack items="center" gap="$4" mb="$6">
-                <View bg="white" p="$2" rounded="$5">
+                <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
                     {(!showAnimatedQR && currentToken && currentToken.length > 400) ? (
                         <YStack width={330} height={330} items="center" justify="center">
                             <Spinner size="large" color="$color" />

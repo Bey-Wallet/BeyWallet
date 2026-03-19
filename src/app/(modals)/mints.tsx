@@ -200,8 +200,8 @@ export default function MintsModal() {
                         </Button>
                     </XStack>
 
-                    <YStack py="$2">
-                        <Text fontSize="$4" color="$gray10" fontWeight="700">Total Balance</Text>
+                    <YStack py="$2" gap="$2">
+
                         <XStack items="baseline" gap="$0" py="$2">
 
                             <RollingNumber
@@ -416,8 +416,8 @@ export default function MintsModal() {
                                 </YStack>
                             ) : (
                                 <YStack items="center" gap="$4">
-                                    <View bg="white" p="$4" rounded="$8" style={{ elevation: 10 }}>
-                                        <QRCode value={quote.pr} size={220} />
+                                    <View bg="white" p="$4" borderWidth={1} borderColor="$gray4" rounded="$5" >
+                                        <QRCode value={quote.pr} size={320} />
                                     </View>
 
                                     <XStack gap="$2" width="100%">
