@@ -13,11 +13,12 @@ import { Text, YStack, XStack, Button, Separator, View } from 'tamagui'
 import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, Info, ArrowUpCircle, ShieldCheck, Zap, ArrowDownCircle, Lock, Unlock } from '@tamagui/lucide-icons'
+import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
+import { Building2, ShieldCheck, Zap, ScanLine } from '@tamagui/lucide-icons'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
+import SendMethodSelector, { SendMode } from '~/components/SendMethodSelector'
 
 type SendStep = 'amount' | 'result' | 'success';
 
@@ -29,7 +30,7 @@ export function SendModalScreen() {
     const [encodedToken, setEncodedToken] = useState<string | null>(null)
     const [operationId, setOperationId] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [sendMode, setSendMode] = useState<'standard' | 'p2pk'>('standard')
+    const [sendMode, setSendMode] = useState<SendMode>('standard')
     const [receiverPubkey, setReceiverPubkey] = useState('')
     const router = useRouter()
     const queryClient = useQueryClient();
@@ -246,28 +247,18 @@ export function SendModalScreen() {
         <YStack flex={1} bg="$background" p="$4">
             <Stack.Screen
                 options={{
-                    title: sendMode === 'p2pk' ? 'Send (P2PK)' : 'Send',
-                    headerRight: () => (
-                        <Button
-                            chromeless
-                            size="$3"
-                            color={sendMode === 'p2pk' ? "$accent9" : "$color"}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setSendMode(m => m === 'standard' ? 'p2pk' : 'standard')
-                            }}
-                            icon={sendMode === 'p2pk' ? <Lock size={18} /> : <Unlock size={18} />}
-                        >
-                            {sendMode === 'p2pk' ? "P2PK" : "Standard"}
-                        </Button>
-                    )
+                    headerTitle: () => (
+                        <SendMethodSelector
+                            mode={sendMode}
+                            onSelect={setSendMode}
+                            isLoading={isProcessing}
+                        />
+                    ),
                 }}
             />
             {step === 'amount' && (
                 <YStack flex={1}>
-
-
-                    {sendMode === 'standard' ? (
+                    {sendMode === 'standard' && (
                         <AmountStage
                             amount={amount}
                             setAmount={setAmount}
@@ -276,7 +267,8 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                             error={error}
                         />
-                    ) : (
+                    )}
+                    {sendMode === 'p2pk' && (
                         <P2PKAmountStage
                             amount={amount}
                             setAmount={setAmount}
@@ -287,6 +279,19 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                             error={error}
                         />
+                    )}
+                    {(sendMode === 'scan' || sendMode === 'nostr') && (
+                        <YStack flex={1} items="center" justify="center" gap="$4" opacity={0.5}>
+                            <ScanLine size={48} color="$gray8" />
+                            <YStack items="center" gap="$1">
+                                <Text fontSize="$5" fontWeight="700" color="$gray9">
+                                    {sendMode === 'scan' ? 'Scan & Pay' : 'Nostr'}
+                                </Text>
+                                <Text fontSize="$3" color="$gray9">
+                                    Coming soon
+                                </Text>
+                            </YStack>
+                        </YStack>
                     )}
                 </YStack>
             )}
