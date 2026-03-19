@@ -96,7 +96,7 @@ export default function SendMethodSelector({
             {/* Pill button shown in the nav header */}
             <Button
                 size="$2.5"
-                theme="gray"
+                theme={({ standard: 'gray', p2pk: 'purple', nostr: 'pink', scan: 'blue' } as const)[mode]}
                 px={isLoading ? '$3' : '$1.5'}
                 borderWidth={1}
                 disabled={isLoading}
@@ -147,7 +147,7 @@ export default function SendMethodSelector({
             </Button>
 
             {/* Bottom sheet with method list */}
-            <AppBottomSheet ref={sheetRef}>
+            <AppBottomSheet ref={sheetRef} snapPoints={["52%"]}>
                 <YStack p="$4" pt="$2" gap="$4">
                     <YStack gap="$1" mb="$1">
                         <Text fontSize="$6" fontWeight="800">

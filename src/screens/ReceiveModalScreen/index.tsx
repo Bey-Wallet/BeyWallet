@@ -1,13 +1,15 @@
 import React, { useState, useCallback } from 'react'
-import { YStack, View } from 'tamagui'
+import { YStack } from 'tamagui'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { InputStage } from './InputStage'
 import { ConfirmStage } from './ConfirmStage'
 import { ReceiveResultStage } from './ReceiveResultStage'
+import { RequestEcashStage } from './RequestEcashStage'
 import { walletService, decodeToken, mintManager, initService } from '../../services/core';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { nip19 } from 'nostr-tools'
+import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -24,6 +26,7 @@ interface TokenInfo {
 
 export function ReceiveModalScreen() {
     const [step, setStep] = useState<ReceiveStep>('input')
+    const [receiveMode, setReceiveMode] = useState<ReceiveMode>('receive')
     const [token, setToken] = useState('')
     const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null)
     const [isDecoding, setIsDecoding] = useState(false)
@@ -278,13 +281,28 @@ export function ReceiveModalScreen() {
         <YStack flex={1} bg="$background" >
             <Stack.Screen
                 options={{
-                    headerTitle: step === 'result' ? (status === 'success' ? 'Success' : 'Error') : 'Receive Ecash',
-                    headerTitleStyle: { fontWeight: '600' },
+                    headerTitle: step === 'result'
+                        ? (status === 'success' ? 'Success' : 'Error')
+                        : () => (
+                            <ReceiveModeSelector
+                                mode={receiveMode}
+                                onSelect={(m) => {
+                                    setReceiveMode(m);
+                                    // Reset any pending state when switching
+                                    setError(null);
+                                    setToken('');
+                                    setTokenInfo(null);
+                                    setStep('input');
+                                }}
+                                isLoading={isDecoding || isReceiving}
+                            />
+                        ),
                     headerBackTitle: 'Back',
                 }}
             />
 
-            {step === 'input' && (
+            {/* ── Receive: existing paste/scan flow ─────────────────────── */}
+            {receiveMode === 'receive' && step === 'input' && (
                 <InputStage
                     token={token}
                     setToken={setToken}
@@ -299,6 +317,12 @@ export function ReceiveModalScreen() {
                     }}
                 />
             )}
+
+            {/* ── Request Ecash: self-contained amount + result flow ─────── */}
+            {receiveMode === 'request' && (
+                <RequestEcashStage onClose={handleClose} />
+            )}
+
 
             {step === 'confirm' && tokenInfo && (
                 <ConfirmStage
