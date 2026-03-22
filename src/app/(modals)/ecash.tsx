@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2 } from '@tamagui/lucide-icons';
-import { useRouter, Stack } from 'expo-router';
+import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2, ChevronRight, Database } from '@tamagui/lucide-icons';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { historyService } from '~/services/core';
 import { useWalletStore } from '~/store/walletStore';
@@ -22,6 +22,12 @@ export default function EcashModal() {
     const { secondaryCurrency } = useSettingsStore();
     const [selectedMint, setSelectedMint] = useState('all');
     const sheetRef = useRef<AppBottomSheetRef>(null);
+    const queryClient = useQueryClient();
+
+    // Refresh when navigating back from Proof Manager
+    useFocusEffect(useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['history', 'pending'] });
+    }, [queryClient]));
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -264,6 +270,34 @@ export default function EcashModal() {
                     </YStack>
                 </YStack>
             </ScrollView>
+
+            {/* Proof Manager link */}
+            <YStack
+                px="$4"
+                pb={insets.bottom + 16}
+                pt="$2"
+                borderTopWidth={1}
+                borderColor="$borderColor"
+                bg="$background"
+            >
+                <Button
+                    size="$4"
+                    theme="gray"
+                    chromeless
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/(modals)/proofs');
+                    }}
+                    icon={<Database size={16} color="$color10" />}
+                    iconAfter={<ChevronRight size={16} color="$color10" />}
+                    pressStyle={{ scale: 0.98, opacity: 0.85 }}
+                    animation="quick"
+                    bg="$gray2"
+                    rounded="$4"
+                >
+                    <Text fontWeight="700" fontSize="$3" flex={1}>Proof Manager</Text>
+                </Button>
+            </YStack>
 
             <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
                 <YStack p="$4" gap="$4" pb={insets.bottom + 40}>

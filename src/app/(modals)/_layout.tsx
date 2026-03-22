@@ -77,12 +77,13 @@ export default function ModalLayout() {
                 name="scanner"
                 options={{
                     headerShown: false,
-                    presentation: 'fullScreenModal',
+                    presentation: "modal",
                 }}
             />
             <Stack.Screen
                 name="txn-details"
                 options={{
+                    presentation: "modal",
                     title: 'Transaction Details',
                 }}
             />
@@ -108,6 +109,13 @@ export default function ModalLayout() {
                 name="about"
                 options={{
                     title: 'About',
+                }}
+            />
+            <Stack.Screen
+                name="proofs"
+                options={{
+                    presentation: "modal",
+                    title: 'Proof Manager',
                 }}
             />
         </Stack>

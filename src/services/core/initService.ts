@@ -22,6 +22,7 @@ import { HistoryWatcherPlugin } from './plugins/HistoryWatcherPlugin';
 import { NPCPlugin } from 'coco-cashu-plugin-npc';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
+import { nostrService } from './nostrService';
 
 // ─── Singleton State ──────────────────────────────────────────
 
@@ -147,8 +148,8 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
     const repositories = new ExpoSqliteRepositories({ database: db });
     await repositories.init();
 
-    // Setup NPC Plugin
-    const { privkey } = await seedService.getNostrKeys(mnemonic);
+    // Setup Nostr listener & NPC Plugin
+    const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
     const privateKeyBytes = Buffer.from(privkey, 'hex');
 
     const signerFunction = async (eventTemplate: any) => {
@@ -179,6 +180,9 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
     if (!options.quiet) {
         // Enable watchers with staggered delays to prevent DB contention on start
         await enableWatchers(manager);
+        
+        // Start listening for Nostr Incoming Payments (Direct Messages)
+        nostrService.start(privkey, pubkey);
 
         console.log('[InitService] Manager ready with watchers and processors');
 
@@ -270,7 +274,7 @@ export const initService = {
         const repositories = new ExpoSqliteRepositories({ database: db });
         await repositories.init();
 
-        const { privkey } = await seedService.getNostrKeys(mnemonic);
+        const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
         const privateKeyBytes = Buffer.from(privkey, 'hex');
         const signerFunction = async (eventTemplate: any) => finalizeEvent(eventTemplate, privateKeyBytes);
         const npcPlugin = new NPCPlugin('https://npubx.cash', signerFunction, { syncIntervalMs: 30000, useWebsocket: true });
@@ -288,6 +292,10 @@ export const initService = {
 
         // Enable watchers WITHOUT staggered delays
         await enableWatchers(manager, { fast: true });
+        
+        // Start Nostr background receiver
+        nostrService.start(privkey, pubkey);
+        
         return manager;
     },
 
@@ -337,6 +345,7 @@ export const initService = {
      * Properly cleanup watchers and reset state.
      */
     cleanup: async (): Promise<void> => {
+        nostrService.stop();
         if (manager) {
             await disableWatchers(manager);
         }

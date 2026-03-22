@@ -3,6 +3,8 @@ import { initService, eventService } from '../services/core';
 import { useWalletStore } from '../store/walletStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../services/notificationService';
+import { DeviceEventEmitter } from 'react-native';
+import { useToastController } from '@tamagui/toast';
 
 /**
  * Hook to subscribe to coco CoreEvents and trigger wallet updates.
@@ -20,6 +22,7 @@ import { notificationService } from '../services/notificationService';
 export function useCocoEvents() {
     const { refreshBalance } = useWalletStore();
     const queryClient = useQueryClient();
+    const toast = useToastController();
 
     const handleBalanceUpdate = useCallback(() => {
         console.log('[useCocoEvents] Balance update triggered');
@@ -75,6 +78,14 @@ export function useCocoEvents() {
         }
 
         console.log('[useCocoEvents] Subscribing to CoreEvents');
+        
+        // Listen for internal app events
+        const nostrSub = DeviceEventEmitter.addListener('nostr:received', (payload: any) => {
+            console.log('[useCocoEvents] Nostr received:', payload.amount);
+            notificationService.sendLocalNotification('Payment Received', `You received ₿${payload.amount} sats via Nostr.`);
+            toast.show('Payment Received! 🎉', { message: `₿${payload.amount} sats added to your wallet via Nostr` });
+            handleBalanceUpdate();
+        });
 
         // Subscribe using typed eventService
         const unsubs = [
@@ -90,6 +101,7 @@ export function useCocoEvents() {
         return () => {
             console.log('[useCocoEvents] Unsubscribing from CoreEvents');
             unsubs.forEach(unsub => unsub());
+            nostrSub.remove();
         };
     }, [
         handleMintQuoteRedeemed,
