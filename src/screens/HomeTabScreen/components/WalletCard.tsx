@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Text, YStack, XStack } from "tamagui";
+import { Text, YStack, XStack, View } from "tamagui";
 import Balance from "./Balance";
 import Blockies from 'components/UI/Blockies';
-import { Copy, RefreshCw } from "@tamagui/lucide-icons";
+import { Copy, AtSign } from "@tamagui/lucide-icons";
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from "@tamagui/toast";
@@ -13,15 +13,14 @@ import { Animated, Easing } from 'react-native';
 
 export default function WalletCard() {
     const npub = useSettingsStore(state => state.npub);
-    const { isRestoring, restoringMintUrl } = useWalletStore();
+    const nip05 = useSettingsStore(state => state.nip05);
+    const { isRestoring } = useWalletStore();
     const toast = useToastController();
     const router = useRouter();
 
-    // Countdown from 2 (displayed as "syncing 2s…", "syncing 1s…")
     const [countdown, setCountdown] = useState(2);
-
-    // Spin animation for the sync icon
     const spin = React.useRef(new Animated.Value(0)).current;
+
     useEffect(() => {
         if (isRestoring) {
             setCountdown(2);
@@ -33,7 +32,6 @@ export default function WalletCard() {
                     useNativeDriver: true,
                 })
             ).start();
-
             const interval = setInterval(() => {
                 setCountdown(c => Math.max(0, c - 1));
             }, 1000);
@@ -44,12 +42,11 @@ export default function WalletCard() {
         }
     }, [isRestoring]);
 
-    const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
     const handleCopy = async () => {
-        if (!npub) return;
-        await Clipboard.setStringAsync(npub);
-        toast.show("Copied npub to clipboard");
+        const value = nip05 || npub;
+        if (!value) return;
+        await Clipboard.setStringAsync(value);
+        toast.show(nip05 ? 'Nostr address copied' : 'Copied npub to clipboard');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
@@ -58,14 +55,11 @@ export default function WalletCard() {
         return `${str.slice(0, 9)}...${str.slice(-4)}`;
     };
 
-    const mintHostname = restoringMintUrl
-        ? (() => { try { return new URL(restoringMintUrl).hostname; } catch { return restoringMintUrl; } })()
-        : null;
-
     return (
         <YStack width={"100%"} gap="$2">
             <XStack gap="$2" items="center" justify="space-between">
                 <XStack gap="$2" items="center">
+                    {/* Avatar → nostr profile modal */}
                     <XStack
                         pressStyle={{ opacity: 0.7, scale: 0.95 }}
                         onPress={() => {
@@ -80,22 +74,44 @@ export default function WalletCard() {
                             scale={4}
                         />
                     </XStack>
-                    <YStack items="center">
+
+                    {/* Identity display */}
+                    <YStack justify="center">
                         <XStack
-                            gap="$2"
+                            gap="$1.5"
                             items="center"
                             pressStyle={{ opacity: 0.7 }}
                             onPress={handleCopy}
                         >
-                            <Text fontSize="$5" fontWeight="700" color="$accent8">
-                                {npub ? truncateNpub(npub) : "Bey Wallet"}
-                            </Text>
-                            {npub && <Copy size={14} color="$accent8" />}
+                            {nip05 ? (
+                                /* ── NIP-05 identifier ── */
+                                <>
+                                    <View bg="$green3" rounded="$10" px="$1.5" py="$0.5">
+                                        <AtSign size={10} color="$green9" />
+                                    </View>
+                                    <Text fontSize="$4" fontWeight="700" color="$green10" numberOfLines={1}>
+                                        {nip05}
+                                    </Text>
+                                    <Copy size={12} color="$green9" />
+                                </>
+                            ) : (
+                                /* ── truncated npub ── */
+                                <>
+                                    <Text fontSize="$5" fontWeight="700" color="$accent8">
+                                        {npub ? truncateNpub(npub) : 'Bey Wallet'}
+                                    </Text>
+                                    {npub && <Copy size={14} color="$accent8" />}
+                                </>
+                            )}
                         </XStack>
+                        {/* Show npub beneath nip05 */}
+                        {nip05 && npub && (
+                            <Text fontSize="$1" color="$gray9" mt="$0.5">
+                                {truncateNpub(npub)}
+                            </Text>
+                        )}
                     </YStack>
                 </XStack>
-
-
             </XStack>
             <Balance />
         </YStack>

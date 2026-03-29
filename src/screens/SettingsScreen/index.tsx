@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView } from 'tamagui';
-import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server } from '@tamagui/lucide-icons';
+import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -32,7 +32,7 @@ export function SettingsScreen() {
     const nostrSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    const { secondaryCurrency, defaultMintUrl } = useSettingsStore();
+    const { secondaryCurrency, defaultMintUrl, nip05 } = useSettingsStore();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
     const [seedWords, setSeedWords] = useState<string[]>([]);
@@ -69,6 +69,9 @@ export function SettingsScreen() {
                 break;
             case 'nostr':
                 nostrSheetRef.current?.present();
+                break;
+            case 'nostr-username':
+                router.push('/(modals)/nostr-username');
                 break;
             default:
                 break;
@@ -221,6 +224,12 @@ export function SettingsScreen() {
                     title: 'Nostr Settings',
                     subTitle: 'Manage your npub, nsec, and relays',
                     icon: Server,
+                },
+                {
+                    id: 'nostr-username',
+                    title: 'Nostr Username',
+                    subTitle: nip05 ? nip05 : 'Claim a free NIP-05 address',
+                    icon: AtSign,
                 },
             ],
         },

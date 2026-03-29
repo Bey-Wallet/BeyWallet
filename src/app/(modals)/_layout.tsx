@@ -118,6 +118,12 @@ export default function ModalLayout() {
                     title: 'Proof Manager',
                 }}
             />
+            <Stack.Screen
+                name="nostr-username"
+                options={{
+                    title: 'Nostr Username',
+                }}
+            />
         </Stack>
     )
 }

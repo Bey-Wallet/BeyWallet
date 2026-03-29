@@ -12,12 +12,14 @@ interface SettingsState {
     initialized: boolean;
     npub: string | null;
     nsec: string | null;
+    nip05: string | null;             // e.g. "zaheer@nostrcheck.me"
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
     setDefaultMintUrl: (url: string) => Promise<void>;
     notificationsEnabled: boolean;
     setNotificationsEnabled: (enabled: boolean) => Promise<void>;
+    setNip05: (identifier: string | null) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -28,6 +30,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     initialized: false,
     npub: null,
     nsec: null,
+    nip05: null,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -70,9 +73,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 // Load Nostr keys
                 const storedNpub = await repo.settingsRepository.getSetting('npub');
                 const storedNsec = await repo.settingsRepository.getSetting('nsec');
+                const storedNip05 = await repo.settingsRepository.getSetting('nip05');
 
                 if (storedNpub && storedNsec) {
-                    set({ npub: storedNpub, nsec: storedNsec });
+                    set({ npub: storedNpub, nsec: storedNsec, nip05: storedNip05 || null });
                 } else {
                     // Generate and cache them if they don't exist yet
                     console.log('[SettingsStore] Nostr keys not in DB, generating and caching...');
@@ -153,6 +157,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set notifications enabled:', error);
             set({ notificationsEnabled: enabled });
+        }
+    },
+
+    setNip05: async (identifier: string | null) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('nip05', identifier ?? '');
+            }
+            set({ nip05: identifier });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set nip05:', error);
+            set({ nip05: identifier });
         }
     },
 }));
