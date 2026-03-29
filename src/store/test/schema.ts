@@ -347,6 +347,29 @@ const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE coco_cashu_mints ADD COLUMN nickname TEXT;
     `,
   },
+  {
+    id: '015_nostr_receive_requests',
+    sql: `
+      CREATE TABLE IF NOT EXISTS coco_cashu_nostr_receive_requests (
+        id          TEXT PRIMARY KEY NOT NULL,
+        mintUrl     TEXT NOT NULL,
+        amount      INTEGER NOT NULL,
+        unit        TEXT NOT NULL DEFAULT 'sat',
+        creqString  TEXT NOT NULL,
+        nostrPubkey TEXT NOT NULL,
+        description TEXT,
+        state       TEXT NOT NULL DEFAULT 'pending'
+          CHECK (state IN ('pending','received','expired','cancelled')),
+        createdAt   INTEGER NOT NULL,
+        updatedAt   INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_nostr_receive_requests_state
+        ON coco_cashu_nostr_receive_requests(state);
+      CREATE INDEX IF NOT EXISTS idx_nostr_receive_requests_createdAt
+        ON coco_cashu_nostr_receive_requests(createdAt DESC);
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

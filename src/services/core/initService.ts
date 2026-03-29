@@ -32,6 +32,59 @@ let appStateSubscription: any = null;
 let isInitializing = false;
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
+/**
+ * Returns the shared SQLite database instance opened by initService.
+ * Use this instead of opening a new connection to avoid WAL locking conflicts.
+ * May be null before wallet initialization — callers should handle that gracefully.
+ */
+export function getSharedDb(): SQLite.SQLiteDatabase | null {
+    return dbInstance;
+}
+
+/**
+ * Purge all cached keysets for a mint from the local database.
+ *
+ * Called automatically when coco-cashu-core throws "Keyset verification failed"
+ * for a mint — this clears the stale/corrupted keyset rows so the SDK fetches
+ * fresh keys from the mint on the next attempt.
+ *
+ * @param mintUrl - The mint whose keysets should be cleared
+ * @param keysetId - Optional: clear only this specific keyset ID
+ */
+export async function purgeCorruptedKeysets(mintUrl: string, keysetId?: string): Promise<void> {
+    const db = dbInstance;
+    if (!db) {
+        console.warn('[InitService] purgeCorruptedKeysets: db not ready, skipping');
+        return;
+    }
+
+    try {
+        if (keysetId) {
+            await db.runAsync(
+                `DELETE FROM coco_cashu_keysets WHERE mintUrl = ? AND id = ?`,
+                mintUrl, keysetId,
+            );
+            console.log(`[InitService] 🧹 Deleted corrupted keyset ${keysetId} for ${mintUrl}`);
+        } else {
+            await db.runAsync(
+                `DELETE FROM coco_cashu_keysets WHERE mintUrl = ?`,
+                mintUrl,
+            );
+            console.log(`[InitService] 🧹 Deleted ALL keysets for ${mintUrl}`);
+        }
+
+        // Also clear the counters so the SDK doesn't try to resume from a bad counter
+        await db.runAsync(
+            `DELETE FROM coco_cashu_counters WHERE mintUrl = ?`,
+            mintUrl,
+        );
+        console.log(`[InitService] 🧹 Cleared counters for ${mintUrl}`);
+    } catch (err) {
+        console.warn('[InitService] purgeCorruptedKeysets failed:', err);
+    }
+}
+
+
 // ─── Internal Helpers ─────────────────────────────────────────
 
 /**

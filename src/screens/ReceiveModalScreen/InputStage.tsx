@@ -23,7 +23,10 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
         }
     };
 
-    const isValidToken = token.trim().length > 5 && (
+    const isPaymentRequest = token.trim().toLowerCase().startsWith('creqa') ||
+        token.trim().toLowerCase().startsWith('creqb');
+
+    const isValidToken = !isPaymentRequest && token.trim().length > 5 && (
         token.trim().toLowerCase().includes('cashu') ||
         token.trim().toLowerCase().includes('creq') ||
         token.trim().toLowerCase().startsWith('lnbc') ||

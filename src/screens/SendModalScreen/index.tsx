@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react'
-import { useRouter, Stack } from 'expo-router'
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
 import { P2PKAmountStage } from './P2PKAmountStage'
 import { ResultStage } from './ResultStage'
 import { SuccessStage } from './SuccessStage'
+import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { biometricService } from '~/services/biometricService'
 import { walletService, mintManager } from '~/services/core'
 import * as Haptics from 'expo-haptics'
@@ -19,8 +20,37 @@ import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
 import SendMethodSelector, { SendMode } from '~/components/SendMethodSelector'
+import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts'
 
-type SendStep = 'amount' | 'result' | 'success';
+type SendStep = 'amount' | 'result' | 'success' | 'payment_request';
+
+/** Parse a NUT-18 creqA/creqB string into our UI model */
+function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
+    try {
+        const pr = PaymentRequest.fromEncodedRequest(raw);
+        // Extract Nostr transport target (npub)
+        let nostrTarget: string | undefined;
+        if (pr.transport) {
+            const nostrTr = pr.transport.find(
+                (t: any) => t.type === PaymentRequestTransportType.NOSTR ||
+                             t.type === 'nostr' ||
+                             String(t.type) === '1'
+            );
+            if (nostrTr) nostrTarget = nostrTr.target;
+        }
+        return {
+            raw,
+            amount: pr.amount ?? undefined,
+            unit: pr.unit ?? 'sat',
+            description: pr.description ?? undefined,
+            mints: pr.mints ?? [],
+            nostrTarget,
+        };
+    } catch (e) {
+        console.error('[SendModal] Failed to parse payment request:', e);
+        return null;
+    }
+}
 
 export function SendModalScreen() {
     const [step, setStep] = useState<SendStep>('amount')
@@ -34,6 +64,21 @@ export function SendModalScreen() {
     const [receiverPubkey, setReceiverPubkey] = useState('')
     const router = useRouter()
     const queryClient = useQueryClient();
+
+    // ── NUT-18 Payment Request (from scanner) ───────────────────────────────
+    const params = useLocalSearchParams<{ paymentRequest?: string }>();
+    const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
+        if (!params.paymentRequest) return null;
+        return parsePaymentRequest(params.paymentRequest as string);
+    }, [params.paymentRequest]);
+
+    // Auto-switch to payment_request step if we got a creqA param
+    React.useEffect(() => {
+        if (parsedRequest) {
+            console.log('[SendModal] Auto-switching to payment_request stage:', parsedRequest);
+            setStep('payment_request');
+        }
+    }, [parsedRequest]);
 
     const { balance, activeMintUrl, refreshBalance, mints } = useWalletStore()
     const { secondaryCurrency } = useSettingsStore()
@@ -256,6 +301,26 @@ export function SendModalScreen() {
                     ),
                 }}
             />
+            {step === 'payment_request' && parsedRequest && (
+                <PaymentRequestStage
+                    request={parsedRequest}
+                    onSuccess={(paidAmount, opId) => {
+                        setAmount(String(paidAmount));
+                        setOperationId(opId);
+                        queryClient.invalidateQueries({ queryKey: ['history'] });
+                        queryClient.invalidateQueries({ queryKey: ['balance'] });
+                        refreshBalance();
+                        setStep('success');
+                    }}
+                    onError={(msg) => {
+                        setError(msg);
+                        setStatus('error');
+                        setStep('result');
+                    }}
+                    onCancel={handleClose}
+                />
+            )}
+
             {step === 'amount' && (
                 <YStack flex={1}>
                     {sendMode === 'standard' && (

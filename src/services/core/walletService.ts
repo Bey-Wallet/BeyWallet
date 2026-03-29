@@ -10,10 +10,12 @@
  */
 
 import { initService } from './initService';
+import { purgeCorruptedKeysets } from './initService';
 import { cleanToken, encodeToken } from './tokenUtils';
 import type { Token } from '@cashu/cashu-ts';
 import { getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
+
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -26,6 +28,40 @@ const generateSubId = (): string => {
 function mgr() {
     return initService.getManager();
 }
+
+/**
+ * Wraps a wallet operation with automatic keyset-cache recovery.
+ *
+ * When coco-cashu-core throws "Keyset verification failed" (corrupted keyset
+ * in the local SQLite cache), this helper:
+ *   1. Extracts the keyset ID from the error message
+ *   2. Calls purgeCorruptedKeysets() to delete the bad row from coco_cashu_keysets
+ *   3. Retries the operation once with a fresh keyset fetch from the mint
+ *
+ * @param mintUrl - The mint involved in the operation (for targeted purge)
+ * @param fn      - The async operation to execute (and retry on keyset failure)
+ */
+async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (err: any) {
+        const msg: string = err?.message ?? '';
+        if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+            // Extract keyset ID from message: "Keyset verification failed for ID <id>"
+            const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
+            const keysetId = idMatch?.[1];
+            console.warn(
+                `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging cache and retrying…`,
+                keysetId ?? '(all keysets)',
+            );
+            await purgeCorruptedKeysets(mintUrl, keysetId);
+            // Retry once — SDK will now fetch fresh keys from the mint
+            return await fn();
+        }
+        throw err;
+    }
+}
+
 
 export const walletService = {
     // ─── Sending ──────────────────────────────────────────────
@@ -45,38 +81,37 @@ export const walletService = {
     send: async (mintUrl: string, amount: number): Promise<{ token: string; id: string }> => {
         console.log(`[WalletService] Sending ${amount} from ${mintUrl}`);
 
-        const m = mgr();
-        let preparedId: string | null = null;
+        return withKeysetRecovery(mintUrl, async () => {
+            const m = mgr();
+            let preparedId: string | null = null;
 
-        try {
-            // Step 1: Prepare the send operation
-            const prepared = await m.send.prepareSend(mintUrl, amount);
-            preparedId = prepared.id;
-            console.log(`[WalletService] Send prepared: ${preparedId}`);
+            try {
+                const prepared = await m.send.prepareSend(mintUrl, amount);
+                preparedId = prepared.id;
+                console.log(`[WalletService] Send prepared: ${preparedId}`);
 
-            // Step 2: Execute the prepared send
-            const { token, operation } = await m.send.executePreparedSend(prepared.id);
-            const encoded = encodeToken(token);
+                const { token, operation } = await m.send.executePreparedSend(prepared.id);
+                const encoded = encodeToken(token);
 
-            console.log(`[WalletService] Send complete, operation: ${operation.id}`);
-            return { token: encoded, id: operation.id };
-        } catch (err: any) {
-            // Rollback on failure to free reserved proofs
-            if (preparedId) {
-                try {
-                    const operation = await m.send.getOperation(preparedId);
-                    if (operation && ['prepared', 'executing', 'pending'].includes(operation.state)) {
-                        await m.send.rollback(preparedId);
-                        console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
+                console.log(`[WalletService] Send complete, operation: ${operation.id}`);
+                return { token: encoded, id: operation.id };
+            } catch (err: any) {
+                if (preparedId) {
+                    try {
+                        const operation = await m.send.getOperation(preparedId);
+                        if (operation && ['prepared', 'executing', 'pending'].includes(operation.state)) {
+                            await m.send.rollback(preparedId);
+                            console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
+                        }
+                    } catch (rollbackErr) {
+                        console.warn('[WalletService] Rollback failed:', rollbackErr);
                     }
-                } catch (rollbackErr) {
-                    console.warn('[WalletService] Rollback failed:', rollbackErr);
                 }
+                throw err;
             }
-            console.error('[WalletService] Send failed:', err?.message || err);
-            throw err;
-        }
+        });
     },
+
 
     /**
      * Send and return both encoded string and raw Token object.
@@ -85,27 +120,30 @@ export const walletService = {
         mintUrl: string,
         amount: number
     ): Promise<{ encoded: string; token: Token }> => {
-        const m = mgr();
-        let preparedId: string | null = null;
+        return withKeysetRecovery(mintUrl, async () => {
+            const m = mgr();
+            let preparedId: string | null = null;
 
-        try {
-            const prepared = await m.send.prepareSend(mintUrl, amount);
-            preparedId = prepared.id;
-            const { token } = await m.send.executePreparedSend(prepared.id);
-            const encoded = encodeToken(token);
-            return { encoded, token };
-        } catch (err) {
-            if (preparedId) {
-                try {
-                    const op = await m.send.getOperation(preparedId);
-                    if (op && ['prepared', 'executing', 'pending'].includes(op.state)) {
-                        await m.send.rollback(preparedId);
-                    }
-                } catch (e) { /* ignore rollback errors */ }
+            try {
+                const prepared = await m.send.prepareSend(mintUrl, amount);
+                preparedId = prepared.id;
+                const { token } = await m.send.executePreparedSend(prepared.id);
+                const encoded = encodeToken(token);
+                return { encoded, token };
+            } catch (err) {
+                if (preparedId) {
+                    try {
+                        const op = await m.send.getOperation(preparedId);
+                        if (op && ['prepared', 'executing', 'pending'].includes(op.state)) {
+                            await m.send.rollback(preparedId);
+                        }
+                    } catch (e) { /* ignore rollback errors */ }
+                }
+                throw err;
             }
-            throw err;
-        }
+        });
     },
+
 
     // ─── P2PK Sending ─────────────────────────────────────────
 

@@ -37,11 +37,16 @@ import { useToastController } from '@tamagui/toast';
 import QRCode from 'react-native-qrcode-svg';
 import { useWalletStore } from '../../store/walletStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useNostrRequestStore } from '../../store/nostrRequestStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
 // NUT-18: Cashu Payment Request
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
+
+/** Simple unique ID — avoids a uuid dependency */
+const makeRequestId = () =>
+    `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -96,6 +101,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
 
     // NUT-18 payment request
     const [creqString, setCreqString] = useState<string | null>(null);
+    const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generateError, setGenerateError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -105,6 +111,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
 
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
     const { secondaryCurrency, npub } = useSettingsStore();
+    const { addRequest } = useNostrRequestStore();
 
     const activeMint = mints.find(
         (m) => m.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
@@ -174,7 +181,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     };
 
     // ── Generate NUT-18 Cashu Payment Request ─────────────────────────────────
-    const handleGenerate = useCallback(() => {
+    const handleGenerate = useCallback(async () => {
         if (!isValidAmount || !activeMintUrl) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setIsGenerating(true);
@@ -182,25 +189,47 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
 
         try {
             // NUT-18: PaymentRequest(transport, id, amount, unit, mints, description)
-            // NOSTR transport using the user's npub
+            // NOSTR transport using the user's npub (hex pubkey for routing)
             const transports = npub ? [
                 {
                     type: PaymentRequestTransportType.NOSTR,
                     target: npub,
-                    tags: [], // no extra tags needed for standard routing
+                    tags: [],
                 }
             ] : [];
 
             const pr = new PaymentRequest(
-                transports,           // transport — NOSTR if available
-                undefined,            // no id
-                amtNum,               // amount in sats
-                'sat',                // unit
-                [activeMintUrl],      // accepted mints
-                note.trim() || undefined, // optional memo
+                transports,
+                undefined,
+                amtNum,
+                'sat',
+                [activeMintUrl],
+                note.trim() || undefined,
             );
 
-            const encoded = pr.toEncodedRequest(); // → "creqA..."
+            const encoded = pr.toEncodedRequest();
+
+            // ── Persist request to local DB so E-Cash screen shows it ──────────
+            const reqId = makeRequestId();
+            setCurrentRequestId(reqId);
+
+            if (npub && activeMintUrl) {
+                try {
+                    await addRequest({
+                        id: reqId,
+                        mintUrl: activeMintUrl,
+                        amount: amtNum,
+                        unit: 'sat',
+                        creqString: encoded,
+                        nostrPubkey: npub,
+                        description: note.trim() || undefined,
+                    });
+                    console.log('[RequestEcashStage] Request persisted to DB:', reqId);
+                } catch (dbErr) {
+                    console.warn('[RequestEcashStage] Could not persist request to DB:', dbErr);
+                }
+            }
+
             setCreqString(encoded);
             setStep('result');
         } catch (err: any) {
@@ -210,7 +239,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
         } finally {
             setIsGenerating(false);
         }
-    }, [amtNum, isValidAmount, activeMintUrl, note]);
+    }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest]);
 
     // ── Copy / Share ──────────────────────────────────────────────────────────
     const handleCopy = useCallback(async () => {

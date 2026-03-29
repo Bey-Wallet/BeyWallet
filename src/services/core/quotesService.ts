@@ -6,11 +6,29 @@
  */
 
 import { initService } from './initService';
+import { purgeCorruptedKeysets } from './initService';
 import type { MintQuoteResponse, MeltQuoteResponse } from '@cashu/cashu-ts';
 
 function mgr() {
     return initService.getManager();
 }
+
+async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (err: any) {
+        const msg: string = err?.message ?? '';
+        if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+            const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
+            const keysetId = idMatch?.[1];
+            console.warn(`[QuotesService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and retrying…`);
+            await purgeCorruptedKeysets(mintUrl, keysetId);
+            return await fn();
+        }
+        throw err;
+    }
+}
+
 
 export const quotesService = {
     // ─── Minting (Lightning → Ecash) ─────────────────────────
@@ -24,10 +42,13 @@ export const quotesService = {
      */
     createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
         console.log(`[QuotesService] Creating mint quote: ${amount} sats from ${mintUrl}`);
-        const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
-        console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
-        return quote;
+        return withKeysetRecovery(mintUrl, async () => {
+            const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
+            console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
+            return quote;
+        });
     },
+
 
     /**
      * Manually redeem a paid mint quote to get ecash.
@@ -68,10 +89,13 @@ export const quotesService = {
      */
     createMeltQuote: async (mintUrl: string, invoice: string): Promise<MeltQuoteResponse> => {
         console.log(`[QuotesService] Creating melt quote from ${mintUrl}`);
-        const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
-        console.log(`[QuotesService] ✅ Melt quote created: ${quote.quote}`);
-        return quote;
+        return withKeysetRecovery(mintUrl, async () => {
+            const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
+            console.log(`[QuotesService] ✅ Melt quote created: ${quote.quote}`);
+            return quote;
+        });
     },
+
 
     /**
      * Prepare a melt operation (two-step flow — step 1).
@@ -83,10 +107,13 @@ export const quotesService = {
      */
     prepareMelt: async (mintUrl: string, invoice: string) => {
         console.log(`[QuotesService] Preparing melt from ${mintUrl}`);
-        const operation = await mgr().quotes.prepareMeltBolt11(mintUrl, invoice);
-        console.log(`[QuotesService] ✅ Melt prepared: ${operation.id}`);
-        return operation;
+        return withKeysetRecovery(mintUrl, async () => {
+            const operation = await mgr().quotes.prepareMeltBolt11(mintUrl, invoice);
+            console.log(`[QuotesService] ✅ Melt prepared: ${operation.id}`);
+            return operation;
+        });
     },
+
 
     /**
      * Execute a prepared melt operation (two-step flow — step 2).

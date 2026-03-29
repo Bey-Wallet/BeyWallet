@@ -41,8 +41,21 @@ export function ReceiveModalScreen() {
 
     React.useEffect(() => {
         if (params.scannedToken) {
-            setToken(params.scannedToken);
-            handleDecodeToken(params.scannedToken);
+            const raw = params.scannedToken.trim();
+            const lower = raw.toLowerCase();
+
+            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest: raw },
+                });
+                return;
+            }
+
+            setToken(raw);
+            handleDecodeToken(raw);
         }
     }, [params.scannedToken]);
 

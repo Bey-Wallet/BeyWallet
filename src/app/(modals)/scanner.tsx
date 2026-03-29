@@ -124,8 +124,12 @@ export default function ScannerScreen() {
         setScanned(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        const lowerData = data.toLowerCase();
-        const isCashu = lowerData.includes('cashu') || lowerData.includes('creq');
+        const trimmed = data.trim();
+        const lower = trimmed.toLowerCase();
+
+        const isCashuToken = lower.startsWith('cashub') || lower.startsWith('cashua');
+        const isPaymentRequest = lower.startsWith('creqa') || lower.startsWith('creqb');
+        const isCashu = isCashuToken || isPaymentRequest || lower.includes('cashu') || lower.includes('creq');
 
         // If explicitly asked to return to a path (e.g. from P2PK Send flow)
         // We PRIORITIZE this because the user is already in a specific flow.
@@ -136,32 +140,44 @@ export default function ScannerScreen() {
             if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
                 router.replace({
                     pathname: '/(modals)/receive',
-                    params: { scannedToken: data }
+                    params: { scannedToken: trimmed }
                 });
                 return;
             }
 
             console.log('[Scanner] Returning result to store for:', params.returnTo);
-            useWalletStore.getState().setScannerResult(data);
+            useWalletStore.getState().setScannerResult(trimmed);
             router.back();
             return;
         }
 
-        // Global Smart Redirection (only if not returning to a specific flow)
-        if (isCashu) {
+        // ── NUT-18 Payment Request ────────────────────────────────────────
+        // Route to the Send modal which has a PaymentRequestStage
+        if (isPaymentRequest) {
+            console.log('[Scanner] NUT-18 payment request detected, routing to send...');
+            router.replace({
+                pathname: '/(modals)/send',
+                params: { paymentRequest: trimmed }
+            });
+            return;
+        }
+
+        // ── Cashu Token ───────────────────────────────────────────────────
+        if (isCashuToken) {
             console.log('[Scanner] Cashu token detected, redirecting to receive...');
             router.replace({
                 pathname: '/(modals)/receive',
-                params: { scannedToken: data }
+                params: { scannedToken: trimmed }
             });
             return;
         }
 
         // Fallback: Set result in store and go back
         console.log('[Scanner] Non-cashu data, returning to previous screen...');
-        useWalletStore.getState().setScannerResult(data);
+        useWalletStore.getState().setScannerResult(trimmed);
         router.back();
     };
+
 
     const handlePaste = async () => {
         const text = await Clipboard.getStringAsync();
