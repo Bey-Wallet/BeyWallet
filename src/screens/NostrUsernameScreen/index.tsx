@@ -14,10 +14,10 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { nip19 } from 'nostr-tools';
 import { Buffer } from 'buffer';
 
-// ─── nostrcheck.me API ────────────────────────────────────────────────────────
+// ─── zaps.lol API (nostr-address-provider) ────────────────────────────────────
 
-const DOMAIN = 'nostrcheck.me';
-const API_BASE = 'https://nostrcheck.me/api/v2';
+const DOMAIN = 'zaps.lol';
+const API_BASE = 'https://zaps.lol/api';
 
 /** Convert npub → hex pubkey */
 function npubToHex(npub: string): string | null {
@@ -26,7 +26,7 @@ function npubToHex(npub: string): string | null {
     try {
         const decoded = nip19.decode(npub);
         if (decoded.type === 'npub') {
-            return Buffer.from(decoded.data as Uint8Array).toString('hex');
+            return Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
         }
     } catch (e) {
         console.error('[NostrUsername] npub decode error:', e);
@@ -41,7 +41,7 @@ function nsecToHex(nsec: string): string | null {
     try {
         const decoded = nip19.decode(nsec);
         if (decoded.type === 'nsec') {
-            return Buffer.from(decoded.data as Uint8Array).toString('hex');
+            return Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
         }
     } catch (e) {
         console.error('[NostrUsername] nsec decode error:', e);
@@ -49,72 +49,51 @@ function nsecToHex(nsec: string): string | null {
     return null;
 }
 
-/** Check if a username is taken on nostrcheck.me via NIP-05 */
+/** Check if a username is taken on zaps.lol via NIP-05 */
 async function checkAvailability(username: string): Promise<'available' | 'taken' | 'error'> {
     try {
         const res = await fetch(
             `https://${DOMAIN}/.well-known/nostr.json?name=${encodeURIComponent(username)}`,
             { headers: { Accept: 'application/json' } }
         );
+        // zaps.lol (nostr-address-provider) returns 404 if name does not exist
         if (res.status === 404) return 'available';
         if (!res.ok) return 'error';
         const data = await res.json();
-        // If the name exists in the map it's taken
         if (data?.names?.[username]) return 'taken';
         return 'available';
-    } catch {
-        return 'error';
-    }
+    } catch { return 'error'; }
 }
 
-/** Create a NIP-98 HTTP auth event and register username */
+/** Create a NIP-98 HTTP auth event and register username on zaps.lol */
 async function registerUsername(
     username: string,
     hexPubkey: string,
     hexPrivkey: string
 ): Promise<{ ok: boolean; error?: string }> {
     try {
-        const { finalizeEvent } = await import('nostr-tools');
-        const url = `${API_BASE}/register`;
+        const url = `${API_BASE}/user-create`;
         const method = 'POST';
-
-        // NIP-98 auth event (kind 27235)
-        const authEvent = finalizeEvent(
-            {
-                kind: 27235,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ['u', url],
-                    ['method', method],
-                ],
-                content: '',
-            },
-            new Uint8Array(Buffer.from(hexPrivkey, 'hex'))
-        );
-
-        const authBase64 = Buffer.from(JSON.stringify(authEvent)).toString('base64');
 
         const res = await fetch(url, {
             method,
             headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Nostr ${authBase64}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                pubkey: hexPubkey,
-                name: username,
-                domain: DOMAIN,
+                username: username,
+                pubkey: hexPubkey
             }),
         });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
             console.error(`[NostrUsername] Registration failed (${res.status}):`, text.slice(0, 200));
-            return { ok: false, error: `Server error ${res.status}: Possible rate limit or protected domain.` };
+            return { ok: false, error: `Server error ${res.status}: Username may be taken or rate-limited.` };
         }
 
         const data = await res.json().catch(() => null);
-        if (!data) return { ok: false, error: 'Invalid response from server' };
+        if (!data) return { ok: false, error: 'Registration succeeded but response invalid' };
         
         return { ok: true };
     } catch (e: any) {
@@ -122,44 +101,7 @@ async function registerUsername(
     }
 }
 
-/** Delete (unregister) a username on nostrcheck.me */
-async function deleteUsername(
-    username: string,
-    hexPrivkey: string
-): Promise<{ ok: boolean; error?: string }> {
-    try {
-        const { finalizeEvent } = await import('nostr-tools');
-        const url = `${API_BASE}/nostraddress`;
-        const method = 'DELETE';
-
-        const authEvent = finalizeEvent(
-            {
-                kind: 27235,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [['u', url], ['method', method]],
-                content: '',
-            },
-            new Uint8Array(Buffer.from(hexPrivkey, 'hex'))
-        );
-        const authBase64 = Buffer.from(JSON.stringify(authEvent)).toString('base64');
-
-        const res = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Nostr ${authBase64}`,
-            },
-            body: JSON.stringify({ name: username }),
-        });
-
-        if (res.ok) return { ok: true };
-        const text = await res.text().catch(() => '');
-        console.error(`[NostrUsername] Delete failed (${res.status}):`, text.slice(0, 200));
-        return { ok: false, error: `Sync failed (${res.status})` };
-    } catch (e: any) {
-        return { ok: false, error: e?.message || 'Network error' };
-    }
-}
+// (Note: zaps.lol free edition currently does not support public unregistration through API)
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -232,25 +174,10 @@ export function NostrUsernameScreen() {
     };
 
     const handleDelete = async () => {
-        if (!nip05 || !nsec) return;
+        if (!nip05) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        const currentName = nip05.split('@')[0];
-        const hexSec = nsecToHex(nsec);
-        if (!hexSec) return;
-
-        setIsDeleting(true);
-        try {
-            const result = await deleteUsername(currentName, hexSec);
-            if (result.ok) {
-                await setNip05(null);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                toast.show('Username removed', { duration: 2500 });
-            } else {
-                toast.show('Failed', { message: result.error, duration: 3000 });
-            }
-        } finally {
-            setIsDeleting(false);
-        }
+        await setNip05(null);
+        toast.show('Username local reference removed', { duration: 2500 });
     };
 
     const handleCopyIdentifier = async () => {
@@ -319,12 +246,8 @@ export function NostrUsernameScreen() {
                                     flex={1}
                                     size="$4"
                                     chromeless
-                                    icon={isDeleting
-                                        ? <ActivityIndicator size="small" color="#ef4444" />
-                                        : <Trash2 size={16} color="$red10" />
-                                    }
+                                    icon={<Trash2 size={16} color="$red10" />}
                                     onPress={handleDelete}
-                                    disabled={isDeleting}
                                 >
                                     <Text color="$red10" fontWeight="600">Remove</Text>
                                 </Button>
@@ -406,7 +329,7 @@ export function NostrUsernameScreen() {
                             <Text fontSize="$2" color="$gray10" lineHeight={18}>
                                 A NIP-05 identifier (like an email address) lets other Nostr users
                                 find and verify you. It appears as <Text fontWeight="700">you@{DOMAIN}</Text> in
-                                compatible apps. Registration is free and powered by nostrcheck.me.
+                                compatible apps. Registration is free and powered by zaps.lol.
                             </Text>
                         </YStack>
                     </YStack>
