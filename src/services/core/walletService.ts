@@ -41,22 +41,33 @@ function mgr() {
  * @param mintUrl - The mint involved in the operation (for targeted purge)
  * @param fn      - The async operation to execute (and retry on keyset failure)
  */
-async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>): Promise<T> {
+async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retryCount: number = 0): Promise<T> {
     try {
         return await fn();
     } catch (err: any) {
         const msg: string = err?.message ?? '';
         if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+            if (retryCount >= 1) {
+                console.error(`[WalletService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
+                throw err;
+            }
+
             // Extract keyset ID from message: "Keyset verification failed for ID <id>"
             const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
             const keysetId = idMatch?.[1];
             console.warn(
-                `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging cache and retrying…`,
+                `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`,
                 keysetId ?? '(all keysets)',
             );
+            
+            // Purge corrupted keyset from DB
             await purgeCorruptedKeysets(mintUrl, keysetId);
-            // Retry once — SDK will now fetch fresh keys from the mint
-            return await fn();
+            
+            // Re-initialize the Manager to clear in-memory cache and force re-fetch
+            await initService.reinitFast();
+            
+            // Retry the operation once
+            return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
         }
         throw err;
     }

@@ -15,7 +15,8 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web",
     "build:web:optimized": "tamagui build --target web ./app -- expo export --platform web",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "postinstall": "npx patch-package"
   },
   "jest": {
     "preset": "jest-expo"

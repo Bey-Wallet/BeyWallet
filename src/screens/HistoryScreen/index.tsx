@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, Button, ScrollView, Separator, View, Check } from 'tamagui';
-import { Clock, ChevronDown, Calendar, Building2 } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Button, ScrollView, Separator, View } from 'tamagui';
+import { Clock, ChevronDown, Calendar, Building2, Check } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
 import { Spinner } from '../../components/UI/Spinner';

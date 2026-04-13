@@ -13,17 +13,29 @@ function mgr() {
     return initService.getManager();
 }
 
-async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>): Promise<T> {
+async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retryCount: number = 0): Promise<T> {
     try {
         return await fn();
     } catch (err: any) {
         const msg: string = err?.message ?? '';
         if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+            if (retryCount >= 1) {
+                console.error(`[QuotesService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
+                throw err;
+            }
+
             const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
             const keysetId = idMatch?.[1];
-            console.warn(`[QuotesService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and retrying…`);
+            console.warn(`[QuotesService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`);
+            
+            // Purge corrupted keyset from DB
             await purgeCorruptedKeysets(mintUrl, keysetId);
-            return await fn();
+            
+            // Re-initialize the Manager to clear in-memory cache and force re-fetch
+            await initService.reinitFast();
+            
+            // Retry the operation
+            return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
         }
         throw err;
     }
