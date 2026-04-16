@@ -50,6 +50,8 @@ export function PendingTokenLayout({
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
     const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
+    // Animated UR QR is opt-in only — standard wallets (Minibits, cashu.me, Sovan)
+    // cannot scan ur:cashu/... format. Default to static cashu: QR.
     const [showAnimatedQR, setShowAnimatedQR] = useState(false);
     const [fragmentLength, setFragmentLength] = useState(150);
     const [intervalMs, setIntervalMs] = useState(140);
@@ -64,6 +66,13 @@ export function PendingTokenLayout({
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
         staleTime: 30000,
     });
+
+    // Sync currentToken when prop token changes
+    useEffect(() => {
+        if (token && token !== currentToken) {
+            setCurrentToken(token);
+        }
+    }, [token]);
 
     useEffect(() => {
         if (!currentToken) return;
@@ -91,25 +100,23 @@ export function PendingTokenLayout({
                 }
             }
 
-            const shouldAnimate = proofs.length > 2 || clean.length > 400;
-
-            if (shouldAnimate) {
-                setShowAnimatedQR(true);
+            if (showAnimatedQR) {
+                // Only build UR encoder when animated mode is explicitly ON
                 const { encode: cborEncode } = require('cbor-x');
                 const cborBuffer = cborEncode(clean);
                 const ur = new UR(Buffer.from(cborBuffer), "cashu");
                 encoderRef.current = new UREncoder(ur, fragmentLength, 0);
                 setQrCodeFragment(encoderRef.current.nextPart());
             } else {
-                setShowAnimatedQR(false);
-                setQrCodeFragment(currentToken);
+                // Static mode: use plain cashu: token — readable by all wallets
+                setQrCodeFragment(clean.startsWith('cashu:') ? clean : `cashu:${clean}`);
             }
         } catch (e) {
             console.error('[PendingTokenLayout] Failed to setup QR:', e);
             setShowAnimatedQR(false);
-            setQrCodeFragment(currentToken);
+            setQrCodeFragment(currentToken.startsWith('cashu:') ? currentToken : `cashu:${currentToken}`);
         }
-    }, [currentToken, fragmentLength, lockedToNpub]);
+    }, [currentToken, fragmentLength, lockedToNpub, showAnimatedQR]);
 
     useEffect(() => {
         if (!showAnimatedQR || !encoderRef.current) return;
@@ -175,6 +182,11 @@ export function PendingTokenLayout({
     const speedLabel = intervalMs === 140 ? "F" : intervalMs === 250 ? "M" : "S";
     const sizeLabel = fragmentLength === 150 ? "L" : fragmentLength === 100 ? "M" : "S";
 
+    const handleToggleAnimatedQR = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowAnimatedQR(prev => !prev);
+    };
+
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
@@ -182,21 +194,22 @@ export function PendingTokenLayout({
             {/* QR Code */}
             <YStack items="center" gap="$4" mb="$6">
                 <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
-                    {(!showAnimatedQR && currentToken && currentToken.length > 400) ? (
-                        <YStack width={330} height={330} items="center" justify="center">
-                            <Spinner size="large" color="$color" />
-                        </YStack>
-                    ) : (
+                    {qrCodeFragment ? (
                         <QRCode
-                            value={showAnimatedQR ? qrCodeFragment : (currentToken.startsWith('cashu:') ? currentToken : `cashu:${currentToken}`)}
+                            value={qrCodeFragment}
                             size={330}
                             backgroundColor="white"
                             color="black"
                             quietZone={10}
                         />
+                    ) : (
+                        <YStack width={330} height={330} items="center" justify="center">
+                            <Spinner size="large" color="$color" />
+                        </YStack>
                     )}
                 </View>
 
+                {/* QR controls: animated UR toggle + token version + speed/size when animated */}
                 <XStack gap="$1.5" bg="$color3" px="$4" py="$2" rounded="$10" flexWrap="wrap" justify="center">
                     {showAnimatedQR && (
                         <>
@@ -207,7 +220,23 @@ export function PendingTokenLayout({
                         </>
                     )}
                     <Button size="$2.5" chromeless icon={<Hexagon size={16} />} onPress={handleToggleVersion} color="$color" fontWeight="700">{tokenVersion}</Button>
+                    <Separator vertical height={15} style={{ alignSelf: 'center' }} borderColor="$gray8" />
+                    {/* UR animated QR for advanced wallets — off by default */}
+                    <Button
+                        size="$2.5"
+                        chromeless
+                        onPress={handleToggleAnimatedQR}
+                        color={showAnimatedQR ? '$orange10' : '$color'}
+                        fontWeight="700"
+                    >
+                        {showAnimatedQR ? 'UR' : 'QR'}
+                    </Button>
                 </XStack>
+                {showAnimatedQR && (
+                    <Text fontSize="$1" color="$orange10" text="center" px="$4">
+                        UR animated mode — only for UR-compatible wallets
+                    </Text>
+                )}
             </YStack>
 
             {/* Details Table */}

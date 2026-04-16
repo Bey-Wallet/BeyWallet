@@ -124,10 +124,10 @@ export function TransactionDetailsScreen() {
     }, [entry]);
 
     const status = entry?.state || 'completed';
-    console.log('[TransactionDetails] Status:', status, 'EntryType:', entry?.type);
 
     // Animated QR states
     const [qrCodeFragment, setQrCodeFragment] = useState<string>('');
+    // UR animated QR is opt-in — standard wallets (Minibits, cashu.me, Sovan) expect plain cashu: QR
     const [showAnimatedQR, setShowAnimatedQR] = useState(false);
     const [fragmentLength, setFragmentLength] = useState(150); // L=150, M=100, S=50
     const [intervalMs, setIntervalMs] = useState(140); // F=140, M=250, S=500
@@ -135,15 +135,12 @@ export function TransactionDetailsScreen() {
     const encoderRef = useRef<UREncoder | null>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    // Initialize/Update token version and fragment when token changes
+    // Initialize/Update token version when token changes
     useEffect(() => {
         if (token && typeof token === 'string') {
             setTokenVersion(token.startsWith('cashuB') ? 'V4' : 'V3');
-            if (!showAnimatedQR) {
-                setQrCodeFragment(token);
-            }
         }
-    }, [token, showAnimatedQR]);
+    }, [token]);
 
     const [lockedToNpub, setLockedToNpub] = useState<string | null>(null);
 
@@ -154,7 +151,7 @@ export function TransactionDetailsScreen() {
             const clean = cleanToken(token);
             if (!clean || typeof clean !== 'string') {
                 setShowAnimatedQR(false);
-                setQrCodeFragment(typeof token === 'string' ? token : '');
+                setQrCodeFragment(typeof token === 'string' ? `cashu:${token}` : '');
                 setLockedToNpub(null);
                 return;
             }
@@ -187,27 +184,23 @@ export function TransactionDetailsScreen() {
                 setLockedToNpub(null);
             }
 
-            // Animate if the token is large (>400 chars) or has more than 2 proofs
-            const shouldAnimate = proofs.length > 2 || clean.length > 400;
-
-            if (shouldAnimate) {
-                setShowAnimatedQR(true);
-                // External wallets (like cashu_pwa) expect the UR payload to be CBOR encoded
+            if (showAnimatedQR) {
+                // Only build UR encoder when animated mode is explicitly ON
                 const { encode: cborEncode } = require('cbor-x');
                 const cborBuffer = cborEncode(clean);
                 const ur = new UR(Buffer.from(cborBuffer), "cashu");
                 encoderRef.current = new UREncoder(ur, fragmentLength, 0);
                 setQrCodeFragment(encoderRef.current.nextPart());
             } else {
-                setShowAnimatedQR(false);
-                setQrCodeFragment(token);
+                // Static plain cashu: QR — compatible with Minibits, cashu.me, Sovan
+                setQrCodeFragment(clean.startsWith('cashu:') ? clean : `cashu:${clean}`);
             }
         } catch (e) {
             console.error('[TransactionDetails] Failed to setup QR:', e);
             setShowAnimatedQR(false);
-            setQrCodeFragment(token);
+            setQrCodeFragment(typeof token === 'string' ? `cashu:${token}` : '');
         }
-    }, [token, fragmentLength]);
+    }, [token, fragmentLength, showAnimatedQR]);
 
     useEffect(() => {
         if (!showAnimatedQR || !encoderRef.current) return;
