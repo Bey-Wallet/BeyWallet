@@ -3,9 +3,10 @@
  * Handles token cleaning, encoding, decoding, and peanut format.
  */
 
-import { getDecodedToken, getEncodedToken } from 'coco-cashu-core';
-import { getEncodedTokenV4 } from '@cashu/cashu-ts';
+import { getDecodedToken as getDecodedTokenCoco, getEncodedToken } from 'coco-cashu-core';
+import { getEncodedTokenV4, getDecodedToken } from '@cashu/cashu-ts';
 import type { DecodedTokenPreview } from './types';
+
 
 // ─── Token Cleaning ───────────────────────────────────────────
 
@@ -158,73 +159,122 @@ export function encodePeanut(tokenStr: string): string {
 }
 
 // ─── Token Decoding ───────────────────────────────────────────
+// Updated: force Metro reload
 
 /**
  * Decode a token string to preview its contents.
- * Handles V3, V4, and provides helpful error messages for non-cashu formats.
+ * Handles V3 (cashuA, JSON) and V4 (cashuB, CBOR).
+ *
+ * Supports both token shapes returned by getDecodedToken:
+ *   - New flat shape:   { mint, proofs, unit }
+ *   - Old nested shape: { token: [{ mint, proofs }], unit }  (some V3 tokens)
  */
 export function decodeToken(tokenString: string): DecodedTokenPreview {
     const cleaned = cleanToken(tokenString);
+    console.log('[decodeToken] input prefix:', cleaned.substring(0, 40));
 
+    // ── Primary: @cashu/cashu-ts — handles V3 (JSON) AND V4 (CBOR) ──────────
     try {
-        const decoded = getDecodedToken(cleaned);
-        const totalAmount = decoded.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        const decoded = getDecodedToken(cleaned) as any;
+        let mint = '';
+        let proofs: any[] = [];
+        let unit = 'sat';
+        let memo: string | undefined;
 
-        return {
-            mint: decoded.mint,
-            amount: totalAmount,
-            unit: decoded.unit || 'sat',
-            proofs: decoded.proofs,
-            memo: decoded.memo,
-            raw: decoded,
-        };
-    } catch (err: any) {
-        // Manual fallback for V3 tokens
-        try {
-            let base64Part = '';
-            if (cleaned.startsWith('cashuA') || cleaned.startsWith('cashuB')) {
-                base64Part = cleaned.substring(6);
-            } else if (cleaned.startsWith('creqA') || cleaned.startsWith('creqB')) {
-                base64Part = cleaned.substring(5);
-            }
-
-            if (base64Part) {
-                const normalizedB64 = base64Part.replace(/-/g, '+').replace(/_/g, '/');
-                const decodedStr = Buffer.from(normalizedB64, 'base64').toString('utf8');
-                const json = JSON.parse(decodedStr);
-
-                if (json.token && Array.isArray(json.token)) {
-                    const first = json.token[0];
-                    const proofs = first.proofs || [];
-                    return {
-                        mint: first.mint,
-                        amount: proofs.reduce((acc: number, p: any) => acc + p.amount, 0),
-                        unit: first.unit || 'sat',
-                        proofs,
-                        raw: json,
-                    };
-                }
-            }
-        } catch {
-            // fallback also failed
+        // Handle BOTH token shapes (walletService.ts pattern)
+        if (decoded.token && Array.isArray(decoded.token) && decoded.token.length > 0) {
+            // Old nested shape: { token: [{ mint, proofs }] }
+            const first = decoded.token[0];
+            mint = first.mint;
+            proofs = first.proofs || [];
+            unit = first.unit || decoded.unit || 'sat';
+            memo = decoded.memo;
+        } else if (decoded.mint && decoded.proofs) {
+            // New flat shape: { mint, proofs, unit }
+            mint = decoded.mint;
+            proofs = decoded.proofs || [];
+            unit = decoded.unit || 'sat';
+            memo = decoded.memo;
+        } else {
+            throw new Error('Unrecognised token shape from getDecodedToken');
         }
 
-        // Provide helpful error messages for non-cashu formats
-        if (cleaned.startsWith('creq')) {
-            throw new Error('This is a Cashu Request (creq). Receiving creq tokens is not yet supported.');
-        }
+        const totalAmount = proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        console.log('[decodeToken] ✅ cashu-ts OK — mint:', mint, 'proofs:', proofs.length);
+        return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
 
-        const lower = cleaned.toLowerCase();
-        if (lower.startsWith('lnbc') || lower.startsWith('lightning:lnbc')) {
-            throw new Error('This looks like a Lightning Invoice. Please use the "Send" tab to pay invoices.');
-        }
-        if (lower.startsWith('lnurl')) {
-            throw new Error('This looks like an LNURL. LNURL deposits are not yet supported.');
-        }
-        if (err.message?.includes('version')) {
-            throw new Error('The scanned token version is not supported by this wallet.');
-        }
-
-        throw new Error('Invalid or unsupported cashu token format.');
+    } catch (err1: any) {
+        console.warn('[decodeToken] cashu-ts failed:', err1?.message);
     }
+
+    // ── Secondary: coco-cashu-core ───────────────────────────────────────────
+    try {
+        const decoded = getDecodedTokenCoco(cleaned) as any;
+        let mint = '';
+        let proofs: any[] = [];
+        let unit = 'sat';
+        let memo: string | undefined;
+
+        if (decoded.token && Array.isArray(decoded.token) && decoded.token.length > 0) {
+            const first = decoded.token[0];
+            mint = first.mint;
+            proofs = first.proofs || [];
+            unit = first.unit || decoded.unit || 'sat';
+            memo = decoded.memo;
+        } else if (decoded.mint && decoded.proofs) {
+            mint = decoded.mint;
+            proofs = decoded.proofs || [];
+            unit = decoded.unit || 'sat';
+            memo = decoded.memo;
+        } else {
+            throw new Error('Unrecognised token shape from coco getDecodedToken');
+        }
+
+        const totalAmount = proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        console.log('[decodeToken] ✅ coco-cashu-core OK — mint:', mint);
+        return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
+
+    } catch (err2: any) {
+        console.warn('[decodeToken] coco-cashu-core failed:', err2?.message);
+    }
+
+    // ── Manual fallback: cashuA (V3) only — base64 → JSON ───────────────────
+    // cashuB is CBOR-encoded; JSON.parse always fails for V4 — skip it
+    if (cleaned.startsWith('cashuA')) {
+        try {
+            const base64Part = cleaned.substring(6);
+            const normalizedB64 = base64Part.replace(/-/g, '+').replace(/_/g, '/');
+            const json = JSON.parse(Buffer.from(normalizedB64, 'base64').toString('utf8'));
+            if (json.token && Array.isArray(json.token)) {
+                const first = json.token[0];
+                const proofs = first.proofs || [];
+                console.log('[decodeToken] ✅ Manual V3 fallback OK');
+                return {
+                    mint: first.mint,
+                    amount: proofs.reduce((acc: number, p: any) => acc + p.amount, 0),
+                    unit: first.unit || 'sat',
+                    proofs,
+                    raw: json,
+                };
+            }
+        } catch (err3: any) {
+            console.warn('[decodeToken] Manual V3 fallback failed:', err3?.message);
+        }
+    }
+
+    // ── Friendly error messages ──────────────────────────────────────────────
+    if (cleaned.startsWith('creq')) {
+        throw new Error('This is a Cashu Request (creq). Receiving creq tokens is not yet supported.');
+    }
+    const lower = cleaned.toLowerCase();
+    if (lower.startsWith('lnbc') || lower.startsWith('lightning:lnbc')) {
+        throw new Error('This looks like a Lightning Invoice. Please use the "Send" tab to pay invoices.');
+    }
+    if (lower.startsWith('lnurl')) {
+        throw new Error('This looks like an LNURL. LNURL deposits are not yet supported.');
+    }
+
+    console.error('[decodeToken] ❌ All decoders failed. Token prefix:', cleaned.substring(0, 50));
+    throw new Error('Invalid or unsupported cashu token format.');
 }
+

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView } from "tamagui";
 import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft } from "@tamagui/lucide-icons";
+import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -8,7 +9,7 @@ import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 
 import { Spinner } from './Spinner';
-import { Buffer } from 'buffer';
+
 import { UR, UREncoder } from "@gandlaf21/bc-ur";
 import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -50,11 +51,10 @@ export function PendingTokenLayout({
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
     const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
-    // Animated UR QR is opt-in only — standard wallets (Minibits, cashu.me, Sovan)
-    // cannot scan ur:cashu/... format. Default to static cashu: QR.
+    // Animated UR QR is auto-enabled for large tokens (>2 proofs) like cashu.me does
     const [showAnimatedQR, setShowAnimatedQR] = useState(false);
     const [fragmentLength, setFragmentLength] = useState(150);
-    const [intervalMs, setIntervalMs] = useState(140);
+    const [intervalMs, setIntervalMs] = useState(150);
     const encoderRef = useRef<UREncoder | null>(null);
     const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>(token?.startsWith('cashuB') ? 'V4' : 'V3');
 
@@ -74,6 +74,9 @@ export function PendingTokenLayout({
         }
     }, [token]);
 
+    // Effect 1: Detect proof count + p2pk from token — only runs when token changes.
+    // Sets showAnimatedQR if >2 proofs (matches cashu.me behaviour) but does NOT
+    // depend on showAnimatedQR itself, avoiding an infinite loop.
     useEffect(() => {
         if (!currentToken) return;
 
@@ -93,30 +96,42 @@ export function PendingTokenLayout({
                     try {
                         const parsed = JSON.parse(firstSecret);
                         const hexPubkey = parsed[1]?.data;
-                        if (hexPubkey) {
-                            setParsedNpub(nip19.npubEncode(hexPubkey));
-                        }
+                        if (hexPubkey) setParsedNpub(nip19.npubEncode(hexPubkey));
                     } catch (e) { }
                 }
             }
 
+            // Auto-enable animated QR for large tokens like cashu.me does (>2 proofs)
+            setShowAnimatedQR(proofs.length > 2);
+        } catch (e) {
+            console.error('[PendingTokenLayout] Failed to decode token:', e);
+            setShowAnimatedQR(false);
+        }
+    }, [currentToken, lockedToNpub]);
+
+    // Effect 2: Build QR / UR encoder whenever token, mode, or fragment params change.
+    // Does NOT set showAnimatedQR — reads it as a stable value from Effect 1.
+    useEffect(() => {
+        if (!currentToken) return;
+
+        try {
+            const clean = cleanToken(currentToken);
+
             if (showAnimatedQR) {
-                // Only build UR encoder when animated mode is explicitly ON
-                const { encode: cborEncode } = require('cbor-x');
-                const cborBuffer = cborEncode(clean);
-                const ur = new UR(Buffer.from(cborBuffer), "cashu");
+                // Match cashu.me exactly: UR.fromBuffer(Buffer.from(tokenString))
+                // Raw token string bytes — no CBOR wrapping — compatible with all UR scanners
+                const ur = UR.fromBuffer(Buffer.from(clean));
                 encoderRef.current = new UREncoder(ur, fragmentLength, 0);
                 setQrCodeFragment(encoderRef.current.nextPart());
             } else {
-                // Static mode: use plain cashu: token — readable by all wallets
-                setQrCodeFragment(clean.startsWith('cashu:') ? clean : `cashu:${clean}`);
+                // Static mode: plain token string — readable by all wallets
+                setQrCodeFragment(clean);
             }
         } catch (e) {
             console.error('[PendingTokenLayout] Failed to setup QR:', e);
-            setShowAnimatedQR(false);
-            setQrCodeFragment(currentToken.startsWith('cashu:') ? currentToken : `cashu:${currentToken}`);
+            setQrCodeFragment(currentToken);
         }
-    }, [currentToken, fragmentLength, lockedToNpub, showAnimatedQR]);
+    }, [currentToken, fragmentLength, showAnimatedQR]);
 
     useEffect(() => {
         if (!showAnimatedQR || !encoderRef.current) return;
@@ -167,8 +182,9 @@ export function PendingTokenLayout({
 
     const changeSpeed = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        // Cycle: Fast(150) -> Medium(250) -> Slow(500) -> Fast — matches cashu.me
         if (intervalMs === 250) setIntervalMs(500);
-        else if (intervalMs === 500) setIntervalMs(140);
+        else if (intervalMs === 500) setIntervalMs(150);
         else setIntervalMs(250);
     };
 
@@ -179,7 +195,7 @@ export function PendingTokenLayout({
         else setFragmentLength(100);
     };
 
-    const speedLabel = intervalMs === 140 ? "F" : intervalMs === 250 ? "M" : "S";
+    const speedLabel = intervalMs === 150 ? "F" : intervalMs === 250 ? "M" : "S";
     const sizeLabel = fragmentLength === 150 ? "L" : fragmentLength === 100 ? "M" : "S";
 
     const handleToggleAnimatedQR = () => {

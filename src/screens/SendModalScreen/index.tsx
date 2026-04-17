@@ -107,7 +107,7 @@ export function SendModalScreen() {
         const handleSuccess = async (source: string) => {
             if (isDetected) return;
 
-            // Double confirmation for events: check proof states before transitioning
+            // Double confirmation for events only — polling already verified the chain state directly
             if (source === 'event') {
                 try {
                     console.log(`[SendModalScreen] 🛡️ Verifying event success for:`, operationId);
@@ -127,41 +127,36 @@ export function SendModalScreen() {
             console.log(`[SendModalScreen] ✅ SUCCESS CONFIRMED via ${source} for:`, operationId);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Transition to success stage
             setStep('success');
-
-            // Invalidate queries
             queryClient.invalidateQueries({ queryKey: ['history'] });
             queryClient.invalidateQueries({ queryKey: ['transaction', operationId] });
         };
 
-        // Listen for history updates
+        // Listen for history:updated events from the SDK
         const unsubHistory = eventService.on('history:updated', (payload: any) => {
-            console.log('[SendModalScreen] 📜 History update:', {
-                currentOpId: operationId,
-                payloadId: payload.id,
-                payloadState: payload.state,
-                fullPayload: payload
-            });
             if (payload.id === operationId && payload.state === 'claimed') {
                 handleSuccess('event');
             }
         });
 
-        // Fallback: poll proof state
-        const interval = setInterval(async () => {
+        // Poll proof state — first check is immediate, then every 2.5s
+        const pollOnce = async () => {
+            if (isDetected) return;
             try {
                 const states = await proofService.checkProofStates(encodedToken);
                 const spentCount = states.filter((s: any) => s.state === 'SPENT').length;
-                console.log(`[SendModalScreen] 🔍 Polling check [${operationId}]: ${spentCount}/${states.length} proofs SPENT`);
-
+                console.log(`[SendModalScreen] 🔍 Poll [${operationId}]: ${spentCount}/${states.length} SPENT`);
                 if (states.length > 0 && spentCount === states.length) {
                     handleSuccess('polling');
                 }
             } catch (err) {
                 console.warn('[SendModalScreen] Polling check failed:', err);
             }
-        }, 8000);
+        };
+
+        // Kick off immediately, then repeat every 2.5s
+        pollOnce();
+        const interval = setInterval(pollOnce, 2500);
 
         return () => {
             unsubHistory();

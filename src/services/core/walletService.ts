@@ -23,6 +23,66 @@ const generateSubId = (): string => {
 };
 
 /**
+ * Extract the mint URL from either a V3 (cashuA) or V4 (cashuB) token string,
+ * WITHOUT triggering the short-keyset-ID mapping step of getDecodedToken().
+ *
+ * For V3: standard JSON decode via getDecodedToken (safe — no keyset mapping needed).
+ * For V4: manual CBOR scan for the 'm' (mint) field, bypassing _i/ga entirely.
+ */
+function extractMintUrlFromToken(cleaned: string): string | null {
+    try {
+        const rawStr = cleaned.startsWith('cashu') ? cleaned.substring(5) : cleaned;
+
+        if (rawStr.startsWith('B')) {
+            // V4 CBOR token: base64url decode and find 'm' key in the CBOR map
+            const b64 = rawStr.substring(1); // strip version byte 'B'
+            // base64url → base64 → buffer
+            const b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = (4 - b64std.length % 4) % 4;
+            const b64padded = b64std + '=='.substring(0, pad);
+            let bytes: Uint8Array;
+            if (typeof Buffer !== 'undefined') {
+                bytes = new Uint8Array(Buffer.from(b64padded, 'base64'));
+            } else {
+                const bin = atob(b64padded);
+                bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            }
+            // Scan CBOR for string key 'm' followed by a text-string value
+            // CBOR: string "m" is encoded as 0x61 0x6d (major 3, length 1, byte 'm')
+            for (let i = 0; i < bytes.length - 2; i++) {
+                // CBOR text string of length 1: byte = 0x61
+                if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) { // "m" key
+                    // Next CBOR item should be a text string (mint URL)
+                    const lenByte = bytes[i + 2];
+                    const major = (lenByte >> 5) & 0x07;
+                    const info = lenByte & 0x1f;
+                    if (major === 3) { // text string
+                        let urlLen = 0;
+                        let urlStart = 0;
+                        if (info < 24) { urlLen = info; urlStart = i + 3; }
+                        else if (info === 24 && i + 4 < bytes.length) { urlLen = bytes[i + 3]; urlStart = i + 4; }
+                        else if (info === 25 && i + 5 < bytes.length) { urlLen = (bytes[i + 3] << 8) | bytes[i + 4]; urlStart = i + 5; }
+                        if (urlLen > 0 && urlStart + urlLen <= bytes.length) {
+                            const url = new TextDecoder().decode(bytes.slice(urlStart, urlStart + urlLen));
+                            if (url.startsWith('http')) return url;
+                        }
+                    }
+                }
+            }
+            return null;
+        } else {
+            // V3 JSON token: safe to call getDecodedToken without keyset IDs
+            const raw = getDecodedToken(cleaned) as any;
+            return raw?.mint || raw?.token?.[0]?.mint || null;
+        }
+    } catch (e: any) {
+        console.warn('[WalletService] extractMintUrlFromToken failed:', e?.message);
+        return null;
+    }
+}
+
+/**
  * Get the Manager or throw.
  */
 function mgr() {
@@ -308,31 +368,89 @@ export const walletService = {
         const cleaned = cleanToken(token);
         console.log('[WalletService] Receiving token:', cleaned.substring(0, 50) + '...');
 
+        // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
+        // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
+        // in its cache to map the short IDs back. We must pre-sync keysets first.
+        const unsafeManager = mgr() as any;
+
+        // Extract mint URL from the token (works for V3 and V4)
+        // For V4 CBOR tokens: read the 'm' field directly WITHOUT keyset mapping
+        // (getDecodedToken would throw for V4 when short keyset IDs aren't cached yet)
+        const mintUrl: string | null = extractMintUrlFromToken(cleaned);
+
+        // Pre-sync keysets for V4 tokens so the short 8-byte keyset IDs can be mapped
+        // to the full keyset IDs from the mint.
+        //
+        // Flow:
+        //  1. mintService.updateMintData() — fetches fresh keysets from the mint network
+        //     and writes the full 66-char keyset IDs (e.g. 01884a74bb2fc5ee...) to the DB.
+        //  2. walletService.clearCache() — clears the internal CashuWallet object that was
+        //     built BEFORE we fetched keysets. This forces rebuild on the next receive() call.
+        //     Without this, the wallet uses stale in-memory keyset IDs and the short ID
+        //     "01884a74bb2fc5ee" fails to map to the full ID.
+        //
+        // NOTE: We do NOT call reinitFast() here — that's overkill (destroys the whole Manager).
+        // clearCache() on the internal WalletService is sufficient.
+        if (mintUrl) {
+            try {
+                console.log('[WalletService] Pre-syncing keysets for token, mint:', mintUrl);
+                await unsafeManager.mintService.updateMintData(mintUrl);
+                // Clear the internal CashuWallet cache so next receive() rebuilds it with new keysets
+                if (typeof unsafeManager.walletService?.clearCache === 'function') {
+                    unsafeManager.walletService.clearCache(mintUrl);
+                    console.log('[WalletService] ✅ Keyset pre-sync complete + wallet cache cleared');
+                } else {
+                    // Fallback: clear ALL wallet caches if per-mint clear isn't available
+                    unsafeManager.walletService?.clearAllCaches?.();
+                    console.log('[WalletService] ✅ Keyset pre-sync complete + all wallet caches cleared');
+                }
+            } catch (syncErr: any) {
+                console.warn('[WalletService] Keyset pre-sync failed (non-fatal):', syncErr?.message);
+                // Non-fatal: attempt receive anyway — may succeed if keysets were already cached
+            }
+        }
+
         try {
             await mgr().wallet.receive(cleaned);
-            console.log('[WalletService] Token received successfully');
+            console.log('[WalletService] ✅ Token received successfully');
         } catch (err: any) {
-            console.error('[WalletService] Receive failed:', err?.message || err);
+            const msg: string = err?.message ?? '';
+            console.error('[WalletService] Receive failed:', msg);
             console.error('[WalletService] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
 
-            // If it's an "untrusted mint" error, provide helpful message
-            if (err?.message?.includes('not trusted') || err?.name === 'UnknownMintError') {
+            if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
                 throw new Error('Mint is not trusted. Please add and trust the mint first.');
             }
 
-            // If it's a proof validation error, provide helpful message
-            if (err?.message?.includes('Invalid token') || err?.name === 'ProofValidationError') {
+            // V4 short keyset ID mapping failed — clear wallet cache and retry once
+            if (msg.includes("Couldn't map") || msg.includes('short keyset')) {
+                console.warn('[WalletService] Short keyset ID mapping failed — clearing wallet cache and retrying...');
+                try {
+                    if (typeof unsafeManager.walletService?.clearCache === 'function') {
+                        unsafeManager.walletService.clearCache(mintUrl ?? '');
+                    } else {
+                        unsafeManager.walletService?.clearAllCaches?.();
+                    }
+                    await mgr().wallet.receive(cleaned);
+                    console.log('[WalletService] ✅ Token received (after cache clear)');
+                    return;
+                } catch (retryErr: any) {
+                    throw retryErr;
+                }
+            }
+
+            if (msg.includes('Invalid token') || err?.name === 'ProofValidationError') {
                 throw new Error('Invalid token format. Please check the token and try again.');
             }
 
-            // If proofs could not be verified
-            if (err?.message?.includes('could not be verified') || err?.message?.includes('outputs')) {
+            if (msg.includes('could not be verified') || msg.includes('outputs')) {
                 throw new Error('Token proofs could not be verified. The token may have already been redeemed.');
             }
 
             throw err;
         }
     },
+
 
     /**
      * Receive a P2PK locked ecash token.

@@ -380,21 +380,17 @@ export function TransactionDetailsScreen() {
         else setFragmentLength(100);
     };
 
-    // Auto-refresh on mount and poll if pending
+    // Auto-refresh on mount and poll if pending — first check is immediate, then every 2.5s
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        if (!entry || !initService.isInitialized()) return;
+        const isPending = status === 'pending' || status === 'unclaimed';
+        if (!isPending || entry.type !== 'send') return;
 
-        if (entry && (status === 'pending' || status === 'unclaimed') && entry.type === 'send' && initService.isInitialized()) {
-            handleRefresh();
+        // Fire immediately, then repeat every 2.5s
+        handleRefresh();
+        const interval = setInterval(handleRefresh, 2500);
 
-            interval = setInterval(() => {
-                handleRefresh();
-            }, 8000);
-        }
-
-        return () => {
-            if (interval) clearInterval(interval);
-        };
+        return () => clearInterval(interval);
     }, [entry?.id, entry?.state]);
     // Status text formatting
     const formattedStatus = useMemo(() => {
