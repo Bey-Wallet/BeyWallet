@@ -61,6 +61,8 @@ export function PendingTokenLayout({
     // Optional internal parsing for p2pk if lockedToNpub not passed
     const [parsedNpub, setParsedNpub] = useState<string | null>(lockedToNpub || null);
 
+    const MAX_STATIC_QR_LENGTH = 1000;
+
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -102,7 +104,7 @@ export function PendingTokenLayout({
             }
 
             // Auto-enable animated QR for large tokens like cashu.me does (>2 proofs)
-            setShowAnimatedQR(proofs.length > 2);
+            setShowAnimatedQR(proofs.length > 2 || clean.length > MAX_STATIC_QR_LENGTH);
         } catch (e) {
             console.error('[PendingTokenLayout] Failed to decode token:', e);
             setShowAnimatedQR(false);
@@ -199,6 +201,11 @@ export function PendingTokenLayout({
     const sizeLabel = fragmentLength === 150 ? "L" : fragmentLength === 100 ? "M" : "S";
 
     const handleToggleAnimatedQR = () => {
+        if (showAnimatedQR && cleanToken(currentToken).length > MAX_STATIC_QR_LENGTH) {
+            toast.show('Data too big', { message: 'Token is too large for a standard QR code. Use Animated QR or switch to V4 format.' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            return;
+        }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setShowAnimatedQR(prev => !prev);
     };
@@ -211,13 +218,25 @@ export function PendingTokenLayout({
             <YStack items="center" gap="$4" mb="$6">
                 <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
                     {qrCodeFragment ? (
-                        <QRCode
-                            value={qrCodeFragment}
-                            size={330}
-                            backgroundColor="white"
-                            color="black"
-                            quietZone={10}
-                        />
+                        qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
+                            <YStack width={330} height={330} items="center" justify="center" px="$4">
+                                <Gauge size={50} color="$orange8" opacity={0.5} />
+                                <Text mt="$4" color="$gray10" textAlign="center" fontWeight="600">
+                                    Token too large
+                                </Text>
+                                <Text mt="$2" color="$gray9" textAlign="center" fontSize="$2" px="$4">
+                                    Please enable Animated QR (UR) or switch to V4 encoding to make it smaller.
+                                </Text>
+                            </YStack>
+                        ) : (
+                            <QRCode
+                                value={qrCodeFragment}
+                                size={330}
+                                backgroundColor="white"
+                                color="black"
+                                quietZone={10}
+                            />
+                        )
                     ) : (
                         <YStack width={330} height={330} items="center" justify="center">
                             <Spinner size="large" color="$color" />

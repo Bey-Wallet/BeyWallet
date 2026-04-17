@@ -248,11 +248,25 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
         }
     );
 
+    // Custom logger to suppress expected keyset missing errors that our wrapper handles gracefully
+    const customLogger = {
+        error: (msg: string, ...meta: any[]) => {
+            if (msg.includes('Keyset restore failed') || msg.includes('Restore completed with failures')) {
+                // Suppress noisy expected internal restore errors
+                return;
+            }
+            console.error(`[Coco] ${msg}`, ...meta);
+        },
+        warn: (msg: string, ...meta: any[]) => console.warn(`[Coco] ${msg}`, ...meta),
+        info: () => { },
+        debug: () => { },
+    };
+
     // Initialize Manager using constructor (rc47 pattern)
     manager = new Manager(
         repositories,
         async () => new Uint8Array(seed),
-        new ConsoleLogger('Coco', { level: 'warn' }),
+        customLogger as any,
         undefined,
         [HistoryWatcherPlugin, npcPlugin]
     );

@@ -11,7 +11,7 @@ import { hexToBytes } from '@noble/hashes/utils';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
 import { Buffer } from 'buffer';
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
-import { walletService } from './walletService';
+// Removed top level walletService import to break require cycle.
 import { cleanToken } from './tokenUtils';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { nostrRequestStore } from '../../store/nostrRequestStore';
@@ -307,6 +307,9 @@ class NostrService {
 
       // ── Attempt P2PK receive first (locked to our key) ──────────────────
       let receiveError: any = null;
+      // Lazy load walletService to prevent circular dependency at top-level
+      const { walletService } = require('./walletService');
+
       try {
         await walletService.receiveP2PK(tokenString, this.privkeyHex!);
         console.log(`[NostrService] ✅ P2PK receive success: ${amount} sats`);
