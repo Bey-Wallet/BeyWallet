@@ -6,7 +6,7 @@ import { ConfirmStage } from './ConfirmStage'
 import { ReceiveResultStage } from './ReceiveResultStage'
 import { RequestEcashStage } from './RequestEcashStage'
 import { walletService, mintManager, initService } from '../../services/core';
-import { getDecodedToken } from '@cashu/cashu-ts';
+import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { nip19 } from 'nostr-tools'
@@ -76,29 +76,14 @@ export function ReceiveModalScreen() {
         setIsReceiveLater(false);
 
         try {
-            // Decode directly using @cashu/cashu-ts which supports V3 (cashuA) and V4 (cashuB/CBOR)
-            const rawDecoded = getDecodedToken(targetToken.trim()) as any;
-            console.log('[ReceiveModal] rawDecoded keys:', Object.keys(rawDecoded || {}), 'prefix:', targetToken.trim().substring(0, 15));
+            // Decode using tokenUtils.decodeToken which supports V3, V4 (cashuB/CBOR),
+            // and has a manual CBOR fallback that works WITHOUT pre-synced keysets.
+            const rawDecoded = decodeToken(targetToken.trim());
+            console.log('[ReceiveModal] decoded — mint:', rawDecoded.mint, 'proofs:', rawDecoded.proofs?.length);
 
-            // Normalise both token shapes from @cashu/cashu-ts:
-            //   Old nested: { token: [{ mint, proofs }], unit, memo }
-            //   New flat:   { mint, proofs, unit, memo }
-            let mintUrl = '';
-            let proofs: any[] = [];
-            let unit = 'sat';
-            if (rawDecoded?.token && Array.isArray(rawDecoded.token) && rawDecoded.token.length > 0) {
-                const first = rawDecoded.token[0];
-                mintUrl = first.mint || '';
-                proofs = first.proofs || [];
-                unit = first.unit || rawDecoded.unit || 'sat';
-            } else if (rawDecoded?.mint) {
-                mintUrl = rawDecoded.mint;
-                proofs = rawDecoded.proofs || [];
-                unit = rawDecoded.unit || 'sat';
-            } else {
-                throw new Error('Could not parse token: unknown token shape');
-            }
-            const amount = proofs.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+            const mintUrl = rawDecoded.mint || '';
+            const proofs = rawDecoded.proofs || [];
+            const amount = rawDecoded.amount ?? proofs.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
             // Check for P2PK pubkey in the first proof secret
             let p2pkNpub: string | undefined;
