@@ -5,11 +5,13 @@ import {
     initService,
     walletService,
     mintManager,
+    nostrService,
 } from '../services/core';
 import type { MintInfo } from '../services/core';
 import { useSettingsStore } from './settingsStore';
 import { DEFAULT_MINT } from './constants';
-import { InteractionManager } from 'react-native';
+import { InteractionManager, DeviceEventEmitter } from 'react-native';
+import { seedService } from '../services/seedService';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
 
@@ -49,6 +51,7 @@ interface WalletState {
     restoreFromSeed: (mintUrl: string) => Promise<void>;
     restoreAllMints: (extraMintUrls?: string[]) => Promise<void>;
     setScannerResult: (result: string | null) => void;
+    syncMintsToNostr: () => Promise<void>;
 }
 
 
@@ -161,6 +164,7 @@ export const useWalletStore = create<WalletState>()(
                         console.log(`[WalletStore] 🔄 Background: repair keysets + restore for: ${url}`);
                         mintManager.repairMintKeysets(url, 'sat').catch(console.warn);
                         get().restoreFromSeed(url);
+                        get().syncMintsToNostr();
                     });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to add mint:', err);
@@ -173,6 +177,9 @@ export const useWalletStore = create<WalletState>()(
                     await mintManager.trustMint(url);
                     const mintInfos = await mintManager.getMintInfoList();
                     set({ mints: mintInfos });
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to trust mint:', err);
                     set({ error: err.message });
@@ -271,6 +278,9 @@ export const useWalletStore = create<WalletState>()(
                 try {
                     await mintManager.untrustMint(url);
                     await get().refreshMintList();
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to untrust mint:', err);
                     set({ error: err.message });
@@ -291,6 +301,9 @@ export const useWalletStore = create<WalletState>()(
                             set({ activeMintUrl: nextActive || null });
                         }
                     }
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to remove mint:', err);
                     set({ error: err.message });
@@ -362,13 +375,14 @@ export const useWalletStore = create<WalletState>()(
                     isRestoring: true,
                 });
 
-                for (const mintUrl of mintUrls) {
+                // Run restorations concurrently like cashu.me for maximum speed
+                await Promise.all(mintUrls.map(async (mintUrl) => {
                     // Mark as scanning
                     set(s => ({
                         mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
                             e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
                         ),
-                        restoringMintUrl: mintUrl,
+                        restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
                     }));
 
                     try {
@@ -397,7 +411,7 @@ export const useWalletStore = create<WalletState>()(
                             ),
                         }));
                     }
-                }
+                }));
 
                 // Re-initialize the core Manager to pick up all restored counters and proofs
                 // FAST path to keep UI alive
@@ -413,6 +427,43 @@ export const useWalletStore = create<WalletState>()(
 
             setScannerResult: (result: string | null) => {
                 set({ scannerResult: result });
+            },
+
+            syncMintsToNostr: async () => {
+                try {
+                    console.log('[WalletStore] Starting mint sync to Nostr...');
+                    // Get all trusted mints
+                    const trustedMints = await mintManager.getAllTrustedMints();
+                    const urlsToBackup = new Set<string>(trustedMints.map(m => m.mintUrl));
+                    
+                    // Also include any untrusted mints that have a balance > 0
+                    const allBalances = await walletService.getBalances();
+                    for (const [url, balance] of Object.entries(allBalances)) {
+                        if (balance > 0) {
+                            urlsToBackup.add(url);
+                        }
+                    }
+
+                    const mintUrls = Array.from(urlsToBackup);
+                    if (mintUrls.length === 0) {
+                        return;
+                    }
+
+                    const mnemonic = await seedService.getMnemonic();
+                    if (!mnemonic) {
+                        console.warn('[WalletStore] No mnemonic found, skipping Nostr backup');
+                        return;
+                    }
+
+                    const keys = await seedService.getNostrKeys(mnemonic);
+                    // keys.pubkey is already a hex string
+                    const success = await nostrService.backupMintsToNostr(mintUrls, keys.privkey, keys.pubkey);
+                    if (success) {
+                        DeviceEventEmitter.emit('nostr:sync-success', { npub: keys.npub });
+                    }
+                } catch (err: any) {
+                    console.error('[WalletStore] Failed to sync mints to Nostr:', err?.message || err);
+                }
             },
 
         }),

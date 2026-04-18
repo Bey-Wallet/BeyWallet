@@ -87,6 +87,12 @@ export function useCocoEvents() {
             handleBalanceUpdate();
         });
 
+        const syncSub = DeviceEventEmitter.addListener('nostr:sync-success', (payload: { npub: string }) => {
+            console.log('[useCocoEvents] Nostr sync success fired');
+            const shortAddress = payload.npub.substring(0, 10) + '...' + payload.npub.substring(payload.npub.length - 4);
+            toast.show('Success', { message: `Mint is nostr sync with address ${shortAddress}` });
+        });
+
         // Subscribe using typed eventService
         const unsubs = [
             eventService.on('mint-quote:redeemed', handleMintQuoteRedeemed),
@@ -102,6 +108,7 @@ export function useCocoEvents() {
             console.log('[useCocoEvents] Unsubscribing from CoreEvents');
             unsubs.forEach(unsub => unsub());
             nostrSub.remove();
+            syncSub.remove();
         };
     }, [
         handleMintQuoteRedeemed,

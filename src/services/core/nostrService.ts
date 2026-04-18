@@ -445,6 +445,86 @@ class NostrService {
       return false;
     }
   }
+
+  // ── Mint Backup & Restore (NIP-61 / Kind 10019) ──────────────────────────
+
+  /**
+   * Publish a NIP-61 compliant kind 10019 (Nutzap info) event.
+   * This advertises the user's active mints and serves as a backup mechanism.
+   * Compatible with cashu.me and other standard NIP-60/61 wallets.
+   */
+  public async backupMintsToNostr(
+    mints: string[],
+    privkeyHex: string,
+    pubkeyHex: string
+  ): Promise<boolean> {
+    const privkeyBytes = hexToBytes(privkeyHex);
+    
+    // Create ["mint", "<url>"] tags for each mint
+    const tags = mints.map(url => ['mint', url]);
+
+    const eventTemplate = {
+      kind: 10019,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: tags,
+      content: '', // Public informational event, content is usually empty
+    };
+
+    const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
+    const pool = this.pool ?? new SimplePool();
+
+    console.log(`[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${RELAYS.length} relays…`);
+
+    try {
+      await Promise.any(pool.publish(RELAYS, signedEvent));
+      console.log(`[NostrService] ✅ Mints backed up. Event: ${signedEvent.id}`);
+      return true;
+    } catch (err: any) {
+      console.error('[NostrService] Failed to backup mints to Nostr:', err?.message || err);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch the user's NIP-61 kind 10019 event to retrieve their backed-up mints.
+   */
+  public async fetchMintsFromNostr(pubkeyHex: string): Promise<string[]> {
+    console.log(`[NostrService] 📥 Fetching mints from Nostr for pubkey ${pubkeyHex.slice(0, 8)}…`);
+    const pool = new SimplePool();
+    
+    try {
+      const filter: Filter = {
+        authors: [pubkeyHex],
+        kinds: [10019],
+        limit: 1, // Get the most recent one
+      };
+
+      const events = await pool.querySync(RELAYS, filter);
+      
+      if (!events || events.length === 0) {
+        console.log('[NostrService] No mint backup found on Nostr.');
+        return [];
+      }
+
+      // Sort by newest
+      events.sort((a, b) => b.created_at - a.created_at);
+      const latestEvent = events[0];
+
+      // Extract mint URLs from ["mint", "url"] tags
+      const mintUrls = latestEvent.tags
+        .filter(tag => tag[0] === 'mint' && typeof tag[1] === 'string')
+        .map(tag => tag[1]);
+
+      console.log(`[NostrService] ✅ Recovered ${mintUrls.length} mints from Nostr backup.`);
+      return mintUrls;
+      
+    } catch (err: any) {
+      console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
+      return [];
+    } finally {
+      pool.close(RELAYS);
+    }
+  }
 }
 
 export const nostrService = new NostrService();

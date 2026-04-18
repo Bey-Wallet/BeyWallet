@@ -364,14 +364,12 @@ export const initService = {
             manager = null;
         }
 
-        // Expo SQLite: Best to close and reopen or reuse the sync instance
-        if (dbInstance) {
-            try { dbInstance.closeSync(); } catch (e) { }
-            dbInstance = null;
+        // Expo SQLite: Do not close the database instance forcefully here. Use the existing one to avoid
+        // crashing background plugins (like proof watchers) with NullPointerExceptions.
+        if (!dbInstance) {
+            dbInstance = SQLite.openDatabaseSync('coco_wallet.db');
         }
-
-        const db = SQLite.openDatabaseSync('coco_wallet.db');
-        dbInstance = db;
+        const db = dbInstance;
         const repositories = new ExpoSqliteRepositories({ database: db });
         await repositories.init();
 
