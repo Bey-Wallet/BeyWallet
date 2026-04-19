@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, ScrollView, View, Separator, Circle, Popover, ListItem, Adapt, Sheet, Square } from 'tamagui';
-import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, MoreHorizontal, Link, Contact2, Scan, Trash2, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, MoreHorizontal, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -20,7 +20,6 @@ import { bitcoinService } from '~/services/bitcoinService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { notificationService } from '~/services/notificationService';
 
 // Ensure Buffer is available globally
@@ -133,7 +132,6 @@ export function TransactionDetailsScreen() {
     const [intervalMs, setIntervalMs] = useState(140); // F=140, M=250, S=500
     const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>('V4');
     const encoderRef = useRef<UREncoder | null>(null);
-    const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
     // Initialize/Update token version when token changes
     useEffect(() => {
@@ -416,21 +414,6 @@ export function TransactionDetailsScreen() {
         );
     }
 
-    const handleDelete = async () => {
-        if (!id) return;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        try {
-            await historyService.deleteHistoryEntries([id]);
-            toast.show('Deleted', { message: 'Transaction removed from history' });
-            deleteSheetRef.current?.dismiss();
-            router.back();
-            queryClient.invalidateQueries({ queryKey: ['history'] });
-        } catch (err) {
-            console.error('[TransactionDetails] Delete failed:', err);
-            toast.show('Delete Failed', { message: 'Could not remove transaction' });
-        }
-    };
-
 
     const isOutgoing = entry.type === 'send' || entry.type === 'melt';
     const amountColor = isOutgoing ? '$red10' : '$green11';
@@ -452,13 +435,6 @@ export function TransactionDetailsScreen() {
                                     onPress={handleRefresh}
                                     disabled={isRefetching}
                                 />
-                                <Button
-                                    circular
-                                    size="$3"
-                                    icon={<Trash2 size={20} color="$red10" />}
-                                    chromeless
-                                    onPress={() => deleteSheetRef.current?.present()}
-                                />
                             </XStack>
                         ),
                     }}
@@ -474,38 +450,6 @@ export function TransactionDetailsScreen() {
                         isClaiming={isClaiming}
                     />
 
-                    <AppBottomSheet ref={deleteSheetRef}>
-                        <YStack p="$4" gap="$5">
-                            <YStack gap="$2" items="center">
-                                <View p="$4" bg="$red2" rounded="$10">
-                                    <Trash2 size={32} color="$red10" />
-                                </View>
-                                <Text fontSize="$6" fontWeight="800">Delete Record?</Text>
-                                <Text color="$gray10" text="center" px="$4">
-                                    This will remove this transaction from your local history. It cannot be undone.
-                                </Text>
-                            </YStack>
-
-                            <YStack gap="$3">
-                                <Button
-                                    theme="red"
-                                    size="$5"
-                                    fontWeight="800"
-                                    onPress={handleDelete}
-                                >
-                                    Confirm Delete
-                                </Button>
-                                <Button
-                                    chromeless
-                                    size="$5"
-                                    fontWeight="800"
-                                    onPress={() => deleteSheetRef.current?.dismiss()}
-                                >
-                                    Cancel
-                                </Button>
-                            </YStack>
-                        </YStack>
-                    </AppBottomSheet>
                 </ScrollView>
             </>
         );
@@ -526,91 +470,38 @@ export function TransactionDetailsScreen() {
                                     onPress={handleRefresh}
                                     disabled={isRefetching}
                                 />
-                                <Button
-                                    circular
-                                    size="$3"
-                                    icon={<Trash2 size={20} color="$red10" />}
-                                    chromeless
-                                    onPress={() => deleteSheetRef.current?.present()}
-                                />
                             </XStack>
                         ),
                     }}
                 />
                 <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
                     <YStack bg="$background" p="$4" mx="$-4" mt="$-4" pt="$4">
-                        {/* Amount Display */}
-                        <YStack gap="$1" mb="$6" >
-                            <Circle size={40} bg={amountColor} opacity={1} mr="$3" items="center" justify="center">
-                                {isOutgoing ? <ArrowUpRight size={20} color="white" /> : <ArrowDownLeft size={20} color="white" />}
-                            </Circle>
-                            <Text fontSize="$9" fontWeight="800" color={amountColor}>
-                                {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                        {/* SuccessStage-like Amount Display */}
+                        <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
+                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' ? '$red10' : '$color'}>
+                                {status === 'failed' || status === 'error' ? 'Transaction Failed' :
+                                    entry.type === 'send' ? 'Sent Successfully!' :
+                                        entry.type === 'receive' ? 'Received Successfully!' :
+                                            entry.type === 'mint' ? 'Minted Successfully!' :
+                                                entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
                             </Text>
-                            <Text fontSize="$5" color="$gray10" >
-                                {currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
-                            </Text>
-                        </YStack>
-
-                        {/* Timeline / Status Card */}
-                        <YStack bg="$gray2" rounded="$4" p="$4" mb="$6">
-                            <XStack
-                                justify="space-between"
-                                items="center"
-                                pressStyle={{ opacity: 0.7 }}
-                                onPress={() => setIsStatusExpanded(!isStatusExpanded)}
-                            >
-                                <YStack>
-                                    <Text fontSize="$4" color="$gray10" fontWeight="700" mb="$0" textTransform='uppercase' letterSpacing={1}>
-                                        STATUS
-                                    </Text>
-                                </YStack>
-                                <XStack items="center" gap="$2">
-                                    <Text fontSize="$5" fontWeight="800" color={statusConfig.color as any}>
-                                        {formattedStatus.toUpperCase()}
-                                    </Text>
-                                    {status === 'pending' && (
-                                        <View bg="$orange3" px="$2" py="$1" rounded="$2">
-                                            <Text fontSize="$1" fontWeight="800" color="$orange10">ACTION REQUIRED</Text>
-                                        </View>
-                                    )}
-                                    {isStatusExpanded ? <ChevronUp size={20} color="$gray10" /> : <ChevronDown size={20} color="$gray10" />}
-                                </XStack>
-                            </XStack>
-
-                            {isStatusExpanded && (
-                                <YStack mt="$4" pt="$4" borderTopWidth={1} borderColor="$borderColor">
-                                    {/* Step 1: Prepared */}
-                                    <XStack gap="$3">
-                                        <YStack items="center">
-                                            <Circle size={24} bg="$green10">
-                                                <Check size={14} color="black" />
-                                            </Circle>
-                                            <View width={2} flex={1} bg={status === 'completed' || status === 'claimed' ? "$green10" : "$gray8"} my="$1" />
-                                        </YStack>
-                                        <YStack pb="$4">
-                                            <Text fontSize="$4" fontWeight="700" color="$color">Prepared</Text>
-                                            <Text fontSize="$3" color="$gray10">{formatFullLocalTime(entry.createdAt)}</Text>
-                                        </YStack>
-                                    </XStack>
-
-                                    {/* Step 2: Current Status */}
-                                    <XStack gap="$3">
-                                        <Circle size={24} bg={statusConfig.color as any} items="center" justify="center">
-                                            <statusConfig.icon size={14} color={status === 'completed' || status === 'claimed' ? "black" : "$color"} />
-                                        </Circle>
-                                        <YStack>
-                                            <Text fontSize="$4" fontWeight="700" color="$color">{formattedStatus}</Text>
-                                            <Text fontSize="$3" color="$gray10">
-                                                {status === 'pending' ? 'Waiting for recipient...' :
-                                                    status === 'claimed' ? 'Tokens claimed by recipient' :
-                                                        status === 'completed' ? 'Transaction completed' :
-                                                            'Funds processed successfully'}
-                                            </Text>
-                                        </YStack>
-                                    </XStack>
-                                </YStack>
-                            )}
+                            <YStack items="center" justify="center">
+                                <Text fontSize="$9" fontWeight="900" color={amountColor}>
+                                    {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    {currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
+                                </Text>
+                            </YStack>
+                            <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
+                                <Text color="$gray10" fontSize="$4" text="center">
+                                    {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
+                                        entry.type === 'send' ? 'The recipient has claimed your ecash.' :
+                                            entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
+                                                entry.type === 'mint' ? 'Ecash added to your wallet.' :
+                                                    entry.type === 'melt' ? 'Lightning invoice was successfully paid.' : 'Transaction processed.'}
+                                </Text>
+                            </YStack>
                         </YStack>
 
                         <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
@@ -680,56 +571,6 @@ export function TransactionDetailsScreen() {
                         </YStack>
                     )}
 
-                    {/* Danger Zone */}
-                    <YStack gap="$3" mt="$10" pb="$10" borderTopWidth={1} borderColor="$gray4" pt="$6">
-                        <XStack items="center" gap="$2">
-                            <AlertCircle size={14} color="$red9" />
-                            <Text fontSize="$2" fontWeight="800" color="$gray10" textTransform="uppercase" letterSpacing={1}>Danger Zone</Text>
-                        </XStack>
-                        <Button
-                            theme="red"
-                            variant="outlined"
-                            size="$5"
-                            fontWeight="800"
-                            icon={<Trash2 size={20} color="$red10" />}
-                            onPress={() => deleteSheetRef.current?.present()}
-                        >
-                            Delete Transaction History
-                        </Button>
-                    </YStack>
-
-                    <AppBottomSheet ref={deleteSheetRef}>
-                        <YStack p="$4" gap="$5">
-                            <YStack gap="$2" items="center">
-                                <View p="$4" bg="$red2" rounded="$10">
-                                    <Trash2 size={32} color="$red10" />
-                                </View>
-                                <Text fontSize="$6" fontWeight="800">Delete Record?</Text>
-                                <Text color="$gray10" text="center" px="$4">
-                                    This will remove this transaction from your local history. It cannot be undone.
-                                </Text>
-                            </YStack>
-
-                            <YStack gap="$3">
-                                <Button
-                                    theme="red"
-                                    size="$5"
-                                    fontWeight="800"
-                                    onPress={handleDelete}
-                                >
-                                    Confirm Delete
-                                </Button>
-                                <Button
-                                    chromeless
-                                    size="$5"
-                                    fontWeight="800"
-                                    onPress={() => deleteSheetRef.current?.dismiss()}
-                                >
-                                    Cancel
-                                </Button>
-                            </YStack>
-                        </YStack>
-                    </AppBottomSheet>
                 </ScrollView>
             </>
         );
@@ -751,9 +592,9 @@ export function TransactionDetailsScreen() {
 function DetailItem({ label, value, isCopyable, copyValue, onCopy }: { label: string, value: string, isCopyable?: boolean, copyValue?: string, onCopy?: () => void }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
-                <Text fontSize="$5" text="right" fontWeight="800" color="$color" numberOfLines={2} style={{ maxWidth: 200 }}>
+                <Text fontSize="$3" text="right" fontWeight="800" color="$color" numberOfLines={2} style={{ maxWidth: 200 }}>
                     {value}
                 </Text>
                 {isCopyable && (
