@@ -9,7 +9,6 @@ import QRCode from "react-native-qrcode-svg";
 import { useWalletStore } from '~/store/walletStore';
 import { RollingNumber } from '~/components/UI/RollingNumber';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import AddMintModal, { AddMintModalRef } from '~/components/AddMintModal';
 import { mintService } from '~/services/mintService';
 import { useSettingsStore } from '~/store/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
@@ -37,7 +36,6 @@ export default function MintsModal() {
 
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const deleteOptionsSheetRef = useRef<AppBottomSheetRef>(null);
-    const addMintModalRef = useRef<AddMintModalRef>(null);
 
     const totalBalance = useMemo(() => {
         return Object.values(balances).reduce((a, b) => a + b, 0);
@@ -192,7 +190,7 @@ export default function MintsModal() {
                             icon={<Plus size={14} />}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                addMintModalRef.current?.present();
+                                router.push('/(modals)/add-mint');
                             }}
                             pressStyle={{ scale: 0.97, opacity: 0.9 }}
                         >
@@ -262,11 +260,12 @@ export default function MintsModal() {
                                                 pressStyle={{ opacity: 0.7, scale: 0.98 }}
                                                 py="$2"
                                                 px="$2"
+                                                pr="$3"
 
                                             >
                                                 <XStack justify="space-between" items="center">
                                                     <XStack gap="$3" items="center">
-                                                        <Avatar rounded="$4" size="$3" borderWidth={1} borderColor="$borderColor">
+                                                        <Avatar rounded="$4" size="$3" borderWidth={1} borderColor={isActive ? "$blue10" : "$borderColor"}>
                                                             <Avatar.Image src={mint.icon} />
                                                             <Avatar.Fallback backgroundColor="$gray2" alignItems="center" justifyContent="center">
                                                                 <Building2 size={24} color="$gray10" />
@@ -274,25 +273,15 @@ export default function MintsModal() {
                                                         </Avatar>
                                                         <YStack>
                                                             <XStack gap="$2" items="center" >
-                                                                {mint.trusted ? (
-                                                                    <ShieldCheck size={16} color="$green10" />
-                                                                ) : (
-                                                                    <ShieldAlert size={16} color="$orange10" />
-                                                                )}
-                                                                <Text fontWeight="800" fontSize="$4" numberOfLines={2} color="$accent4" style={{ maxWidth: 100 }}>
+                                                                <Text fontWeight="800" fontSize="$3" numberOfLines={1} ellipsizeMode="tail" maxW={150} color={isActive ? "$blue10" : "$color"} >
                                                                     {mint.nickname || mint.name || 'Unnamed Mint'}
                                                                 </Text>
-                                                                {isActive && (
-                                                                    <XStack px="$1.5" py="$0.5" bg="$accent3" rounded="$2">
-                                                                        <Text fontSize="$1" fontWeight="800" color="$accent11">ACTIVE</Text>
-                                                                    </XStack>
-                                                                )}
                                                             </XStack>
                                                         </YStack>
                                                     </XStack>
 
                                                     <YStack items="flex-end">
-                                                        <Text fontWeight="900" fontSize="$5" color="$accent4">
+                                                        <Text fontWeight="900" fontSize="$4" color={isActive ? "$blue10" : "$color"}>
                                                             ₿{balance.toLocaleString()}
                                                         </Text>
                                                     </YStack>
@@ -535,7 +524,6 @@ export default function MintsModal() {
                 </YStack>
             </AppBottomSheet>
 
-            <AddMintModal ref={addMintModalRef} />
         </YStack>
     );
 }

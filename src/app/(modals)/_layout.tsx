@@ -47,30 +47,36 @@ export default function ModalLayout() {
                 name="receive"
                 options={{
                     title: 'Receive Ecash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="send"
                 options={{
                     title: 'Send',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="mint-profile"
                 options={{
                     title: 'Mint Profile',
+                    presentation: "fullScreenModal",
+                    headerShown: true,
                 }}
             />
             <Stack.Screen
                 name="mint"
                 options={{
                     title: 'Mint Cash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="melt"
                 options={{
                     title: 'Pay Lightning',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
@@ -83,7 +89,7 @@ export default function ModalLayout() {
             <Stack.Screen
                 name="txn-details"
                 options={{
-                    presentation: "modal",
+                    presentation: "fullScreenModal",
                     title: 'Transaction Details',
                 }}
             />
@@ -91,24 +97,28 @@ export default function ModalLayout() {
                 name="ecash"
                 options={{
                     title: 'E-Cash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="mints"
                 options={{
                     title: 'Mints',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="nostr-profile"
                 options={{
                     title: 'Nostr Identity',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="about"
                 options={{
                     title: 'About',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
@@ -122,6 +132,14 @@ export default function ModalLayout() {
                 name="nostr-username"
                 options={{
                     title: 'Nostr Username',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="add-mint"
+                options={{
+                    title: 'Add Mint',
+                    presentation: "fullScreenModal",
                 }}
             />
         </Stack>

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button, Input, Text, YStack, XStack, Spinner, Paragraph, View, useTheme, ScrollView, Image } from 'tamagui';
-import { Check, AlertCircle, Sprout, ShieldCheck, ShieldOff } from '@tamagui/lucide-icons';
+import { Check, AlertCircle, Sprout, ShieldCheck, ShieldOff, Scan } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,7 +62,7 @@ export default function AddMintScreen() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isExistingUntrusted, setIsExistingUntrusted] = useState(false);
 
-    const { addMint, refreshMintList, mints } = useWalletStore();
+    const { addMint, refreshMintList, mints, scannerResult, setScannerResult } = useWalletStore();
     const insets = useSafeAreaInsets();
     const toast = useToastController();
     const queryClient = useQueryClient();
@@ -111,6 +111,14 @@ export default function AddMintScreen() {
         setIsExistingUntrusted(!!(existing && !existing.trusted));
         setPreviewUrl(normalized);
     }, [mints]);
+
+    useEffect(() => {
+        if (scannerResult) {
+            setRawUrl(scannerResult);
+            setScannerResult(null);
+            triggerPreview(scannerResult);
+        }
+    }, [scannerResult, triggerPreview, setScannerResult]);
 
     const handleFetchMintInfo = () => {
         if (!rawUrl.trim()) {
@@ -171,19 +179,31 @@ export default function AddMintScreen() {
             </Paragraph>
 
             <YStack gap="$2">
-                <Input
-                    placeholder="mint.example.com"
-                    value={rawUrl}
-                    onChangeText={setRawUrl}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                    returnKeyType="done"
-                    onSubmitEditing={handleFetchMintInfo}
-                    size="$5"
-                    borderWidth={1}
-                    borderColor={error ? '$red10' : '$borderColor'}
-                />
+                <XStack gap="$2" items="center">
+                    <Input
+                        flex={1}
+                        placeholder="mint.example.com"
+                        value={rawUrl}
+                        onChangeText={setRawUrl}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                        returnKeyType="done"
+                        onSubmitEditing={handleFetchMintInfo}
+                        size="$5"
+                        borderWidth={1}
+                        borderColor={error ? '$red10' : '$borderColor'}
+                    />
+                    <Button 
+                        size="$5"
+                        width="$5"
+                        icon={<Scan size={20} color="$color" />} 
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push({ pathname: '/(modals)/scanner', params: { returnTo: '/(modals)/add-mint' } });
+                        }}
+                    />
+                </XStack>
                 {error && (
                     <XStack gap="$2" items="center" mt="$1">
                         <AlertCircle size={14} color="$red10" />
