@@ -153,6 +153,7 @@ export default function MintScreen() {
                 <ResultStage
                     status={status}
                     amount={amount}
+                    mintUrl={activeMintUrl || undefined}
                     error={error}
                     onClose={handleClose}
                 />
