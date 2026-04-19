@@ -5,17 +5,17 @@ import * as Haptics from 'expo-haptics';
 import { useRef, useEffect, useMemo } from 'react';
 import { useWalletStore } from "../store/walletStore";
 import AppBottomSheet, { AppBottomSheetRef } from "./UI/AppBottomSheet";
-import AddMintModal, { AddMintModalRef } from "./AddMintModal";
 import EditNicknameModal, { EditNicknameModalRef } from "./EditNicknameModal";
 import { initService } from "../services/core";
 import { Spinner } from "./UI/Spinner";
+import { useRouter } from "expo-router";
 
 export default function HomeHeaderMintSelector() {
     const { activeMintUrl, balance, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
     const isLoading = isInitializing || isRefreshing;
     const sheetRef = useRef<AppBottomSheetRef>(null);
-    const addMintRef = useRef<AddMintModalRef>(null);
     const editNicknameRef = useRef<EditNicknameModalRef>(null);
+    const router = useRouter();
 
     // Normalize URLs for comparison
     const normalizeUrl = (url: string) => url.replace(/\/$/, '');
@@ -54,8 +54,8 @@ export default function HomeHeaderMintSelector() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         sheetRef.current?.dismiss();
         setTimeout(() => {
-            addMintRef.current?.present();
-        }, 300);
+            router.push('/(modals)/add-mint');
+        }, 100);
     };
 
     const handleEditNickname = (mint: any) => {
@@ -84,8 +84,8 @@ export default function HomeHeaderMintSelector() {
                     ) : (
                         <Avatar rounded="$3" size="$1.5">
                             <Avatar.Image src={activeMint?.icon} />
-                            <Avatar.Fallback backgroundColor="$gray5" alignItems="center" justifyContent="center">
-                                <Building2 size={12} color="$gray10" />
+                            <Avatar.Fallback backgroundColor="$color1" alignItems="center" justifyContent="center">
+                                <Sprout size={14} color="$gray10" />
                             </Avatar.Fallback>
                         </Avatar>
                     )
@@ -110,15 +110,17 @@ export default function HomeHeaderMintSelector() {
 
             <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
                 <YStack p="$4" gap="$3" flex={1}>
-                    <XStack justify="space-between" items="center" mb="$2">
+                    <XStack justify="space-between" items="center" px="$3" mb="$2">
                         <Paragraph fontSize="$6" color="$accent5" fontWeight="bold">Your Mints</Paragraph>
                         <Button
                             size="$3"
-                            circular
-                            icon={<Plus size={18} />}
+                            rounded="$10"
+                            theme="accent"
                             onPress={handleAddMint}
                             pressStyle={{ scale: 0.95 }}
-                        />
+                        >
+                            Add Mint
+                        </Button>
                     </XStack>
 
                     <BottomSheetScrollView showsVerticalScrollIndicator={false}>
@@ -215,7 +217,6 @@ export default function HomeHeaderMintSelector() {
                 </YStack>
             </AppBottomSheet>
 
-            <AddMintModal ref={addMintRef} />
             <EditNicknameModal ref={editNicknameRef} />
         </>
     );

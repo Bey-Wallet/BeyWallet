@@ -12,6 +12,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useWalletStore } from '../../store/walletStore';
 import { AppBottomSheetRef } from '../../components/UI/AppBottomSheet';
 import AddMintModal, { AddMintModalRef } from '../../components/AddMintModal';
+import EditNicknameModal, { EditNicknameModalRef } from '../../components/EditNicknameModal';
+import { ListTable, ListTableRow } from '../../components/UI/ListTable';
+import * as Sharing from 'expo-sharing';
+import { Share as RNShare, Alert } from 'react-native';
 
 interface MintProfileScreenProps {
     url: string;
@@ -30,14 +34,45 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     const isAlreadyAdded = !!walletMint;
     const isTrusted = walletMint?.trusted ?? false;
 
+    const { removeMint } = useWalletStore();
+    const editNicknameRef = React.useRef<EditNicknameModalRef>(null);
+
     const handleAction = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (!isAlreadyAdded) {
             addMintRef.current?.present(url);
         } else if (!isTrusted) {
-            // Quick trust flow or open modal
             addMintRef.current?.present(url);
         }
+    };
+
+    const handleShare = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        try {
+            await RNShare.share({ message: url });
+        } catch (error) {
+            handleCopy(url, 'URL');
+        }
+    };
+
+    const handleDelete = () => {
+        Alert.alert('Remove Mint', 'Are you sure you want to remove this mint from your wallet?', [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+                text: 'Remove', 
+                style: 'destructive', 
+                onPress: async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    try {
+                        await removeMint(url);
+                        toast.show('Mint Removed', { message: 'Mint was removed successfully.' });
+                        router.back();
+                    } catch (e: any) {
+                        toast.show('Error', { message: e.message || 'Failed to remove mint.' });
+                    }
+                }
+            }
+        ]);
     };
 
     const { data: info, isLoading, error: fetchError } = useQuery({
@@ -73,7 +108,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         );
     }
 
-    const name = info.name || (() => {
+    const name = walletMint?.nickname || info.name || (() => {
         try { return new URL(url).hostname }
         catch (e) { return url }
     })();
@@ -81,6 +116,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     const motd = info.motd;
     const version = info.version;
     const nuts = info.nuts || {};
+    const auditInfo = info.audit || null; // Will be null if mint doesn't provide it
+    
+    // Safely extract icon from store or the fetched v1/info metadata
+    const iconToUse = walletMint?.icon || info.icon_url || info.picture || info.icon;
+
 
     const hostname = (() => {
         try { return new URL(url).hostname }
@@ -119,8 +159,8 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                             borderWidth={1}
                             borderColor="$color5"
                         >
-                            {info.icon_url ? (
-                                <Image source={{ uri: info.icon_url, width: 100, height: 100 }} />
+                            {iconToUse ? (
+                                <Image source={{ uri: iconToUse, width: 100, height: 100 }} />
                             ) : (
                                 <Sprout size={60} color="$accentColor" />
                             )}
@@ -168,98 +208,92 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                         </YStack>
                     )}
 
-                    {/* Connection Info */}
+                    {/* General Metadata lists */}
                     <YStack gap="$3">
-                        <H4 color="$gray10" fontSize="$4">Connection Details</H4>
-                        <Card p="$3" bg="$gray2">
-                            <YStack gap="$4">
-                                <YStack gap="$1">
-                                    <Text color="$gray10" fontSize="$2" fontWeight="700">MINT URL</Text>
-                                    <XStack justify="space-between" items="center">
-                                        <Text flex={1} numberOfLines={1} fontSize="$3">{url}</Text>
-                                        <Button
-                                            size="$2"
-                                            circular
-                                            icon={<Copy size={14} />}
-                                            onPress={() => handleCopy(url, 'URL')}
-                                            chromeless
-                                        />
-                                    </XStack>
-                                </YStack>
-
-                                <Button
-                                    size="$3"
-                                    theme="gray"
-                                    icon={showQr ? <Info size={14} /> : <Globe size={14} />}
-                                    onPress={() => setShowQr(!showQr)}
-                                >
-                                    {showQr ? 'Hide QR Code' : 'Show Mint QR Code'}
-                                </Button>
-
-                                {showQr && (
-                                    <YStack items="center" py="$4" bg="white" rounded="$4">
-                                        <QRCode value={url} size={200} />
-                                    </YStack>
-                                )}
-                            </YStack>
-                        </Card>
+                        <H4 color="$gray10" fontSize="$4">Mint Details</H4>
+                        <ListTable>
+                            <ListTableRow label="URL" value={hostname} isCopyable copyValue={url} />
+                            {version && <ListTableRow label="Version" value={version} />}
+                            <ListTableRow label="Supported NUTs" value={Object.keys(nuts).length} rightContent={
+                                <XStack gap="$1" items="center">
+                                    <Text fontSize="$4" fontWeight="600" color="$color">{Object.keys(nuts).length}</Text>
+                                    <View bg="$gray4" px="$2" py="$1" rounded="$2"><Text fontSize="$2" fontWeight="800">NUTs</Text></View>
+                                </XStack>
+                            } />
+                            <ListTableRow label="Currencies" rightContent={
+                                <XStack gap="$1" items="center">
+                                    <View bg="$gray4" px="$2" py="$1" rounded="$2"><Text fontSize="$2" fontWeight="800">SAT</Text></View>
+                                    {nuts['14']?.supported && <View bg="$gray4" px="$2" py="$1" rounded="$2"><Text fontSize="$2" fontWeight="800">USD</Text></View>}
+                                </XStack>
+                            } />
+                        </ListTable>
                     </YStack>
 
-                    {/* Features / NUTs */}
+                    {/* Audit Info Placeholder (Will show N/A since it's not commonly returned yet, but structurally ready) */}
+                    {(auditInfo || true) && (
+                        <YStack gap="$3">
+                            <H4 color="$gray10" fontSize="$4">Audit Information</H4>
+                            <ListTable>
+                                <ListTableRow label="Success Rate" value={auditInfo?.successRate ? `${auditInfo.successRate}%` : 'N/A'} />
+                                <ListTableRow label="Avg Uptime" value={auditInfo?.uptime ? `${auditInfo.uptime}%` : 'N/A'} />
+                            </ListTable>
+                        </YStack>
+                    )}
+
+                    {/* Actions List */}
                     <YStack gap="$3">
-                        <H4 color="$gray10" fontSize="$4">Supported Features</H4>
-                        <XStack flexWrap="wrap" gap="$2">
-                            {Object.keys(nuts).map((nut) => (
-                                <View key={nut} bg="$gray3" px="$3" py="$1.5" rounded="$3" grow={0} self="flex-start" borderWidth={1} borderColor="$color4">
-                                    <XStack items="center" gap="$2">
-                                        <ShieldCheck size={12} color="$green10" />
-                                        <Text fontSize="$2" fontWeight="600">NUT-{nut}</Text>
-                                    </XStack>
-                                </View>
-                            ))}
-                            {version && (
-                                <View bg="$gray3" px="$3" py="$1.5" rounded="$3" borderWidth={1} borderColor="$color4">
-                                    <XStack items="center" gap="$2">
-                                        <Cpu size={12} color="$blue10" />
-                                        <Text fontSize="$2" fontWeight="600">{version}</Text>
-                                    </XStack>
-                                </View>
+                        <H4 color="$gray10" fontSize="$4">Actions</H4>
+                        <ListTable>
+                            {isAlreadyAdded && (
+                                <ListTableRow 
+                                    label="Edit Name" 
+                                    icon={Info} 
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        editNicknameRef.current?.present(url, walletMint?.nickname || info.name);
+                                    }} 
+                                />
                             )}
-                        </XStack>
+                            <ListTableRow 
+                                label="Copy URL" 
+                                icon={Copy} 
+                                onPress={() => handleCopy(url, 'Mint URL')} 
+                            />
+                            <ListTableRow 
+                                label="Share Mint" 
+                                icon={Share2} 
+                                onPress={handleShare} 
+                            />
+                            {isAlreadyAdded && (
+                                <ListTableRow 
+                                    label="Delete from Wallet" 
+                                    iconColor="$red10" 
+                                    labelColor="$red10" 
+                                    onPress={handleDelete} 
+                                />
+                            )}
+                        </ListTable>
                     </YStack>
 
-                    {/* Contact */}
+                    {/* Contact (if available) */}
                     {info.contact && info.contact.length > 0 && (
                         <YStack gap="$3">
                             <H4 color="$gray10" fontSize="$4">Contact & Support</H4>
-                            <YStack gap="$2">
+                            <ListTable>
                                 {info.contact.map((c: any, i: number) => {
-                                    // Handle both standard [method, info] and object formats
                                     const method = Array.isArray(c) ? c[0] : (c.method || 'Contact');
                                     const contactInfo = Array.isArray(c) ? c[1] : (c.info || '');
-
                                     if (!contactInfo) return null;
-
                                     return (
-                                        <XStack key={i} bg="$gray2" p="$3" rounded="$4" items="center" justify="space-between">
-                                            <XStack items="center" gap="$3">
-                                                {method.toLowerCase() === 'email' ? <Mail size={18} color="$gray10" /> : <Globe size={18} color="$gray10" />}
-                                                <YStack>
-                                                    <Text fontWeight="600" textTransform="capitalize">{method}</Text>
-                                                    <Text color="$color5" maxW={200} fontSize="$3">{contactInfo}</Text>
-                                                </YStack>
-                                            </XStack>
-                                            <Button
-                                                size="$2"
-                                                circular
-                                                icon={<Copy size={12} />}
-                                                onPress={() => handleCopy(contactInfo, method)}
-                                                chromeless
-                                            />
-                                        </XStack>
+                                        <ListTableRow 
+                                            key={i} 
+                                            label={method.charAt(0).toUpperCase() + method.slice(1)} 
+                                            value={contactInfo} 
+                                            isCopyable 
+                                        />
                                     );
                                 })}
-                            </YStack>
+                            </ListTable>
                         </YStack>
                     )}
                 </YStack>
@@ -279,6 +313,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             </YStack>
 
             <AddMintModal ref={addMintRef} />
+            <EditNicknameModal ref={editNicknameRef} />
         </YStack>
     );
 }
