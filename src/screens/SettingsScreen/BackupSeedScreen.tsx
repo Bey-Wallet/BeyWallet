@@ -82,23 +82,19 @@ export function BackupSeedScreen() {
 
                     <YStack gap="$4">
                         <View
-                            bg="$gray3"
-                            p="$4"
-                            rounded="$5"
-                            borderWidth={1}
-                            borderColor="$borderColor"
+                            items="center" justify="center"
                         >
-                            <XStack flexWrap="wrap" gap="$3" justify="center">
+                            <XStack flexWrap="wrap" items="center" justify="center" gap="$2" >
                                 {words.map((word, index) => (
                                     <XStack
                                         key={index}
-                                        bg="$background"
+                                        bg={isVisible ? "$color4" : "$color2"}
                                         px="$3"
-                                        py="$2"
+                                        py="$4"
                                         rounded="$3"
                                         borderWidth={1}
-                                        borderColor="$borderColor"
-                                        minW="45%"
+
+                                        minW="48%"
                                         items="center"
                                     >
                                         <Text fontSize="$2" color="$gray10" mr="$2" width={20}>{index + 1}</Text>
@@ -151,17 +147,7 @@ export function BackupSeedScreen() {
                         </XStack>
                     ) : null}
 
-                    <Button
-                        theme="blue"
-                        size="$5"
-                        fontWeight="700"
-                        onPress={handleConfirmBackup}
-                        mt="$4"
-                        rounded="$4"
-                        icon={<ShieldCheck size={20} />}
-                    >
-                        I've Backed It Up
-                    </Button>
+
                 </YStack>
             </ScrollView>
         </YStack>
