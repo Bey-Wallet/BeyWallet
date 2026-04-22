@@ -83,26 +83,30 @@ export default function WalletCard() {
                             pressStyle={{ opacity: 0.7 }}
                             onPress={handleCopy}
                         >
-                            {nip05 ? (
-                                /* ── NIP-05 identifier ── */
-                                <>
-                                    <View bg="$green3" rounded="$10" px="$1.5" py="$0.5">
-                                        <AtSign size={10} color="$green9" />
-                                    </View>
-                                    <Text fontSize="$4" fontWeight="700" color="$green10" numberOfLines={1}>
-                                        {nip05}
+
+                            <YStack justify='center' >
+                                <XStack items='center' gap="$2">
+
+
+                                    <Text fontSize="$6" fontWeight="700" color="$accent4" numberOfLines={1}>
+                                        sundar
+                                        <Text fontSize="$6" fontWeight="700" color="$accent10" numberOfLines={1}>
+                                            @bey.cash
+                                        </Text>
                                     </Text>
-                                    <Copy size={12} color="$green9" />
-                                </>
-                            ) : (
-                                /* ── truncated npub ── */
-                                <>
-                                    <Text fontSize="$5" fontWeight="700" color="$accent8">
+                                    {npub && <Copy size={14} color="$accent10" />}
+
+                                </XStack>
+                                {/* <XStack gap="$1.5" items="center">
+
+                                    <Text fontSize="$4" fontWeight="700" color="$accent10">
                                         {npub ? truncateNpub(npub) : 'Bey Wallet'}
                                     </Text>
-                                    {npub && <Copy size={14} color="$accent8" />}
-                                </>
-                            )}
+                                    {npub && <Copy size={14} color="$accent10" />}
+                                </XStack> */}
+
+
+                            </YStack>
                         </XStack>
                         {/* Show npub beneath nip05 */}
                         {nip05 && npub && (

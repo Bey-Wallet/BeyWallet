@@ -30,13 +30,13 @@ export default function TabLayout() {
   const { lock } = useAuthStore()
 
   const HeaderLeft = () => (
-    <XStack pl="$5" items="center">
+    <XStack pl="$4" items="center">
       <Image
         source={resolvedTheme === 'dark'
-          ? require('../../assets/icons/Bey-dark-logo.png')
-          : require('../../assets/icons/Bey-light-logo.png')}
-        width={28}
-        height={28}
+          ? require('../../assets/icons/Frame 9.png')
+          : require('../../assets/icons/Frame 10.png')}
+        width={40}
+        height={40}
         resizeMode="contain"
       />
     </XStack>
