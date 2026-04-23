@@ -14,6 +14,8 @@ import React from 'react'
 import ManageBalances from './components/ManageBalances'
 import BitcoinPriceCard from './components/BitcoinPriceCard'
 import StatusScreen from '../../components/StatusScreen'
+import ContactsView from './components/ContactsView'
+import SupportView from './components/SupportView'
 
 type StatusType = 'success' | 'error' | 'pending' | null;
 
@@ -79,6 +81,8 @@ export function HomeTabScreen() {
                 <ActionButtons />
                 <BitcoinPriceCard />
                 <ManageBalances />
+                <ContactsView />
+                <SupportView />
 
                 {/* Test Status Screens */}
 
