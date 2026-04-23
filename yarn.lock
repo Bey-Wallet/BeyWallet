@@ -1112,7 +1112,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@npm:^3.2.2, @cashu/cashu-ts@npm:^3.3.0, @cashu/cashu-ts@npm:^3.5.0":
+"@cashu/cashu-ts@npm:3.3.0":
+  version: 3.3.0
+  resolution: "@cashu/cashu-ts@npm:3.3.0"
+  dependencies:
+    "@noble/curves": "npm:^2.0.1"
+    "@noble/hashes": "npm:^2.0.1"
+    "@scure/base": "npm:^2.0.0"
+    "@scure/bip32": "npm:^2.0.1"
+  checksum: 10/5500f797f16a26e6d5081599e85704f10c7f0dd519063789beb51798b185c79d4d7b5c8eca29fa5f31bb4be86b65a225eafaf1cdf8bc922bcc3ede7d168d95a5
+  languageName: node
+  linkType: hard
+
+"@cashu/cashu-ts@npm:^3.2.2, @cashu/cashu-ts@npm:^3.3.0":
   version: 3.6.4
   resolution: "@cashu/cashu-ts@npm:3.6.4"
   dependencies:
@@ -5996,7 +6008,7 @@ __metadata:
     buffer: "npm:^6.0.3"
     burnt: "npm:^0.12.2"
     cbor-x: "npm:^1.6.0"
-    coco-cashu-core: "npm:^1.1.2-rc.47"
+    coco-cashu-core: "npm:1.1.2-rc.47"
     coco-cashu-expo-sqlite: "npm:1.1.2-rc.47"
     coco-cashu-plugin-npc: "npm:^2.3.1"
     coco-cashu-react: "npm:1.1.2-rc.47"
@@ -6596,17 +6608,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"coco-cashu-core@npm:^1.1.2-rc.47":
-  version: 1.1.2-rc.50
-  resolution: "coco-cashu-core@npm:1.1.2-rc.50"
+"coco-cashu-core@npm:1.1.2-rc.47":
+  version: 1.1.2-rc.47
+  resolution: "coco-cashu-core@npm:1.1.2-rc.47"
   dependencies:
-    "@cashu/cashu-ts": "npm:^3.5.0"
+    "@cashu/cashu-ts": "npm:3.3.0"
     "@noble/curves": "npm:^2.0.1"
     "@noble/hashes": "npm:^2.0.1"
     "@scure/bip32": "npm:^2.0.1"
   peerDependencies:
     typescript: ^5
-  checksum: 10/296efe25f45fc4ab4e96e7ace905cd077bab4419facffb29af2f59095fa740624d426479e8b36db3346c29cfd97eb5fa3849ea9e43e8adef13d7c2cbf87e8c2e
+  checksum: 10/63554d1aa0d1cabf2c1e287c2724672327f1e3e9ff4162e13ebfd31e48a70d617826c3cf1d62331807c9ad5f6f99c2b848dfda34b4d41e41b954b3b0582c6f20
   languageName: node
   linkType: hard
 

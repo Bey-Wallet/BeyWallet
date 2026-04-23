@@ -38,7 +38,7 @@
     "buffer": "^6.0.3",
     "burnt": "^0.12.2",
     "cbor-x": "^1.6.0",
-    "coco-cashu-core": "^1.1.2-rc.47",
+    "coco-cashu-core": "1.1.2-rc.47",
     "coco-cashu-expo-sqlite": "1.1.2-rc.47",
     "coco-cashu-plugin-npc": "^2.3.1",
     "coco-cashu-react": "1.1.2-rc.47",
