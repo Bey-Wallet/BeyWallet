@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { Button, H6, Text, Theme, XStack, YStack } from 'tamagui'
-import { Plus, Send, ChevronDown, ChevronUp, Loader } from '@tamagui/lucide-icons'
+import { Plus, Send, ChevronDown, ChevronUp, Loader, Search, Heart } from '@tamagui/lucide-icons'
 import Blockies from '~/components/UI/Blockies'
+import { useRouter } from 'expo-router'
 
 const MOCK_CONTACTS = [
     { id: '1', name: 'Zaheer', seed: '0x1234567890123456789012345678901234567890' },
@@ -41,7 +42,8 @@ const MOCK_CONTACTS = [
 const ContactsView = () => {
     const [isExpanded, setIsExpanded] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    
+    const router = useRouter()
+
     const visibleContacts = isExpanded ? MOCK_CONTACTS : MOCK_CONTACTS.slice(0, 7)
 
     const handleToggle = () => {
@@ -65,16 +67,32 @@ const ContactsView = () => {
             <XStack gap="$3" width="100%" flexWrap="wrap">
                 {/* Add Button */}
                 <Theme inverse>
-                    <XStack bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
+                    <XStack cursor="pointer" onPress={() => router.push('/(modals)/contact-search')} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
                         <YStack width={24} height={24} bg="$gray6" rounded={3} items="center" justify="center">
                             <Send size={16} color="$color" />
                         </YStack>
-                        <Text fontSize="$5">Send New</Text>
+                        <Text fontSize="$5">Search NIP</Text>
                     </XStack>
                 </Theme>
 
+
+
+
                 {visibleContacts.map((contact) => (
-                    <XStack key={contact.id} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
+                    <XStack 
+                        key={contact.id} 
+                        bg="$gray4" 
+                        items="center" 
+                        p="$2" 
+                        pr="$3" 
+                        rounded="$4" 
+                        gap={10} 
+                        cursor="pointer"
+                        onPress={() => router.push({
+                            pathname: '/(modals)/contact-details',
+                            params: { npub: contact.seed, username: contact.name }
+                        })}
+                    >
                         <Blockies seed={contact.seed} size={12} scale={2} style={{ borderRadius: 3 }} />
                         <Text fontSize="$5">{contact.name}</Text>
                     </XStack>

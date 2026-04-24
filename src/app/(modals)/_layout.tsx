@@ -142,6 +142,20 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
+            <Stack.Screen
+                name="contact-search"
+                options={{
+                    title: 'Search Contact',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="contact-details"
+                options={{
+                    title: 'Contact Details',
+                    presentation: "fullScreenModal",
+                }}
+            />
         </Stack>
     )
 }

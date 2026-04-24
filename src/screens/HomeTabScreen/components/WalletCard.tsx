@@ -103,16 +103,12 @@ export default function WalletCard() {
                                             {npub ? truncateNpub(npub) : 'Bey Wallet'}
                                         </Text>
                                     )}
-                                    {npub && <Copy size={14} color="$accent10" />}
+                                    {npub && <Copy size={14} strokeWidth={2.5} color="$accent10" />}
                                 </XStack>
                             </YStack>
                         </XStack>
                         {/* Show truncated npub beneath nip05 */}
-                        {username && npub && (
-                            <Text fontSize="$1" color="$gray9" mt="$0.5">
-                                {truncateNpub(npub)}
-                            </Text>
-                        )}
+
                     </YStack>
                 </XStack>
             </XStack>
