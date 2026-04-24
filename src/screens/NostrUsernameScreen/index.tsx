@@ -14,10 +14,10 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { nip19 } from 'nostr-tools';
 import { Buffer } from 'buffer';
 
-// ─── zaps.lol API (nostr-address-provider) ────────────────────────────────────
+// ─── bey.cash API (self-hosted NIP-05 on Nostr) ───────────────────────────────
 
-const DOMAIN = 'zaps.lol';
-const API_BASE = 'https://zaps.lol/api';
+const DOMAIN = 'bey.cash';
+const API_BASE = 'https://bey.cash/api';
 
 /** Convert npub → hex pubkey */
 function npubToHex(npub: string): string | null {
@@ -49,59 +49,71 @@ function nsecToHex(nsec: string): string | null {
     return null;
 }
 
-/** Check if a username is taken on zaps.lol via NIP-05 */
+/** Check if a username is taken on bey.cash */
 async function checkAvailability(username: string): Promise<'available' | 'taken' | 'error'> {
     try {
         const res = await fetch(
-            `https://${DOMAIN}/.well-known/nostr.json?name=${encodeURIComponent(username)}`,
+            `${API_BASE}/register?check=${encodeURIComponent(username)}`,
             { headers: { Accept: 'application/json' } }
         );
-        // zaps.lol (nostr-address-provider) returns 404 if name does not exist
-        if (res.status === 404) return 'available';
         if (!res.ok) return 'error';
         const data = await res.json();
-        if (data?.names?.[username]) return 'taken';
-        return 'available';
+        if (data?.available === true) return 'available';
+        if (data?.available === false) return 'taken';
+        return 'error';
     } catch { return 'error'; }
 }
 
-/** Create a NIP-98 HTTP auth event and register username on zaps.lol */
+/** Register username on bey.cash using signed proof event */
 async function registerUsername(
     username: string,
     hexPubkey: string,
     hexPrivkey: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; nip05?: string }> {
     try {
-        const url = `${API_BASE}/user-create`;
-        const method = 'POST';
+        const { finalizeEvent } = require('nostr-tools/pure');
+        const { hexToBytes } = require('@noble/hashes/utils');
 
-        const res = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json'
-            },
+        // Create a proof event (Kind 22242) to prove key ownership
+        const privkeyBytes = hexToBytes(hexPrivkey);
+        const proofEvent = finalizeEvent({
+            kind: 22242,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            content: JSON.stringify({
+                username: username.toLowerCase(),
+                domain: DOMAIN,
+                action: 'register',
+            }),
+        }, privkeyBytes);
+
+        const res = await fetch(`${API_BASE}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                username: username,
-                pubkey: hexPubkey
+                username: username.toLowerCase(),
+                pubkey: hexPubkey,
+                proofEvent,
             }),
         });
 
         if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            console.error(`[NostrUsername] Registration failed (${res.status}):`, text.slice(0, 200));
-            return { ok: false, error: `Server error ${res.status}: Username may be taken or rate-limited.` };
+            const data = await res.json().catch(() => null);
+            const errMsg = data?.error || `Server error ${res.status}`;
+            console.error(`[NostrUsername] Registration failed (${res.status}):`, errMsg);
+            return { ok: false, error: errMsg };
         }
 
         const data = await res.json().catch(() => null);
-        if (!data) return { ok: false, error: 'Registration succeeded but response invalid' };
+        if (!data?.success) return { ok: false, error: 'Registration response invalid' };
         
-        return { ok: true };
+        return { ok: true, nip05: data.nip05 };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Network error' };
     }
 }
 
-// (Note: zaps.lol free edition currently does not support public unregistration through API)
+// (Note: Username deletion requires the registrar key — handled server-side only)
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -329,7 +341,7 @@ export function NostrUsernameScreen() {
                             <Text fontSize="$2" color="$gray10" lineHeight={18}>
                                 A NIP-05 identifier (like an email address) lets other Nostr users
                                 find and verify you. It appears as <Text fontWeight="700">you@{DOMAIN}</Text> in
-                                compatible apps. Registration is free and powered by zaps.lol.
+                                compatible apps. Registration is free and powered by Bey Wallet.
                             </Text>
                         </YStack>
                     </YStack>

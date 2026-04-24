@@ -10,13 +10,16 @@ import { useRouter } from "expo-router";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useWalletStore } from "~/store/walletStore";
 import { Animated, Easing } from 'react-native';
+import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 
 export default function WalletCard() {
     const npub = useSettingsStore(state => state.npub);
-    const nip05 = useSettingsStore(state => state.nip05);
     const { isRestoring } = useWalletStore();
     const toast = useToastController();
     const router = useRouter();
+
+    // Live NIP-05 lookup from bey.cash
+    const { username, nip05, loading: nip05Loading } = useNip05Lookup();
 
     const [countdown, setCountdown] = useState(2);
     const spin = React.useRef(new Animated.Value(0)).current;
@@ -86,30 +89,26 @@ export default function WalletCard() {
 
                             <YStack justify='center' >
                                 <XStack items='center' gap="$2">
-
-
-                                    <Text fontSize="$6" fontWeight="700" color="$accent4" numberOfLines={1}>
-                                        sundar
-                                        <Text fontSize="$6" fontWeight="700" color="$accent10" numberOfLines={1}>
-                                            @bey.cash
+                                    {username ? (
+                                        /* Show username@bey.cash when found */
+                                        <Text fontSize="$6" fontWeight="700" color="$accent4" numberOfLines={1}>
+                                            {username}
+                                            <Text fontSize="$6" fontWeight="700" color="$accent10" numberOfLines={1}>
+                                                @bey.cash
+                                            </Text>
                                         </Text>
-                                    </Text>
+                                    ) : (
+                                        /* No bey.cash username → show truncated npub */
+                                        <Text fontSize="$4" fontWeight="700" color="$accent10" numberOfLines={1}>
+                                            {npub ? truncateNpub(npub) : 'Bey Wallet'}
+                                        </Text>
+                                    )}
                                     {npub && <Copy size={14} color="$accent10" />}
-
                                 </XStack>
-                                {/* <XStack gap="$1.5" items="center">
-
-                                    <Text fontSize="$4" fontWeight="700" color="$accent10">
-                                        {npub ? truncateNpub(npub) : 'Bey Wallet'}
-                                    </Text>
-                                    {npub && <Copy size={14} color="$accent10" />}
-                                </XStack> */}
-
-
                             </YStack>
                         </XStack>
-                        {/* Show npub beneath nip05 */}
-                        {nip05 && npub && (
+                        {/* Show truncated npub beneath nip05 */}
+                        {username && npub && (
                             <Text fontSize="$1" color="$gray9" mt="$0.5">
                                 {truncateNpub(npub)}
                             </Text>

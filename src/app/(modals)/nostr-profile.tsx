@@ -1,6 +1,6 @@
 import React from 'react';
 import { YStack, XStack, Text, Button, View, Separator, ScrollView } from 'tamagui';
-import { Copy, Share as ShareIcon } from '@tamagui/lucide-icons';
+import { Copy, Share as ShareIcon, AtSign, RefreshCw } from '@tamagui/lucide-icons';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -9,10 +9,15 @@ import { useToastController } from '@tamagui/toast';
 import Blockies from 'components/UI/Blockies';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useTheme } from 'tamagui';
+import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 
 export default function NostrProfileScreen() {
     const toast = useToastController();
     const npub = useSettingsStore(state => state.npub);
+    const theme = useTheme();
+
+    // Live NIP-05 lookup from bey.cash
+    const { username, nip05, loading: nip05Loading, refresh } = useNip05Lookup();
 
     const handleCopy = async () => {
         if (!npub) return;
@@ -21,11 +26,19 @@ export default function NostrProfileScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
+    const handleCopyNip05 = async () => {
+        if (!nip05) return;
+        await Clipboard.setStringAsync(nip05);
+        toast.show("Copied Nostr address");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
     const handleShare = async () => {
         if (!npub) return;
         try {
+            const shareMessage = nip05 ? `${nip05}\n${npub}` : npub;
             await Share.share({
-                message: npub,
+                message: shareMessage,
             });
         } catch (error: any) {
             console.error("Error sharing npub:", error.message);
@@ -38,8 +51,6 @@ export default function NostrProfileScreen() {
         if (str.length < 20) return str;
         return `${str.slice(0, 8)}...${str.slice(-6)}`;
     };
-
-    const theme = useTheme();
 
     return (
         <ScrollView bg="$background" contentContainerStyle={{ p: '$4', items: 'center', gap: '$6', pt: '$2', pb: '$2' }}>
@@ -85,45 +96,81 @@ export default function NostrProfileScreen() {
                 </View>
             )}
 
-            {/* <XStack gap="$4" width="100%" px="$2">
-                <Button
-                    flex={1}
-                    size="$5"
-                    theme="gray"
-                    fontWeight="800"
-                    icon={<Copy size={20} />}
-                    onPress={handleCopy}
-                    disabled={!npub}
-                >
-                    Copy NPUB
-                </Button>
-                <Button
-                    flex={1}
-                    size="$5"
-                    theme="accent"
-                    fontWeight="800"
-                    icon={<ShareIcon size={20} />}
-                    onPress={handleShare}
-                    disabled={!npub}
-                >
-                    Share
-                </Button>
-            </XStack> */}
-
             <YStack gap="$0" width="100%" mt="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                <DetailItem label="Profile Name" value="Bey Wallet User" />
-                <DetailItem label="Network" value="Nostr Protocol" />
-                <DetailItem label="Public Key" value={formatNpub(npub)} isCopyable copyValue={npub || ''} onCopy={handleCopy} onPress={handleShare} />
+                {/* NIP-05 identity — show only if found */}
+                {nip05 && (
+                    <DetailItem
+                        label="Nostr Address"
+                        value={nip05}
+                        isCopyable
+                        copyValue={nip05}
+                        onCopy={handleCopyNip05}
+                        icon={<AtSign size={14} color="$accent10" />}
+                    />
+                )}
 
+                {/* Display name */}
+                <DetailItem
+                    label="Profile Name"
+                    value={username ? username : 'Bey Wallet User'}
+                />
+
+                <DetailItem label="Network" value="Nostr Protocol" />
+
+                <DetailItem
+                    label="Public Key"
+                    value={formatNpub(npub)}
+                    isCopyable
+                    copyValue={npub || ''}
+                    onCopy={handleCopy}
+                    onPress={handleShare}
+                />
+
+                {/* Refresh NIP-05 lookup */}
+                <XStack justify="center" py="$3" px="$4">
+                    <Button
+                        size="$3"
+                        theme="gray"
+                        chromeless
+                        icon={<RefreshCw size={14} color="$gray10" />}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            refresh();
+                        }}
+                        disabled={nip05Loading}
+                        opacity={nip05Loading ? 0.5 : 1}
+                    >
+                        {nip05Loading ? 'Checking…' : 'Refresh Identity'}
+                    </Button>
+                </XStack>
             </YStack>
         </ScrollView>
     );
 }
 
-function DetailItem({ label, value, isCopyable, copyValue, onCopy, onPress }: { label: string, value: string, isCopyable?: boolean, copyValue?: string, onCopy?: () => void, onPress?: () => void }) {
+function DetailItem({
+    label,
+    value,
+    isCopyable,
+    copyValue,
+    onCopy,
+    onPress,
+    icon
+}: {
+    label: string;
+    value: string;
+    isCopyable?: boolean;
+    copyValue?: string;
+    onCopy?: () => void;
+    onPress?: () => void;
+    icon?: React.ReactNode;
+}) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            </XStack>
             <XStack gap="$2" items="center">
                 <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={3} style={{ maxWidth: 200 }}>
                     {value}

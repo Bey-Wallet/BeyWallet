@@ -20,6 +20,7 @@ import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { ActivityIndicator, Alert, DevSettings } from 'react-native';
 import { walletFileService } from '~/services/walletFileService';
 import Constants from 'expo-constants';
+import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
@@ -32,7 +33,8 @@ export function SettingsScreen() {
     const nostrSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    const { secondaryCurrency, defaultMintUrl, nip05 } = useSettingsStore();
+    const { secondaryCurrency, defaultMintUrl } = useSettingsStore();
+    const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
     const [seedWords, setSeedWords] = useState<string[]>([]);
@@ -228,7 +230,7 @@ export function SettingsScreen() {
                 {
                     id: 'nostr-username',
                     title: 'Nostr Username',
-                    subTitle: nip05 ? nip05 : 'Claim a free NIP-05 address',
+                    subTitle: liveNip05 ? liveNip05 : (nip05Loading ? 'Looking up…' : 'Claim a free NIP-05 address'),
                     icon: AtSign,
                 },
             ],
