@@ -84,86 +84,108 @@ export default function ContactDetailsScreen() {
     const displayUsername = username ? `${username}@bey.cash` : 'Unknown User';
 
     return (
-        <ScrollView f={1} bg="$background" contentContainerStyle={{ p: '$4', gap: '$6' }}>
-            {/* Header / Identity */}
-            <YStack items="center" gap="$4" pt="$4">
-                <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 7 }} />
+        <YStack f={1} bg="$background">
+            <ScrollView f={1} contentContainerStyle={{ p: '$4', gap: '$6', paddingBottom: 100, height: '100%' }}>
+                {/* Header / Identity */}
+                <YStack items="center" gap="$4" pt="$4">
+                    <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 7 }} />
 
-                <YStack items="center" gap="$1">
-                    <Text fontSize="$7" fontWeight="bold" color="$color">
-                        {displayUsername}
-                    </Text>
-                    <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>
-                        <Text fontSize="$4" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
-                            {`${npub.slice(0, 12)}...${npub.slice(-10)}`}
+                    <YStack items="center" gap="$1">
+                        <Text fontSize="$7" fontWeight="bold" color="$color">
+                            {displayUsername}
                         </Text>
-                        <Copy size={14} color="$gray10" />
-                    </XStack>
-                </YStack>
-            </YStack>
-
-            {/* Action Buttons */}
-            <XStack justify="space-evenly" py="$2">
-                <YStack items="center" gap="$2">
-                    <Button
-                        size="$5"
-                        circular
-                        bg="$gray4"
-                        icon={<Send size={20} color="$color" />}
-                        onPress={handleSend}
-                    />
-                    <Text fontSize="$3" color="$gray10">Send</Text>
+                        <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>
+                            <Text fontSize="$4" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
+                                {`${npub.slice(0, 12)}...${npub.slice(-10)}`}
+                            </Text>
+                            <Copy size={14} color="$gray10" />
+                        </XStack>
+                    </YStack>
                 </YStack>
 
-                <YStack items="center" gap="$2">
-                    <Button
-                        size="$5"
-                        circular
-                        bg="$gray4"
-                        icon={<ArrowDownLeft size={20} color="$color" />}
-                        onPress={handleRequest}
-                    />
-                    <Text fontSize="$3" color="$gray10">Request</Text>
-                </YStack>
+                {/* Action Buttons */}
+                <XStack justify="space-evenly" py="$2">
+                    <YStack items="center" gap="$2">
+                        <Button
+                            size="$5"
+                            circular
+                            bg="$gray4"
+                            icon={<Send size={20} color="$color" />}
+                            onPress={handleSend}
+                        />
+                        <Text fontSize="$3" color="$gray10">Send</Text>
+                    </YStack>
 
-                <YStack items="center" gap="$2">
-                    <Button
-                        size="$5"
-                        circular
-                        bg={favorite ? '$red4' : '$gray4'}
-                        icon={<Heart size={20} color={favorite ? '$red10' : '$color'} fill={favorite ? theme.red10.val : 'transparent'} />}
-                        onPress={toggleFavorite}
-                    />
-                    <Text fontSize="$3" color="$gray10">{favorite ? 'Favorited' : 'Favorite'}</Text>
-                </YStack>
+                    <YStack items="center" gap="$2">
+                        <Button
+                            size="$5"
+                            circular
+                            bg="$gray4"
+                            icon={<ArrowDownLeft size={20} color="$color" />}
+                            onPress={handleRequest}
+                        />
+                        <Text fontSize="$3" color="$gray10">Request</Text>
+                    </YStack>
 
-                <YStack items="center" gap="$2">
-                    <Button
-                        size="$5"
-                        circular
-                        bg="$gray4"
-                        icon={<ShareIcon size={20} color="$color" />}
-                        onPress={handleShare}
-                    />
-                    <Text fontSize="$3" color="$gray10">Share</Text>
-                </YStack>
-            </XStack>
+                    <YStack items="center" gap="$2">
+                        <Button
+                            size="$5"
+                            circular
+                            bg={favorite ? '$red4' : '$gray4'}
+                            icon={<Heart size={20} color={favorite ? '$red10' : '$color'} fill={favorite ? theme.red10.val : 'transparent'} />}
+                            onPress={toggleFavorite}
+                        />
+                        <Text fontSize="$3" color="$gray10">{favorite ? 'Favorited' : 'Favorite'}</Text>
+                    </YStack>
 
-            <Separator borderColor="$borderColor" opacity={0.5} />
+                    <YStack items="center" gap="$2">
+                        <Button
+                            size="$5"
+                            circular
+                            bg="$gray4"
+                            icon={<ShareIcon size={20} color="$color" />}
+                            onPress={handleShare}
+                        />
+                        <Text fontSize="$3" color="$gray10">Share</Text>
+                    </YStack>
+                </XStack>
 
-            {/* Activity Section */}
-            <YStack gap="$4">
-                <Text fontSize="$5" fontWeight="600" color="$color">
-                    Activity
-                </Text>
-                <YStack bg="$gray2" p="$6" rounded="$5" items="center" justify="center" gap="$3" minHeight={150}>
-                    <Activity size={32} color="$gray8" />
-                    <Text color="$gray10" textAlign="center">
-                        No recent activity with this contact.
+                <Separator borderColor="$borderColor" opacity={0.5} />
+
+                {/* Activity Section */}
+                <YStack gap="$4">
+                    <Text fontSize="$5" fontWeight="600" color="$color">
+                        Activity
                     </Text>
+                    <YStack bg="$gray2" p="$6" rounded="$5" items="center" justify="center" gap="$3" minHeight={150}>
+                        <Activity size={32} color="$gray8" />
+                        <Text color="$gray10" textAlign="center">
+                            No recent activity with this contact.
+                        </Text>
+                    </YStack>
                 </YStack>
-            </YStack>
+            </ScrollView>
 
-        </ScrollView>
+            {/* Floating Send Button */}
+            <YStack
+                position="absolute"
+                bottom={20}
+                left={20}
+                right={20}
+                zIndex={100}
+            >
+                <Button
+                    size="$5"
+                    bg="$color"
+                    color="$background"
+                    fontWeight="bold"
+                    icon={<Send size={20} color="$background" />}
+                    onPress={handleSend}
+                    rounded="$5"
+                >
+                    Send Ecash
+                </Button>
+            </YStack>
+        </YStack>
     );
 }
