@@ -35,7 +35,7 @@ export function ReceiveModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
-    const params = useLocalSearchParams<{ scannedToken?: string }>()
+    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string }>()
     const { refreshBalance, addMint, fetchMintInfo, mints } = useWalletStore()
 
     const [isReceiveLater, setIsReceiveLater] = useState(false)
@@ -64,8 +64,10 @@ export function ReceiveModalScreen() {
 
             setToken(raw);
             handleDecodeToken(raw);
+        } else if (params.requestId) {
+            setReceiveMode('request');
         }
-    }, [params.scannedToken]);
+    }, [params.scannedToken, params.requestId]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -327,7 +329,7 @@ export function ReceiveModalScreen() {
 
             {/* ── Request Ecash: self-contained amount + result flow ─────── */}
             {receiveMode === 'request' && (
-                <RequestEcashStage onClose={handleClose} />
+                <RequestEcashStage onClose={handleClose} initialRequestId={params.requestId} />
             )}
 
 

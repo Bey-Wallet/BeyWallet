@@ -26,7 +26,7 @@ import { nostrRequestStore } from '../../store/nostrRequestStore';
 //   - Common / fallback      → nostr.bitcoiner.social, relay.current.fyi,
 //                              relay.nostr.jabber.ch
 //
-const RELAYS: string[] = [
+export const RELAYS: string[] = [
   // ── Core / high-uptime ───────────────────────────────────────────────
   'wss://relay.damus.io',
   'wss://relay.primal.net',
@@ -114,6 +114,16 @@ class NostrService {
     this._teardown();
   }
 
+  public refresh(): void {
+    if (!this.isRunning) return;
+    console.log('[NostrService] Manual refresh requested.');
+    if (this.pool) {
+      try { this.pool.close(RELAYS); } catch { /* ignore */ }
+      this.pool = null;
+    }
+    this._subscribe();
+  }
+
   // ── Internal ───────────────────────────────────────────────────────────────
 
   private _teardown(): void {
@@ -148,7 +158,7 @@ class NostrService {
       since: Math.floor(Date.now() / 1000) - SINCE_SECONDS,
     };
 
-    this.pool.subscribeMany(RELAYS, [filter], {
+    this.pool.subscribeMany(RELAYS, filter, {
       onevent: (event: Event) => {
         this._processEvent(event).catch(() => { /* silent */ });
       },
@@ -277,34 +287,66 @@ class NostrService {
    * Handle decrypted message content — look for cashu tokens and receive them.
    */
   private async _handleDecrypted(text: string, sourceEvent: Event): Promise<void> {
-    // Match V3 (cashuA) and V4 (cashuB) tokens
-    const tokenMatch = text.match(/(cashu[AB][A-Za-z0-9_=-]+)/i);
-    if (!tokenMatch) {
-      // Could be a payment request echo or other message — ignore silently
-      return;
-    }
-
-    const tokenString = tokenMatch[1];
-    console.log(`[NostrService] 🎉 Found ecash token in event ${sourceEvent.id.slice(0, 8)}…`);
-
+    let tokenString = '';
     let amount = 0;
     let mintUrl = '';
+    let requestIdFromPayload: string | undefined = undefined;
+
+    // First try to parse as JSON PaymentRequestPayload (used by cashu.me for request fulfillment)
+    try {
+      const payload = JSON.parse(text);
+      if (payload && payload.proofs && payload.mint) {
+        console.log(`[NostrService] 🎉 Found JSON PaymentRequestPayload in event ${sourceEvent.id.slice(0, 8)}…`);
+        
+        // Convert to standard V3/V4 token structure so our existing receive logic works
+        const tokenStruct = {
+          token: [{ mint: payload.mint, proofs: payload.proofs }]
+        };
+        
+        // Use base64 encoded token representation (mocking a V3 token to trick walletService.receive)
+        // Or if we can import getEncodedToken, even better. For now we just encode to cashuA
+        const b64 = Buffer.from(JSON.stringify(tokenStruct)).toString('base64');
+        tokenString = `cashuA${b64}`;
+        
+        mintUrl = payload.mint;
+        amount = payload.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        requestIdFromPayload = payload.id; // The ID of the PaymentRequest being fulfilled
+      }
+    } catch {
+      // Not JSON, fallback to regex search for cashuA/cashuB strings
+    }
+
+    if (!tokenString) {
+      // Match V3 (cashuA) and V4 (cashuB) tokens
+      const tokenMatch = text.match(/(cashu[AB][A-Za-z0-9_=-]+)/i);
+      if (!tokenMatch) {
+        // Could be a payment request echo or other message — ignore silently
+        return;
+      }
+      tokenString = tokenMatch[1];
+      console.log(`[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`);
+
+      try {
+        const decoded = getDecodedToken(cleanToken(tokenString));
+
+        // Handle both V3 (decoded.token[]) and V4 (decoded.proofs + decoded.mint)
+        if ((decoded as any).token && (decoded as any).token.length > 0) {
+          const first = (decoded as any).token[0];
+          mintUrl = first.mint;
+          amount = first.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        } else if ((decoded as any).mint && (decoded as any).proofs) {
+          mintUrl = (decoded as any).mint;
+          amount = (decoded as any).proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+        }
+      } catch (err: any) {
+        console.error('[NostrService] Could not decode token string to get amount/mint', err);
+        return;
+      }
+    }
+
+    console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
     try {
-      const decoded = getDecodedToken(cleanToken(tokenString));
-
-      // Handle both V3 (decoded.token[]) and V4 (decoded.proofs + decoded.mint)
-      if ((decoded as any).token && (decoded as any).token.length > 0) {
-        const first = (decoded as any).token[0];
-        mintUrl = first.mint;
-        amount = first.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-      } else if ((decoded as any).mint && (decoded as any).proofs) {
-        mintUrl = (decoded as any).mint;
-        amount = (decoded as any).proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-      }
-
-      console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
-
       // ── Attempt P2PK receive first (locked to our key) ──────────────────
       let receiveError: any = null;
       // Lazy load walletService to prevent circular dependency at top-level
@@ -364,10 +406,11 @@ class NostrService {
         amount,
         mintUrl,
         eventId: sourceEvent.id,
+        requestId: requestIdFromPayload,
       });
       console.log(`[NostrService] 🔔 Emitted nostr:received (${amount} sats)`);
     } catch (err: any) {
-      console.error('[NostrService] Failed to receive token:', err?.message || err);;
+      console.error('[NostrService] Failed to receive token:', err?.message || err);
     }
   }
 

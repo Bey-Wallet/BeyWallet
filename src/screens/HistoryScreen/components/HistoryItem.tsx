@@ -45,6 +45,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         switch (type) {
             case 'send': return 'Sent';
             case 'receive': return 'Received';
+            case 'receive-request': return 'Payment Request';
             case 'mint': return 'Received (LN)';
             case 'melt': return 'Melted';
             case 'swap': return 'Swapped';

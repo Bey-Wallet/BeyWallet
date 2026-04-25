@@ -12,6 +12,7 @@ import AppBottomSheet, { AppBottomSheetRef } from '../../components/UI/AppBottom
 import { HistoryItem } from './components/HistoryItem';
 import { HistorySection } from './components/HistorySection';
 import { ListItem, YGroup } from 'tamagui';
+import { useNostrRequestStore } from '../../store/nostrRequestStore';
 
 interface HistoryEntry {
     id: string;
@@ -35,6 +36,12 @@ export function HistoryScreen() {
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const timeSheetRef = useRef<AppBottomSheetRef>(null);
 
+    const { pendingRequests, loadPendingRequests } = useNostrRequestStore();
+
+    useEffect(() => {
+        loadPendingRequests();
+    }, []);
+
     const { data: history = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['history'],
         queryFn: async () => {
@@ -47,7 +54,22 @@ export function HistoryScreen() {
     });
 
     const filteredHistory = useMemo(() => {
-        let filtered = history;
+        // Map pending Nostr requests into the history shape
+        const pendingEntries: HistoryEntry[] = pendingRequests.map(req => ({
+            id: req.id,
+            type: 'receive-request' as any,
+            amount: req.amount,
+            unit: req.unit,
+            mintUrl: req.mintUrl,
+            state: req.state,
+            createdAt: req.createdAt,
+            metadata: {
+                creqString: req.creqString,
+                nostrPubkey: req.nostrPubkey,
+            }
+        }));
+
+        let filtered = [...pendingEntries, ...history];
 
         if (mintFilter !== 'all') {
             filtered = filtered.filter(entry =>
@@ -104,7 +126,7 @@ export function HistoryScreen() {
             if (!isSwap) merged.push(current);
         }
         return merged;
-    }, [history, mintFilter, timeFilter]);
+    }, [history, pendingRequests, mintFilter, timeFilter]);
 
     const groupedHistory = useMemo(() => {
         const groups: { title: string, items: HistoryEntry[] }[] = [];
@@ -144,12 +166,23 @@ export function HistoryScreen() {
             eventService.on('send:created', handleUpdate),
             eventService.on('mint-quote:redeemed', handleUpdate),
         ];
-        return () => unsubs.forEach(u => u());
+        
+        // Also reload pending requests when history updates
+        const sub = eventService.on('history:updated', loadPendingRequests);
+
+        return () => {
+            unsubs.forEach(u => u());
+            sub();
+        };
     }, [queryClient]);
 
-    const handleTransactionPress = (id: string) => {
+    const handleTransactionPress = (id: string, type: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push({ pathname: '/(modals)/txn-details', params: { id } });
+        if (type === 'receive-request') {
+            router.push({ pathname: '/(modals)/receive', params: { requestId: id } });
+        } else {
+            router.push({ pathname: '/(modals)/txn-details', params: { id } });
+        }
     };
 
     const handleMintSelect = (url: string) => {
@@ -250,7 +283,7 @@ export function HistoryScreen() {
                                         key={entry.id}
                                         {...entry}
                                         status={entry.state || 'completed'}
-                                        onPress={() => handleTransactionPress(entry.id)}
+                                        onPress={() => handleTransactionPress(entry.id, entry.type)}
                                     />
                                 ))}
                             </HistorySection>

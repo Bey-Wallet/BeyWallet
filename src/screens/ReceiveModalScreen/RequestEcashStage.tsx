@@ -11,6 +11,7 @@ import {
     ListItem,
     Input,
 } from 'tamagui';
+import { DeviceEventEmitter } from 'react-native';
 import {
     QrCode,
     Copy,
@@ -41,8 +42,8 @@ import { useNostrRequestStore } from '../../store/nostrRequestStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
-// NUT-18: Cashu Payment Request
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
+import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -50,10 +51,11 @@ const makeRequestId = () =>
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type RequestStep = 'amount' | 'result';
+type RequestStep = 'amount' | 'result' | 'success';
 
 interface RequestEcashStageProps {
     onClose?: () => void;
+    initialRequestId?: string;
 }
 
 // ─── Detail Row ───────────────────────────────────────────────────────────────
@@ -91,7 +93,7 @@ function DetailItem({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
+export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashStageProps) {
     const [step, setStep] = useState<RequestStep>('amount');
     const [amount, setAmount] = useState('0');
     const [localInputValue, setLocalInputValue] = useState('0');
@@ -103,6 +105,7 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     const [creqString, setCreqString] = useState<string | null>(null);
     const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isChecking, setIsChecking] = useState(false);
     const [generateError, setGenerateError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
@@ -111,7 +114,32 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
 
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
     const { secondaryCurrency, npub } = useSettingsStore();
-    const { addRequest } = useNostrRequestStore();
+    const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
+
+    // ── Restore from History (initialRequestId) ───────────────────────────────
+    React.useEffect(() => {
+        if (initialRequestId) {
+            // Wait for store to be loaded just in case
+            loadPendingRequests().then(() => {
+                const req = useNostrRequestStore.getState().pendingRequests.find(r => r.id === initialRequestId);
+                if (req) {
+                    console.log('[RequestEcashStage] Restored request from history:', initialRequestId);
+                    setAmount(req.amount.toString());
+                    setLocalInputValue(req.amount.toString());
+                    setCreqString(req.creqString);
+                    setCurrentRequestId(req.id);
+                    if (req.mintUrl !== activeMintUrl) {
+                        setActiveMint(req.mintUrl);
+                    }
+                    if (req.description) {
+                        setNote(req.description);
+                        setShowNote(true);
+                    }
+                    setStep('result');
+                }
+            });
+        }
+    }, [initialRequestId]);
 
     const activeMint = mints.find(
         (m) => m.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
@@ -189,11 +217,29 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
 
         try {
             // NUT-18: PaymentRequest(transport, id, amount, unit, mints, description)
-            // NOSTR transport using the user's npub (hex pubkey for routing)
+            let target = npub;
+            if (npub && npub.startsWith('npub1')) {
+                try {
+                    const decoded = nip19Decode(npub);
+                    if (decoded.type === 'npub') {
+                        const hexPubkey = decoded.data as string;
+                        // HACK: NUT-18 spec says target should be a hex pubkey. 
+                        // However, cashu.me has a bug where it unconditionally calls `nip19.decode(target)` 
+                        // and expects a `ProfilePointer` (which means it expects an `nprofile1...` string).
+                        // Furthermore, if we omit relays, it decodes to `[]`, which breaks cashu.me's relay fallback.
+                        // If we pass all 12 relays, the QR code becomes too dense to scan.
+                        // We pass exactly ONE highly reliable relay to satisfy both constraints.
+                        target = nprofileEncode({ pubkey: hexPubkey, relays: ['wss://relay.damus.io'] });
+                    }
+                } catch (e) {
+                    console.warn('[RequestEcashStage] Failed to decode npub', e);
+                }
+            }
+
             const transports = npub ? [
                 {
                     type: PaymentRequestTransportType.NOSTR,
-                    target: npub,
+                    target: target,
                     tags: [],
                 }
             ] : [];
@@ -264,6 +310,57 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
         setGenerateError(null);
         setCopied(false);
     };
+
+    // ── Real-Time Nostr Listener ──────────────────────────────────────────────
+    React.useEffect(() => {
+        if (step !== 'result') return;
+
+        const sub = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
+            console.log('[RequestEcashStage] Received nostr:received event:', data);
+            
+            // Check if this payment matches our current request
+            const isMatch = (data.requestId && data.requestId === currentRequestId) || 
+                            (data.amount === amtNum && data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
+            
+            if (isMatch) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setStep('success');
+            }
+        });
+
+        return () => sub.remove();
+    }, [step, currentRequestId, amtNum, activeMintUrl]);
+
+    // ── Manual Check Status ───────────────────────────────────────────────────
+    const handleCheckStatus = useCallback(async () => {
+        setIsChecking(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        
+        try {
+            // Force nostrService to reconnect and fetch recent events
+            const { nostrService } = require('../../services/core/nostrService');
+            nostrService.refresh();
+
+            // Wait 2.5 seconds for relay sync to complete
+            await new Promise(r => setTimeout(r, 2500));
+
+            await loadPendingRequests();
+            const reqs = useNostrRequestStore.getState().pendingRequests;
+            const stillPending = reqs.find(r => r.id === currentRequestId);
+            
+            if (!stillPending) {
+                // It was removed from pending, meaning it was received!
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setStep('success');
+            } else {
+                toast.show('Still Pending', { message: 'No payment received yet.' });
+            }
+        } catch (e) {
+            console.warn('[RequestEcashStage] check status error:', e);
+        } finally {
+            setIsChecking(false);
+        }
+    }, [currentRequestId, loadPendingRequests, toast]);
 
     // ────────────────────────────────────────────────────────────────────────
     // AMOUNT STAGE
@@ -448,6 +545,48 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // SUCCESS STAGE
+    // ────────────────────────────────────────────────────────────────────────
+    if (step === 'success') {
+        return (
+            <YStack flex={1} bg="$background" p="$4" justify="center" items="center" gap="$4">
+                <View
+                    width={80}
+                    height={80}
+                    rounded="$10"
+                    bg="$green4"
+                    items="center"
+                    justify="center"
+                    animation="bouncy"
+                    enterStyle={{ scale: 0, opacity: 0 }}
+                >
+                    <Check size={40} color="$green10" strokeWidth={3} />
+                </View>
+                
+                <YStack items="center" gap="$2" mt="$4">
+                    <Text fontSize="$6" fontWeight="900" color="$color">Request Claimed!</Text>
+                    <Text fontSize="$4" color="$gray10" textAlign="center">
+                        You have successfully received {amtNum} sats.
+                    </Text>
+                </YStack>
+
+                <Button
+                    mt="$8"
+                    size="$5"
+                    theme="accent"
+                    fontWeight="800"
+                    rounded="$4"
+                    width="100%"
+                    onPress={onClose || handleReset}
+                    pressStyle={{ scale: 0.97 }}
+                >
+                    Done
+                </Button>
+            </YStack>
+        );
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // RESULT STAGE — NUT-18 creqA QR + detail table
     // When sender scans this, their wallet pre-fills amount + mint
     // and sends ecash directly to us
@@ -554,16 +693,27 @@ export function RequestEcashStage({ onClose }: RequestEcashStageProps) {
                             </Button>
                         </XStack>
 
-                        <Button
-                            chromeless
-                            size="$3"
-                            alignSelf="center"
-                            icon={<RefreshCw size={14} color="$gray10" />}
-                            onPress={handleReset}
-                            pressStyle={{ opacity: 0.7 }}
-                        >
-                            <Text fontSize="$2" color="$gray10">New Request</Text>
-                        </Button>
+                        <XStack justify="center" gap="$4">
+                            <Button
+                                chromeless
+                                size="$3"
+                                icon={isChecking ? <Spinner size="small" color="$accent9" /> : <RefreshCw size={14} color="$accent9" />}
+                                onPress={handleCheckStatus}
+                                disabled={isChecking}
+                                pressStyle={{ opacity: 0.7 }}
+                            >
+                                <Text fontSize="$2" color="$accent10" fontWeight="700">Check Status</Text>
+                            </Button>
+                            <Button
+                                chromeless
+                                size="$3"
+                                icon={<RefreshCw size={14} color="$gray10" />}
+                                onPress={handleReset}
+                                pressStyle={{ opacity: 0.7 }}
+                            >
+                                <Text fontSize="$2" color="$gray10">New Request</Text>
+                            </Button>
+                        </XStack>
                     </YStack>
                 </YStack>
             </ScrollView>
