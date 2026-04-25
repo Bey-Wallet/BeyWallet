@@ -85,7 +85,7 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const res = await fetch(NIP05_URL, {
+            const res = await fetch(`${NIP05_URL}?_t=${Date.now()}`, {
                 signal: controller.signal,
                 headers: { Accept: 'application/json' },
             });

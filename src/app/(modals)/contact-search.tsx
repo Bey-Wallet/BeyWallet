@@ -20,7 +20,7 @@ export default function ContactSearchScreen() {
         // Fetch bey.cash directory
         const fetchDirectory = async () => {
             try {
-                const res = await fetch('https://bey.cash/.well-known/nostr.json');
+                const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data?.names) setDirectory(data.names);

@@ -19,14 +19,16 @@ import { Buffer } from 'buffer';
 const DOMAIN = 'bey.cash';
 const API_BASE = 'https://bey.cash/api';
 
-/** Convert npub → hex pubkey */
 function npubToHex(npub: string): string | null {
     if (!npub) return null;
     if (/^[0-9a-fA-F]{64}$/.test(npub)) return npub;
     try {
         const decoded = nip19.decode(npub);
         if (decoded.type === 'npub') {
-            return Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
+            // nostr-tools v2 nip19.decode('npub...') returns the hex string directly
+            return typeof decoded.data === 'string' 
+                ? decoded.data 
+                : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
         }
     } catch (e) {
         console.error('[NostrUsername] npub decode error:', e);
@@ -41,7 +43,9 @@ function nsecToHex(nsec: string): string | null {
     try {
         const decoded = nip19.decode(nsec);
         if (decoded.type === 'nsec') {
-            return Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
+            return typeof decoded.data === 'string' 
+                ? decoded.data 
+                : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
         }
     } catch (e) {
         console.error('[NostrUsername] nsec decode error:', e);
