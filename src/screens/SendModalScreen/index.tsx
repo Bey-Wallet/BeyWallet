@@ -6,6 +6,7 @@ import { P2PKAmountStage } from './P2PKAmountStage'
 import { ResultStage } from './ResultStage'
 import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
+import { ScanAndPayStage } from './ScanAndPayStage'
 import { biometricService } from '~/services/biometricService'
 import { walletService, mintManager } from '~/services/core'
 import * as Haptics from 'expo-haptics'
@@ -62,6 +63,8 @@ export function SendModalScreen() {
     const [isProcessing, setIsProcessing] = useState(false)
     const [sendMode, setSendMode] = useState<SendMode>('standard')
     const [receiverPubkey, setReceiverPubkey] = useState('')
+    const [scanInput, setScanInput] = useState('')
+    const [manualParsedRequest, setManualParsedRequest] = useState<ParsedPaymentRequest | null>(null)
     const router = useRouter()
     const queryClient = useQueryClient();
 
@@ -72,13 +75,15 @@ export function SendModalScreen() {
         return parsePaymentRequest(params.paymentRequest as string);
     }, [params.paymentRequest]);
 
+    const activeParsedRequest = parsedRequest || manualParsedRequest;
+
     // Auto-switch to payment_request step if we got a creqA param
     React.useEffect(() => {
-        if (parsedRequest) {
-            console.log('[SendModal] Auto-switching to payment_request stage:', parsedRequest);
+        if (activeParsedRequest) {
+            console.log('[SendModal] Auto-switching to payment_request stage:', activeParsedRequest);
             setStep('payment_request');
         }
-    }, [parsedRequest]);
+    }, [activeParsedRequest]);
 
     const { balance, activeMintUrl, refreshBalance, mints } = useWalletStore()
     const { secondaryCurrency } = useSettingsStore()
@@ -213,17 +218,19 @@ export function SendModalScreen() {
             if (sendMode === 'p2pk') {
                 let targetPubkey = receiverPubkey.trim();
 
-                // Decode npub to hex if necessary
-                if (targetPubkey.startsWith('npub')) {
+                // Decode npub/nprofile to hex if necessary
+                if (targetPubkey.startsWith('npub') || targetPubkey.startsWith('nprofile')) {
                     try {
                         const decoded = nip19.decode(targetPubkey);
                         if (decoded.type === 'npub') {
                             targetPubkey = decoded.data as string;
+                        } else if (decoded.type === 'nprofile') {
+                            targetPubkey = (decoded.data as any).pubkey as string;
                         } else {
-                            throw new Error('Invalid npub provided');
+                            throw new Error('Unsupported bech32 prefix');
                         }
                     } catch (e: any) {
-                        throw new Error('Failed to decode npub: ' + e.message);
+                        throw new Error('Failed to decode Nostr identifier: ' + e.message);
                     }
                 }
 
@@ -283,6 +290,34 @@ export function SendModalScreen() {
         router.back();
     }
 
+    const handleScanContinue = (forcedInput?: string) => {
+        const input = (typeof forcedInput === 'string' ? forcedInput : scanInput).trim();
+        if (!input) return;
+        setError(null);
+
+        // Auto-redirect to receive if it looks like a token
+        const isPaymentRequest = input.toLowerCase().startsWith('creqa') || input.toLowerCase().startsWith('creqb');
+        
+        if (!isPaymentRequest) {
+            // Treat as token and redirect to receive
+            router.replace({
+                pathname: '/(modals)/receive',
+                params: { scannedToken: input },
+            });
+            return;
+        }
+
+        const parsed = parsePaymentRequest(input);
+        if (parsed) {
+            setManualParsedRequest(parsed);
+            // step is auto-switched by useEffect
+        } else {
+            setError('Invalid payment request format');
+            setStatus('error');
+            setStep('result');
+        }
+    }
+
     return (
         <YStack flex={1} bg="$background" p="$4">
             <Stack.Screen
@@ -296,9 +331,9 @@ export function SendModalScreen() {
                     ),
                 }}
             />
-            {step === 'payment_request' && parsedRequest && (
+            {step === 'payment_request' && activeParsedRequest && (
                 <PaymentRequestStage
-                    request={parsedRequest}
+                    request={activeParsedRequest}
                     onSuccess={(paidAmount, opId) => {
                         setAmount(String(paidAmount));
                         setOperationId(opId);
@@ -340,12 +375,21 @@ export function SendModalScreen() {
                             error={error}
                         />
                     )}
-                    {(sendMode === 'scan' || sendMode === 'nostr') && (
+                    {sendMode === 'scan' && (
+                        <ScanAndPayStage
+                            input={scanInput}
+                            setInput={setScanInput}
+                            isLoading={isProcessing}
+                            error={error}
+                            onContinue={handleScanContinue}
+                        />
+                    )}
+                    {sendMode === 'nostr' && (
                         <YStack flex={1} items="center" justify="center" gap="$4" opacity={0.5}>
                             <ScanLine size={48} color="$gray8" />
                             <YStack items="center" gap="$1">
                                 <Text fontSize="$5" fontWeight="700" color="$gray9">
-                                    {sendMode === 'scan' ? 'Scan & Pay' : 'Nostr'}
+                                    Nostr
                                 </Text>
                                 <Text fontSize="$3" color="$gray9">
                                     Coming soon

@@ -133,40 +133,40 @@ export default function ReceiveModeSelector({
                             {RECEIVE_METHODS.map((method) => {
                                 const isActive = method.key === mode;
                                 return (
-                                    <>
-                                        <XStack justify="space-between" onPress={() => handleSelect(method.key)} key={method.key}>
-                                            <XStack gap="$3" items="center">
-                                                <View
-                                                    bg={'$gray4'}
-                                                    p="$3"
-                                                    rounded="$10"
-                                                    width={50}
-                                                    height={50}
-                                                    items="center"
-                                                    justify="center"
-                                                >
-                                                    {method.icon}
-                                                </View>
-                                                <Text
-                                                    fontWeight="700"
-                                                    fontSize="$6"
-                                                    numberOfLines={1}
-                                                    color={'$color'}
-                                                >
-                                                    {method.label}
-                                                </Text>
-                                            </XStack>
-                                            <XStack items="center" justify="center">
-                                                {isActive ? (
-                                                    <View bg="$accent4" p="$1.5" rounded="$10">
-                                                        <Check size={14} color="$accent10" strokeWidth={3} />
-                                                    </View>
-                                                ) : undefined}
 
-                                            </XStack>
+                                    <XStack justify="space-between" onPress={() => handleSelect(method.key)} key={method.key}>
+                                        <XStack gap="$3" items="center">
+                                            <View
+                                                bg={'$gray4'}
+                                                p="$3"
+                                                rounded="$10"
+                                                width={50}
+                                                height={50}
+                                                items="center"
+                                                justify="center"
+                                            >
+                                                {method.icon}
+                                            </View>
+                                            <Text
+                                                fontWeight="700"
+                                                fontSize="$6"
+                                                numberOfLines={1}
+                                                color={'$color'}
+                                            >
+                                                {method.label}
+                                            </Text>
                                         </XStack>
+                                        <XStack items="center" justify="center">
+                                            {isActive ? (
+                                                <View bg="$accent4" p="$1.5" rounded="$10">
+                                                    <Check size={14} color="$accent10" strokeWidth={3} />
+                                                </View>
+                                            ) : undefined}
 
-                                    </>
+                                        </XStack>
+                                    </XStack>
+
+
                                 );
                             })}
                         </YStack>

@@ -433,18 +433,20 @@ class NostrService {
     recipientPubkeyHexOrNpub: string,
     senderPrivkeyHex: string,
   ): Promise<boolean> {
-    // Resolve npub → hex
+    // Resolve npub/nprofile → hex
     let recipientPubkeyHex = recipientPubkeyHexOrNpub.trim();
-    if (recipientPubkeyHex.startsWith('npub')) {
+    if (recipientPubkeyHex.startsWith('npub') || recipientPubkeyHex.startsWith('nprofile')) {
       try {
         const decoded = nip19Decode(recipientPubkeyHex);
         if (decoded.type === 'npub') {
           recipientPubkeyHex = decoded.data as string;
+        } else if (decoded.type === 'nprofile') {
+          recipientPubkeyHex = (decoded.data as any).pubkey as string;
         } else {
-          throw new Error('Not an npub');
+          throw new Error('Unsupported bech32 prefix');
         }
       } catch (e: any) {
-        throw new Error(`Invalid npub: ${e.message}`);
+        throw new Error(`Invalid Nostr identifier: ${e.message}`);
       }
     }
 
