@@ -42,7 +42,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
                     disappearsOnIndex={-1}
                     appearsOnIndex={0}
                     pressBehavior="close"
-                    opacity={0.5}
+                    opacity={0.4}
                 />
             ),
             []
@@ -91,6 +91,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
                 backgroundStyle={{
                     backgroundColor: theme.color2.val,
                     borderRadius: 20,
+
                 }}
                 onChange={handleSheetChanges}
                 animationConfigs={{

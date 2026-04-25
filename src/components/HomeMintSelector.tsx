@@ -1,4 +1,4 @@
-import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Building2 } from "@tamagui/lucide-icons";
+import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Building2, Check } from "@tamagui/lucide-icons";
 import { Button, Text, YStack, XStack, ListItem, Paragraph, View, Image, Avatar, Square } from "tamagui";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import { Spinner } from "./UI/Spinner";
 import { useRouter } from "expo-router";
 
 export default function HomeHeaderMintSelector() {
-    const { activeMintUrl, balance, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    const { activeMintUrl, balance, balances, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
     const isLoading = isInitializing || isRefreshing;
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const editNicknameRef = useRef<EditNicknameModalRef>(null);
@@ -110,21 +110,15 @@ export default function HomeHeaderMintSelector() {
 
             <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
                 <YStack p="$4" gap="$3" flex={1}>
-                    <XStack justify="space-between" items="center" px="$3" mb="$2">
-                        <Paragraph fontSize="$6" color="$accent5" fontWeight="bold">Your Mints</Paragraph>
-                        <Button
-                            size="$3"
-                            rounded="$10"
-                            theme="accent"
-                            onPress={handleAddMint}
-                            pressStyle={{ scale: 0.95 }}
-                        >
+                    <XStack justify="center" items="center" mb="$2">
+                        <Button size="$3" fontWeight="bold" theme="accent" rounded="$10" onPress={handleAddMint} icon={<Plus size={18} color="$color" />}>
                             Add Mint
                         </Button>
                     </XStack>
 
                     <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
+                        <YStack gap="$3" pb="$4" >
+
                             {mints.length === 0 ? (
                                 <YStack items="center" py="$6" gap="$2">
                                     <Sprout size={40} color="$gray8" />
@@ -132,34 +126,24 @@ export default function HomeHeaderMintSelector() {
                                 </YStack>
                             ) : (
                                 mints.map((mint) => (
-                                    <ListItem
-                                        key={mint.mintUrl}
-                                        size="$4"
-                                        px="$2"
-                                        hoverTheme
-                                        pressTheme
-                                        theme="gray"
-                                        rounded="$4"
-                                        borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0}
-                                        borderColor={mint.mintUrl === activeMintUrl ? "$borderColor" : "$borderColor"}
-                                        bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
-                                        onPress={() => handleSelectMint(mint.mintUrl)}
-                                        icon={
+
+                                    <XStack justify="space-between" items="center">
+                                        <XStack gap="$3" items="center">
                                             <View
                                                 bg={mint.trusted ? "$green4" : "$gray4"}
                                                 p={mint.icon ? "$0" : "$2"}
-                                                rounded="$10"
+                                                rounded="$4"
                                                 overflow="hidden"
-                                                width={40}
-                                                height={40}
+                                                width={50}
+                                                height={50}
                                                 items="center"
                                                 justify="center"
                                             >
                                                 {mint.icon ? (
                                                     <Image
                                                         source={{ uri: mint.icon }}
-                                                        width={40}
-                                                        height={40}
+                                                        width={50}
+                                                        height={50}
                                                         resizeMode="cover"
                                                     />
                                                 ) : mint.trusted ? (
@@ -168,42 +152,47 @@ export default function HomeHeaderMintSelector() {
                                                     <ShieldOff size={20} color="$gray10" />
                                                 )}
                                             </View>
-                                        }
-                                        title={
-                                            <XStack items="center" gap="$2">
-                                                <Text fontWeight="600" fontSize="$4" numberOfLines={1}>
-                                                    {mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                            <YStack>
+                                                <XStack items="center" gap="$2">
+                                                    <Text fontWeight="600" fontSize="$4" numberOfLines={1}>
+                                                        {mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                                    </Text>
+                                                    <Button
+                                                        size="$2"
+                                                        circular
+                                                        chromeless
+                                                        icon={<Edit3 size={14} color="$gray10" />}
+                                                        onPress={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEditNickname(mint);
+                                                        }}
+                                                    />
+                                                </XStack>
+                                                <Text fontWeight="bold" fontSize="$5" numberOfLines={1} color="$accent5">
+                                                    {balances[mint.mintUrl] !== undefined ? `₿${balances[mint.mintUrl]}` : '₿0'}
                                                 </Text>
-                                                <Button
-                                                    size="$2"
-                                                    circular
-                                                    chromeless
-                                                    icon={<Edit3 size={14} color="$gray10" />}
-                                                    onPress={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEditNickname(mint);
-                                                    }}
-                                                />
+                                            </YStack>
+                                        </XStack>
+                                        <XStack>
+                                            <XStack items="center" justify="center">
+                                                {mint.mintUrl === activeMintUrl ? (
+                                                    <View bg="$accent4" p="$1.5" rounded="$10">
+                                                        <Check size={18} color="$accent10" strokeWidth={4} />
+                                                    </View>
+                                                ) : undefined}
+
                                             </XStack>
-                                        }
-                                        subTitle={
-                                            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                                                {mint.mintUrl.replace('https://', '')}
-                                            </Text>
-                                        }
-                                        iconAfter={
-                                            mint.mintUrl === activeMintUrl ? (
-                                                <YStack items="flex-end" gap="$0">
-                                                    <Text fontWeight="bold" fontSize="$6">{balance}</Text>
-                                                    <Text fontSize="$2" opacity={0.6}>SATS</Text>
-                                                </YStack>
-                                            ) : undefined
-                                        }
-                                    />
+                                        </XStack>
+                                    </XStack>
+
+
                                 ))
+
                             )}
                         </YStack>
                     </BottomSheetScrollView>
+
+
 
                     <Button
                         size="$4"

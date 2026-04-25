@@ -37,13 +37,13 @@ const RECEIVE_METHODS: {
             key: 'receive',
             label: 'Receive',
             subtitle: 'Paste or scan a Cashu token',
-            icon: <ArrowDownToLine size={18} color="$color" />,
+            icon: <ArrowDownToLine strokeWidth={3} color="$color" />,
         },
         {
             key: 'request',
             label: 'Request',
             subtitle: 'Generate a payment request QR',
-            icon: <QrCode size={18} color="$color" />,
+            icon: <QrCode strokeWidth={3} color="$color" />,
         },
     ];
 
@@ -53,8 +53,8 @@ const MODE_LABELS: Record<ReceiveMode, string> = {
 };
 
 const MODE_ICONS: Record<ReceiveMode, React.ReactNode> = {
-    receive: <ArrowDownToLine size={12} color="$color" />,
-    request: <QrCode size={12} color="$color" />,
+    receive: <ArrowDownToLine size={16} strokeWidth={3} color="$color" />,
+    request: <QrCode size={16} strokeWidth={3} color="$color" />,
 };
 
 export default function ReceiveModeSelector({
@@ -74,50 +74,43 @@ export default function ReceiveModeSelector({
         <>
             {/* Pill button shown in the nav header */}
             <Button
-                size="$2.5"
-                theme={mode === 'receive' ? 'gray' : 'orange'}
-                px={isLoading ? '$3' : '$1.5'}
+                size="$3"
+                theme={mode === 'receive' ? 'white' : 'orange'}
+                px={isLoading ? '$3' : '$3'}
                 borderWidth={1}
                 disabled={isLoading}
                 onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                     sheetRef.current?.present();
                 }}
-                maxW={160}
+
+                rounded="$10"
                 pressStyle={{ scale: 0.97, opacity: 0.9 }}
                 icon={
 
-                    <Square
-                        size="$1.5"
-                        borderWidth={0.5}
-                        borderColor="$borderColor"
-                        bg="$color2"
-                        rounded="$3"
+                    <View
+
                     >
                         {isLoading ? (
-                            <Spinner size={14} color="$color10" />
+                            <Spinner size={16} color="$color10" />
                         ) : (
                             MODE_ICONS[mode]
                         )}
-                    </Square>
+                    </View>
                 }
                 iconAfter={
                     isLoading ? undefined : (
-                        <Square
-                            size="$1.5"
-                            borderWidth={0.5}
-                            borderColor="$borderColor"
-                            bg="$gray2"
-                            rounded="$3"
+                        <View
+
                         >
-                            <ChevronDown size={12} strokeWidth={2.5} color="$color" />
-                        </Square>
+                            <ChevronDown size={20} strokeWidth={3} color="$color" />
+                        </View>
                     )
                 }
                 textProps={{
-                    fontSize: '$3',
+                    fontSize: '$4',
                     fontWeight: '700',
-                    maxW: 100,
+
                     numberOfLines: 1,
                 }}
                 ellipse
@@ -126,70 +119,54 @@ export default function ReceiveModeSelector({
             </Button>
 
             {/* Bottom sheet with method list */}
-            <AppBottomSheet ref={sheetRef} snapPoints={["38%"]}>
+            <AppBottomSheet ref={sheetRef} snapPoints={["27%"]}>
                 <YStack p="$4" pt="$2" gap="$4">
                     <YStack gap="$1" mb="$1">
-                        <Text fontSize="$6" fontWeight="800">
+                        <Text fontSize="$6" text="center" color="$accent5" fontWeight="800">
                             Receive Mode
                         </Text>
-                        <Text fontSize="$3" color="$gray10">
-                            Choose how you want to receive
-                        </Text>
+
                     </YStack>
 
                     <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
+                        <YStack gap="$3" pb="$4" px="$3">
                             {RECEIVE_METHODS.map((method) => {
                                 const isActive = method.key === mode;
                                 return (
-                                    <ListItem
-                                        key={method.key}
-                                        size="$4"
-                                        px="$3"
-                                        hoverTheme
-                                        pressTheme
-                                        theme="gray"
-                                        rounded="$5"
-                                        borderWidth={isActive ? 1.5 : 0.5}
-                                        borderColor={isActive ? '$accent8' : '$borderColor'}
-                                        bg={isActive ? '$accent2' : '$color2'}
-                                        onPress={() => handleSelect(method.key)}
-                                        icon={
-                                            <View
-                                                bg={isActive ? '$accent4' : '$gray4'}
-                                                p="$2"
-                                                rounded="$4"
-                                                width={40}
-                                                height={40}
-                                                items="center"
-                                                justify="center"
-                                            >
-                                                {method.icon}
-                                            </View>
-                                        }
-                                        title={
-                                            <Text
-                                                fontWeight="700"
-                                                fontSize="$4"
-                                                numberOfLines={1}
-                                                color={isActive ? '$accent11' : '$color'}
-                                            >
-                                                {method.label}
-                                            </Text>
-                                        }
-                                        subTitle={
-                                            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                                                {method.subtitle}
-                                            </Text>
-                                        }
-                                        iconAfter={
-                                            isActive ? (
-                                                <View bg="$accent4" p="$1.5" rounded="$10">
-                                                    <Check size={14} color="$accent10" strokeWidth={3} />
+                                    <>
+                                        <XStack justify="space-between" onPress={() => handleSelect(method.key)} key={method.key}>
+                                            <XStack gap="$3" items="center">
+                                                <View
+                                                    bg={'$gray4'}
+                                                    p="$3"
+                                                    rounded="$10"
+                                                    width={50}
+                                                    height={50}
+                                                    items="center"
+                                                    justify="center"
+                                                >
+                                                    {method.icon}
                                                 </View>
-                                            ) : undefined
-                                        }
-                                    />
+                                                <Text
+                                                    fontWeight="700"
+                                                    fontSize="$6"
+                                                    numberOfLines={1}
+                                                    color={'$color'}
+                                                >
+                                                    {method.label}
+                                                </Text>
+                                            </XStack>
+                                            <XStack items="center" justify="center">
+                                                {isActive ? (
+                                                    <View bg="$accent4" p="$1.5" rounded="$10">
+                                                        <Check size={14} color="$accent10" strokeWidth={3} />
+                                                    </View>
+                                                ) : undefined}
+
+                                            </XStack>
+                                        </XStack>
+
+                                    </>
                                 );
                             })}
                         </YStack>
