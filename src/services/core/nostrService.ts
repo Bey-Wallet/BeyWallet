@@ -419,6 +419,7 @@ class NostrService {
         mintUrl,
         eventId: sourceEvent.id,
         requestId: requestIdFromPayload,
+        senderPubkey: sourceEvent.pubkey,
       });
       console.log(`[NostrService] 🔔 Emitted nostr:received (${amount} sats)`);
     } catch (err: any) {

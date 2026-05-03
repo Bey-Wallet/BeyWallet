@@ -8,6 +8,7 @@ import { useWalletStore } from '../../store/walletStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { OnboardingScreen } from '../../screens/OnboardingScreen'
+import { NostrPaymentReceived } from '../NostrPaymentReceived'
 
 const queryClient = new QueryClient()
 
@@ -87,6 +88,7 @@ export function RootLayout() {
     return (
         <Providers cocoManager={manager}>
             <RootLayoutNav />
+            <NostrPaymentReceived />
         </Providers>
     )
 }

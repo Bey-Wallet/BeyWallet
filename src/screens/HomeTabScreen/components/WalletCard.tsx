@@ -55,7 +55,7 @@ export default function WalletCard() {
 
     const truncateNpub = (str: string) => {
         if (!str || str.length < 15) return str;
-        return `${str.slice(0, 9)}...${str.slice(-4)}`;
+        return `${str.slice(0, 9)}...${str.slice(-9)}`;
     };
 
     return (
@@ -99,11 +99,11 @@ export default function WalletCard() {
                                         </Text>
                                     ) : (
                                         /* No bey.cash username → show truncated npub */
-                                        <Text fontSize="$4" fontWeight="700" color="$accent10" numberOfLines={1}>
+                                        <Text fontSize="$5" fontVariant={['tabular-nums']} fontWeight="700" color="$accent5" numberOfLines={1}>
                                             {npub ? truncateNpub(npub) : 'Bey Wallet'}
                                         </Text>
                                     )}
-                                    {npub && <Copy size={14} strokeWidth={2.5} color="$accent10" />}
+                                    {npub && <Copy size={14} strokeWidth={2.5} color="$accent5" />}
                                 </XStack>
                             </YStack>
                         </XStack>
