@@ -13,7 +13,7 @@ import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
 import { cleanToken, encodeToken } from './tokenUtils';
 import type { Token } from '@cashu/cashu-ts';
-import { getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
+import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
 
 
@@ -226,6 +226,27 @@ export const walletService = {
         const m = mgr();
         const unsafeManager = m as any;
 
+        // ── Convert Nostr identifiers (npub/nprofile) to compressed SEC1 pubkey ──
+        let lockPubkey = receiverPubkey;
+        if (lockPubkey.startsWith('npub1') || lockPubkey.startsWith('nprofile1')) {
+            try {
+                const { decode: nip19Decode } = require('nostr-tools/nip19');
+                const decoded = nip19Decode(lockPubkey);
+                // nprofile has .data.pubkey, npub has .data directly
+                const hexPubkey = decoded.type === 'nprofile' ? decoded.data.pubkey : decoded.data;
+                // Add 02 prefix for compressed SEC1 format (33 bytes)
+                lockPubkey = '02' + hexPubkey;
+                console.log(`[WalletService] Converted Nostr pubkey to compressed SEC1: ${lockPubkey.substring(0, 10)}…`);
+            } catch (decodeErr: any) {
+                console.error('[WalletService] Failed to decode Nostr identifier:', decodeErr?.message);
+                throw new Error('Invalid Nostr public key format');
+            }
+        } else if (/^[0-9a-fA-F]{64}$/.test(lockPubkey)) {
+            // Raw 32-byte hex — add 02 prefix
+            lockPubkey = '02' + lockPubkey;
+            console.log(`[WalletService] Added 02 prefix to raw hex pubkey: ${lockPubkey.substring(0, 10)}…`);
+        }
+
         // 1. Ensure mint is trusted and get internal cashu-ts wallet + proof repository
         if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
             throw new Error(`Mint ${mintUrl} is not trusted`);
@@ -241,14 +262,14 @@ export const walletService = {
 
         // 2. Select proofs and perform the swap.
         // We use explicit `prepareSwapToSend` so that we can capture `txn.inputs` and mark those exact proofs as SPENT.
-        console.log(`[WalletService] Executing send OP to lock to: ${receiverPubkey}`);
+        console.log(`[WalletService] Executing send OP to lock to: ${lockPubkey.substring(0, 10)}…`);
         let keepProofs: any[] = [];
         let sendProofs: any[] = [];
         let inputSecrets: string[] = [];
 
         try {
             const customConfig = {
-                send: { type: 'p2pk', options: { pubkey: receiverPubkey } },
+                send: { type: 'p2pk', options: { pubkey: lockPubkey } },
                 keep: { type: 'random' }
             };
 
@@ -454,91 +475,45 @@ export const walletService = {
 
     /**
      * Receive a P2PK locked ecash token.
-     * 
+     *
+     * Registers the Nostr private key with coco's KeyRingService via
+     * mgr.keyring.addKeyPair() so that coco's standard receive pipeline
+     * can find it for P2PK signing. This is the same approach used by
+     * Sovran wallet (see SettingsKeyringScreen.tsx).
+     *
      * @param token - Encoded cashu token string
-     * @param nostrPrivKey - The private key used to unlock the proofs (hex array or single hex string)
+     * @param nostrPrivKey - The private key (32-byte hex string or hex[])
      */
     receiveP2PK: async (token: string, nostrPrivKey: string | string[]): Promise<void> => {
         const cleaned = cleanToken(token);
         console.log('[WalletService] Receiving P2PK token:', cleaned.substring(0, 50) + '...');
-        const unsafeManager = mgr() as any;
+        const m = mgr();
+        const unsafeManager = m as any;
 
         try {
-            // 1. Decode generic token
-            const decoded = getDecodedToken(cleaned);
-            let mintUrl = '';
-            let receivedProofs: any[] = [];
-
-            // @ts-ignore - Handle Both V3 / V4 token variations
-            if (decoded.token && decoded.token.length > 0) {
-                // @ts-ignore
-                const firstMintEntry = decoded.token[0];
-                mintUrl = firstMintEntry.mint;
-                receivedProofs = firstMintEntry.proofs;
-            } else if (decoded.mint && decoded.proofs && decoded.proofs.length > 0) {
-                mintUrl = decoded.mint;
-                receivedProofs = decoded.proofs;
-            } else {
-                throw new Error("Invalid or empty token");
+            // 1. Register the Nostr private key with coco's keyring so
+            //    KeyRingService can find it during P2PK proof signing.
+            const privKeyHex = Array.isArray(nostrPrivKey) ? nostrPrivKey[0] : nostrPrivKey;
+            const privKeyBytes = new Uint8Array(32);
+            for (let i = 0; i < 32; i++) {
+                privKeyBytes[i] = parseInt(privKeyHex.substr(i * 2, 2), 16);
             }
 
-            // 3. Ensure mint is trusted / added
-            if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
-                throw new Error(`Mint ${mintUrl} is not trusted`);
-            }
-
-            // 4. Get active wallet
-            const { wallet } = await unsafeManager.walletService.getWalletWithActiveKeysetId(mintUrl);
-
-            // 5. Build cashu-ts receive op with the privkey
-            const receivedAmount = receivedProofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-
-            console.log(`[WalletService] Received amount: ${receivedAmount}. Unlocking with P2PK and randomizing change...`);
-            const newProofs = await wallet.ops
-                .receive(cleaned)
-                .privkey(nostrPrivKey)
-                .asRandom() // Bypass deterministic counters to prevent 'outputs already signed' on retry
-                .run();
-
-            // 6. Save newly minted proofs to the DB
-            const coreProofs = newProofs.map((p: any) => ({
-                ...p,
-                mintUrl,
-                state: 'ready',
-                createdByOperationId: 'p2pk_receive_' + Date.now() // placeholder for history tracking
-            }));
-
-            await unsafeManager.proofService.saveProofs(mintUrl, coreProofs);
-
-            // 7. Fire event for UI updates
-            unsafeManager.eventBus.emit('receive:created', {
-                mintUrl,
-                amount: receivedAmount,
-                token: cleaned,
-                timestamp: Date.now()
-            });
-
-            // 8. Record in history
             try {
-                const tokenObj = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
-                await initService.getRepo().historyRepository.addHistoryEntry({
-                    mintUrl,
-                    unit: wallet.unit || 'sat',
-                    createdAt: Date.now(),
-                    type: 'receive',
-                    amount: receivedAmount,
-                    state: 'success',
-                    token: tokenObj,
-                    metadata: {
-                        type: 'p2pk'
-                    }
-                } as any);
-                console.log(`[WalletService] History tracking injected for P2PK receive.`);
-            } catch (histErr) {
-                console.warn('[WalletService] Failed to inject history entry for receive:', histErr);
+                await unsafeManager.keyring.addKeyPair(privKeyBytes);
+                console.log('[WalletService] P2PK: ✅ Nostr key registered with coco keyring');
+            } catch (keyErr: any) {
+                // Key might already be registered — that's fine
+                if (!keyErr?.message?.includes('already')) {
+                    console.warn('[WalletService] P2PK: keyring.addKeyPair warning:', keyErr?.message);
+                }
             }
 
-            console.log('[WalletService] P2PK Token received and proofs saved successfully');
+            // 2. Use coco's standard receive — it now knows the key
+            console.log('[WalletService] P2PK: Receiving via coco standard pipeline...');
+            await m.wallet.receive(cleaned);
+
+            console.log('[WalletService] ✅ P2PK Token received successfully via coco');
         } catch (err: any) {
             console.error('[WalletService] P2PK Receive failed:', err?.message || err);
             console.error('[WalletService] P2PK Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));

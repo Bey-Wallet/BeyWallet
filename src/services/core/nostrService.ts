@@ -357,12 +357,27 @@ class NostrService {
         console.log(`[NostrService] ✅ P2PK receive success: ${amount} sats`);
       } catch (p2pkErr: any) {
         receiveError = p2pkErr;
+        const errMsg: string = p2pkErr?.message ?? '';
 
-        // If proofs are not P2PK locked, try standard receive
-        if (
-          p2pkErr?.message?.includes('locked') === false &&
-          p2pkErr?.message?.includes('P2PK') === false
-        ) {
+        // Detect P2PK-specific errors — these should NOT fall back to standard receive
+        const isP2PKError =
+          errMsg.includes('locked') ||
+          errMsg.includes('P2PK') ||
+          errMsg.includes('p2pk') ||
+          errMsg.includes('public key') ||
+          errMsg.includes('Key pair') ||
+          errMsg.includes('Witness') ||
+          errMsg.includes('signature') ||
+          errMsg.includes('nprofile') ||
+          errMsg.includes('npub');
+
+        if (errMsg.includes('already spent')) {
+          console.log('[NostrService] P2PK token already spent — skipping');
+          return;
+        }
+
+        if (!isP2PKError) {
+          // Not a P2PK error — token might not be P2PK locked, try standard receive
           try {
             await walletService.receive(tokenString);
             receiveError = null;
@@ -374,9 +389,6 @@ class NostrService {
             }
             throw stdErr;
           }
-        } else if (p2pkErr?.message?.includes('already spent')) {
-          console.log('[NostrService] P2PK token already spent — skipping');
-          return;
         } else {
           throw p2pkErr;
         }
