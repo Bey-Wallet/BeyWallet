@@ -13,6 +13,7 @@ interface AppBottomSheetProps {
     children: React.ReactNode;
     snapPoints?: (string | number)[];
     onClose?: () => void;
+    enablePanDownToClose?: boolean;
 }
 
 export interface AppBottomSheetRef {
@@ -21,7 +22,7 @@ export interface AppBottomSheetRef {
 }
 
 const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
-    ({ children, snapPoints, onClose }, ref) => {
+    ({ children, snapPoints, onClose, enablePanDownToClose = true }, ref) => {
         const bottomSheetRef = useRef<BottomSheetModal>(null);
         const theme = useTheme();
         const [isOpen, setIsOpen] = useState(false);
@@ -41,11 +42,11 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
                     {...props}
                     disappearsOnIndex={-1}
                     appearsOnIndex={0}
-                    pressBehavior="close"
+                    pressBehavior={enablePanDownToClose ? "close" : "none"}
                     opacity={0.4}
                 />
             ),
-            []
+            [enablePanDownToClose]
         );
 
         useImperativeHandle(ref, () => ({
@@ -74,7 +75,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         return (
             <BottomSheetModal
                 ref={bottomSheetRef}
-                enablePanDownToClose={true}
+                enablePanDownToClose={enablePanDownToClose}
                 enableDynamicSizing={enableDynamicSizing}
                 snapPoints={snapPoints}
                 backdropComponent={renderBackdrop}

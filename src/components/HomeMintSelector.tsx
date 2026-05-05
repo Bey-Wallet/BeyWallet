@@ -127,7 +127,15 @@ export default function HomeHeaderMintSelector() {
                             ) : (
                                 mints.map((mint) => (
 
-                                    <XStack justify="space-between" items="center">
+                                    <XStack
+                                        justify="space-between"
+                                        items="center"
+                                        onPress={() => handleSelectMint(mint.mintUrl)}
+                                        pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                                        p="$2"
+                                        mx="$-2"
+                                        rounded="$4"
+                                    >
                                         <XStack gap="$3" items="center">
                                             <View
                                                 bg={mint.trusted ? "$green4" : "$gray4"}

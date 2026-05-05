@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "~/services/bitcoinService";
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
 import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
+import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from "expo-haptics";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { ChevronDown, Sprout, ShieldCheck, ShieldOff, ArrowDownCircle, ArrowUpRight, ArrowRightRight } from "@tamagui/lucide-icons";
@@ -266,6 +267,12 @@ export function AmountStage({
                     <SelectMintList activeUrl={targetMintUrl} onSelect={(url) => { setTargetMintUrl(url); targetSheetRef.current?.dismiss(); }} />
                 </YStack>
             </AppBottomSheet>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Swapping"
+                amount={Number(amount)}
+                detail={`Swapping from ${getMintLabel(sourceMintUrl)} to ${getMintLabel(targetMintUrl)}`}
+            />
         </YStack>
     );
 }

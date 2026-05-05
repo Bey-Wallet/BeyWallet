@@ -2,6 +2,7 @@ import React from 'react';
 import { YStack, XStack, Text, Button, H1, Separator } from "tamagui";
 import { Sprout, Zap } from "@tamagui/lucide-icons";
 import { Spinner } from '../../components/UI/Spinner';
+import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
@@ -84,6 +85,12 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                     Go Back
                 </Button>
             </YStack>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Creating Invoice"
+                amount={sats}
+                detail={`Requesting from ${getMintName(mintUrl)}`}
+            />
         </YStack>
     );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { YStack, XStack, Text, Button, View, Separator, Circle, ScrollView, YGroup } from 'tamagui';
 import { ArrowDownLeft, Check, ShieldCheck, AlertTriangle, Copy, Building2, DollarSign, Clock } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
+import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
@@ -214,6 +215,12 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
 
 
             </YStack>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Receiving"
+                amount={tokenInfo.amount}
+                detail={`Receiving from ${getMintDisplayName(tokenInfo.mint)}`}
+            />
         </YStack >
     );
 }
