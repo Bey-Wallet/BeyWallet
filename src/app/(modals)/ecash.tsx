@@ -206,7 +206,7 @@ export default function EcashModal() {
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
-          headerTitle: 'E-Cash',
+
           headerLeft: () => (
             <Button
               circular

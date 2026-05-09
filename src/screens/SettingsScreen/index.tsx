@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { YStack, ScrollView } from 'tamagui';
+import { YStack, ScrollView, Text } from 'tamagui';
 import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
@@ -12,6 +12,7 @@ import NostrIcon from '~/components/icons/NostrIcon';
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useRouter } from 'expo-router';
+import { currencyService } from '~/services/currencyService';
 import { biometricService } from '~/services/biometricService';
 import { seedService } from '~/services/seedService';
 import { initService } from '~/services/core';
@@ -190,7 +191,13 @@ export function SettingsScreen() {
                     id: 'currency',
                     title: 'Currency',
                     subTitle: `Secondary: ${secondaryCurrency}`,
-                    icon: Globe,
+                    icon: () => (
+                        <YStack width={24} height={24} items="center" justify="center" bg="$gray4" rounded="$12">
+                            <Text fontSize={12} fontWeight="800" color="$color">
+                                {currencyService.getSymbol(secondaryCurrency)}
+                            </Text>
+                        </YStack>
+                    ),
                 },
             ],
         },

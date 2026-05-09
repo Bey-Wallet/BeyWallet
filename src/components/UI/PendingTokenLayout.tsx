@@ -7,6 +7,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
+import * as Linking from 'expo-linking';
 
 import { Spinner } from './Spinner';
 
@@ -157,7 +158,13 @@ export function PendingTokenLayout({
         if (!currentToken) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
-            await RNShare.share({ message: `cashu:${currentToken}` });
+            // Create a deep link that will autofill the receive screen in this app
+            const intentUrl = Linking.createURL('/receive', { queryParams: { scannedToken: currentToken } });
+            
+            await RNShare.share({ 
+                message: `${intentUrl}\n\nRaw token:\ncashu:${currentToken}`,
+                title: 'Receive Ecash'
+            });
         } catch (error) {
             handleCopy();
         }

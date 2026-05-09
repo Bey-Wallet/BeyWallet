@@ -3,9 +3,10 @@ import { YStack, XStack, Text, Button, View, Separator, ScrollView } from 'tamag
 import { Copy, Share as ShareIcon, AtSign, RefreshCw } from '@tamagui/lucide-icons';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
-import { Share } from 'react-native';
+import { Share, InteractionManager } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
+import { Spinner } from 'tamagui';
 import Blockies from 'components/UI/Blockies';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useTheme } from 'tamagui';
@@ -18,6 +19,16 @@ export default function NostrProfileScreen() {
 
     // Live NIP-05 lookup from bey.cash
     const { username, nip05, loading: nip05Loading, refresh } = useNip05Lookup();
+    
+    // Defer QR code rendering to avoid blocking navigation transition
+    const [isQrReady, setIsQrReady] = React.useState(false);
+
+    React.useEffect(() => {
+        const task = InteractionManager.runAfterInteractions(() => {
+            setIsQrReady(true);
+        });
+        return () => task.cancel();
+    }, []);
 
     const handleCopy = async () => {
         if (!npub) return;
@@ -55,15 +66,13 @@ export default function NostrProfileScreen() {
     return (
         <ScrollView bg="$background" contentContainerStyle={{ p: '$4', items: 'center', gap: '$6', pt: '$2', pb: '$2' }}>
 
-            {npub ? (
+            {npub && isQrReady ? (
                 <View
                     p="$2"
                     bg="$background"
                     rounded="$7"
                     borderWidth={1}
                     borderColor="$borderColor"
-
-
                 >
                     <QRCodeStyled
                         data={npub}
@@ -87,12 +96,15 @@ export default function NostrProfileScreen() {
                     p="$4"
                     bg="$gray3"
                     rounded="$6"
-                    width={260}
-                    height={260}
+                    width={330}
+                    height={330}
                     items="center"
                     justify="center"
                 >
-                    <Text color="$gray10" fontWeight="600">Generating npub...</Text>
+                    <Spinner size="large" color="$accent10" />
+                    <Text color="$gray10" fontWeight="600" mt="$4">
+                        {!npub ? 'Generating npub...' : 'Loading QR Code...'}
+                    </Text>
                 </View>
             )}
 

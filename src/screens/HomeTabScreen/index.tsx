@@ -12,8 +12,8 @@ import SkeletonCard from '../../components/UI/SkeletonCard'
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
 // sees the critical content instantly.
+import ManageBalances from './components/ManageBalances'
 const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'))
-const LazyManageBalances = React.lazy(() => import('./components/ManageBalances'))
 const LazyContactsView = React.lazy(() => import('./components/ContactsView'))
 const LazySupportView = React.lazy(() => import('./components/SupportView'))
 
@@ -94,10 +94,10 @@ export function HomeTabScreen() {
                 <WalletCard />
                 <ActionButtons />
 
+                <ManageBalances />
                 {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
                 <React.Suspense fallback={<HomeSkeleton />}>
                     <LazyBitcoinPriceCard />
-                    <LazyManageBalances />
                     <LazyContactsView />
                     <LazySupportView />
                 </React.Suspense>

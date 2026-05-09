@@ -151,7 +151,11 @@ export default function MintsModal() {
         <YStack flex={1} bg="$background">
             <Stack.Screen
                 options={{
-                    headerTitle: 'Mints',
+                    headerTitle: () => (
+
+                        <Text fontSize={20} fontWeight="800">Mints</Text>
+
+                    ),
                     headerLeft: () => (
                         <Button
                             circular
