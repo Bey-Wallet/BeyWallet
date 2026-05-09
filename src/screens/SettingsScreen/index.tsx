@@ -4,11 +4,11 @@ import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSi
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
-import { NostrModal } from './components/NostrModal';
 import { MintModal } from './components/MintModal';
 import { SettingSection } from './components/SettingSection';
 import { DeleteWalletSheet } from './components/DeleteWalletSheet';
 import { SettingSectionConfig } from './components/types';
+import NostrIcon from '~/components/icons/NostrIcon';
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useRouter } from 'expo-router';
@@ -31,7 +31,6 @@ export function SettingsScreen() {
     const currencySheetRef = useRef<AppBottomSheetRef>(null);
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
-    const nostrSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
     const { secondaryCurrency, defaultMintUrl } = useSettingsStore();
@@ -71,7 +70,7 @@ export function SettingsScreen() {
                 notificationsSheetRef.current?.present();
                 break;
             case 'nostr':
-                nostrSheetRef.current?.present();
+                router.push('/(modals)/nostr-settings');
                 break;
             case 'nostr-username':
                 router.push('/(modals)/nostr-username');
@@ -226,7 +225,7 @@ export function SettingsScreen() {
                     id: 'nostr',
                     title: 'Nostr Settings',
                     subTitle: 'Manage your npub, nsec, and relays',
-                    icon: Server,
+                    icon: NostrIcon,
                 },
                 {
                     id: 'nostr-username',
@@ -309,7 +308,6 @@ export function SettingsScreen() {
                 <CurrencyModal ref={currencySheetRef} />
                 <MintModal ref={mintSheetRef} />
                 <NotificationsModal ref={notificationsSheetRef} />
-                <NostrModal ref={nostrSheetRef} />
 
                 <DeleteWalletSheet 
                     innerRef={deleteSheetRef}

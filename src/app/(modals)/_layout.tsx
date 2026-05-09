@@ -125,6 +125,13 @@ export default function ModalLayout() {
                 }}
             />
             <Stack.Screen
+                name="nostr-settings"
+                options={{
+                    title: 'Nostr Settings',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
                 name="about"
                 options={{
                     title: 'About',
