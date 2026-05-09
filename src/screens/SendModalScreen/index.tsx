@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { InteractionManager } from 'react-native'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
@@ -85,7 +86,10 @@ export function SendModalScreen() {
         }
     }, [activeParsedRequest]);
 
-    const { balance, activeMintUrl, refreshBalance, mints } = useWalletStore()
+    const balance = useWalletStore(s => s.balance)
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl)
+    const refreshBalance = useWalletStore(s => s.refreshBalance)
+    const mints = useWalletStore(s => s.mints)
     const { secondaryCurrency } = useSettingsStore()
     const confirmSheetRef = React.useRef<AppBottomSheetRef>(null)
     const [estimatedFee, setEstimatedFee] = React.useState(0)
@@ -286,8 +290,9 @@ export function SendModalScreen() {
     }
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        // Refresh balance AFTER navigation animation settles — prevents freeze
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     }
 
     const handleScanContinue = (forcedInput?: string) => {

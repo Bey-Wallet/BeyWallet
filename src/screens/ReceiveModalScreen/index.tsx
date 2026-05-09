@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { InteractionManager } from 'react-native'
 import { YStack } from 'tamagui'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { InputStage } from './InputStage'
@@ -36,7 +37,10 @@ export function ReceiveModalScreen() {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
     const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string }>()
-    const { refreshBalance, addMint, fetchMintInfo, mints } = useWalletStore()
+    const refreshBalance = useWalletStore(s => s.refreshBalance)
+    const addMint = useWalletStore(s => s.addMint)
+    const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
+    const mints = useWalletStore(s => s.mints)
 
     const [isReceiveLater, setIsReceiveLater] = useState(false)
 
@@ -282,8 +286,8 @@ export function ReceiveModalScreen() {
     }
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     }
 
     return (

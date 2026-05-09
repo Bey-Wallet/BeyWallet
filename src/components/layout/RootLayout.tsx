@@ -21,6 +21,9 @@ export function RootLayout() {
     const { isOnboarded, isCheckingOnboarding, checkOnboardingStatus } = useOnboardingStore()
     const [walletExists, setWalletExists] = useState<boolean | null>(null)
 
+    // Cache manager in state instead of re-computing inside render body
+    const [manager, setManager] = useState<any>(null);
+
     const [loaded, error] = useFonts({
         BaselGroteskBook: require('../../assets/fonts/Basel-Grotesk-Book.otf'),
         BaselGroteskMedium: require('../../assets/fonts/Basel-Grotesk-Medium.otf'),
@@ -47,6 +50,17 @@ export function RootLayout() {
             initialize()
         }
     }, [isOnboarded, walletExists, initialize])
+
+    // Cache manager once initialization completes
+    useEffect(() => {
+        if (!isInitializing && isOnboarded && walletExists) {
+            try {
+                setManager(initService.getManager());
+            } catch (e) {
+                setManager(null);
+            }
+        }
+    }, [isInitializing, isOnboarded, walletExists]);
 
     // Hide splash when ready
     useEffect(() => {
@@ -75,15 +89,6 @@ export function RootLayout() {
             </Providers>
         )
     }
-
-    // Get the manager after initialization
-    const manager = !isInitializing ? (() => {
-        try {
-            return initService.getManager();
-        } catch (e) {
-            return null;
-        }
-    })() : null;
 
     return (
         <Providers cocoManager={manager}>

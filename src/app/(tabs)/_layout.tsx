@@ -1,3 +1,4 @@
+import React from 'react'
 import { router, Tabs } from 'expo-router'
 import { Button, XStack, Text, useTheme, Image } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -23,32 +24,31 @@ import HistoryVolume from '~/components/HistoryVolume'
 import LockIcon from '~/components/icons/Lock'
 import * as Haptics from 'expo-haptics'
 
+// Extracted to module scope + memoized so they aren't re-created on every render
+const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
+    <XStack pl="$4" items="center">
+        <Image
+            source={resolvedTheme === 'dark'
+                ? require('../../assets/icons/Frame 9.png')
+                : require('../../assets/icons/Frame 10.png')}
+            width={40}
+            height={40}
+            resizeMode="contain"
+        />
+    </XStack>
+))
+
+const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
+    <Text fontWeight="700" fontSize={20} color="$color">
+        {children.charAt(0).toUpperCase() + children.slice(1)}
+    </Text>
+))
+
 export default function TabLayout() {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
   const { resolvedTheme } = useAppTheme()
   const { lock } = useAuthStore()
-
-  const HeaderLeft = () => (
-    <XStack pl="$4" items="center">
-      <Image
-        source={resolvedTheme === 'dark'
-          ? require('../../assets/icons/Frame 9.png')
-          : require('../../assets/icons/Frame 10.png')}
-        width={40}
-        height={40}
-        resizeMode="contain"
-      />
-    </XStack>
-  )
-
-
-
-  const DefaultHeaderTitle = ({ children }: { children: string }) => (
-    <Text fontWeight="700" fontSize={20} color="$color">
-      {children.charAt(0).toUpperCase() + children.slice(1)}
-    </Text>
-  )
 
   return (
     <Tabs
@@ -69,7 +69,7 @@ export default function TabLayout() {
           borderBottomColor: theme.borderColor.val,
         },
         headerTitle: ({ children }) => <DefaultHeaderTitle>{children as string}</DefaultHeaderTitle>,
-        headerLeft: () => <HeaderLeft />,
+        headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
         headerTitleAlign: 'center',
       }}
     >

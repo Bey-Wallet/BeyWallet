@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native'
@@ -11,8 +11,14 @@ import { useAuthStore } from '../../store/authStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useCocoEvents } from '../../hooks/useCocoEvents'
 import { notificationService } from '../../services/notificationService'
-import { OtaUpdateChecker } from '../OtaUpdateChecker'
-import { UsernamePromptChecker } from '../UsernamePromptChecker'
+
+// Lazy-load global checkers — they don't need to mount during the critical startup paint
+const LazyOtaUpdateChecker = React.lazy(() =>
+    import('../OtaUpdateChecker').then(m => ({ default: m.OtaUpdateChecker }))
+);
+const LazyUsernamePromptChecker = React.lazy(() =>
+    import('../UsernamePromptChecker').then(m => ({ default: m.UsernamePromptChecker }))
+);
 
 export function RootLayoutNav() {
     const { resolvedTheme } = useAppTheme()
@@ -105,12 +111,13 @@ export function RootLayoutNav() {
                     <LockOverlay onUnlock={() => setAuthenticated(true)} />
                 )}
                 
-                {/* Global OTA Update Checker */}
-                <OtaUpdateChecker />
-                
-                {/* Global Username Prompt Checker */}
-                <UsernamePromptChecker />
+                {/* Global checkers — lazy-loaded after main UI is painted */}
+                <React.Suspense fallback={null}>
+                    <LazyOtaUpdateChecker />
+                    <LazyUsernamePromptChecker />
+                </React.Suspense>
             </YStack>
         </NavThemeProvider>
     )
 }
+

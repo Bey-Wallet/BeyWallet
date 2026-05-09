@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { YStack, XStack, Text, Button, View, Separator, Spinner } from 'tamagui';
 import { RefreshCw, ShieldCheck, Building2, Zap } from '@tamagui/lucide-icons';
@@ -15,7 +16,9 @@ type SwapStep = 'amount' | 'result';
 
 export default function SwapScreen() {
     const router = useRouter();
-    const { mints, balances, refreshBalance } = useWalletStore();
+    const mints = useWalletStore(s => s.mints);
+    const balances = useWalletStore(s => s.balances);
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
 
     const [step, setStep] = useState<SwapStep>('amount');
     const [amount, setAmount] = useState('0');
@@ -88,7 +91,7 @@ export default function SwapScreen() {
             }
 
             setStatus('success');
-            await refreshBalance();
+            refreshBalance(); // fire-and-forget — don't block UI
             setStep('result');
         } catch (err: any) {
             console.error('[Swap] Failed:', err);
@@ -114,8 +117,8 @@ export default function SwapScreen() {
     };
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     };
 
     return (

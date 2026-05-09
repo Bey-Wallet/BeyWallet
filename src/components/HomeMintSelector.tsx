@@ -1,8 +1,8 @@
-import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Building2, Check } from "@tamagui/lucide-icons";
-import { Button, Text, YStack, XStack, ListItem, Paragraph, View, Image, Avatar, Square } from "tamagui";
+import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Check } from "@tamagui/lucide-icons";
+import { Button, Text, YStack, XStack, View, Image, Avatar, Square } from "tamagui";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import * as Haptics from 'expo-haptics';
-import { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { useWalletStore } from "../store/walletStore";
 import AppBottomSheet, { AppBottomSheetRef } from "./UI/AppBottomSheet";
 import EditNicknameModal, { EditNicknameModalRef } from "./EditNicknameModal";
@@ -11,7 +11,15 @@ import { Spinner } from "./UI/Spinner";
 import { useRouter } from "expo-router";
 
 export default function HomeHeaderMintSelector() {
-    const { activeMintUrl, balance, balances, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    // Granular selectors — only re-render when the specific field changes
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const balances = useWalletStore(s => s.balances);
+    const mints = useWalletStore(s => s.mints);
+    const setActiveMint = useWalletStore(s => s.setActiveMint);
+    const refreshMintList = useWalletStore(s => s.refreshMintList);
+    const isInitializing = useWalletStore(s => s.isInitializing);
+    const isRefreshing = useWalletStore(s => s.isRefreshing);
+
     const isLoading = isInitializing || isRefreshing;
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const editNicknameRef = useRef<EditNicknameModalRef>(null);
@@ -20,14 +28,9 @@ export default function HomeHeaderMintSelector() {
     // Normalize URLs for comparison
     const normalizeUrl = (url: string) => url.replace(/\/$/, '');
 
-    // Refresh mint list when sheet opens
-    useEffect(() => {
-        if (initService.isInitialized()) {
-            refreshMintList();
-        }
-    }, []);
-
-    console.log('[HomeMintSelector] Current Mints:', mints.length, 'Active URL:', activeMintUrl);
+    // NOTE: Removed the eager refreshMintList() useEffect that ran on mount.
+    // The mint list is already hydrated from SQLite persistence.
+    // Refresh is triggered when the user opens the sheet instead.
 
     const activeMint = useMemo(() => {
         if (!activeMintUrl) return null;
@@ -44,24 +47,24 @@ export default function HomeHeaderMintSelector() {
         return displayUrl;
     }, [activeMint, activeMintUrl, displayUrl]);
 
-    const handleSelectMint = (mintUrl: string) => {
+    const handleSelectMint = useCallback((mintUrl: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setActiveMint(mintUrl);
         sheetRef.current?.dismiss();
-    };
+    }, [setActiveMint]);
 
-    const handleAddMint = () => {
+    const handleAddMint = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         sheetRef.current?.dismiss();
         setTimeout(() => {
             router.push('/(modals)/add-mint');
         }, 100);
-    };
+    }, [router]);
 
-    const handleEditNickname = (mint: any) => {
+    const handleEditNickname = useCallback((mint: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         editNicknameRef.current?.present(mint.mintUrl, mint.nickname);
-    };
+    }, []);
 
     return (
         <>
@@ -128,6 +131,7 @@ export default function HomeHeaderMintSelector() {
                                 mints.map((mint) => (
 
                                     <XStack
+                                        key={mint.mintUrl}
                                         justify="space-between"
                                         items="center"
                                         onPress={() => handleSelectMint(mint.mintUrl)}

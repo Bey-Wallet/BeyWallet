@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { initService, eventService } from '../services/core';
 import { useWalletStore } from '../store/walletStore';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,17 +18,25 @@ import { useToastController } from '@tamagui/toast';
  * - proofs:state-changed → proof state transitions (spent, etc.)
  * - melt-quote:paid      → Lightning invoice paid from ecash
  * - history:updated      → any history entry changed
+ *
+ * PERF: handleBalanceUpdate is debounced (300ms) to batch rapid-fire events
+ * (e.g. proofs:saved + history:updated + receive:created all fire within ms)
+ * into a single refresh cycle.
  */
 export function useCocoEvents() {
     const { refreshBalance } = useWalletStore();
     const queryClient = useQueryClient();
     const toast = useToastController();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleBalanceUpdate = useCallback(() => {
-        console.log('[useCocoEvents] Balance update triggered');
-        refreshBalance();
-        queryClient.invalidateQueries({ queryKey: ['history'] });
-        queryClient.invalidateQueries({ queryKey: ['history-volume'] });
+        // Debounce: batch rapid-fire events into a single refresh
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            refreshBalance();
+            queryClient.invalidateQueries({ queryKey: ['history'] });
+            queryClient.invalidateQueries({ queryKey: ['history-volume'] });
+        }, 300);
     }, [refreshBalance, queryClient]);
 
     const handleMintQuoteRedeemed = useCallback((payload: any) => {
@@ -50,12 +58,10 @@ export function useCocoEvents() {
     }, [handleBalanceUpdate]);
 
     const handleProofsSaved = useCallback((payload: any) => {
-        console.log('[useCocoEvents] Proofs saved:', payload.mintUrl, payload.keysetId);
         handleBalanceUpdate();
     }, [handleBalanceUpdate]);
 
     const handleProofsStateChanged = useCallback((payload: any) => {
-        console.log('[useCocoEvents] Proofs state changed:', payload.state);
         handleBalanceUpdate();
     }, [handleBalanceUpdate]);
 
@@ -66,14 +72,12 @@ export function useCocoEvents() {
     }, [handleBalanceUpdate]);
 
     const handleHistoryUpdated = useCallback((payload: any) => {
-        console.log('[useCocoEvents] History updated');
         queryClient.invalidateQueries({ queryKey: ['history'] });
         queryClient.invalidateQueries({ queryKey: ['history-volume'] });
     }, [queryClient]);
 
     useEffect(() => {
         if (!initService.isInitialized()) {
-            console.log('[useCocoEvents] Not initialized, skipping event subscription');
             return;
         }
 
@@ -88,7 +92,6 @@ export function useCocoEvents() {
         });
 
         const syncSub = DeviceEventEmitter.addListener('nostr:sync-success', (payload: { npub: string }) => {
-            console.log('[useCocoEvents] Nostr sync success fired');
             const shortAddress = payload.npub.substring(0, 10) + '...' + payload.npub.substring(payload.npub.length - 4);
             toast.show('Success', { message: `Mint is nostr sync with address ${shortAddress}` });
         });
@@ -105,10 +108,10 @@ export function useCocoEvents() {
         ];
 
         return () => {
-            console.log('[useCocoEvents] Unsubscribing from CoreEvents');
             unsubs.forEach(unsub => unsub());
             nostrSub.remove();
             syncSub.remove();
+            if (debounceRef.current) clearTimeout(debounceRef.current);
         };
     }, [
         handleMintQuoteRedeemed,

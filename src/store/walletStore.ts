@@ -101,36 +101,41 @@ export const useWalletStore = create<WalletState>()(
                         }
                     }
 
-                    // Repair corrupted keysets for all mints in PARALLEL
-                    const allMints = await manager.mint.getAllMints();
-                    const repairResults = await Promise.all(
-                        allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
-                    );
-
-                    const anyRepaired = repairResults.some(r => r === true);
-
-                    // Reinit if keysets were repaired (rare but necessary)
-                    if (anyRepaired) {
-                        console.log('[WalletStore] Reinitializing after keyset repair...');
-                        await manager.dispose?.();
-                        initService.reset();
-                        await initService.init();
-                    }
-
                     // Set active mint if not set
                     if (!get().activeMintUrl) {
                         const userDefaultMint = useSettingsStore.getState().defaultMintUrl || DEFAULT_MINT;
                         set({ activeMintUrl: userDefaultMint });
                     }
 
-                    await get().refreshBalance();
+                    // Parallelize balance refresh + mint info fetch for speed
+                    const [, mintInfos] = await Promise.all([
+                        get().refreshBalance(),
+                        mintManager.getMintInfoList(),
+                    ]);
 
-                    // Build mint info list for UI
-                    const mintInfos = await mintManager.getMintInfoList();
+                    const allMints = await manager.mint.getAllMints();
 
                     set({
                         isInitializing: false,
                         mints: mintInfos,
+                    });
+
+                    // Defer keyset repair to background — never blocks startup
+                    // Handles real money safely: repair still runs, just after UI is visible
+                    InteractionManager.runAfterInteractions(async () => {
+                        try {
+                            const repairResults = await Promise.all(
+                                allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
+                            );
+                            if (repairResults.some(r => r === true)) {
+                                console.log('[WalletStore] Keysets repaired in background, refreshing...');
+                                await get().refreshBalance();
+                                const freshMintInfos = await mintManager.getMintInfoList();
+                                set({ mints: freshMintInfos });
+                            }
+                        } catch (e) {
+                            console.warn('[WalletStore] Background keyset repair error:', e);
+                        }
                     });
                     console.log('[WalletStore] Initialization complete');
                 } catch (err: any) {
@@ -190,20 +195,20 @@ export const useWalletStore = create<WalletState>()(
                 try {
                     set({ isRefreshing: true, error: null });
                     if (!initService.isInitialized()) {
-                        set({ balance: 0 });
+                        set({ balance: 0, isRefreshing: false });
                         return;
                     }
 
                     const activeUrl = get().activeMintUrl;
                     if (!activeUrl) {
-                        set({ balance: 0 });
+                        set({ balance: 0, isRefreshing: false });
                         return;
                     }
 
+                    // Single DB call — derive active mint balance from the map
                     const balances = await walletService.getBalances();
-                    const balance = await walletService.getBalanceForMint(activeUrl);
+                    const balance = balances[activeUrl] ?? 0;
 
-                    console.log('[WalletStore] Balance:', balance);
                     set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
                 } catch (err: any) {
                     console.error('[WalletStore] Error refreshing balance:', err);

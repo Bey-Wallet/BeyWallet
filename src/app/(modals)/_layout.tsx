@@ -1,16 +1,18 @@
 import { Stack, useRouter } from 'expo-router'
-import { Button, useTheme, XStack, Text } from 'tamagui'
-import { X, ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
+import { Button, useTheme, Text } from 'tamagui'
+import { X } from '@tamagui/lucide-icons'
+import React from 'react'
+
+// Extracted to module scope — never recreated on re-render
+const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
+    <Text fontWeight="700" fontSize={20} color="$color">
+        {children}
+    </Text>
+))
 
 export default function ModalLayout() {
     const theme = useTheme()
     const router = useRouter()
-
-    const DefaultHeaderTitle = ({ children }: { children: string }) => (
-        <Text fontWeight="700" fontSize={20} color="$color">
-            {children}
-        </Text>
-    )
 
     return (
         <Stack
@@ -77,6 +79,13 @@ export default function ModalLayout() {
                 name="melt"
                 options={{
                     title: 'Pay Lightning',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="swap"
+                options={{
+                    title: 'Swap',
                     presentation: "fullScreenModal",
                 }}
             />
@@ -164,7 +173,20 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
+            <Stack.Screen
+                name="token-details"
+                options={{
+                    title: 'Token Details',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="backup-seed"
+                options={{
+                    title: 'Backup Seed',
+                    presentation: "fullScreenModal",
+                }}
+            />
         </Stack>
     )
 }
-

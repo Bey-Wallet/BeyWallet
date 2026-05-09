@@ -34,7 +34,7 @@ export default function BitcoinPriceCard() {
     React.useEffect(() => {
         const interval = setInterval(() => {
             setNow(Date.now());
-        }, 10000); // Update every 10 seconds
+        }, 60000); // Update every 60 seconds — sub-minute precision not needed
         return () => clearInterval(interval);
     }, []);
 

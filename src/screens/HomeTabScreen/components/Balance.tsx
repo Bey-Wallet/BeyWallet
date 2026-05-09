@@ -9,7 +9,12 @@ import { bitcoinService } from "../../../services/bitcoinService";
 import * as Haptics from 'expo-haptics';
 
 export default function Balance() {
-    const { balance, activeMintUrl, refreshCounter, mints, balances, isRestoring } = useWalletStore();
+    const balance = useWalletStore(s => s.balance);
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const refreshCounter = useWalletStore(s => s.refreshCounter);
+    const mints = useWalletStore(s => s.mints);
+    const balances = useWalletStore(s => s.balances);
+    const isRestoring = useWalletStore(s => s.isRestoring);
     const { secondaryCurrency } = useSettingsStore();
     const [showAllMints, setShowAllMints] = React.useState(false);
 

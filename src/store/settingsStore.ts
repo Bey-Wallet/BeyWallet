@@ -37,48 +37,40 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
         const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-        // Retry to wait for initService to initialize the repo, 
-        // but only if a wallet exists.
-        for (let i = 0; i < 15; i++) {
+        // Fast path: if no wallet exists, bail immediately with defaults
+        const exists = await initService.walletExists();
+        if (!exists) {
+            set({ initialized: true });
+            return;
+        }
+
+        // Wait for repo with exponential backoff (max ~3s)
+        for (let i = 0; i < 5; i++) {
             try {
-                // Check if wallet exists first. If not, we don't need to try getRepo.
-                const exists = await initService.walletExists();
-                if (!exists) {
-                    set({ initialized: true });
-                    return;
-                }
-
                 const repo = initService.getRepo();
-                const storedTheme = await repo.settingsRepository.getSetting('theme');
-                if (storedTheme) {
-                    set({ theme: storedTheme as ThemePreference });
-                }
-                const storedCurrency = await repo.settingsRepository.getSetting('secondaryCurrency');
-                if (storedCurrency) {
-                    set({ secondaryCurrency: storedCurrency });
-                }
 
-                // Load default mint
-                const storedMintUrl = await repo.settingsRepository.getSetting('defaultMintUrl');
-                if (storedMintUrl) {
-                    set({ defaultMintUrl: storedMintUrl });
-                }
+                // Load all settings in parallel for speed
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedNpub, storedNsec, storedNip05] = await Promise.all([
+                    repo.settingsRepository.getSetting('theme'),
+                    repo.settingsRepository.getSetting('secondaryCurrency'),
+                    repo.settingsRepository.getSetting('defaultMintUrl'),
+                    repo.settingsRepository.getSetting('notificationsEnabled'),
+                    repo.settingsRepository.getSetting('npub'),
+                    repo.settingsRepository.getSetting('nsec'),
+                    repo.settingsRepository.getSetting('nip05'),
+                ]);
 
-                // Load notifications setting
-                const storedNotifications = await repo.settingsRepository.getSetting('notificationsEnabled');
+                if (storedTheme) set({ theme: storedTheme as ThemePreference });
+                if (storedCurrency) set({ secondaryCurrency: storedCurrency });
+                if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
                 if (storedNotifications !== undefined && storedNotifications !== null) {
                     set({ notificationsEnabled: storedNotifications === 'true' });
                 }
 
-                // Load Nostr keys
-                const storedNpub = await repo.settingsRepository.getSetting('npub');
-                const storedNsec = await repo.settingsRepository.getSetting('nsec');
-                const storedNip05 = await repo.settingsRepository.getSetting('nip05');
-
                 if (storedNpub && storedNsec) {
                     set({ npub: storedNpub, nsec: storedNsec, nip05: storedNip05 || null });
                 } else {
-                    // Generate and cache them if they don't exist yet
+                    // Generate and cache Nostr keys if they don't exist yet
                     console.log('[SettingsStore] Nostr keys not in DB, generating and caching...');
                     const mnemonic = await seedService.getMnemonic();
                     if (mnemonic) {
@@ -92,13 +84,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 set({ initialized: true });
                 return;
             } catch (error) {
-                // If it's a "Repositories not initialized" error, we just wait.
-                // Other errors we might want to know about eventually.
-                if (i === 14) {
-                    console.log('[SettingsStore] Repo not available yet, using defaults.');
+                if (i === 4) {
+                    console.log('[SettingsStore] Repo not available after retries, using defaults.');
                     set({ initialized: true });
                 }
-                await delay(300);
+                await delay(200 * (i + 1)); // 200, 400, 600, 800, 1000
             }
         }
     },

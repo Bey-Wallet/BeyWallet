@@ -151,7 +151,7 @@ function setupAppStateListener(): void {
  * transaction conflicts. Matches Sovran's pattern.
  */
 async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): Promise<void> {
-    const delay = options.fast ? 0 : 300;
+    const delay = options.fast ? 0 : 50;
 
     // Enable mint quote watcher
     try {
