@@ -11,6 +11,8 @@ import { useAuthStore } from '../../store/authStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useCocoEvents } from '../../hooks/useCocoEvents'
 import { notificationService } from '../../services/notificationService'
+import { OtaUpdateChecker } from '../OtaUpdateChecker'
+import { UsernamePromptChecker } from '../UsernamePromptChecker'
 
 export function RootLayoutNav() {
     const { resolvedTheme } = useAppTheme()
@@ -102,6 +104,12 @@ export function RootLayoutNav() {
                 {showLockOverlay && (
                     <LockOverlay onUnlock={() => setAuthenticated(true)} />
                 )}
+                
+                {/* Global OTA Update Checker */}
+                <OtaUpdateChecker />
+                
+                {/* Global Username Prompt Checker */}
+                <UsernamePromptChecker />
             </YStack>
         </NavThemeProvider>
     )

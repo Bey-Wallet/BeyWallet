@@ -34,6 +34,7 @@ export default function ModalLayout() {
                         circular
                         size="$3"
                         chromeless
+                        rounded="$3"
                         icon={<X size={24} color="$color" />}
                         onPress={() => router.back()}
                     />
@@ -153,6 +154,13 @@ export default function ModalLayout() {
                 name="contact-details"
                 options={{
                     title: 'Contact Details',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="ota-update"
+                options={{
+                    title: 'Update App',
                     presentation: "fullScreenModal",
                 }}
             />

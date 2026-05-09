@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, ScrollView, View, Separator, Circle, Popover, ListItem, Adapt, Sheet, Square } from 'tamagui';
-import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, MoreHorizontal, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, MoreHorizontal, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp, Menu } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/notificationService';
+import amount from 'temp/Sovran/app/(receive-flow)/amount';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -460,8 +461,17 @@ export function TransactionDetailsScreen() {
             <>
                 <Stack.Screen
                     options={{
+                        headerTitleAlign: 'center',
+                        headerTitle: () => (
+                            <XStack>
+                                <Text fontWeight="700" fontSize={20} color="$color">Details</Text>
+                            </XStack>
+                        ),
                         headerRight: () => (
-                            <XStack gap="$2">
+                            <XStack bg="$gray4" rounded="$3" p="$1" gap="$3" items="center" justify="center">
+                                <Button circular size="$3" icon={<Menu size={22} color="$color" />} chromeless />
+
+
                                 <Button
                                     circular
                                     size="$3"

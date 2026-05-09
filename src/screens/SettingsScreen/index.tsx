@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView } from 'tamagui';
-import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign } from '@tamagui/lucide-icons';
+import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -21,6 +21,7 @@ import { ActivityIndicator, Alert, DevSettings } from 'react-native';
 import { walletFileService } from '~/services/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
+import * as Updates from 'expo-updates';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
@@ -238,6 +239,29 @@ export function SettingsScreen() {
         {
             title: 'About',
             items: [
+                {
+                    id: 'update',
+                    title: 'Check for Updates',
+                    subTitle: 'Verify if a new version is available',
+                    icon: RefreshCw,
+                    onPress: async () => {
+                        try {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            if (__DEV__) {
+                                Alert.alert('Development Mode', 'Updates are not supported in development mode.');
+                                return;
+                            }
+                            const { isAvailable } = await Updates.checkForUpdateAsync();
+                            if (isAvailable) {
+                                router.push('/(modals)/ota-update');
+                            } else {
+                                Alert.alert('Up to Date', 'You are already on the latest version of Bey Wallet.');
+                            }
+                        } catch (error: any) {
+                            Alert.alert('Error', error.message || 'Failed to check for updates.');
+                        }
+                    }
+                },
                 {
                     id: 'about',
                     title: 'Version',

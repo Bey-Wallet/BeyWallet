@@ -151,8 +151,8 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
     }, [autoRefreshMs, doLookup]);
 
     return {
-        nip05,
-        username,
+        nip05: nip05 || storedNip05,
+        username: username || (storedNip05 ? storedNip05.split('@')[0] : null),
         loading,
         isRemote,
         refresh: doLookup,
