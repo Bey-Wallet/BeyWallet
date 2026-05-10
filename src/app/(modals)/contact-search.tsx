@@ -196,6 +196,41 @@ export default function ContactSearchScreen() {
                             ))}
                         </YStack>
                     )}
+
+                    {/* Show all directory users when not searching */}
+                    {!search && Object.keys(directory).length > 0 && (
+                        <YStack mt="$4" gap="$2">
+                            <Text fontSize="$4" fontWeight="600" color="$gray10" px="$2">
+                                Users on bey.cash ({Object.keys(directory).length})
+                            </Text>
+                            {Object.entries(directory).map(([name, pubkey]) => {
+                                let npubStr = '';
+                                try { npubStr = nip19.npubEncode(pubkey); } catch { return null; }
+                                return (
+                                    <XStack
+                                        key={name}
+                                        bg="$gray3"
+                                        p="$3"
+                                        rounded="$4"
+                                        items="center"
+                                        gap="$3"
+                                        cursor="pointer"
+                                        onPress={() => onSelectContact({ npub: npubStr, username: name, hex: pubkey })}
+                                    >
+                                        <Blockies seed={npubStr} size={12} scale={3} style={{ borderRadius: 3 }} />
+                                        <YStack>
+                                            <Text fontSize="$5" fontWeight="600" color="$color">
+                                                {name}@bey.cash
+                                            </Text>
+                                            <Text fontSize="$3" color="$gray10" numberOfLines={1}>
+                                                {formatNpub(npubStr)}
+                                            </Text>
+                                        </YStack>
+                                    </XStack>
+                                );
+                            })}
+                        </YStack>
+                    )}
                 </YStack>
             </ScrollView>
         </YStack>

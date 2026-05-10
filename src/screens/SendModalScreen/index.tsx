@@ -1,15 +1,18 @@
 import React, { useState, useCallback } from 'react'
-import { InteractionManager } from 'react-native'
+import { InteractionManager, Switch } from 'react-native'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
 import { P2PKAmountStage } from './P2PKAmountStage'
+import { NostrSendStage } from './NostrSendStage'
 import { ResultStage } from './ResultStage'
 import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { ScanAndPayStage } from './ScanAndPayStage'
 import { biometricService } from '~/services/biometricService'
-import { walletService, mintManager } from '~/services/core'
+import { walletService, mintManager, nostrService } from '~/services/core'
+import { seedService } from '~/services/seedService'
+import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet'
 import { Text, YStack, XStack, Button, Separator, View } from 'tamagui'
@@ -17,12 +20,13 @@ import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, ShieldCheck, Zap, ScanLine } from '@tamagui/lucide-icons'
+import { Building2, ShieldCheck, Zap, ScanLine, Lock } from '@tamagui/lucide-icons'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
 import SendMethodSelector, { SendMode } from '~/components/SendMethodSelector'
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts'
+import Blockies from '~/components/UI/Blockies'
 
 type SendStep = 'amount' | 'result' | 'success' | 'payment_request';
 
@@ -66,11 +70,26 @@ export function SendModalScreen() {
     const [receiverPubkey, setReceiverPubkey] = useState('')
     const [scanInput, setScanInput] = useState('')
     const [manualParsedRequest, setManualParsedRequest] = useState<ParsedPaymentRequest | null>(null)
+    // Nostr-specific state
+    const [nostrRecipientNpub, setNostrRecipientNpub] = useState('')
+    const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
+    const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
+    const [nostrSending, setNostrSending] = useState(false)
     const router = useRouter()
     const queryClient = useQueryClient();
 
-    // ── NUT-18 Payment Request (from scanner) ───────────────────────────────
-    const params = useLocalSearchParams<{ paymentRequest?: string }>();
+    // ── Read params from contact-details or deep link ─────────────────────
+    const params = useLocalSearchParams<{ paymentRequest?: string; to?: string; username?: string; mode?: string }>();
+
+    // Auto-select Nostr mode + pre-fill recipient when coming from contact-details
+    React.useEffect(() => {
+        if (params.mode === 'nostr' && params.to) {
+            setSendMode('nostr');
+            setNostrRecipientNpub(params.to as string);
+            setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
+        }
+    }, [params.mode, params.to, params.username]);
+
     const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
         if (!params.paymentRequest) return null;
         return parsePaymentRequest(params.paymentRequest as string);
@@ -261,16 +280,76 @@ export function SendModalScreen() {
         }
     }, [activeMintUrl, amount, balance, refreshBalance]);
 
+    // ── Nostr Send Handler ───────────────────────────────────────────────
+    const handleNostrSend = useCallback(async () => {
+        if (!activeMintUrl || !nostrRecipientNpub) {
+            setError('Missing mint or recipient');
+            return;
+        }
+
+        const amountSats = parseInt(amount, 10);
+        if (isNaN(amountSats) || amountSats <= 0 || amountSats > balance) {
+            setError(amountSats > balance ? 'Insufficient balance' : 'Invalid amount');
+            return;
+        }
+
+        setNostrSending(true);
+        setError(null);
+
+        try {
+            // Step 1: Create the ecash token
+            let result;
+            if (useP2PK) {
+                result = await walletService.sendP2PK(activeMintUrl, amountSats, nostrRecipientNpub);
+            } else {
+                const stdResult = await walletService.send(activeMintUrl, amountSats);
+                result = { encoded: stdResult.token, token: null as any, id: stdResult.id };
+            }
+
+            // Step 2: Send via Nostr DM
+            const mnemonic = await seedService.getMnemonic();
+            if (!mnemonic) throw new Error('No mnemonic found');
+            const keys = await seedService.getNostrKeys(mnemonic);
+            
+            const sent = await nostrService.sendViaNostr(
+                result.encoded,
+                nostrRecipientNpub,
+                keys.privkey
+            );
+
+            if (!sent) throw new Error('Failed to publish to any relay');
+
+            setEncodedToken(result.encoded);
+            setOperationId(result.id);
+            setStatus('success');
+            refreshBalance();
+            queryClient.invalidateQueries({ queryKey: ['history'] });
+            setStep('success');
+
+            console.log(`[SendModal] ✅ Nostr send complete: ${amountSats} sats to ${nostrRecipientNpub.slice(0, 10)}…`);
+        } catch (err: any) {
+            console.error('[SendModal] Nostr send failed:', err);
+            setError(err.message || 'Failed to send via Nostr');
+            setStatus('error');
+            setStep('result');
+        } finally {
+            setNostrSending(false);
+        }
+    }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance]);
+
     const handleAuthenticate = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
         confirmSheetRef.current?.dismiss();
 
         try {
-            // Authenticate first
             const success = await biometricService.authenticateAsync(`Authorize creating ₿${amount} ecash`)
 
             if (success) {
-                await handleSend();
+                if (sendMode === 'nostr') {
+                    await handleNostrSend();
+                } else {
+                    await handleSend();
+                }
             } else {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
             }
@@ -390,17 +469,18 @@ export function SendModalScreen() {
                         />
                     )}
                     {sendMode === 'nostr' && (
-                        <YStack flex={1} items="center" justify="center" gap="$4" opacity={0.5}>
-                            <ScanLine size={48} color="$gray8" />
-                            <YStack items="center" gap="$1">
-                                <Text fontSize="$5" fontWeight="700" color="$gray9">
-                                    Nostr
-                                </Text>
-                                <Text fontSize="$3" color="$gray9">
-                                    Coming soon
-                                </Text>
-                            </YStack>
-                        </YStack>
+                        <NostrSendStage
+                            amount={amount}
+                            setAmount={setAmount}
+                            recipientNpub={nostrRecipientNpub}
+                            recipientUsername={nostrRecipientUsername}
+                            setRecipientNpub={setNostrRecipientNpub}
+                            setRecipientUsername={setNostrRecipientUsername}
+                            onContinue={handleNext}
+                            balance={balance}
+                            isLoading={isProcessing || nostrSending}
+                            error={error}
+                        />
                     )}
                 </YStack>
             )}
@@ -473,15 +553,52 @@ export function SendModalScreen() {
 
                         <Separator borderColor="$borderColor" opacity={0.5} />
 
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <Zap size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Version</Text>
+                        {sendMode === 'nostr' ? (
+                            <>
+                                <XStack justify="space-between" items="center" px="$4" py="$3">
+                                    <XStack gap="$2" items="center">
+                                        <Lock size={18} color="$gray10" />
+                                        <Text color="$gray10" fontWeight="600">P2PK Lock</Text>
+                                    </XStack>
+                                    <XStack gap="$2" items="center">
+                                        <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
+                                            {useP2PK ? 'Secured' : 'Off'}
+                                        </Text>
+                                        <Switch
+                                            value={useP2PK}
+                                            onValueChange={setUseP2PK}
+                                            trackColor={{ false: '#444', true: '#34C759' }}
+                                            thumbColor="white"
+                                        />
+                                    </XStack>
+                                </XStack>
+                                <Separator borderColor="$borderColor" opacity={0.5} />
+                                {nostrRecipientNpub ? (
+                                    <XStack justify="space-between" items="center" px="$4" py="$3">
+                                        <XStack gap="$2" items="center">
+                                            <Zap size={18} color="$purple10" />
+                                            <Text color="$gray10" fontWeight="600">To</Text>
+                                        </XStack>
+                                        <XStack gap="$2" items="center">
+                                            <Blockies seed={nostrRecipientNpub} size={6} scale={2} style={{ borderRadius: 2 }} />
+                                            <Text fontWeight="800" fontSize="$4" numberOfLines={1} style={{ maxWidth: 150 }}>
+                                                {nostrRecipientUsername || `${nostrRecipientNpub.slice(0, 8)}...`}
+                                            </Text>
+                                        </XStack>
+                                    </XStack>
+                                ) : null}
+                            </>
+                        ) : (
+                            <XStack justify="space-between" items="center" px="$4" py="$3">
+                                <XStack gap="$2" items="center">
+                                    <Zap size={18} color="$gray10" />
+                                    <Text color="$gray10" fontWeight="600">Version</Text>
+                                </XStack>
+                                <XStack bg="$gray5" px="$2" py="$1" rounded="$2">
+                                    <Text color="$gray10" fontSize="$2" fontWeight="800">V4 (Default)</Text>
+                                </XStack>
                             </XStack>
-                            <XStack bg="$gray5" px="$2" py="$1" rounded="$2">
-                                <Text color="$gray10" fontSize="$2" fontWeight="800">V4 (Default)</Text>
-                            </XStack>
-                        </XStack>
+                        )}
                     </YStack>
 
                     <YStack gap="$3" pt="$2">
@@ -503,6 +620,16 @@ export function SendModalScreen() {
                     </YStack>
                 </YStack>
             </AppBottomSheet>
+
+            {/* ProcessingSheet for Nostr sending */}
+            <ProcessingSheet
+                visible={nostrSending}
+                status="processing"
+                variant="nostr"
+                title="Sending via Nostr"
+                amount={parseInt(amount, 10) || 0}
+                detail={`Sending to ${nostrRecipientUsername || nostrRecipientNpub.slice(0, 10) + '…'}`}
+            />
         </YStack>
     )
 }

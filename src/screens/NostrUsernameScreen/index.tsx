@@ -12,7 +12,17 @@ import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { nip19 } from 'nostr-tools';
+import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
+
+/** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes;
+}
 
 // ─── bey.cash API (self-hosted NIP-05 on Nostr) ───────────────────────────────
 
@@ -75,9 +85,6 @@ async function registerUsername(
     hexPrivkey: string
 ): Promise<{ ok: boolean; error?: string; nip05?: string }> {
     try {
-        const { finalizeEvent } = require('nostr-tools/pure');
-        const { hexToBytes } = require('@noble/hashes/utils');
-
         // Create a proof event (Kind 22242) to prove key ownership
         const privkeyBytes = hexToBytes(hexPrivkey);
         const proofEvent = finalizeEvent({

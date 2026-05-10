@@ -14,6 +14,7 @@ export function UsernamePromptChecker() {
     const theme = useTheme();
     const { isOnboarded } = useOnboardingStore();
     const isSettingsInitialized = useSettingsStore(state => state.initialized);
+    const storedNip05 = useSettingsStore(state => state.nip05);
     const { nip05, loading } = useNip05Lookup();
     const [hasPrompted, setHasPrompted] = useState(false);
 
@@ -23,14 +24,17 @@ export function UsernamePromptChecker() {
 
         // Give it a brief delay before checking
         const timeout = setTimeout(() => {
-            if (!nip05) {
+            // Check BOTH the remote lookup AND the local stored value.
+            // If the user just registered, storedNip05 will be set even if
+            // the server cache hasn't refreshed nostr.json yet.
+            if (!nip05 && !storedNip05) {
                 sheetRef.current?.present();
                 setHasPrompted(true); // Don't prompt again in this session
             }
         }, 3000);
 
         return () => clearTimeout(timeout);
-    }, [isOnboarded, isSettingsInitialized, loading, nip05, hasPrompted]);
+    }, [isOnboarded, isSettingsInitialized, loading, nip05, storedNip05, hasPrompted]);
 
     return (
         <AppBottomSheet ref={sheetRef} snapPoints={['43%']}>

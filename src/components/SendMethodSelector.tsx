@@ -53,7 +53,6 @@ const SEND_METHODS: {
             label: 'Nostr',
             subtitle: 'Send via Nostr DM',
             icon: <Zap size={18} color="$color" />,
-            comingSoon: true,
         },
         {
             key: 'scan',
@@ -85,7 +84,6 @@ export default function SendMethodSelector({
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
     const handleSelect = (selectedMode: SendMode) => {
-        if (selectedMode === 'nostr') return; // coming soon – blocked
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onSelect(selectedMode);
         sheetRef.current?.dismiss();

@@ -217,6 +217,11 @@ class NostrService {
 
     if (!this.privkeyHex || !this.pubkeyHex || !this.privkeyBytes) return;
 
+    // Skip our own outgoing events (sender picking up its own DM)
+    if (event.pubkey === this.pubkeyHex) {
+      return;
+    }
+
     console.log(
       `[NostrService] Event ${event.id.slice(0, 8)}… kind=${event.kind} from ${event.pubkey.slice(0, 8)}…`,
     );
@@ -284,7 +289,11 @@ class NostrService {
   }
 
   /**
-   * Handle decrypted message content — look for cashu tokens and receive them.
+   * Handle decrypted message content — queue cashu tokens for manual claiming.
+   *
+   * Instead of auto-receiving, we emit 'nostr:incoming' so the UI can show
+   * a claim sheet where the user inspects mint, fees, and sender info before
+   * accepting the payment.
    */
   private async _handleDecrypted(text: string, sourceEvent: Event): Promise<void> {
     let tokenString = '';
@@ -303,14 +312,12 @@ class NostrService {
           token: [{ mint: payload.mint, proofs: payload.proofs }]
         };
         
-        // Use base64 encoded token representation (mocking a V3 token to trick walletService.receive)
-        // Or if we can import getEncodedToken, even better. For now we just encode to cashuA
         const b64 = Buffer.from(JSON.stringify(tokenStruct)).toString('base64');
         tokenString = `cashuA${b64}`;
         
         mintUrl = payload.mint;
         amount = payload.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-        requestIdFromPayload = payload.id; // The ID of the PaymentRequest being fulfilled
+        requestIdFromPayload = payload.id;
       }
     } catch {
       // Not JSON, fallback to regex search for cashuA/cashuB strings
@@ -320,111 +327,143 @@ class NostrService {
       // Match V3 (cashuA) and V4 (cashuB) tokens
       const tokenMatch = text.match(/(cashu[AB][A-Za-z0-9_=-]+)/i);
       if (!tokenMatch) {
-        // Could be a payment request echo or other message — ignore silently
         return;
       }
       tokenString = tokenMatch[1];
       console.log(`[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`);
 
-      try {
-        const decoded = getDecodedToken(cleanToken(tokenString));
+      const cleaned = cleanToken(tokenString);
+      const rawStr = cleaned.startsWith('cashu') ? cleaned.substring(5) : cleaned;
 
-        // Handle both V3 (decoded.token[]) and V4 (decoded.proofs + decoded.mint)
-        if ((decoded as any).token && (decoded as any).token.length > 0) {
-          const first = (decoded as any).token[0];
-          mintUrl = first.mint;
-          amount = first.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-        } else if ((decoded as any).mint && (decoded as any).proofs) {
-          mintUrl = (decoded as any).mint;
-          amount = (decoded as any).proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+      if (rawStr.startsWith('B')) {
+        // ── V4 CBOR token: manual byte scanning (no keyset lookup needed) ──
+        try {
+          const b64 = rawStr.substring(1); // strip version byte 'B'
+          const b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
+          const pad = (4 - b64std.length % 4) % 4;
+          const b64padded = b64std + '=='.substring(0, pad);
+          const bytes = new Uint8Array(Buffer.from(b64padded, 'base64'));
+
+          // Extract mint URL: find CBOR key "m" (0x61 0x6d)
+          for (let i = 0; i < bytes.length - 2; i++) {
+            if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) { // "m" key
+              const lenByte = bytes[i + 2];
+              const major = (lenByte >> 5) & 0x07;
+              const info = lenByte & 0x1f;
+              if (major === 3) { // text string
+                let urlLen = 0;
+                let urlStart = 0;
+                if (info < 24) { urlLen = info; urlStart = i + 3; }
+                else if (info === 24 && i + 4 < bytes.length) { urlLen = bytes[i + 3]; urlStart = i + 4; }
+                else if (info === 25 && i + 5 < bytes.length) { urlLen = (bytes[i + 3] << 8) | bytes[i + 4]; urlStart = i + 5; }
+                if (urlLen > 0 && urlStart + urlLen <= bytes.length) {
+                  const url = new TextDecoder().decode(bytes.slice(urlStart, urlStart + urlLen));
+                  if (url.startsWith('http')) mintUrl = url;
+                }
+              }
+              break;
+            }
+          }
+
+          // Extract total amount: find CBOR key "a" (0x61 0x61) — each proof has an 'a' field
+          // Sum all small unsigned ints that follow 'a' keys
+          let totalAmount = 0;
+          for (let i = 0; i < bytes.length - 2; i++) {
+            if (bytes[i] === 0x61 && bytes[i + 1] === 0x61) { // "a" key
+              const valByte = bytes[i + 2];
+              const valMajor = (valByte >> 5) & 0x07;
+              const valInfo = valByte & 0x1f;
+              if (valMajor === 0) { // unsigned int
+                if (valInfo < 24) {
+                  totalAmount += valInfo;
+                } else if (valInfo === 24 && i + 3 < bytes.length) {
+                  totalAmount += bytes[i + 3];
+                } else if (valInfo === 25 && i + 4 < bytes.length) {
+                  totalAmount += (bytes[i + 3] << 8) | bytes[i + 4];
+                } else if (valInfo === 26 && i + 6 < bytes.length) {
+                  totalAmount += (bytes[i + 3] << 24) | (bytes[i + 4] << 16) | (bytes[i + 5] << 8) | bytes[i + 6];
+                }
+              }
+            }
+          }
+          amount = totalAmount;
+
+          if (!mintUrl) {
+            console.error('[NostrService] V4 token: could not extract mint URL');
+            return;
+          }
+          console.log(`[NostrService] V4 CBOR parsed: mint=${mintUrl}, amount=${amount}`);
+        } catch (err: any) {
+          console.error('[NostrService] V4 CBOR parse error:', err?.message);
+          return;
         }
-      } catch (err: any) {
-        console.error('[NostrService] Could not decode token string to get amount/mint', err);
-        return;
+      } else {
+        // ── V3 JSON token: getDecodedToken is safe for V3 ──
+        try {
+          const decoded = getDecodedToken(cleaned);
+
+          if ((decoded as any).token && (decoded as any).token.length > 0) {
+            const first = (decoded as any).token[0];
+            mintUrl = first.mint;
+            amount = first.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+          } else if ((decoded as any).mint && (decoded as any).proofs) {
+            mintUrl = (decoded as any).mint;
+            amount = (decoded as any).proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
+          }
+        } catch (err: any) {
+          console.error('[NostrService] V3 token decode failed:', err?.message);
+          return;
+        }
       }
     }
 
     console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
+    // Resolve sender username from bey.cash directory
+    let senderUsername: string | undefined;
     try {
-      // ── Attempt P2PK receive first (locked to our key) ──────────────────
-      let receiveError: any = null;
-      // Lazy load walletService to prevent circular dependency at top-level
-      const { walletService } = require('./walletService');
-
-      try {
-        await walletService.receiveP2PK(tokenString, this.privkeyHex!);
-        console.log(`[NostrService] ✅ P2PK receive success: ${amount} sats`);
-      } catch (p2pkErr: any) {
-        receiveError = p2pkErr;
-        const errMsg: string = p2pkErr?.message ?? '';
-
-        // Detect P2PK-specific errors — these should NOT fall back to standard receive
-        const isP2PKError =
-          errMsg.includes('locked') ||
-          errMsg.includes('P2PK') ||
-          errMsg.includes('p2pk') ||
-          errMsg.includes('public key') ||
-          errMsg.includes('Key pair') ||
-          errMsg.includes('Witness') ||
-          errMsg.includes('signature') ||
-          errMsg.includes('nprofile') ||
-          errMsg.includes('npub');
-
-        if (errMsg.includes('already spent')) {
-          console.log('[NostrService] P2PK token already spent — skipping');
-          return;
-        }
-
-        if (!isP2PKError) {
-          // Not a P2PK error — token might not be P2PK locked, try standard receive
-          try {
-            await walletService.receive(tokenString);
-            receiveError = null;
-            console.log(`[NostrService] ✅ Standard receive success: ${amount} sats`);
-          } catch (stdErr: any) {
-            if (stdErr?.message?.includes('already spent')) {
-              console.log('[NostrService] Token already spent — skipping');
-              return;
-            }
-            throw stdErr;
-          }
-        } else {
-          throw p2pkErr;
-        }
-      }
-
-      if (receiveError) throw receiveError;
-
-      // ── Try to match+mark a pending nostr request as received ────────────
-      try {
-        const pending = nostrRequestStore.getPending();
-        const match = pending.find(
-          r =>
-            r.mintUrl.replace(/\/$/, '') === mintUrl.replace(/\/$/, '') &&
-            r.amount === amount &&
-            r.state === 'pending',
-        );
-        if (match) {
-          await nostrRequestStore.markReceived(match.id);
-          console.log(`[NostrService] Linked payment to request ${match.id}`);
-        }
-      } catch (matchErr) {
-        console.warn('[NostrService] Could not match request:', matchErr);
-      }
-
-      // ── Notify UI ────────────────────────────────────────────────────────
-      DeviceEventEmitter.emit('nostr:received', {
-        amount,
-        mintUrl,
-        eventId: sourceEvent.id,
-        requestId: requestIdFromPayload,
-        senderPubkey: sourceEvent.pubkey,
-      });
-      console.log(`[NostrService] 🔔 Emitted nostr:received (${amount} sats)`);
-    } catch (err: any) {
-      console.error('[NostrService] Failed to receive token:', err?.message || err);
+      senderUsername = await this.resolveUsername(sourceEvent.pubkey);
+    } catch {
+      // Non-fatal — display npub instead
     }
+
+    // ── Queue for manual claim via NostrClaimSheet ──────────────────────
+    // Emit 'nostr:incoming' so the UI can present a claim sheet where the
+    // user inspects the mint, amount, fees, and sender before accepting.
+    DeviceEventEmitter.emit('nostr:incoming', {
+      eventId: sourceEvent.id,
+      tokenString,
+      amount,
+      mintUrl,
+      senderPubkey: sourceEvent.pubkey,
+      senderUsername,
+      requestId: requestIdFromPayload,
+    });
+    console.log(`[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`);
+  }
+
+  // ── Username Resolution ──────────────────────────────────────────────────
+
+  /**
+   * Resolve a hex pubkey to a bey.cash username (NIP-05 directory lookup).
+   * Returns undefined if not found.
+   */
+  public async resolveUsername(hexPubkey: string): Promise<string | undefined> {
+    try {
+      const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
+      if (!res.ok) return undefined;
+      const data = await res.json();
+      if (!data?.names) return undefined;
+
+      for (const [name, pubkey] of Object.entries(data.names)) {
+        if ((pubkey as string).toLowerCase() === hexPubkey.toLowerCase()) {
+          return `${name}@bey.cash`;
+        }
+      }
+    } catch {
+      // Network error — non-fatal
+    }
+    return undefined;
   }
 
   // ── Sending via Nostr ──────────────────────────────────────────────────────

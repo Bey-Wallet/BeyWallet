@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { YStack, XStack, Text, Button, View, Input } from 'tamagui'
+import { YStack, XStack, Text, Button, View, Input, ScrollView } from 'tamagui'
 import { AtSign, CheckCircle, XCircle, Globe, Check } from '@tamagui/lucide-icons'
-import { ActivityIndicator } from 'react-native'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { useSettingsStore } from '../../store/settingsStore'
 import { nip19 } from 'nostr-tools'
+import { finalizeEvent } from 'nostr-tools/pure'
 import { Buffer } from 'buffer'
+
+/** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes;
+}
 
 interface NostrStepProps {
     onComplete: () => void
@@ -67,9 +77,6 @@ async function registerUsername(
     hexPrivkey: string
 ): Promise<{ ok: boolean; error?: string; nip05?: string }> {
     try {
-        const { finalizeEvent } = require('nostr-tools/pure');
-        const { hexToBytes } = require('@noble/hashes/utils');
-
         const privkeyBytes = hexToBytes(hexPrivkey);
         const proofEvent = finalizeEvent({
             kind: 22242,
@@ -117,9 +124,17 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
     const [isRegistering, setIsRegistering] = useState(false);
     const [isDone, setIsDone] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isValidFormat = /^[a-z0-9_.-]{1,64}$/.test(input);
+
+    // Track keyboard visibility
+    useEffect(() => {
+        const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+        const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+        return () => { showSub.remove(); hideSub.remove(); };
+    }, []);
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -142,23 +157,28 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
         const hexPub = npubToHex(npub);
         const hexSec = nsecToHex(nsec);
         if (!hexPub || !hexSec) {
+            console.error('[NostrStep] Could not decode keys. npub:', !!npub, 'nsec:', !!nsec);
             setErrorMsg('Could not decode keys.');
             return;
         }
 
+        console.log(`[NostrStep] Registering "${input}" for pubkey ${hexPub.slice(0, 8)}…`);
         setIsRegistering(true);
         setErrorMsg(null);
         try {
             const result = await registerUsername(input, hexPub, hexSec);
+            console.log('[NostrStep] Registration result:', JSON.stringify(result));
             if (result.ok) {
                 const identifier = `${input}@${DOMAIN}`;
                 await setNip05(identifier);
+                console.log(`[NostrStep] ✅ Username claimed: ${identifier}`);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setIsDone(true);
                 setTimeout(() => {
                     onComplete();
                 }, 1500);
             } else {
+                console.error('[NostrStep] Registration failed:', result.error);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setErrorMsg(result.error || 'Registration failed');
             }
@@ -188,126 +208,143 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
     const msg = checkMessage();
 
     return (
-        <YStack flex={1} bg="$background" px="$4" py="$6" justify="space-between">
-            {/* Top spacer / Skip */}
-            <XStack justify="flex-end" w="100%">
-                {!isDone && (
-                    <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
-                        <Text color="$gray10" fontWeight="600">Skip</Text>
-                    </Button>
-                )}
-            </XStack>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+        >
+            <ScrollView
+                flex={1}
+                bg="$background"
+                contentContainerStyle={{ flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <YStack flex={1} px="$4" py="$6" justify="space-between">
+                    {/* Top spacer / Skip */}
+                    <XStack justify="flex-end" w="100%">
+                        {!isDone && (
+                            <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
+                                <Text color="$gray10" fontWeight="600">Skip</Text>
+                            </Button>
+                        )}
+                    </XStack>
 
-            {/* Center Content */}
-            <YStack items="center" gap="$5" pt="$4">
-                {isDone ? (
-                    <YStack items="center" gap="$4">
-                        <View
-                            bg="$green9"
-                            width={80}
-                            height={80}
-                            rounded="$10"
-                            items="center"
-                            justify="center"
-                            animation="quick"
-                            enterStyle={{ scale: 0, opacity: 0 }}
-                        >
-                            <Check size={40} color="white" />
-                        </View>
-                        <YStack items="center" gap="$2">
-                            <Text fontWeight="800" fontSize="$6">Username Claimed! 🎉</Text>
-                            <Text color="$gray10" fontSize="$4">{input}@{DOMAIN}</Text>
-                        </YStack>
+                    {/* Center Content */}
+                    <YStack items="center" gap="$5" pt="$4">
+                        {isDone ? (
+                            <YStack items="center" gap="$4">
+                                <View
+                                    bg="$green9"
+                                    width={80}
+                                    height={80}
+                                    rounded="$10"
+                                    items="center"
+                                    justify="center"
+                                    animation="quick"
+                                    enterStyle={{ scale: 0, opacity: 0 }}
+                                >
+                                    <Check size={40} color="white" />
+                                </View>
+                                <YStack items="center" gap="$2">
+                                    <Text fontWeight="800" fontSize="$6">Username Claimed! 🎉</Text>
+                                    <Text color="$gray10" fontSize="$4">{input}@{DOMAIN}</Text>
+                                </YStack>
+                            </YStack>
+                        ) : (
+                            <YStack gap="$5" w="100%">
+                                {/* Hide the header/description when keyboard is up to save space */}
+                                {!keyboardVisible && (
+                                    <YStack items="center" gap="$2">
+                                        <Globe size={48} color="$blue10" />
+                                        <Text fontWeight="800" fontSize="$7">Nostr Address</Text>
+                                        <Text color="$gray10" fontSize="$3" lineHeight={20} text="center" px="$4">
+                                            Claim a free <Text fontWeight="700" color="$color">username@{DOMAIN}</Text> identifier.
+                                            It lets others find and verify you on Nostr.
+                                        </Text>
+                                    </YStack>
+                                )}
+
+                                <YStack gap="$2" mt={keyboardVisible ? "$0" : "$4"}>
+                                    <Text fontWeight="700" fontSize="$4">Choose a username</Text>
+                                    <XStack
+                                        bg="$gray2"
+                                        rounded="$4"
+                                        borderWidth={1}
+                                        borderColor={
+                                            checkState === 'available' ? '$green8'
+                                                : checkState === 'taken' ? '$red8'
+                                                : '$borderColor'
+                                        }
+                                        items="center"
+                                        px="$3"
+                                        gap="$2"
+                                    >
+                                        <AtSign size={18} color="$gray10" />
+                                        <Input
+                                            flex={1}
+                                            bg="transparent"
+                                            borderWidth={0}
+                                            placeholder="yourname"
+                                            value={input}
+                                            onChangeText={v => setInput(v.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            keyboardType="ascii-capable"
+                                            fontSize="$5"
+                                            fontWeight="600"
+                                        />
+                                        <Text color="$gray9" fontSize="$3">@{DOMAIN}</Text>
+                                        <CheckIcon />
+                                    </XStack>
+
+                                    {msg && (
+                                        <Text fontSize="$2" color={msg.color as any} mt="$1">
+                                            {msg.text}
+                                        </Text>
+                                    )}
+                                </YStack>
+                            </YStack>
+                        )}
                     </YStack>
-                ) : (
-                    <YStack gap="$5" w="100%">
-                        <YStack items="center" gap="$2">
-                            <Globe size={48} color="$blue10" />
-                            <Text fontWeight="800" fontSize="$7">Nostr Address</Text>
-                            <Text color="$gray10" fontSize="$3" lineHeight={20} text="center" px="$4">
-                                Claim a free <Text fontWeight="700" color="$color">username@{DOMAIN}</Text> identifier.
-                                It lets others find and verify you on Nostr.
+
+                    {/* Bottom - Enable Button */}
+                    <YStack gap="$4" items="center" pb="$4">
+                        {errorMsg && !isDone && (
+                            <Text color="$red10" fontSize="$3" text="center">
+                                {errorMsg}
                             </Text>
-                        </YStack>
+                        )}
 
-                        <YStack gap="$2" mt="$4">
-                            <Text fontWeight="700" fontSize="$4">Choose a username</Text>
-                            <XStack
-                                bg="$gray2"
-                                rounded="$4"
-                                borderWidth={1}
-                                borderColor={
-                                    checkState === 'available' ? '$green8'
-                                        : checkState === 'taken' ? '$red8'
-                                        : '$borderColor'
+                        {!isDone && (
+                            <Button
+                                size="$5"
+                                theme="accent"
+                                width="100%"
+                                disabled={checkState !== 'available' || isRegistering}
+                                onPress={handleClaim}
+                                opacity={isRegistering || checkState !== 'available' ? 0.7 : 1}
+                                icon={isRegistering
+                                    ? <ActivityIndicator size="small" color="white" />
+                                    : <Globe size={20} />
                                 }
-                                items="center"
-                                px="$3"
-                                gap="$2"
+                                fontSize="$5"
+                                fontWeight="700"
+                                rounded="$4"
+                                pressStyle={{ scale: 0.98, opacity: 0.9 }}
                             >
-                                <AtSign size={18} color="$gray10" />
-                                <Input
-                                    flex={1}
-                                    bg="transparent"
-                                    borderWidth={0}
-                                    placeholder="yourname"
-                                    value={input}
-                                    onChangeText={v => setInput(v.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    keyboardType="ascii-capable"
-                                    fontSize="$5"
-                                    fontWeight="600"
-                                />
-                                <Text color="$gray9" fontSize="$3">@{DOMAIN}</Text>
-                                <CheckIcon />
-                            </XStack>
+                                {isRegistering ? 'Claiming...' : 'Claim Username'}
+                            </Button>
+                        )}
 
-                            {msg && (
-                                <Text fontSize="$2" color={msg.color as any} mt="$1">
-                                    {msg.text}
-                                </Text>
-                            )}
-                        </YStack>
+                        {!isDone && (
+                            <Text color="$gray9" fontSize="$2" text="center">
+                                Optional: Makes it easier for others to send you payments
+                            </Text>
+                        )}
                     </YStack>
-                )}
-            </YStack>
-
-            {/* Bottom - Enable Button */}
-            <YStack gap="$4" items="center" pb="$4">
-                {errorMsg && !isDone && (
-                    <Text color="$red10" fontSize="$3" text="center">
-                        {errorMsg}
-                    </Text>
-                )}
-
-                {!isDone && (
-                    <Button
-                        size="$5"
-                        theme="accent"
-                        width="100%"
-                        disabled={checkState !== 'available' || isRegistering}
-                        onPress={handleClaim}
-                        opacity={isRegistering || checkState !== 'available' ? 0.7 : 1}
-                        icon={isRegistering
-                            ? <ActivityIndicator size="small" color="white" />
-                            : <Globe size={20} />
-                        }
-                        fontSize="$5"
-                        fontWeight="700"
-                        rounded="$4"
-                        pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                    >
-                        {isRegistering ? 'Claiming...' : 'Claim Username'}
-                    </Button>
-                )}
-
-                {!isDone && (
-                    <Text color="$gray9" fontSize="$2" text="center">
-                        Optional: Makes it easier for others to send you payments
-                    </Text>
-                )}
-            </YStack>
-        </YStack>
+                </YStack>
+            </ScrollView>
+        </KeyboardAvoidingView>
     )
 }

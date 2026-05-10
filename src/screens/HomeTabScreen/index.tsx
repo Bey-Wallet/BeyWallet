@@ -13,6 +13,8 @@ import SkeletonCard from '../../components/UI/SkeletonCard'
 // content (WalletCard + ActionButtons) is already painted, so the user
 // sees the critical content instantly.
 import ManageBalances from './components/ManageBalances'
+import NostrActivity from './components/NostrActivity'
+import { NostrClaimSheet } from '../../components/NostrClaimSheet'
 const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'))
 const LazyContactsView = React.lazy(() => import('./components/ContactsView'))
 const LazySupportView = React.lazy(() => import('./components/SupportView'))
@@ -98,10 +100,14 @@ export function HomeTabScreen() {
                 <React.Suspense fallback={<HomeSkeleton />}>
                     <LazyBitcoinPriceCard />
                     <ManageBalances />
+                    <NostrActivity />
                     <LazyContactsView />
                     <LazySupportView />
                 </React.Suspense>
             </YStack>
+
+            {/* Global Nostr claim sheet — listens for incoming payments */}
+            <NostrClaimSheet />
         </ScrollView>
     )
 }

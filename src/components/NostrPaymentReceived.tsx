@@ -1,76 +1,48 @@
 /**
  * NostrPaymentReceived
  *
- * Listens for the `nostr:received` DeviceEventEmitter event and shows a
- * full-screen success overlay when a P2PK payment is received via Nostr.
- * Auto-dismisses after 5 seconds or on tap.
+ * Listens for the `nostr:received` DeviceEventEmitter event (emitted AFTER
+ * a token has been successfully claimed) and shows a brief toast/haptic
+ * feedback. The actual claiming UI is handled by NostrClaimSheet.
+ *
+ * This component is kept as a lightweight listener for post-claim
+ * notifications only (balance refreshes, query invalidations).
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import {
-  PaymentStatusOverlay,
-  type PaymentStatusState,
-} from './PaymentStatusOverlay';
 import * as Haptics from 'expo-haptics';
+import { useQueryClient } from '@tanstack/react-query';
+import { useWalletStore } from '../store/walletStore';
 
 interface ReceivedPayment {
-  amount: number;
-  mintUrl: string;
-  eventId?: string;
-  senderPubkey?: string;
+    amount: number;
+    mintUrl: string;
+    eventId?: string;
+    senderPubkey?: string;
 }
 
 export function NostrPaymentReceived() {
-  const [payment, setPayment] = useState<ReceivedPayment | null>(null);
-  const [visible, setVisible] = useState(false);
-  const autoDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const queryClient = useQueryClient();
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
 
-  const handleDismiss = useCallback(() => {
-    setVisible(false);
-    if (autoDismissTimer.current) {
-      clearTimeout(autoDismissTimer.current);
-      autoDismissTimer.current = null;
-    }
-    // Small delay before clearing data to allow exit animation
-    setTimeout(() => setPayment(null), 400);
-  }, []);
+    useEffect(() => {
+        const subscription = DeviceEventEmitter.addListener(
+            'nostr:received',
+            (data: ReceivedPayment) => {
+                console.log('[NostrPaymentReceived] Payment claimed:', data.amount, 'sats');
 
-  useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener(
-      'nostr:received',
-      (data: ReceivedPayment) => {
-        console.log('[NostrPaymentReceived] Payment received:', data.amount, 'sats');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                // Refresh relevant queries
+                queryClient.invalidateQueries({ queryKey: ['history'] });
+                queryClient.invalidateQueries({ queryKey: ['history', 'nostr'] });
+                queryClient.invalidateQueries({ queryKey: ['balance'] });
+                refreshBalance();
+            }
+        );
 
-        setPayment(data);
-        setVisible(true);
+        return () => subscription.remove();
+    }, [queryClient, refreshBalance]);
 
-        // Auto-dismiss after 6 seconds
-        if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
-        autoDismissTimer.current = setTimeout(() => {
-          handleDismiss();
-        }, 6000);
-      }
-    );
-
-    return () => {
-      subscription.remove();
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
-    };
-  }, [handleDismiss]);
-
-  if (!payment) return null;
-
-  return (
-    <PaymentStatusOverlay
-      visible={visible}
-      state="success"
-      direction="receive"
-      amount={payment.amount}
-      recipient={payment.senderPubkey}
-      mintUrl={payment.mintUrl}
-      onDismiss={handleDismiss}
-    />
-  );
+    // This component renders nothing — it's just a listener
+    return null;
 }

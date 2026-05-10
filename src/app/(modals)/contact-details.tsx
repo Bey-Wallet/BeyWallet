@@ -41,7 +41,7 @@ export default function ContactDetailsScreen() {
     const handleSend = () => {
         router.push({
             pathname: '/(modals)/send',
-            params: { to: npub, username: username || '' }
+            params: { to: npub, username: username || '', mode: 'nostr' }
         });
     };
 
