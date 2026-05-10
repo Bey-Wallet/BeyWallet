@@ -1,6 +1,7 @@
 import { YStack } from "tamagui";
 import { useRouter, Stack } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
+import { InteractionManager } from "react-native";
 import { AmountStage } from "./AmountStage";
 import { ConfirmStage } from "./ConfirmStage";
 import { PaymentStage } from "./PaymentStage";
@@ -19,7 +20,8 @@ interface MintQuoteData {
 
 export default function MintScreen() {
     const router = useRouter();
-    const { activeMintUrl, refreshBalance } = useWalletStore();
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
 
     const [step, setStep] = useState<MintStep>('amount');
     const [amount, setAmount] = useState("0");
@@ -112,8 +114,8 @@ export default function MintScreen() {
     };
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     };
 
     return (
@@ -153,6 +155,7 @@ export default function MintScreen() {
                 <ResultStage
                     status={status}
                     amount={amount}
+                    mintUrl={activeMintUrl || undefined}
                     error={error}
                     onClose={handleClose}
                 />

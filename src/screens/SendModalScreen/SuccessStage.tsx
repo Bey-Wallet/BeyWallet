@@ -82,8 +82,8 @@ export function SuccessStage({
 function DetailItem({ label, value }: { label: string, value: string }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
-            <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
                 {value}
             </Text>
         </XStack>

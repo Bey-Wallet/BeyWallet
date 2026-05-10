@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { YStack, Text, Button, Spinner, H2, Image, View, Circle } from 'tamagui'
-import { Fingerprint, Lock } from '@tamagui/lucide-icons'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { YStack, Text, Button, Spinner, H2, Image, View } from 'tamagui'
+import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
 import { AppState, AppStateStatus } from 'react-native'
@@ -11,9 +11,14 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     const [error, setError] = useState<string | null>(null)
     const { resolvedTheme } = useAppTheme()
 
-    const handleAuthenticate = async () => {
-        if (isAuthenticating) return
+    // Track whether we've auto-triggered so we only do it ONCE per mount
+    const hasAutoTriggered = useRef(false)
+    const isAuthRef = useRef(false) // mirror isAuthenticating for stable closure
 
+    const handleAuthenticate = useCallback(async () => {
+        // Guard: prevent concurrent auth attempts
+        if (isAuthRef.current) return
+        isAuthRef.current = true
         setIsAuthenticating(true)
         setError(null)
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -30,28 +35,33 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         } catch (e) {
             setError('An error occurred during authentication.')
         } finally {
+            isAuthRef.current = false
             setIsAuthenticating(false)
         }
-    }
+    }, [onUnlock])
 
-    // Handle auto-trigger on mount and on foreground
+    // Auto-trigger biometric ONCE on mount — fast (300ms delay)
     useEffect(() => {
-        // Small delay to ensure the native side is ready after app transitions
+        if (hasAutoTriggered.current) return
+        hasAutoTriggered.current = true
+
         const timer = setTimeout(() => {
             handleAuthenticate()
-        }, 500)
+        }, 300)
 
+        return () => clearTimeout(timer)
+    }, [handleAuthenticate])
+
+    // On foreground: only re-trigger if not already authenticating
+    useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-            if (nextAppState === 'active') {
+            if (nextAppState === 'active' && !isAuthRef.current) {
                 handleAuthenticate()
             }
         })
 
-        return () => {
-            clearTimeout(timer)
-            subscription.remove()
-        }
-    }, [])
+        return () => subscription.remove()
+    }, [handleAuthenticate])
 
     return (
         <YStack flex={1} bg="$background" px="$3" py="$5" justify="space-between">

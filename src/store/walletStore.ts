@@ -5,11 +5,13 @@ import {
     initService,
     walletService,
     mintManager,
+    nostrService,
 } from '../services/core';
 import type { MintInfo } from '../services/core';
 import { useSettingsStore } from './settingsStore';
 import { DEFAULT_MINT } from './constants';
-import { InteractionManager } from 'react-native';
+import { InteractionManager, DeviceEventEmitter } from 'react-native';
+import { seedService } from '../services/seedService';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
 
@@ -49,6 +51,7 @@ interface WalletState {
     restoreFromSeed: (mintUrl: string) => Promise<void>;
     restoreAllMints: (extraMintUrls?: string[]) => Promise<void>;
     setScannerResult: (result: string | null) => void;
+    syncMintsToNostr: () => Promise<void>;
 }
 
 
@@ -98,36 +101,41 @@ export const useWalletStore = create<WalletState>()(
                         }
                     }
 
-                    // Repair corrupted keysets for all mints in PARALLEL
-                    const allMints = await manager.mint.getAllMints();
-                    const repairResults = await Promise.all(
-                        allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
-                    );
-
-                    const anyRepaired = repairResults.some(r => r === true);
-
-                    // Reinit if keysets were repaired (rare but necessary)
-                    if (anyRepaired) {
-                        console.log('[WalletStore] Reinitializing after keyset repair...');
-                        await manager.dispose?.();
-                        initService.reset();
-                        await initService.init();
-                    }
-
                     // Set active mint if not set
                     if (!get().activeMintUrl) {
                         const userDefaultMint = useSettingsStore.getState().defaultMintUrl || DEFAULT_MINT;
                         set({ activeMintUrl: userDefaultMint });
                     }
 
-                    await get().refreshBalance();
+                    // Parallelize balance refresh + mint info fetch for speed
+                    const [, mintInfos] = await Promise.all([
+                        get().refreshBalance(),
+                        mintManager.getMintInfoList(),
+                    ]);
 
-                    // Build mint info list for UI
-                    const mintInfos = await mintManager.getMintInfoList();
+                    const allMints = await manager.mint.getAllMints();
 
                     set({
                         isInitializing: false,
                         mints: mintInfos,
+                    });
+
+                    // Defer keyset repair to background — never blocks startup
+                    // Handles real money safely: repair still runs, just after UI is visible
+                    InteractionManager.runAfterInteractions(async () => {
+                        try {
+                            const repairResults = await Promise.all(
+                                allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
+                            );
+                            if (repairResults.some(r => r === true)) {
+                                console.log('[WalletStore] Keysets repaired in background, refreshing...');
+                                await get().refreshBalance();
+                                const freshMintInfos = await mintManager.getMintInfoList();
+                                set({ mints: freshMintInfos });
+                            }
+                        } catch (e) {
+                            console.warn('[WalletStore] Background keyset repair error:', e);
+                        }
                     });
                     console.log('[WalletStore] Initialization complete');
                 } catch (err: any) {
@@ -161,6 +169,7 @@ export const useWalletStore = create<WalletState>()(
                         console.log(`[WalletStore] 🔄 Background: repair keysets + restore for: ${url}`);
                         mintManager.repairMintKeysets(url, 'sat').catch(console.warn);
                         get().restoreFromSeed(url);
+                        get().syncMintsToNostr();
                     });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to add mint:', err);
@@ -173,6 +182,9 @@ export const useWalletStore = create<WalletState>()(
                     await mintManager.trustMint(url);
                     const mintInfos = await mintManager.getMintInfoList();
                     set({ mints: mintInfos });
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to trust mint:', err);
                     set({ error: err.message });
@@ -183,20 +195,20 @@ export const useWalletStore = create<WalletState>()(
                 try {
                     set({ isRefreshing: true, error: null });
                     if (!initService.isInitialized()) {
-                        set({ balance: 0 });
+                        set({ balance: 0, isRefreshing: false });
                         return;
                     }
 
                     const activeUrl = get().activeMintUrl;
                     if (!activeUrl) {
-                        set({ balance: 0 });
+                        set({ balance: 0, isRefreshing: false });
                         return;
                     }
 
+                    // Single DB call — derive active mint balance from the map
                     const balances = await walletService.getBalances();
-                    const balance = await walletService.getBalanceForMint(activeUrl);
+                    const balance = balances[activeUrl] ?? 0;
 
-                    console.log('[WalletStore] Balance:', balance);
                     set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
                 } catch (err: any) {
                     console.error('[WalletStore] Error refreshing balance:', err);
@@ -271,6 +283,9 @@ export const useWalletStore = create<WalletState>()(
                 try {
                     await mintManager.untrustMint(url);
                     await get().refreshMintList();
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to untrust mint:', err);
                     set({ error: err.message });
@@ -291,6 +306,9 @@ export const useWalletStore = create<WalletState>()(
                             set({ activeMintUrl: nextActive || null });
                         }
                     }
+                    InteractionManager.runAfterInteractions(() => {
+                        get().syncMintsToNostr();
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to remove mint:', err);
                     set({ error: err.message });
@@ -335,10 +353,9 @@ export const useWalletStore = create<WalletState>()(
             restoreAllMints: async (extraMintUrls: string[] = []) => {
                 // Feature/Popular mints to check by default to aid discovery
                 const FEATURED_MINTS = [
-                    "https://8333.space:3338",
                     "https://mint.minibits.cash/Bitcoin",
-                    "https://legend.lnbits.com/cashu/api/v1/4gr93mame836988",
-                    "https://mint.probatio.money:3338"
+                    "https://testnut.cashu.space",
+                    "https://nofee.testnut.cashu.space"
                 ];
 
                 // Build deduplicated list of mints to restore
@@ -362,13 +379,14 @@ export const useWalletStore = create<WalletState>()(
                     isRestoring: true,
                 });
 
+                // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
                 for (const mintUrl of mintUrls) {
                     // Mark as scanning
                     set(s => ({
                         mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
                             e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
                         ),
-                        restoringMintUrl: mintUrl,
+                        restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
                     }));
 
                     try {
@@ -397,6 +415,9 @@ export const useWalletStore = create<WalletState>()(
                             ),
                         }));
                     }
+                    
+                    // Small delay to let the UI breathe and update animations between heavy tasks
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
 
                 // Re-initialize the core Manager to pick up all restored counters and proofs
@@ -413,6 +434,43 @@ export const useWalletStore = create<WalletState>()(
 
             setScannerResult: (result: string | null) => {
                 set({ scannerResult: result });
+            },
+
+            syncMintsToNostr: async () => {
+                try {
+                    console.log('[WalletStore] Starting mint sync to Nostr...');
+                    // Get all trusted mints
+                    const trustedMints = await mintManager.getAllTrustedMints();
+                    const urlsToBackup = new Set<string>(trustedMints.map(m => m.mintUrl));
+                    
+                    // Also include any untrusted mints that have a balance > 0
+                    const allBalances = await walletService.getBalances();
+                    for (const [url, balance] of Object.entries(allBalances)) {
+                        if (balance > 0) {
+                            urlsToBackup.add(url);
+                        }
+                    }
+
+                    const mintUrls = Array.from(urlsToBackup);
+                    if (mintUrls.length === 0) {
+                        return;
+                    }
+
+                    const mnemonic = await seedService.getMnemonic();
+                    if (!mnemonic) {
+                        console.warn('[WalletStore] No mnemonic found, skipping Nostr backup');
+                        return;
+                    }
+
+                    const keys = await seedService.getNostrKeys(mnemonic);
+                    // keys.pubkey is already a hex string
+                    const success = await nostrService.backupMintsToNostr(mintUrls, keys.privkey, keys.pubkey);
+                    if (success) {
+                        DeviceEventEmitter.emit('nostr:sync-success', { npub: keys.npub });
+                    }
+                } catch (err: any) {
+                    console.error('[WalletStore] Failed to sync mints to Nostr:', err?.message || err);
+                }
             },
 
         }),

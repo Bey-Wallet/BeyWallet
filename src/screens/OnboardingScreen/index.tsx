@@ -1,20 +1,25 @@
 import React, { useState } from 'react'
 import { WelcomeStep } from './WelcomeStep'
-import { CreatingStep } from './CreatingStep'
+import { CreatingWalletSheet } from './CreatingWalletSheet'
 import { SeedStep } from './SeedStep'
 import { BiometricStep } from './BiometricStep'
+import { NotificationStep } from './NotificationStep'
+import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
+import { NostrStep } from './NostrStep'
 import { ImportSeedStep } from './ImportSeedStep'
 import { MintConfirmationStep } from './MintConfirmationStep'
 import { RestoreProgressStep } from './RestoreProgressStep'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { seedService } from '../../services/seedService'
-import { initService, mintManager } from '../../services/core'
+import { initService, mintManager, nostrService } from '../../services/core'
 import { useWalletStore } from '../../store/walletStore'
+import { useAuthStore } from '../../store/authStore'
 import { walletFileService } from '../../services/walletFileService'
 import { ActivityIndicator, Alert } from 'react-native'
 import { YStack, Text } from 'tamagui'
 import { DEFAULT_MINT } from '../../store/constants'
+import { Buffer } from 'buffer'
 
 export function OnboardingScreen() {
     const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding } = useOnboardingStore()
@@ -51,6 +56,11 @@ export function OnboardingScreen() {
         setIsFinishing(true)
         try {
             await initService.createWallet(generatedMnemonic)
+            
+            // Now that the repo exists, persist the choice made in BiometricStep
+            const currentBiometricEnabled = useSettingsStore.getState().biometricEnabled
+            await useSettingsStore.getState().setBiometricEnabled(currentBiometricEnabled)
+
             await useSettingsStore.getState().initialize(true)
             await initialize()
         } catch (err) {
@@ -60,9 +70,12 @@ export function OnboardingScreen() {
         }
         setIsFinishing(false)
 
-        // Move to mint picker — wallet is ready but onboarding not yet marked complete
-        setStep('mintpicker')
+        // Move to notifications step
+        setStep('notifications')
     }
+
+    const handleNotificationNext = () => setStep('nostr')
+    const handleNostrNext = () => setStep('mintpicker')
 
     // Called when user confirms default mints on new wallet
     const handleMintPickerComplete = async (selectedMintUrls: string[]) => {
@@ -79,6 +92,7 @@ export function OnboardingScreen() {
             }
 
             await completeOnboarding()
+            useAuthStore.getState().setAuthenticated(true)
         } catch (err) {
             console.error('[Onboarding] mint confirmation failed:', err)
         } finally {
@@ -90,6 +104,7 @@ export function OnboardingScreen() {
         setIsFinishing(true)
         try {
             await completeOnboarding()
+            useAuthStore.getState().setAuthenticated(true)
         } finally {
             setIsFinishing(false)
         }
@@ -107,6 +122,25 @@ export function OnboardingScreen() {
         try {
             console.log('[Onboarding] Importing wallet from seed...')
 
+            // Check Nostr for mint backups
+            let nostrMints: string[] = []
+            try {
+                setImportStatus('Checking for Nostr backups…')
+                const keys = await seedService.getNostrKeys(mnemonic)
+                // keys.pubkey is already a hex string in modern nostr-tools
+                const pubkeyHex = keys.pubkey
+                nostrMints = await nostrService.fetchMintsFromNostr(pubkeyHex)
+                
+                if (nostrMints.length === 0) {
+                    Alert.alert('Nostr Restore', 'No mints found in Nostr backup.')
+                } else {
+                    console.log(`[Onboarding] Found ${nostrMints.length} mints in Nostr backup`)
+                }
+            } catch (err) {
+                console.warn('[Onboarding] Failed to fetch Nostr backup mints:', err)
+            }
+
+            setImportStatus('Initializing wallet…')
             // 1. Setup the wallet and repositories
             // Use quiet mode if we have a backupState to avoid DB locks during insertion
             await initService.restoreWallet(mnemonic, { quiet: !!backupState })
@@ -123,13 +157,9 @@ export function OnboardingScreen() {
                 console.log('[Onboarding] Full state imported and synced successfully')
             }
 
-            setImportStatus('Welcome back! Finalizing…')
-            await completeOnboarding()
-            await useSettingsStore.getState().initialize(true)
-            await initialize()
-
-            // 3. Store extra mints (from backup file) for the restore step
-            setExtraRestoreMints(additionalMints)
+            // 3. Store extra mints (from backup file + Nostr backup) for the restore step
+            const combinedMints = Array.from(new Set([...additionalMints, ...nostrMints]))
+            setExtraRestoreMints(combinedMints)
 
             // 4. Decide if we need the slow "restoring" step or can go home
             // If we have proofs (money) already in the DB from backup, skip the scan
@@ -137,9 +167,14 @@ export function OnboardingScreen() {
 
             if (hasFunds) {
                 console.log('[Onboarding] Found funds in backup, skipping deterministic scan.')
-                // No need to setStep('restoring'), the app will auto-navigate home because completeOnboarding() was called
+                setImportStatus('Welcome back! Finalizing…')
+                await completeOnboarding()
+                useAuthStore.getState().setAuthenticated(true)
+                await useSettingsStore.getState().initialize(true)
+                await initialize()
             } else {
                 console.log('[Onboarding] Navigating to restore progress step...')
+                await useSettingsStore.getState().initialize(true)
                 setStep('restoring')
             }
         } catch (err) {
@@ -156,10 +191,11 @@ export function OnboardingScreen() {
     }
 
     // Called when user taps "Go to Wallet" on the progress screen
-    const handleRestoreDone = () => {
-        // Onboarding is already complete — app navigates home automatically
-        // Just ensure we push to home tab
+    const handleRestoreDone = async () => {
         console.log('[Onboarding] Restore done, going home')
+        await completeOnboarding()
+        useAuthStore.getState().setAuthenticated(true)
+        await initialize()
     }
 
     // ── File import (restore from .bey backup file) ─────────────
@@ -207,41 +243,28 @@ export function OnboardingScreen() {
     }
 
     // ── Loading overlay ─────────────────────────────────────────
-
-    if (isImporting || isFinishing) {
-        return (
-            <YStack flex={1} bg="$background" items="center" justify="center" gap="$4">
-                <ActivityIndicator size="large" color="#666" />
-                <Text fontSize="$6" fontWeight="700" color="$color">
-                    {isImporting ? 'Importing wallet...' : 'Setting up wallet...'}
-                </Text>
-                <Text color="$gray10" fontSize="$3" text="center" px="$6">
-                    {isImporting
-                        ? importStatus
-                        : 'Preparing your secure wallet. This may take a few moments.'}
-                </Text>
-            </YStack>
-        )
-    }
-
+    // Replaced by ProcessingSheet in the render tree below
+    
     // ── Step router ─────────────────────────────────────────────
-
-    switch (currentStep) {
-        case 'welcome':
-            return (
-                <WelcomeStep
-                    onCreateWallet={handleCreateWallet}
-                    onImportWallet={handleImportWallet}
-                    onImportFromFile={handleImportFromFile}
-                />
-            )
-
+    
+    const renderStep = () => {
+        switch (currentStep) {
         case 'creating':
+        case 'welcome':
+        default:
             return (
-                <CreatingStep
-                    onComplete={handleCreatingComplete}
-                    generateMnemonic={seedService.generateMnemonic}
-                />
+                <>
+                    <WelcomeStep
+                        onCreateWallet={handleCreateWallet}
+                        onImportWallet={handleImportWallet}
+                        onImportFromFile={handleImportFromFile}
+                    />
+                    <CreatingWalletSheet
+                        open={currentStep === 'creating'}
+                        onComplete={handleCreatingComplete}
+                        generateMnemonic={seedService.generateMnemonic}
+                    />
+                </>
             )
 
         case 'seed':
@@ -254,7 +277,13 @@ export function OnboardingScreen() {
             )
 
         case 'biometric':
-            return <BiometricStep onComplete={handleBiometricComplete} />
+            return <BiometricStep onComplete={handleBiometricComplete} onSkip={handleBiometricComplete} />
+
+        case 'notifications':
+            return <NotificationStep onComplete={handleNotificationNext} onSkip={handleNotificationNext} />
+
+        case 'nostr':
+            return <NostrStep onComplete={handleNostrNext} onSkip={handleNostrNext} />
 
         case 'mintpicker':
             return (
@@ -288,16 +317,21 @@ export function OnboardingScreen() {
                 />
             )
         }
+        } // close switch
+    } // close renderStep
 
-        default:
-            return (
-                <WelcomeStep
-                    onCreateWallet={handleCreateWallet}
-                    onImportWallet={handleImportWallet}
-                    onImportFromFile={handleImportFromFile}
-                />
-            )
-    }
+    return (
+        <YStack flex={1}>
+            {renderStep()}
+            
+            <ProcessingSheet 
+                visible={isImporting || isFinishing}
+                status="processing"
+                title={isImporting ? 'Importing wallet...' : 'Setting up wallet...'}
+                detail={isImporting ? importStatus : 'Preparing your secure wallet. This may take a few moments.'}
+            />
+        </YStack>
+    )
 }
 
 // ── Wrapper that fires restoreAllMints on mount ──────────────────────────────

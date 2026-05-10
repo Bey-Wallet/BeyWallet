@@ -1,33 +1,36 @@
-import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Building2 } from "@tamagui/lucide-icons";
-import { Button, Text, YStack, XStack, ListItem, Paragraph, View, Image, Avatar, Square } from "tamagui";
+import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff, Edit3, Check } from "@tamagui/lucide-icons";
+import { Button, Text, YStack, XStack, View, Image, Avatar, Square } from "tamagui";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import * as Haptics from 'expo-haptics';
-import { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { useWalletStore } from "../store/walletStore";
 import AppBottomSheet, { AppBottomSheetRef } from "./UI/AppBottomSheet";
-import AddMintModal, { AddMintModalRef } from "./AddMintModal";
 import EditNicknameModal, { EditNicknameModalRef } from "./EditNicknameModal";
 import { initService } from "../services/core";
 import { Spinner } from "./UI/Spinner";
+import { useRouter } from "expo-router";
 
 export default function HomeHeaderMintSelector() {
-    const { activeMintUrl, balance, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    // Granular selectors — only re-render when the specific field changes
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const balances = useWalletStore(s => s.balances);
+    const mints = useWalletStore(s => s.mints);
+    const setActiveMint = useWalletStore(s => s.setActiveMint);
+    const refreshMintList = useWalletStore(s => s.refreshMintList);
+    const isInitializing = useWalletStore(s => s.isInitializing);
+    const isRefreshing = useWalletStore(s => s.isRefreshing);
+
     const isLoading = isInitializing || isRefreshing;
     const sheetRef = useRef<AppBottomSheetRef>(null);
-    const addMintRef = useRef<AddMintModalRef>(null);
     const editNicknameRef = useRef<EditNicknameModalRef>(null);
+    const router = useRouter();
 
     // Normalize URLs for comparison
     const normalizeUrl = (url: string) => url.replace(/\/$/, '');
 
-    // Refresh mint list when sheet opens
-    useEffect(() => {
-        if (initService.isInitialized()) {
-            refreshMintList();
-        }
-    }, []);
-
-    console.log('[HomeMintSelector] Current Mints:', mints.length, 'Active URL:', activeMintUrl);
+    // NOTE: Removed the eager refreshMintList() useEffect that ran on mount.
+    // The mint list is already hydrated from SQLite persistence.
+    // Refresh is triggered when the user opens the sheet instead.
 
     const activeMint = useMemo(() => {
         if (!activeMintUrl) return null;
@@ -44,24 +47,24 @@ export default function HomeHeaderMintSelector() {
         return displayUrl;
     }, [activeMint, activeMintUrl, displayUrl]);
 
-    const handleSelectMint = (mintUrl: string) => {
+    const handleSelectMint = useCallback((mintUrl: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setActiveMint(mintUrl);
         sheetRef.current?.dismiss();
-    };
+    }, [setActiveMint]);
 
-    const handleAddMint = () => {
+    const handleAddMint = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         sheetRef.current?.dismiss();
         setTimeout(() => {
-            addMintRef.current?.present();
-        }, 300);
-    };
+            router.push('/(modals)/add-mint');
+        }, 100);
+    }, [router]);
 
-    const handleEditNickname = (mint: any) => {
+    const handleEditNickname = useCallback((mint: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         editNicknameRef.current?.present(mint.mintUrl, mint.nickname);
-    };
+    }, []);
 
     return (
         <>
@@ -84,8 +87,8 @@ export default function HomeHeaderMintSelector() {
                     ) : (
                         <Avatar rounded="$3" size="$1.5">
                             <Avatar.Image src={activeMint?.icon} />
-                            <Avatar.Fallback backgroundColor="$gray5" alignItems="center" justifyContent="center">
-                                <Building2 size={12} color="$gray10" />
+                            <Avatar.Fallback backgroundColor="$color1" alignItems="center" justifyContent="center">
+                                <Sprout size={14} color="$gray10" />
                             </Avatar.Fallback>
                         </Avatar>
                     )
@@ -110,19 +113,15 @@ export default function HomeHeaderMintSelector() {
 
             <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
                 <YStack p="$4" gap="$3" flex={1}>
-                    <XStack justify="space-between" items="center" mb="$2">
-                        <Paragraph fontSize="$6" color="$accent5" fontWeight="bold">Your Mints</Paragraph>
-                        <Button
-                            size="$3"
-                            circular
-                            icon={<Plus size={18} />}
-                            onPress={handleAddMint}
-                            pressStyle={{ scale: 0.95 }}
-                        />
+                    <XStack justify="center" items="center" mb="$2">
+                        <Button size="$3" fontWeight="bold" theme="accent" rounded="$10" onPress={handleAddMint} icon={<Plus size={18} color="$color" />}>
+                            Add Mint
+                        </Button>
                     </XStack>
 
                     <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
+                        <YStack gap="$3" pb="$4" >
+
                             {mints.length === 0 ? (
                                 <YStack items="center" py="$6" gap="$2">
                                     <Sprout size={40} color="$gray8" />
@@ -130,34 +129,33 @@ export default function HomeHeaderMintSelector() {
                                 </YStack>
                             ) : (
                                 mints.map((mint) => (
-                                    <ListItem
+
+                                    <XStack
                                         key={mint.mintUrl}
-                                        size="$4"
-                                        px="$2"
-                                        hoverTheme
-                                        pressTheme
-                                        theme="gray"
-                                        rounded="$4"
-                                        borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0}
-                                        borderColor={mint.mintUrl === activeMintUrl ? "$borderColor" : "$borderColor"}
-                                        bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
+                                        justify="space-between"
+                                        items="center"
                                         onPress={() => handleSelectMint(mint.mintUrl)}
-                                        icon={
+                                        pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                                        p="$2"
+                                        mx="$-2"
+                                        rounded="$4"
+                                    >
+                                        <XStack gap="$3" items="center">
                                             <View
                                                 bg={mint.trusted ? "$green4" : "$gray4"}
                                                 p={mint.icon ? "$0" : "$2"}
-                                                rounded="$10"
+                                                rounded="$4"
                                                 overflow="hidden"
-                                                width={40}
-                                                height={40}
+                                                width={50}
+                                                height={50}
                                                 items="center"
                                                 justify="center"
                                             >
                                                 {mint.icon ? (
                                                     <Image
                                                         source={{ uri: mint.icon }}
-                                                        width={40}
-                                                        height={40}
+                                                        width={50}
+                                                        height={50}
                                                         resizeMode="cover"
                                                     />
                                                 ) : mint.trusted ? (
@@ -166,42 +164,47 @@ export default function HomeHeaderMintSelector() {
                                                     <ShieldOff size={20} color="$gray10" />
                                                 )}
                                             </View>
-                                        }
-                                        title={
-                                            <XStack items="center" gap="$2">
-                                                <Text fontWeight="600" fontSize="$4" numberOfLines={1}>
-                                                    {mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                            <YStack>
+                                                <XStack items="center" gap="$2">
+                                                    <Text fontWeight="600" fontSize="$4" numberOfLines={1}>
+                                                        {mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                                    </Text>
+                                                    <Button
+                                                        size="$2"
+                                                        circular
+                                                        chromeless
+                                                        icon={<Edit3 size={14} color="$gray10" />}
+                                                        onPress={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEditNickname(mint);
+                                                        }}
+                                                    />
+                                                </XStack>
+                                                <Text fontWeight="bold" fontSize="$5" numberOfLines={1} color="$accent5">
+                                                    {balances[mint.mintUrl] !== undefined ? `₿${balances[mint.mintUrl]}` : '₿0'}
                                                 </Text>
-                                                <Button
-                                                    size="$2"
-                                                    circular
-                                                    chromeless
-                                                    icon={<Edit3 size={14} color="$gray10" />}
-                                                    onPress={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEditNickname(mint);
-                                                    }}
-                                                />
+                                            </YStack>
+                                        </XStack>
+                                        <XStack>
+                                            <XStack items="center" justify="center">
+                                                {mint.mintUrl === activeMintUrl ? (
+                                                    <View bg="$accent4" p="$1.5" rounded="$10">
+                                                        <Check size={18} color="$accent10" strokeWidth={4} />
+                                                    </View>
+                                                ) : undefined}
+
                                             </XStack>
-                                        }
-                                        subTitle={
-                                            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                                                {mint.mintUrl.replace('https://', '')}
-                                            </Text>
-                                        }
-                                        iconAfter={
-                                            mint.mintUrl === activeMintUrl ? (
-                                                <YStack items="flex-end" gap="$0">
-                                                    <Text fontWeight="bold" fontSize="$6">{balance}</Text>
-                                                    <Text fontSize="$2" opacity={0.6}>SATS</Text>
-                                                </YStack>
-                                            ) : undefined
-                                        }
-                                    />
+                                        </XStack>
+                                    </XStack>
+
+
                                 ))
+
                             )}
                         </YStack>
                     </BottomSheetScrollView>
+
+
 
                     <Button
                         size="$4"
@@ -215,7 +218,6 @@ export default function HomeHeaderMintSelector() {
                 </YStack>
             </AppBottomSheet>
 
-            <AddMintModal ref={addMintRef} />
             <EditNicknameModal ref={editNicknameRef} />
         </>
     );

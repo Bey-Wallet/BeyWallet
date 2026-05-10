@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native'
@@ -9,23 +9,28 @@ import { LockOverlay } from '../LockOverlay'
 
 import { useAuthStore } from '../../store/authStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { useCocoEvents } from '../../hooks/useCocoEvents'
 import { notificationService } from '../../services/notificationService'
+
+// Lazy-load global checkers — they don't need to mount during the critical startup paint
+const LazyOtaUpdateChecker = React.lazy(() =>
+    import('../OtaUpdateChecker').then(m => ({ default: m.OtaUpdateChecker }))
+);
+const LazyUsernamePromptChecker = React.lazy(() =>
+    import('../UsernamePromptChecker').then(m => ({ default: m.UsernamePromptChecker }))
+);
 
 export function RootLayoutNav() {
     const { resolvedTheme } = useAppTheme()
     const theme = useTheme()
     const { isAuthenticated, setAuthenticated, lock, markBackgrounded } = useAuthStore()
     const { isOnboarded } = useOnboardingStore()
+    const { biometricEnabled } = useSettingsStore()
     const appState = useRef(AppState.currentState)
 
     // Subscribe to coco events for automatic balance/history updates
     useCocoEvents();
-
-    // Request push notification permissions on app launch
-    useEffect(() => {
-        notificationService.requestPermissions();
-    }, []);
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -53,8 +58,8 @@ export function RootLayoutNav() {
         },
     }
 
-    // Only show lock overlay if onboarded and not authenticated
-    const showLockOverlay = isOnboarded && !isAuthenticated
+    // Only show lock overlay if onboarded, not authenticated, and biometric is enabled
+    const showLockOverlay = isOnboarded && !isAuthenticated && biometricEnabled
 
     return (
         <NavThemeProvider value={navigationTheme}>
@@ -102,7 +107,14 @@ export function RootLayoutNav() {
                 {showLockOverlay && (
                     <LockOverlay onUnlock={() => setAuthenticated(true)} />
                 )}
+                
+                {/* Global checkers — lazy-loaded after main UI is painted */}
+                <React.Suspense fallback={null}>
+                    <LazyOtaUpdateChecker />
+                    <LazyUsernamePromptChecker />
+                </React.Suspense>
             </YStack>
         </NavThemeProvider>
     )
 }
+

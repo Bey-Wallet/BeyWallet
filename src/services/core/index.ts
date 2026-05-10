@@ -25,6 +25,7 @@ export { eventService, CORE_EVENT_NAMES } from './eventService';
 export { historyService } from './historyService';
 export { proofService } from './proofService';
 export { recoveryService } from './recoveryService';
+export { nostrService } from './nostrService';
 
 // ─── Utilities ────────────────────────────────────────────────
 export {

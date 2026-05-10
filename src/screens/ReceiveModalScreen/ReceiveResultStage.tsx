@@ -96,58 +96,30 @@ export function ReceiveResultStage({
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
-                px="$0"
+                px="$4"
             >
-                {/* 1. Amount Display */}
-                <YStack gap="$1" mb="$6" mt="$8" items="center">
-                    <Circle size={40} bg="$green10" items="center" justify="center">
-                        <ArrowDownLeft size={20} color="white" />
-                    </Circle>
-                    <Text fontSize={48} fontWeight="900" color="$green11">
-                        +₿{Number(amount || 0).toLocaleString()}
+                {/* 1. Status and Amount Display */}
+                <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
+                    <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color="$color">
+                        {isReceiveLater ? 'Token Saved' : 'Received Successfully!'}
                     </Text>
-                    <Text fontSize="$6" color="$gray10" fontWeight="600">
-                        Ecash SATS
-                    </Text>
-                </YStack>
-
-                {/* 2. Status Timeline Card */}
-                <YStack mx="$4" bg="$gray2" rounded="$4" p="$4" mb="$6">
-                    <Text fontSize="$1" color="$gray10" fontWeight="700" mb="$2" textTransform='uppercase' letterSpacing={1}>
-                        {isReceiveLater ? 'SAVED FOR LATER' : 'TRANSACTION COMPLETE'}
-                    </Text>
-                    <Text fontSize="$5" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green10"} mb="$4">
-                        {isReceiveLater ? 'UNCLAIMED' : 'RECEIVED'}
-                    </Text>
-
-                    <YStack>
-                        <XStack gap="$3">
-                            <YStack items="center">
-                                <Circle size={24} bg="$green10">
-                                    <Check size={14} color="black" />
-                                </Circle>
-                                <View width={2} flex={1} bg={!isReceiveLater ? "$green10" : "$gray8"} my="$1" />
-                            </YStack>
-                            <YStack pb="$4">
-                                <Text fontSize="$4" fontWeight="700" color="$color">Token Valid</Text>
-                                <Text fontSize="$3" color="$gray10">Verification successful</Text>
-                            </YStack>
-                        </XStack>
-
-                        <XStack gap="$3">
-                            <Circle size={24} bg={isReceiveLater ? "$orange10" : "$green10"} items="center" justify="center">
-                                {isReceiveLater ? <Clock size={14} color="black" /> : <CheckCircle2 size={14} color="black" />}
-                            </Circle>
-                            <YStack>
-                                <Text fontSize="$4" fontWeight="700" color="$color">{isReceiveLater ? 'Saved to History' : 'Added to Wallet'}</Text>
-                                <Text fontSize="$3" color="$gray10">{isReceiveLater ? 'You can claim this later from History' : 'Funds are now spendable'}</Text>
-                            </YStack>
-                        </XStack>
+                    <YStack items="center" justify="center">
+                        <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
+                            +₿{Number(amount || 0).toLocaleString()}
+                        </Text>
+                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                            Ecash SATS
+                        </Text>
+                    </YStack>
+                    <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
+                        <Text color="$gray10" fontSize="$4" text="center">
+                            {isReceiveLater ? 'You can claim this later from History.' : 'The ecash has been added to your wallet.'}
+                        </Text>
                     </YStack>
                 </YStack>
 
                 {/* 3. Details Table */}
-                <YStack gap="$0" mx="$4" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                     <DetailItem label="Total Amount" value={`₿${amount} sats`} />
                     <DetailItem label="Unit" value="SATOSHIS" />
                     <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
@@ -208,9 +180,9 @@ export function ReceiveResultStage({
 function DetailItem({ label, value, isCopyable, onCopy }: { label: string, value: string, isCopyable?: boolean, onCopy?: () => void }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
-                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
                     {value}
                 </Text>
                 {isCopyable && (

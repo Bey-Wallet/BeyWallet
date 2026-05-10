@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Loader } from '@tamagui/lucide-icons';
+import { Loader, LoaderCircle } from '@tamagui/lucide-icons';
 import { YStack, YStackProps, useTheme, variableToString } from 'tamagui';
 import Animated, {
     useSharedValue,
@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export type SpinnerProps = Omit<YStackProps, 'children'> & {
-    size?: number | 'small' | 'large'
+    size?: number | 'small' | 'large' | 'xlarge' | 'xxlarge'
     color?: string
 }
 
@@ -27,7 +27,7 @@ export const Spinner = (props: SpinnerProps) => {
     }
 
     // Resolve size
-    const iconSize = size === 'small' ? 20 : size === 'large' ? 40 : size;
+    const iconSize = size === 'small' ? 20 : size === 'large' ? 40 : size === 'xlarge' ? 60 : size === 'xxlarge' ? 120 : size;
 
     useEffect(() => {
         rotation.value = withRepeat(

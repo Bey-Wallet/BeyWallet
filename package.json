@@ -1,7 +1,7 @@
 {
   "name": "bey-wallet",
   "main": "expo-router/entry",
-  "version": "1.1.1",
+  "version": "0.1.0",
   "packageManager": "yarn@4.5.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,8 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web",
     "build:web:optimized": "tamagui build --target web ./app -- expo export --platform web",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "postinstall": "npx patch-package"
   },
   "jest": {
     "preset": "jest-expo"
@@ -37,7 +38,7 @@
     "buffer": "^6.0.3",
     "burnt": "^0.12.2",
     "cbor-x": "^1.6.0",
-    "coco-cashu-core": "^1.1.2-rc.47",
+    "coco-cashu-core": "1.1.2-rc.47",
     "coco-cashu-expo-sqlite": "1.1.2-rc.47",
     "coco-cashu-plugin-npc": "^2.3.1",
     "coco-cashu-react": "1.1.2-rc.47",

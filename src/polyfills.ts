@@ -57,7 +57,6 @@ if (typeof window !== 'undefined') window.crypto = cryptoShim;
 if (typeof self !== 'undefined') self.crypto = cryptoShim;
 
 console.log('[Polyfills] Patched global.crypto with expo-crypto');
-console.log('[Polyfills] Test getRandomValues:', global.crypto.getRandomValues(new Uint8Array(2)));
 
 type TypedArray =
     | Int8Array

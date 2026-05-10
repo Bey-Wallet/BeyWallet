@@ -1,22 +1,56 @@
+import React, { useRef, useCallback, useMemo } from "react";
 import { Button, XStack, YStack, Text, ListItem } from "tamagui";
-import { Landmark, ArrowUpRight, ArrowDownLeft, Flame, ArrowDownRight, ArrowRight } from "@tamagui/lucide-icons";
+import { Landmark, ArrowRight } from "@tamagui/lucide-icons";
 import { useRouter } from "expo-router";
-import { useRef } from "react";
 import * as Haptics from 'expo-haptics';
 import SwapIcon from "~/components/icons/Swap";
 import ArrowDownIcon from "~/components/icons/ArrowDown";
 import SendIcon from "~/components/icons/Send";
 import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 
-export default function ActionButtons() {
+// Static config — never recreated
+const SHEET_ACTIONS = [
+    {
+        title: "Deposit or receive",
+        subTitle: "Add funds to Mint.",
+        path: "/mint",
+    },
+    {
+        title: "Withdraw or send",
+        subTitle: "Remove funds from Mint.",
+        path: "/melt",
+    },
+] as const;
+
+export default React.memo(function ActionButtons() {
     const router = useRouter();
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
-    const handleOptionPress = (path: string) => {
+    const handleOptionPress = useCallback((path: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         sheetRef.current?.dismiss();
         router.push(path as any);
-    };
+    }, [router]);
+
+    const handleLandmark = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        sheetRef.current?.present();
+    }, []);
+
+    const handleSwap = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push("/swap");
+    }, [router]);
+
+    const handleReceive = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push("/receive");
+    }, [router]);
+
+    const handleSend = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        router.push("/send");
+    }, [router]);
 
     return (
         <>
@@ -25,85 +59,62 @@ export default function ActionButtons() {
                     bg="$gray4"
                     flex={1}
                     size="$7"
-                    rounded="$4"
+                    rounded="$5"
                     icon={<Landmark size={32} />}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        sheetRef.current?.present();
-                    }}
+                    onPress={handleLandmark}
                 />
                 <Button
                     bg="$gray4"
                     flex={1}
                     size="$7"
-                    rounded="$4"
+                    rounded="$5"
                     icon={<SwapIcon size={32} />}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push("/swap");
-                    }}
+                    onPress={handleSwap}
                 />
                 <Button
                     bg="$gray4"
                     flex={1}
                     size="$7"
-                    rounded="$4"
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push("/receive");
-                    }}
+                    rounded="$5"
                     icon={<ArrowDownIcon size={36} />}
+                    onPress={handleReceive}
                 />
                 <Button
                     themeInverse
                     theme="gray"
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        router.push("/send");
-                    }}
                     flex={1}
                     size="$7"
-                    rounded="$4"
+                    rounded="$5"
                     icon={<SendIcon size={32} />}
+                    onPress={handleSend}
                 />
             </XStack>
 
             <AppBottomSheet ref={sheetRef}>
                 <YStack p="$4" gap="$2">
                     <XStack justify="center">
-                        <Text fontSize="$6" color="$accent5" fontWeight="bold" mb="$2" px="$2">Select action</Text>
+                        <Text fontSize="$6" color="$accent5" fontWeight="bold" mb="$2" px="$2">
+                            Select action
+                        </Text>
                     </XStack>
-                    <ListItem
-                        hoverTheme
-                        pressTheme
-                        title="Deposit or receive"
-                        size="$6"
-
-                        subTitle="Add funds to Mint."
-                        iconAfter={<ArrowRight size={24} color="$color" />}
-
-                        onPress={() => handleOptionPress("/mint")}
-                        px="$4"
-                        rounded="$5"
-                        borderWidth={1}
-                        borderColor="$color3"
-                    />
-                    <ListItem
-                        px="$4"
-                        hoverTheme
-                        pressTheme
-                        title="Withdraw or send"
-                        size="$6"
-
-                        iconAfter={<ArrowRight size={24} color="$color" />}
-                        subTitle="Remove funds from Mint."
-                        onPress={() => handleOptionPress("/melt")}
-                        rounded="$5"
-                        borderWidth={1}
-                        borderColor="$color3"
-                    />
+                    {SHEET_ACTIONS.map((option, index) => (
+                        <ListItem
+                            key={index}
+                            hoverTheme
+                            pressTheme
+                            title={option.title}
+                            subTitle={option.subTitle}
+                            size="$6"
+                            iconAfter={<ArrowRight size={24} color="$color" />}
+                            onPress={() => handleOptionPress(option.path)}
+                            px="$4"
+                            rounded="$5"
+                            borderWidth={1}
+                            borderColor="$color3"
+                        />
+                    ))}
                 </YStack>
             </AppBottomSheet>
         </>
-    )
-}
+    );
+});

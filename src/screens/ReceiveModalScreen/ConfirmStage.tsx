@@ -2,6 +2,7 @@ import React from 'react';
 import { YStack, XStack, Text, Button, View, Separator, Circle, ScrollView, YGroup } from 'tamagui';
 import { ArrowDownLeft, Check, ShieldCheck, AlertTriangle, Copy, Building2, DollarSign, Clock } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
+import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
@@ -99,39 +100,7 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                     </YStack>
                 </YStack>
 
-                {/* Status Card */}
-                <YStack mx="$4" p="$4" bg="$gray2" rounded="$4" gap="$4" mb="$6">
-                    <Text fontSize="$1" color="$gray10" fontWeight="700" mb="$0" textTransform='uppercase' letterSpacing={1}>
-                        STATUS
-                    </Text>
 
-                    <YStack>
-                        {/* Step 1: Encoded (Done) */}
-                        <XStack gap="$3">
-                            <YStack items="center">
-                                <Circle size={24} bg="$green10">
-                                    <Check size={14} color="black" />
-                                </Circle>
-                                <View width={2} flex={1} bg="$gray8" my="$1" />
-                            </YStack>
-                            <YStack pb="$4">
-                                <Text fontSize="$4" fontWeight="700" color="$color">Encoded Token</Text>
-                                <Text fontSize="$3" color="$gray10">Token decoded successfully</Text>
-                            </YStack>
-                        </XStack>
-
-                        {/* Step 2: Receive (Pending) */}
-                        <XStack gap="$3">
-                            <Circle size={24} bg="$gray5" items="center" justify="center">
-                                <ArrowDownLeft size={14} color="$gray10" />
-                            </Circle>
-                            <YStack>
-                                <Text fontSize="$4" fontWeight="700" color="$gray10">Receive</Text>
-                                <Text fontSize="$3" color="$gray10">Waiting for confirmation...</Text>
-                            </YStack>
-                        </XStack>
-                    </YStack>
-                </YStack>
 
                 {/* Warning for untrusted mint */}
                 {!isMintTrusted && (
@@ -246,6 +215,12 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
 
 
             </YStack>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Receiving"
+                amount={tokenInfo.amount}
+                detail={`Receiving from ${getMintDisplayName(tokenInfo.mint)}`}
+            />
         </YStack >
     );
 }
@@ -253,9 +228,9 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
 function DetailItem({ label, value, isCopyable, onCopy }: { label: string, value: string, isCopyable?: boolean, onCopy?: () => void }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
-                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
                     {value}
                 </Text>
                 {isCopyable && (

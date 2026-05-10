@@ -9,9 +9,37 @@ import { bitcoinService } from "../../../services/bitcoinService";
 import * as Haptics from 'expo-haptics';
 
 export default function Balance() {
-    const { balance, activeMintUrl, refreshCounter, mints, balances, isRestoring } = useWalletStore();
+    const balance = useWalletStore(s => s.balance);
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const refreshCounter = useWalletStore(s => s.refreshCounter);
+    const mints = useWalletStore(s => s.mints);
+    const balances = useWalletStore(s => s.balances);
+    const isRestoring = useWalletStore(s => s.isRestoring);
     const { secondaryCurrency } = useSettingsStore();
     const [showAllMints, setShowAllMints] = React.useState(false);
+
+    // Custom interaction states
+    const [colorIndex, setColorIndex] = React.useState(0);
+    const [localTrigger, setLocalTrigger] = React.useState(0);
+
+    const BALANCE_COLORS = [
+        "$accent3",
+        "$blue10",
+        "$gray10",
+        "$green10",
+        "$orange10",
+        "$pink10",
+        "$purple10",
+        "$red10",
+        "$teal10",
+        "$yellow10"
+    ];
+
+    const handleBalancePress = React.useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setColorIndex(prev => (prev + 1) % BALANCE_COLORS.length);
+        setLocalTrigger(prev => prev + 1);
+    }, []);
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -78,15 +106,15 @@ export default function Balance() {
             </XStack>
 
             <XStack justify="space-between" py="$2" items="flex-end">
-                <YStack>
+                <YStack onPress={handleBalancePress} pressStyle={{ opacity: 0.7 }}>
                     <RollingNumber
                         value={currentBalance}
                         prefix="₿"
-                        trigger={refreshCounter}
+                        trigger={refreshCounter + localTrigger}
                         letterSpacing={-1}
                         fontSize={30}
                         fontWeight="900"
-                        color="$accent3"
+                        color={BALANCE_COLORS[colorIndex]}
                         decimalOpacity={0.4}
                         showDecimals={false}
                     />
@@ -98,7 +126,7 @@ export default function Balance() {
                 value={secondaryBalance}
                 trigger={refreshCounter}
                 letterSpacing={-1}
-                fontSize={16}
+                fontSize={18}
                 fontWeight="900"
                 color="$accent8"
                 decimalOpacity={0.4}

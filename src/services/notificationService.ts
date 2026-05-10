@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { useAuthStore } from '../store/authStore';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -33,8 +34,15 @@ class NotificationService {
             let finalStatus = existingStatus;
 
             if (existingStatus !== 'granted') {
+                // Prevent auto-lock from triggering when native permission prompt pushes app to background
+                useAuthStore.getState().setLockDisabled(true);
                 const { status } = await Notifications.requestPermissionsAsync();
                 finalStatus = status;
+                
+                // Short delay to allow AppState to settle back to 'active'
+                setTimeout(() => {
+                    useAuthStore.getState().setLockDisabled(false);
+                }, 1000);
             }
 
             if (finalStatus !== 'granted') {

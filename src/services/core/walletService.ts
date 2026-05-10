@@ -10,10 +10,12 @@
  */
 
 import { initService } from './initService';
+import { purgeCorruptedKeysets } from './initService';
 import { cleanToken, encodeToken } from './tokenUtils';
 import type { Token } from '@cashu/cashu-ts';
-import { getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
+import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
+
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -21,11 +23,116 @@ const generateSubId = (): string => {
 };
 
 /**
+ * Extract the mint URL from either a V3 (cashuA) or V4 (cashuB) token string,
+ * WITHOUT triggering the short-keyset-ID mapping step of getDecodedToken().
+ *
+ * For V3: standard JSON decode via getDecodedToken (safe — no keyset mapping needed).
+ * For V4: manual CBOR scan for the 'm' (mint) field, bypassing _i/ga entirely.
+ */
+function extractMintUrlFromToken(cleaned: string): string | null {
+    try {
+        const rawStr = cleaned.startsWith('cashu') ? cleaned.substring(5) : cleaned;
+
+        if (rawStr.startsWith('B')) {
+            // V4 CBOR token: base64url decode and find 'm' key in the CBOR map
+            const b64 = rawStr.substring(1); // strip version byte 'B'
+            // base64url → base64 → buffer
+            const b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = (4 - b64std.length % 4) % 4;
+            const b64padded = b64std + '=='.substring(0, pad);
+            let bytes: Uint8Array;
+            if (typeof Buffer !== 'undefined') {
+                bytes = new Uint8Array(Buffer.from(b64padded, 'base64'));
+            } else {
+                const bin = atob(b64padded);
+                bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            }
+            // Scan CBOR for string key 'm' followed by a text-string value
+            // CBOR: string "m" is encoded as 0x61 0x6d (major 3, length 1, byte 'm')
+            for (let i = 0; i < bytes.length - 2; i++) {
+                // CBOR text string of length 1: byte = 0x61
+                if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) { // "m" key
+                    // Next CBOR item should be a text string (mint URL)
+                    const lenByte = bytes[i + 2];
+                    const major = (lenByte >> 5) & 0x07;
+                    const info = lenByte & 0x1f;
+                    if (major === 3) { // text string
+                        let urlLen = 0;
+                        let urlStart = 0;
+                        if (info < 24) { urlLen = info; urlStart = i + 3; }
+                        else if (info === 24 && i + 4 < bytes.length) { urlLen = bytes[i + 3]; urlStart = i + 4; }
+                        else if (info === 25 && i + 5 < bytes.length) { urlLen = (bytes[i + 3] << 8) | bytes[i + 4]; urlStart = i + 5; }
+                        if (urlLen > 0 && urlStart + urlLen <= bytes.length) {
+                            const url = new TextDecoder().decode(bytes.slice(urlStart, urlStart + urlLen));
+                            if (url.startsWith('http')) return url;
+                        }
+                    }
+                }
+            }
+            return null;
+        } else {
+            // V3 JSON token: safe to call getDecodedToken without keyset IDs
+            const raw = getDecodedToken(cleaned) as any;
+            return raw?.mint || raw?.token?.[0]?.mint || null;
+        }
+    } catch (e: any) {
+        console.warn('[WalletService] extractMintUrlFromToken failed:', e?.message);
+        return null;
+    }
+}
+
+/**
  * Get the Manager or throw.
  */
 function mgr() {
     return initService.getManager();
 }
+
+/**
+ * Wraps a wallet operation with automatic keyset-cache recovery.
+ *
+ * When coco-cashu-core throws "Keyset verification failed" (corrupted keyset
+ * in the local SQLite cache), this helper:
+ *   1. Extracts the keyset ID from the error message
+ *   2. Calls purgeCorruptedKeysets() to delete the bad row from coco_cashu_keysets
+ *   3. Retries the operation once with a fresh keyset fetch from the mint
+ *
+ * @param mintUrl - The mint involved in the operation (for targeted purge)
+ * @param fn      - The async operation to execute (and retry on keyset failure)
+ */
+async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retryCount: number = 0): Promise<T> {
+    try {
+        return await fn();
+    } catch (err: any) {
+        const msg: string = err?.message ?? '';
+        if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+            if (retryCount >= 1) {
+                console.error(`[WalletService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
+                throw err;
+            }
+
+            // Extract keyset ID from message: "Keyset verification failed for ID <id>"
+            const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
+            const keysetId = idMatch?.[1];
+            console.warn(
+                `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`,
+                keysetId ?? '(all keysets)',
+            );
+            
+            // Purge corrupted keyset from DB
+            await purgeCorruptedKeysets(mintUrl, keysetId);
+            
+            // Re-initialize the Manager to clear in-memory cache and force re-fetch
+            await initService.reinitFast();
+            
+            // Retry the operation once
+            return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
+        }
+        throw err;
+    }
+}
+
 
 export const walletService = {
     // ─── Sending ──────────────────────────────────────────────
@@ -45,38 +152,37 @@ export const walletService = {
     send: async (mintUrl: string, amount: number): Promise<{ token: string; id: string }> => {
         console.log(`[WalletService] Sending ${amount} from ${mintUrl}`);
 
-        const m = mgr();
-        let preparedId: string | null = null;
+        return withKeysetRecovery(mintUrl, async () => {
+            const m = mgr();
+            let preparedId: string | null = null;
 
-        try {
-            // Step 1: Prepare the send operation
-            const prepared = await m.send.prepareSend(mintUrl, amount);
-            preparedId = prepared.id;
-            console.log(`[WalletService] Send prepared: ${preparedId}`);
+            try {
+                const prepared = await m.send.prepareSend(mintUrl, amount);
+                preparedId = prepared.id;
+                console.log(`[WalletService] Send prepared: ${preparedId}`);
 
-            // Step 2: Execute the prepared send
-            const { token, operation } = await m.send.executePreparedSend(prepared.id);
-            const encoded = encodeToken(token);
+                const { token, operation } = await m.send.executePreparedSend(prepared.id);
+                const encoded = encodeToken(token);
 
-            console.log(`[WalletService] Send complete, operation: ${operation.id}`);
-            return { token: encoded, id: operation.id };
-        } catch (err: any) {
-            // Rollback on failure to free reserved proofs
-            if (preparedId) {
-                try {
-                    const operation = await m.send.getOperation(preparedId);
-                    if (operation && ['prepared', 'executing', 'pending'].includes(operation.state)) {
-                        await m.send.rollback(preparedId);
-                        console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
+                console.log(`[WalletService] Send complete, operation: ${operation.id}`);
+                return { token: encoded, id: operation.id };
+            } catch (err: any) {
+                if (preparedId) {
+                    try {
+                        const operation = await m.send.getOperation(preparedId);
+                        if (operation && ['prepared', 'executing', 'pending'].includes(operation.state)) {
+                            await m.send.rollback(preparedId);
+                            console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
+                        }
+                    } catch (rollbackErr) {
+                        console.warn('[WalletService] Rollback failed:', rollbackErr);
                     }
-                } catch (rollbackErr) {
-                    console.warn('[WalletService] Rollback failed:', rollbackErr);
                 }
+                throw err;
             }
-            console.error('[WalletService] Send failed:', err?.message || err);
-            throw err;
-        }
+        });
     },
+
 
     /**
      * Send and return both encoded string and raw Token object.
@@ -85,27 +191,30 @@ export const walletService = {
         mintUrl: string,
         amount: number
     ): Promise<{ encoded: string; token: Token }> => {
-        const m = mgr();
-        let preparedId: string | null = null;
+        return withKeysetRecovery(mintUrl, async () => {
+            const m = mgr();
+            let preparedId: string | null = null;
 
-        try {
-            const prepared = await m.send.prepareSend(mintUrl, amount);
-            preparedId = prepared.id;
-            const { token } = await m.send.executePreparedSend(prepared.id);
-            const encoded = encodeToken(token);
-            return { encoded, token };
-        } catch (err) {
-            if (preparedId) {
-                try {
-                    const op = await m.send.getOperation(preparedId);
-                    if (op && ['prepared', 'executing', 'pending'].includes(op.state)) {
-                        await m.send.rollback(preparedId);
-                    }
-                } catch (e) { /* ignore rollback errors */ }
+            try {
+                const prepared = await m.send.prepareSend(mintUrl, amount);
+                preparedId = prepared.id;
+                const { token } = await m.send.executePreparedSend(prepared.id);
+                const encoded = encodeToken(token);
+                return { encoded, token };
+            } catch (err) {
+                if (preparedId) {
+                    try {
+                        const op = await m.send.getOperation(preparedId);
+                        if (op && ['prepared', 'executing', 'pending'].includes(op.state)) {
+                            await m.send.rollback(preparedId);
+                        }
+                    } catch (e) { /* ignore rollback errors */ }
+                }
+                throw err;
             }
-            throw err;
-        }
+        });
     },
+
 
     // ─── P2PK Sending ─────────────────────────────────────────
 
@@ -116,6 +225,27 @@ export const walletService = {
     ): Promise<{ encoded: string; token: Token; id: string }> => {
         const m = mgr();
         const unsafeManager = m as any;
+
+        // ── Convert Nostr identifiers (npub/nprofile) to compressed SEC1 pubkey ──
+        let lockPubkey = receiverPubkey;
+        if (lockPubkey.startsWith('npub1') || lockPubkey.startsWith('nprofile1')) {
+            try {
+                const { decode: nip19Decode } = require('nostr-tools/nip19');
+                const decoded = nip19Decode(lockPubkey);
+                // nprofile has .data.pubkey, npub has .data directly
+                const hexPubkey = decoded.type === 'nprofile' ? decoded.data.pubkey : decoded.data;
+                // Add 02 prefix for compressed SEC1 format (33 bytes)
+                lockPubkey = '02' + hexPubkey;
+                console.log(`[WalletService] Converted Nostr pubkey to compressed SEC1: ${lockPubkey.substring(0, 10)}…`);
+            } catch (decodeErr: any) {
+                console.error('[WalletService] Failed to decode Nostr identifier:', decodeErr?.message);
+                throw new Error('Invalid Nostr public key format');
+            }
+        } else if (/^[0-9a-fA-F]{64}$/.test(lockPubkey)) {
+            // Raw 32-byte hex — add 02 prefix
+            lockPubkey = '02' + lockPubkey;
+            console.log(`[WalletService] Added 02 prefix to raw hex pubkey: ${lockPubkey.substring(0, 10)}…`);
+        }
 
         // 1. Ensure mint is trusted and get internal cashu-ts wallet + proof repository
         if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
@@ -132,14 +262,14 @@ export const walletService = {
 
         // 2. Select proofs and perform the swap.
         // We use explicit `prepareSwapToSend` so that we can capture `txn.inputs` and mark those exact proofs as SPENT.
-        console.log(`[WalletService] Executing send OP to lock to: ${receiverPubkey}`);
+        console.log(`[WalletService] Executing send OP to lock to: ${lockPubkey.substring(0, 10)}…`);
         let keepProofs: any[] = [];
         let sendProofs: any[] = [];
         let inputSecrets: string[] = [];
 
         try {
             const customConfig = {
-                send: { type: 'p2pk', options: { pubkey: receiverPubkey } },
+                send: { type: 'p2pk', options: { pubkey: lockPubkey } },
                 keep: { type: 'random' }
             };
 
@@ -259,25 +389,82 @@ export const walletService = {
         const cleaned = cleanToken(token);
         console.log('[WalletService] Receiving token:', cleaned.substring(0, 50) + '...');
 
+        // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
+        // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
+        // in its cache to map the short IDs back. We must pre-sync keysets first.
+        const unsafeManager = mgr() as any;
+
+        // Extract mint URL from the token (works for V3 and V4)
+        // For V4 CBOR tokens: read the 'm' field directly WITHOUT keyset mapping
+        // (getDecodedToken would throw for V4 when short keyset IDs aren't cached yet)
+        const mintUrl: string | null = extractMintUrlFromToken(cleaned);
+
+        // Pre-sync keysets for V4 tokens so the short 8-byte keyset IDs can be mapped
+        // to the full keyset IDs from the mint.
+        //
+        // Flow:
+        //  1. mintService.updateMintData() — fetches fresh keysets from the mint network
+        //     and writes the full 66-char keyset IDs (e.g. 01884a74bb2fc5ee...) to the DB.
+        //  2. walletService.clearCache() — clears the internal CashuWallet object that was
+        //     built BEFORE we fetched keysets. This forces rebuild on the next receive() call.
+        //     Without this, the wallet uses stale in-memory keyset IDs and the short ID
+        //     "01884a74bb2fc5ee" fails to map to the full ID.
+        //
+        // NOTE: We do NOT call reinitFast() here — that's overkill (destroys the whole Manager).
+        // clearCache() on the internal WalletService is sufficient.
+        if (mintUrl) {
+            try {
+                console.log('[WalletService] Pre-syncing keysets for token, mint:', mintUrl);
+                await unsafeManager.mintService.updateMintData(mintUrl);
+                // Clear the internal CashuWallet cache so next receive() rebuilds it with new keysets
+                if (typeof unsafeManager.walletService?.clearCache === 'function') {
+                    unsafeManager.walletService.clearCache(mintUrl);
+                    console.log('[WalletService] ✅ Keyset pre-sync complete + wallet cache cleared');
+                } else {
+                    // Fallback: clear ALL wallet caches if per-mint clear isn't available
+                    unsafeManager.walletService?.clearAllCaches?.();
+                    console.log('[WalletService] ✅ Keyset pre-sync complete + all wallet caches cleared');
+                }
+            } catch (syncErr: any) {
+                console.warn('[WalletService] Keyset pre-sync failed (non-fatal):', syncErr?.message);
+                // Non-fatal: attempt receive anyway — may succeed if keysets were already cached
+            }
+        }
+
         try {
             await mgr().wallet.receive(cleaned);
-            console.log('[WalletService] Token received successfully');
+            console.log('[WalletService] ✅ Token received successfully');
         } catch (err: any) {
-            console.error('[WalletService] Receive failed:', err?.message || err);
+            const msg: string = err?.message ?? '';
+            console.error('[WalletService] Receive failed:', msg);
             console.error('[WalletService] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
 
-            // If it's an "untrusted mint" error, provide helpful message
-            if (err?.message?.includes('not trusted') || err?.name === 'UnknownMintError') {
+            if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
                 throw new Error('Mint is not trusted. Please add and trust the mint first.');
             }
 
-            // If it's a proof validation error, provide helpful message
-            if (err?.message?.includes('Invalid token') || err?.name === 'ProofValidationError') {
+            // V4 short keyset ID mapping failed — clear wallet cache and retry once
+            if (msg.includes("Couldn't map") || msg.includes('short keyset')) {
+                console.warn('[WalletService] Short keyset ID mapping failed — clearing wallet cache and retrying...');
+                try {
+                    if (typeof unsafeManager.walletService?.clearCache === 'function') {
+                        unsafeManager.walletService.clearCache(mintUrl ?? '');
+                    } else {
+                        unsafeManager.walletService?.clearAllCaches?.();
+                    }
+                    await mgr().wallet.receive(cleaned);
+                    console.log('[WalletService] ✅ Token received (after cache clear)');
+                    return;
+                } catch (retryErr: any) {
+                    throw retryErr;
+                }
+            }
+
+            if (msg.includes('Invalid token') || err?.name === 'ProofValidationError') {
                 throw new Error('Invalid token format. Please check the token and try again.');
             }
 
-            // If proofs could not be verified
-            if (err?.message?.includes('could not be verified') || err?.message?.includes('outputs')) {
+            if (msg.includes('could not be verified') || msg.includes('outputs')) {
                 throw new Error('Token proofs could not be verified. The token may have already been redeemed.');
             }
 
@@ -285,93 +472,48 @@ export const walletService = {
         }
     },
 
+
     /**
      * Receive a P2PK locked ecash token.
-     * 
+     *
+     * Registers the Nostr private key with coco's KeyRingService via
+     * mgr.keyring.addKeyPair() so that coco's standard receive pipeline
+     * can find it for P2PK signing. This is the same approach used by
+     * Sovran wallet (see SettingsKeyringScreen.tsx).
+     *
      * @param token - Encoded cashu token string
-     * @param nostrPrivKey - The private key used to unlock the proofs (hex array or single hex string)
+     * @param nostrPrivKey - The private key (32-byte hex string or hex[])
      */
     receiveP2PK: async (token: string, nostrPrivKey: string | string[]): Promise<void> => {
         const cleaned = cleanToken(token);
         console.log('[WalletService] Receiving P2PK token:', cleaned.substring(0, 50) + '...');
-        const unsafeManager = mgr() as any;
+        const m = mgr();
+        const unsafeManager = m as any;
 
         try {
-            // 1. Decode generic token
-            const decoded = getDecodedToken(cleaned);
-            let mintUrl = '';
-            let receivedProofs: any[] = [];
-
-            // @ts-ignore - Handle Both V3 / V4 token variations
-            if (decoded.token && decoded.token.length > 0) {
-                // @ts-ignore
-                const firstMintEntry = decoded.token[0];
-                mintUrl = firstMintEntry.mint;
-                receivedProofs = firstMintEntry.proofs;
-            } else if (decoded.mint && decoded.proofs && decoded.proofs.length > 0) {
-                mintUrl = decoded.mint;
-                receivedProofs = decoded.proofs;
-            } else {
-                throw new Error("Invalid or empty token");
+            // 1. Register the Nostr private key with coco's keyring so
+            //    KeyRingService can find it during P2PK proof signing.
+            const privKeyHex = Array.isArray(nostrPrivKey) ? nostrPrivKey[0] : nostrPrivKey;
+            const privKeyBytes = new Uint8Array(32);
+            for (let i = 0; i < 32; i++) {
+                privKeyBytes[i] = parseInt(privKeyHex.substr(i * 2, 2), 16);
             }
 
-            // 3. Ensure mint is trusted / added
-            if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
-                throw new Error(`Mint ${mintUrl} is not trusted`);
-            }
-
-            // 4. Get active wallet
-            const { wallet } = await unsafeManager.walletService.getWalletWithActiveKeysetId(mintUrl);
-
-            // 5. Build cashu-ts receive op with the privkey
-            const receivedAmount = receivedProofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-
-            console.log(`[WalletService] Received amount: ${receivedAmount}. Unlocking with P2PK and randomizing change...`);
-            const newProofs = await wallet.ops
-                .receive(cleaned)
-                .privkey(nostrPrivKey)
-                .asRandom() // Bypass deterministic counters to prevent 'outputs already signed' on retry
-                .run();
-
-            // 6. Save newly minted proofs to the DB
-            const coreProofs = newProofs.map((p: any) => ({
-                ...p,
-                mintUrl,
-                state: 'ready',
-                createdByOperationId: 'p2pk_receive_' + Date.now() // placeholder for history tracking
-            }));
-
-            await unsafeManager.proofService.saveProofs(mintUrl, coreProofs);
-
-            // 7. Fire event for UI updates
-            unsafeManager.eventBus.emit('receive:created', {
-                mintUrl,
-                amount: receivedAmount,
-                token: cleaned,
-                timestamp: Date.now()
-            });
-
-            // 8. Record in history
             try {
-                const tokenObj = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
-                await initService.getRepo().historyRepository.addHistoryEntry({
-                    mintUrl,
-                    unit: wallet.unit || 'sat',
-                    createdAt: Date.now(),
-                    type: 'receive',
-                    amount: receivedAmount,
-                    state: 'success',
-                    token: tokenObj,
-                    metadata: {
-                        type: 'p2pk'
-                    }
-                } as any);
-                console.log(`[WalletService] History tracking injected for P2PK receive.`);
-            } catch (histErr) {
-                console.warn('[WalletService] Failed to inject history entry for receive:', histErr);
+                await unsafeManager.keyring.addKeyPair(privKeyBytes);
+                console.log('[WalletService] P2PK: ✅ Nostr key registered with coco keyring');
+            } catch (keyErr: any) {
+                // Key might already be registered — that's fine
+                if (!keyErr?.message?.includes('already')) {
+                    console.warn('[WalletService] P2PK: keyring.addKeyPair warning:', keyErr?.message);
+                }
             }
 
-            console.log('[WalletService] P2PK Token received and proofs saved successfully');
+            // 2. Use coco's standard receive — it now knows the key
+            console.log('[WalletService] P2PK: Receiving via coco standard pipeline...');
+            await m.wallet.receive(cleaned);
+
+            console.log('[WalletService] ✅ P2PK Token received successfully via coco');
         } catch (err: any) {
             console.error('[WalletService] P2PK Receive failed:', err?.message || err);
             console.error('[WalletService] P2PK Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));

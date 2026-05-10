@@ -12,12 +12,16 @@ interface SettingsState {
     initialized: boolean;
     npub: string | null;
     nsec: string | null;
+    nip05: string | null;             // e.g. "zaheer@nostrcheck.me"
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
     setDefaultMintUrl: (url: string) => Promise<void>;
     notificationsEnabled: boolean;
     setNotificationsEnabled: (enabled: boolean) => Promise<void>;
+    biometricEnabled: boolean;
+    setBiometricEnabled: (enabled: boolean) => Promise<void>;
+    setNip05: (identifier: string | null) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -25,56 +29,59 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     secondaryCurrency: 'USD',
     defaultMintUrl: DEFAULT_MINT,
     notificationsEnabled: true,
+    biometricEnabled: false,
     initialized: false,
     npub: null,
     nsec: null,
+    nip05: null,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
 
         const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-        // Retry to wait for initService to initialize the repo, 
-        // but only if a wallet exists.
-        for (let i = 0; i < 15; i++) {
+        // Fast path: if no wallet exists, bail immediately with defaults
+        const exists = await initService.walletExists();
+        if (!exists) {
+            set({ initialized: true });
+            return;
+        }
+
+        // Wait for repo with exponential backoff (max ~3s)
+        for (let i = 0; i < 5; i++) {
             try {
-                // Check if wallet exists first. If not, we don't need to try getRepo.
-                const exists = await initService.walletExists();
-                if (!exists) {
-                    set({ initialized: true });
-                    return;
-                }
-
                 const repo = initService.getRepo();
-                const storedTheme = await repo.settingsRepository.getSetting('theme');
-                if (storedTheme) {
-                    set({ theme: storedTheme as ThemePreference });
-                }
-                const storedCurrency = await repo.settingsRepository.getSetting('secondaryCurrency');
-                if (storedCurrency) {
-                    set({ secondaryCurrency: storedCurrency });
-                }
 
-                // Load default mint
-                const storedMintUrl = await repo.settingsRepository.getSetting('defaultMintUrl');
-                if (storedMintUrl) {
-                    set({ defaultMintUrl: storedMintUrl });
-                }
+                // Load all settings in parallel for speed
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05] = await Promise.all([
+                    repo.settingsRepository.getSetting('theme'),
+                    repo.settingsRepository.getSetting('secondaryCurrency'),
+                    repo.settingsRepository.getSetting('defaultMintUrl'),
+                    repo.settingsRepository.getSetting('notificationsEnabled'),
+                    repo.settingsRepository.getSetting('biometricEnabled'),
+                    repo.settingsRepository.getSetting('npub'),
+                    repo.settingsRepository.getSetting('nsec'),
+                    repo.settingsRepository.getSetting('nip05'),
+                ]);
 
-                // Load notifications setting
-                const storedNotifications = await repo.settingsRepository.getSetting('notificationsEnabled');
+                if (storedTheme) set({ theme: storedTheme as ThemePreference });
+                if (storedCurrency) set({ secondaryCurrency: storedCurrency });
+                if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
                 if (storedNotifications !== undefined && storedNotifications !== null) {
                     set({ notificationsEnabled: storedNotifications === 'true' });
                 }
-
-                // Load Nostr keys
-                const storedNpub = await repo.settingsRepository.getSetting('npub');
-                const storedNsec = await repo.settingsRepository.getSetting('nsec');
+                
+                // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
+                if (storedBiometric !== undefined && storedBiometric !== null) {
+                    set({ biometricEnabled: storedBiometric === 'true' });
+                } else {
+                    set({ biometricEnabled: true });
+                }
 
                 if (storedNpub && storedNsec) {
-                    set({ npub: storedNpub, nsec: storedNsec });
+                    set({ npub: storedNpub, nsec: storedNsec, nip05: storedNip05 || null });
                 } else {
-                    // Generate and cache them if they don't exist yet
+                    // Generate and cache Nostr keys if they don't exist yet
                     console.log('[SettingsStore] Nostr keys not in DB, generating and caching...');
                     const mnemonic = await seedService.getMnemonic();
                     if (mnemonic) {
@@ -88,13 +95,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 set({ initialized: true });
                 return;
             } catch (error) {
-                // If it's a "Repositories not initialized" error, we just wait.
-                // Other errors we might want to know about eventually.
-                if (i === 14) {
-                    console.log('[SettingsStore] Repo not available yet, using defaults.');
+                if (i === 4) {
+                    console.log('[SettingsStore] Repo not available after retries, using defaults.');
                     set({ initialized: true });
                 }
-                await delay(300);
+                await delay(200 * (i + 1)); // 200, 400, 600, 800, 1000
             }
         }
     },
@@ -153,6 +158,34 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set notifications enabled:', error);
             set({ notificationsEnabled: enabled });
+        }
+    },
+
+    setBiometricEnabled: async (enabled: boolean) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('biometricEnabled', enabled.toString());
+            }
+            set({ biometricEnabled: enabled });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set biometric enabled:', error);
+            set({ biometricEnabled: enabled });
+        }
+    },
+
+    setNip05: async (identifier: string | null) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('nip05', identifier ?? '');
+            }
+            set({ nip05: identifier });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set nip05:', error);
+            set({ nip05: identifier });
         }
     },
 }));

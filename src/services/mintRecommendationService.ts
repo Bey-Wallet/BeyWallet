@@ -144,7 +144,7 @@ export const mintRecommendationService = {
      */
     fetchMintMetadata: async (url: string) => {
         try {
-            const response = await fetch(`${url.replace(/\/$/, '')}/info`, {
+            const response = await fetch(`${url.replace(/\/$/, '')}/v1/info`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
             });

@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 
@@ -247,6 +248,12 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
                     </BottomSheetScrollView>
                 </YStack>
             </AppBottomSheet>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Processing"
+                amount={parsedAmountSats}
+                detail="Creating ecash tokens..."
+            />
         </YStack>
     );
 }

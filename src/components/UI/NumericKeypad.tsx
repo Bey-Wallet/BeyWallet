@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { YStack, XStack, Button, Text, Spinner, View } from 'tamagui'
-import { ChevronLeft, Delete } from '@tamagui/lucide-icons'
+import { ChevronLeft } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 
 interface NumericKeypadProps {
@@ -17,6 +17,43 @@ interface NumericKeypadProps {
     confirmDisabled?: boolean
     confirmIcon?: any
 }
+
+// Keypad grid — defined once, never recreated
+const KEYPAD_ROWS = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['.', '0', 'delete'],
+] as const;
+
+/**
+ * Individual number button — extracted to module scope and memoized.
+ * This prevents React from unmounting/remounting all 10 buttons on every keystroke.
+ */
+const NumButton = React.memo(({ digit, onPress }: { digit: string; onPress: (d: string) => void }) => (
+    <Button
+        flex={1}
+        height={70}
+        chromeless
+        onPress={() => onPress(digit)}
+        pressStyle={{ bg: "$colorTransparent", borderColor: "$colorTransparent", scale: 1.5 }}
+    >
+        <Text fontSize={32} fontWeight="600" color="$color">
+            {digit}
+        </Text>
+    </Button>
+))
+
+const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
+    <Button
+        flex={1}
+        height={70}
+        chromeless
+        onPress={onPress}
+        pressStyle={{ bg: "transparent", borderColor: "$colorTransparent", scale: 1.5 }}
+        icon={<ChevronLeft size={32} color="$color" />}
+    />
+))
 
 export function NumericKeypad({
     value,
@@ -38,33 +75,27 @@ export function NumericKeypad({
     const isBalanceZero = maxAmount !== undefined && maxAmount === 0
     const canContinue = amountNum > 0 && !isOverBalance && !isLoading && !isBalanceZero
 
-    const handlePress = (digit: string) => {
+    const handlePress = useCallback((digit: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
         onValueChange(value === '0' ? digit : value + digit)
-    }
+    }, [value, onValueChange])
 
-    const handleDelete = () => {
+    const handleDelete = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
         if (value.length <= 1) {
             onValueChange('0')
         } else {
             onValueChange(value.slice(0, -1))
         }
-    }
+    }, [value, onValueChange])
 
-    const NumButton = ({ digit }: { digit: string }) => (
-        <Button
-            flex={1}
-            height={70}
-            chromeless
-            onPress={() => handlePress(digit)}
-            pressStyle={{ bg: "$colorTransparent", borderColor: "$colorTransparent", scale: 1.5 }}
-        >
-            <Text fontSize={32} fontWeight="600" color="$color">
-                {digit}
-            </Text>
-        </Button>
-    )
+    const handleConfirm = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        onConfirm()
+    }, [onConfirm])
+
+    // Memoize amount display color
+    const amountColor = isOverBalance || isBalanceZero ? '$red10' : '$color'
 
     return (
         <YStack flex={showAmountDisplay ? 1 : undefined} justify="space-between" width="100%">
@@ -75,7 +106,7 @@ export function NumericKeypad({
                         <Text
                             fontSize={56}
                             fontWeight="700"
-                            color={isOverBalance || isBalanceZero ? '$red10' : '$color'}
+                            color={amountColor}
                         >
                             {value}
                         </Text>
@@ -93,39 +124,15 @@ export function NumericKeypad({
 
             {/* Keypad and Action Button */}
             <YStack pb="$4" >
-                {/* Confirm Button */}
-
-
-
-
-                {/* Numpad */}
                 {/* Keypad Layout */}
                 <YStack width="100%" gap="$0" pb="$4" >
-                    {[
-                        ['1', '2', '3'],
-                        ['4', '5', '6'],
-                        ['7', '8', '9'],
-                        ['.', '0', 'delete'],
-                    ].map((row, i) => (
+                    {KEYPAD_ROWS.map((row, i) => (
                         <XStack key={i} gap="$10">
-                            {row.map((digit, j) => {
+                            {row.map((digit) => {
                                 if (digit === 'delete') {
-                                    return (
-                                        <Button
-                                            key="delete"
-                                            flex={1}
-                                            height={70}
-                                            chromeless
-                                            onPress={handleDelete}
-                                            pressStyle={{ bg: "transparent", borderColor: "$colorTransparent", scale: 1.5 }}
-                                            icon={<ChevronLeft size={32} color="$color" />}
-                                        />
-                                    )
+                                    return <DeleteButton key="delete" onPress={handleDelete} />
                                 }
-                                if (digit === '') {
-                                    return <View key={`empty-${i}-${j}`} flex={1} />
-                                }
-                                return <NumButton key={digit} digit={digit} />
+                                return <NumButton key={digit} digit={digit} onPress={handlePress} />
                             })}
                         </XStack>
                     ))}
@@ -135,10 +142,7 @@ export function NumericKeypad({
                         size="$5"
                         fontSize="$6"
                         theme={canContinue && !confirmDisabled ? "accent" : "gray"}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                            onConfirm()
-                        }}
+                        onPress={handleConfirm}
                         disabled={!canContinue || confirmDisabled}
                         opacity={(!canContinue || confirmDisabled) ? 0.5 : 1}
                         icon={isLoading ? <Spinner color="$color" /> : (confirmIcon || null)}

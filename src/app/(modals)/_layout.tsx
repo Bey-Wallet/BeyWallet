@@ -1,16 +1,18 @@
 import { Stack, useRouter } from 'expo-router'
-import { Button, useTheme, XStack, Text } from 'tamagui'
-import { X, ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
+import { Button, useTheme, Text } from 'tamagui'
+import { X } from '@tamagui/lucide-icons'
+import React from 'react'
+
+// Extracted to module scope — never recreated on re-render
+const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
+    <Text fontWeight="700" fontSize={20} color="$color">
+        {children}
+    </Text>
+))
 
 export default function ModalLayout() {
     const theme = useTheme()
     const router = useRouter()
-
-    const DefaultHeaderTitle = ({ children }: { children: string }) => (
-        <Text fontWeight="700" fontSize={20} color="$color">
-            {children}
-        </Text>
-    )
 
     return (
         <Stack
@@ -34,6 +36,7 @@ export default function ModalLayout() {
                         circular
                         size="$3"
                         chromeless
+                        rounded="$3"
                         icon={<X size={24} color="$color" />}
                         onPress={() => router.back()}
                     />
@@ -47,42 +50,56 @@ export default function ModalLayout() {
                 name="receive"
                 options={{
                     title: 'Receive Ecash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="send"
                 options={{
                     title: 'Send',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="mint-profile"
                 options={{
                     title: 'Mint Profile',
+                    presentation: "fullScreenModal",
+                    headerShown: true,
                 }}
             />
             <Stack.Screen
                 name="mint"
                 options={{
                     title: 'Mint Cash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="melt"
                 options={{
                     title: 'Pay Lightning',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="swap"
+                options={{
+                    title: 'Swap',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="scanner"
                 options={{
                     headerShown: false,
-                    presentation: 'fullScreenModal',
+                    presentation: "modal",
                 }}
             />
             <Stack.Screen
                 name="txn-details"
                 options={{
+                    presentation: "fullScreenModal",
                     title: 'Transaction Details',
                 }}
             />
@@ -90,27 +107,93 @@ export default function ModalLayout() {
                 name="ecash"
                 options={{
                     title: 'E-Cash',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="mints"
                 options={{
                     title: 'Mints',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="nostr-profile"
                 options={{
                     title: 'Nostr Identity',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="nostr-settings"
+                options={{
+                    title: 'Nostr Settings',
+                    presentation: "fullScreenModal",
                 }}
             />
             <Stack.Screen
                 name="about"
                 options={{
                     title: 'About',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="proofs"
+                options={{
+                    presentation: "modal",
+                    title: 'Proof Manager',
+                }}
+            />
+            <Stack.Screen
+                name="nostr-username"
+                options={{
+                    title: 'Nostr Username',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="add-mint"
+                options={{
+                    title: 'Add Mint',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="contact-search"
+                options={{
+                    title: 'Search Contact',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="contact-details"
+                options={{
+                    title: 'Contact Details',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="ota-update"
+                options={{
+                    title: 'Update App',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="token-details"
+                options={{
+                    title: 'Token Details',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="backup-seed"
+                options={{
+                    title: 'Backup Seed',
+                    presentation: "fullScreenModal",
                 }}
             />
         </Stack>
     )
 }
-

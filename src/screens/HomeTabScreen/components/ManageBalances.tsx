@@ -77,15 +77,18 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
 
 const ManageBalances = () => {
     const router = useRouter()
-    const { balances, refreshCounter } = useWalletStore()
+    const balances = useWalletStore(s => s.balances)
+    const refreshCounter = useWalletStore(s => s.refreshCounter)
 
 
     const { data: history = [] } = useQuery({
         queryKey: ['history', 'pending'],
         queryFn: async () => {
-            const entries = await historyService.getHistory(500, 0)
+            const entries = await historyService.getHistory(50, 0)
             return entries.filter((e: any) => e.state === 'pending' || e.state === 'unclaimed')
-        }
+        },
+        staleTime: 30_000,
+        gcTime: 5 * 60_000,
     })
 
     const totalSpendable = useMemo(() => {

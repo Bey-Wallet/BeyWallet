@@ -2,6 +2,7 @@ import React from 'react';
 import { YStack, XStack, Text, Button, H1, Separator } from "tamagui";
 import { Sprout, Zap } from "@tamagui/lucide-icons";
 import { Spinner } from '../../components/UI/Spinner';
+import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
@@ -27,9 +28,23 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
 
     return (
         <YStack flex={1} gap="$2">
-            <YStack items="center" gap="$2" py="$2">
-                <Text color="$gray10">Deposit Amount</Text>
-                <H1 fontWeight={400}>{sats} SATS</H1>
+            <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
+                <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color="$color">
+                    Confirm Deposit
+                </Text>
+                <YStack items="center" justify="center">
+                    <Text fontSize="$9" fontWeight="900" color="$green11">
+                        +₿{Number(amount || 0).toLocaleString()}
+                    </Text>
+                    <Text fontSize="$5" fontWeight="600" color="$gray10">
+                        Ecash SATS
+                    </Text>
+                </YStack>
+                <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
+                    <Text color="$gray10" fontSize="$4" text="center">
+                        You are about to request a Lightning invoice.
+                    </Text>
+                </YStack>
             </YStack>
 
             <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
@@ -70,6 +85,12 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                     Go Back
                 </Button>
             </YStack>
+            <ProcessingSheet
+                visible={!!isLoading}
+                title="Creating Invoice"
+                amount={sats}
+                detail={`Requesting from ${getMintName(mintUrl)}`}
+            />
         </YStack>
     );
 }
@@ -77,10 +98,10 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
 function DetailItem({ label, value, icon }: { label: string, value: string, icon?: React.ReactNode }) {
     return (
         <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
                 {icon}
-                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
                     {value}
                 </Text>
             </XStack>

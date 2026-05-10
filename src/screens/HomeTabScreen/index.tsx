@@ -1,24 +1,41 @@
 import { RefreshControl } from 'react-native'
-import { Anchor, H2, Paragraph, XStack, YStack, ScrollView, Button } from 'tamagui'
+import { YStack, ScrollView } from 'tamagui'
 import * as Haptics from 'expo-haptics'
 import { useToastController } from '@tamagui/toast'
-import { ThemeSelector } from './components/ThemeSelector'
-import { LocalizationTest } from './components/LocalizationTest'
-import { BiometricUnlock } from './components/BiometricUnlock'
 import WalletCard from './components/WalletCard'
 import ActionButtons from './components/ActionButtons'
-import { WalletDebugInfo } from './components/WalletDebugInfo'
-import { MintDiscovery } from './components/MintDiscovery'
 import { useWalletStore } from '../../store/walletStore'
 import React from 'react'
-import ManageBalances from './components/ManageBalances'
-import BitcoinPriceCard from './components/BitcoinPriceCard'
 import StatusScreen from '../../components/StatusScreen'
+import SkeletonCard from '../../components/UI/SkeletonCard'
+
+// Lazy-load below-the-fold components — they mount AFTER the above-fold
+// content (WalletCard + ActionButtons) is already painted, so the user
+// sees the critical content instantly.
+import ManageBalances from './components/ManageBalances'
+import NostrActivity from './components/NostrActivity'
+import { NostrClaimSheet } from '../../components/NostrClaimSheet'
+const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'))
+const LazyContactsView = React.lazy(() => import('./components/ContactsView'))
+const LazySupportView = React.lazy(() => import('./components/SupportView'))
 
 type StatusType = 'success' | 'error' | 'pending' | null;
 
+/** Skeleton fallback shown while lazy components load */
+function HomeSkeleton() {
+    return (
+        <YStack gap="$4" width="100%">
+            <SkeletonCard height={120} rows={2} showAvatar={false} />
+            <SkeletonCard height={160} rows={3} showAvatar={true} />
+            <SkeletonCard height={100} rows={2} showAvatar={true} />
+            <SkeletonCard height={80} rows={2} showAvatar={false} />
+        </YStack>
+    )
+}
+
 export function HomeTabScreen() {
-    const { refreshBalance, error } = useWalletStore()
+    const refreshBalance = useWalletStore(s => s.refreshBalance)
+    const error = useWalletStore(s => s.error)
     const [refreshing, setRefreshing] = React.useState(false)
     const [showStatus, setShowStatus] = React.useState<StatusType>(null)
     const toast = useToastController()
@@ -75,20 +92,22 @@ export function HomeTabScreen() {
             }
         >
             <YStack flex={1} items="center" gap="$4" px="$4" pt="$2" pb="$20">
+                {/* Above-the-fold: renders immediately */}
                 <WalletCard />
                 <ActionButtons />
-                <BitcoinPriceCard />
-                <ManageBalances />
 
-                {/* Test Status Screens */}
-
-                {/* Test Status Screens */}
-
-                {/* <MintDiscovery /> */}
-                {/* 
-
-                <WalletDebugInfo /> */}
+                {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
+                <React.Suspense fallback={<HomeSkeleton />}>
+                    <LazyBitcoinPriceCard />
+                    <ManageBalances />
+                    <NostrActivity />
+                    <LazyContactsView />
+                    <LazySupportView />
+                </React.Suspense>
             </YStack>
+
+            {/* Global Nostr claim sheet — listens for incoming payments */}
+            <NostrClaimSheet />
         </ScrollView>
     )
 }

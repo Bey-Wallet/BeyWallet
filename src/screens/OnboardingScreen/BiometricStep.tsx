@@ -1,14 +1,16 @@
 import React, { useState } from 'react'
-import { YStack, Text, Button, H2, View } from 'tamagui'
+import { YStack, Text, Button, H2, View, XStack } from 'tamagui'
 import { Fingerprint, ShieldCheck, Check } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 import { biometricService } from '../../services/biometricService'
+import { useSettingsStore } from '../../store/settingsStore'
 
 interface BiometricStepProps {
     onComplete: () => void
+    onSkip: () => void
 }
 
-export function BiometricStep({ onComplete }: BiometricStepProps) {
+export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
     const [isEnabling, setIsEnabling] = useState(false)
     const [isEnabled, setIsEnabled] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -25,6 +27,7 @@ export function BiometricStep({ onComplete }: BiometricStepProps) {
             if (success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                 setIsEnabled(true)
+                await useSettingsStore.getState().setBiometricEnabled(true)
                 // Brief delay to show success state
                 setTimeout(() => {
                     onComplete()
@@ -42,8 +45,17 @@ export function BiometricStep({ onComplete }: BiometricStepProps) {
 
     return (
         <YStack flex={1} bg="$background" px="$4" py="$6" justify="space-between">
-            {/* Top spacer */}
-            <View />
+            {/* Top spacer / Skip */}
+            <XStack justify="flex-end" width="100%">
+                {!isEnabled && (
+                    <Button size="$3" rounded="$10" onPress={async () => {
+                        await useSettingsStore.getState().setBiometricEnabled(false)
+                        onSkip()
+                    }} pressStyle={{ opacity: 0.5 }}>
+                        Skip
+                    </Button>
+                )}
+            </XStack>
 
             {/* Center Content */}
             <YStack items="center" gap="$8">

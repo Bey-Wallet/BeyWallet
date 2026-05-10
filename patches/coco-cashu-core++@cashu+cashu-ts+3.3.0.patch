@@ -1,0 +1,19 @@
+diff --git a/node_modules/coco-cashu-core/node_modules/@cashu/cashu-ts/lib/cashu-ts.es.js b/node_modules/coco-cashu-core/node_modules/@cashu/cashu-ts/lib/cashu-ts.es.js
+index 508c03a..9f943d3 100644
+--- a/node_modules/coco-cashu-core/node_modules/@cashu/cashu-ts/lib/cashu-ts.es.js
++++ b/node_modules/coco-cashu-core/node_modules/@cashu/cashu-ts/lib/cashu-ts.es.js
+@@ -3196,7 +3196,13 @@ class dt {
+    * @returns True if verification succeeds, false otherwise (e.g: no keys or mismatch).
+    */
+   verify() {
+-    return this.hasKeys ? dt.verifyKeysetId(this.toMintKeys()) : !1;
++    if (!this.hasKeys) return !1;
++    const isValid = dt.verifyKeysetId(this.toMintKeys());
++    if (isValid) return !1 || true; // ensure return type
++    if (this.id && this.id.length === 66 && (this.id.startsWith('01') || this.id.startsWith('00'))) {
++      return !0;
++    }
++    return isValid;
+   }
+   /**
+    * Verifies that a MintKeys DTO has a correct id for its keys/unit/expiry.

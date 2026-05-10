@@ -1,0 +1,19 @@
+diff --git a/node_modules/coco-cashu-core/dist/index.js b/node_modules/coco-cashu-core/dist/index.js
+index e300880..d637643 100644
+--- a/node_modules/coco-cashu-core/dist/index.js
++++ b/node_modules/coco-cashu-core/dist/index.js
+@@ -763,7 +763,13 @@ var WalletService = class {
+ 	async buildWallet(mintUrl) {
+ 		const { mint, keysets } = await this.mintService.ensureUpdatedMint(mintUrl);
+ 		const validKeysets = keysets.filter((keyset) => keyset.keypairs && Object.keys(keyset.keypairs).length > 0 && keyset.unit === DEFAULT_UNIT);
+-		if (validKeysets.length === 0) throw new Error(`No valid keysets found for mint ${mintUrl}`);
++		if (validKeysets.length === 0) {
++            console.error(`[CocoPatch] 🔍 buildWallet: No valid keysets for ${mintUrl}. Total: ${keysets.length}`);
++            keysets.forEach(k => {
++                console.warn(` - id: ${k.id}, unit: ${k.unit}, hasKeys: ${!!(k.keypairs && Object.keys(k.keypairs).length > 0)}`);
++            });
++            throw new Error(`No valid keysets found for mint ${mintUrl}`);
++        }
+ 		const keysetCache = validKeysets.map((keyset) => ({
+ 			id: keyset.id,
+ 			unit: keyset.unit,

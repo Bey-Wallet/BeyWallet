@@ -8,6 +8,7 @@ import { useWalletStore } from '../../store/walletStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { OnboardingScreen } from '../../screens/OnboardingScreen'
+import { NostrPaymentReceived } from '../NostrPaymentReceived'
 
 const queryClient = new QueryClient()
 
@@ -19,6 +20,9 @@ export function RootLayout() {
     const isInitializing = useWalletStore(state => state.isInitializing)
     const { isOnboarded, isCheckingOnboarding, checkOnboardingStatus } = useOnboardingStore()
     const [walletExists, setWalletExists] = useState<boolean | null>(null)
+
+    // Cache manager in state instead of re-computing inside render body
+    const [manager, setManager] = useState<any>(null);
 
     const [loaded, error] = useFonts({
         BaselGroteskBook: require('../../assets/fonts/Basel-Grotesk-Book.otf'),
@@ -46,6 +50,17 @@ export function RootLayout() {
             initialize()
         }
     }, [isOnboarded, walletExists, initialize])
+
+    // Cache manager once initialization completes
+    useEffect(() => {
+        if (!isInitializing && isOnboarded && walletExists) {
+            try {
+                setManager(initService.getManager());
+            } catch (e) {
+                setManager(null);
+            }
+        }
+    }, [isInitializing, isOnboarded, walletExists]);
 
     // Hide splash when ready
     useEffect(() => {
@@ -75,18 +90,10 @@ export function RootLayout() {
         )
     }
 
-    // Get the manager after initialization
-    const manager = !isInitializing ? (() => {
-        try {
-            return initService.getManager();
-        } catch (e) {
-            return null;
-        }
-    })() : null;
-
     return (
         <Providers cocoManager={manager}>
             <RootLayoutNav />
+            <NostrPaymentReceived />
         </Providers>
     )
 }

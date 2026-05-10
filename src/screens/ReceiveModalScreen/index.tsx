@@ -1,13 +1,17 @@
 import React, { useState, useCallback } from 'react'
-import { YStack, View } from 'tamagui'
+import { InteractionManager } from 'react-native'
+import { YStack } from 'tamagui'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { InputStage } from './InputStage'
 import { ConfirmStage } from './ConfirmStage'
 import { ReceiveResultStage } from './ReceiveResultStage'
-import { walletService, decodeToken, mintManager, initService } from '../../services/core';
+import { RequestEcashStage } from './RequestEcashStage'
+import { walletService, mintManager, initService } from '../../services/core';
+import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { nip19 } from 'nostr-tools'
+import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -24,6 +28,7 @@ interface TokenInfo {
 
 export function ReceiveModalScreen() {
     const [step, setStep] = useState<ReceiveStep>('input')
+    const [receiveMode, setReceiveMode] = useState<ReceiveMode>('receive')
     const [token, setToken] = useState('')
     const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null)
     const [isDecoding, setIsDecoding] = useState(false)
@@ -31,17 +36,42 @@ export function ReceiveModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
-    const params = useLocalSearchParams<{ scannedToken?: string }>()
-    const { refreshBalance, addMint, fetchMintInfo, mints } = useWalletStore()
+    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string }>()
+    const refreshBalance = useWalletStore(s => s.refreshBalance)
+    const addMint = useWalletStore(s => s.addMint)
+    const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
+    const mints = useWalletStore(s => s.mints)
 
     const [isReceiveLater, setIsReceiveLater] = useState(false)
 
+    // Keep a stable ref to mints so handleDecodeToken never needs mints in its deps
+    // (avoids infinite re-render when background fetchMintInfo updates the store)
+    const mintsRef = React.useRef(mints);
+    React.useEffect(() => { mintsRef.current = mints; }, [mints]);
+    const fetchMintInfoRef = React.useRef(fetchMintInfo);
+    React.useEffect(() => { fetchMintInfoRef.current = fetchMintInfo; }, [fetchMintInfo]);
+
     React.useEffect(() => {
         if (params.scannedToken) {
-            setToken(params.scannedToken);
-            handleDecodeToken(params.scannedToken);
+            const raw = params.scannedToken.trim();
+            const lower = raw.toLowerCase();
+
+            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest: raw },
+                });
+                return;
+            }
+
+            setToken(raw);
+            handleDecodeToken(raw);
+        } else if (params.requestId) {
+            setReceiveMode('request');
         }
-    }, [params.scannedToken]);
+    }, [params.scannedToken, params.requestId]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -52,66 +82,63 @@ export function ReceiveModalScreen() {
         setIsReceiveLater(false);
 
         try {
-            const decoded = decodeToken(targetToken.trim());
-            const mintUrl = decoded.mint;
+            // Decode using tokenUtils.decodeToken which supports V3, V4 (cashuB/CBOR),
+            // and has a manual CBOR fallback that works WITHOUT pre-synced keysets.
+            const rawDecoded = decodeToken(targetToken.trim());
+            console.log('[ReceiveModal] decoded — mint:', rawDecoded.mint, 'proofs:', rawDecoded.proofs?.length);
 
-            // Calculate total amount from proofs
-            const amount = decoded.proofs?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
-
-            let previewInfo;
-
-            // Check if mint is already trusted
-            const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
-            const isTrusted = mints.some(m => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl) && m.trusted);
-
-            if (!isTrusted) {
-                try {
-                    console.log('[ReceiveModal] Fetching mint preview for:', mintUrl);
-                    const info = await fetchMintInfo(mintUrl);
-                    previewInfo = {
-                        name: info?.name,
-                        description: info?.description
-                    };
-                } catch (e) {
-                    console.warn('[ReceiveModal] Failed to fetch mint preview:', e);
-                }
-            }
+            const mintUrl = rawDecoded.mint || '';
+            const proofs = rawDecoded.proofs || [];
+            const amount = rawDecoded.amount ?? proofs.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
             // Check for P2PK pubkey in the first proof secret
             let p2pkNpub: string | undefined;
             try {
-                if (decoded.proofs && decoded.proofs.length > 0) {
-                    const firstSecret = decoded.proofs[0]?.secret;
-                    if (typeof firstSecret === 'string') {
-                        // V3 format: '["P2PK",{"data":"02..."}]'
-                        if (firstSecret.startsWith('["P2PK"')) {
-                            const parsed = JSON.parse(firstSecret);
-                            const hexPubkey = parsed[1]?.data;
-                            if (hexPubkey) {
-                                p2pkNpub = nip19.npubEncode(hexPubkey);
-                            }
-                        }
+                if (proofs.length > 0) {
+                    const firstSecret = proofs[0]?.secret;
+                    if (typeof firstSecret === 'string' && firstSecret.startsWith('["P2PK"')) {
+                        const parsed = JSON.parse(firstSecret);
+                        const hexPubkey = parsed[1]?.data;
+                        if (hexPubkey) p2pkNpub = nip19.npubEncode(hexPubkey);
                     }
                 }
             } catch (e) {
                 console.warn('[ReceiveModal] Failed to parse P2PK secret:', e);
             }
 
+            // Show confirm screen immediately — no waiting for network
             setTokenInfo({
                 mint: mintUrl || 'Unknown mint',
-                amount: amount,
-                proofCount: decoded.proofs?.length || 0,
-                preview: previewInfo,
+                amount,
+                proofCount: proofs.length,
+                preview: undefined,
                 p2pkNpub
             });
             setStep('confirm');
+
+            // Fetch mint preview in the background using stable refs
+            const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
+            const currentMints = mintsRef.current;
+            const isTrusted = currentMints.some(m => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl) && m.trusted);
+            if (!isTrusted) {
+                fetchMintInfoRef.current(mintUrl)
+                    .then((info: any) => {
+                        if (info) {
+                            setTokenInfo(prev => prev ? {
+                                ...prev,
+                                preview: { name: info.name, description: info.description }
+                            } : prev);
+                        }
+                    })
+                    .catch((e: any) => console.warn('[ReceiveModal] Background mint preview failed:', e));
+            }
         } catch (err: any) {
             console.error('[ReceiveModal] Failed to decode token:', err);
             setError(err.message || 'Invalid token format');
         } finally {
             setIsDecoding(false);
         }
-    }, [token, mints, fetchMintInfo]);
+    }, [token]); // stable — only depends on token state, reads mints via ref
 
     const handleReceiveLater = useCallback(async () => {
         if (!tokenInfo) return;
@@ -175,35 +202,28 @@ export function ReceiveModalScreen() {
             const mintUrl = tokenInfo.mint;
             console.log('[ReceiveModal] Starting receive for mint:', mintUrl);
 
-            // 1. Ensure mint is trusted. Using store.addMint ensures UI refreshes.
-            try {
-                const isTrusted = await mintManager.isMintTrusted(mintUrl);
-                if (!isTrusted) {
-                    console.log('[ReceiveModal] Adding and trusting mint via store:', mintUrl);
+            // 1. Trust the mint if not already — skip network call for known trusted mints
+            const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
+            const alreadyTrusted = mints.some(m => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl) && m.trusted);
+            if (!alreadyTrusted) {
+                try {
+                    console.log('[ReceiveModal] Adding and trusting mint:', mintUrl);
                     await addMint(mintUrl, { trusted: true });
+                } catch (e: any) {
+                    console.warn('[ReceiveModal] Mint add/trust error:', e?.message);
                 }
-            } catch (e: any) {
-                console.warn('[ReceiveModal] Mint add/trust error:', e?.message);
             }
 
-            // 2. Repair keysets (fix empty unit values)
-            try {
-                await mintManager.repairMintKeysets(mintUrl, 'sat');
-            } catch (e) {
-                console.warn('[ReceiveModal] Keyset repair warning:', e);
-            }
+            // 2. Fire-and-forget keyset repair — don't block receive on a local DB fix
+            mintManager.repairMintKeysets(mintUrl, 'sat').catch(e =>
+                console.warn('[ReceiveModal] Keyset repair warning:', e)
+            );
 
-            // 3. Receive the token via core wallet service
+            // 3. Receive the token
             console.log('[ReceiveModal] Calling walletService.receive...');
-
-            // Check if we have Nostr keys for potential P2PK receive
             const { nsec } = useSettingsStore.getState();
 
             try {
-                // First try standard receive. If it's locked to our pubkey, it might fail unless we explicitly pass privkey.
-                // However, cashu-ts receive() might just fail if it needs a signature and we don't provide it in the options.
-                // Or we can just ALWAYS try receiveP2PK if standard fails with 'No signature' or similar P2PK error.
-                // For safety, let's try standard first, catch specific P2PK errors, then try receiveP2PK.
                 await walletService.receive(token.trim());
             } catch (receiveErr: any) {
                 const errMsg = receiveErr?.message?.toLowerCase() || '';
@@ -214,10 +234,8 @@ export function ReceiveModalScreen() {
                     errMsg.includes('public key');
 
                 if (isP2PKError && nsec) {
-                    console.log('[ReceiveModal] Standard receive failed, attempting P2PK receive...');
-
+                    console.log('[ReceiveModal] Standard receive failed, trying P2PK receive...');
                     let targetPrivkey = nsec;
-                    // Decode nsec to hex if necessary
                     if (targetPrivkey.startsWith('nsec')) {
                         try {
                             const decoded = nip19.decode(targetPrivkey);
@@ -228,23 +246,21 @@ export function ReceiveModalScreen() {
                             console.warn('[ReceiveModal] Failed to decode nsec:', e);
                         }
                     }
-
                     await walletService.receiveP2PK(token.trim(), targetPrivkey);
                 } else {
-                    throw receiveErr; // Re-throw if not P2PK related or we don't have the key
+                    throw receiveErr;
                 }
             }
 
+            // 4. Show success immediately — refresh balance in background
             setStatus('success');
             setIsReceiveLater(false);
-            await refreshBalance();
             setStep('result');
+            refreshBalance(); // fire-and-forget, balance banner will update async
         } catch (err: any) {
             console.error('[ReceiveModal] ❌ Failed to receive token:', {
                 message: err?.message,
                 name: err?.name,
-                code: err?.code,
-                stack: err?.stack?.substring(0, 500),
                 mint: tokenInfo?.mint,
             });
             setError(err.message || 'Failed to receive token');
@@ -253,7 +269,7 @@ export function ReceiveModalScreen() {
         } finally {
             setIsReceiving(false);
         }
-    }, [token, tokenInfo, refreshBalance]);
+    }, [token, tokenInfo, mints, refreshBalance, addMint]);
 
     const handleNext = () => {
         if (step === 'input') handleDecodeToken();
@@ -270,21 +286,36 @@ export function ReceiveModalScreen() {
     }
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     }
 
     return (
         <YStack flex={1} bg="$background" >
             <Stack.Screen
                 options={{
-                    headerTitle: step === 'result' ? (status === 'success' ? 'Success' : 'Error') : 'Receive Ecash',
-                    headerTitleStyle: { fontWeight: '600' },
+                    headerTitle: step === 'result'
+                        ? (status === 'success' ? 'Success' : 'Error')
+                        : () => (
+                            <ReceiveModeSelector
+                                mode={receiveMode}
+                                onSelect={(m) => {
+                                    setReceiveMode(m);
+                                    // Reset any pending state when switching
+                                    setError(null);
+                                    setToken('');
+                                    setTokenInfo(null);
+                                    setStep('input');
+                                }}
+                                isLoading={isDecoding || isReceiving}
+                            />
+                        ),
                     headerBackTitle: 'Back',
                 }}
             />
 
-            {step === 'input' && (
+            {/* ── Receive: existing paste/scan flow ─────────────────────── */}
+            {receiveMode === 'receive' && step === 'input' && (
                 <InputStage
                     token={token}
                     setToken={setToken}
@@ -299,6 +330,12 @@ export function ReceiveModalScreen() {
                     }}
                 />
             )}
+
+            {/* ── Request Ecash: self-contained amount + result flow ─────── */}
+            {receiveMode === 'request' && (
+                <RequestEcashStage onClose={handleClose} initialRequestId={params.requestId} />
+            )}
+
 
             {step === 'confirm' && tokenInfo && (
                 <ConfirmStage

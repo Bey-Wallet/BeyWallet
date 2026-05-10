@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/store/walletStore';
 import { useSettingsStore } from '~/store/settingsStore';
@@ -16,6 +17,7 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyServic
 import { Building2, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
+import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 
 type MeltStep = 'invoice' | 'amount' | 'result';
 
@@ -37,7 +39,10 @@ export default function MeltScreen() {
     const [lnMaxSats, setLnMaxSats] = useState(Infinity);
     const router = useRouter();
 
-    const { balance, activeMintUrl, refreshBalance, mints } = useWalletStore();
+    const balance = useWalletStore(s => s.balance);
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
+    const mints = useWalletStore(s => s.mints);
     const { secondaryCurrency } = useSettingsStore();
     const confirmSheetRef = React.useRef<AppBottomSheetRef>(null);
 
@@ -253,8 +258,8 @@ export default function MeltScreen() {
     };
 
     const handleClose = () => {
-        refreshBalance();
         router.back();
+        InteractionManager.runAfterInteractions(() => refreshBalance());
     };
 
     // ─── Amount Stage for LN Address ──────────────────────────
@@ -472,6 +477,14 @@ export default function MeltScreen() {
                     </YStack>
                 </YStack>
             </AppBottomSheet>
+
+            <ProcessingSheet
+                visible={isPaying}
+                title="Processing Payment"
+                amount={quoteAmount}
+                detail={lnAddress ? `Paying ${lnAddress}` : 'Paying Lightning Invoice'}
+                direction="send"
+            />
         </YStack>
     );
 }

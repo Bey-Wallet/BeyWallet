@@ -1,4 +1,5 @@
 import { Wallet } from '@cashu/cashu-ts';
+import { getEncodedToken } from '@cashu/cashu-ts';
 import { cleanToken, decodeToken } from './tokenUtils';
 import type { CoreProof } from 'coco-cashu-core';
 import { initService } from './initService';
@@ -68,6 +69,49 @@ export const proofService = {
     getAllReadyProofs: async (): Promise<CoreProof[]> => {
         const repo = initService.getRepo();
         return repo.proofRepository.getAllReadyProofs();
+    },
+
+    /**
+     * Get all proofs in a specific state across all mints.
+     * state: 'ready' | 'inflight' | 'spent'
+     */
+    getAllProofsByState: async (state: 'ready' | 'inflight' | 'spent'): Promise<CoreProof[]> => {
+        const repo = initService.getRepo();
+        const db = (repo.proofRepository as any).db;
+        if (!db) throw new Error('DB not available');
+        const rows = await db.all(
+            `SELECT mintUrl, id, amount, secret, C, dleqJson, witnessJson, state, usedByOperationId, createdByOperationId FROM coco_cashu_proofs WHERE state = ?`,
+            [state]
+        );
+        return rows.map((r: any) => ({
+            id: r.id,
+            amount: r.amount,
+            secret: r.secret,
+            C: r.C,
+            mintUrl: r.mintUrl,
+            state: r.state,
+            ...(r.dleqJson ? { dleq: JSON.parse(r.dleqJson) } : {}),
+            ...(r.witnessJson ? { witness: JSON.parse(r.witnessJson) } : {}),
+            ...(r.usedByOperationId ? { usedByOperationId: r.usedByOperationId } : {}),
+            ...(r.createdByOperationId ? { createdByOperationId: r.createdByOperationId } : {}),
+        }));
+    },
+
+    /**
+     * Delete specific proofs (by secret) for a given mint from the local DB.
+     * WARNING: this is destructive — only call for spent or manually-managed proofs.
+     */
+    deleteProofs: async (mintUrl: string, secrets: string[]): Promise<void> => {
+        const repo = initService.getRepo();
+        return repo.proofRepository.deleteProofs(mintUrl, secrets);
+    },
+
+    /**
+     * Encode a set of ready proofs for a given mint into a shareable Cashu token string.
+     * This does NOT spend the proofs.
+     */
+    encodeProofsAsToken: (mintUrl: string, proofs: CoreProof[], unit: string = 'sat'): string => {
+        return getEncodedToken({ mint: mintUrl, proofs: proofs as any[], unit });
     },
 
     /**
