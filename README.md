@@ -16,11 +16,11 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 <div align="center">
   
   <!-- <img src="./assets/banner.png" width="800" alt="Bey Wallet Banner" /> -->
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/3e2d78d1-8728-4b16-b218-4141f28ed6ff" />
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/cf34a709-03b0-4b3f-8d28-5f01fb9782ba" />
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/ebcc4044-cc31-4388-a6b5-3433befa9ac9" />
-<img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/faa37928-0d9f-4210-bad7-c488c7edcb9d" />
-<img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/d92709b2-b5a7-4215-8043-f2a9625d776e" />
+  <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/3e2d78d1-8728-4b16-b218-4141f28ed6ff" />
+  <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/cf34a709-03b0-4b3f-8d28-5f01fb9782ba" />
+  <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/ebcc4044-cc31-4388-a6b5-3433befa9ac9" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/faa37928-0d9f-4210-bad7-c488c7edcb9d" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/d92709b2-b5a7-4215-8043-f2a9625d776e" />
 
 
 </div>
