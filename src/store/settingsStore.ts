@@ -19,6 +19,8 @@ interface SettingsState {
     setDefaultMintUrl: (url: string) => Promise<void>;
     notificationsEnabled: boolean;
     setNotificationsEnabled: (enabled: boolean) => Promise<void>;
+    biometricEnabled: boolean;
+    setBiometricEnabled: (enabled: boolean) => Promise<void>;
     setNip05: (identifier: string | null) => Promise<void>;
 }
 
@@ -27,6 +29,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     secondaryCurrency: 'USD',
     defaultMintUrl: DEFAULT_MINT,
     notificationsEnabled: true,
+    biometricEnabled: false,
     initialized: false,
     npub: null,
     nsec: null,
@@ -50,11 +53,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedNpub, storedNsec, storedNip05] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
                     repo.settingsRepository.getSetting('notificationsEnabled'),
+                    repo.settingsRepository.getSetting('biometricEnabled'),
                     repo.settingsRepository.getSetting('npub'),
                     repo.settingsRepository.getSetting('nsec'),
                     repo.settingsRepository.getSetting('nip05'),
@@ -65,6 +69,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
                 if (storedNotifications !== undefined && storedNotifications !== null) {
                     set({ notificationsEnabled: storedNotifications === 'true' });
+                }
+                
+                // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
+                if (storedBiometric !== undefined && storedBiometric !== null) {
+                    set({ biometricEnabled: storedBiometric === 'true' });
+                } else {
+                    set({ biometricEnabled: true });
                 }
 
                 if (storedNpub && storedNsec) {
@@ -147,6 +158,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set notifications enabled:', error);
             set({ notificationsEnabled: enabled });
+        }
+    },
+
+    setBiometricEnabled: async (enabled: boolean) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('biometricEnabled', enabled.toString());
+            }
+            set({ biometricEnabled: enabled });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set biometric enabled:', error);
+            set({ biometricEnabled: enabled });
         }
     },
 

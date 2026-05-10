@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, Button, View, ScrollView } from 'tamagui';
-import { ShieldCheck, Copy, Eye, EyeOff, AlertTriangle, CheckCircle2 } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Button, View, ScrollView, H2 } from 'tamagui';
+import { ShieldCheck, Copy, Eye, EyeOff, AlertTriangle, CheckCircle2, Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import * as SecureStore from 'expo-secure-store';
@@ -64,92 +64,80 @@ export function BackupSeedScreen() {
     const words = mnemonic?.split(' ') || [];
 
     return (
-        <YStack flex={1} bg="$background">
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <YStack p="$4" gap="$6">
+        <YStack flex={1} px="$4" bg="$background">
+            <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+                <YStack gap="$6">
+                    {/* Header */}
 
-                    <View bg="$yellow2" p="$4" rounded="$4" borderWidth={1} borderColor="$yellow8">
-                        <XStack gap="$3">
-                            <AlertTriangle color="$yellow10" size={20} />
-                            <YStack flex={1}>
-                                <Text color="$yellow10" fontWeight="700">Security Warning</Text>
-                                <Text color="$yellow10" fontSize="$2" mt="$1">
-                                    NEVER share your recovery phrase. Anyone with these 12 words can take your funds. Store them in a safe, physical location.
-                                </Text>
-                            </YStack>
-                        </XStack>
-                    </View>
 
-                    <YStack gap="$4">
-                        <View
-                            items="center" justify="center"
-                        >
-                            <XStack flexWrap="wrap" items="center" justify="center" gap="$2" >
-                                {words.map((word, index) => (
-                                    <XStack
-                                        key={index}
-                                        bg={isVisible ? "$color4" : "$color2"}
-                                        px="$3"
-                                        py="$4"
-                                        rounded="$3"
-                                        borderWidth={1}
+                    {/* Warning */}
+                    <XStack
+                        bg="$orange2"
+                        borderWidth={1}
+                        borderColor="$orange6"
+                        rounded="$4"
+                        p="$3"
+                        gap="$3"
+                        items="flex-start"
+                    >
+                        <AlertTriangle size={20} color="$orange10" />
+                        <YStack flex={1} gap="$1">
+                            <Text color="$orange11" fontSize="$3" fontWeight="600">
+                                Never share your recovery phrase
+                            </Text>
+                            <Text color="$orange10" fontSize="$2">
+                                Anyone with these words can access your funds. Store them offline in a secure location.
+                            </Text>
+                        </YStack>
+                    </XStack>
 
-                                        minW="48%"
-                                        items="center"
-                                    >
-                                        <Text fontSize="$2" color="$gray10" mr="$2" width={20}>{index + 1}</Text>
-                                        <Text
-                                            fontSize="$4"
-                                            fontWeight="600"
-                                            filter={isVisible ? undefined : 'blur(5px)'}
-                                        >
-                                            {word}
-                                        </Text>
-                                    </XStack>
-                                ))}
-                            </XStack>
-                        </View>
+                    {/* Seed Words Grid */}
+                    <YStack
 
-                        <XStack gap="$3">
-                            <Button
-                                flex={1}
-                                size="$5"
-                                icon={isVisible ? EyeOff : Eye}
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    setIsVisible(!isVisible);
-                                }}
-                                rounded="$4"
-                                bg="$gray5"
-                            >
-                                {isVisible ? 'Hide' : 'Show'}
-                            </Button>
-                            <Button
-                                flex={1}
-                                size="$5"
-                                icon={copied ? CheckCircle2 : Copy}
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    handleCopy();
-                                }}
-                                rounded="$4"
-                                bg="$gray5"
-                            >
-                                {copied ? 'Copied!' : 'Copy'}
-                            </Button>
+                    >
+                        <XStack flexWrap="wrap" gap="$2" justify="center">
+                            {words.map((word, index) => (
+                                <XStack
+                                    key={index}
+                                    bg="$background"
+                                    borderWidth={1}
+                                    borderColor="$borderColor"
+                                    rounded="$3"
+                                    px="$3"
+                                    py="$2"
+                                    gap="$2"
+                                    items="center"
+                                    minW={100}
+                                >
+                                    <Text color="$gray9" fontSize="$2" fontWeight="500" width={20}>
+                                        {index + 1}.
+                                    </Text>
+                                    <Text color="$color" fontSize="$4" fontWeight="600">
+                                        {word}
+                                    </Text>
+                                </XStack>
+                            ))}
                         </XStack>
                     </YStack>
 
-                    {hasBackedUp ? (
-                        <XStack items="center" gap="$2" justify="center" py="$2">
-                            <CheckCircle2 size={18} color="$green10" />
-                            <Text color="$green10" fontWeight="600">Already backed up</Text>
-                        </XStack>
-                    ) : null}
+                    {/* Copy Button */}
+                    <XStack items="center" justify="center">
+
+                        <Button
+                            size="$3"
+                            rounded="$10"
+
+                            onPress={handleCopy}
+                            icon={copied ? <Check /> : <Copy />}
+                        >
+                            {copied ? 'Copied!' : 'Copy '}
+                        </Button>
+                    </XStack>
 
 
                 </YStack>
             </ScrollView>
+
         </YStack>
     );
 }

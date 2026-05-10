@@ -162,6 +162,16 @@ export function RestoreProgressStep({
         }
     }, [allDone])
 
+    // Auto-scroll to currently scanning mint
+    const scrollViewRef = useRef<any>(null)
+    const activeIndex = entries.findIndex(e => e.status === 'scanning')
+    useEffect(() => {
+        if (activeIndex !== -1 && scrollViewRef.current) {
+            // Approximate height of a row + gap is ~75px
+            scrollViewRef.current.scrollTo({ y: activeIndex * 75, animated: true })
+        }
+    }, [activeIndex])
+
     // Pulse animation for the icon
     const pulseAnim = useRef(new Animated.Value(1)).current
     useEffect(() => {
@@ -206,8 +216,8 @@ export function RestoreProgressStep({
                     </H2>
                     <Text color="$gray10" fontSize="$3" style={{ textAlign: 'center' }} px="$4">
                         {allDone
-                            ? 'Your proofs have been recovered from the seed phrase.'
-                            : 'Scanning for your proofs on the blockchain. This may take a moment.'}
+                            ? 'Your proofs have been recovered. You can always restore balances from other mints later by adding them in the app.'
+                            : 'Scanning popular mints for your proofs. This may take a moment. You can also restore other mints later!'}
                     </Text>
                 </YStack>
 
@@ -239,7 +249,7 @@ export function RestoreProgressStep({
             </YStack>
 
             {/* Mint cards */}
-            <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollViewRef} flex={1} showsVerticalScrollIndicator={false}>
                 <YStack gap="$2.5">
                     {entries.map(entry => (
                         <MintRow key={entry.mintUrl} entry={entry} />

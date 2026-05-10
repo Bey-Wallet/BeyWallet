@@ -1,16 +1,15 @@
 import React, { useState } from 'react'
 import { YStack, Text, Button, H2, View, XStack } from 'tamagui'
-import { Fingerprint, ShieldCheck, Check } from '@tamagui/lucide-icons'
+import { BellRing, Check } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
-import { biometricService } from '../../services/biometricService'
-import { useSettingsStore } from '../../store/settingsStore'
+import { notificationService } from '../../services/notificationService'
 
-interface BiometricStepProps {
+interface NotificationStepProps {
     onComplete: () => void
     onSkip: () => void
 }
 
-export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
+export function NotificationStep({ onComplete, onSkip }: NotificationStepProps) {
     const [isEnabling, setIsEnabling] = useState(false)
     const [isEnabled, setIsEnabled] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -23,21 +22,27 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
         try {
-            const success = await biometricService.authenticateAsync('Enable biometric security for Bey Wallet')
+            const success = await notificationService.requestPermissions()
             if (success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                 setIsEnabled(true)
-                await useSettingsStore.getState().setBiometricEnabled(true)
                 // Brief delay to show success state
                 setTimeout(() => {
                     onComplete()
                 }, 800)
             } else {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-                setError('Authentication failed. Please try again.')
+                setError('Permission denied or unavailable.')
+                // Wait briefly and proceed anyway or let them skip manually
+                setTimeout(() => {
+                    onSkip()
+                }, 1500)
             }
         } catch (e) {
-            setError('An error occurred. Please try again.')
+            setError('An error occurred.')
+            setTimeout(() => {
+                onSkip()
+            }, 1500)
         } finally {
             setIsEnabling(false)
         }
@@ -46,13 +51,10 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
     return (
         <YStack flex={1} bg="$background" px="$4" py="$6" justify="space-between">
             {/* Top spacer / Skip */}
-            <XStack justify="flex-end" width="100%">
+            <XStack justify="flex-end" w="100%">
                 {!isEnabled && (
-                    <Button size="$3" rounded="$10" onPress={async () => {
-                        await useSettingsStore.getState().setBiometricEnabled(false)
-                        onSkip()
-                    }} pressStyle={{ opacity: 0.5 }}>
-                        Skip
+                    <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
+                        <Text color="$gray10" fontWeight="600">Skip</Text>
                     </Button>
                 )}
             </XStack>
@@ -71,21 +73,21 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
                     borderColor={isEnabled ? '$green9' : '$blue9'}
                 >
                     {isEnabled ? (
-                        <ShieldCheck size={56} color="$green10" />
+                        <Check size={56} color="$green10" />
                     ) : (
-                        <Fingerprint size={56} color="$blue10" />
+                        <BellRing size={56} color="$blue10" />
                     )}
                 </View>
 
                 {/* Text */}
                 <YStack items="center" gap="$2">
-                    <H2 fontSize="$7" fontWeight="700" color="$color">
-                        {isEnabled ? 'Security Enabled!' : 'Secure Your Wallet'}
+                    <H2 fontSize="$7" fontWeight="700" color="$color" text="center">
+                        {isEnabled ? 'Notifications Enabled!' : 'Stay Updated'}
                     </H2>
                     <Text color="$gray10" fontSize="$3" text="center" px="$4">
                         {isEnabled
-                            ? 'Your wallet is now protected with biometric authentication'
-                            : 'Use Face ID, Touch ID, or passcode to protect your funds'}
+                            ? 'You will now receive alerts for incoming payments.'
+                            : 'Enable notifications to know exactly when you receive payments.'}
                     </Text>
                 </YStack>
 
@@ -121,18 +123,18 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
                         width="100%"
                         onPress={handleEnable}
                         disabled={isEnabling}
-                        icon={<Fingerprint size={24} />}
+                        icon={<BellRing size={24} />}
                         fontSize="$5"
                         fontWeight="700"
                         rounded="$4"
                         pressStyle={{ scale: 0.98, opacity: 0.9 }}
                     >
-                        {isEnabling ? 'Enabling...' : 'Enable Biometric Security'}
+                        {isEnabling ? 'Enabling...' : 'Enable Notifications'}
                     </Button>
                 )}
 
                 <Text color="$gray9" fontSize="$2" text="center">
-                    Required for wallet security
+                    Get alerted when you get paid
                 </Text>
             </YStack>
         </YStack>

@@ -9,6 +9,7 @@ import { LockOverlay } from '../LockOverlay'
 
 import { useAuthStore } from '../../store/authStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { useCocoEvents } from '../../hooks/useCocoEvents'
 import { notificationService } from '../../services/notificationService'
 
@@ -25,15 +26,11 @@ export function RootLayoutNav() {
     const theme = useTheme()
     const { isAuthenticated, setAuthenticated, lock, markBackgrounded } = useAuthStore()
     const { isOnboarded } = useOnboardingStore()
+    const { biometricEnabled } = useSettingsStore()
     const appState = useRef(AppState.currentState)
 
     // Subscribe to coco events for automatic balance/history updates
     useCocoEvents();
-
-    // Request push notification permissions on app launch
-    useEffect(() => {
-        notificationService.requestPermissions();
-    }, []);
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -61,8 +58,8 @@ export function RootLayoutNav() {
         },
     }
 
-    // Only show lock overlay if onboarded and not authenticated
-    const showLockOverlay = isOnboarded && !isAuthenticated
+    // Only show lock overlay if onboarded, not authenticated, and biometric is enabled
+    const showLockOverlay = isOnboarded && !isAuthenticated && biometricEnabled
 
     return (
         <NavThemeProvider value={navigationTheme}>

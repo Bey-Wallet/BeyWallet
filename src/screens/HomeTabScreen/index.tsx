@@ -94,10 +94,10 @@ export function HomeTabScreen() {
                 <WalletCard />
                 <ActionButtons />
 
-                <ManageBalances />
                 {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
                 <React.Suspense fallback={<HomeSkeleton />}>
                     <LazyBitcoinPriceCard />
+                    <ManageBalances />
                     <LazyContactsView />
                     <LazySupportView />
                 </React.Suspense>

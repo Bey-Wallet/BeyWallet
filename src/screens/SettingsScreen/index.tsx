@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
-import { ShieldCheck, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
+import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
+import { BiometricModal } from './components/BiometricModal';
 import { MintModal } from './components/MintModal';
 import { SettingSection } from './components/SettingSection';
 import { DeleteWalletSheet } from './components/DeleteWalletSheet';
@@ -32,9 +33,10 @@ export function SettingsScreen() {
     const currencySheetRef = useRef<AppBottomSheetRef>(null);
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
+    const biometricSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    const { secondaryCurrency, defaultMintUrl } = useSettingsStore();
+    const { secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
@@ -57,6 +59,9 @@ export function SettingsScreen() {
                 break;
             case 'export':
                 handleExportWallet();
+                break;
+            case 'biometric':
+                biometricSheetRef.current?.present();
                 break;
             case 'theme':
                 themeSheetRef.current?.present();
@@ -163,6 +168,12 @@ export function SettingsScreen() {
         {
             title: 'Security',
             items: [
+                {
+                    id: 'biometric',
+                    title: 'Biometric Lock',
+                    subTitle: biometricEnabled ? 'Enabled' : 'Disabled',
+                    icon: Fingerprint,
+                },
                 {
                     id: 'backup',
                     title: 'Backup Recovery Phrase',
@@ -315,6 +326,7 @@ export function SettingsScreen() {
                 <CurrencyModal ref={currencySheetRef} />
                 <MintModal ref={mintSheetRef} />
                 <NotificationsModal ref={notificationsSheetRef} />
+                <BiometricModal ref={biometricSheetRef} />
 
                 <DeleteWalletSheet 
                     innerRef={deleteSheetRef}

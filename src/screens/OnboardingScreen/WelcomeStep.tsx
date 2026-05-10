@@ -65,8 +65,8 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
                 </View>
 
                 <YStack items="center" gap="$2">
-                    <H1 fontSize="$9" fontWeight="700" color="$color">
-                        Welcome to Bey
+                    <H1 fontSize="$9" text="center" lineHeight="$9" fontWeight="700" color="$color">
+                        Get Access to Cashu E-Cash with Bey Wallet
                     </H1>
                     <Text color="$gray10" fontSize="$4" text="center" px="$4">
                         Your self-custodial Cashu wallet for private, instant Bitcoin payments
@@ -104,23 +104,7 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
                     Import via Seed Phrase
                 </Button>
 
-                <Button
-                    size="$5"
-                    theme="gray"
-                    width="100%"
-                    onPress={handleImportFromFile}
-                    icon={<FolderOpen size={24} />}
-                    fontSize="$5"
-                    fontWeight="700"
-                    rounded="$4"
-                    pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                >
-                    Import from Backup File
-                </Button>
 
-                <Text color="$gray9" fontSize="$2" text="center">
-                    Your keys, your coins
-                </Text>
             </YStack>
         </YStack>
     )

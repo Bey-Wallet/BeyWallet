@@ -71,11 +71,7 @@ export function SeedStep({ mnemonic, onContinue }: SeedStepProps) {
 
                     {/* Seed Words Grid */}
                     <YStack
-                        bg="$gray2"
-                        borderWidth={1}
-                        borderColor="$borderColor"
-                        rounded="$4"
-                        p="$4"
+
                     >
                         <XStack flexWrap="wrap" gap="$2" justify="center">
                             {words.map((word, index) => (
@@ -89,7 +85,7 @@ export function SeedStep({ mnemonic, onContinue }: SeedStepProps) {
                                     py="$2"
                                     gap="$2"
                                     items="center"
-                                    minWidth={100}
+                                    minW={100}
                                 >
                                     <Text color="$gray9" fontSize="$2" fontWeight="500" width={20}>
                                         {index + 1}.
@@ -103,49 +99,54 @@ export function SeedStep({ mnemonic, onContinue }: SeedStepProps) {
                     </YStack>
 
                     {/* Copy Button */}
-                    <Button
-                        size="$4"
-                        variant="outlined"
-                        onPress={handleCopy}
-                        icon={copied ? <Check size={18} color="$green10" /> : <Copy size={18} />}
-                    >
-                        {copied ? 'Copied!' : 'Copy to Clipboard'}
-                    </Button>
+                    <XStack items="center" justify="center">
 
-                    {/* Confirmation checkbox */}
-                    <XStack
-                        items="center"
-                        gap="$3"
-                        p="$3"
-                        bg="$gray2"
-                        rounded="$3"
-                        pressStyle={{ opacity: 0.8 }}
-                        onPress={() => {
-                            setConfirmed(!confirmed)
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                        }}
-                    >
-                        <View
-                            width={24}
-                            height={24}
-                            rounded="$2"
-                            borderWidth={2}
-                            borderColor={confirmed ? '$green9' : '$gray8'}
-                            bg={confirmed ? '$green9' : 'transparent'}
-                            items="center"
-                            justify="center"
+                        <Button
+                            size="$3"
+                            rounded="$10"
+
+                            onPress={handleCopy}
+                            icon={copied ? <Check color="$green10" /> : <Copy />}
                         >
-                            {confirmed && <Check size={16} color="white" />}
-                        </View>
-                        <Text color="$color" fontSize="$3" flex={1}>
-                            I have saved my recovery phrase securely
-                        </Text>
+                            {copied ? 'Copied!' : 'Copy '}
+                        </Button>
                     </XStack>
+
+
                 </YStack>
             </ScrollView>
 
             {/* Continue Button */}
-            <YStack pt="$4">
+            <YStack pt="$4" gap="$3">
+                {/* Confirmation checkbox */}
+                <XStack
+                    items="center"
+                    gap="$3"
+                    p="$3"
+                    bg="$gray2"
+                    rounded="$3"
+                    pressStyle={{ opacity: 0.8 }}
+                    onPress={() => {
+                        setConfirmed(!confirmed)
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    }}
+                >
+                    <View
+                        width={24}
+                        height={24}
+                        rounded="$2"
+                        borderWidth={2}
+                        borderColor={confirmed ? '$green9' : '$gray8'}
+                        bg={confirmed ? '$green9' : 'transparent'}
+                        items="center"
+                        justify="center"
+                    >
+                        {confirmed && <Check size={16} color="white" />}
+                    </View>
+                    <Text color="$color" fontSize="$3" flex={1}>
+                        I have saved my recovery phrase securely
+                    </Text>
+                </XStack>
                 <Button
                     size="$5"
                     theme="accent"

@@ -353,10 +353,9 @@ export const useWalletStore = create<WalletState>()(
             restoreAllMints: async (extraMintUrls: string[] = []) => {
                 // Feature/Popular mints to check by default to aid discovery
                 const FEATURED_MINTS = [
-                    "https://8333.space:3338",
                     "https://mint.minibits.cash/Bitcoin",
-                    "https://legend.lnbits.com/cashu/api/v1/4gr93mame836988",
-                    "https://mint.probatio.money:3338"
+                    "https://testnut.cashu.space",
+                    "https://nofee.testnut.cashu.space"
                 ];
 
                 // Build deduplicated list of mints to restore
@@ -380,8 +379,8 @@ export const useWalletStore = create<WalletState>()(
                     isRestoring: true,
                 });
 
-                // Run restorations concurrently like cashu.me for maximum speed
-                await Promise.all(mintUrls.map(async (mintUrl) => {
+                // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
+                for (const mintUrl of mintUrls) {
                     // Mark as scanning
                     set(s => ({
                         mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
@@ -416,7 +415,10 @@ export const useWalletStore = create<WalletState>()(
                             ),
                         }));
                     }
-                }));
+                    
+                    // Small delay to let the UI breathe and update animations between heavy tasks
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
 
                 // Re-initialize the core Manager to pick up all restored counters and proofs
                 // FAST path to keep UI alive
