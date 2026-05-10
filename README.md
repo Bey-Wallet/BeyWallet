@@ -13,7 +13,7 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 
 ## 📸 Preview
 
-<div align="center">
+<div align="center" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
   
   <!-- <img src="./assets/banner.png" width="800" alt="Bey Wallet Banner" /> -->
   <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/3e2d78d1-8728-4b16-b218-4141f28ed6ff" />
