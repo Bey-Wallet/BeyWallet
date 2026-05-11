@@ -1,7 +1,7 @@
 import React from 'react';
 import { YStack, XStack, Text, Button, View, Separator, ScrollView } from 'tamagui';
 import { Copy, Share as ShareIcon, AtSign, RefreshCw } from '@tamagui/lucide-icons';
-import QRCodeStyled from 'react-native-qrcode-styled';
+import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Share, InteractionManager } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -19,7 +19,7 @@ export default function NostrProfileScreen() {
 
     // Live NIP-05 lookup from bey.cash
     const { username, nip05, loading: nip05Loading, refresh } = useNip05Lookup();
-    
+
     // Defer QR code rendering to avoid blocking navigation transition
     const [isQrReady, setIsQrReady] = React.useState(false);
 
@@ -68,27 +68,21 @@ export default function NostrProfileScreen() {
 
             {npub && isQrReady ? (
                 <View
-                    p="$2"
-                    bg="$background"
-                    rounded="$7"
+                    p="$5"
+                    bg="white"
+                    rounded="$6"
                     borderWidth={1}
                     borderColor="$borderColor"
+                    shadowColor="$color"
+                    shadowOpacity={0.1}
+                    shadowRadius={10}
+                    shadowOffset={{ width: 0, height: 4 }}
                 >
-                    <QRCodeStyled
-                        data={npub}
-                        size={310}
-                        padding={10}
-                        color={theme.color.val}
-                        pieceSize={6}
-                        pieceCornerType="rounded"
-                        pieceBorderRadius={4}
-                        isPiecesGlued
-                        outerEyesOptions={{
-                            borderRadius: 12,
-                        }}
-                        innerEyesOptions={{
-                            borderRadius: 6,
-                        }}
+                    <QRCode
+                        value={npub}
+                        size={300}
+                        color="black"
+                        backgroundColor="white"
                     />
                 </View>
             ) : (

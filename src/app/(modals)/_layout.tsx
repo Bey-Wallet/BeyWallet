@@ -194,6 +194,13 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
+            <Stack.Screen
+                name="nostr-activity"
+                options={{
+                    title: 'Nostr Activity',
+                    presentation: "fullScreenModal",
+                }}
+            />
         </Stack>
     )
 }

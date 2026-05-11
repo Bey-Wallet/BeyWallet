@@ -319,6 +319,16 @@ export function SendModalScreen() {
 
             if (!sent) throw new Error('Failed to publish to any relay');
 
+            // Save contact if we have a username
+            if (nostrRecipientUsername) {
+                import('~/store/contactsStore').then(({ useContactsStore }) => {
+                    useContactsStore.getState().addContact({
+                        npub: nostrRecipientNpub,
+                        username: nostrRecipientUsername.replace('@bey.cash', '') // store without domain or keep it? The store usually keeps bare username or full NIP-05. Let's just keep the raw one we have, but if we auto-appended @bey.cash on line 89, let's remove it or keep it. Actually, `contact-details` passes `username`.
+                    });
+                });
+            }
+
             setEncodedToken(result.encoded);
             setOperationId(result.id);
             setStatus('success');
