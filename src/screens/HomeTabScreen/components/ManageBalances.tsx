@@ -1,12 +1,16 @@
 import React, { useMemo } from 'react'
-import { View, Text, YStack, XStack, H4, H6, Image, styled, H5 } from 'tamagui'
+import { View, Text, YStack, XStack, H4, H6, Image, styled, H5, useThemeName } from 'tamagui'
 import { ChevronRight } from '@tamagui/lucide-icons'
 import { RollingNumber } from '~/components/UI/RollingNumber'
 import { useRouter } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
+import { useNostrInboxStore } from '~/store/nostrInboxStore'
 import { useQuery } from '@tanstack/react-query'
 import { historyService } from '~/services/core'
 import * as Haptics from 'expo-haptics'
+
+const nostrIconWhite = require('../../../assets/images/nostr-icon-white-transparent.png');
+const nostrIconBlack = require('../../../assets/images/nostr-icon-black-transparent.png');
 
 interface BalanceItem {
     id: string
@@ -48,6 +52,7 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
                     source={imageSource}
                     alt={title}
                     rounded="$2"
+                    bg={item.title === "Nostr" ? "$purple10" : "transparent"}
                     width={45}
                     height={45}
                 />
@@ -79,6 +84,8 @@ const ManageBalances = () => {
     const router = useRouter()
     const balances = useWalletStore(s => s.balances)
     const refreshCounter = useWalletStore(s => s.refreshCounter)
+    const themeName = useThemeName()
+    const nostrItems = useNostrInboxStore(s => s.items)
 
 
     const { data: history = [] } = useQuery({
@@ -99,6 +106,12 @@ const ManageBalances = () => {
         return history.reduce((sum, e) => sum + (e.amount || 0), 0)
     }, [history])
 
+    const totalNostrUnclaimed = useMemo(() => {
+        return nostrItems
+            .filter(i => i.status === 'pending' || i.status === 'failed')
+            .reduce((sum, i) => sum + i.amount, 0)
+    }, [nostrItems])
+
     const balanceData: BalanceItem[] = [
         {
             id: 'ecash',
@@ -113,6 +126,13 @@ const ManageBalances = () => {
             value: totalSpendable,
             imageSource: require("../../../assets/images/Mint.png"),
             onPress: () => router.push('/(modals)/mints'),
+        },
+        {
+            id: 'nostr',
+            title: 'Nostr',
+            value: totalNostrUnclaimed,
+            imageSource: themeName === 'dark' ? nostrIconWhite : nostrIconBlack,
+            onPress: () => router.push('/(modals)/nostr-activity'),
         },
         {
             id: 'bitcoin',

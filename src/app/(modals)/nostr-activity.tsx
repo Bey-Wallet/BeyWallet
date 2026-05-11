@@ -4,18 +4,27 @@
  * Full-screen modal with tabs (Pending · Received · Sent) showing all
  * Nostr payment activity. Pull-to-refresh checks pending proof states
  * and auto-marks spent items as claimed.
+ *
+ * Tapping a row opens a details bottom sheet with mint, amount, npub,
+ * username, time, locked status, and a copy-token option.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, Text, View, Separator, H6, Theme } from 'tamagui';
-import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, View, Separator, H6, Theme, Button, Spinner } from 'tamagui';
+import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight, Building2, Clock, Lock, User, Copy, Zap } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
+import { useContactsStore } from '~/store/contactsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/core';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import { useSettingsStore } from '~/store/settingsStore';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -25,6 +34,16 @@ function formatNpub(hex: string): string {
         return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
     } catch {
         return `${hex.slice(0, 6)}…`;
+    }
+}
+
+function hexToNpub(hex: string): string {
+    try {
+        // Strip 02 prefix if present (SEC1 compressed key)
+        const clean = hex.startsWith('02') && hex.length === 66 ? hex.slice(2) : hex;
+        return nip19.npubEncode(clean);
+    } catch {
+        return hex;
     }
 }
 
@@ -40,17 +59,73 @@ function timeAgo(ts: number): string {
     return `${Math.floor(days / 30)}mo ago`;
 }
 
+function formatTime(ts: number): string {
+    return new Date(ts).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    });
+}
+
 type Tab = 'pending' | 'received' | 'sent';
+
+// Unified detail item for the sheet
+interface DetailItem {
+    type: 'incoming' | 'sent';
+    amount: number;
+    mintUrl?: string;
+    pubkey: string;       // hex or npub
+    username?: string;
+    timestamp: number;
+    isP2PK?: boolean;
+    tokenString?: string;
+}
+
+// ─── Username resolver ────────────────────────────────────────────────────
+
+function useResolveUsername(pubkey: string): string | undefined {
+    const favorites = useContactsStore(s => s.favorites);
+    const contacts = useContactsStore(s => s.contacts || {});
+
+    return useMemo(() => {
+        // pubkey can be hex, npub, or 02-prefixed hex
+        // Try all possible keys
+        const candidates = [pubkey];
+        // Try npub conversion
+        try {
+            const clean = pubkey.startsWith('02') && pubkey.length === 66 ? pubkey.slice(2) : pubkey;
+            if (!clean.startsWith('npub')) {
+                candidates.push(nip19.npubEncode(clean));
+            }
+        } catch {}
+
+        for (const key of candidates) {
+            if (favorites[key]?.username) return favorites[key].username!;
+            if (contacts[key]?.username) return contacts[key].username!;
+        }
+        return undefined;
+    }, [pubkey, favorites, contacts]);
+}
 
 // ─── Component ────────────────────────────────────────────────────────────
 
 export default function NostrActivityModal() {
     const [activeTab, setActiveTab] = useState<Tab>('pending');
     const [refreshing, setRefreshing] = useState(false);
+    const [detailItem, setDetailItem] = useState<DetailItem | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const detailSheetRef = useRef<AppBottomSheetRef>(null);
+    const [copied, setCopied] = useState(false);
 
     const items = useNostrInboxStore(s => s.items);
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const queryClient = useQueryClient();
+
+    const { secondaryCurrency } = useSettingsStore();
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
 
     // Nostr history from SDK
     const { data: nostrHistory = [], refetch: refetchHistory } = useQuery({
@@ -91,6 +166,60 @@ export default function NostrActivityModal() {
         } catch {}
         setRefreshing(false);
     }, [refreshPendingStates, refetchHistory]);
+
+    // Open details sheet
+    const openDetail = useCallback((item: DetailItem) => {
+        setDetailLoading(true);
+        setDetailItem(item);
+        setCopied(false);
+        detailSheetRef.current?.present();
+        // Simulate instant-open loader, then reveal content
+        setTimeout(() => setDetailLoading(false), 300);
+    }, []);
+
+    const openInboxDetail = useCallback((item: NostrInboxItem) => {
+        openDetail({
+            type: 'incoming',
+            amount: item.amount,
+            mintUrl: item.mintUrl,
+            pubkey: item.senderPubkey,
+            username: item.senderUsername,
+            timestamp: item.receivedAt,
+            isP2PK: true,
+            tokenString: item.tokenString,
+        });
+    }, [openDetail]);
+
+    const openHistoryDetail = useCallback((entry: any) => {
+        openDetail({
+            type: 'sent',
+            amount: entry.amount || 0,
+            mintUrl: entry.mintUrl,
+            pubkey: entry.metadata?.p2pkPubkey || '',
+            timestamp: entry.createdAt || Date.now(),
+            isP2PK: entry.metadata?.type === 'p2pk',
+        });
+    }, [openDetail]);
+
+    const handleCopyToken = useCallback(async () => {
+        if (!detailItem?.tokenString) return;
+        await Clipboard.setStringAsync(detailItem.tokenString);
+        setCopied(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setTimeout(() => setCopied(false), 2000);
+    }, [detailItem]);
+
+    const fiatValue = useMemo(() => {
+        if (!btcData?.price || !detailItem?.amount) return null;
+        const cur = SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency);
+        const symbol = cur?.symbol ?? '$';
+        const val = currencyService.convertSatsToCurrency(detailItem.amount, btcData.price);
+        return `${symbol}${val.toFixed(2)}`;
+    }, [btcData?.price, detailItem?.amount, secondaryCurrency]);
+
+    const mintDomain = detailItem?.mintUrl
+        ? detailItem.mintUrl.replace(/^https?:\/\//, '').split('/')[0]
+        : 'Unknown';
 
     // ─── Tab data ─────────────────────────────────────────────────
     const tabs: { key: Tab; label: string; count: number }[] = [
@@ -162,23 +291,123 @@ export default function NostrActivityModal() {
             >
                 <YStack px="$4" gap="$1">
                     {activeTab === 'pending' && (
-                        <PendingTab items={unclaimed} onClaim={handleOpenClaim} />
+                        <PendingTab items={unclaimed} onClaim={handleOpenClaim} onDetail={openInboxDetail} />
                     )}
                     {activeTab === 'received' && (
-                        <ReceivedTab items={claimed} />
+                        <ReceivedTab items={claimed} onDetail={openInboxDetail} />
                     )}
                     {activeTab === 'sent' && (
-                        <SentTab entries={nostrHistory} />
+                        <SentTab entries={nostrHistory} onDetail={openHistoryDetail} />
                     )}
                 </YStack>
             </ScrollView>
+
+            {/* ── Details Sheet ────────────────────────────────────── */}
+            <Theme inverse>
+                <AppBottomSheet ref={detailSheetRef} onClose={() => { setDetailItem(null); setDetailLoading(false); }}>
+                    <YStack p="$4" gap="$4" items="center">
+                        {detailLoading ? (
+                            <YStack py="$6" items="center" gap="$3">
+                                <Spinner size="large" color="$color" />
+                                <Text color="$gray10" fontSize="$3">Loading…</Text>
+                            </YStack>
+                        ) : detailItem ? (
+                            <>
+                                {/* Amount */}
+                                <YStack items="center" gap="$1">
+                                    <Text
+                                        fontSize={32}
+                                        fontWeight="900"
+                                        color={detailItem.type === 'sent' ? '$red10' : '$color1'}
+                                        letterSpacing={-1}
+                                    >
+                                        {detailItem.type === 'sent' ? '-' : '+'}₿{detailItem.amount.toLocaleString()}
+                                    </Text>
+                                    {fiatValue && (
+                                        <Text fontSize="$3" color="$gray10">{fiatValue}</Text>
+                                    )}
+                                </YStack>
+
+                                {/* Detail Rows */}
+                                <Theme inverse>
+                                    <YStack width="100%" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
+                                        <DetailSheetRow pubkey={detailItem.pubkey} storedUsername={detailItem.username} type={detailItem.type} />
+                                        <Separator borderColor="$borderColor" opacity={0.3} />
+                                        <DetailRow
+                                            icon={<Building2 size={16} color="$gray9" />}
+                                            label="Mint"
+                                            value={mintDomain}
+                                        />
+                                        <Separator borderColor="$borderColor" opacity={0.3} />
+                                        <DetailRow
+                                            icon={<Clock size={16} color="$gray9" />}
+                                            label="Time"
+                                            value={formatTime(detailItem.timestamp)}
+                                        />
+                                        <Separator borderColor="$borderColor" opacity={0.3} />
+                                        <DetailRow
+                                            icon={<Lock size={16} color="$gray9" />}
+                                            label="P2PK Lock"
+                                            value={detailItem.isP2PK ? 'Yes' : 'No'}
+                                        />
+                                    </YStack>
+                                </Theme>
+
+                                {/* Actions */}
+                                <XStack width="100%" gap="$3">
+                                    {detailItem.tokenString && (
+                                        <Button
+                                            flex={1}
+                                            themeInverse
+                                            size="$5"
+                                            fontWeight="700"
+                                            rounded="$4"
+                                            icon={<Copy size={16} />}
+                                            onPress={handleCopyToken}
+                                            pressStyle={{ scale: 0.97 }}
+                                        >
+                                            {copied ? 'Copied!' : 'Copy Token'}
+                                        </Button>
+                                    )}
+                                    <Button
+                                        flex={1}
+                                        bg="$gray4"
+                                        color="$color"
+                                        size="$5"
+                                        fontWeight="700"
+                                        rounded="$4"
+                                        onPress={() => detailSheetRef.current?.dismiss()}
+                                        pressStyle={{ scale: 0.97 }}
+                                    >
+                                        Done
+                                    </Button>
+                                </XStack>
+                            </>
+                        ) : null}
+                    </YStack>
+                </AppBottomSheet>
+            </Theme>
         </YStack>
+    );
+}
+
+// ─── Detail Sheet Row with contact lookup ──────────────────────────────────
+
+function DetailSheetRow({ pubkey, storedUsername, type }: { pubkey: string; storedUsername?: string; type: string }) {
+    const resolved = useResolveUsername(pubkey);
+    const display = storedUsername || resolved || formatNpub(pubkey);
+    return (
+        <DetailRow
+            icon={<User size={16} color="$gray9" />}
+            label={type === 'sent' ? 'To' : 'From'}
+            value={display}
+        />
     );
 }
 
 // ─── Pending Tab ──────────────────────────────────────────────────────────
 
-function PendingTab({ items, onClaim }: { items: NostrInboxItem[]; onClaim: (item: NostrInboxItem) => void }) {
+function PendingTab({ items, onClaim, onDetail }: { items: NostrInboxItem[]; onClaim: (item: NostrInboxItem) => void; onDetail: (item: NostrInboxItem) => void }) {
     if (items.length === 0) {
         return (
             <EmptyState
@@ -199,6 +428,7 @@ function PendingTab({ items, onClaim }: { items: NostrInboxItem[]; onClaim: (ite
                         justify="space-between"
                         px="$3"
                         py="$3"
+                        onPress={() => onDetail(item)}
                         pressStyle={{ opacity: 0.7 }}
                     >
                         <XStack items="center" gap="$3" flex={1}>
@@ -215,9 +445,7 @@ function PendingTab({ items, onClaim }: { items: NostrInboxItem[]; onClaim: (ite
                                 )}
                             </View>
                             <YStack flex={1}>
-                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
-                                    {item.senderUsername || formatNpub(item.senderPubkey)}
-                                </Text>
+                                <PendingRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
                                 <Text fontSize="$1" color="$gray10">
                                     {timeAgo(item.receivedAt)}
                                     {item.status === 'failed' ? ' · Failed — tap to retry' : ''}
@@ -232,7 +460,7 @@ function PendingTab({ items, onClaim }: { items: NostrInboxItem[]; onClaim: (ite
                             rounded="$10"
                             items="center"
                             gap="$1"
-                            onPress={() => onClaim(item)}
+                            onPress={(e: any) => { e.stopPropagation?.(); onClaim(item); }}
                             pressStyle={{ scale: 0.96, opacity: 0.85 }}
                             cursor="pointer"
                         >
@@ -248,9 +476,18 @@ function PendingTab({ items, onClaim }: { items: NostrInboxItem[]; onClaim: (ite
     );
 }
 
+function PendingRowName({ pubkey, storedUsername }: { pubkey: string; storedUsername?: string }) {
+    const resolved = useResolveUsername(pubkey);
+    return (
+        <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
+            {storedUsername || resolved || formatNpub(pubkey)}
+        </Text>
+    );
+}
+
 // ─── Received Tab ─────────────────────────────────────────────────────────
 
-function ReceivedTab({ items }: { items: NostrInboxItem[] }) {
+function ReceivedTab({ items, onDetail }: { items: NostrInboxItem[]; onDetail: (item: NostrInboxItem) => void }) {
     if (items.length === 0) {
         return (
             <EmptyState
@@ -271,13 +508,13 @@ function ReceivedTab({ items }: { items: NostrInboxItem[] }) {
                         justify="space-between"
                         px="$3"
                         py="$3"
+                        onPress={() => onDetail(item)}
+                        pressStyle={{ opacity: 0.7 }}
                     >
                         <XStack items="center" gap="$3" flex={1}>
                             <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
                             <YStack flex={1}>
-                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
-                                    {item.senderUsername || formatNpub(item.senderPubkey)}
-                                </Text>
+                                <ReceivedRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
                                 <Text fontSize="$1" color="$gray10">
                                     {timeAgo(item.receivedAt)} · Claimed
                                 </Text>
@@ -297,9 +534,18 @@ function ReceivedTab({ items }: { items: NostrInboxItem[] }) {
     );
 }
 
+function ReceivedRowName({ pubkey, storedUsername }: { pubkey: string; storedUsername?: string }) {
+    const resolved = useResolveUsername(pubkey);
+    return (
+        <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
+            {storedUsername || resolved || formatNpub(pubkey)}
+        </Text>
+    );
+}
+
 // ─── Sent Tab ─────────────────────────────────────────────────────────────
 
-function SentTab({ entries }: { entries: any[] }) {
+function SentTab({ entries, onDetail }: { entries: any[]; onDetail: (entry: any) => void }) {
     if (entries.length === 0) {
         return (
             <EmptyState
@@ -320,6 +566,8 @@ function SentTab({ entries }: { entries: any[] }) {
                         justify="space-between"
                         px="$3"
                         py="$3"
+                        onPress={() => onDetail(entry)}
+                        pressStyle={{ opacity: 0.7 }}
                     >
                         <XStack items="center" gap="$3" flex={1}>
                             <Blockies
@@ -329,11 +577,7 @@ function SentTab({ entries }: { entries: any[] }) {
                                 style={{ borderRadius: 5 }}
                             />
                             <YStack flex={1}>
-                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
-                                    {entry.metadata?.p2pkPubkey
-                                        ? formatNpub(entry.metadata.p2pkPubkey)
-                                        : 'Unknown'}
-                                </Text>
+                                <SentRowName pubkey={entry.metadata?.p2pkPubkey || ''} />
                                 <Text fontSize="$1" color="$gray10">
                                     {entry.createdAt ? timeAgo(entry.createdAt) : 'Unknown time'}
                                 </Text>
@@ -350,7 +594,30 @@ function SentTab({ entries }: { entries: any[] }) {
     );
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────
+function SentRowName({ pubkey }: { pubkey: string }) {
+    const resolved = useResolveUsername(pubkey);
+    return (
+        <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
+            {resolved || formatNpub(pubkey)}
+        </Text>
+    );
+}
+
+// ─── Shared Components ────────────────────────────────────────────────────
+
+function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+    return (
+        <XStack justify="space-between" items="center" px="$4" py="$3">
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text color="$gray10" fontSize="$3" fontWeight="500">{label}</Text>
+            </XStack>
+            <Text color="$color" fontSize="$3" fontWeight="700" numberOfLines={1} style={{ maxWidth: 180 }}>
+                {value}
+            </Text>
+        </XStack>
+    );
+}
 
 function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
     return (
