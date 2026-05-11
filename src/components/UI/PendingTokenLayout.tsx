@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { YStack, XStack, Text, Button, Separator, View, ScrollView } from "tamagui";
-import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft } from "@tamagui/lucide-icons";
+import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme } from "tamagui";
+import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc } from "@tamagui/lucide-icons";
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
@@ -18,6 +18,8 @@ import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/services/core';
 import { nip19 } from 'nostr-tools';
+import NFCFillIcon from '~/components/icons/NFC-fill';
+import NostrIcon from '~/components/icons/NostrIcon';
 
 export interface PendingTokenLayoutProps {
     token: string;
@@ -48,6 +50,7 @@ export function PendingTokenLayout({
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
     const { secondaryCurrency, npub } = useSettingsStore();
+    const theme = useTheme();
 
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
@@ -160,8 +163,8 @@ export function PendingTokenLayout({
         try {
             // Create a deep link that will autofill the receive screen in this app
             const intentUrl = Linking.createURL('/receive', { queryParams: { scannedToken: currentToken } });
-            
-            await RNShare.share({ 
+
+            await RNShare.share({
                 message: `${intentUrl}\n\nRaw token:\ncashu:${currentToken}`,
                 title: 'Receive Ecash'
             });
@@ -304,6 +307,45 @@ export function PendingTokenLayout({
                 </YStack>
             )}
 
+            {/* Quick Share Actions */}
+            <XStack gap="$2" mb="$4" width="100%">
+                <Button
+                    flex={1}
+
+                    theme="orange"
+                    size="$5"
+                    fontWeight="700"
+                    icon={<Nfc size={24} />}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        toast.show('NFC Share', { message: 'NFC sharing is not implemented yet' });
+                    }}
+                />
+                <Button
+                    flex={1}
+                    theme="purple"
+
+                    size="$5"
+                    fontWeight="700"
+                    icon={<NostrIcon size={28} />}
+                    disabled={!!displayNpub}
+                    opacity={displayNpub ? 0.5 : 1}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
+                    }}
+                />
+                <Button
+                    flex={1}
+                    onPress={handleShare}
+                    theme="blue"
+
+                    size="$5"
+                    fontWeight="800"
+                    icon={<Share2 size={24} strokeWidth={2} />}
+                />
+            </XStack>
+
             {/* Action Buttons */}
             {!hideActions && (
                 <YStack mt="auto" pb="$8" gap="$4">
@@ -341,19 +383,12 @@ export function PendingTokenLayout({
                                     {isReclaiming ? '' : 'Reclaim'}
                                 </Button>
                             )}
-                            <Button
-                                flex={1}
-                                onPress={handleShare}
-                                theme="gray"
-                                size="$5"
-                                fontWeight="800"
-                                icon={<Share2 size={18} />}
-                            />
+
                             <Button
                                 flex={2}
                                 onPress={handleCopy}
                                 size="$5"
-                                theme="accent"
+                                theme="gray"
                                 fontWeight="800"
                                 icon={copied ? <Check size={18} /> : <Copy size={18} />}
                             >

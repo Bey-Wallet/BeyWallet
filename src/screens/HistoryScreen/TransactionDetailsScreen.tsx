@@ -291,7 +291,7 @@ export function TransactionDetailsScreen() {
 
     const handleRefresh = async () => {
         if (isRefetching) return;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
 
         if (token) {
             try {
@@ -431,7 +431,7 @@ export function TransactionDetailsScreen() {
                                 <Button
                                     circular
                                     size="$3"
-                                    icon={isRefetching ? <Spinner /> : <RefreshCw size={22} color="$color" />}
+                                    icon={isRefetching ? <Spinner size={22} /> : <RefreshCw size={22} color="$color" />}
                                     chromeless
                                     onPress={handleRefresh}
                                     disabled={isRefetching}

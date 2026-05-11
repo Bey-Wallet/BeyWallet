@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router'
 import { Button, useTheme, Text } from 'tamagui'
-import { X } from '@tamagui/lucide-icons'
+import { Send, X } from '@tamagui/lucide-icons'
 import React from 'react'
 import HomeHeaderMintSelector from '~/components/HomeMintSelector'
 
@@ -57,6 +57,14 @@ export default function ModalLayout() {
             <Stack.Screen
                 name="nfc-receive"
                 options={{
+                    headerRight: () => (
+                        <Button
+                            theme="gray"
+                            size="$3"
+                            rounded="$10"
+                            onPress={() => router.back()}
+                        >Send</Button>
+                    ),
                     headerTitle: () => <HomeHeaderMintSelector />,
                     presentation: "fullScreenModal",
                 }}

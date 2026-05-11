@@ -50,10 +50,10 @@ export default function NFCReceiveScreen() {
     return (
         <YStack flex={1} bg="$background" p="$4" justify="space-between">
             {/* Card */}
-            <Theme inverse>
+            <Theme inverse >
 
                 <YStack
-                    bg="$color1"
+                    bg="$accent12"
                     p="$3"
                     rounded="$5"
                     borderWidth={1}
@@ -93,7 +93,7 @@ export default function NFCReceiveScreen() {
                             </Text>
                         </YStack>
                         <YStack items="flex-end" gap="$1">
-                            <Text fontSize="$2" color="$gray10" fontWeight="600">Balance</Text>
+                            <Text fontSize="$2" color="$gray10" fontWeight="600">Balance (sats)</Text>
                             <Text fontSize="$6" fontWeight="900" color="$color">
                                 ₿{balance.toLocaleString()}
                             </Text>
