@@ -22,6 +22,7 @@ import SettingsIcon from '~/components/icons/Settings'
 import WalletIcon from '~/components/icons/Wallet'
 import HistoryVolume from '~/components/HistoryVolume'
 import LockIcon from '~/components/icons/Lock'
+import NFCFillIcon from '~/components/icons/NFC-fill'
 import * as Haptics from 'expo-haptics'
 
 // Extracted to module scope + memoized so they aren't re-created on every render
@@ -101,10 +102,10 @@ export default function TabLayout() {
                 circular
                 size="$3"
                 chromeless
-                icon={<LockIcon size={24} color={theme.color9.val} />}
+                icon={<NFCFillIcon size={24} color={theme.color9.val} />}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  lock(true)
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  router.push('/(modals)/nfc-receive')
                 }}
               />
             </XStack>

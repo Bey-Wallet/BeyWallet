@@ -61,6 +61,71 @@ function AnimatedBeam() {
   );
 }
 
+function RadarLoader() {
+  const scale1 = useSharedValue(1);
+  const opacity1 = useSharedValue(1);
+  const scale2 = useSharedValue(1);
+  const opacity2 = useSharedValue(1);
+
+  useEffect(() => {
+    scale1.value = withRepeat(
+      withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
+    );
+    opacity1.value = withRepeat(
+      withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
+    );
+
+    const timer = setTimeout(() => {
+      scale2.value = withRepeat(
+        withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      );
+      opacity2.value = withRepeat(
+        withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      );
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const style1 = useAnimatedStyle(() => ({
+    transform: [{ scale: scale1.value }],
+    opacity: opacity1.value,
+  }));
+
+  const style2 = useAnimatedStyle(() => ({
+    transform: [{ scale: scale2.value }],
+    opacity: opacity2.value,
+  }));
+
+  return (
+    <View width={100} height={100} items="center" justify="center">
+      <Animated.View
+        style={[
+          { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFD700', position: 'absolute' },
+          style1,
+        ]}
+      />
+      <Animated.View
+        style={[
+          { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFD700', position: 'absolute' },
+          style2,
+        ]}
+      />
+      <View width={40} height={40} borderRadius={20} bg="$accent10" items="center" justify="center">
+        <Smartphone size={20} color="white" />
+      </View>
+    </View>
+  );
+}
+
 export function ProcessingSheet({
   visible,
   status = 'processing',
@@ -137,15 +202,7 @@ export function ProcessingSheet({
             )}
 
             {isProcessing && variant === 'nfc' && (
-              <XStack items="center" gap="$4">
-                <View w={48} h={48} borderRadius={24} bg="$gray3" items="center" justify="center">
-                  <Smartphone size={24} color="$color1" />
-                </View>
-                <AnimatedBeam />
-                <View w={48} h={48} borderRadius={24} bg="$accent3" items="center" justify="center">
-                  <Wifi size={24} color="$accent9" />
-                </View>
-              </XStack>
+              <RadarLoader />
             )}
 
             {isSuccess && (
