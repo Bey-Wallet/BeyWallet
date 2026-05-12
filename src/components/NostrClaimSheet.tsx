@@ -35,6 +35,7 @@ export function NostrClaimSheet() {
     const markClaimed = useNostrInboxStore(s => s.markClaimed);
     const markFailed = useNostrInboxStore(s => s.markFailed);
     const dismiss = useNostrInboxStore(s => s.dismiss);
+    const storeItems = useNostrInboxStore(s => s.items);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
     const settingsNsec = useSettingsStore(s => s.nsec);
 
@@ -51,6 +52,13 @@ export function NostrClaimSheet() {
                 senderUsername?: string;
                 requestId?: string;
             }) => {
+                // Skip items already claimed/dismissed in persistent store
+                const existing = useNostrInboxStore.getState().items.find(i => i.id === data.eventId);
+                if (existing && (existing.status === 'claimed' || existing.status === 'claiming')) {
+                    console.log(`[NostrClaimSheet] Skipping already ${existing.status} event ${data.eventId.slice(0, 8)}`);
+                    return;
+                }
+
                 console.log('[NostrClaimSheet] Incoming payment:', data.amount, 'sats');
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -136,8 +144,19 @@ export function NostrClaimSheet() {
                         errMsg.includes('public key') || errMsg.includes('Witness') ||
                         errMsg.includes('signature');
 
-                    if (errMsg.includes('already spent')) {
-                        throw new Error('This token has already been claimed.');
+                    if (errMsg.includes('already spent') || p2pkErr?.code === 11001) {
+                        // Token was already claimed (e.g. in a previous session).
+                        // Mark as claimed and show success instead of error.
+                        console.log(`[NostrClaimSheet] Token already spent — marking as claimed`);
+                        markClaimed(activeItem.id);
+                        setClaimStatus('success');
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        setTimeout(() => {
+                            sheetRef.current?.dismiss();
+                            setActiveItem(null);
+                            setClaimStatus('idle');
+                        }, 1500);
+                        return;
                     }
 
                     if (!isP2PKError) {
@@ -151,8 +170,24 @@ export function NostrClaimSheet() {
                 }
             } else {
                 // No private key — try standard receive
-                await walletService.receive(activeItem.tokenString);
-                received = true;
+                try {
+                    await walletService.receive(activeItem.tokenString);
+                    received = true;
+                } catch (stdErr: any) {
+                    if (stdErr?.message?.includes('already spent') || stdErr?.code === 11001) {
+                        console.log(`[NostrClaimSheet] Token already spent — marking as claimed`);
+                        markClaimed(activeItem.id);
+                        setClaimStatus('success');
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        setTimeout(() => {
+                            sheetRef.current?.dismiss();
+                            setActiveItem(null);
+                            setClaimStatus('idle');
+                        }, 1500);
+                        return;
+                    }
+                    throw stdErr;
+                }
             }
 
             if (received) {
@@ -250,32 +285,34 @@ export function NostrClaimSheet() {
 
                         {/* Amount */}
                         <YStack items="center" gap="$1">
-                            <Text fontSize={36} fontWeight="900" color="$green10" letterSpacing={-1}>
+                            <Text fontSize={36} fontWeight="900" color="$color1" letterSpacing={-1}>
                                 +₿{activeItem?.amount?.toLocaleString() ?? 0}
                             </Text>
                             <Text fontSize="$3" color="$gray10">sats</Text>
                         </YStack>
 
                         {/* Details */}
-                        <YStack width="100%" gap="$0" bg="$gray3" rounded="$4" overflow="hidden">
-                            <DetailRow
-                                icon={<User size={16} color="$gray9" />}
-                                label="From"
-                                value={senderDisplay}
-                            />
-                            <Separator borderColor="$borderColor" opacity={0.3} />
-                            <DetailRow
-                                icon={<Building2 size={16} color="$gray9" />}
-                                label="Mint"
-                                value={mintDomain}
-                            />
-                            <Separator borderColor="$borderColor" opacity={0.3} />
-                            <DetailRow
-                                icon={<ShieldCheck size={16} color="$gray9" />}
-                                label="Type"
-                                value="Nostr DM"
-                            />
-                        </YStack>
+                        <Theme inverse>
+                            <YStack width="100%" gap="$0" borderWidth={1} borderColor="$borderColor" rounded="$4" overflow="hidden">
+                                <DetailRow
+                                    icon={<User size={16} color="$gray9" />}
+                                    label="From"
+                                    value={senderDisplay}
+                                />
+                                <Separator borderColor="$borderColor" opacity={0.3} />
+                                <DetailRow
+                                    icon={<Building2 size={16} color="$gray9" />}
+                                    label="Mint"
+                                    value={mintDomain}
+                                />
+                                <Separator borderColor="$borderColor" opacity={0.3} />
+                                <DetailRow
+                                    icon={<ShieldCheck size={16} color="$gray9" />}
+                                    label="Type"
+                                    value="Nostr DM"
+                                />
+                            </YStack>
+                        </Theme>
 
                         {/* Error message */}
                         {claimStatus === 'error' && (
@@ -286,11 +323,14 @@ export function NostrClaimSheet() {
 
                         {/* Success message */}
                         {claimStatus === 'success' && (
-                            <YStack bg="$green3" p="$3" rounded="$3" width="100%">
-                                <Text color="$green11" fontSize="$3" fontWeight="700" textAlign="center">
-                                    ✅ Payment claimed successfully!
-                                </Text>
-                            </YStack>
+                            <Theme inverse >
+
+                                <YStack bg="$green3" p="$3" rounded="$3" width="100%">
+                                    <Text color="$green11" fontSize="$3" fontWeight="700" textAlign="center">
+                                        ✅ Payment claimed successfully!
+                                    </Text>
+                                </YStack>
+                            </Theme>
                         )}
 
                         {/* Action buttons */}
@@ -298,8 +338,7 @@ export function NostrClaimSheet() {
                             <XStack width="100%" gap="$3">
                                 <Button
                                     flex={1}
-                                    bg="$gray4"
-                                    color="$color"
+                                    themeInverse
                                     size="$5"
                                     fontWeight="700"
                                     rounded="$4"

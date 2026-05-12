@@ -12,6 +12,7 @@ const ContactsView = () => {
     const router = useRouter()
 
     const favorites = useContactsStore(state => state.favorites)
+    const contacts = useContactsStore(state => state.contacts || {})
 
     useEffect(() => {
         // Defer rendering of heavy Blockies to avoid blocking the initial index.tsx mount
@@ -19,9 +20,10 @@ const ContactsView = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    // Currently local contacts are sourced purely from favorites
+    // Combine favorites and normal contacts
     const combinedContacts = useMemo(() => {
         const list: any[] = [];
+        const seen = new Set<string>();
 
         Object.values(favorites).forEach(fav => {
             list.push({
@@ -29,10 +31,21 @@ const ContactsView = () => {
                 name: fav.username || 'Unknown',
                 seed: fav.npub,
             });
+            seen.add(fav.npub);
+        });
+
+        Object.values(contacts).forEach(contact => {
+            if (!seen.has(contact.npub)) {
+                list.push({
+                    id: contact.npub,
+                    name: contact.username || 'Unknown',
+                    seed: contact.npub,
+                });
+            }
         });
 
         return list;
-    }, [favorites]);
+    }, [favorites, contacts]);
 
     const visibleContacts = isExpanded ? combinedContacts : combinedContacts.slice(0, 7)
 
@@ -70,7 +83,7 @@ const ContactsView = () => {
                     <Button
                         size="$4"
                         theme="inverse"
-                        onPress={() => router.push('/(modals)/contact-search')}
+                        onPress={() => router.push('/(modals)/search')}
                         icon={<Search size={18} />}
                     >
                         Search Contacts
@@ -88,7 +101,7 @@ const ContactsView = () => {
             <XStack gap="$3" width="100%" flexWrap="wrap">
                 {/* Search / Add Button */}
                 <Theme inverse>
-                    <XStack cursor="pointer" onPress={() => router.push('/(modals)/contact-search')} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
+                    <XStack cursor="pointer" onPress={() => router.push('/(modals)/search')} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
                         <YStack width={24} height={24} bg="$gray6" rounded={3} items="center" justify="center">
                             <Search size={16} color="$color" />
                         </YStack>
@@ -101,7 +114,7 @@ const ContactsView = () => {
                     return (
                         <XStack
                             key={contact.id}
-                            bg={isFav ? "$pink4" : "$gray4"}
+                            bg={isFav ? "$pink4" : "$gray2"}
                             borderColor={isFav ? "$pink6" : "transparent"}
                             borderWidth={0}
                             items="center"

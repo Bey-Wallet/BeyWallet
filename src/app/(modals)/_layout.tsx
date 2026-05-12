@@ -1,7 +1,8 @@
 import { Stack, useRouter } from 'expo-router'
 import { Button, useTheme, Text } from 'tamagui'
-import { X } from '@tamagui/lucide-icons'
+import { Nfc, Send, X } from '@tamagui/lucide-icons'
 import React from 'react'
+import HomeHeaderMintSelector from '~/components/HomeMintSelector'
 
 // Extracted to module scope — never recreated on re-render
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
@@ -36,7 +37,7 @@ export default function ModalLayout() {
                         circular
                         size="$3"
                         chromeless
-                        rounded="$3"
+                        rounded="$10"
                         icon={<X size={24} color="$color" />}
                         onPress={() => router.back()}
                     />
@@ -50,6 +51,30 @@ export default function ModalLayout() {
                 name="receive"
                 options={{
                     title: 'Receive Ecash',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="nfc-receive"
+                options={{
+                    headerRight: () => (
+                        <Button
+                            theme="orange"
+                            fontWeight="700"
+                            size="$3"
+                            rounded="$10"
+                            iconAfter={<Nfc size={16} strokeWidth={2.5} color="$color" />}
+                            onPress={() => router.back()}
+                        >Send</Button>
+                    ),
+                    headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="+not-found"
+                options={{
+                    title: 'Not Found',
                     presentation: "fullScreenModal",
                 }}
             />
@@ -167,6 +192,20 @@ export default function ModalLayout() {
                 }}
             />
             <Stack.Screen
+                name="search"
+                options={{
+                    title: 'Search',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="discover-mints"
+                options={{
+                    title: 'Discover Mints',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
                 name="contact-details"
                 options={{
                     title: 'Contact Details',
@@ -194,6 +233,14 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
+            <Stack.Screen
+                name="nostr-activity"
+                options={{
+                    title: 'Nostr Activity',
+                    presentation: "fullScreenModal",
+                }}
+            />
+
         </Stack>
     )
 }

@@ -217,9 +217,16 @@ class NostrService {
 
     if (!this.privkeyHex || !this.pubkeyHex || !this.privkeyBytes) return;
 
-    // Skip our own outgoing events (sender picking up its own DM)
+    // Skip our own outgoing events UNLESS it's a self-send (sender = recipient).
+    // When you send to yourself, the event's author is you AND the #p tag is also you.
     if (event.pubkey === this.pubkeyHex) {
-      return;
+      const pTags = event.tags.filter(t => t[0] === 'p').map(t => t[1]);
+      const isSelfSend = pTags.includes(this.pubkeyHex!);
+      if (!isSelfSend) {
+        return; // Outgoing event to someone else — skip
+      }
+      // Self-send — continue processing as incoming payment
+      console.log(`[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`);
     }
 
     console.log(

@@ -2,6 +2,7 @@ import { Button, Input, Modal, Sheet, Text, YStack, XStack, H3, Paragraph } from
 import { useState } from "react";
 import { useWalletStore } from "../../../store/walletStore";
 import { mintService } from "../../../services/mintService";
+import { sqliteStorage } from "../../../store/sqliteStorage";
 import * as Haptics from 'expo-haptics';
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from 'expo-clipboard';
@@ -20,6 +21,21 @@ export default function MintModal({ open, onOpenChange }: { open: boolean, onOpe
         try {
             const res = await mintService.requestMintQuote(activeMintUrl, parseInt(amount));
             setQuote({ pr: res.request, quoteId: res.quote });
+            
+            // Save invoice data for history screen
+            try {
+                const cached = sqliteStorage.getItem('mint_invoices');
+                const invoices = cached ? JSON.parse(cached) : {};
+                invoices[res.quote] = {
+                    pr: res.request,
+                    expiry: Date.now() + 3600 * 1000, // Default 1 hour
+                    amount: amount,
+                    mintUrl: activeMintUrl
+                };
+                sqliteStorage.setItem('mint_invoices', JSON.stringify(invoices));
+            } catch (e) {
+                console.error('[MintModal] Failed to save invoice to storage:', e);
+            }
         } catch (err) {
             console.error(err);
         } finally {

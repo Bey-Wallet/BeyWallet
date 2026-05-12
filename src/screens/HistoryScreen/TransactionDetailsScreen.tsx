@@ -15,6 +15,7 @@ import { nip19 } from 'nostr-tools';
 import { PendingTokenLayout } from '~/components/UI/PendingTokenLayout';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '~/store/settingsStore';
+import { sqliteStorage } from '~/store/sqliteStorage';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { bitcoinService } from '~/services/bitcoinService';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -123,6 +124,25 @@ export function TransactionDetailsScreen() {
         }
     }, [entry]);
 
+    // Check for saved invoice for pending mints
+    const [savedInvoice, setSavedInvoice] = useState<string | null>(null);
+    useEffect(() => {
+        if (entry?.type === 'mint' && (status === 'pending' || status === 'unclaimed')) {
+            try {
+                const cached = sqliteStorage.getItem('mint_invoices');
+                if (cached) {
+                    const invoices = JSON.parse(cached);
+                    const data = invoices[entry.id];
+                    if (data && data.expiry > Date.now()) {
+                        setSavedInvoice(data.pr);
+                    }
+                }
+            } catch (e) {
+                console.error('[TransactionDetails] Failed to read saved invoice:', e);
+            }
+        }
+    }, [entry, status]);
+
     const status = entry?.state || 'completed';
 
     // Animated QR states
@@ -212,7 +232,7 @@ export function TransactionDetailsScreen() {
     }, [showAnimatedQR, intervalMs]);
 
     const statusConfig = useMemo(() => {
-        if (status === 'claimed' || status === 'completed' || entry?.type === 'receive' || entry?.type === 'mint') {
+        if (status === 'claimed' || status === 'completed' || entry?.type === 'receive') {
             return { color: '$green11', bg: '$green3', headerBg: '$green9', icon: CheckCircle2, label: 'Success' };
         }
         if (status === 'pending' || status === 'unclaimed') {
@@ -291,7 +311,7 @@ export function TransactionDetailsScreen() {
 
     const handleRefresh = async () => {
         if (isRefetching) return;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
 
         if (token) {
             try {
@@ -420,6 +440,45 @@ export function TransactionDetailsScreen() {
     const amountColor = isOutgoing ? '$red10' : '$green11';
     const amountSign = isOutgoing ? '-' : '+';
 
+    if (savedInvoice && (status === 'pending' || status === 'unclaimed')) {
+        return (
+            <>
+                <Stack.Screen
+                    options={{
+                        title: 'Pending Deposit',
+                    }}
+                />
+                <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
+                    <YStack items="center" gap="$4" pt="$4" mb="$6">
+                        <Text fontWeight="600" fontSize="$5">Pay this invoice to mint tokens</Text>
+                        <YStack bg="white" p="$4" rounded="$4">
+                            <QRCode value={savedInvoice} size={200} />
+                        </YStack>
+                        <Button size="$3" variant="outline" onPress={async () => {
+                            await Clipboard.setStringAsync(savedInvoice);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            toast.show('Copied!', { message: 'Invoice copied to clipboard' });
+                        }}>
+                            Copy Invoice
+                        </Button>
+                        <Text color="$gray10" fontSize="$3" text="center" px="$4">
+                            Scan this QR code with a Lightning wallet to complete the deposit.
+                        </Text>
+                    </YStack>
+                    
+                    {/* Details Table */}
+                    <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                        <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
+                        <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
+                        <DetailItem label="Type" value="Mint Ecash" />
+                        <DetailItem label="Status" value="Unpaid" />
+                        <DetailItem label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
+                    </YStack>
+                </ScrollView>
+            </>
+        );
+    }
+
     if (token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed')) {
         return (
             <>
@@ -431,7 +490,7 @@ export function TransactionDetailsScreen() {
                                 <Button
                                     circular
                                     size="$3"
-                                    icon={isRefetching ? <Spinner /> : <RefreshCw size={22} color="$color" />}
+                                    icon={isRefetching ? <Spinner size={22} /> : <RefreshCw size={22} color="$color" />}
                                     chromeless
                                     onPress={handleRefresh}
                                     disabled={isRefetching}
@@ -469,7 +528,6 @@ export function TransactionDetailsScreen() {
                         ),
                         headerRight: () => (
                             <XStack bg="$gray4" rounded="$3" p="$1" gap="$3" items="center" justify="center">
-                                <Button circular size="$3" icon={<Menu size={22} color="$color" />} chromeless />
 
 
                                 <Button
@@ -488,15 +546,16 @@ export function TransactionDetailsScreen() {
                     <YStack bg="$background" p="$4" mx="$-4" mt="$-4" pt="$4">
                         {/* SuccessStage-like Amount Display */}
                         <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
-                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' ? '$red10' : '$color'}>
+                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' ? '$red10' : status === 'pending' || status === 'unclaimed' ? '$orange10' : '$color'}>
                                 {status === 'failed' || status === 'error' ? 'Transaction Failed' :
+                                    status === 'pending' || status === 'unclaimed' ? 'Transaction Pending' :
                                     entry.type === 'send' ? 'Sent Successfully!' :
                                         entry.type === 'receive' ? 'Received Successfully!' :
                                             entry.type === 'mint' ? 'Minted Successfully!' :
                                                 entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
                             </Text>
                             <YStack items="center" justify="center">
-                                <Text fontSize="$9" fontWeight="900" color={amountColor}>
+                                <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
                                     {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
                                 </Text>
                                 <Text fontSize="$5" fontWeight="600" color="$gray10">
@@ -506,6 +565,7 @@ export function TransactionDetailsScreen() {
                             <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                                 <Text color="$gray10" fontSize="$4" text="center">
                                     {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
+                                        status === 'pending' || status === 'unclaimed' ? 'Wait for payment to be processed.' :
                                         entry.type === 'send' ? 'The recipient has claimed your ecash.' :
                                             entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
                                                 entry.type === 'mint' ? 'Ecash added to your wallet.' :

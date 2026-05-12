@@ -3288,6 +3288,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@shopify/flash-list@npm:1.7.2":
+  version: 1.7.2
+  resolution: "@shopify/flash-list@npm:1.7.2"
+  dependencies:
+    recyclerlistview: "npm:4.2.1"
+    tslib: "npm:2.6.3"
+  peerDependencies:
+    "@babel/runtime": "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10/f8b48a85b85be3a46221b9fa1417ac702d55533e5bca9f68409f2c218c418a02873f3e59c2237a398cfe483658771e67f319fab368934a7d3abdb141a0a71a7d
+  languageName: node
+  linkType: hard
+
 "@sinclair/typebox@npm:^0.27.8":
   version: 0.27.10
   resolution: "@sinclair/typebox@npm:0.27.10"
@@ -5986,6 +6000,7 @@ __metadata:
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@react-navigation/native": "npm:^7.1.6"
     "@scure/bip32": "npm:^2.0.1"
+    "@shopify/flash-list": "npm:1.7.2"
     "@tamagui/babel-plugin": "npm:^1.143.1"
     "@tamagui/cli": "npm:^1.143.1"
     "@tamagui/config": "npm:^1.143.1"
@@ -6053,6 +6068,7 @@ __metadata:
     react-native-blockies: "npm:^1.0.2"
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-get-random-values: "npm:~1.11.0"
+    react-native-nfc-manager: "npm:^3.17.2"
     react-native-qrcode-styled: "npm:^0.4.0"
     react-native-qrcode-svg: "npm:^6.3.21"
     react-native-reanimated: "npm:~4.1.1"
@@ -9314,7 +9330,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.debounce@npm:^4.0.8":
+"lodash.debounce@npm:4.0.8, lodash.debounce@npm:^4.0.8":
   version: 4.0.8
   resolution: "lodash.debounce@npm:4.0.8"
   checksum: 10/cd0b2819786e6e80cb9f5cda26b1a8fc073daaf04e48d4cb462fa4663ec9adb3a5387aa22d7129e48eed1afa05b482e2a6b79bfc99b86886364449500cbb00fd
@@ -11072,7 +11088,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prop-types@npm:^15.8.0":
+"prop-types@npm:15.8.1, prop-types@npm:^15.8.0":
   version: 15.8.1
   resolution: "prop-types@npm:15.8.1"
   dependencies:
@@ -11316,6 +11332,18 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/dc82d54e0bf8f89208a538bb0d14e4891af6efae27ed5b7b21be683a72c38c5219ab9be1ea9bd40aa1c905d481174e649d0b71aeceaa9946e6c707f251568282
+  languageName: node
+  linkType: hard
+
+"react-native-nfc-manager@npm:^3.17.2":
+  version: 3.17.2
+  resolution: "react-native-nfc-manager@npm:3.17.2"
+  peerDependencies:
+    "@expo/config-plugins": "*"
+  peerDependenciesMeta:
+    "@expo/config-plugins":
+      optional: true
+  checksum: 10/b8fe76c801de07c1177b3c160ea6b967a0f423a87f87546c7b59240e7360b53217a913f521b490fd45ae09c0f99814ad00abf94c688c594218520c8d2990f3ab
   languageName: node
   linkType: hard
 
@@ -11626,6 +11654,20 @@ __metadata:
   dependencies:
     picomatch: "npm:^2.2.1"
   checksum: 10/196b30ef6ccf9b6e18c4e1724b7334f72a093d011a99f3b5920470f0b3406a51770867b3e1ae9711f227ef7a7065982f6ee2ce316746b2cb42c88efe44297fe7
+  languageName: node
+  linkType: hard
+
+"recyclerlistview@npm:4.2.1":
+  version: 4.2.1
+  resolution: "recyclerlistview@npm:4.2.1"
+  dependencies:
+    lodash.debounce: "npm:4.0.8"
+    prop-types: "npm:15.8.1"
+    ts-object-utils: "npm:0.0.5"
+  peerDependencies:
+    react: ">= 15.2.1"
+    react-native: ">= 0.30.0"
+  checksum: 10/9c5080bfeb59a5b3127bf7b66338278b7fbc40a56aa1644add7e3de280a1f24458c49fdb08299058041f3afe49a085d06cfdfc997852345c4e9090ef48d27da6
   languageName: node
   linkType: hard
 
@@ -12648,6 +12690,20 @@ __metadata:
     "@ts-morph/common": "npm:~0.16.0"
     code-block-writer: "npm:^11.0.0"
   checksum: 10/6fd9e73101ee5716b9ae99b4760eacd85e62f8430cecd5a817530ff490ec9949da5e65aaa76a04d2412efafa63c53a07c868e911f4b8ba54c4604b5ea8150587
+  languageName: node
+  linkType: hard
+
+"ts-object-utils@npm:0.0.5":
+  version: 0.0.5
+  resolution: "ts-object-utils@npm:0.0.5"
+  checksum: 10/83c48fbdaba392fb2c01cea53b267ed5538d2bb44fc6c3eecc10bcfabc1780bfa6ec8569b52bbf0140d9b521d9049d5f15884e12286918244d463d854dbc73cb
+  languageName: node
+  linkType: hard
+
+"tslib@npm:2.6.3":
+  version: 2.6.3
+  resolution: "tslib@npm:2.6.3"
+  checksum: 10/52109bb681f8133a2e58142f11a50e05476de4f075ca906d13b596ae5f7f12d30c482feb0bff167ae01cfc84c5803e575a307d47938999246f5a49d174fc558c
   languageName: node
   linkType: hard
 

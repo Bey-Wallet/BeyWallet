@@ -16,7 +16,7 @@ import ManageBalances from './components/ManageBalances'
 import NostrActivity from './components/NostrActivity'
 import { NostrClaimSheet } from '../../components/NostrClaimSheet'
 const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'))
-const LazyContactsView = React.lazy(() => import('./components/ContactsView'))
+
 const LazySupportView = React.lazy(() => import('./components/SupportView'))
 
 type StatusType = 'success' | 'error' | 'pending' | null;
@@ -101,7 +101,7 @@ export function HomeTabScreen() {
                     <LazyBitcoinPriceCard />
                     <ManageBalances />
                     <NostrActivity />
-                    <LazyContactsView />
+
                     <LazySupportView />
                 </React.Suspense>
             </YStack>

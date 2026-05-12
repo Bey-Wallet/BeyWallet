@@ -91,6 +91,11 @@ export function useCocoEvents() {
             handleBalanceUpdate();
         });
 
+        const nostrIncomingSub = DeviceEventEmitter.addListener('nostr:incoming', (payload: any) => {
+            console.log('[useCocoEvents] Nostr incoming:', payload.amount);
+            notificationService.sendLocalNotification('New Payment Arrived', `You have an unclaimed payment of ₿${payload.amount} sats. Tap to claim it.`);
+        });
+
         const syncSub = DeviceEventEmitter.addListener('nostr:sync-success', (payload: { npub: string }) => {
             const shortAddress = payload.npub.substring(0, 10) + '...' + payload.npub.substring(payload.npub.length - 4);
             toast.show('Success', { message: `Mint is nostr sync with address ${shortAddress}` });
@@ -110,6 +115,7 @@ export function useCocoEvents() {
         return () => {
             unsubs.forEach(unsub => unsub());
             nostrSub.remove();
+            nostrIncomingSub.remove();
             syncSub.remove();
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };

@@ -13,7 +13,9 @@ import {
   ChevronDown,
   Sprout,
   Globe,
-  ArrowLeft
+  ArrowLeft,
+  Search,
+  Nfc
 } from '@tamagui/lucide-icons'
 import { useAppTheme } from '~/context/ThemeContext'
 import { useAuthStore } from '~/store/authStore'
@@ -22,26 +24,27 @@ import SettingsIcon from '~/components/icons/Settings'
 import WalletIcon from '~/components/icons/Wallet'
 import HistoryVolume from '~/components/HistoryVolume'
 import LockIcon from '~/components/icons/Lock'
+import NFCFillIcon from '~/components/icons/NFC-fill'
 import * as Haptics from 'expo-haptics'
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
-    <XStack pl="$4" items="center">
-        <Image
-            source={resolvedTheme === 'dark'
-                ? require('../../assets/icons/Frame 9.png')
-                : require('../../assets/icons/Frame 10.png')}
-            width={40}
-            height={40}
-            resizeMode="contain"
-        />
-    </XStack>
+  <XStack pl="$4" items="center">
+    <Image
+      source={resolvedTheme === 'dark'
+        ? require('../../assets/icons/Frame 9.png')
+        : require('../../assets/icons/Frame 10.png')}
+      width={40}
+      height={40}
+      resizeMode="contain"
+    />
+  </XStack>
 ))
 
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
-    <Text fontWeight="700" fontSize={20} color="$color">
-        {children.charAt(0).toUpperCase() + children.slice(1)}
-    </Text>
+  <Text fontWeight="700" fontSize={20} color="$color">
+    {children.charAt(0).toUpperCase() + children.slice(1)}
+  </Text>
 ))
 
 export default function TabLayout() {
@@ -101,10 +104,10 @@ export default function TabLayout() {
                 circular
                 size="$3"
                 chromeless
-                icon={<LockIcon size={24} color={theme.color9.val} />}
+                icon={<Nfc size={24} strokeWidth={3} color="$color9" />}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  lock(true)
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  router.push('/(modals)/nfc-receive')
                 }}
               />
             </XStack>
@@ -136,7 +139,7 @@ export default function TabLayout() {
         }}
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color }) => <Globe color={color as any} />,
+          tabBarIcon: ({ color }) => <Search strokeWidth={2.5} color={color as any} />,
           headerRight: () => (
             <XStack pr="$4">
               <Button

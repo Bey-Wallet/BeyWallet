@@ -1,23 +1,24 @@
 /**
  * NostrActivity
  *
- * Home screen section showing recent Nostr payment activity.
- * Follows the same minimal design language as ManageBalances and SupportView:
- *   - H6 with dashed border header
- *   - Simple text rows with ChevronRight
- *   - No heavy cards or colored backgrounds
+ * Home screen section showing only unclaimed incoming Nostr ecash.
+ * Simple row: left blockie + name/npub, right rounded amount button.
+ * Claimed items disappear from home — full history lives in the
+ * nostr-activity modal.
+ *
+ * On mount, runs refreshPendingStates() to auto-mark any already-spent
+ * tokens as claimed so they don't linger after restarts.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View, Image } from 'tamagui';
-import { ChevronRight, ArrowDownLeft, ArrowUpRight, Inbox, Zap } from '@tamagui/lucide-icons';
+import { YStack, XStack, H6, Text, View } from 'tamagui';
+import { ChevronRight } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
-import { useQuery } from '@tanstack/react-query';
-import { historyService } from '~/services/core';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
 function formatNpub(hex: string): string {
     try {
@@ -40,67 +41,66 @@ function timeAgo(ts: number): string {
 
 export default function NostrActivity() {
     const items = useNostrInboxStore(s => s.items);
-    const unseenCount = useNostrInboxStore(s => s.getUnseenCount());
+    const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
+    const router = useRouter();
 
-    // Get recent nostr-related history entries
-    const { data: nostrHistory = [] } = useQuery({
-        queryKey: ['history', 'nostr'],
-        queryFn: async () => {
-            const entries = await historyService.getHistory(50, 0);
-            return entries.filter((e: any) =>
-                e.metadata?.nostr === true ||
-                e.metadata?.type === 'p2pk' ||
-                e.metadata?.p2pkPubkey
-            ).slice(0, 5);
-        },
-        staleTime: 15_000,
-        gcTime: 5 * 60_000,
-    });
+    // On mount, check if any "pending" items are actually already spent
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            refreshPendingStates().catch(() => { });
+        }, 2000); // Delay so it doesn't compete with init
+        return () => clearTimeout(timer);
+    }, []);
 
+    // Only unclaimed (pending / failed) items
     const unclaimed = useMemo(() =>
-        items.filter(i => i.status === 'pending' || i.status === 'failed').slice(0, 3),
+        items.filter(i => i.status === 'pending' || i.status === 'failed'),
         [items]
     );
-
-    const recentClaimed = useMemo(() =>
-        items.filter(i => i.status === 'claimed').slice(0, 3),
-        [items]
-    );
-
-    const hasActivity = unclaimed.length > 0 || recentClaimed.length > 0 || nostrHistory.length > 0;
 
     const handleOpenClaim = (item: NostrInboxItem) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         DeviceEventEmitter.emit('nostr:openClaim', item);
     };
 
+    // Nothing to show — hide entirely
+    if (unclaimed.length === 0) return null;
+
     return (
         <YStack width="100%" gap="$4" px="$1">
-            {/* Section header — same style as ManageBalances / Support */}
-            <XStack items="center" gap="$2">
-                <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle="dashed">
-                    Nostr Activity
-                </H6>
-                {unseenCount > 0 && (
-                    <View bg="$accent9" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
-                        <Text color="white" fontSize={10} fontWeight="900">{unseenCount}</Text>
+            {/* Section header */}
+            <XStack items="center" justify="space-between">
+                <XStack items="center" gap="$2">
+                    <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle="dashed">
+                        Incoming
+                    </H6>
+                    <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
+                        <Text color="white" fontSize={10} fontWeight="900">{unclaimed.length}</Text>
                     </View>
-                )}
+                </XStack>
+                <Text
+                    fontSize="$2"
+                    color="$gray10"
+                    fontWeight="600"
+                    onPress={() => router.push('/(modals)/nostr-activity')}
+                    pressStyle={{ opacity: 0.6 }}
+                >
+                    View All
+                </Text>
             </XStack>
 
             <YStack gap="$3">
-                {/* Unclaimed incoming — simple row with dot indicator */}
                 {unclaimed.map((item) => (
                     <XStack
                         key={item.id}
                         items="center"
                         justify="space-between"
-                        onPress={() => handleOpenClaim(item)}
                         pressStyle={{ opacity: 0.7 }}
                     >
-                        <XStack items="center" gap="$2">
+                        {/* Left — blockie + info */}
+                        <XStack items="center" gap="$3" flex={1}>
                             <View position="relative">
-                                <Blockies seed={item.senderPubkey} size={8} scale={3} style={{ borderRadius: 3 }} />
+                                <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
                                 {!item.seen && (
                                     <View
                                         position="absolute" top={-2} right={-2}
@@ -109,65 +109,33 @@ export default function NostrActivity() {
                                     />
                                 )}
                             </View>
-                            <YStack>
-                                <H6>{item.senderUsername || formatNpub(item.senderPubkey)}</H6>
-                                <Text fontSize="$1" color="$gray10">{timeAgo(item.receivedAt)} · Tap to claim</Text>
+                            <YStack flex={1}>
+                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
+                                    {item.senderUsername || formatNpub(item.senderPubkey)}
+                                </Text>
+                                <Text fontSize="$1" color="$gray10">{timeAgo(item.receivedAt)}</Text>
                             </YStack>
                         </XStack>
-                        <XStack items="center" gap="$1">
-                            <Text fontSize={16} fontWeight="900" color="$green10" letterSpacing={-0.5}>
+
+                        {/* Right — rounded amount button */}
+                        <XStack
+                            bg="$gray5"
+                            px="$3"
+                            py="$2"
+                            rounded="$10"
+                            items="center"
+                            gap="$1"
+                            onPress={() => handleOpenClaim(item)}
+                            pressStyle={{ scale: 0.96, opacity: 0.85 }}
+                            cursor="pointer"
+                        >
+                            <Text fontSize={15} fontWeight="900" color="$accent4" letterSpacing={-0.3}>
                                 +₿{item.amount.toLocaleString()}
                             </Text>
-                            <ChevronRight size={16} strokeWidth={3} color="$green10" />
+                            <ChevronRight size={14} strokeWidth={3} color="$accent4" />
                         </XStack>
                     </XStack>
                 ))}
-
-                {/* Recent claimed */}
-                {recentClaimed.map((item) => (
-                    <XStack key={item.id} items="center" justify="space-between" pressStyle={{ opacity: 0.7 }}>
-                        <XStack items="center" gap="$2">
-                            <Blockies seed={item.senderPubkey} size={8} scale={3} style={{ borderRadius: 3 }} />
-                            <YStack>
-                                <H6>{item.senderUsername || formatNpub(item.senderPubkey)}</H6>
-                                <Text fontSize="$1" color="$gray10">{timeAgo(item.receivedAt)} · Claimed</Text>
-                            </YStack>
-                        </XStack>
-                        <Text fontSize={16} fontWeight="900" color="$accent4" letterSpacing={-0.5}>
-                            +₿{item.amount.toLocaleString()}
-                        </Text>
-                    </XStack>
-                ))}
-
-                {/* History-based nostr sends */}
-                {nostrHistory.slice(0, 3).map((entry: any, i: number) => (
-                    <XStack key={`hist-${i}`} items="center" justify="space-between" pressStyle={{ opacity: 0.7 }}>
-                        <XStack items="center" gap={10}>
-                            <H6>
-                                {entry.metadata?.p2pkPubkey
-                                    ? formatNpub(entry.metadata.p2pkPubkey)
-                                    : entry.type === 'send' ? 'Sent via Nostr' : 'Received'}
-                            </H6>
-                            <ChevronRight size={16} strokeWidth={3} color="$color" />
-                        </XStack>
-                        <Text
-                            fontSize={16}
-                            fontWeight="900"
-                            letterSpacing={-0.5}
-                            color={entry.type === 'send' ? "$accent4" : "$accent4"}
-                        >
-                            {entry.type === 'send' ? '-' : '+'}₿{entry.amount}
-                        </Text>
-                    </XStack>
-                ))}
-
-                {/* Empty state — minimal */}
-                {!hasActivity && (
-                    <XStack items="center" gap={10}>
-                        <H6 color="$gray9">No activity yet</H6>
-                        <ChevronRight size={16} strokeWidth={3} color="$gray9" />
-                    </XStack>
-                )}
             </YStack>
         </YStack>
     );
