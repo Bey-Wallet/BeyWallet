@@ -83,7 +83,7 @@ const ContactsView = () => {
                     <Button
                         size="$4"
                         theme="inverse"
-                        onPress={() => router.push('/(modals)/contact-search')}
+                        onPress={() => router.push('/(modals)/search')}
                         icon={<Search size={18} />}
                     >
                         Search Contacts
@@ -101,7 +101,7 @@ const ContactsView = () => {
             <XStack gap="$3" width="100%" flexWrap="wrap">
                 {/* Search / Add Button */}
                 <Theme inverse>
-                    <XStack cursor="pointer" onPress={() => router.push('/(modals)/contact-search')} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
+                    <XStack cursor="pointer" onPress={() => router.push('/(modals)/search')} bg="$gray4" items="center" p="$2" pr="$3" rounded="$4" gap={10}>
                         <YStack width={24} height={24} bg="$gray6" rounded={3} items="center" justify="center">
                             <Search size={16} color="$color" />
                         </YStack>
@@ -114,7 +114,7 @@ const ContactsView = () => {
                     return (
                         <XStack
                             key={contact.id}
-                            bg={isFav ? "$pink4" : "$gray4"}
+                            bg={isFav ? "$pink4" : "$gray2"}
                             borderColor={isFav ? "$pink6" : "transparent"}
                             borderWidth={0}
                             items="center"

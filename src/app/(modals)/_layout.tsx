@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router'
 import { Button, useTheme, Text } from 'tamagui'
-import { Send, X } from '@tamagui/lucide-icons'
+import { Nfc, Send, X } from '@tamagui/lucide-icons'
 import React from 'react'
 import HomeHeaderMintSelector from '~/components/HomeMintSelector'
 
@@ -59,13 +59,15 @@ export default function ModalLayout() {
                 options={{
                     headerRight: () => (
                         <Button
-                            theme="gray"
+                            theme="orange"
+                            fontWeight="700"
                             size="$3"
                             rounded="$10"
+                            iconAfter={<Nfc size={16} strokeWidth={2.5} color="$color" />}
                             onPress={() => router.back()}
                         >Send</Button>
                     ),
-                    headerTitle: () => <HomeHeaderMintSelector />,
+                    headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
                     presentation: "fullScreenModal",
                 }}
             />
@@ -186,6 +188,20 @@ export default function ModalLayout() {
                 name="contact-search"
                 options={{
                     title: 'Search Contact',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="search"
+                options={{
+                    title: 'Search',
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
+                name="discover-mints"
+                options={{
+                    title: 'Discover Mints',
                     presentation: "fullScreenModal",
                 }}
             />

@@ -12,6 +12,7 @@ import { useContactsStore } from '~/store/contactsStore';
 
 export default function ContactDetailsScreen() {
     const { npub, username } = useLocalSearchParams<{ npub: string; username?: string }>();
+    if (!npub) return <Text p="$4">Invalid Contact</Text>;
     const theme = useTheme();
     const toast = useToastController();
     const router = useRouter();
@@ -79,9 +80,7 @@ export default function ContactDetailsScreen() {
         }
     };
 
-    if (!npub) return <Text p="$4">Invalid Contact</Text>;
-
-    const displayUsername = username ? `${username}@bey.cash` : 'Unknown User';
+    const displayUsername = username ? `${username}@bey.cash` : '';
 
     return (
         <YStack f={1} bg="$background">
@@ -91,9 +90,11 @@ export default function ContactDetailsScreen() {
                     <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 7 }} />
 
                     <YStack items="center" gap="$1">
-                        <Text fontSize="$7" fontWeight="bold" color="$color">
-                            {displayUsername}
-                        </Text>
+                        {displayUsername ? (
+                            <Text fontSize="$7" fontWeight="bold" color="$color">
+                                {displayUsername}
+                            </Text>
+                        ) : null}
                         <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>
                             <Text fontSize="$4" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
                                 {`${npub.slice(0, 12)}...${npub.slice(-10)}`}
@@ -152,18 +153,7 @@ export default function ContactDetailsScreen() {
 
                 <Separator borderColor="$borderColor" opacity={0.5} />
 
-                {/* Activity Section */}
-                <YStack gap="$4">
-                    <Text fontSize="$5" fontWeight="600" color="$color">
-                        Activity
-                    </Text>
-                    <YStack bg="$gray2" p="$6" rounded="$5" items="center" justify="center" gap="$3" minHeight={150}>
-                        <Activity size={32} color="$gray8" />
-                        <Text color="$gray10" textAlign="center">
-                            No recent activity with this contact.
-                        </Text>
-                    </YStack>
-                </YStack>
+
             </ScrollView>
 
             {/* Floating Send Button */}

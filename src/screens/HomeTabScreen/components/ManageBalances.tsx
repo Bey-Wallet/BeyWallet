@@ -131,7 +131,7 @@ const ManageBalances = () => {
             id: 'nostr',
             title: 'Nostr',
             value: totalNostrUnclaimed,
-            imageSource: themeName === 'dark' ? nostrIconWhite : nostrIconBlack,
+            imageSource: nostrIconWhite,
             onPress: () => router.push('/(modals)/nostr-activity'),
         },
         {

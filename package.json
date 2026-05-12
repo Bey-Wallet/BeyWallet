@@ -27,6 +27,7 @@
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-navigation/native": "^7.1.6",
     "@scure/bip32": "^2.0.1",
+    "@shopify/flash-list": "1.7.2",
     "@tamagui/config": "^1.143.1",
     "@tamagui/font-inter": "^2.0.0-rc.0",
     "@tamagui/lucide-icons": "^1.143.1",
