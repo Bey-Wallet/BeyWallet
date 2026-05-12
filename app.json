@@ -26,6 +26,7 @@
       },
       "package": "com.thehussein01.Bey",
       "permissions": [
+        "android.permission.NFC",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
@@ -51,6 +52,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Allow $(PRODUCT_NAME) to interact with nearby NFC devices"
+        }
+      ],
       [
         "expo-build-properties",
         {

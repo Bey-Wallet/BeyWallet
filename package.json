@@ -83,6 +83,7 @@
     "react-native-blockies": "^1.0.2",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-get-random-values": "~1.11.0",
+    "react-native-nfc-manager": "^3.17.2",
     "react-native-qrcode-styled": "^0.4.0",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "~4.1.1",

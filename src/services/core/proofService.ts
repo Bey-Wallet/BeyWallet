@@ -6,6 +6,8 @@ import { initService } from './initService';
 
 
 
+const decodeCache = new Map<string, any>();
+
 export const proofService = {
     /**
      * Check the state of proofs from a token string.
@@ -17,11 +19,17 @@ export const proofService = {
     checkProofStates: async (tokenString: string) => {
         const cleaned = cleanToken(tokenString);
         let decoded: any;
-        try {
-            decoded = decodeToken(cleaned);
-        } catch (e) {
-            console.warn('[ProofService] Failed to decode token for check:', e);
-            return [];
+        
+        if (decodeCache.has(cleaned)) {
+            decoded = decodeCache.get(cleaned);
+        } else {
+            try {
+                decoded = decodeToken(cleaned);
+                decodeCache.set(cleaned, decoded);
+            } catch (e) {
+                console.warn('[ProofService] Failed to decode token for check:', e);
+                return [];
+            }
         }
 
         if (!decoded || !decoded.proofs || decoded.proofs.length === 0) {
