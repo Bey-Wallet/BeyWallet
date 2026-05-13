@@ -69,30 +69,33 @@ export function MintConfirmationStep({ onComplete, onSkip }: MintConfirmationSte
                     </Text>
                 </YStack>
 
-                <YStack gap="$3">
+                <YStack gap="$2">
                     {DEFAULT_MINTS.map((mint) => (
                         <Card
                             key={mint.url}
-                            bg="$gray2"
+                            bg="$gray3"
                             p="$3"
-                            borderWidth={1}
-                            borderColor="$borderColor"
-                            rounded="$4"
+
+                            rounded="$5"
                         >
                             <XStack gap="$3" items="center">
                                 <View
-                                    bg={mint.isTestnet ? "$orange3" : "$accent3"}
+                                    bg={mint.isTestnet ? "$orange3" : "$blue2"}
                                     p="$2"
                                     rounded="$3"
                                 >
-                                    <Sprout size={20} color={mint.isTestnet ? "$orange10" : "$accent10"} />
+                                    <Sprout size={20} color={mint.isTestnet ? "$orange10" : "$blue10"} />
                                 </View>
                                 <YStack flex={1}>
                                     <XStack items="center" gap="$2">
                                         <Text fontWeight="700" fontSize="$4">{mint.name}</Text>
-                                        {mint.isTestnet && (
+                                        {mint.isTestnet ? (
                                             <View bg="$orange2" px="$1.5" py="$0.5" rounded="$1" borderWidth={0.5} borderColor="$orange6">
                                                 <Text fontSize="$1" fontWeight="800" color="$orange10">TESTNET</Text>
+                                            </View>
+                                        ) : (
+                                            <View bg="$blue2" px="$1.5" py="$0.5" rounded="$1" borderWidth={0.5} borderColor="$blue6">
+                                                <Text fontSize="$1" fontWeight="800" color="$blue10">MAINNET</Text>
                                             </View>
                                         )}
                                     </XStack>
@@ -104,7 +107,7 @@ export function MintConfirmationStep({ onComplete, onSkip }: MintConfirmationSte
                     ))}
                 </YStack>
 
-                <XStack bg="$blue2" p="$3" rounded="$4" gap="$3" items="center" borderWidth={1} borderColor="$blue6">
+                <XStack bg="$blue3" p="$3" rounded="$4" gap="$3" items="center" >
                     <Info size={18} color="$blue10" />
                     <Text color="$blue11" fontSize="$2" flex={1}>
                         You can always add, remove, or change your trusted mints in Settings.

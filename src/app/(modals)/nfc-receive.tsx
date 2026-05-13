@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text, Button, View, useTheme, Theme, Image } from 'tamagui';
 import Blockies from '~/components/UI/Blockies';
 import { useWalletStore } from '~/store/walletStore';
@@ -11,7 +11,10 @@ import { DarkTheme } from '@react-navigation/native';
 import { useAppTheme } from '~/context/ThemeContext';
 import { Scan } from '@tamagui/lucide-icons';
 import NFCFillIcon from '~/components/icons/NFC-fill';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { nfcService } from '~/services/nfcService';
+import { walletService } from '~/services/core';
+import { useToastController } from '@tamagui/toast';
 
 export default function NFCReceiveScreen() {
     const theme = useTheme();
@@ -22,27 +25,102 @@ export default function NFCReceiveScreen() {
     const mints = useWalletStore(s => s.mints);
 
     const [processing, setProcessing] = useState(false);
-    const [status, setStatus] = useState<'processing' | 'success'>('processing');
+    const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [isNfcEnabled, setIsNfcEnabled] = useState(false);
+    const [isNfcSupported, setIsNfcSupported] = useState(true);
+    const toast = useToastController();
 
     const activeMint = mints.find(m => m.mintUrl === activeMintUrl);
     const mintName = activeMint?.nickname || activeMint?.name || activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'Unknown Mint';
     const balance = activeMintUrl ? balances[activeMintUrl] || 0 : 0;
 
-    const handleReceive = () => {
+    const processTagRef = useRef<any>();
+
+    useFocusEffect(
+        useCallback(() => {
+            const checkNfc = async () => {
+                const supported = await nfcService.init();
+                setIsNfcSupported(supported);
+                if (supported) {
+                    const enabled = await nfcService.isEnabled();
+                    setIsNfcEnabled(enabled);
+                    if (enabled) {
+                        console.log('[NFCReceive] Starting NFC listener');
+                        nfcService.startListening((tag) => {
+                            console.log('[NFCReceive] Tag discovered via listener:', tag);
+                            if (processTagRef.current) {
+                                processTagRef.current(tag);
+                            }
+                        });
+                    }
+                }
+            };
+            checkNfc();
+
+            return () => {
+                console.log('[NFCReceive] Stopping NFC listener');
+                nfcService.stopListening();
+            };
+        }, [])
+    );
+
+    const processTag = async (tag: any) => {
+        try {
+            const payload = tag.ndefMessage?.[0]?.payload;
+            if (!payload) {
+                throw new Error('No data found on tag');
+            }
+
+            const decoded = new TextDecoder().decode(new Uint8Array(payload));
+            console.log('[NFCReceive] Decoded payload:', decoded);
+
+            const tokenMatch = decoded.match(/(cashu[A-Za-z0-9_-]+)/);
+
+            if (tokenMatch) {
+                const token = tokenMatch[1];
+                console.log('[NFCReceive] Found token:', token.substring(0, 20));
+                
+                setProcessing(true);
+                setStatus('processing');
+                setErrorMessage('');
+
+                await walletService.receive(token);
+                setStatus('success');
+                toast.show('Success', { message: 'Token received and claimed!' });
+                
+                setTimeout(() => {
+                    setProcessing(false);
+                }, 3000);
+            } else {
+                throw new Error('No valid Cashu token found on tag');
+            }
+        } catch (err: any) {
+            console.error('[NFCReceive] Error processing tag:', err);
+            setStatus('error');
+            setErrorMessage(err.message || 'Failed to read NFC tag');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+    };
+
+    useEffect(() => {
+        processTagRef.current = processTag;
+    }, [processTag]);
+
+    const handleReceive = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setProcessing(true);
         setStatus('processing');
-
-        // Mock for 20 seconds
-        const timer = setTimeout(() => {
-            setStatus('success');
-            // Auto close after success
-            setTimeout(() => {
-                setProcessing(false);
-            }, 3000);
-        }, 20000);
-
-        return () => clearTimeout(timer);
+        setErrorMessage('');
+        
+        try {
+            const tag = await nfcService.readNdefTag();
+            processTag(tag);
+        } catch (err: any) {
+            console.error('[NFCReceive] Active read failed:', err);
+            setStatus('error');
+            setErrorMessage(err.message || 'Failed to read NFC tag');
+        }
     };
 
     const { resolvedTheme } = useAppTheme();
@@ -106,9 +184,10 @@ export default function NFCReceiveScreen() {
             {/* NFC History Section */}
             <YStack flex={1} justify="center">
                 <EmptyState
-                    icon={<NFCFillIcon size={48} color={theme.color4.val} />}
-                    title="No NFC History"
-                    subtitle="Your NFC transactions will appear here."
+                    icon={<NFCFillIcon size={48} color={isNfcEnabled ? "#2196F3" : theme.color4.val} />}
+                    title={isNfcEnabled ? "Ready to Receive" : "NFC is Disabled"}
+                    subtitle={isNfcEnabled ? "Keep your device close to receive" : "Please enable NFC in your settings to receive tokens"}
+                    isBlue={isNfcEnabled}
                 />
             </YStack>
 
@@ -128,14 +207,13 @@ export default function NFCReceiveScreen() {
                 </Button>
                 <Button
                     size="$5"
-
                     fontWeight="700"
                     icon={<NFCFill2 size={24} color={theme.color.val} />}
-                    onPress={handleReceive}
-
+                    onPress={isNfcEnabled ? handleReceive : () => nfcService.goToNfcSetting()}
                     rounded="$5"
+                    theme={isNfcEnabled ? undefined : "gray"}
                 >
-                    Tap to Receive
+                    {isNfcEnabled ? "Tap to Receive" : "Turn on NFC"}
                 </Button>
             </YStack>
 
@@ -144,6 +222,7 @@ export default function NFCReceiveScreen() {
                 status={status}
                 title="NFC Receiving"
                 detail="Hold your phone near the sender"
+                errorMessage={errorMessage}
                 variant="nfc"
                 onClose={() => setProcessing(false)}
             />
@@ -151,11 +230,11 @@ export default function NFCReceiveScreen() {
     );
 }
 
-function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+function EmptyState({ icon, title, subtitle, isBlue }: { icon: React.ReactNode; title: string; subtitle: string; isBlue?: boolean }) {
     return (
         <YStack items="center" justify="center" py="$10" gap="$3">
             {icon}
-            <Text color="$gray9" fontSize="$5" fontWeight="600">
+            <Text color={isBlue ? "$blue10" : "$gray9"} fontSize="$5" fontWeight="600">
                 {title}
             </Text>
             <Text color="$gray8" fontSize="$3" textAlign="center" maxWidth={260}>

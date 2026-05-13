@@ -1,5 +1,5 @@
 import React from 'react'
-import { YStack, Text, Button, H1, Image, View } from 'tamagui'
+import { YStack, Text, Button, H1, Image, View, XStack } from 'tamagui'
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -35,8 +35,7 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
             flex={1}
             bg="$background"
             px="$4"
-            pt={insets.top + 24}
-            pb={insets.bottom + 24}
+
             justify="space-between"
         >
             {/* Top spacer */}
@@ -64,18 +63,19 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
                     />
                 </View>
 
-                <YStack items="center" gap="$2">
-                    <H1 fontSize="$9" text="center" lineHeight="$9" fontWeight="700" color="$color">
-                        Get Access to Cashu E-Cash with Bey Wallet
-                    </H1>
-                    <Text color="$gray10" fontSize="$4" text="center" px="$4">
-                        Your self-custodial Cashu wallet for private, instant Bitcoin payments
-                    </Text>
-                </YStack>
             </YStack>
 
             {/* Bottom - CTAs */}
-            <YStack gap="$3" items="center" pb="$4">
+            <YStack gap="$3" justify="center" items="center" pb="$4">
+
+                <YStack items="center" gap="$2">
+                    <H1 fontSize="$9" text="center" lineHeight="$9" fontWeight="700" color="$color">
+                        Bitcoin for online & offline.
+                    </H1>
+                    <Text color="$gray10" pb="$4" fontSize="$4" text="center" px="$4">
+                        Cashu wallet for private, instant Bitcoin payments.
+                    </Text>
+                </YStack>
                 <Button
                     size="$5"
                     theme="accent"
@@ -84,10 +84,10 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
                     icon={<Wallet size={24} />}
                     fontSize="$5"
                     fontWeight="700"
-                    rounded="$4"
+                    rounded="$5"
                     pressStyle={{ scale: 0.98, opacity: 0.9 }}
                 >
-                    Create New Wallet
+                    Create a new wallet
                 </Button>
 
                 <Button
@@ -98,10 +98,10 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
                     icon={<KeyRound size={24} />}
                     fontSize="$5"
                     fontWeight="700"
-                    rounded="$4"
+                    rounded="$5"
                     pressStyle={{ scale: 0.98, opacity: 0.9 }}
                 >
-                    Import via Seed Phrase
+                    Import existing wallet
                 </Button>
 
 
