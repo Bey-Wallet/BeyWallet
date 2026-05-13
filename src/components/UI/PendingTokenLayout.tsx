@@ -55,8 +55,7 @@ export function PendingTokenLayout({
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
     const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
-    // Animated UR QR is auto-enabled for large tokens (>2 proofs) like cashu.me does
-    const [showAnimatedQR, setShowAnimatedQR] = useState(false);
+    const [showAnimatedQR, setShowAnimatedQR] = useState(true);
     const [fragmentLength, setFragmentLength] = useState(150);
     const [intervalMs, setIntervalMs] = useState(150);
     const encoderRef = useRef<UREncoder | null>(null);
@@ -107,11 +106,9 @@ export function PendingTokenLayout({
                 }
             }
 
-            // Auto-enable animated QR for large tokens like cashu.me does (>2 proofs)
-            setShowAnimatedQR(proofs.length > 2 || clean.length > MAX_STATIC_QR_LENGTH);
+            // Always use animated QR as requested by user
         } catch (e) {
             console.error('[PendingTokenLayout] Failed to decode token:', e);
-            setShowAnimatedQR(false);
         }
     }, [currentToken, lockedToNpub]);
 
@@ -161,80 +158,32 @@ export function PendingTokenLayout({
         if (!currentToken) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
-            // Create a deep link that will autofill the receive screen in this app
-            const intentUrl = Linking.createURL('/receive', { queryParams: { scannedToken: currentToken } });
-
             await RNShare.share({
-                message: `${intentUrl}\n\nRaw token:\ncashu:${currentToken}`,
-                title: 'Receive Ecash'
+                message: currentToken,
+                title: 'Share Token'
             });
         } catch (error) {
             handleCopy();
         }
     };
 
-    const handleToggleVersion = () => {
-        if (!currentToken) return;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        try {
-            const decoded = decodeToken(currentToken);
-            if (tokenVersion === 'V3') {
-                setCurrentToken(encodeTokenV4(decoded));
-                setTokenVersion('V4');
-                toast.show('Switched to V4', { message: 'Compact CBOR encoding' });
-            } else {
-                setCurrentToken(encodeTokenV3(decoded));
-                setTokenVersion('V3');
-                toast.show('Switched to V3', { message: 'Standard JSON encoding' });
-            }
-        } catch (e) {
-            toast.show('Error', { message: 'Failed to switch version' });
-        }
-    };
 
-    const changeSpeed = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        // Cycle: Fast(150) -> Medium(250) -> Slow(500) -> Fast — matches cashu.me
-        if (intervalMs === 250) setIntervalMs(500);
-        else if (intervalMs === 500) setIntervalMs(150);
-        else setIntervalMs(250);
-    };
-
-    const changeSize = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (fragmentLength === 100) setFragmentLength(50);
-        else if (fragmentLength === 50) setFragmentLength(150);
-        else setFragmentLength(100);
-    };
-
-    const speedLabel = intervalMs === 150 ? "F" : intervalMs === 250 ? "M" : "S";
-    const sizeLabel = fragmentLength === 150 ? "L" : fragmentLength === 100 ? "M" : "S";
-
-    const handleToggleAnimatedQR = () => {
-        if (showAnimatedQR && cleanToken(currentToken).length > MAX_STATIC_QR_LENGTH) {
-            toast.show('Data too big', { message: 'Token is too large for a standard QR code. Use Animated QR or switch to V4 format.' });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            return;
-        }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setShowAnimatedQR(prev => !prev);
-    };
 
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
-        <YStack flex={1} bg="$background" width="100%">
+        <YStack flex={1} bg="$background" gap="$3" width="100%">
             {/* QR Code */}
-            <YStack items="center" gap="$4" mb="$6">
+            <YStack items="center" gap="$3" >
                 <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
                     {qrCodeFragment ? (
                         qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
                             <YStack width={330} height={330} items="center" justify="center" px="$4">
                                 <Gauge size={50} color="$orange8" opacity={0.5} />
-                                <Text mt="$4" color="$gray10" textAlign="center" fontWeight="600">
+                                <Text mt="$4" color="$gray10" text="center" fontWeight="600">
                                     Token too large
                                 </Text>
-                                <Text mt="$2" color="$gray9" textAlign="center" fontSize="$2" px="$4">
+                                <Text mt="$2" color="$gray9" text="center" fontSize="$2" px="$4">
                                     Please enable Animated QR (UR) or switch to V4 encoding to make it smaller.
                                 </Text>
                             </YStack>
@@ -254,39 +203,62 @@ export function PendingTokenLayout({
                     )}
                 </View>
 
-                {/* QR controls: animated UR toggle + token version + speed/size when animated */}
-                <XStack gap="$1.5" bg="$color3" px="$4" py="$2" rounded="$10" flexWrap="wrap" justify="center">
-                    {showAnimatedQR && (
-                        <>
-                            <Button size="$2.5" chromeless icon={<Gauge size={16} />} onPress={changeSpeed} color="$color" fontWeight="700">{speedLabel}</Button>
-                            <Separator vertical height={15} style={{ alignSelf: 'center' }} borderColor="$gray8" />
-                            <Button size="$2.5" chromeless icon={<ZoomIn size={16} />} onPress={changeSize} color="$color" fontWeight="700">{sizeLabel}</Button>
-                            <Separator vertical height={15} style={{ alignSelf: 'center' }} borderColor="$gray8" />
-                        </>
-                    )}
-                    <Button size="$2.5" chromeless icon={<Hexagon size={16} />} onPress={handleToggleVersion} color="$color" fontWeight="700">{tokenVersion}</Button>
-                    <Separator vertical height={15} style={{ alignSelf: 'center' }} borderColor="$gray8" />
-                    {/* UR animated QR for advanced wallets — off by default */}
+                {/* Quick Share Actions moved here */}
+                <XStack gap="$2" width="100%" justify="center" >
                     <Button
-                        size="$2.5"
-                        chromeless
-                        onPress={handleToggleAnimatedQR}
-                        color={showAnimatedQR ? '$orange10' : '$color'}
+                        flex={1}
+                        theme="orange"
+                        size="$5"
                         fontWeight="700"
-                    >
-                        {showAnimatedQR ? 'UR' : 'QR'}
-                    </Button>
+                        icon={<Nfc size={24} />}
+                        rounded="$4"
+                        py="$6"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            toast.show('NFC Share', { message: 'NFC sharing is not implemented yet' });
+                        }}
+                    />
+                    <Button
+                        flex={1}
+                        theme="purple"
+                        size="$5"
+                        fontWeight="700"
+                        icon={<NostrIcon size={28} />}
+                        disabled={!!displayNpub}
+                        opacity={displayNpub ? 0.5 : 1}
+                        rounded="$4"
+                        py="$6"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
+                        }}
+                    />
+                    <Button
+                        flex={1}
+                        onPress={handleShare}
+                        theme="teal"
+                        size="$5"
+                        fontWeight="800"
+                        icon={<Share2 size={24} strokeWidth={2} />}
+                        rounded="$4"
+                        py="$6"
+                    />
+                    <Button
+                        flex={1}
+                        onPress={handleCopy}
+                        theme="gray"
+                        size="$5"
+                        fontWeight="800"
+                        icon={copied ? <Check size={24} /> : <Copy size={24} />}
+                        rounded="$4"
+                        py="$6"
+                    />
                 </XStack>
-                {showAnimatedQR && (
-                    <Text fontSize="$1" color="$orange10" text="center" px="$4">
-                        UR animated mode — only for UR-compatible wallets
-                    </Text>
-                )}
             </YStack>
 
             {/* Details Table */}
             {!hideDetails && (
-                <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                     <DetailItem label="Amount" value={`₿${amount} sats`} />
                     {fee > 0 && <DetailItem label="Fee" value={`₿${fee} sats`} />}
                     <DetailItem label="Unit" value="SATOSHIS" />
@@ -307,44 +279,7 @@ export function PendingTokenLayout({
                 </YStack>
             )}
 
-            {/* Quick Share Actions */}
-            <XStack gap="$2" mb="$4" width="100%">
-                <Button
-                    flex={1}
 
-                    theme="orange"
-                    size="$5"
-                    fontWeight="700"
-                    icon={<Nfc size={24} />}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        toast.show('NFC Share', { message: 'NFC sharing is not implemented yet' });
-                    }}
-                />
-                <Button
-                    flex={1}
-                    theme="purple"
-
-                    size="$5"
-                    fontWeight="700"
-                    icon={<NostrIcon size={28} />}
-                    disabled={!!displayNpub}
-                    opacity={displayNpub ? 0.5 : 1}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
-                    }}
-                />
-                <Button
-                    flex={1}
-                    onPress={handleShare}
-                    theme="blue"
-
-                    size="$5"
-                    fontWeight="800"
-                    icon={<Share2 size={24} strokeWidth={2} />}
-                />
-            </XStack>
 
             {/* Action Buttons */}
             {!hideActions && (

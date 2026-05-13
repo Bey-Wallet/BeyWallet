@@ -448,8 +448,8 @@ export function TransactionDetailsScreen() {
                         title: 'Pending Deposit',
                     }}
                 />
-                <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
-                    <YStack items="center" gap="$4" pt="$4" mb="$6">
+                <ScrollView p="$4" gap="$3" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
+                    <YStack items="center" gap="$3"  >
                         <Text fontWeight="600" fontSize="$5">Pay this invoice to mint tokens</Text>
                         <YStack bg="white" p="$4" rounded="$4">
                             <QRCode value={savedInvoice} size={200} />
@@ -465,7 +465,7 @@ export function TransactionDetailsScreen() {
                             Scan this QR code with a Lightning wallet to complete the deposit.
                         </Text>
                     </YStack>
-                    
+
                     {/* Details Table */}
                     <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                         <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
@@ -527,7 +527,7 @@ export function TransactionDetailsScreen() {
                             </XStack>
                         ),
                         headerRight: () => (
-                            <XStack bg="$gray4" rounded="$3" p="$1" gap="$3" items="center" justify="center">
+                            <XStack p="$1" gap="$3" items="center" justify="center">
 
 
                                 <Button
@@ -542,17 +542,17 @@ export function TransactionDetailsScreen() {
                         ),
                     }}
                 />
-                <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
-                    <YStack bg="$background" p="$4" mx="$-4" mt="$-4" pt="$4">
+                <ScrollView gap="$3" pb="$8" p="$4" bg="$background" showsVerticalScrollIndicator={false}>
+                    <YStack bg="$background" gap="$3" >
                         {/* SuccessStage-like Amount Display */}
-                        <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
+                        <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$3" >
                             <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' ? '$red10' : status === 'pending' || status === 'unclaimed' ? '$orange10' : '$color'}>
                                 {status === 'failed' || status === 'error' ? 'Transaction Failed' :
                                     status === 'pending' || status === 'unclaimed' ? 'Transaction Pending' :
-                                    entry.type === 'send' ? 'Sent Successfully!' :
-                                        entry.type === 'receive' ? 'Received Successfully!' :
-                                            entry.type === 'mint' ? 'Minted Successfully!' :
-                                                entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
+                                        entry.type === 'send' ? 'Sent Successfully!' :
+                                            entry.type === 'receive' ? 'Received Successfully!' :
+                                                entry.type === 'mint' ? 'Minted Successfully!' :
+                                                    entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
                             </Text>
                             <YStack items="center" justify="center">
                                 <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
@@ -566,15 +566,15 @@ export function TransactionDetailsScreen() {
                                 <Text color="$gray10" fontSize="$4" text="center">
                                     {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
                                         status === 'pending' || status === 'unclaimed' ? 'Wait for payment to be processed.' :
-                                        entry.type === 'send' ? 'The recipient has claimed your ecash.' :
-                                            entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
-                                                entry.type === 'mint' ? 'Ecash added to your wallet.' :
-                                                    entry.type === 'melt' ? 'Lightning invoice was successfully paid.' : 'Transaction processed.'}
+                                            entry.type === 'send' ? 'The recipient has claimed your ecash.' :
+                                                entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
+                                                    entry.type === 'mint' ? 'Ecash added to your wallet.' :
+                                                        entry.type === 'melt' ? 'Lightning invoice was successfully paid.' : 'Transaction processed.'}
                                 </Text>
                             </YStack>
                         </YStack>
 
-                        <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                        <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                             <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
                             <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
                             <DetailItem label="Type" value={`${title} • ${entry.type === 'send' ? 'Outgoing' : 'Incoming'}`} />
@@ -601,7 +601,7 @@ export function TransactionDetailsScreen() {
 
 
                     {token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed') && (
-                        <YStack gap="$4" pb="$4" mt="$4">
+                        <YStack gap="$3" mt="$3" pb="$4" >
                             {entry.type === 'send' ? (
                                 <PendingTokenLayout
                                     token={token}
@@ -636,7 +636,7 @@ export function TransactionDetailsScreen() {
                     )}
 
                     {token && typeof token === 'string' && (status === 'claimed' || status === 'completed') && (
-                        <YStack gap="$4" pb="$4" mt="$4">
+                        <YStack gap="$3" mt="$3" pb="$4" >
                             <Button bg="$gray3" color="$color" icon={<Copy size={18} />} onPress={handleCopyToken} fontWeight="800">Copy Token</Button>
                         </YStack>
                     )}

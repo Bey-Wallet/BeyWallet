@@ -263,11 +263,11 @@ export function ProcessingSheet({
           <XStack width="100%" gap="$3" pt="$4">
             {isSuccess && (
               <>
-                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$6" pressStyle={{ scale: 0.97 }}>
+                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$5" pressStyle={{ scale: 0.97 }}>
                   Done
                 </Button>
                 {onViewDetails && (
-                  <Button flex={1} theme="accent" size="$5" fontWeight="700" onPress={onViewDetails} rounded="$6" pressStyle={{ scale: 0.97 }}>
+                  <Button flex={1} theme="accent" size="$5" fontWeight="700" onPress={onViewDetails} rounded="$5" pressStyle={{ scale: 0.97 }}>
                     Details
                   </Button>
                 )}
@@ -276,11 +276,11 @@ export function ProcessingSheet({
 
             {isError && (
               <>
-                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$6" pressStyle={{ scale: 0.97 }}>
+                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$5" pressStyle={{ scale: 0.97 }}>
                   Dismiss
                 </Button>
                 {onRetry && (
-                  <Button flex={1} bg="$red9" color="white" size="$5" fontWeight="700" onPress={onRetry} rounded="$6" pressStyle={{ scale: 0.97 }}>
+                  <Button flex={1} bg="$red9" color="white" size="$5" fontWeight="700" onPress={onRetry} rounded="$5" pressStyle={{ scale: 0.97 }}>
                     Try Again
                   </Button>
                 )}
