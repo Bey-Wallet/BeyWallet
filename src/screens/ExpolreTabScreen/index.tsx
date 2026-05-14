@@ -15,6 +15,7 @@ import { MintList } from './components/MintList';
 import { MintEmptyState } from './components/MintEmptyState';
 import { type MintStatus } from './components/MintListItem';
 import ContactsView from '~/screens/HomeTabScreen/components/ContactsView';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 const normalizeUrl = (url: string) => url.replace(/\/$/, '');
@@ -79,57 +80,58 @@ export default function ExploreTabScreen() {
     const topMints = nostrMints.slice(0, 5); // Show top 5 cached mints
 
     return (
-        <YStack flex={1} bg="$background">
-            {/* Search Bar Trigger */}
-            <XStack px="$4" py="$3">
-                <XStack
-                    flex={1}
-                    bg="$gray4"
-                    rounded="$4"
-                    px="$3"
-                    height={50}
-                    items="center"
-                    gap="$2"
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push('/(modals)/search');
-                    }}
-                >
-                    <Search size={20} color="$gray10" />
-                    <Text color="$gray10" flex={1}>Search people, mints, addresses...</Text>
+        <SafeAreaView style={{ flex: 1 }}>
+            <YStack flex={1} bg="$background">
+                {/* Search Bar Trigger */}
+                <XStack px="$4" py="$3">
+                    <XStack
+                        flex={1}
+                        bg="$gray4"
+                        rounded="$4"
+                        px="$3"
+                        height={50}
+                        items="center"
+                        gap="$2"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push('/(modals)/search');
+                        }}
+                    >
+                        <Search size={20} color="$gray10" />
+                        <Text color="$gray10" flex={1}>Search people, mints, addresses...</Text>
+                    </XStack>
                 </XStack>
-            </XStack>
 
-            <ScrollView
-                flex={1}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefetching}
-                        onRefresh={handleRefresh}
-                        tintColor="#FFD700"
-                    />
-                }
-            >
-                {/* Decoration Placeholder */}
-                <YStack items="center" justify="center" py="$6" gap="$-2">
-                    <Search size={48} color="$gray10" />
-                    <Text fontSize="$5" maxW={300} fontWeight="600" color="$gray10">
-                        Drag down to search anything from
-                    </Text>
-                    <Text fontSize="$5" fontWeight="600" color="$gray10">
-                        mints on nostr
-                        & people
-                    </Text>
-                    <Text fontSize="$5" fontWeight="600" color="$gray10">
-                        on @bey.cash
+                <ScrollView
+                    flex={1}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefetching}
+                            onRefresh={handleRefresh}
+                            tintColor="#FFD700"
+                        />
+                    }
+                >
+                    {/* Decoration Placeholder */}
+                    <YStack items="center" justify="center" py="$6" gap="$-2">
+                        <Search size={48} color="$gray10" />
+                        <Text fontSize="$5" maxW={300} fontWeight="600" color="$gray10">
+                            Drag down to search anything from
+                        </Text>
+                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                            mints on nostr
+                            & people
+                        </Text>
+                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                            on @bey.cash
 
 
-                    </Text>
-                </YStack>
+                        </Text>
+                    </YStack>
 
-                {/* Quick Actions */}
-                {/* <XStack px="$4" py="$2" gap="$2">
+                    {/* Quick Actions */}
+                    {/* <XStack px="$4" py="$2" gap="$2">
                     <Button
                         flex={1}
                         size="$3"
@@ -152,36 +154,37 @@ export default function ExploreTabScreen() {
 
 
 
-                {/* Contacts Section */}
-                <YStack px="$4" mt="$2">
-                    <ContactsView />
-                </YStack>
+                    {/* Contacts Section */}
+                    <YStack px="$4" mt="$2">
+                        <ContactsView />
+                    </YStack>
 
-                {/* Top Mints Section */}
-                <YStack mt="$4">
-                    <XStack justify="space-between" px="$4">
-                        <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle='dashed'>Discover Top Mints</H6>
-                        <Button size="$2" chromeless onPress={() => router.push('/(modals)/discover-mints')}>
-                            See All
-                        </Button>
-                    </XStack>
+                    {/* Top Mints Section */}
+                    <YStack mt="$4">
+                        <XStack justify="space-between" px="$4">
+                            <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle='dashed'>Discover Top Mints</H6>
+                            <Button size="$2" chromeless onPress={() => router.push('/(modals)/discover-mints')}>
+                                See All
+                            </Button>
+                        </XStack>
 
-                    {topMints.length === 0 ? (
-                        <MintEmptyState isLoading={isLoading} activeTab="all" />
-                    ) : (
-                        <MintList
-                            mints={topMints}
-                            getMintStatus={getMintStatus}
-                            onAction={handleAction}
-                            onViewProfile={handleViewProfile}
-                        />
-                    )}
-                </YStack>
+                        {topMints.length === 0 ? (
+                            <MintEmptyState isLoading={isLoading} activeTab="all" />
+                        ) : (
+                            <MintList
+                                mints={topMints}
+                                getMintStatus={getMintStatus}
+                                onAction={handleAction}
+                                onViewProfile={handleViewProfile}
+                            />
+                        )}
+                    </YStack>
 
-                <YStack height={80} />
-            </ScrollView>
+                    <YStack height={80} />
+                </ScrollView>
 
-            <AddMintModal ref={addMintRef} />
-        </YStack>
+                <AddMintModal ref={addMintRef} />
+            </YStack>
+        </SafeAreaView>
     );
 }

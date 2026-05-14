@@ -26,6 +26,7 @@ import HistoryVolume from '~/components/HistoryVolume'
 import LockIcon from '~/components/icons/Lock'
 import NFCFillIcon from '~/components/icons/NFC-fill'
 import * as Haptics from 'expo-haptics'
+import HomeIcon from '~/components/icons/Home'
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
@@ -84,7 +85,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color }) => <WalletIcon size={28} color={color as any} />,
+          tabBarIcon: ({ color }) => <HomeIcon size={28} color={color as any} />,
           headerRight: () => (
             <XStack pr="$4" gap="$2">
               <Button
@@ -116,28 +117,12 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="history"
-        listeners={{
-          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color }) => <History strokeWidth={2.5} color={color as any} />,
-          headerRight: () => (
-            <XStack pr="$4">
-              <HistoryVolume />
-            </XStack>
-          ),
-        }}
-      />
-
-
-      <Tabs.Screen
         name="explore"
         listeners={{
           tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
         }}
         options={{
+          headerShown: false,
           title: 'Explore',
           tabBarIcon: ({ color }) => <Search strokeWidth={2.5} color={color as any} />,
           headerRight: () => (
@@ -156,30 +141,34 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="history"
+        listeners={{
+          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+        }}
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <History strokeWidth={2.5} color={color as any} />,
+          headerRight: () => (
+            <XStack pr="$4">
+              <HistoryVolume />
+            </XStack>
+          ),
+        }}
+      />
+
+
+
       <Tabs.Screen
         name="settings"
         listeners={{
           tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
         }}
         options={{
-          tabBarStyle: {
-            display: 'none',
-          },
+
           title: 'Settings',
-          headerLeft: () => (
-            <XStack pl="$4">
-              <Button
-                circular
-                size="$3"
-                chromeless
-                icon={<ArrowLeft size={24} color={"$color"} />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                  router.back()
-                }}
-              />
-            </XStack>
-          ),
+
           tabBarIcon: ({ color }) => <SettingsIcon color={color as any} />,
           headerRight: () => (
             <XStack pr="$4">

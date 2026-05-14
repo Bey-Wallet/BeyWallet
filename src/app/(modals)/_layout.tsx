@@ -195,7 +195,8 @@ export default function ModalLayout() {
                 name="search"
                 options={{
                     title: 'Search',
-                    presentation: "fullScreenModal",
+                    presentation: "formSheet",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen

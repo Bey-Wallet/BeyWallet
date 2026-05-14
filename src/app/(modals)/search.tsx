@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, Input, Button, Spinner } from 'tamagui';
-import { Search, X, ClipboardPaste, ScanQrCode } from '@tamagui/lucide-icons';
+import { MintIcon } from '~/screens/ExpolreTabScreen/components/MintIcon';
+import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
@@ -8,6 +9,7 @@ import Blockies from '~/components/UI/Blockies';
 import { Buffer } from 'buffer';
 import { useContactsStore } from '~/store/contactsStore';
 import { useWalletStore } from '~/store/walletStore';
+import { useMintRecommendationStore } from '~/store/mintRecommendationStore';
 import { sqliteStorage } from '~/store/sqliteStorage';
 import { FlatList } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -32,9 +34,10 @@ export default function UniversalSearchScreen() {
     const [isSearching, setIsSearching] = useState(false);
     const [directory, setDirectory] = useState<Record<string, string>>({});
     const router = useRouter();
-    
+
     const { favorites } = useContactsStore();
     const { mints } = useWalletStore();
+    const { recommendations, fetchRecommendations } = useMintRecommendationStore();
 
     // Load directory and recent searches
     useEffect(() => {
@@ -49,7 +52,7 @@ export default function UniversalSearchScreen() {
                 console.error('[Search] Failed to fetch directory:', err);
             }
         };
-        
+
         const loadRecents = () => {
             const cached = sqliteStorage.getItem('recent_searches');
             if (cached) {
@@ -63,7 +66,8 @@ export default function UniversalSearchScreen() {
 
         fetchDirectory();
         loadRecents();
-    }, []);
+        fetchRecommendations();
+    }, [fetchRecommendations]);
 
     const saveRecents = (updated: SearchResultItem[]) => {
         setRecentSearches(updated);
@@ -89,7 +93,7 @@ export default function UniversalSearchScreen() {
 
         // 1. Search People (Directory & Favorites)
         const peopleResults: SearchResultItem[] = [];
-        
+
         // Check favorites first
         Object.values(favorites).forEach((contact: any) => {
             if (contact.username?.toLowerCase().includes(lowerQuery) || contact.npub?.toLowerCase().includes(lowerQuery)) {
@@ -130,6 +134,8 @@ export default function UniversalSearchScreen() {
 
         // 2. Search Mints
         const mintResults: SearchResultItem[] = [];
+        
+        // Search local mints
         mints.forEach(mint => {
             if (mint.mintUrl.toLowerCase().includes(lowerQuery) || (mint.nickname && mint.nickname.toLowerCase().includes(lowerQuery))) {
                 mintResults.push({
@@ -139,6 +145,28 @@ export default function UniversalSearchScreen() {
                     subtitle: mint.mintUrl,
                     data: mint,
                 });
+            }
+        });
+
+        // Search global mints from recommendations
+        recommendations.forEach(rec => {
+            const lowerUrl = rec.url.toLowerCase();
+            const lowerName = rec.name?.toLowerCase() || '';
+            if (lowerUrl.includes(lowerQuery) || lowerName.includes(lowerQuery)) {
+                // Deduplicate: don't add if already in local mints
+                if (!mintResults.some(r => r.subtitle === rec.url)) {
+                    mintResults.push({
+                        id: `global-mint-${rec.url}`,
+                        type: 'mint',
+                        title: rec.name || 'Mint',
+                        subtitle: rec.url,
+                        data: {
+                            mintUrl: rec.url,
+                            name: rec.name,
+                            icon: rec.icon,
+                        },
+                    });
+                }
             }
         });
 
@@ -156,7 +184,7 @@ export default function UniversalSearchScreen() {
                     const hex = decoded.data as string;
                     // Look up in directory
                     const foundName = Object.keys(directory).find(name => directory[name] === hex);
-                    
+
                     addressResults.push({
                         id: `addr-${lowerQuery}`,
                         type: 'address',
@@ -176,7 +204,7 @@ export default function UniversalSearchScreen() {
         }
 
         setResults(found);
-    }, [directory, favorites, mints]);
+    }, [directory, favorites, mints, recommendations]);
 
     // Debounce search
     useEffect(() => {
@@ -196,7 +224,7 @@ export default function UniversalSearchScreen() {
 
     const onSelectItem = (item: SearchResultItem) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        
+
         // Add to recents
         if (item.type !== 'header') {
             const updatedRecents = [item, ...recentSearches.filter(r => r.id !== item.id)].slice(0, 5);
@@ -229,21 +257,18 @@ export default function UniversalSearchScreen() {
 
         return (
             <XStack
-                p="$3"
+
                 mx="$4"
-                my="$1"
-                bg="$gray3"
-                rounded="$4"
+                my="$2"
+
                 items="center"
                 gap="$3"
                 onPress={() => onSelectItem(item)}
             >
                 {item.type === 'people' || item.type === 'address' ? (
-                    <Blockies seed={item.subtitle || 'default'} size={10} scale={3} style={{ borderRadius: 4 }} />
+                    <Blockies seed={item.subtitle || 'default'} size={10} scale={4} style={{ borderRadius: 4 }} />
                 ) : (
-                    <YStack width={30} height={30} bg="$gray5" rounded="$2" items="center" justify="center">
-                        <Search size={16} color="$gray11" />
-                    </YStack>
+                    <MintIcon url={item.subtitle} hintIcon={item.data?.icon} size={45} />
                 )}
                 <YStack flex={1}>
                     <Text fontSize="$5" fontWeight="600" color="$color">
@@ -251,7 +276,7 @@ export default function UniversalSearchScreen() {
                     </Text>
                     {item.subtitle && (
                         <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-                            {item.subtitle.length > 30 ? `${item.subtitle.slice(0, 15)}...${item.subtitle.slice(-15)}` : item.subtitle}
+                            {item.subtitle.length > 30 ? `${item.subtitle.slice(0, 6)}...${item.subtitle.slice(-6)}` : item.subtitle}
                         </Text>
                     )}
                 </YStack>
@@ -266,13 +291,13 @@ export default function UniversalSearchScreen() {
     return (
         <YStack flex={1} bg="$background" gap="$2">
             <XStack px="$4" py="$2" gap="$2" items="center">
-                <XStack flex={1} bg="$gray4" rounded="$4" px="$3" height={50} items="center" gap="$2">
-                    <Search size={20} color="$gray10" />
+                <XStack flex={1} bg="$gray3" rounded="$5" px="$3" height={50} items="center" gap="$2">
+                    <Search size={20} strokeWidth={3} color="$gray10" />
                     <Input
                         flex={1}
                         borderWidth={0}
                         bg="transparent"
-                        placeholder="Search people, mints, addresses..."
+                        placeholder="Search people, mints..."
                         value={search}
                         onChangeText={setSearch}
                         autoCapitalize="none"
@@ -284,7 +309,7 @@ export default function UniversalSearchScreen() {
                     ) : search.length > 0 ? (
                         <Button size="$2" chromeless icon={<X size={16} />} onPress={() => setSearch('')} />
                     ) : (
-                        <Button size="$2" chromeless icon={<ClipboardPaste size={18} color="$gray10" />} onPress={handlePaste} />
+                        <Button size="$2" chromeless icon={<Scan strokeWidth={3} size={20} color="$gray10" />} onPress={handlePaste} />
                     )}
                 </XStack>
             </XStack>

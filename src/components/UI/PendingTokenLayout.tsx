@@ -20,6 +20,8 @@ import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/service
 import { nip19 } from 'nostr-tools';
 import NFCFillIcon from '~/components/icons/NFC-fill';
 import NostrIcon from '~/components/icons/NostrIcon';
+import { nfcService } from '~/services/nfcService';
+import { ProcessingSheet, ProcessingStatus } from './ProcessingSheet';
 
 export interface PendingTokenLayoutProps {
     token: string;
@@ -33,6 +35,7 @@ export interface PendingTokenLayoutProps {
     hideActions?: boolean;
     onClaim?: () => void | Promise<void>;
     isClaiming?: boolean;
+    onNfcPress?: () => void;
 }
 
 export function PendingTokenLayout({
@@ -47,6 +50,7 @@ export function PendingTokenLayout({
     hideActions = false,
     onClaim,
     isClaiming = false,
+    onNfcPress,
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
     const { secondaryCurrency, npub } = useSettingsStore();
@@ -65,6 +69,46 @@ export function PendingTokenLayout({
     const [parsedNpub, setParsedNpub] = useState<string | null>(lockedToNpub || null);
 
     const MAX_STATIC_QR_LENGTH = 1000;
+
+    const [showNfcSheet, setShowNfcSheet] = useState(false);
+    const [nfcStatus, setNfcStatus] = useState<ProcessingStatus>('processing');
+    const [nfcMessage, setNfcMessage] = useState('Preparing to send...');
+    const [nfcError, setNfcError] = useState<string | undefined>(undefined);
+
+    const handleNfcShare = async () => {
+        if (!currentToken) return;
+        
+        setShowNfcSheet(true);
+        setNfcStatus('processing');
+        setNfcMessage('Checking NFC status...');
+        
+        try {
+            const enabled = await nfcService.isEnabled();
+            if (!enabled) {
+                setNfcStatus('error');
+                setNfcMessage('NFC is disabled');
+                setNfcError('Please enable NFC in your device settings.');
+                
+                try {
+                    await nfcService.goToNfcSetting();
+                } catch (e) {
+                    console.warn('Failed to open NFC settings', e);
+                }
+                return;
+            }
+            
+            setNfcMessage('Approach the receiver tag or device...');
+            await nfcService.writeNdefTag(currentToken);
+            
+            setNfcStatus('success');
+            setNfcMessage('Token sent successfully via NFC!');
+        } catch (e: any) {
+            console.error('NFC share error:', e);
+            setNfcStatus('error');
+            setNfcMessage('NFC Share Failed');
+            setNfcError(e.message || 'An error occurred during NFC transmission.');
+        }
+    };
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -215,7 +259,11 @@ export function PendingTokenLayout({
                         py="$6"
                         onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            toast.show('NFC Share', { message: 'NFC sharing is not implemented yet' });
+                            if (onNfcPress) {
+                                onNfcPress();
+                            } else {
+                                handleNfcShare();
+                            }
                         }}
                     />
                     <Button
@@ -333,6 +381,14 @@ export function PendingTokenLayout({
                     )}
                 </YStack>
             )}
+            <ProcessingSheet
+                visible={showNfcSheet}
+                status={nfcStatus}
+                title={nfcMessage}
+                errorMessage={nfcError}
+                variant="nfc"
+                onClose={() => setShowNfcSheet(false)}
+            />
         </YStack>
     );
 }

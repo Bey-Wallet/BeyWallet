@@ -29,6 +29,18 @@ const readNdefTag = async () => {
     }
 };
 
+const writeNdefTag = async (text: string) => {
+    try {
+        await NfcManager.requestTechnology(NfcTech.Ndef);
+        const bytes = Ndef.encodeMessage([Ndef.textRecord(text)]);
+        await NfcManager.writeNdefMessage(bytes, { reconnectAfterWrite: false });
+    } catch (e: any) {
+        throw e;
+    } finally {
+        await NfcManager.cancelTechnologyRequest().catch(() => {});
+    }
+};
+
 const startListening = async (callback: (tag: any) => void) => {
     try {
         await NfcManager.registerTagEvent();
@@ -60,6 +72,7 @@ export const nfcService = {
     isEnabled,
     goToNfcSetting,
     readNdefTag,
+    writeNdefTag,
     startListening,
     stopListening,
     isStringSafeForNFC,
