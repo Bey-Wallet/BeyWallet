@@ -129,6 +129,7 @@
         }
       ],
       "expo-web-browser",
+      "./plugins/withHce.js",
       "expo-dev-client",
       "expo-localization",
       "expo-asset",

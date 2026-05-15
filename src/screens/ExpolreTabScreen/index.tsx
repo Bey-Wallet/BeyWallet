@@ -86,7 +86,7 @@ export default function ExploreTabScreen() {
                 <XStack px="$4" py="$3">
                     <XStack
                         flex={1}
-                        bg="$gray4"
+                        bg="$gray2"
                         rounded="$4"
                         px="$3"
                         height={50}
@@ -97,7 +97,9 @@ export default function ExploreTabScreen() {
                             router.push('/(modals)/search');
                         }}
                     >
-                        <Search size={20} color="$gray10" />
+                        <Search size={20}
+                            fontWeight="700"
+                            color="$gray10" />
                         <Text color="$gray10" flex={1}>Search people, mints, addresses...</Text>
                     </XStack>
                 </XStack>

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
+import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce';
 
 const init = async function () {
     const supported = await NfcManager.isSupported();
@@ -55,6 +56,41 @@ const stopListening = async () => {
     await NfcManager.unregisterTagEvent().catch(() => {});
 };
 
+const startHceSimulation = async (text: string) => {
+    if (Platform.OS !== 'android') {
+        throw new Error('HCE is only supported on Android');
+    }
+    
+    try {
+        const tag = new NFCTagType4({
+            type: NFCTagType4NDEFContentType.Text,
+            content: text,
+            writable: false,
+        });
+
+        const session = await HCESession.getInstance();
+        if (!session) {
+            throw new Error('Failed to get HCE session instance');
+        }
+
+        session.setApplication(tag);
+        await session.setEnabled(true);
+        return session;
+    } catch (e: any) {
+        console.error('Failed to start HCE simulation', e);
+        throw e;
+    }
+};
+
+const stopHceSimulation = async (session: any) => {
+    if (!session) return;
+    try {
+        await session.setEnabled(false);
+    } catch (e: any) {
+        console.warn('Failed to stop HCE simulation', e);
+    }
+};
+
 const isStringSafeForNFC = function (str: string): boolean {
     const SAFE_NFC_BYTE_LIMIT = 32000; // Conservative limit
     try {
@@ -73,6 +109,8 @@ export const nfcService = {
     goToNfcSetting,
     readNdefTag,
     writeNdefTag,
+    startHceSimulation,
+    stopHceSimulation,
     startListening,
     stopListening,
     isStringSafeForNFC,

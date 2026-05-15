@@ -4,8 +4,6 @@ import { XCircle } from "@tamagui/lucide-icons";
 import { Stack } from 'expo-router';
 
 import { PendingTokenLayout } from '../../components/UI/PendingTokenLayout';
-import { nfcService } from '../../services/nfcService';
-import { ProcessingSheet, ProcessingStatus } from '../../components/UI/ProcessingSheet';
 
 interface ResultStageProps {
     status: 'success' | 'error';
@@ -34,49 +32,6 @@ export function ResultStage({
 }: ResultStageProps) {
     const isSuccess = status === 'success';
     const [isReclaiming, setIsReclaiming] = useState(false);
-    
-    const [showNfcSheet, setShowNfcSheet] = useState(false);
-    const [nfcStatus, setNfcStatus] = useState<ProcessingStatus>('processing');
-    const [nfcMessage, setNfcMessage] = useState('Preparing to send...');
-    const [nfcError, setNfcError] = useState<string | undefined>(undefined);
-
-    const handleNfcShare = async () => {
-        if (!token) return;
-        
-        setShowNfcSheet(true);
-        setNfcStatus('processing');
-        setNfcMessage('Checking NFC status...');
-        
-        try {
-            const enabled = await nfcService.isEnabled();
-            if (!enabled) {
-                setNfcStatus('error');
-                setNfcMessage('NFC is disabled');
-                setNfcError('Please enable NFC in your device settings.');
-                
-                // Fallback: try to open settings
-                try {
-                    await nfcService.goToNfcSetting();
-                } catch (e) {
-                    console.warn('Failed to open NFC settings', e);
-                }
-                return;
-            }
-            
-            setNfcMessage('Approach the receiver tag or device...');
-            
-            // Start real working send (write to tag)
-            await nfcService.writeNdefTag(token);
-            
-            setNfcStatus('success');
-            setNfcMessage('Token sent successfully via NFC!');
-        } catch (e: any) {
-            console.error('NFC share error:', e);
-            setNfcStatus('error');
-            setNfcMessage('NFC Share Failed');
-            setNfcError(e.message || 'An error occurred during NFC transmission.');
-        }
-    };
 
     const handleReclaim = async () => {
         if (onReclaim) {
@@ -119,18 +74,9 @@ export function ResultStage({
                         mintUrl={mintUrl}
                         onReclaim={onReclaim ? handleReclaim : undefined}
                         isReclaiming={isReclaiming}
-                        onNfcPress={handleNfcShare}
                     />
                 )}
             </ScrollView>
-            <ProcessingSheet
-                visible={showNfcSheet}
-                status={nfcStatus}
-                title={nfcMessage}
-                errorMessage={nfcError}
-                variant="nfc"
-                onClose={() => setShowNfcSheet(false)}
-            />
         </YStack>
     );
 }

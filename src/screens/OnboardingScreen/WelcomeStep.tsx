@@ -4,6 +4,7 @@ import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAppTheme } from '../../context/ThemeContext'
+import GlowCard from '~/components/UI/GlowCard'
 
 interface WelcomeStepProps {
     onCreateWallet: () => void
@@ -43,30 +44,18 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
 
             {/* Center - Logo and Title */}
             <YStack items="center" gap="$6">
-                <View
-                    width={140}
-                    height={140}
-                    rounded="$10"
-                    bg="$color"
-                    items="center"
-                    justify="center"
-                    overflow="hidden"
-                    borderWidth={1}
-                    borderColor="$borderColor"
-                >
-                    <Image
-                        source={resolvedTheme === 'dark'
-                            ? require('../../assets/icons/Bey-light-logo.png')
-                            : require('../../assets/icons/Bey-dark-logo.png')}
-                        style={{ width: 90, height: 90 }}
-                        resizeMode="contain"
-                    />
-                </View>
+                <GlowCard gradientColor='gray' middleColor='gray' rounded="$5">
+                    <YStack height={400} alignItems="center" justifyContent="center" >
+                        <Image source={require('../../assets/icons/Frame 9.png')} width={150} height={150}
+                            // rotate="90deg"
+                            resizeMode="contain" />
+                    </YStack>
 
+                </GlowCard>
             </YStack>
 
             {/* Bottom - CTAs */}
-            <YStack gap="$3" justify="center" items="center" pb="$4">
+            <YStack gap="$3" mb="$4" justify="center" items="center" pb="$4">
 
                 <YStack items="center" gap="$2">
                     <H1 fontSize="$9" text="center" lineHeight="$9" fontWeight="700" color="$color">
