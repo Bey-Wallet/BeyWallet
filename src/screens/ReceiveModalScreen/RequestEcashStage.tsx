@@ -46,6 +46,9 @@ import { walletService } from '../../services/core/walletService';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '../SendModalScreen/ResultStage';
+import { sendNostrToken } from '../../services/core/nostrService';
+import { seedService } from '../../services/seedService';
+import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -58,6 +61,8 @@ type RequestStep = 'amount' | 'result' | 'success';
 interface RequestEcashStageProps {
     onClose?: () => void;
     initialRequestId?: string;
+    targetNpub?: string;
+    targetUsername?: string;
 }
 
 // ─── Detail Row ───────────────────────────────────────────────────────────────
@@ -95,7 +100,7 @@ function DetailItem({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashStageProps) {
+export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targetUsername }: RequestEcashStageProps) {
     const [step, setStep] = useState<RequestStep>('amount');
     const [amount, setAmount] = useState('0');
     const [localInputValue, setLocalInputValue] = useState('0');
@@ -256,6 +261,17 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
             );
 
             const encoded = pr.toEncodedRequest();
+
+            if (targetNpub) {
+                const mnemonic = await seedService.getMnemonic();
+                if (!mnemonic) throw new Error('Wallet seed not found.');
+                const keys = await seedService.getNostrKeys(mnemonic);
+                const published = await sendNostrToken(encoded, targetNpub, keys.privkey);
+                if (!published) {
+                    throw new Error('Failed to send request via Nostr.');
+                }
+                console.log(`[RequestEcashStage] Sent request to ${targetNpub}`);
+            }
 
             // ── Persist request to local DB so E-Cash screen shows it ──────────
             const reqId = makeRequestId();
@@ -683,6 +699,7 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
                         <DetailItem label="Unit" value="SATOSHIS" />
                         <DetailItem label="Mint" value={mintName} />
                         {note ? <DetailItem label="Note" value={note} /> : null}
+                        {targetNpub ? <DetailItem label="Sent To" value={targetUsername || `${targetNpub.slice(0, 10)}...${targetNpub.slice(-6)}`} /> : null}
                         <DetailItem
                             label="Request"
                             value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
@@ -745,6 +762,15 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
                     </YStack>
                 </YStack>
             </ScrollView>
+
+            <ProcessingSheet
+                isOpen={isGenerating || !!generateError}
+                state={generateError ? 'error' : 'processing'}
+                title={generateError ? "Request Failed" : "Creating Request"}
+                message={generateError ? generateError : "Generating your Nostr ecash request..."}
+                error={generateError || undefined}
+                onClose={() => setGenerateError(null)}
+            />
         </YStack>
     );
 }

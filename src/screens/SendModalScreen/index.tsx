@@ -80,7 +80,7 @@ export function SendModalScreen() {
     const queryClient = useQueryClient();
 
     // ── Read params from contact-details or deep link ─────────────────────
-    const params = useLocalSearchParams<{ paymentRequest?: string; to?: string; username?: string; mode?: string }>();
+    const params = useLocalSearchParams<{ paymentRequest?: string; to?: string; username?: string; mode?: string; inboxItemId?: string }>();
 
     // Auto-select Nostr mode + pre-fill recipient when coming from contact-details
     React.useEffect(() => {
@@ -429,6 +429,7 @@ export function SendModalScreen() {
             {step === 'payment_request' && activeParsedRequest && (
                 <PaymentRequestStage
                     request={activeParsedRequest}
+                    inboxItemId={params.inboxItemId}
                     onSuccess={(paidAmount, opId) => {
                         setAmount(String(paidAmount));
                         setOperationId(opId);

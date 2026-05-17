@@ -36,7 +36,7 @@ export function ReceiveModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
-    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string }>()
+    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string, from?: string, username?: string }>()
     const refreshBalance = useWalletStore(s => s.refreshBalance)
     const addMint = useWalletStore(s => s.addMint)
     const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
@@ -68,10 +68,10 @@ export function ReceiveModalScreen() {
 
             setToken(raw);
             handleDecodeToken(raw);
-        } else if (params.requestId) {
+        } else if (params.requestId || params.from) {
             setReceiveMode('request');
         }
-    }, [params.scannedToken, params.requestId]);
+    }, [params.scannedToken, params.requestId, params.from]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -333,7 +333,12 @@ export function ReceiveModalScreen() {
 
             {/* ── Request Ecash: self-contained amount + result flow ─────── */}
             {receiveMode === 'request' && (
-                <RequestEcashStage onClose={handleClose} initialRequestId={params.requestId} />
+                <RequestEcashStage 
+                    onClose={handleClose} 
+                    initialRequestId={params.requestId} 
+                    targetNpub={params.from}
+                    targetUsername={params.username}
+                />
             )}
 
 

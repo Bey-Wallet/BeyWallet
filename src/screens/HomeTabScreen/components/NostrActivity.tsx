@@ -13,12 +13,14 @@
 import React, { useMemo, useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, H6, Text, View } from 'tamagui';
-import { ChevronRight } from '@tamagui/lucide-icons';
+import { ChevronRight, X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { Button } from 'tamagui';
 
 function formatNpub(hex: string): string {
     try {
@@ -58,9 +60,33 @@ export default function NostrActivity() {
         [items]
     );
 
+    const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
+    const sheetRef = React.useRef<AppBottomSheetRef>(null);
+
     const handleOpenClaim = (item: NostrInboxItem) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        DeviceEventEmitter.emit('nostr:openClaim', item);
+        if (item.type === 'request') {
+            setSelectedRequest(item);
+            sheetRef.current?.present();
+        } else {
+            DeviceEventEmitter.emit('nostr:openClaim', item);
+        }
+    };
+
+    const handlePayRequest = () => {
+        if (!selectedRequest) return;
+        sheetRef.current?.dismiss();
+        router.push({
+            pathname: '/(modals)/send',
+            params: { paymentRequest: selectedRequest.tokenString, inboxItemId: selectedRequest.id }
+        });
+    };
+
+    const handleDeclineRequest = () => {
+        if (!selectedRequest) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        useNostrInboxStore.getState().dismiss(selectedRequest.id);
+        sheetRef.current?.dismiss();
     };
 
     // Nothing to show — hide entirely
@@ -119,7 +145,7 @@ export default function NostrActivity() {
 
                         {/* Right — rounded amount button */}
                         <XStack
-                            bg="$gray5"
+                            bg={item.type === 'request' ? '$orange3' : '$gray5'}
                             px="$3"
                             py="$2"
                             rounded="$10"
@@ -129,14 +155,46 @@ export default function NostrActivity() {
                             pressStyle={{ scale: 0.96, opacity: 0.85 }}
                             cursor="pointer"
                         >
-                            <Text fontSize={15} fontWeight="900" color="$accent4" letterSpacing={-0.3}>
-                                +₿{item.amount.toLocaleString()}
+                            <Text fontSize={15} fontWeight="900" color={item.type === 'request' ? '$orange10' : '$accent4'} letterSpacing={-0.3}>
+                                {item.type === 'request' ? '?' : '+'}₿{item.amount.toLocaleString()}
                             </Text>
-                            <ChevronRight size={14} strokeWidth={3} color="$accent4" />
+                            <ChevronRight size={14} strokeWidth={3} color={item.type === 'request' ? '$orange10' : '$accent4'} />
                         </XStack>
                     </XStack>
                 ))}
             </YStack>
+
+            <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
+                <YStack p="$4" gap="$4" flex={1}>
+                    <YStack items="center" gap="$2" mb="$2">
+                        <Text fontSize="$5" fontWeight="800" color="$color">Payment Request</Text>
+                        <Text fontSize="$3" color="$gray10" textAlign="center">
+                            {selectedRequest?.senderUsername || (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone')} is requesting ₿{selectedRequest?.amount?.toLocaleString()} sats from you.
+                        </Text>
+                    </YStack>
+                    <YStack gap="$3">
+                        <Button
+                            size="$5"
+                            theme="accent"
+                            fontWeight="800"
+                            icon={<ArrowUpRight size={20} />}
+                            onPress={handlePayRequest}
+                        >
+                            Pay Request
+                        </Button>
+                        <Button
+                            size="$5"
+                            bg="$red4"
+                            color="$red10"
+                            fontWeight="800"
+                            icon={<X size={20} />}
+                            onPress={handleDeclineRequest}
+                        >
+                            Decline
+                        </Button>
+                    </YStack>
+                </YStack>
+            </AppBottomSheet>
         </YStack>
     );
 }

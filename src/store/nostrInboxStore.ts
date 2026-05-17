@@ -17,7 +17,8 @@ export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed';
 
 export interface NostrInboxItem {
     id: string;               // Nostr event ID
-    tokenString: string;      // Raw cashuA/cashuB token
+    type?: 'token' | 'request'; // 'token' = incoming P2PK ecash, 'request' = incoming payment request
+    tokenString: string;      // Raw cashuA/cashuB token OR creqA/creqB request string
     amount: number;
     mintUrl: string;
     senderPubkey: string;

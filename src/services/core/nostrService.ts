@@ -303,6 +303,39 @@ class NostrService {
    * accepting the payment.
    */
   private async _handleDecrypted(text: string, sourceEvent: Event): Promise<void> {
+    // ── 1. Check for incoming Payment Request (creqA / creqB) ──
+    const creqMatch = text.match(/(creq[AB][A-Za-z0-9_=-]+)/i);
+    if (creqMatch) {
+      const creqString = creqMatch[1];
+      console.log(`[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`);
+      try {
+        const { PaymentRequest } = await import('@cashu/cashu-ts');
+        const pr = PaymentRequest.fromEncodedRequest(creqString);
+        if (pr.amount && pr.mints && pr.mints.length > 0) {
+          const { useNostrInboxStore } = await import('../../store/nostrInboxStore');
+          
+          let senderUsername: string | undefined = undefined;
+          try {
+            const { useContactsStore } = await import('../../store/contactsStore');
+            senderUsername = await useContactsStore.getState().resolveUsername(sourceEvent.pubkey) || undefined;
+          } catch { }
+
+          useNostrInboxStore.getState().addIncoming({
+            id: sourceEvent.id,
+            type: 'request',
+            tokenString: creqString,
+            amount: pr.amount,
+            mintUrl: pr.mints[0],
+            senderPubkey: sourceEvent.pubkey,
+            senderUsername,
+          });
+        }
+      } catch (e) {
+        console.warn(`[NostrService] Failed to parse creq string:`, e);
+      }
+      return; // Skip token parsing since it's a request
+    }
+
     let tokenString = '';
     let amount = 0;
     let mintUrl = '';

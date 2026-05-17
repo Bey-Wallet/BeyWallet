@@ -66,6 +66,7 @@ export interface ParsedPaymentRequest {
 
 interface PaymentRequestStageProps {
   request: ParsedPaymentRequest;
+  inboxItemId?: string;
   onSuccess: (amount: number, operationId: string) => void;
   onError: (msg: string) => void;
   onCancel: () => void;
@@ -75,6 +76,7 @@ interface PaymentRequestStageProps {
 
 export function PaymentRequestStage({
   request,
+  inboxItemId,
   onSuccess,
   onError,
   onCancel,
@@ -173,6 +175,13 @@ export function PaymentRequestStage({
 
       console.log(`[PaymentRequestStage] ✅ Payment complete. OpId: ${operationId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      if (inboxItemId) {
+        import('~/store/nostrInboxStore').then(({ useNostrInboxStore }) => {
+          useNostrInboxStore.getState().markClaimed(inboxItemId);
+        });
+      }
+
       setOverlayState(null);
       onSuccess(amountSats, operationId);
     } catch (err: any) {

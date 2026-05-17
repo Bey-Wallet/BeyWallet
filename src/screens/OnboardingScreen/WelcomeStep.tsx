@@ -43,16 +43,16 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
             <View />
 
             {/* Center - Logo and Title */}
-            <YStack items="center" gap="$6">
-                <GlowCard gradientColor='blue' middleColor='blue' rounded="$5">
-                    <YStack height={400} alignItems="center" justifyContent="center" >
-                        <Image source={require('../../assets/icons/Frame 9.png')} width={150} height={150}
-                            // rotate="90deg"
-                            resizeMode="contain" />
-                    </YStack>
 
-                </GlowCard>
+
+            <YStack height={400} width='100%' bg="$gray2" rounded="$5" alignItems="center" justifyContent="center" >
+                <Image source={resolvedTheme === 'dark' ? require('../../assets/icons/Frame 6.png') : require('../../assets/icons/Frame 5.png')} width={100} height={100}
+                    // rotate="90deg"
+                    resizeMode="contain" />
             </YStack>
+
+
+
 
             {/* Bottom - CTAs */}
             <YStack gap="$3" mb="$4" justify="center" items="center" pb="$4">
