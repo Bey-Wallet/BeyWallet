@@ -44,7 +44,7 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
 
             {/* Center - Logo and Title */}
             <YStack items="center" gap="$6">
-                <GlowCard gradientColor='gray' middleColor='gray' rounded="$5">
+                <GlowCard gradientColor='blue' middleColor='blue' rounded="$5">
                     <YStack height={400} alignItems="center" justifyContent="center" >
                         <Image source={require('../../assets/icons/Frame 9.png')} width={150} height={150}
                             // rotate="90deg"

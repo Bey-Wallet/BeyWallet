@@ -1,5 +1,5 @@
-import { RefreshControl } from 'react-native'
-import { YStack, ScrollView } from 'tamagui'
+import { RefreshControl, Animated } from 'react-native'
+import { YStack, ScrollView, Button, Image } from 'tamagui'
 import * as Haptics from 'expo-haptics'
 import { useToastController } from '@tamagui/toast'
 import WalletCard from './components/WalletCard'
@@ -7,7 +7,7 @@ import ActionButtons from './components/ActionButtons'
 import { useWalletStore } from '../../store/walletStore'
 import React from 'react'
 import StatusScreen from '../../components/StatusScreen'
-import SkeletonCard from '../../components/UI/SkeletonCard'
+import { useAppTheme } from '../../context/ThemeContext'
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -15,6 +15,8 @@ import SkeletonCard from '../../components/UI/SkeletonCard'
 import ManageBalances from './components/ManageBalances'
 import NostrActivity from './components/NostrActivity'
 import { NostrClaimSheet } from '../../components/NostrClaimSheet'
+import { ArrowRight } from '@tamagui/lucide-icons'
+import { useAuthStore } from '~/store/authStore'
 const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'))
 
 const LazySupportView = React.lazy(() => import('./components/SupportView'))
@@ -23,12 +25,41 @@ type StatusType = 'success' | 'error' | 'pending' | null;
 
 /** Skeleton fallback shown while lazy components load */
 function HomeSkeleton() {
+    const { resolvedTheme } = useAppTheme()
+    const pulseAnim = React.useRef(new Animated.Value(0.3)).current
+
+    React.useEffect(() => {
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 0.8,
+                    duration: 1200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 0.3,
+                    duration: 1200,
+                    useNativeDriver: true,
+                }),
+            ])
+        )
+        pulse.start()
+        return () => pulse.stop()
+    }, [pulseAnim])
+
     return (
-        <YStack gap="$4" width="100%">
-            <SkeletonCard height={120} rows={2} showAvatar={false} />
-            <SkeletonCard height={160} rows={3} showAvatar={true} />
-            <SkeletonCard height={100} rows={2} showAvatar={true} />
-            <SkeletonCard height={80} rows={2} showAvatar={false} />
+        <YStack width="100%" height={300} bg="$gray2" rounded="$5" items="center" justify="center">
+            <Animated.View style={{ opacity: pulseAnim }}>
+                <Image
+                    alt="bey"
+                    source={resolvedTheme === 'dark'
+                        ? require('../../assets/icons/Frame 6.png')
+                        : require('../../assets/icons/Frame 5.png')}
+                    width={40}
+                    height={40}
+                    resizeMode="contain"
+                />
+            </Animated.View>
         </YStack>
     )
 }
@@ -39,6 +70,7 @@ export function HomeTabScreen() {
     const [refreshing, setRefreshing] = React.useState(false)
     const [showStatus, setShowStatus] = React.useState<StatusType>(null)
     const toast = useToastController()
+    const { lock } = useAuthStore()
 
     React.useEffect(() => {
         if (error) {
@@ -104,6 +136,29 @@ export function HomeTabScreen() {
 
                     <LazySupportView />
                 </React.Suspense>
+                <Button
+                    size="$5"
+                    fontWeight={800}
+                    px="$2"
+                    height={40}
+                    rounded="$3"
+                    theme={"light"}
+                    icon={
+                        <Image
+                            source={require('../../assets/icons/Frame 5.png')}
+                            width={25}
+                            height={25}
+                            resizeMode="contain"
+                        />
+                    }
+                    iconAfter={
+                        <ArrowRight strokeWidth={3} />
+                    }
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                        lock(true);
+                    }}
+                >PAY WITH BEY</Button>
             </YStack>
 
             {/* Global Nostr claim sheet — listens for incoming payments */}

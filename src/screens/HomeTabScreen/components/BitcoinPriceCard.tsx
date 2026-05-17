@@ -12,6 +12,7 @@ import { currencyService, CurrencyCode } from '~/services/currencyService'
 export default function BitcoinPriceCard() {
     const { secondaryCurrency } = useSettingsStore()
     const toast = useToastController()
+    const [showSats, setShowSats] = React.useState(false)
 
     const { data, isLoading, isFetching, refetch, dataUpdatedAt, isError, error } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -27,6 +28,18 @@ export default function BitcoinPriceCard() {
 
     const formatCurrency = (val: number) => {
         return currencyService.formatValue(val, secondaryCurrency as CurrencyCode)
+    }
+
+    const formatSatPrice = (price: number) => {
+        const satPrice = price / 100000000
+        const symbol = currencyService.getSymbol(secondaryCurrency as CurrencyCode)
+        
+        if (satPrice === 0) return `${symbol}0.00/SAT`
+        
+        if (satPrice < 0.01) {
+            return `${symbol}${satPrice.toFixed(5)}/SAT`
+        }
+        return `${symbol}${satPrice.toFixed(2)}/SAT`
     }
 
     const [now, setNow] = React.useState(Date.now());
@@ -64,7 +77,10 @@ export default function BitcoinPriceCard() {
             bg="$gray2"
             p="$2"
             pressStyle={{ opacity: 0.9, scale: 0.99 }}
-            onPress={handleRefresh}
+            onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                setShowSats(prev => !prev)
+            }}
         >
             <XStack justify="space-between" items="center">
                 <XStack gap="$2" items="center">
@@ -78,7 +94,17 @@ export default function BitcoinPriceCard() {
 
                     <Text fontWeight="700" fontSize="$4" color="$orange11">Bitcoin price</Text>
                 </XStack>
-                <XStack gap="$1.5" items="center">
+                <XStack
+                    gap="$1.5"
+                    items="center"
+                    onPress={(e) => {
+                        e.stopPropagation()
+                        handleRefresh()
+                    }}
+                    pressStyle={{ opacity: 0.7 }}
+                    px="$2"
+                    py="$1"
+                >
                     <Text fontSize="$2" color="$gray10">{timeAgo}</Text>
                     {isFetching ? (
                         <Spinner size="small" color="$orange11" />
@@ -92,12 +118,28 @@ export default function BitcoinPriceCard() {
                 <YStack gap="$1.5" flex={1} justify="flex-end">
                     {data ? (
                         <XStack justify="space-between">
-                            <RollingNumber
-                                showDecimals={false}
-
-                                fontSize={24} fontWeight={800} letterSpacing={-1.5} color="$accent4" lineHeight={36}>
-                                {formatCurrency(data.price)}
-                            </RollingNumber>
+                            {showSats ? (
+                                <Text
+                                    fontSize={22}
+                                    fontWeight={800}
+                                    letterSpacing={-1.2}
+                                    color="$accent4"
+                                    lineHeight={36}
+                                >
+                                    {formatSatPrice(data.price)}
+                                </Text>
+                            ) : (
+                                <RollingNumber
+                                    showDecimals={false}
+                                    fontSize={24}
+                                    fontWeight={800}
+                                    letterSpacing={-1.5}
+                                    color="$accent4"
+                                    lineHeight={36}
+                                >
+                                    {formatCurrency(data.price)}
+                                </RollingNumber>
+                            )}
 
                             <XStack gap="$2" items="flex-end" justify="flex-end">
                                 <View

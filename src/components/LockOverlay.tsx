@@ -68,12 +68,12 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
     return (
         <YStack
             position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
+            t={0}
+            l={0}
+            r={0}
+            b={0}
             style={StyleSheet.absoluteFill}
-            zIndex={9999}
+            z={9999}
             bg="$background"
             px="$3"
             py="$5"
@@ -89,25 +89,15 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
             {/* Middle Section - App Logo */}
             <YStack flex={1} justify="center" items="center">
-                <View
-                    width={160}
-                    height={160}
-                    rounded="$10"
-                    bg="$color"
-                    items="center"
-                    justify="center"
-                    overflow="hidden"
-                    borderWidth={1}
-                    borderColor="$borderColor"
-                >
-                    <Image
-                        source={resolvedTheme === 'dark'
-                            ? require('../assets/icons/Bey-light-logo.png')
-                            : require('../assets/icons/Bey-dark-logo.png')}
-                        style={{ width: 100, height: 100 }}
-                        resizeMode="contain"
-                    />
-                </View>
+
+                <Image
+                    source={resolvedTheme === 'dark'
+                        ? require('../assets/icons/Frame 6.png')
+                        : require('../assets/icons/Frame 5.png')}
+                    style={{ width: 100, height: 100 }}
+                    resizeMode="contain"
+                />
+
             </YStack>
 
             {/* Bottom Section - Unlock Button */}
@@ -133,12 +123,12 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
                 <View items="center">
                     <Button
                         size="$5"
-                        theme="accent"
+                        theme="gray"
                         onPress={handleAuthenticate}
-                        icon={isAuthenticating ? <Spinner /> : <Fingerprint size={24} />}
+                        icon={isAuthenticating ? <Spinner size='large' /> : <Fingerprint size={24} />}
                         fontSize="$6"
                         fontWeight="700"
-                        rounded="$6"
+                        rounded="$5"
                         pressStyle={{ scale: 0.98, opacity: 0.9 }}
                     >
                         {isAuthenticating ? 'Authenticating...' : 'Unlock'}

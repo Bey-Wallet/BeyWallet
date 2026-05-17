@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { YStack, ScrollView, XStack, Text, Button, Input, H6 } from 'tamagui';
+import { YStack, ScrollView, XStack, Text, Button, Input, H6, ZStack } from 'tamagui';
 import { RefreshControl } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,7 @@ import { MintEmptyState } from './components/MintEmptyState';
 import { type MintStatus } from './components/MintListItem';
 import ContactsView from '~/screens/HomeTabScreen/components/ContactsView';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Blockies from '~/components/UI/Blockies';
 
 
 const normalizeUrl = (url: string) => url.replace(/\/$/, '');
@@ -100,7 +101,7 @@ export default function ExploreTabScreen() {
                         <Search size={20}
                             fontWeight="700"
                             color="$gray10" />
-                        <Text color="$gray10" flex={1}>Search people, mints, addresses...</Text>
+                        <Text color="$gray10" pr="$3" flex={1} text="center">Search mints & people</Text>
                     </XStack>
                 </XStack>
 
@@ -116,19 +117,19 @@ export default function ExploreTabScreen() {
                     }
                 >
                     {/* Decoration Placeholder */}
-                    <YStack items="center" justify="center" py="$6" gap="$-2">
-                        <Search size={48} color="$gray10" />
-                        <Text fontSize="$5" maxW={300} fontWeight="600" color="$gray10">
-                            Drag down to search anything from
+                    <YStack mx="$4" items="center" justify="center" py="$6" height={250} bg="$gray2" rounded="$5">
+                        <ZStack width={100} height={40} mb="$5">
+                            <Blockies seed="mint_alpha" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 0, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
+                            <Blockies seed="mint_beta" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 20, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
+                            <Blockies seed="mint_gamma" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 40, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
+                            <Blockies seed="mint_delta" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 60, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
+                        </ZStack>
+
+                        <Text fontSize="$5" maxW={300} fontWeight="600" color="$gray10" text="center">
+                            Search mints & people
                         </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                            mints on nostr
-                            & people
-                        </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                        <Text fontSize="$5" fontWeight="600" color="$gray10" text="center">
                             on @bey.cash
-
-
                         </Text>
                     </YStack>
 

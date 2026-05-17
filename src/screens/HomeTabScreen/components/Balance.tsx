@@ -17,30 +17,12 @@ export default function Balance() {
     const isRestoring = useWalletStore(s => s.isRestoring);
     const { secondaryCurrency } = useSettingsStore();
     const [showAllMints, setShowAllMints] = React.useState(false);
-
-    // Custom interaction states
-    const [colorIndex, setColorIndex] = React.useState(0);
     const [localTrigger, setLocalTrigger] = React.useState(0);
-
-    const BALANCE_COLORS = [
-        "$accent3",
-        "$blue10",
-        "$gray10",
-        "$green10",
-        "$orange10",
-        "$pink10",
-        "$purple10",
-        "$red10",
-        "$teal10",
-        "$yellow10"
-    ];
 
     const handleBalancePress = React.useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setColorIndex(prev => (prev + 1) % BALANCE_COLORS.length);
         setLocalTrigger(prev => prev + 1);
     }, []);
-
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -114,7 +96,7 @@ export default function Balance() {
                         letterSpacing={-1}
                         fontSize={30}
                         fontWeight="900"
-                        color={BALANCE_COLORS[colorIndex]}
+                        color="$accent3"
                         decimalOpacity={0.4}
                         showDecimals={false}
                     />

@@ -80,7 +80,7 @@ export default function NFCReceiveScreen() {
             if (tokenMatch) {
                 const token = tokenMatch[1];
                 console.log('[NFCReceive] Found token:', token.substring(0, 20));
-                
+
                 setProcessing(true);
                 setStatus('processing');
                 setErrorMessage('');
@@ -88,7 +88,7 @@ export default function NFCReceiveScreen() {
                 await walletService.receive(token);
                 setStatus('success');
                 toast.show('Success', { message: 'Token received and claimed!' });
-                
+
                 setTimeout(() => {
                     setProcessing(false);
                 }, 3000);
@@ -112,7 +112,7 @@ export default function NFCReceiveScreen() {
         setProcessing(true);
         setStatus('processing');
         setErrorMessage('');
-        
+
         try {
             const tag = await nfcService.readNdefTag();
             processTag(tag);
@@ -154,8 +154,8 @@ export default function NFCReceiveScreen() {
                     <View width="100%" justify="center" items="center">
 
                         <Image alt='bey' source={resolvedTheme === 'dark'
-                            ? require('../../assets/icons/Frame 10.png')
-                            : require('../../assets/icons/Frame 9.png')}
+                            ? require('../../assets/icons/Frame 5.png')
+                            : require('../../assets/icons/Frame 6.png')}
 
                             width={250} height={80}
                             resizeMode="contain"

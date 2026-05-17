@@ -1,6 +1,6 @@
 import React from 'react'
 import { router, Tabs } from 'expo-router'
-import { Button, XStack, Text, useTheme, Image } from 'tamagui'
+import { Button, XStack, Text, useTheme, Image, H1 } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   History,
@@ -15,7 +15,11 @@ import {
   Globe,
   ArrowLeft,
   Search,
-  Nfc
+  Nfc,
+  Bitcoin,
+  Square,
+  CopySlash,
+  RectangleHorizontal
 } from '@tamagui/lucide-icons'
 import { useAppTheme } from '~/context/ThemeContext'
 import { useAuthStore } from '~/store/authStore'
@@ -33,10 +37,10 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
   <XStack pl="$4" items="center">
     <Image
       source={resolvedTheme === 'dark'
-        ? require('../../assets/icons/Frame 9.png')
-        : require('../../assets/icons/Frame 10.png')}
-      width={40}
-      height={40}
+        ? require('../../assets/icons/Frame 6.png')
+        : require('../../assets/icons/Frame 5.png')}
+      width={35}
+      height={35}
       resizeMode="contain"
     />
   </XStack>
@@ -85,7 +89,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color }) => <HomeIcon size={28} color={color as any} />,
+          tabBarIcon: ({ color }) => <HomeIcon color={color as any} />,
           headerRight: () => (
             <XStack pr="$4" gap="$2">
               <Button
