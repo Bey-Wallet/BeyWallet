@@ -35,9 +35,9 @@ export default function SupportView() {
                         >
                             <XStack items="center" gap={12}>
                                 <IconComponent size={20} color="$accent9" />
-                                <H6 fontWeight="600" width="80%">{item.title}</H6>
+                                <H6 fontWeight="600" color="$accent4" width="80%">{item.title}</H6>
                             </XStack>
-                            <ChevronRight strokeWidth={3} color="$color" size={18} />
+                            <ChevronRight strokeWidth={3} color="$accent4" size={18} />
                         </XStack>
                     );
                 })}

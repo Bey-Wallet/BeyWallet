@@ -43,12 +43,15 @@ import {
   PaymentStatusOverlay,
   type PaymentStatusState,
 } from '~/components/PaymentStatusOverlay';
+import { seedService } from '~/services/seedService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ParsedPaymentRequest {
   /** Raw creqA... string */
   raw: string;
+  /** Request ID */
+  id?: string;
   /** Amount in sats (may be undefined if open-ended) */
   amount?: number;
   /** Currency unit */
@@ -133,22 +136,17 @@ export function PaymentRequestStage({
     setOverlayState('sending');
 
     try {
-      // 1. Get sender's Nostr private key from settings
-      let senderNsec = nsec;
-      if (!senderNsec) {
-        throw new Error('Nostr keys not set up. Please restore or create a wallet first.');
+      // 1. Get sender's Nostr private key from seed
+      const mnemonic = await seedService.getMnemonic();
+      if (!mnemonic) {
+        throw new Error('Wallet seed not found. Please restore or create a wallet first.');
       }
-
-      // Decode nsec → hex
-      const { decode: nip19Decode } = await import('nostr-tools/nip19');
-      const decoded = nip19Decode(senderNsec);
-      if (decoded.type !== 'nsec') throw new Error('Invalid nsec key in settings');
-      const { bytesToHex } = await import('@noble/hashes/utils');
-      const senderPrivkeyHex = bytesToHex(decoded.data as Uint8Array);
+      const keys = await seedService.getNostrKeys(mnemonic);
+      const senderPrivkeyHex = keys.privkey;
 
       // 2. Create P2PK-locked token for the requester
       console.log(`[PaymentRequestStage] Sending ${amountSats} sats P2PK to ${request.nostrTarget}`);
-      const { encoded, id: operationId } = await walletService.sendP2PK(
+      const { encoded, token, id: operationId } = await walletService.sendP2PK(
         matchedMint!,
         amountSats,
         request.nostrTarget, // npub or hex — sendP2PK handles conversion
@@ -156,16 +154,27 @@ export function PaymentRequestStage({
 
       // 3. Publish the token to the recipient via Nostr DM
       console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
-      const published = await sendNostrToken(encoded, request.nostrTarget, senderPrivkeyHex);
+      
+      let payloadToEncrypt = encoded;
+      if (request.id) {
+          const payloadObj = {
+              id: request.id,
+              mint: matchedMint,
+              proofs: token.proofs
+          };
+          payloadToEncrypt = JSON.stringify(payloadObj);
+      }
+
+      const published = await sendNostrToken(payloadToEncrypt, request.nostrTarget, senderPrivkeyHex);
 
       if (!published) {
-        // Token was sent but DM delivery failed — not fatal, proofs already locked
-        console.warn('[PaymentRequestStage] Nostr publish failed but token was created');
+        throw new Error('Failed to publish payment to Nostr relays. The recipient may not receive it.');
       }
 
       console.log(`[PaymentRequestStage] ✅ Payment complete. OpId: ${operationId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setOverlayState('success');
+      setOverlayState(null);
+      onSuccess(amountSats, operationId);
     } catch (err: any) {
       console.error('[PaymentRequestStage] Payment failed:', err);
       const msg = err?.message || 'Payment failed';

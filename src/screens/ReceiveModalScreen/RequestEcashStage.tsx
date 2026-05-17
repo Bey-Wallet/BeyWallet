@@ -42,8 +42,10 @@ import { useNostrRequestStore } from '../../store/nostrRequestStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
+import { walletService } from '../../services/core/walletService';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
+import { ResultStage } from '../SendModalScreen/ResultStage';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -246,7 +248,7 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
 
             const pr = new PaymentRequest(
                 transports,
-                undefined,
+                reqId,
                 amtNum,
                 'sat',
                 [activeMintUrl],
@@ -315,7 +317,57 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
     React.useEffect(() => {
         if (step !== 'result') return;
 
-        const sub = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
+        // Listen for incoming tokens BEFORE they are claimed!
+        const subIncoming = DeviceEventEmitter.addListener('nostr:incoming', async (data: any) => {
+            console.log('[RequestEcashStage] Received nostr:incoming event:', data);
+            
+            const isMatch = (data.requestId && data.requestId === currentRequestId) || 
+                            (data.amount === amtNum && data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
+            
+            if (isMatch) {
+                console.log('[RequestEcashStage] Auto-claiming matched incoming payment...');
+                try {
+                    const { useSettingsStore } = require('../../store/settingsStore');
+                    const { useNostrInboxStore } = require('../../store/nostrInboxStore');
+                    const nsec = useSettingsStore.getState().nsec;
+                    let privkeyHex = null;
+
+                    if (nsec) {
+                        try {
+                            if (nsec.startsWith('nsec')) {
+                                const decoded = nip19Decode(nsec);
+                                const bytes = decoded.data as Uint8Array;
+                                privkeyHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                            } else {
+                                privkeyHex = nsec; // Already hex
+                            }
+                        } catch { /* ignore */ }
+                    }
+
+                    if (privkeyHex) {
+                        await walletService.receiveP2PK(data.tokenString, privkeyHex);
+                    } else {
+                        await walletService.receive(data.tokenString);
+                    }
+
+                    // Mark as claimed in inbox so NostrClaimSheet doesn't show it again
+                    useNostrInboxStore.getState().markClaimed(data.eventId);
+                    
+                    // Mark as received in pending requests
+                    if (currentRequestId) {
+                        await useNostrRequestStore.getState().markReceived(currentRequestId);
+                    }
+                    
+                    useWalletStore.getState().refreshBalance();
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setStep('success');
+                } catch (e) {
+                    console.error('[RequestEcashStage] Auto-claim failed:', e);
+                }
+            }
+        });
+
+        const subReceived = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
             console.log('[RequestEcashStage] Received nostr:received event:', data);
             
             // Check if this payment matches our current request
@@ -328,7 +380,10 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
             }
         });
 
-        return () => sub.remove();
+        return () => {
+            subIncoming.remove();
+            subReceived.remove();
+        };
     }, [step, currentRequestId, amtNum, activeMintUrl]);
 
     // ── Manual Check Status ───────────────────────────────────────────────────
@@ -549,40 +604,13 @@ export function RequestEcashStage({ onClose, initialRequestId }: RequestEcashSta
     // ────────────────────────────────────────────────────────────────────────
     if (step === 'success') {
         return (
-            <YStack flex={1} bg="$background" p="$4" justify="center" items="center" gap="$4">
-                <View
-                    width={80}
-                    height={80}
-                    rounded="$10"
-                    bg="$green4"
-                    items="center"
-                    justify="center"
-                    animation="bouncy"
-                    enterStyle={{ scale: 0, opacity: 0 }}
-                >
-                    <Check size={40} color="$green10" strokeWidth={3} />
-                </View>
-                
-                <YStack items="center" gap="$2" mt="$4">
-                    <Text fontSize="$6" fontWeight="900" color="$color">Request Claimed!</Text>
-                    <Text fontSize="$4" color="$gray10" textAlign="center">
-                        You have successfully received {amtNum} sats.
-                    </Text>
-                </YStack>
-
-                <Button
-                    mt="$8"
-                    size="$5"
-                    theme="accent"
-                    fontWeight="800"
-                    rounded="$4"
-                    width="100%"
-                    onPress={onClose || handleReset}
-                    pressStyle={{ scale: 0.97 }}
-                >
-                    Done
-                </Button>
-            </YStack>
+            <ResultStage
+                status="success"
+                amount={amtNum.toString()}
+                mintUrl={activeMintUrl!}
+                title="Request Claimed"
+                onClose={onClose || handleReset}
+            />
         );
     }
 

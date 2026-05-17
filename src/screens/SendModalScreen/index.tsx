@@ -46,6 +46,7 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
         }
         return {
             raw,
+            id: pr.id ?? undefined,
             amount: pr.amount ?? undefined,
             unit: pr.unit ?? 'sat',
             description: pr.description ?? undefined,

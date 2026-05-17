@@ -152,6 +152,10 @@ export function ProcessingSheet({
     } else {
       sheetRef.current?.dismiss();
     }
+
+    return () => {
+      sheetRef.current?.dismiss();
+    };
   }, [visible]);
 
   const isProcessing = status === 'processing';
@@ -170,7 +174,7 @@ export function ProcessingSheet({
   };
 
   return (
-    <Theme inverse>
+    <Theme inverse >
       <AppBottomSheet ref={sheetRef} onClose={onClose} enablePanDownToClose={!isProcessing}>
         <YStack items="center" py="$2" px="$2" gap="$2">
 
@@ -229,11 +233,11 @@ export function ProcessingSheet({
               {/* Show detail only during processing or if success and no full details available */}
               {(isProcessing || (isSuccess && !mintUrl)) && detail && (
                 typeof detail === 'string' ? (
-                  <Text fontSize="$4" color="$gray10" fontWeight="500" textAlign="center" px="$4">
+                  <Text fontSize="$4" color="$color1" fontWeight="500" textAlign="center" px="$4">
                     {detail}
                   </Text>
                 ) : (
-                  <View>{detail}</View>
+                  <Text color="$color1" fontSize="$4" fontWeight="500" textAlign="center" px="$4">{detail}</Text>
                 )
               )}
             </YStack>
@@ -251,10 +255,10 @@ export function ProcessingSheet({
 
             {isSuccess && mintUrl && (
               <YStack width="100%" gap="$4" py="$2">
-                <DetailRow icon={<User size={16} color="$gray9" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
-                <DetailRow icon={<Building2 size={16} color="$gray9" />} label="Mint" value={mintDomain} />
-                <DetailRow icon={<Clock size={16} color="$gray9" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                <DetailRow icon={<Zap size={16} color="$gray9" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
+                <DetailRow icon={<User size={16} color="$color1" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
+                <DetailRow icon={<Building2 size={16} color="$color1" />} label="Mint" value={mintDomain} />
+                <DetailRow icon={<Clock size={16} color="$color1" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                <DetailRow icon={<Zap size={16} color="$color1" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
               </YStack>
             )}
           </View>
@@ -299,9 +303,9 @@ function DetailRow({ icon, label, value }: { icon: React.ReactNode, label: strin
     <XStack justify="space-between" items="center" px="$2">
       <XStack gap="$3" items="center">
         {icon}
-        <Text color="$gray10" fontSize="$4" fontWeight="500">{label}</Text>
+        <Text color="$color1" fontSize="$4" fontWeight="500">{label}</Text>
       </XStack>
-      <Text color="$color" fontSize="$4" fontWeight="700" numberOfLines={1} style={{ maxWidth: 180 }}>
+      <Text color="$color2" fontSize="$4" fontWeight="700" numberOfLines={1} style={{ maxWidth: 180 }}>
         {value}
       </Text>
     </XStack>
