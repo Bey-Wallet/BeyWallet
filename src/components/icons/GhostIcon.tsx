@@ -15,13 +15,13 @@ const GhostIcon = ({ size = 120, op = 1, black = false, white = false }: GhostIc
 
   let src;
   if (white) {
-    src = require("../../../assets/images/Bey-dark-logo.png");
+    src = require("../../../assets/images/bey-logo-white-transparent.png");
   } else if (black) {
-    src = require("../../../assets/images/Bey-light-logo.png");
+    src = require("../../../assets/images/bey-logo-black-transparent.png");
   } else {
     src = currentTheme === "light"
-      ? require("../../../assets/images/Bey-light-logo.png")
-      : require("../../../assets/images/Bey-dark-logo.png");
+      ? require("../../../assets/images/bey-logo-black-transparent.png")
+      : require("../../../assets/images/bey-logo-white-transparent.png");
   }
 
   return (

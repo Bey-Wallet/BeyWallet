@@ -37,8 +37,8 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
   <XStack pl="$4" items="center">
     <Image
       source={resolvedTheme === 'dark'
-        ? require('../../assets/icons/Frame 6.png')
-        : require('../../assets/icons/Frame 5.png')}
+        ? require('../../assets/icons/bey-logo-white-transparent.png')
+        : require('../../assets/icons/bey-logo-black-transparent.png')}
       width={35}
       height={35}
       resizeMode="contain"

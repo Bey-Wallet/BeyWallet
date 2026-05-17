@@ -25,8 +25,8 @@ export function RootLayout() {
     const [manager, setManager] = useState<any>(null);
 
     const [loaded, error] = useFonts({
-        BaselGroteskBook: require('../../assets/fonts/Basel-Grotesk-Book.otf'),
-        BaselGroteskMedium: require('../../assets/fonts/Basel-Grotesk-Medium.otf'),
+        BaselGroteskBook: require('../../assets/fonts/Inter-Tight-Medium.otf'),
+        BaselGroteskMedium: require('../../assets/fonts/Inter-Tight-SemiBold.otf'),
     })
 
     // Check onboarding status and wallet existence on mount

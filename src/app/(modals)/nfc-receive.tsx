@@ -154,8 +154,8 @@ export default function NFCReceiveScreen() {
                     <View width="100%" justify="center" items="center">
 
                         <Image alt='bey' source={resolvedTheme === 'dark'
-                            ? require('../../assets/icons/Frame 5.png')
-                            : require('../../assets/icons/Frame 6.png')}
+                            ? require('../../assets/icons/bey-logo-black-transparent.png')
+                            : require('../../assets/icons/bey-logo-white-transparent.png')}
 
                             width={250} height={80}
                             resizeMode="contain"
@@ -200,7 +200,7 @@ export default function NFCReceiveScreen() {
                     theme="gray"
                     fontWeight="700"
                     icon={<Scan size={24} color={theme.color.val} />}
-                    onPress={() => router.push('/(modals)/opy')}
+                    onPress={() => router.replace('/(modals)/scanner')}
                     rounded="$5"
                 >
                     Scan QR Instead

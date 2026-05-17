@@ -66,7 +66,7 @@ const baselGroteskFont = createFont({
   },
   letterSpacing: {
     4: 0,
-    8: -1,
+    8: 1,
   },
   face: {
     400: { normal: 'BaselGroteskBook' },

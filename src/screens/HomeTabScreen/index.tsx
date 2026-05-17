@@ -53,8 +53,8 @@ function HomeSkeleton() {
                 <Image
                     alt="bey"
                     source={resolvedTheme === 'dark'
-                        ? require('../../assets/icons/Frame 6.png')
-                        : require('../../assets/icons/Frame 5.png')}
+                        ? require('../../assets/icons/bey-logo-white-transparent.png')
+                        : require('../../assets/icons/bey-logo-black-transparent.png')}
                     width={40}
                     height={40}
                     resizeMode="contain"

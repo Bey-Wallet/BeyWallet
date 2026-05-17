@@ -5,14 +5,14 @@ import {
 } from 'tamagui'
 import {
     ShieldCheck, Zap, Globe, Lock, RefreshCw,
-    Github, ExternalLink, Heart
+    Github, ExternalLink, Heart, RadioReceiver
 } from '@tamagui/lucide-icons'
 import { useRouter } from 'expo-router'
 import { Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants'
 
-const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0'
+const APP_VERSION = Constants.expoConfig?.version ?? '0.1.0'
 const BUILD_NUMBER =
     Constants.expoConfig?.ios?.buildNumber ??
     Constants.expoConfig?.android?.versionCode?.toString() ??
@@ -95,7 +95,7 @@ export default function AboutModal() {
                         elevation={4}
                     >
                         <Image
-                            source={require('../../assets/icons/Bey-light-logo.png')}
+                            source={require('../../assets/icons/bey-logo-black-transparent.png')}
                             style={{ width: 50, height: 50 }}
                             resizeMode="cover"
                         />
@@ -123,8 +123,8 @@ export default function AboutModal() {
 
                 {/* ── What's in 1.1.0 ── */}
                 <YStack px="$4" pt="$5" pb="$2" gap="$1">
-                    <H3 fontSize="$5" fontWeight="700">What's New in 1.1.0</H3>
-                    <Text fontSize="$2" color="$gray10">Latest release · March 2025</Text>
+                    <H3 fontSize="$5" fontWeight="700">What's New in 0.1.0</H3>
+                    <Text fontSize="$2" color="$gray10">Latest release · May 2026</Text>
                 </YStack>
 
                 <YStack
@@ -132,12 +132,13 @@ export default function AboutModal() {
                     borderWidth={1} borderColor="$borderColor" gap="$1"
                 >
                     {[
+                        '💳  Offline NFC Ecash payments & requests',
+                        '📩  Encrypted Nostr DM payments & ecash requests',
+                        '👤  NIP-05 @bey.cash address registration',
                         '📁  Wallet file export & import (.bey backup)',
                         '🏦  Mint Picker during new wallet setup',
                         '🔄  Full wallet restore from backup file',
                         '🖼️  Live mint icons fetched from /v1/info',
-                        '🧹  Removed testnet mint auto-trust',
-                        '🔒  Export requires biometric authentication',
                     ].map((item, i) => (
                         <XStack key={i} gap="$2" py="$1" items="flex-start">
                             <Text fontSize="$3" color="$accent4" lineHeight="$4">{item}</Text>
@@ -173,8 +174,14 @@ export default function AboutModal() {
                     <Separator borderColor="$borderColor" opacity={0.4} />
                     <FeatureRow
                         icon={<Globe size={18} color="$purple10" />}
-                        title="Nostr Identity"
-                        description="Native npub/nsec derived from your seed. P2PK locking and NPC relay sync."
+                        title="Nostr Identity & DMs"
+                        description="NIP-05 @bey.cash alias, P2PK locking, and automated ecash requests via encrypted DMs."
+                    />
+                    <Separator borderColor="$borderColor" opacity={0.4} />
+                    <FeatureRow
+                        icon={<RadioReceiver size={18} color="$cyan10" />}
+                        title="Offline NFC"
+                        description="Send and receive ecash seamlessly by tapping phones, even without internet."
                     />
                     <Separator borderColor="$borderColor" opacity={0.4} />
                     <FeatureRow

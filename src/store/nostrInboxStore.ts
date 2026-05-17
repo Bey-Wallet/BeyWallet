@@ -13,7 +13,7 @@ import { DeviceEventEmitter } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed';
+export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed' | 'dismissed';
 
 export interface NostrInboxItem {
     id: string;               // Nostr event ID
@@ -111,7 +111,9 @@ export const useNostrInboxStore = create<NostrInboxState>()(
 
     dismiss: (id) => {
         set(s => ({
-            items: s.items.filter(i => i.id !== id),
+            items: s.items.map(i =>
+                i.id === id ? { ...i, status: 'dismissed' as NostrInboxStatus } : i
+            ),
             activeClaimId: s.activeClaimId === id ? null : s.activeClaimId,
         }));
     },

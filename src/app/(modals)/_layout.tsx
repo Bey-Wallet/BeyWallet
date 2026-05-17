@@ -57,16 +57,6 @@ export default function ModalLayout() {
             <Stack.Screen
                 name="nfc-receive"
                 options={{
-                    headerRight: () => (
-                        <Button
-                            theme="orange"
-                            fontWeight="700"
-                            size="$3"
-                            rounded="$10"
-                            iconAfter={<Nfc size={16} strokeWidth={2.5} color="$color" />}
-                            onPress={() => router.back()}
-                        >Send</Button>
-                    ),
                     headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
                     presentation: "fullScreenModal",
                 }}

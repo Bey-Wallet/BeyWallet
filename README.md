@@ -30,15 +30,16 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 ## ✨ Features
 
 ### 💰 Cashu (Ecash) & Bitcoin
-*   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens for maximum compatibility.
-*   **Mint Management**: Professional mint dashboard to add, trust, and monitor multiple community mints.
-*   **One-Tap Setup**: Simplified onboarding that gets you started with reliable default mints in seconds.
-*   **Total Control**: Manage balances across different mints with real-time audit logs.
+*   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
+*   **Mint Management**: Professional dashboard to add, trust, and monitor multiple community mints.
+*   **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, even completely offline.
+*   **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
 
 ### 🆔 Nostr Integration
-*   **Built-in Identity**: Transparently generate your Nostr `npub` directly from your wallet seed.
-*   **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK).
-*   **Cloud Sync**: Securely sync your mint preferences and history via your preferred Nostr relays.
+*   **Built-in Identity**: Generate your `npub` directly from your wallet seed and claim your free `@bey.cash` NIP-05 identifier.
+*   **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK) for ultimate security.
+*   **Direct Messages (DMs)**: Send, receive, and **request** Ecash instantly via encrypted Nostr Direct Messages (NIP-04/NIP-17). Payments arrive and are detected automatically in the background.
+*   **Contact Management**: Built-in address book to save and resolve your friends' Npubs and aliases.
 
 ### 🛡️ Privacy & Security
 *   **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.

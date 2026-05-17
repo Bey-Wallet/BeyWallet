@@ -90,8 +90,8 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                 >
                     <Image
                         source={resolvedTheme === 'dark'
-                            ? require('../assets/icons/Bey-light-logo.png')
-                            : require('../assets/icons/Bey-dark-logo.png')}
+                            ? require('../assets/icons/bey-logo-black-transparent.png')
+                            : require('../assets/icons/bey-logo-white-transparent.png')}
                         style={{ width: 100, height: 100 }}
                         resizeMode="contain"
                     />

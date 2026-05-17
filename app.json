@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bey Wallet",
     "slug": "bey-wallet",
-    "version": "1.1.1",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
     "scheme": "bey-wallet",
@@ -110,8 +110,8 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/Basel-Grotesk-Book.otf",
-            "./src/assets/fonts/Basel-Grotesk-Medium.otf"
+            "./src/assets/fonts/Inter-Tight-Medium.otf",
+            "./src/assets/fonts/Inter-Tight-SemiBold.otf"
           ]
         }
       ],
@@ -140,7 +140,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/icons/Bey-light-logo.png",
+          "icon": "./src/assets/icons/bey-logo-black-transparent.png",
           "color": "#ffffff"
         }
       ]

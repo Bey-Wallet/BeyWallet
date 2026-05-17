@@ -46,7 +46,7 @@ export function WelcomeStep({ onCreateWallet, onImportWallet, onImportFromFile }
 
 
             <YStack height={400} width='100%' bg="$gray2" rounded="$5" alignItems="center" justifyContent="center" >
-                <Image source={resolvedTheme === 'dark' ? require('../../assets/icons/Frame 6.png') : require('../../assets/icons/Frame 5.png')} width={100} height={100}
+                <Image source={resolvedTheme === 'dark' ? require('../../assets/icons/bey-logo-white-transparent.png') : require('../../assets/icons/bey-logo-black-transparent.png')} width={100} height={100}
                     // rotate="90deg"
                     resizeMode="contain" />
             </YStack>

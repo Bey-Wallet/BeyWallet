@@ -92,8 +92,8 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
                 <Image
                     source={resolvedTheme === 'dark'
-                        ? require('../assets/icons/Frame 6.png')
-                        : require('../assets/icons/Frame 5.png')}
+                        ? require('../assets/icons/bey-logo-white-transparent.png')
+                        : require('../assets/icons/bey-logo-black-transparent.png')}
                     style={{ width: 100, height: 100 }}
                     resizeMode="contain"
                 />
