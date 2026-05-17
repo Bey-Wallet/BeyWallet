@@ -136,29 +136,7 @@ export function HomeTabScreen() {
 
                     <LazySupportView />
                 </React.Suspense>
-                <Button
-                    size="$5"
-                    fontWeight={800}
-                    px="$2"
-                    height={40}
-                    rounded="$3"
-                    theme={"light"}
-                    icon={
-                        <Image
-                            source={require('../../assets/icons/Frame 5.png')}
-                            width={25}
-                            height={25}
-                            resizeMode="contain"
-                        />
-                    }
-                    iconAfter={
-                        <ArrowRight strokeWidth={3} />
-                    }
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                        lock(true);
-                    }}
-                >PAY WITH BEY</Button>
+
             </YStack>
 
             {/* Global Nostr claim sheet — listens for incoming payments */}

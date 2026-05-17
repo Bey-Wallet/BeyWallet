@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
 import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce';
+import { useAuthStore } from '~/store/authStore';
 
 const init = async function () {
     const supported = await NfcManager.isSupported();
@@ -15,11 +16,15 @@ const isEnabled = function () {
 };
 
 const goToNfcSetting = function () {
-    return NfcManager.goToNfcSetting();
+    useAuthStore.getState().setLockDisabled(true);
+    const result = NfcManager.goToNfcSetting();
+    setTimeout(() => useAuthStore.getState().setLockDisabled(false), 3000);
+    return result;
 };
 
 const readNdefTag = async () => {
     try {
+        useAuthStore.getState().setLockDisabled(true);
         await NfcManager.requestTechnology(NfcTech.Ndef);
         const tag = await NfcManager.getTag();
         return tag;
@@ -27,11 +32,13 @@ const readNdefTag = async () => {
         throw e;
     } finally {
         await NfcManager.cancelTechnologyRequest().catch(() => {});
+        setTimeout(() => useAuthStore.getState().setLockDisabled(false), 1000);
     }
 };
 
 const writeNdefTag = async (text: string) => {
     try {
+        useAuthStore.getState().setLockDisabled(true);
         await NfcManager.requestTechnology(NfcTech.Ndef);
         const bytes = Ndef.encodeMessage([Ndef.textRecord(text)]);
         await NfcManager.writeNdefMessage(bytes, { reconnectAfterWrite: false });
@@ -39,6 +46,7 @@ const writeNdefTag = async (text: string) => {
         throw e;
     } finally {
         await NfcManager.cancelTechnologyRequest().catch(() => {});
+        setTimeout(() => useAuthStore.getState().setLockDisabled(false), 1000);
     }
 };
 
@@ -62,6 +70,7 @@ const startHceSimulation = async (text: string) => {
     }
     
     try {
+        useAuthStore.getState().setLockDisabled(true);
         const tag = new NFCTagType4({
             type: NFCTagType4NDEFContentType.Text,
             content: text,
@@ -78,6 +87,7 @@ const startHceSimulation = async (text: string) => {
         return session;
     } catch (e: any) {
         console.error('Failed to start HCE simulation', e);
+        useAuthStore.getState().setLockDisabled(false);
         throw e;
     }
 };
@@ -88,6 +98,8 @@ const stopHceSimulation = async (session: any) => {
         await session.setEnabled(false);
     } catch (e: any) {
         console.warn('Failed to stop HCE simulation', e);
+    } finally {
+        useAuthStore.getState().setLockDisabled(false);
     }
 };
 

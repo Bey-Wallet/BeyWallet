@@ -22,6 +22,7 @@ import NFCFillIcon from '~/components/icons/NFC-fill';
 import NostrIcon from '~/components/icons/NostrIcon';
 import { nfcService } from '~/services/nfcService';
 import { ProcessingSheet, ProcessingStatus } from './ProcessingSheet';
+import { useAuthStore } from '~/store/authStore';
 
 export interface PendingTokenLayoutProps {
     token: string;
@@ -55,6 +56,7 @@ export function PendingTokenLayout({
     const toast = useToastController();
     const { secondaryCurrency, npub } = useSettingsStore();
     const theme = useTheme();
+    const { setLockDisabled } = useAuthStore();
 
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
@@ -229,12 +231,15 @@ export function PendingTokenLayout({
         if (!currentToken) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
+            setLockDisabled(true);
             await RNShare.share({
                 message: currentToken,
                 title: 'Share Token'
             });
         } catch (error) {
             handleCopy();
+        } finally {
+            setTimeout(() => setLockDisabled(false), 1000);
         }
     };
 
