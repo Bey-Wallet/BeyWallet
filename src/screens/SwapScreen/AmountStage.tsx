@@ -1,15 +1,15 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { YStack, XStack, Text, H1, ListItem, View, Button } from "tamagui";
+import { YStack, XStack, Text, H1, View, Button } from "tamagui";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "~/services/bitcoinService";
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
-import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
+import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from "expo-haptics";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { ChevronDown, Sprout, ShieldCheck, ShieldOff, ArrowDownCircle, ArrowUpRight, ArrowRightRight } from "@tamagui/lucide-icons";
+import { ChevronDown, ArrowDownCircle, ArrowUpRight } from "@tamagui/lucide-icons";
+import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 
 interface AmountStageProps {
@@ -116,44 +116,7 @@ export function AmountStage({
         }
     };
 
-    const SelectMintList = ({ onSelect, activeUrl }: { onSelect: (url: string) => void, activeUrl: string }) => (
-        <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-            <YStack gap="$2" pb="$4">
-                {mints.length === 0 ? (
-                    <YStack items="center" py="$6" gap="$2">
-                        <Sprout size={40} color="$gray8" />
-                        <Text color="$gray10">No mints available</Text>
-                    </YStack>
-                ) : (
-                    mints.filter(m => m.trusted).map((mint) => (
-                        <ListItem
-                            key={mint.mintUrl}
-                            size="$4"
-                            px="$2"
-                            hoverTheme
-                            pressTheme
-                            theme="gray"
-                            rounded="$4"
-                            borderWidth={mint.mintUrl === activeUrl ? 1 : 0}
-                            borderColor="$borderColor"
-                            bg={mint.mintUrl === activeUrl ? "$color2" : "transparent"}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                onSelect(mint.mintUrl);
-                            }}
-                            icon={
-                                <View bg="$green4" p="$2" rounded="$10">
-                                    <ShieldCheck size={20} color="$green10" />
-                                </View>
-                            }
-                            title={getMintLabel(mint.mintUrl)}
-                            subTitle={`${(balances[mint.mintUrl] || 0).toLocaleString()} sats`}
-                        />
-                    ))
-                )}
-            </YStack>
-        </BottomSheetScrollView>
-    );
+
 
     return (
         <YStack flex={1} justify="space-between">
@@ -254,19 +217,8 @@ export function AmountStage({
                 confirmDisabled={!sourceMintUrl || !targetMintUrl || !amount || Number(amount) <= 0 || Number(amount) > sourceBalance}
             />
 
-            <AppBottomSheet ref={sourceSheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Source Mint</Text>
-                    <SelectMintList activeUrl={sourceMintUrl} onSelect={(url) => { setSourceMintUrl(url); sourceSheetRef.current?.dismiss(); }} />
-                </YStack>
-            </AppBottomSheet>
-
-            <AppBottomSheet ref={targetSheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Target Mint</Text>
-                    <SelectMintList activeUrl={targetMintUrl} onSelect={(url) => { setTargetMintUrl(url); targetSheetRef.current?.dismiss(); }} />
-                </YStack>
-            </AppBottomSheet>
+            <MintSelectorSheet ref={sourceSheetRef} onSelect={setSourceMintUrl} />
+            <MintSelectorSheet ref={targetSheetRef} onSelect={setTargetMintUrl} />
             <ProcessingSheet
                 visible={!!isLoading}
                 title="Swapping"

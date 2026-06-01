@@ -94,23 +94,23 @@ export default function Balance() {
                         prefix="₿"
                         trigger={refreshCounter + localTrigger}
                         letterSpacing={-1}
-                        fontSize={30}
+                        fontSize={36}
                         fontWeight="900"
                         color="$accent3"
                         decimalOpacity={0.4}
                         showDecimals={false}
                     />
                 </YStack>
-                <Text color="$accent9" fontWeight="700">SATS</Text>
+                <Text color="$accent9" fontSize={18} fontWeight="700">SATS</Text>
             </XStack>
 
             <RollingNumber
                 value={secondaryBalance}
                 trigger={refreshCounter}
                 letterSpacing={-1}
-                fontSize={18}
+                fontSize={20}
                 fontWeight="900"
-                color="$accent8"
+                color="$accent7"
                 decimalOpacity={0.4}
                 showDecimals={false}
             >

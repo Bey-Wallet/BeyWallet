@@ -12,6 +12,7 @@ import AppBottomSheet, { AppBottomSheetRef } from '../../components/UI/AppBottom
 import { HistoryItem } from './components/HistoryItem';
 import { HistorySection } from './components/HistorySection';
 import { ListItem, YGroup } from 'tamagui';
+import { MintSelectorSheet } from '../../components/HomeMintSelector';
 import { useNostrRequestStore } from '../../store/nostrRequestStore';
 
 interface HistoryEntry {
@@ -292,34 +293,12 @@ export function HistoryScreen() {
                 </YStack>
             </ScrollView>
 
-            <AppBottomSheet ref={mintSheetRef} snapPoints={['50%', '80%']}>
-                <YStack p="$4" gap="$4">
-                    <Text fontSize="$6" fontWeight="700">Filter by Mint</Text>
-                    <YGroup bordered separator={<Separator />}>
-                        <YGroup.Item>
-                            <ListItem
-                                title="All Mints"
-                                iconAfter={mintFilter === 'all' ? <Check size={18} color="$green10" /> : null}
-                                onPress={() => handleMintSelect('all')}
-                                hoverStyle={{ bg: '$backgroundHover' }}
-                                pressStyle={{ bg: '$backgroundPress' }}
-                            />
-                        </YGroup.Item>
-                        {(mints || []).map((mint) => (
-                            <YGroup.Item key={mint.mintUrl}>
-                                <ListItem
-                                    title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '')}
-                                    subTitle={mint.mintUrl}
-                                    iconAfter={mintFilter === mint.mintUrl ? <Check size={18} color="$green10" /> : null}
-                                    onPress={() => handleMintSelect(mint.mintUrl)}
-                                    hoverStyle={{ bg: '$backgroundHover' }}
-                                    pressStyle={{ bg: '$backgroundPress' }}
-                                />
-                            </YGroup.Item>
-                        ))}
-                    </YGroup>
-                </YStack>
-            </AppBottomSheet>
+            <MintSelectorSheet
+                ref={mintSheetRef}
+                activeMintUrl={mintFilter}
+                onSelect={setMintFilter}
+                showAllOption={true}
+            />
 
             <AppBottomSheet ref={timeSheetRef} snapPoints={['40%']}>
                 <YStack p="$4" gap="$4">

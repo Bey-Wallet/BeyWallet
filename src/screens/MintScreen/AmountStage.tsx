@@ -1,16 +1,15 @@
 import React from 'react';
-import { YStack, XStack, Text, H1, ListItem, View, Button, Avatar, Square } from "tamagui";
-import { RollingNumber } from "~/components/UI/RollingNumber";
+import { YStack, XStack, Text, H1, View, Button } from "tamagui";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "~/services/bitcoinService";
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
-import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
+import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 import { useRef, useMemo } from "react";
 import * as Haptics from "expo-haptics";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff } from "@tamagui/lucide-icons";
+import { ChevronDown, Sprout } from "@tamagui/lucide-icons";
+import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 
 interface AmountStageProps {
@@ -191,55 +190,7 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
                 confirmLabel="Continue"
             />
 
-            <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <XStack justify="space-between" items="center" mb="$2">
-                        <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
-                    </XStack>
-
-                    <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
-                            {mints.length === 0 ? (
-                                <YStack items="center" py="$6" gap="$2">
-                                    <Sprout size={40} color="$gray8" />
-                                    <Text color="$gray10">No mints added yet</Text>
-                                </YStack>
-                            ) : (
-                                mints.map((mint) => (
-                                    <ListItem
-                                        key={mint.mintUrl}
-                                        size="$4"
-                                        px="$2"
-                                        hoverTheme
-                                        pressTheme
-                                        theme="gray"
-                                        rounded="$4"
-                                        borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0}
-                                        borderColor="$borderColor"
-                                        bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
-                                        onPress={() => handleSelectMint(mint.mintUrl)}
-                                        icon={
-                                            <View
-                                                bg={mint.trusted ? "$green4" : "$gray4"}
-                                                p="$2"
-                                                rounded="$10"
-                                            >
-                                                {mint.trusted ? (
-                                                    <ShieldCheck size={20} color="$green10" />
-                                                ) : (
-                                                    <ShieldOff size={20} color="$gray10" />
-                                                )}
-                                            </View>
-                                        }
-                                        title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                        subTitle={mint.mintUrl.replace('https://', '')}
-                                    />
-                                ))
-                            )}
-                        </YStack>
-                    </BottomSheetScrollView>
-                </YStack>
-            </AppBottomSheet>
+            <MintSelectorSheet ref={sheetRef} />
         </YStack>
     );
 }

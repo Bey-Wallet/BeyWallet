@@ -1,6 +1,5 @@
 import React, { forwardRef } from 'react';
-import { YStack, Text, ListItem, YGroup, Separator } from 'tamagui';
-import { Check } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, View } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/currencyService';
@@ -17,30 +16,91 @@ export const CurrencyModal = forwardRef<AppBottomSheetRef>((_, ref) => {
     };
 
     return (
-        <AppBottomSheet ref={ref} snapPoints={['80%']}>
-            <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                <YStack p="$4" gap="$4" pb="$10">
-                    <YStack gap="$1">
-                        <Text fontSize="$6" fontWeight="700">Select Currency</Text>
-                        <Text fontSize="$3" color="$gray11">Choose your secondary display currency</Text>
-                    </YStack>
-
-                    <YGroup bordered separator={<Separator />}>
-                        {SUPPORTED_CURRENCIES.map((currency) => (
-                            <YGroup.Item key={currency.code}>
-                                <ListItem
-                                    hoverStyle={{ bg: '$backgroundHover' }}
-                                    pressStyle={{ bg: '$backgroundPress' }}
-                                    title={currency.name}
-                                    subTitle={`${currency.code} (${currency.symbol})`}
-                                    iconAfter={secondaryCurrency === currency.code ? Check : null}
-                                    onPress={() => handleSelect(currency.code as CurrencyCode)}
-                                />
-                            </YGroup.Item>
-                        ))}
-                    </YGroup>
+        <AppBottomSheet ref={ref} snapPoints={['75%', '90%']}>
+            <YStack p="$4" gap="$3" flex={1}>
+                <YStack gap="$1.5" mb="$2">
+                    <Text fontSize="$6" fontWeight="800" color="$color">Select Currency</Text>
+                    <Text fontSize="$3" color="$gray10">Choose your secondary display currency</Text>
                 </YStack>
-            </BottomSheetScrollView>
+
+                <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+                    <YStack gap="$2" pb="$4">
+                        {SUPPORTED_CURRENCIES.map((currency) => {
+                            const isSelected = secondaryCurrency === currency.code;
+
+                            return (
+                                <XStack
+                                    key={currency.code}
+                                    justify="space-between"
+                                    items="center"
+                                    onPress={() => handleSelect(currency.code as CurrencyCode)}
+                                    pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                                    p="$3"
+                                    borderWidth={1}
+                                    borderColor={isSelected ? "$accentColor" : "$borderColor"}
+                                    rounded="$7"
+                                    
+                                >
+                                    <XStack gap="$3" items="center">
+                                        <View
+                                            bg={isSelected ? "$accent3" : "$background"}
+                                            rounded="$5"
+                                            width={48}
+                                            height={48}
+                                            items="center"
+                                            justify="center"
+                                        >
+                                            <Text
+                                                fontWeight="900"
+                                                fontSize="$5"
+                                                color={isSelected ? "$accent11" : "$gray12"}
+                                            >
+                                                {currency.symbol}
+                                            </Text>
+                                        </View>
+                                        <YStack gap="$0.5">
+                                            <Text fontWeight="600" fontSize="$4">
+                                                {currency.name}
+                                            </Text>
+                                            <Text fontSize="$3" color="$gray10">
+                                                {currency.code} • {currency.locale.split('-')[1] || 'Global'}
+                                            </Text>
+                                        </YStack>
+                                    </XStack>
+                                    <XStack items="center" justify="center" pl="$2">
+                                        {isSelected ? (
+                                            <View
+                                                width={22}
+                                                height={22}
+                                                rounded={11}
+                                                borderWidth={2}
+                                                borderColor="$color"
+                                                items="center"
+                                                justify="center"
+                                            >
+                                                <View
+                                                    width={12}
+                                                    height={12}
+                                                    rounded={6}
+                                                    bg="$color"
+                                                />
+                                            </View>
+                                        ) : (
+                                            <View
+                                                width={22}
+                                                height={22}
+                                                rounded={11}
+                                                borderWidth={1.5}
+                                                borderColor="$gray8"
+                                            />
+                                        )}
+                                    </XStack>
+                                </XStack>
+                            );
+                        })}
+                    </YStack>
+                </BottomSheetScrollView>
+            </YStack>
         </AppBottomSheet>
     );
 });

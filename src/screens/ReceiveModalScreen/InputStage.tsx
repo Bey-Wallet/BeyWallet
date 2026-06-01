@@ -36,6 +36,23 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
         /[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(token)
     );
 
+    const [lastAttemptedToken, setLastAttemptedToken] = React.useState('');
+
+    // Reset last attempted token when token is cleared
+    React.useEffect(() => {
+        if (!token.trim()) {
+            setLastAttemptedToken('');
+        }
+    }, [token]);
+
+    React.useEffect(() => {
+        const trimmed = token.trim();
+        if (isValidToken && !isLoading && !error && trimmed !== lastAttemptedToken) {
+            setLastAttemptedToken(trimmed);
+            onContinue();
+        }
+    }, [token, isValidToken, isLoading, error, lastAttemptedToken, onContinue]);
+
     const handleScanPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onScanPress?.();
@@ -127,9 +144,9 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
                 </YStack>
             </ScrollView>
 
-            {/* Continue Button */}
-            {isValidToken && (
-                <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
+            {/* Action Button at the Bottom */}
+            <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
+                {isValidToken ? (
                     <Button
                         theme="active"
                         bg="$green9"
@@ -144,8 +161,22 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
                     >
                         {isLoading ? 'Decoding...' : 'Preview Token'}
                     </Button>
-                </View>
-            )}
+                ) : (
+                    <Button
+                        theme="gray"
+                        
+                        color="$color"
+                        size="$5"
+                        fontWeight="700"
+                        rounded="$4"
+                        icon={<ClipboardPaste size={18} />}
+                        onPress={handlePaste}
+                        pressStyle={{ opacity: 0.9, scale: 0.98 }}
+                    >
+                        Paste from Clipboard
+                    </Button>
+                )}
+            </View>
         </YStack>
     );
 }

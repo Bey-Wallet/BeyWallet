@@ -8,7 +8,6 @@ import {
     Separator,
     ScrollView,
     View,
-    ListItem,
     Input,
 } from 'tamagui';
 import { DeviceEventEmitter } from 'react-native';
@@ -17,9 +16,6 @@ import {
     Copy,
     Share2,
     Check,
-    Sprout,
-    ShieldCheck,
-    ShieldOff,
     RefreshCw,
     Building2,
     ChevronDown,
@@ -29,8 +25,8 @@ import {
 } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { NumericKeypad } from '../../components/UI/NumericKeypad';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/UI/AppBottomSheet';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { AppBottomSheetRef } from '../../components/UI/AppBottomSheet';
+import { MintSelectorSheet } from '../../components/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -569,48 +565,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                 />
 
                 {/* ── Mint bottom sheet ─────────────────────────────────────── */}
-                <AppBottomSheet ref={sheetRef} snapPoints={['50%', '85%']}>
-                    <YStack p="$4" gap="$3" flex={1}>
-                        <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
-                        <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                            <YStack gap="$2" pb="$4">
-                                {mints.length === 0 ? (
-                                    <YStack items="center" py="$6" gap="$2">
-                                        <Sprout size={40} color="$gray8" />
-                                        <Text color="$gray10">No mints added yet</Text>
-                                    </YStack>
-                                ) : (
-                                    mints.map((mint) => (
-                                        <ListItem
-                                            key={mint.mintUrl}
-                                            size="$4"
-                                            px="$2"
-                                            hoverTheme
-                                            pressTheme
-                                            theme="gray"
-                                            rounded="$4"
-                                            borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0}
-                                            borderColor="$borderColor"
-                                            bg={mint.mintUrl === activeMintUrl ? '$color2' : 'transparent'}
-                                            onPress={() => handleSelectMint(mint.mintUrl)}
-                                            icon={
-                                                <View bg={mint.trusted ? '$green4' : '$gray4'} p="$2" rounded="$10">
-                                                    {mint.trusted ? (
-                                                        <ShieldCheck size={20} color="$green10" />
-                                                    ) : (
-                                                        <ShieldOff size={20} color="$gray10" />
-                                                    )}
-                                                </View>
-                                            }
-                                            title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                            subTitle={mint.mintUrl.replace('https://', '')}
-                                        />
-                                    ))
-                                )}
-                            </YStack>
-                        </BottomSheetScrollView>
-                    </YStack>
-                </AppBottomSheet>
+                <MintSelectorSheet ref={sheetRef} />
             </YStack>
         );
     }

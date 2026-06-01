@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, Avatar, Square } from 'tamagui';
 import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2, ChevronRight, Database, Zap } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,8 @@ import { useWalletStore } from '~/store/walletStore';
 import { useNostrRequestStore, type NostrReceiveRequest } from '~/store/nostrRequestStore';
 import { formatLocalTime } from '~/utils/time';
 import { RollingNumber } from '~/components/UI/RollingNumber';
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import { PendingTokenLayout } from '~/components/UI/PendingTokenLayout';
 import { useSettingsStore } from '~/store/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
@@ -412,42 +413,12 @@ export default function EcashModal() {
         </Button>
       </YStack>
 
-      <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
-        <YStack p="$4" gap="$4" pb={insets.bottom + 40}>
-          <Text fontSize="$6" fontWeight="700">Filter by Mint</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <YStack gap="$2" pb="$4">
-              <ListItem
-                title="All Mints"
-                icon={<Building2 size={20} color="$gray10" />}
-                iconAfter={selectedMint === 'all' ? <Check size={18} color="$green10" /> : null}
-                onPress={() => handleSelectMint('all')}
-                bg={selectedMint === 'all' ? "$gray3" : "transparent"}
-                rounded="$4"
-              />
-              {mints.map((mint) => (
-                <ListItem
-                  key={mint.mintUrl}
-                  title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '')}
-                  subTitle={mint.mintUrl}
-                  icon={
-                    <Avatar rounded="$3" size="$2">
-                      <Avatar.Image src={mint.icon} />
-                      <Avatar.Fallback backgroundColor="$gray5" alignItems="center" justifyContent="center">
-                        <Building2 size={16} color="$gray10" />
-                      </Avatar.Fallback>
-                    </Avatar>
-                  }
-                  iconAfter={selectedMint === mint.mintUrl ? <Check size={18} color="$green10" /> : null}
-                  onPress={() => handleSelectMint(mint.mintUrl)}
-                  bg={selectedMint === mint.mintUrl ? "$gray3" : "transparent"}
-                  rounded="$4"
-                />
-              ))}
-            </YStack>
-          </ScrollView>
-        </YStack>
-      </AppBottomSheet>
+      <MintSelectorSheet
+        ref={sheetRef}
+        activeMintUrl={selectedMint}
+        onSelect={setSelectedMint}
+        showAllOption={true}
+      />
     </YStack>
   );
 }

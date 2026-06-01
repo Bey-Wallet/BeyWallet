@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import { nip19 } from 'nostr-tools';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Buffer } from 'buffer';
@@ -392,29 +393,7 @@ export function NostrSendStage({
             </AppBottomSheet>
 
             {/* ── Mint Selector Sheet ──────────────────────────────────── */}
-            <AppBottomSheet ref={mintSheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
-                    <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
-                            {mints.map((mint) => (
-                                <XStack
-                                    key={mint.mintUrl} bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
-                                    p="$3" rounded="$4" items="center" gap="$3"
-                                    borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0} borderColor="$borderColor"
-                                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setActiveMint(mint.mintUrl); mintSheetRef.current?.dismiss(); }}
-                                >
-                                    <Sprout size={18} color={mint.trusted ? "$green10" : "$gray10"} />
-                                    <YStack flex={1}>
-                                        <Text fontWeight="700">{mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>
-                                        <Text fontSize="$2" color="$gray10">{mint.mintUrl.replace('https://', '')}</Text>
-                                    </YStack>
-                                </XStack>
-                            ))}
-                        </YStack>
-                    </BottomSheetScrollView>
-                </YStack>
-            </AppBottomSheet>
+            <MintSelectorSheet ref={mintSheetRef} />
         </YStack>
     );
 }
