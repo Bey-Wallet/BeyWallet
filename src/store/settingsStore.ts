@@ -13,6 +13,7 @@ interface SettingsState {
     npub: string | null;
     nsec: string | null;
     nip05: string | null;             // e.g. "zaheer@nostrcheck.me"
+    hideBalance: boolean;
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
@@ -22,6 +23,7 @@ interface SettingsState {
     biometricEnabled: boolean;
     setBiometricEnabled: (enabled: boolean) => Promise<void>;
     setNip05: (identifier: string | null) => Promise<void>;
+    setHideBalance: (hide: boolean) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -34,6 +36,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     npub: null,
     nsec: null,
     nip05: null,
+    hideBalance: false,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -53,7 +56,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -62,6 +65,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('npub'),
                     repo.settingsRepository.getSetting('nsec'),
                     repo.settingsRepository.getSetting('nip05'),
+                    repo.settingsRepository.getSetting('hideBalance'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
@@ -76,6 +80,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     set({ biometricEnabled: storedBiometric === 'true' });
                 } else {
                     set({ biometricEnabled: true });
+                }
+
+                if (storedHideBalance !== undefined && storedHideBalance !== null) {
+                    set({ hideBalance: storedHideBalance === 'true' });
                 }
 
                 if (storedNpub && storedNsec) {
@@ -186,6 +194,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set nip05:', error);
             set({ nip05: identifier });
+        }
+    },
+
+    setHideBalance: async (hide: boolean) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('hideBalance', hide.toString());
+            }
+            set({ hideBalance: hide });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set hideBalance:', error);
+            set({ hideBalance: hide });
         }
     },
 }));

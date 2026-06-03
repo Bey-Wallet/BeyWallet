@@ -36,7 +36,7 @@ export function SettingsScreen() {
     const biometricSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    const { secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
+    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
@@ -171,21 +171,22 @@ export function SettingsScreen() {
                 {
                     id: 'biometric',
                     title: 'Biometric Lock',
-                    subTitle: biometricEnabled ? 'Enabled' : 'Disabled',
+                    value: biometricEnabled ? 'Enabled' : 'Disabled',
                     icon: Fingerprint,
+                    color: '$blue10',
                 },
                 {
                     id: 'backup',
                     title: 'Backup Recovery Phrase',
-                    subTitle: 'View your secret 12 words',
                     icon: ShieldCheck,
+                    color: '$blue10',
                 },
                 {
                     id: 'export',
                     title: 'Export Wallet File',
-                    subTitle: isExporting ? 'Preparing backup...' : 'Save a .bey backup to your device',
                     icon: isExporting ? ActivityIndicator : Download,
                     disabled: isExporting,
+                    color: '$blue10',
                 },
             ],
         },
@@ -195,20 +196,16 @@ export function SettingsScreen() {
                 {
                     id: 'theme',
                     title: 'Theme',
-                    subTitle: 'Light, Dark or System',
+                    value: theme.charAt(0).toUpperCase() + theme.slice(1),
                     icon: Palette,
+                    color: '$blue10',
                 },
                 {
                     id: 'currency',
                     title: 'Currency',
-                    subTitle: `Secondary: ${secondaryCurrency}`,
-                    icon: () => (
-                        <YStack width={24} height={24} items="center" justify="center" bg="$gray4" rounded="$12">
-                            <Text fontSize={12} fontWeight="800" color="$color">
-                                {currencyService.getSymbol(secondaryCurrency)}
-                            </Text>
-                        </YStack>
-                    ),
+                    value: secondaryCurrency,
+                    icon: undefined,
+                    color: '$blue10',
                 },
             ],
         },
@@ -218,20 +215,22 @@ export function SettingsScreen() {
                 {
                     id: 'mint',
                     title: 'Default Mint',
-                    subTitle: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None selected',
+                    value: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None',
                     icon: Server,
+                    color: '$blue10',
                 },
                 {
                     id: 'notifications',
                     title: 'Notifications',
-                    subTitle: 'Manage alerts and updates',
                     icon: Bell,
+                    color: '$blue10',
                 },
                 {
                     id: 'language',
                     title: 'Language',
-                    subTitle: 'English (US)',
+                    value: 'System',
                     icon: Globe,
+                    color: '$blue10',
                     opacity: 0.5,
                 },
             ],
@@ -242,14 +241,15 @@ export function SettingsScreen() {
                 {
                     id: 'nostr',
                     title: 'Nostr Settings',
-                    subTitle: 'Manage your npub, nsec, and relays',
                     icon: NostrIcon,
+                    color: '$purple10',
                 },
                 {
                     id: 'nostr-username',
                     title: 'Nostr Username',
-                    subTitle: liveNip05 ? liveNip05 : (nip05Loading ? 'Looking up…' : 'Claim a free NIP-05 address'),
+                    value: liveNip05 ? liveNip05.split('@')[0] : (nip05Loading ? 'Looking up…' : 'Claim Free'),
                     icon: AtSign,
+                    color: '$blue10',
                 },
             ],
         },
@@ -259,8 +259,8 @@ export function SettingsScreen() {
                 {
                     id: 'update',
                     title: 'Check for Updates',
-                    subTitle: 'Verify if a new version is available',
                     icon: RefreshCw,
+                    color: '$gray10',
                     onPress: async () => {
                         try {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -282,8 +282,9 @@ export function SettingsScreen() {
                 {
                     id: 'about',
                     title: 'Version',
-                    subTitle: `${APP_VERSION}`,
+                    value: APP_VERSION,
                     icon: Info,
+                    color: '$gray10',
                     pressStyle: { bg: '$gray3' },
                     onPress: () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -300,7 +301,6 @@ export function SettingsScreen() {
                 {
                     id: 'delete',
                     title: 'Delete Wallet',
-                    subTitle: 'Permanently erase all wallet data',
                     icon: Trash2,
                     color: '$red10',
                     hoverStyle: { bg: '$red4' },
@@ -313,12 +313,12 @@ export function SettingsScreen() {
 
     return (
         <ScrollView bg="$background" showsVerticalScrollIndicator={false}>
-            <YStack flex={1} p="$4" gap="$6" pb="$20">
+            <YStack flex={1} p="$4" gap="$3" pb="$20">
                 {SETTINGS_CONFIG.map((section) => (
-                    <SettingSection 
-                        key={section.title} 
-                        {...section} 
-                        onItemPress={handleSettingPress} 
+                    <SettingSection
+                        key={section.title}
+                        {...section}
+                        onItemPress={handleSettingPress}
                     />
                 ))}
 
@@ -328,7 +328,7 @@ export function SettingsScreen() {
                 <NotificationsModal ref={notificationsSheetRef} />
                 <BiometricModal ref={biometricSheetRef} />
 
-                <DeleteWalletSheet 
+                <DeleteWalletSheet
                     innerRef={deleteSheetRef}
                     isDeleting={isDeleting}
                     seedWords={seedWords}

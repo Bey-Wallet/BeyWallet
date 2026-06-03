@@ -1,68 +1,103 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { Text, YStack, XStack, View } from "tamagui";
 import Balance from "./Balance";
-import Blockies from 'components/UI/Blockies';
+import Blockies from "components/UI/Blockies";
 import { Copy, AtSign } from "@tamagui/lucide-icons";
-import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { useToastController } from "@tamagui/toast";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useWalletStore } from "~/store/walletStore";
-import { Animated, Easing } from 'react-native';
-import { useNip05Lookup } from '~/hooks/useNip05Lookup';
+import { Animated, Easing } from "react-native";
+import { useNip05Lookup } from "~/hooks/useNip05Lookup";
 
 export default function WalletCard() {
-    const npub = useSettingsStore(state => state.npub);
-    const { isRestoring } = useWalletStore();
-    const toast = useToastController();
-    const router = useRouter();
+  const npub = useSettingsStore((state) => state.npub);
+  const { isRestoring } = useWalletStore();
+  const toast = useToastController();
+  const router = useRouter();
 
-    // Live NIP-05 lookup from bey.cash
-    const { username, nip05, loading: nip05Loading } = useNip05Lookup();
+  // Live NIP-05 lookup from bey.cash
+  const { username, nip05, loading: nip05Loading } = useNip05Lookup();
 
-    const [countdown, setCountdown] = useState(2);
-    const spin = React.useRef(new Animated.Value(0)).current;
+  const [countdown, setCountdown] = useState(2);
+  const spin = React.useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-        if (isRestoring) {
-            setCountdown(2);
-            Animated.loop(
-                Animated.timing(spin, {
-                    toValue: 1,
-                    duration: 1200,
-                    easing: Easing.linear,
-                    useNativeDriver: true,
-                })
-            ).start();
-            const interval = setInterval(() => {
-                setCountdown(c => Math.max(0, c - 1));
-            }, 1000);
-            return () => clearInterval(interval);
-        } else {
-            spin.stopAnimation();
-            Animated.spring(spin, { toValue: 0, useNativeDriver: true }).start();
-        }
-    }, [isRestoring]);
+  useEffect(() => {
+    if (isRestoring) {
+      setCountdown(2);
+      Animated.loop(
+        Animated.timing(spin, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ).start();
+      const interval = setInterval(() => {
+        setCountdown((c) => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      spin.stopAnimation();
+      Animated.spring(spin, { toValue: 0, useNativeDriver: true }).start();
+    }
+  }, [isRestoring]);
 
-    const handleCopy = async () => {
-        const value = nip05 || npub;
-        if (!value) return;
-        await Clipboard.setStringAsync(value);
-        toast.show(nip05 ? 'Nostr address copied' : 'Copied npub to clipboard');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    };
+  const handleCopy = async () => {
+    const value = nip05 || npub;
+    if (!value) return;
+    await Clipboard.setStringAsync(value);
+    toast.show(nip05 ? "Nostr address copied" : "Copied npub to clipboard");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
-    const truncateNpub = (str: string) => {
-        if (!str || str.length < 15) return str;
-        return `${str.slice(0, 9)}...${str.slice(-9)}`;
-    };
+  const truncateNpub = (str: string) => {
+    if (!str || str.length < 15) return str;
+    return `${str.slice(0, 9)}...${str.slice(-9)}`;
+  };
 
-    return (
-        <YStack width={"100%"} gap="$2">
-            <XStack gap="$2" items="center" justify="space-between">
+  return (
+    <YStack width={"100%"} gap="$2">
+      <Balance />
+      <YStack justify="center">
+        <XStack items="center" justify="center" gap="$2">
+          {username ? (
+            <Text
+              fontSize="$6"
+              fontWeight="700"
+              color="$orange9"
+              numberOfLines={1}
+            >
+              {username}
+              <Text
+                fontSize="$6"
+                fontWeight="700"
+                color="$accent10"
+                numberOfLines={1}
+              >
+                @bey.cash
+              </Text>
+            </Text>
+          ) : (
+            <Text
+              fontSize="$5"
+              fontVariant={["tabular-nums"]}
+              fontWeight="700"
+              color="$accent5"
+              numberOfLines={1}
+            >
+              {npub ? truncateNpub(npub) : "Bey Wallet"}
+            </Text>
+          )}
+          {npub && <Copy size={14} strokeWidth={2.5} color="$accent5" />}
+        </XStack>
+      </YStack>
+
+      {/* <XStack gap="$2" items="center" justify="space-between">
                 <XStack gap="$2" items="center">
-                    {/* Avatar → nostr profile modal */}
+                  
                     <XStack
                         pressStyle={{ opacity: 0.7, scale: 0.95 }}
                         onPress={() => {
@@ -78,7 +113,7 @@ export default function WalletCard() {
                         />
                     </XStack>
 
-                    {/* Identity display */}
+              
                     <YStack justify="center">
                         <XStack
                             gap="$1.5"
@@ -90,7 +125,7 @@ export default function WalletCard() {
                             <YStack justify='center' >
                                 <XStack items='center' gap="$2">
                                     {username ? (
-                                        /* Show username@bey.cash when found */
+                                      
                                         <Text fontSize="$6" fontWeight="700" color="$accent4" numberOfLines={1}>
                                             {username}
                                             <Text fontSize="$6" fontWeight="700" color="$accent10" numberOfLines={1}>
@@ -98,7 +133,7 @@ export default function WalletCard() {
                                             </Text>
                                         </Text>
                                     ) : (
-                                        /* No bey.cash username → show truncated npub */
+                                        
                                         <Text fontSize="$5" fontVariant={['tabular-nums']} fontWeight="700" color="$accent5" numberOfLines={1}>
                                             {npub ? truncateNpub(npub) : 'Bey Wallet'}
                                         </Text>
@@ -107,12 +142,11 @@ export default function WalletCard() {
                                 </XStack>
                             </YStack>
                         </XStack>
-                        {/* Show truncated npub beneath nip05 */}
+                     
 
                     </YStack>
                 </XStack>
-            </XStack>
-            <Balance />
-        </YStack>
-    );
+            </XStack> */}
+    </YStack>
+  );
 }

@@ -63,34 +63,38 @@ export default React.memo(function ActionButtons() {
         <Button
           bg="$gray4"
           flex={1}
+          height={60}
           size="$7"
           rounded="$5"
-          icon={<Landmark size={32} />}
+          icon={<Landmark size={28} />}
           onPress={handleLandmark}
         />
         <Button
           bg="$gray4"
           flex={1}
+          height={60}
           size="$7"
           rounded="$5"
-          icon={<SwapIcon size={32} />}
+          icon={<SwapIcon size={28} />}
           onPress={handleSwap}
         />
         <Button
           bg="$gray4"
           flex={1}
+          height={60}
           size="$7"
           rounded="$5"
-          icon={<ArrowDownIcon size={36} />}
+          icon={<ArrowDownIcon size={32} />}
           onPress={handleReceive}
         />
         <Button
-          themeInverse
-          theme="gray"
+
+          theme="accent"
           flex={1}
+          height={60}
           size="$7"
           rounded="$5"
-          icon={<SendIcon size={32} />}
+          icon={<SendIcon size={28} />}
           onPress={handleSend}
         />
       </XStack>

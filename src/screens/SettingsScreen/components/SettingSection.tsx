@@ -15,9 +15,8 @@ export const SettingSection: React.FC<SettingSectionProps> = ({
     onItemPress
 }) => {
     return (
-        <YStack gap="$3">
-            <Text fontSize="$4" fontWeight="600" color={titleColor} px="$2">{title}</Text>
-            <YGroup rounded="$7" bg={bg} overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+        <YStack gap="$2">
+            <YGroup rounded="$5" bg={bg} overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                 {items.map((item) => (
                     <YGroup.Item key={item.id}>
                         <SettingItem

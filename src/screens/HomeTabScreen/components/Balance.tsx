@@ -3,119 +3,142 @@ import { H1, H2, Paragraph, Text, View, XStack, YStack } from "tamagui";
 import { useWalletStore } from "../../../store/walletStore";
 import { RollingNumber } from "../../../components/UI/RollingNumber";
 import { useSettingsStore } from "../../../store/settingsStore";
-import { currencyService, CurrencyCode } from "../../../services/currencyService";
+import {
+  currencyService,
+  CurrencyCode,
+} from "../../../services/currencyService";
 import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "../../../services/bitcoinService";
-import * as Haptics from 'expo-haptics';
+import * as Haptics from "expo-haptics";
 
 export default function Balance() {
-    const balance = useWalletStore(s => s.balance);
-    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
-    const refreshCounter = useWalletStore(s => s.refreshCounter);
-    const mints = useWalletStore(s => s.mints);
-    const balances = useWalletStore(s => s.balances);
-    const isRestoring = useWalletStore(s => s.isRestoring);
-    const { secondaryCurrency } = useSettingsStore();
-    const [showAllMints, setShowAllMints] = React.useState(false);
-    const [localTrigger, setLocalTrigger] = React.useState(0);
+  const balance = useWalletStore((s) => s.balance);
+  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
+  const refreshCounter = useWalletStore((s) => s.refreshCounter);
+  const mints = useWalletStore((s) => s.mints);
+  const balances = useWalletStore((s) => s.balances);
+  const isRestoring = useWalletStore((s) => s.isRestoring);
+  const { secondaryCurrency, hideBalance, setHideBalance } = useSettingsStore();
+  const [showAllMints, setShowAllMints] = React.useState(false);
+  const [localTrigger, setLocalTrigger] = React.useState(0);
 
-    const handleBalancePress = React.useCallback(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setLocalTrigger(prev => prev + 1);
-    }, []);
-    const { data: btcData } = useQuery({
-        queryKey: ['bitcoinPrice', secondaryCurrency],
-        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-        staleTime: 30000,
-    })
+  const handleBalancePress = React.useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setHideBalance(!hideBalance);
+  }, [hideBalance, setHideBalance]);
+  const { data: btcData } = useQuery({
+    queryKey: ["bitcoinPrice", secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30000,
+  });
 
-    // Normalize URLs for comparison
-    const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+  // Normalize URLs for comparison
+  const normalizeUrl = (url: string) => url.replace(/\/$/, "");
 
-    const activeMint = mints.find(m => activeMintUrl && normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
+  const activeMint = mints.find(
+    (m) =>
+      activeMintUrl && normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl),
+  );
 
-    // Determine display values based on toggle state
-    const currentBalance = showAllMints
-        ? Object.values(balances).reduce((acc, val) => acc + val, 0)
-        : balance;
+  // Determine display values based on toggle state
+  const currentBalance = showAllMints
+    ? Object.values(balances).reduce((acc, val) => acc + val, 0)
+    : balance;
 
-    const displayName = showAllMints
-        ? "All Mints"
-        : (activeMint?.nickname || activeMint?.name || activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') || "No Mint Selected");
+  const displayName = showAllMints
+    ? "All Mints"
+    : activeMint?.nickname ||
+    activeMint?.name ||
+    activeMintUrl?.replace(/^https?:\/\//, "").replace(/\/$/, "") ||
+    "No Mint Selected";
 
-    const secondaryBalance = React.useMemo(() => {
-        if (!btcData?.price) return 0;
-        return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
-    }, [currentBalance, btcData?.price]);
+  const secondaryBalance = React.useMemo(() => {
+    if (!btcData?.price) return 0;
+    return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
+  }, [currentBalance, btcData?.price]);
 
-    return (
-        <YStack py="$2" gap="$2">
-            <XStack width="100%" items="center" justify="space-between">
-                <XStack items="center">
-                    <Paragraph
-                        color="$accent9"
-                        px="$2"
-                        py="$0.5"
-                        rounded="$2"
-                        bg="$gray5"
-                        fontSize="$2"
-                        fontWeight="600"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setShowAllMints(prev => !prev);
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        suppressHighlighting
-                    >
-                        {displayName}
-                    </Paragraph>
-                    {isRestoring && (
-                        <XStack ml="$2" items="center" gap="$2">
-                            <View
-                                width={8}
-                                height={8}
-                                rounded="$10"
-                                bg="$accent10"
-                                animation="lazy"
-                                opacity={0.8}
-                            />
-                            <Text fontSize="$2" color="$gray10" fontWeight="600">
-                                Syncing...
-                            </Text>
-                        </XStack>
-                    )}
-                </XStack>
+  return (
+    <YStack py="$2" height={200} gap="$2" justify="center" items="center">
+      <XStack width="100%" items="center" justify="center">
+        <XStack items="center">
+          <Paragraph
+            color="$accent9"
+            px="$2"
+            py="$0.5"
+            rounded="$2"
+            bg="$gray5"
+            fontSize="$2"
+            fontWeight="600"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowAllMints((prev) => !prev);
+            }}
+            pressStyle={{ opacity: 0.7 }}
+            suppressHighlighting
+          >
+            {displayName}
+          </Paragraph>
+          {isRestoring && (
+            <XStack ml="$2" items="center" gap="$2">
+              <View
+                width={8}
+                height={8}
+                rounded="$10"
+                bg="$accent10"
+                animation="lazy"
+                opacity={0.8}
+              />
+              <Text fontSize="$2" color="$gray10" fontWeight="600">
+                Syncing...
+              </Text>
             </XStack>
+          )}
+        </XStack>
+      </XStack>
 
-            <XStack justify="space-between" py="$2" items="flex-end">
-                <YStack onPress={handleBalancePress} pressStyle={{ opacity: 0.7 }}>
-                    <RollingNumber
-                        value={currentBalance}
-                        prefix="₿"
-                        trigger={refreshCounter + localTrigger}
-                        letterSpacing={-1}
-                        fontSize={36}
-                        fontWeight="900"
-                        color="$accent3"
-                        decimalOpacity={0.4}
-                        showDecimals={false}
-                    />
-                </YStack>
-                <Text color="$accent9" fontSize={18} fontWeight="700">SATS</Text>
-            </XStack>
-
-            <RollingNumber
-                value={secondaryBalance}
-                trigger={refreshCounter}
-                letterSpacing={-1}
-                fontSize={20}
-                fontWeight="900"
-                color="$accent7"
-                decimalOpacity={0.4}
-                showDecimals={false}
-            >
-                {currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)}
-            </RollingNumber>
+      <XStack justify="center" py="$2" items="flex-end">
+        <YStack onPress={handleBalancePress} pressStyle={{ opacity: 0.7 }}>
+          <RollingNumber
+            value={hideBalance ? "****" : currentBalance}
+            prefix={hideBalance ? "" : "₿"}
+            trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible")}
+            letterSpacing={-1}
+            fontSize={36}
+            fontWeight="900"
+            color="$accent3"
+            decimalOpacity={0.4}
+            showDecimals={false}
+            style={hideBalance ? {
+              backgroundColor: 'rgba(150, 150, 150, 0.15)',
+              borderRadius: 120,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+            } : undefined}
+          />
         </YStack>
-    )
+        {/* <Text color="$accent9" fontSize={18} fontWeight="700">SATS</Text> */}
+      </XStack>
+
+      <RollingNumber
+        value={hideBalance ? "****" : secondaryBalance}
+        trigger={refreshCounter + (hideBalance ? "_hidden" : "_visible")}
+        letterSpacing={-1}
+        fontSize={20}
+        fontWeight="900"
+        color="$accent7"
+        decimalOpacity={0.4}
+        showDecimals={false}
+      >
+        {hideBalance
+          ? undefined
+          : currencyService.formatValue(
+            secondaryBalance,
+            secondaryCurrency as CurrencyCode,
+          )}
+      </RollingNumber>
+    </YStack>
+  );
 }

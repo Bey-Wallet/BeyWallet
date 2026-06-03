@@ -4,6 +4,7 @@ export interface SettingItemConfig {
     id: string;
     title: string | ReactNode;
     subTitle?: string;
+    value?: string;
     icon: any;
     iconAfter?: any;
     onPress?: () => void;
