@@ -178,7 +178,7 @@ const ManageBalances = () => {
       p="$2.5"
       pr="$4"
       rounded="$5"
-      bg={resolvedTheme === "dark" ? "$color2" : "$white"}
+      bg={"$color2"}
     >
       <XStack>
         <H6 color="$gray10">Manage Balances</H6>

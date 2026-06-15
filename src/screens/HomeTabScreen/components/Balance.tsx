@@ -58,7 +58,7 @@ export default function Balance() {
   }, [currentBalance, btcData?.price]);
 
   return (
-    <YStack py="$2" height={200} gap="$2" justify="center" items="center">
+    <YStack py="$2" height={220} gap="$2" justify="center" items="center">
       <XStack width="100%" items="center" justify="center">
         <XStack items="center">
           <Paragraph

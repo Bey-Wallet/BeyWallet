@@ -109,7 +109,7 @@ export default function TabLayout() {
                 circular
                 size="$3"
                 chromeless
-                icon={<Scan strokeWidth={3} size={24} color="$color" />}
+                icon={<Scan strokeWidth={3} size={24} color="$accent5" />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push({
@@ -122,7 +122,7 @@ export default function TabLayout() {
                 circular
                 size="$3"
                 chromeless
-                icon={<Nfc size={24} strokeWidth={3} color="$color" />}
+                icon={<Nfc size={24} strokeWidth={3} color="$accent5" />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/(modals)/nfc-receive");
