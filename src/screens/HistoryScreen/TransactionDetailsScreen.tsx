@@ -246,15 +246,25 @@ export function TransactionDetailsScreen() {
 
     const title = useMemo(() => {
         const type = entry?.type;
+        const meta = entry?.metadata ?? {};
+        const via = typeof meta === 'string' ? (() => { try { return JSON.parse(meta).via; } catch { return undefined; } })() : meta?.via;
+
         if (!type || typeof type !== 'string') return 'Transaction';
         switch (type.toLowerCase()) {
-            case 'send': return 'Send Ecash';
-            case 'receive': return 'Receive Ecash';
-            case 'mint': return 'Mint Ecash';
-            case 'melt': return 'Melt Ecash';
+            case 'send':
+                if (via === 'nostr') return 'Sent via Nostr';
+                if (via === 'ecash_create') return 'Created Ecash Token';
+                return 'Sent Ecash';
+            case 'receive':
+                if (via === 'nostr') return 'Received via Nostr';
+                if (via === 'qr' || via === 'scan') return 'Received via QR';
+                if (via === 'nfc') return 'Received via NFC';
+                return 'Received Ecash';
+            case 'mint': return 'Lightning → Ecash';
+            case 'melt': return 'Ecash → Lightning';
             default: return 'Transaction';
         }
-    }, [entry?.type]);
+    }, [entry?.type, entry?.metadata]);
 
 
     const handleCopyToken = async () => {
@@ -574,11 +584,51 @@ export function TransactionDetailsScreen() {
                             </YStack>
                         </YStack>
 
+                        {/* Details table */}
                         <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                             <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
                             <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
-                            <DetailItem label="Type" value={`${title} • ${entry.type === 'send' ? 'Outgoing' : 'Incoming'}`} />
+                            <DetailItem label="Type" value={title} />
                             <DetailItem label="Status" value={formattedStatus} />
+                            {/* Via channel */}
+                            {(() => {
+                                let meta = entry.metadata ?? {};
+                                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
+                                const via: string | undefined = (meta as any)?.via;
+                                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
+                                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                                if (!via) return null;
+                                const viaLabel = via === 'nostr' ? 'Nostr'
+                                    : via === 'qr' || via === 'scan' ? 'QR Scan'
+                                    : via === 'nfc' ? 'NFC'
+                                    : via === 'ecash_create' ? 'Ecash Token'
+                                    : via === 'paste' ? 'Paste'
+                                    : via === 'lightning' ? 'Lightning'
+                                    : via;
+                                return (
+                                    <>
+                                        <DetailItem label="Channel" value={viaLabel} />
+                                        {via === 'nostr' && (nostrUsername || nostrPubkey) && (
+                                            <DetailItem
+                                                label={entry.type === 'send' ? 'Recipient' : 'Sender'}
+                                                value={nostrUsername
+                                                    ? `@${nostrUsername.replace('@bey.cash', '')}`
+                                                    : nostrPubkey
+                                                    ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
+                                                    : 'Unknown'}
+                                                isCopyable={!!nostrPubkey}
+                                                copyValue={nostrPubkey}
+                                                onCopy={async () => {
+                                                    if (nostrPubkey) {
+                                                        await Clipboard.setStringAsync(nostrPubkey);
+                                                        toast.show('Copied!', { message: 'Nostr pubkey copied' });
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </>
+                                );
+                            })()}
                             {lockedToNpub && (
                                 <DetailItem
                                     label="Locked To"
@@ -674,3 +724,4 @@ function DetailItem({ label, value, isCopyable, copyValue, onCopy }: { label: st
         </XStack>
     );
 }
+

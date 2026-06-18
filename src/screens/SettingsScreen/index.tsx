@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
-import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
+import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw, Zap } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -17,6 +17,8 @@ import { currencyService } from '~/services/currencyService';
 import { biometricService } from '~/services/biometricService';
 import { seedService } from '~/services/seedService';
 import { initService } from '~/services/core';
+import { consolidationService } from '~/services/core';
+import { proofService } from '~/services/core';
 import { useOnboardingStore } from '~/store/onboardingStore';
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { ActivityIndicator, Alert, DevSettings } from 'react-native';
@@ -24,6 +26,7 @@ import { walletFileService } from '~/services/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 import * as Updates from 'expo-updates';
+import { useWalletStore } from '~/store/walletStore';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
@@ -37,6 +40,7 @@ export function SettingsScreen() {
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
     const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
+    const { activeMintUrl, refreshBalance } = useWalletStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
@@ -44,6 +48,8 @@ export function SettingsScreen() {
     const [isSeedVisible, setIsSeedVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [isConsolidating, setIsConsolidating] = useState(false);
+    const [isVerifyingDleq, setIsVerifyingDleq] = useState(false);
 
     const handleSettingPress = async (id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -59,6 +65,12 @@ export function SettingsScreen() {
                 break;
             case 'export':
                 handleExportWallet();
+                break;
+            case 'consolidate':
+                handleConsolidate();
+                break;
+            case 'verify-dleq':
+                handleVerifyDleq();
                 break;
             case 'biometric':
                 biometricSheetRef.current?.present();
@@ -83,6 +95,83 @@ export function SettingsScreen() {
                 break;
             default:
                 break;
+        }
+    };
+
+    const handleVerifyDleq = async () => {
+        if (!activeMintUrl) {
+            Alert.alert('No Active Mint', 'Select a mint to verify proofs for.');
+            return;
+        }
+        setIsVerifyingDleq(true);
+        try {
+            const results = await proofService.verifyDleqProofs(activeMintUrl);
+            if (results.length === 0) {
+                Alert.alert('No DLEQ Data', 'None of your stored proofs have DLEQ data. This is normal for older proofs or mints that do not provide DLEQ.');
+                return;
+            }
+            const validCount = results.filter(r => r.valid).length;
+            const invalidResults = results.filter(r => !r.valid);
+            if (invalidResults.length === 0) {
+                Alert.alert(
+                    '\u2705 All Proofs Valid',
+                    `${validCount}/${results.length} proofs verified offline.\nThe mint signed all proofs honestly.`,
+                );
+            } else {
+                const failedAmounts = invalidResults.map(r => `${r.amount} sats`).join(', ');
+                Alert.alert(
+                    '\u26a0\ufe0f DLEQ Verification Failed',
+                    `${validCount}/${results.length} proofs valid.\n\nFailed amounts: ${failedAmounts}\n\nConsider consolidating your wallet or contacting the mint operator.`,
+                );
+            }
+        } catch (err: any) {
+            Alert.alert('Verification Failed', err.message || 'Could not verify proofs.');
+        } finally {
+            setIsVerifyingDleq(false);
+        }
+    };
+
+    const handleConsolidate = async () => {
+        if (!activeMintUrl) {
+            Alert.alert('No Active Mint', 'Select a mint first before optimizing.');
+            return;
+        }
+
+        // Analyse first so we can show user what will happen
+        let analysis;
+        try {
+            analysis = await consolidationService.getFragmentationAnalysis(activeMintUrl);
+        } catch (err: any) {
+            Alert.alert('Error', err.message);
+            return;
+        }
+
+        if (analysis.proofCount <= 3) {
+            Alert.alert('Already Optimized ✅', `Your wallet only has ${analysis.proofCount} proof${analysis.proofCount === 1 ? '' : 's'} — no consolidation needed.`);
+            return;
+        }
+
+        // Gate with biometric
+        const authed = await biometricService.authenticateAsync('Authorize wallet optimization');
+        if (!authed) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            return;
+        }
+
+        setIsConsolidating(true);
+        try {
+            const result = await consolidationService.consolidateMint(activeMintUrl);
+            await refreshBalance();
+            Alert.alert(
+                '✅ Wallet Optimized',
+                `Proofs reduced: ${result.before.count} → ${result.after.count}\n` +
+                `Saved ${result.savedProofs} proof${result.savedProofs === 1 ? '' : 's'}\n` +
+                `Balance unchanged: ${result.after.totalAmount} sats`,
+            );
+        } catch (err: any) {
+            Alert.alert('Optimization Failed', err.message || 'Could not consolidate proofs.');
+        } finally {
+            setIsConsolidating(false);
         }
     };
 
@@ -223,6 +312,22 @@ export function SettingsScreen() {
                     id: 'notifications',
                     title: 'Notifications',
                     icon: Bell,
+                    color: '$blue10',
+                },
+                {
+                    id: 'consolidate',
+                    title: 'Optimize Wallet',
+                    subtitle: isConsolidating ? 'Consolidating proofs…' : 'Reduce proof count for faster sends',
+                    icon: isConsolidating ? ActivityIndicator : Zap,
+                    disabled: isConsolidating,
+                    color: '$green10',
+                },
+                {
+                    id: 'verify-dleq',
+                    title: 'Verify Proofs (Offline)',
+                    subtitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
+                    icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
+                    disabled: isVerifyingDleq,
                     color: '$blue10',
                 },
                 {

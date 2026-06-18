@@ -6,7 +6,7 @@ import { InputStage } from './InputStage'
 import { ConfirmStage } from './ConfirmStage'
 import { ReceiveResultStage } from './ReceiveResultStage'
 import { RequestEcashStage } from './RequestEcashStage'
-import { walletService, mintManager, initService } from '../../services/core';
+import { walletService, mintManager, initService, historyService } from '../../services/core';
 import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -257,6 +257,12 @@ export function ReceiveModalScreen() {
             setIsReceiveLater(false);
             setStep('result');
             refreshBalance(); // fire-and-forget, balance banner will update async
+
+            // 5. Tag history with how the token was received (fire-and-forget)
+            const via = params.from === 'nfc' ? 'nfc'
+                      : params.scannedToken   ? 'qr'
+                      : 'paste';
+            historyService.tagHistoryVia(tokenInfo.mint, 'receive', via).catch(() => {});
         } catch (err: any) {
             console.error('[ReceiveModal] ❌ Failed to receive token:', {
                 message: err?.message,

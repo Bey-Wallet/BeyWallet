@@ -2,10 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Text, YStack, XStack, View } from "tamagui";
 import Balance from "./Balance";
 import Blockies from "components/UI/Blockies";
-import { Copy, AtSign } from "@tamagui/lucide-icons";
+import { Copy, AtSign, Check } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
-import { useToastController } from "@tamagui/toast";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useWalletStore } from "~/store/walletStore";
@@ -15,7 +14,6 @@ import { useNip05Lookup } from "~/hooks/useNip05Lookup";
 export default function WalletCard() {
   const npub = useSettingsStore((state) => state.npub);
   const { isRestoring } = useWalletStore();
-  const toast = useToastController();
   const router = useRouter();
 
   // Live NIP-05 lookup from bey.cash
@@ -23,6 +21,7 @@ export default function WalletCard() {
 
   const [countdown, setCountdown] = useState(2);
   const spin = React.useRef(new Animated.Value(0)).current;
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (isRestoring) {
@@ -49,8 +48,11 @@ export default function WalletCard() {
     const value = nip05 || npub;
     if (!value) return;
     await Clipboard.setStringAsync(value);
-    toast.show(nip05 ? "Nostr address copied" : "Copied npub to clipboard");
+    setCopied(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   const truncateNpub = (str: string) => {
@@ -62,19 +64,25 @@ export default function WalletCard() {
     <YStack width={"100%"} gap="$2">
       <Balance />
       <YStack justify="center">
-        <XStack items="center" justify="center" gap="$2">
+        <XStack
+          items="center"
+          justify="center"
+          gap="$2"
+          pressStyle={npub ? { opacity: 0.7 } : undefined}
+          onPress={npub ? handleCopy : undefined}
+        >
           {username ? (
             <Text
               fontSize="$6"
               fontWeight="700"
-              color="$orange9"
+              color={copied ? "$accent5" : "$orange10"}
               numberOfLines={1}
             >
               {username}
               <Text
                 fontSize="$6"
                 fontWeight="700"
-                color="$accent10"
+                color="$accent5"
                 numberOfLines={1}
               >
                 @bey.cash
@@ -91,7 +99,13 @@ export default function WalletCard() {
               {npub ? truncateNpub(npub) : "Bey Wallet"}
             </Text>
           )}
-          {npub && <Copy size={14} strokeWidth={2.5} color="$accent5" />}
+          {npub && (
+            copied ? (
+              <Check size={14} strokeWidth={2.5} color="$accent5" />
+            ) : (
+              <Copy size={14} strokeWidth={2.5} color="$accent5" />
+            )
+          )}
         </XStack>
       </YStack>
 

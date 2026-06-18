@@ -24,8 +24,11 @@ export { quotesService } from './quotesService';
 export { eventService, CORE_EVENT_NAMES } from './eventService';
 export { historyService } from './historyService';
 export { proofService } from './proofService';
+export type { DleqVerificationResult } from './proofService';
 export { recoveryService } from './recoveryService';
 export { nostrService } from './nostrService';
+export { consolidationService } from './consolidationService';
+export type { FragmentationAnalysis, ConsolidationResult } from './consolidationService';
 
 // ─── Utilities ────────────────────────────────────────────────
 export {

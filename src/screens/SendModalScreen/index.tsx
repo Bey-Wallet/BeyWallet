@@ -10,7 +10,7 @@ import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { ScanAndPayStage } from './ScanAndPayStage'
 import { biometricService } from '~/services/biometricService'
-import { walletService, mintManager, nostrService } from '~/services/core'
+import { walletService, mintManager, nostrService, historyService } from '~/services/core'
 import { seedService } from '~/services/seedService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
@@ -270,6 +270,16 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             console.log('[SendModalScreen] Send successful. OpId:', result.id, 'Token length:', (result.encoded || result.token || '').length);
+
+            // Tag this as a locally-created ecash token (not sent via Nostr)
+            historyService.tagHistoryVia(
+                activeMintUrl,
+                'send',
+                'ecash_create',
+                undefined,
+                result.id,
+            ).catch(() => {});
+
             setStep('result');
         } catch (err: any) {
             console.error('[SendModal] Failed to send:', err);
@@ -335,6 +345,19 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             queryClient.invalidateQueries({ queryKey: ['history'] });
+
+            // Tag as Nostr send with recipient username
+            historyService.tagHistoryVia(
+                activeMintUrl,
+                'send',
+                'nostr',
+                {
+                    nostrPubkey: nostrRecipientNpub,
+                    ...(nostrRecipientUsername ? { nostrUsername: nostrRecipientUsername.replace('@bey.cash', '') } : {}),
+                },
+                result.id,
+            ).catch(() => {});
+
             setStep('success');
 
             console.log(`[SendModal] ✅ Nostr send complete: ${amountSats} sats to ${nostrRecipientNpub.slice(0, 10)}…`);

@@ -1,13 +1,13 @@
 import React from 'react';
 import { YStack, XStack, Text, Button, View, Separator, Circle, ScrollView, YGroup } from 'tamagui';
-import { ArrowDownLeft, Check, ShieldCheck, AlertTriangle, Copy, Building2, DollarSign, Clock } from '@tamagui/lucide-icons';
+import { ArrowDownLeft, Check, ShieldCheck, AlertTriangle, Copy, Building2, DollarSign, Clock, Loader } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
 import { useWalletStore } from '../../store/walletStore';
-import { mintManager } from '../../services/core';
+import { mintManager, proofService } from '../../services/core';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
@@ -39,6 +39,31 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
     const toast = useToastController();
     const [isSavingLater, setIsSavingLater] = React.useState(false);
     const [estimatedFee, setEstimatedFee] = React.useState(0);
+
+    // ── Proof state verification (NUT-07) ────────────────────────────
+    type ProofStatus = 'checking' | 'valid' | 'spent' | 'unknown';
+    const [proofStatus, setProofStatus] = React.useState<ProofStatus>('checking');
+
+    React.useEffect(() => {
+        let cancelled = false;
+        setProofStatus('checking');
+        (async () => {
+            try {
+                const states = await proofService.checkProofStates(token);
+                if (cancelled) return;
+                if (!states || states.length === 0) {
+                    setProofStatus('unknown');
+                    return;
+                }
+                const anySpent = states.some((s: any) => s.state === 'SPENT');
+                setProofStatus(anySpent ? 'spent' : 'valid');
+            } catch {
+                if (!cancelled) setProofStatus('unknown');
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [token]);
+    // ─────────────────────────────────────────────────────────────────
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -104,7 +129,7 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
 
                 {/* Warning for untrusted mint */}
                 {!isMintTrusted && (
-                    <YStack mx="$4" mb="$6" bg="$orange3" p="$3" rounded="$3" gap="$2">
+                    <YStack mx="$4" mb="$3" bg="$orange3" p="$3" rounded="$3" gap="$2">
                         <XStack gap="$2" items="center">
                             <AlertTriangle size={18} color="$orange10" />
                             <Text color="$orange10" fontSize="$3" fontWeight="bold">
@@ -117,6 +142,41 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                         </Text>
                     </YStack>
                 )}
+
+                {/* ── Proof verification status badge (NUT-07) ── */}
+                <XStack
+                    mx="$4"
+                    mb="$3"
+                    gap="$2"
+                    items="center"
+                    bg={
+                        proofStatus === 'valid' ? '$green3'
+                        : proofStatus === 'spent' ? '$red3'
+                        : '$gray3'
+                    }
+                    p="$2"
+                    px="$3"
+                    rounded="$3"
+                >
+                    {proofStatus === 'checking' && <Spinner size="small" color="$gray10" />}
+                    {proofStatus === 'valid'    && <ShieldCheck size={15} color="$green10" />}
+                    {proofStatus === 'spent'    && <AlertTriangle size={15} color="$red10" />}
+                    {proofStatus === 'unknown'  && <AlertTriangle size={15} color="$gray10" />}
+                    <Text
+                        fontSize="$2"
+                        fontWeight="700"
+                        color={
+                            proofStatus === 'valid' ? '$green10'
+                            : proofStatus === 'spent' ? '$red10'
+                            : '$gray10'
+                        }
+                    >
+                        {proofStatus === 'checking' ? 'Verifying proofs with mint…'
+                         : proofStatus === 'valid'   ? 'Proofs verified — Unspent ✓'
+                         : proofStatus === 'spent'   ? 'Warning: proofs may already be spent'
+                         : 'Could not verify (offline or mint unreachable)'}
+                    </Text>
+                </XStack>
 
 
                 <YStack mx="$4" bg="$gray2" rounded="$5" overflow="hidden">
@@ -195,11 +255,11 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
 
 
                 <Button
-                    bg={isMintTrusted ? "$green9" : "$orange9"}
+                    bg={proofStatus === 'spent' ? '$red9' : isMintTrusted ? "$green9" : "$orange9"}
                     color="white"
                     height={50}
                     rounded="$4"
-                    disabled={isLoading}
+                    disabled={isLoading || proofStatus === 'spent'}
                     icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
                     fontWeight="700" fontSize="$5"
                     onPress={() => {
@@ -208,9 +268,11 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                     }}
                     pressStyle={{ opacity: 0.9, scale: 0.98 }}
                 >
-
-                    {isLoading ? 'Receiving...' : (isMintTrusted ? 'Receive' : 'Trust & Receive')}
-
+                    {isLoading
+                        ? 'Receiving...'
+                        : proofStatus === 'spent'
+                        ? 'Token Already Spent'
+                        : (isMintTrusted ? 'Receive' : 'Trust & Receive')}
                 </Button>
 
 

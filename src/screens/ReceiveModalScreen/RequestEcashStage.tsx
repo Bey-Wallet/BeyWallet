@@ -38,7 +38,7 @@ import { useNostrRequestStore } from '../../store/nostrRequestStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
-import { walletService } from '../../services/core/walletService';
+import { walletService, historyService } from '../../services/core';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '../SendModalScreen/ResultStage';
@@ -372,6 +372,18 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                     
                     useWalletStore.getState().refreshBalance();
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                    // Tag this receive as arriving via Nostr, with sender info
+                    const senderNpub = data.senderPubkey
+                        ? (() => { try { return nprofileEncode({ pubkey: data.senderPubkey }); } catch { return data.senderPubkey?.slice(0, 8); } })()
+                        : undefined;
+                    historyService.tagHistoryVia(
+                        activeMintUrl,
+                        'receive',
+                        'nostr',
+                        senderNpub ? { nostrPubkey: senderNpub } : undefined,
+                    ).catch(() => {});
+
                     setStep('success');
                 } catch (e) {
                     console.error('[RequestEcashStage] Auto-claim failed:', e);

@@ -120,7 +120,7 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
 
     return (
         <YStack flex={1} justify="space-between">
-            <YStack width="100%" height={300} rounded="$4" borderWidth={0.5} borderColor="$borderColor" justify="space-between" bg="$color2" items="center">
+            <YStack width="100%" height={330} rounded="$4" borderWidth={0.5} borderColor="$color3" justify="space-between" bg="$color2" items="center">
                 <XStack
                     onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);

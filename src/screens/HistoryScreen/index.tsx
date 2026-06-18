@@ -1,19 +1,20 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, Button, ScrollView, Separator, View } from 'tamagui';
-import { Clock, ChevronDown, Calendar, Building2, Check } from '@tamagui/lucide-icons';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { YStack, XStack, Text, Button, Separator, View } from 'tamagui';
+import { StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { Clock, ChevronDown, Building2, Check, Calendar, SlidersHorizontal } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
-import { Spinner } from '../../components/UI/Spinner';
-import { RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '../../store/walletStore';
 import AppBottomSheet, { AppBottomSheetRef } from '../../components/UI/AppBottomSheet';
 import { HistoryItem } from './components/HistoryItem';
 import { HistorySection } from './components/HistorySection';
+import { HistoryPageSkeleton } from './components/HistorySkeletonItem';
 import { ListItem, YGroup } from 'tamagui';
 import { MintSelectorSheet } from '../../components/HomeMintSelector';
 import { useNostrRequestStore } from '../../store/nostrRequestStore';
+import { FlashList } from '@shopify/flash-list';
 
 interface HistoryEntry {
     id: string;
@@ -46,16 +47,13 @@ export function HistoryScreen() {
     const { data: history = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['history'],
         queryFn: async () => {
-            if (!initService.isInitialized()) {
-                return [];
-            }
+            if (!initService.isInitialized()) return [];
             return historyService.getHistory(200, 0) as Promise<HistoryEntry[]>;
         },
         enabled: initService.isInitialized(),
     });
 
     const filteredHistory = useMemo(() => {
-        // Map pending Nostr requests into the history shape
         const pendingEntries: HistoryEntry[] = pendingRequests.map(req => ({
             id: req.id,
             type: 'receive-request' as any,
@@ -64,32 +62,28 @@ export function HistoryScreen() {
             mintUrl: req.mintUrl,
             state: req.state,
             createdAt: req.createdAt,
-            metadata: {
-                creqString: req.creqString,
-                nostrPubkey: req.nostrPubkey,
-            }
+            metadata: { creqString: req.creqString, nostrPubkey: req.nostrPubkey },
         }));
 
         let filtered = [...pendingEntries, ...history];
 
         if (mintFilter !== 'all') {
-            filtered = filtered.filter(entry =>
-                entry.mintUrl.replace(/\/$/, '') === mintFilter.replace(/\/$/, '')
+            filtered = filtered.filter(e =>
+                e.mintUrl.replace(/\/$/, '') === mintFilter.replace(/\/$/, ''),
             );
         }
 
         if (timeFilter !== 'all') {
             const now = Date.now();
-            let cutoff = 0;
             const startOfToday = new Date().setHours(0, 0, 0, 0);
-
+            let cutoff = 0;
             switch (timeFilter) {
                 case 'today': cutoff = startOfToday; break;
-                case '3days': cutoff = now - (3 * 24 * 60 * 60 * 1000); break;
-                case 'week': cutoff = now - (7 * 24 * 60 * 60 * 1000); break;
-                case 'month': cutoff = now - (30 * 24 * 60 * 60 * 1000); break;
+                case '3days': cutoff = now - 3 * 24 * 60 * 60 * 1000; break;
+                case 'week': cutoff = now - 7 * 24 * 60 * 60 * 1000; break;
+                case 'month': cutoff = now - 30 * 24 * 60 * 60 * 1000; break;
             }
-            filtered = filtered.filter(entry => entry.createdAt >= cutoff);
+            filtered = filtered.filter(e => e.createdAt >= cutoff);
         }
 
         const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
@@ -109,13 +103,15 @@ export function HistoryScreen() {
                     const timeDiff = Math.abs(current.createdAt - older.createdAt);
                     if (isOut && timeDiff < 60000) {
                         const amountDiff = Math.abs(current.amount - older.amount);
-                        const isAmountMatch = amountDiff === 0 || (older.type === 'melt' && amountDiff <= older.amount * 0.05);
+                        const isAmountMatch =
+                            amountDiff === 0 ||
+                            (older.type === 'melt' && amountDiff <= older.amount * 0.05);
                         if (isAmountMatch) {
                             merged.push({
                                 ...current,
                                 type: 'swap',
                                 amount: older.amount,
-                                metadata: { ...current.metadata, sourceId: older.id, targetId: current.id }
+                                metadata: { ...current.metadata, sourceId: older.id, targetId: current.id },
                             });
                             skipIds.add(older.id);
                             isSwap = true;
@@ -130,8 +126,8 @@ export function HistoryScreen() {
     }, [history, pendingRequests, mintFilter, timeFilter]);
 
     const groupedHistory = useMemo(() => {
-        const groups: { title: string, items: HistoryEntry[] }[] = [];
-        let currentGroup: { title: string, items: HistoryEntry[] } | null = null;
+        const groups: { title: string; items: HistoryEntry[] }[] = [];
+        let currentGroup: { title: string; items: HistoryEntry[] } | null = null;
 
         filteredHistory.forEach(entry => {
             const date = new Date(entry.createdAt);
@@ -145,7 +141,11 @@ export function HistoryScreen() {
             } else if (date.toDateString() === yesterday.toDateString()) {
                 groupTitle = 'Yesterday';
             } else {
-                groupTitle = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                groupTitle = date.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
             }
 
             if (!currentGroup || currentGroup.title !== groupTitle) {
@@ -158,6 +158,68 @@ export function HistoryScreen() {
         return groups;
     }, [filteredHistory]);
 
+    // Flatten into FlashList-compatible flat array
+    // 'header' items render the date label; 'first' | 'middle' | 'last' | 'only' carry position info
+    // so HistoryItem can render its own rounded-card corners.
+    type FlatItem =
+        | { kind: 'header'; title: string }
+        | { kind: 'item'; entry: HistoryEntry; position: 'first' | 'middle' | 'last' | 'only' };
+
+    const flatItems = useMemo((): FlatItem[] => {
+        const items: FlatItem[] = [];
+        for (const group of groupedHistory) {
+            items.push({ kind: 'header', title: group.title });
+            group.items.forEach((entry, idx) => {
+                const total = group.items.length;
+                const position =
+                    total === 1 ? 'only'
+                    : idx === 0 ? 'first'
+                    : idx === total - 1 ? 'last'
+                    : 'middle';
+                items.push({ kind: 'item', entry, position });
+            });
+        }
+        return items;
+    }, [groupedHistory]);
+
+    const handleTransactionPress = useCallback((id: string, type: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (type === 'receive-request') {
+            router.push({ pathname: '/(modals)/receive', params: { requestId: id } });
+        } else {
+            router.push({ pathname: '/(modals)/txn-details', params: { id } });
+        }
+    }, [router]);
+
+    const renderItem = useCallback(({ item }: { item: FlatItem }) => {
+        if (item.kind === 'header') {
+            return <HistorySection title={item.title}>{null}</HistorySection>;
+        }
+        const { entry, position } = item;
+
+        const isFirst = position === 'first' || position === 'only';
+        const isLast = position === 'last' || position === 'only';
+
+        return (
+            <View
+                bg="$gray3"
+                borderTopLeftRadius={isFirst ? '$5' : 0}
+                borderTopRightRadius={isFirst ? '$5' : 0}
+                borderBottomLeftRadius={isLast ? '$5' : 0}
+                borderBottomRightRadius={isLast ? '$5' : 0}
+                overflow="hidden"
+            >
+                <HistoryItem
+                    {...entry}
+                    status={entry.state || 'completed'}
+                    onPress={() => handleTransactionPress(entry.id, entry.type)}
+                />
+                {!isLast && <Separator borderColor="$borderColor" opacity={0.5} />}
+            </View>
+        );
+    }, [handleTransactionPress]);
+
+
     useEffect(() => {
         if (!initService.isInitialized()) return;
         const handleUpdate = () => queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -167,30 +229,9 @@ export function HistoryScreen() {
             eventService.on('send:created', handleUpdate),
             eventService.on('mint-quote:redeemed', handleUpdate),
         ];
-        
-        // Also reload pending requests when history updates
         const sub = eventService.on('history:updated', loadPendingRequests);
-
-        return () => {
-            unsubs.forEach(u => u());
-            sub();
-        };
+        return () => { unsubs.forEach(u => u()); sub(); };
     }, [queryClient]);
-
-    const handleTransactionPress = (id: string, type: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (type === 'receive-request') {
-            router.push({ pathname: '/(modals)/receive', params: { requestId: id } });
-        } else {
-            router.push({ pathname: '/(modals)/txn-details', params: { id } });
-        }
-    };
-
-    const handleMintSelect = (url: string) => {
-        setMintFilter(url);
-        mintSheetRef.current?.dismiss();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    };
 
     const handleTimeSelect = (val: string) => {
         setTimeFilter(val);
@@ -215,29 +256,45 @@ export function HistoryScreen() {
         return val.replace(/^https?:\/\//, '').substring(0, 15);
     };
 
+    const isFiltered = mintFilter !== 'all' || timeFilter !== 'all';
+
+    // Show skeleton during initial load
     if (isLoading && !isRefetching) {
         return (
-            <YStack flex={1} items="center" justify="center" bg="$background">
-                <Spinner size="large" />
-                <Text mt="$2" color="$gray10">Loading history...</Text>
+            <YStack flex={1} bg="$background">
+                {/* Filter bar skeleton */}
+                <XStack px="$4" py="$3" gap="$2">
+                    <View style={styles.filterSkeletonBtn} />
+                    <View style={styles.filterSkeletonBtn} />
+                </XStack>
+                <HistoryPageSkeleton />
             </YStack>
         );
     }
 
     return (
         <YStack flex={1} bg="$background">
-            <XStack px="$4" py="$3" gap="$2">
+            {/* ── Filter bar ── */}
+            <XStack px="$4" pt="$3" pb="$2" gap="$2" items="center">
                 <Button
                     flex={1}
                     size="$3"
-                    bg="$gray2"
-                    borderWidth={0}
+                    bg={mintFilter !== 'all' ? '$accent3' : '$gray2'}
+                    borderWidth={mintFilter !== 'all' ? 1 : 0}
+                    borderColor={mintFilter !== 'all' ? '$accent8' : 'transparent'}
                     rounded="$4"
                     onPress={() => mintSheetRef.current?.present()}
-                    icon={<Building2 size={14} color="$gray10" />}
-                    iconAfter={<ChevronDown size={14} color="$gray10" />}
+                    icon={<Building2 size={13} color={mintFilter !== 'all' ? '$accent10' : '$gray10'} />}
+                    iconAfter={<ChevronDown size={13} color="$gray10" />}
                 >
-                    <Text fontSize="$3" maxW={100} ellipsizeMode="tail" fontWeight="600" numberOfLines={1}>
+                    <Text
+                        fontSize="$3"
+                        maxW={100}
+                        ellipsizeMode="tail"
+                        fontWeight="700"
+                        numberOfLines={1}
+                        color={mintFilter !== 'all' ? '$accent10' : '$color'}
+                    >
                         {getMintFilterLabel(mintFilter)}
                     </Text>
                 </Button>
@@ -245,64 +302,106 @@ export function HistoryScreen() {
                 <Button
                     flex={1}
                     size="$3"
-                    bg="$gray2"
-                    borderWidth={0}
+                    bg={timeFilter !== 'all' ? '$accent3' : '$gray2'}
+                    borderWidth={timeFilter !== 'all' ? 1 : 0}
+                    borderColor={timeFilter !== 'all' ? '$accent8' : 'transparent'}
                     rounded="$4"
                     onPress={() => timeSheetRef.current?.present()}
-                    icon={<Calendar size={14} color="$gray10" />}
-                    iconAfter={<ChevronDown size={14} color="$gray10" />}
+                    icon={<Calendar size={13} color={timeFilter !== 'all' ? '$accent10' : '$gray10'} />}
+                    iconAfter={<ChevronDown size={13} color="$gray10" />}
                 >
-                    <Text fontSize="$3" fontWeight="600" numberOfLines={1}>
+                    <Text
+                        fontSize="$3"
+                        fontWeight="700"
+                        numberOfLines={1}
+                        color={timeFilter !== 'all' ? '$accent10' : '$color'}
+                    >
                         {getTimeFilterLabel(timeFilter)}
                     </Text>
                 </Button>
+
+                {isFiltered && (
+                    <TouchableOpacity
+                        onPress={() => { setMintFilter('all'); setTimeFilter('all'); }}
+                        style={styles.clearBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <Text fontSize={11} fontWeight="700" color="$gray9">Clear</Text>
+                    </TouchableOpacity>
+                )}
             </XStack>
 
-            <ScrollView
-                flex={1}
-                refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FFD700" />}
-                showsVerticalScrollIndicator={false}
-            >
-                <YStack px="$4" pb="$10">
-                    {groupedHistory.length === 0 ? (
-                        <YStack py="$10" items="center" justify="center" gap="$3">
-                            <View p="$4" bg="$gray2" rounded="$10">
-                                <Clock size={32} color="$gray9" />
-                            </View>
-                            <YStack items="center">
-                                <Text fontWeight="700">No transactions yet</Text>
-                                <Text fontSize="$3" color="$gray9" text="center" mt="$1">
-                                    When you send or receive tokens, they will appear here.
-                                </Text>
-                            </YStack>
-                        </YStack>
-                    ) : (
-                        groupedHistory.map((group) => (
-                            <HistorySection key={group.title} title={group.title}>
-                                {group.items.map((entry) => (
-                                    <HistoryItem
-                                        key={entry.id}
-                                        {...entry}
-                                        status={entry.state || 'completed'}
-                                        onPress={() => handleTransactionPress(entry.id, entry.type)}
-                                    />
-                                ))}
-                            </HistorySection>
-                        ))
+            {/* ── Summary badge ── */}
+            {filteredHistory.length > 0 && (
+                <XStack px="$4" pb="$2">
+                    <Text fontSize={11} color="$gray9" fontWeight="600">
+                        {filteredHistory.length} transaction{filteredHistory.length !== 1 ? 's' : ''}
+                        {isFiltered ? ' (filtered)' : ''}
+                    </Text>
+                </XStack>
+            )}
+
+            {/* ── Content ── */}
+            {flatItems.length === 0 ? (
+                <YStack flex={1} items="center" justify="center" gap="$4" pb="$16">
+                    <View style={styles.emptyIcon}>
+                        <Clock size={36} color="$gray8" />
+                    </View>
+                    <YStack items="center" gap="$1">
+                        <Text fontWeight="800" fontSize="$6" color="$color">
+                            {isFiltered ? 'No results' : 'No activity yet'}
+                        </Text>
+                        <Text fontSize="$3" color="$gray9" text="center" px="$8" lineHeight={20}>
+                            {isFiltered
+                                ? 'Try clearing your filters to see all transactions.'
+                                : 'Send or receive ecash to see your activity here.'}
+                        </Text>
+                    </YStack>
+                    {isFiltered && (
+                        <Button
+                            size="$3"
+                            bg="$gray3"
+                            rounded="$4"
+                            onPress={() => { setMintFilter('all'); setTimeFilter('all'); }}
+                        >
+                            <Text fontWeight="700">Clear Filters</Text>
+                        </Button>
                     )}
                 </YStack>
-            </ScrollView>
+            ) : (
+                <FlashList
+                    data={flatItems}
+                    keyExtractor={(item, i) =>
+                        item.kind === 'header'
+                            ? `header-${item.title}`
+                            : `item-${item.entry.id}-${i}`
+                    }
+                    renderItem={renderItem}
+                    estimatedItemSize={72}
+                    getItemType={item => item.kind}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefetching}
+                            onRefresh={refetch}
+                            tintColor="#FFD700"
+                        />
+                    }
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
 
+            {/* ── Sheets ── */}
             <MintSelectorSheet
                 ref={mintSheetRef}
                 activeMintUrl={mintFilter}
-                onSelect={setMintFilter}
+                onSelect={url => { setMintFilter(url); mintSheetRef.current?.dismiss(); }}
                 showAllOption={true}
             />
 
             <AppBottomSheet ref={timeSheetRef} snapPoints={['40%']}>
-                <YStack p="$4" gap="$4">
-                    <Text fontSize="$6" fontWeight="700">Filter by Time</Text>
+                <YStack p="$4" gap="$3">
+                    <Text fontSize="$6" fontWeight="800">Filter by Time</Text>
                     <YGroup bordered separator={<Separator />}>
                         {[
                             { val: 'all', label: 'All Time' },
@@ -310,14 +409,19 @@ export function HistoryScreen() {
                             { val: '3days', label: 'Last 3 Days' },
                             { val: 'week', label: 'Last Week' },
                             { val: 'month', label: 'Last Month' },
-                        ].map((item) => (
+                        ].map(item => (
                             <YGroup.Item key={item.val}>
                                 <ListItem
                                     title={item.label}
-                                    iconAfter={timeFilter === item.val ? <Check size={18} color="$green10" /> : null}
+                                    iconAfter={
+                                        timeFilter === item.val
+                                            ? <Check size={18} color="$green10" />
+                                            : null
+                                    }
                                     onPress={() => handleTimeSelect(item.val)}
                                     hoverStyle={{ bg: '$backgroundHover' }}
                                     pressStyle={{ bg: '$backgroundPress' }}
+                                    fontWeight={timeFilter === item.val ? '800' : '400'}
                                 />
                             </YGroup.Item>
                         ))}
@@ -327,3 +431,24 @@ export function HistoryScreen() {
         </YStack>
     );
 }
+
+const styles = StyleSheet.create({
+    filterSkeletonBtn: {
+        flex: 1,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: 'rgba(128,128,128,0.12)',
+    },
+    clearBtn: {
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(128,128,128,0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});

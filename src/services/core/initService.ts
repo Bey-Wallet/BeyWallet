@@ -227,6 +227,22 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
 
     // Open Expo SQLite database
     const db = SQLite.openDatabaseSync('coco_wallet.db');
+
+    // ─── Performance Pragmas ──────────────────────────────────────────
+    // WAL mode: allows concurrent reads while a write is in progress.
+    // Critical here because the proof-state watcher + UI + balance refresh
+    // all hit the DB at the same time — WAL prevents SQLITE_BUSY errors.
+    db.execSync('PRAGMA journal_mode = WAL;');
+    // NORMAL sync is safe with WAL and much faster than FULL (default).
+    db.execSync('PRAGMA synchronous = NORMAL;');
+    // 8 MB in-memory page cache — reduces disk I/O on proof/history queries.
+    db.execSync('PRAGMA cache_size = -8000;');
+    // Wait up to 3s before surfacing SQLITE_BUSY instead of failing instantly.
+    db.execSync('PRAGMA busy_timeout = 3000;');
+    // Store temp tables/indices in memory for faster sorts and joins.
+    db.execSync('PRAGMA temp_store = MEMORY;');
+    // ─────────────────────────────────────────────────────────────────
+
     dbInstance = db;
     const repositories = new ExpoSqliteRepositories({ database: db });
     await repositories.init();
@@ -368,6 +384,12 @@ export const initService = {
         // crashing background plugins (like proof watchers) with NullPointerExceptions.
         if (!dbInstance) {
             dbInstance = SQLite.openDatabaseSync('coco_wallet.db');
+            // Re-apply pragmas when opening a fresh handle in reinitFast
+            dbInstance.execSync('PRAGMA journal_mode = WAL;');
+            dbInstance.execSync('PRAGMA synchronous = NORMAL;');
+            dbInstance.execSync('PRAGMA cache_size = -8000;');
+            dbInstance.execSync('PRAGMA busy_timeout = 3000;');
+            dbInstance.execSync('PRAGMA temp_store = MEMORY;');
         }
         const db = dbInstance;
         const repositories = new ExpoSqliteRepositories({ database: db });
