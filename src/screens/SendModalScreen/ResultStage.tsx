@@ -16,6 +16,7 @@ interface ResultStageProps {
     onClose: () => void;
     onReclaim?: () => void;
     title?: string;
+    expiresAt?: number;
 }
 
 export function ResultStage({
@@ -28,7 +29,8 @@ export function ResultStage({
     error,
     onClose,
     onReclaim,
-    title = 'Pending Ecash'
+    title = 'Pending Ecash',
+    expiresAt
 }: ResultStageProps) {
     const isSuccess = status === 'success';
     const [isReclaiming, setIsReclaiming] = useState(false);
@@ -74,6 +76,7 @@ export function ResultStage({
                         mintUrl={mintUrl}
                         onReclaim={onReclaim ? handleReclaim : undefined}
                         isReclaiming={isReclaiming}
+                        expiresAt={expiresAt}
                     />
                 ) : (
                     <YStack flex={1} p="$4" justify="center" items="center" gap="$6" mt="$6">

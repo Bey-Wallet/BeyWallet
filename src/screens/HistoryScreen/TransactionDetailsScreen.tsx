@@ -72,6 +72,59 @@ export function TransactionDetailsScreen() {
 
     const [token, setToken] = useState<string>('');
     const [isStatusExpanded, setIsStatusExpanded] = useState(false);
+    const [isReclaiming, setIsReclaiming] = useState(false);
+
+    const metadata = useMemo(() => {
+        if (!entry?.metadata) return {};
+        if (typeof entry.metadata === 'string') {
+            try {
+                return JSON.parse(entry.metadata);
+            } catch (e) {
+                return {};
+            }
+        }
+        return entry.metadata;
+    }, [entry?.metadata]);
+
+    const expiresAt = metadata?.expiresAt ? Number(metadata.expiresAt) : undefined;
+
+    const handleReclaim = async () => {
+        if (!token || isReclaiming) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setIsReclaiming(true);
+        try {
+            await walletService.receive(token.trim());
+            toast.show('Refunded!', { message: 'Funds reclaimed to your wallet' });
+
+            // Update state in DB
+            const repo = initService.getRepo();
+            if (repo?.historyRepository) {
+                await (repo.historyRepository as any).updateHistoryEntryState(entry.id, 'expired');
+            }
+
+            // Delete local inflight proofs if any
+            try {
+                const clean = cleanToken(token);
+                const decoded = decodeToken(clean);
+                const secrets = decoded.proofs.map((p: any) => p.secret);
+                if (secrets.length > 0) {
+                    await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
+                }
+            } catch (e) {
+                console.warn('[TransactionDetails] Failed to delete inflight proofs during reclaim:', e);
+            }
+
+            // Refresh UI
+            setTimeout(() => {
+                handleRefresh();
+            }, 500);
+        } catch (err: any) {
+            console.error('[TransactionDetails] Reclaim failed:', err);
+            toast.show('Reclaim Failed', { message: err.message });
+        } finally {
+            setIsReclaiming(false);
+        }
+    };
 
     useEffect(() => {
         if (!entry) return;
@@ -236,13 +289,20 @@ export function TransactionDetailsScreen() {
             return { color: '$green11', bg: '$green3', headerBg: '$green9', icon: CheckCircle2, label: 'Success' };
         }
         if (status === 'pending' || status === 'unclaimed') {
+            const isExpired = expiresAt && Date.now() > expiresAt;
+            if (isExpired) {
+                return { color: '$red10', bg: '$red3', headerBg: '$red9', icon: Ban, label: 'Expired' };
+            }
             return { color: '$orange10', bg: '$orange3', headerBg: '$orange9', icon: RefreshCw, label: 'Pending' };
+        }
+        if (status === 'expired' || status === 'refunded') {
+            return { color: '$red10', bg: '$red3', headerBg: '$red9', icon: Ban, label: 'Expired & Refunded' };
         }
         if (status === 'failed' || status === 'error') {
             return { color: '$red10', bg: '$red3', headerBg: '$red9', icon: AlertCircle, label: 'Failed' };
         }
         return { color: '$gray10', bg: '$gray3', headerBg: '$gray9', icon: AlertCircle, label: status };
-    }, [status, entry?.type]);
+    }, [status, entry?.type, expiresAt]);
 
     const title = useMemo(() => {
         const type = entry?.type;
@@ -333,6 +393,22 @@ export function TransactionDetailsScreen() {
                 if (isSpent) newState = 'claimed';
                 else if (isPending) newState = 'pending';
                 else newState = 'unclaimed';
+
+                // If pending and unspent but expired, trigger auto-sweep/refund
+                if (!isSpent && expiresAt && Date.now() > expiresAt && newState !== 'claimed') {
+                    console.log('[TransactionDetails] Token expired and unspent on refresh. Sweeping...');
+                    await walletService.receive(token.trim());
+                    newState = 'expired';
+                    try {
+                        const clean = cleanToken(token);
+                        const decoded = decodeToken(clean);
+                        const secrets = decoded.proofs.map((p: any) => p.secret);
+                        if (secrets.length > 0) {
+                            const repo = initService.getRepo();
+                            await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
+                        }
+                    } catch (e) {}
+                }
 
                 if (entry && newState !== entry.state) {
                     const repo = initService.getRepo();
@@ -518,6 +594,9 @@ export function TransactionDetailsScreen() {
                         lockedToNpub={lockedToNpub}
                         onClaim={entry.type === 'receive' ? handleClaimNow : undefined}
                         isClaiming={isClaiming}
+                        onReclaim={entry.type === 'send' ? handleReclaim : undefined}
+                        isReclaiming={isReclaiming}
+                        expiresAt={expiresAt}
                     />
 
                 </ScrollView>
@@ -556,8 +635,9 @@ export function TransactionDetailsScreen() {
                     <YStack bg="$background" gap="$3" >
                         {/* SuccessStage-like Amount Display */}
                         <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$3" >
-                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' ? '$red10' : status === 'pending' || status === 'unclaimed' ? '$orange10' : '$color'}>
+                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' || status === 'expired' || status === 'refunded' ? '$red10' : status === 'pending' || status === 'unclaimed' ? '$orange10' : '$color'}>
                                 {status === 'failed' || status === 'error' ? 'Transaction Failed' :
+                                    status === 'expired' || status === 'refunded' ? 'Transaction Expired' :
                                     status === 'pending' || status === 'unclaimed' ? 'Transaction Pending' :
                                         entry.type === 'send' ? 'Sent Successfully!' :
                                             entry.type === 'receive' ? 'Received Successfully!' :
@@ -575,6 +655,7 @@ export function TransactionDetailsScreen() {
                             <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                                 <Text color="$gray10" fontSize="$4" text="center">
                                     {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
+                                        status === 'expired' || status === 'refunded' ? 'Funds were returned to your wallet.' :
                                         status === 'pending' || status === 'unclaimed' ? 'Wait for payment to be processed.' :
                                             entry.type === 'send' ? 'The recipient has claimed your ecash.' :
                                                 entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
@@ -660,6 +741,9 @@ export function TransactionDetailsScreen() {
                                     mintUrl={entry.mintUrl}
                                     lockedToNpub={lockedToNpub}
                                     hideDetails={true}
+                                    onReclaim={handleReclaim}
+                                    isReclaiming={isReclaiming}
+                                    expiresAt={expiresAt}
                                 />
                             ) : entry.type === 'receive' && status === 'unclaimed' ? (
                                 <YStack gap="$2">

@@ -24,6 +24,7 @@ import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
 import { nostrService } from './nostrService';
 import { Keyset } from '@cashu/cashu-ts';
+import { expiryService } from './expiryService';
 
 // ─── Runtime Compatibility Patches ───────────────────────────
 
@@ -297,6 +298,9 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
         // Start listening for Nostr Incoming Payments (Direct Messages)
         nostrService.start(privkey, pubkey);
 
+        // Start pending tokens sweeper
+        expiryService.startSweeper();
+
         console.log('[InitService] Manager ready with watchers and processors');
 
         // Trigger initial NPC sync (NON-BLOCKING)
@@ -416,6 +420,9 @@ export const initService = {
         
         // Start Nostr background receiver
         nostrService.start(privkey, pubkey);
+
+        // Start pending tokens sweeper
+        expiryService.startSweeper();
         
         return manager;
     },
@@ -467,6 +474,7 @@ export const initService = {
      */
     cleanup: async (): Promise<void> => {
         nostrService.stop();
+        expiryService.stopSweeper();
         if (manager) {
             await disableWatchers(manager);
         }
@@ -488,6 +496,7 @@ export const initService = {
      * Cleans up AppState listener, disables watchers, and nullifies references.
      */
     reset: (): void => {
+        expiryService.stopSweeper();
         if (appStateSubscription) {
             appStateSubscription.remove();
             appStateSubscription = null;

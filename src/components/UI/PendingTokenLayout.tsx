@@ -37,6 +37,7 @@ export interface PendingTokenLayoutProps {
     onClaim?: () => void | Promise<void>;
     isClaiming?: boolean;
     onNfcPress?: () => void;
+    expiresAt?: number;
 }
 
 export function PendingTokenLayout({
@@ -52,6 +53,7 @@ export function PendingTokenLayout({
     onClaim,
     isClaiming = false,
     onNfcPress,
+    expiresAt,
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
     const { secondaryCurrency, npub } = useSettingsStore();
@@ -66,6 +68,38 @@ export function PendingTokenLayout({
     const [intervalMs, setIntervalMs] = useState(150);
     const encoderRef = useRef<UREncoder | null>(null);
     const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>(token?.startsWith('cashuB') ? 'V4' : 'V3');
+
+    const [timeLeftStr, setTimeLeftStr] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!expiresAt) {
+            setTimeLeftStr(null);
+            return;
+        }
+
+        const updateTime = () => {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) {
+                setTimeLeftStr('Expired');
+            } else {
+                const hours = Math.floor(diff / (60 * 60 * 1000));
+                const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+                const secs = Math.floor((diff % (60 * 1000)) / 1000);
+                
+                if (hours > 0) {
+                    setTimeLeftStr(`${hours}h ${mins}m left`);
+                } else if (mins > 0) {
+                    setTimeLeftStr(`${mins}m ${secs}s left`);
+                } else {
+                    setTimeLeftStr(`${secs}s left`);
+                }
+            }
+        };
+
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, [expiresAt]);
 
     // Optional internal parsing for p2pk if lockedToNpub not passed
     const [parsedNpub, setParsedNpub] = useState<string | null>(lockedToNpub || null);
@@ -343,6 +377,7 @@ export function PendingTokenLayout({
                     {fee > 0 && <DetailItem label="Fee" value={`₿${fee} sats`} />}
                     <DetailItem label="Unit" value="SATOSHIS" />
                     <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                    <DetailItem label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
                     {displayNpub && (
                         <DetailItem
                             label="Locked To"

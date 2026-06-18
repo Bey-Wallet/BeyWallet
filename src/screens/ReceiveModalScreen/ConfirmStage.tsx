@@ -65,6 +65,60 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
     }, [token]);
     // ─────────────────────────────────────────────────────────────────
 
+    const [expiresAt, setExpiresAt] = React.useState<number | undefined>(undefined);
+    const [timeLeftStr, setTimeLeftStr] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const { decodeToken } = require('../../services/core/tokenUtils');
+                const decoded = decodeToken(token);
+                const secrets = (decoded.proofs || []).map((p: any) => p.secret);
+                if (secrets.length > 0) {
+                    const { expiryService } = require('../../services/core/expiryService');
+                    const expiryInfo = await expiryService.getExpiryBySecrets(secrets);
+                    if (!cancelled && expiryInfo) {
+                        setExpiresAt(expiryInfo.expiresAt);
+                    }
+                }
+            } catch (e) {
+                console.warn('[ConfirmStage] Failed to check local token expiry:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [token]);
+
+    React.useEffect(() => {
+        if (!expiresAt) {
+            setTimeLeftStr(null);
+            return;
+        }
+
+        const updateTime = () => {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) {
+                setTimeLeftStr('Expired');
+            } else {
+                const hours = Math.floor(diff / (60 * 60 * 1000));
+                const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+                const secs = Math.floor((diff % (60 * 1000)) / 1000);
+                
+                if (hours > 0) {
+                    setTimeLeftStr(`${hours}h ${mins}m left`);
+                } else if (mins > 0) {
+                    setTimeLeftStr(`${mins}m ${secs}s left`);
+                } else {
+                    setTimeLeftStr(`${secs}s left`);
+                }
+            }
+        };
+
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, [expiresAt]);
+
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -192,6 +246,10 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                         <DetailItem
                             label="Proofs"
                             value={tokenInfo.proofCount.toString()}
+                        />
+                        <DetailItem
+                            label="Expiry"
+                            value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'}
                         />
                         {tokenInfo.p2pkNpub && (
                             <DetailItem

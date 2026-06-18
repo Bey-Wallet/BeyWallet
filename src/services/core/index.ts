@@ -29,6 +29,7 @@ export { recoveryService } from './recoveryService';
 export { nostrService } from './nostrService';
 export { consolidationService } from './consolidationService';
 export type { FragmentationAnalysis, ConsolidationResult } from './consolidationService';
+export { expiryService } from './expiryService';
 
 // ─── Utilities ────────────────────────────────────────────────
 export {

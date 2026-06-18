@@ -13,6 +13,7 @@ import {
     Box,
     ShieldCheck,
     ChevronRight,
+    Clock,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -105,6 +106,21 @@ function getIconConfig(type: string, metadata?: Record<string, any>) {
     }
 }
 
+function getExpiryTimeLeftLabel(expiresAt?: any): string | null {
+    if (!expiresAt) return null;
+    const diff = Number(expiresAt) - Date.now();
+    if (diff <= 0) return 'Expired';
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    if (hours > 0) {
+        return `Expires in ${hours}h`;
+    }
+    const mins = Math.floor(diff / (60 * 1000));
+    if (mins > 0) {
+        return `Expires in ${mins}m`;
+    }
+    return `Expires in <1m`;
+}
+
 export const HistoryItem: React.FC<HistoryItemProps> = ({
     type,
     amount,
@@ -117,6 +133,9 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         status.toLowerCase() === 'pending' ||
         status.toLowerCase() === 'unpaid' ||
         status.toLowerCase() === 'unclaimed';
+
+    const expiresAt = metadata?.expiresAt;
+    const isExpired = expiresAt && Date.now() > Number(expiresAt);
 
     const { Icon, bg, tint } = getIconConfig(type, metadata);
     const viaInfo = getViaInfo(type, metadata);
@@ -131,6 +150,9 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
     };
 
     const theme = useTheme();
+
+    const expiryLabel = isPending && expiresAt ? getExpiryTimeLeftLabel(expiresAt) : null;
+    const subtitle = [viaInfo.label, expiryLabel].filter(Boolean).join(' · ');
 
     return (
         <TouchableOpacity
@@ -154,19 +176,25 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
                     <Text fontSize="$5" fontWeight="600" color="$accent5">
                         {label}
                     </Text>
-                    {isPending && (
-                        <View style={[styles.badge, { backgroundColor: '#f59e0b22' }]}>
-                            <Text fontSize={9} fontWeight="800" color="$orange10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {isPending ? (
+                        <View style={[styles.badge, { backgroundColor: isExpired ? '#ef444422' : '#f59e0b22' }]}>
+                            <Text fontSize={9} fontWeight="800" color={isExpired ? "$red10" : "$orange10"} style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                {isExpired ? 'EXPIRED' : status}
+                            </Text>
+                        </View>
+                    ) : status.toLowerCase() === 'expired' || status.toLowerCase() === 'refunded' ? (
+                        <View style={[styles.badge, { backgroundColor: '#ef444422' }]}>
+                            <Text fontSize={9} fontWeight="800" color="$red10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                 {status}
                             </Text>
                         </View>
-                    )}
+                    ) : null}
                 </XStack>
-                {viaInfo.label ? (
+                {subtitle ? (
                     <XStack items="center" gap="$1" mt="$1">
-                        {viaInfo.icon}
+                        {viaInfo.icon || <Clock size={10} strokeWidth={2.5} color="$orange10" />}
                         <Text fontSize="$3" color="$gray9" numberOfLines={1}>
-                            {viaInfo.label}
+                            {subtitle}
                         </Text>
                     </XStack>
                 ) : null}

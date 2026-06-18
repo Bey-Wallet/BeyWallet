@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input, YGroup } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, Check, Building2, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
+import { ChevronLeft, ChevronDown, RefreshCw, Check, Building2, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle, Sprout } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -15,6 +15,7 @@ import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bitcoinService } from '~/services/bitcoinService';
+import { Image } from 'tamagui';
 
 export default function MintsModal() {
     const router = useRouter();
@@ -267,12 +268,22 @@ export default function MintsModal() {
                                                 pl='$2.5'
                                                 onPress={() => handleMintPress(mint)}
                                                 icon={
-                                                    <Avatar rounded="$2" size="$2.5" borderWidth={1} borderColor={isActive ? "$blue10" : "$borderColor"}>
-                                                        <Avatar.Image src={mint.icon} />
-                                                        <Avatar.Fallback backgroundColor="transparent" alignItems="center" justifyContent="center">
-                                                            <Building2 size={22} color={isActive ? "$blue10" : "$color"} />
-                                                        </Avatar.Fallback>
-                                                    </Avatar>
+                                                    !mint.icon ? (
+                                                        <View width={35} height={35} justify="center" bg="$gray6" rounded={5} items="center">
+
+                                                            <Sprout size={20} color={isActive ? '$blue10' : '$color'} />
+                                                        </View>
+                                                    ) : (
+                                                        <Image
+                                                            src={mint.icon}
+                                                            width={35}
+                                                            height={35}
+                                                            alt={mint.nickname || mint.name}
+                                                            borderRadius={5}
+                                                            borderColor={isActive ? '$blue10' : '$borderColor'}
+                                                            borderWidth={isActive ? 2 : 1}
+                                                        />
+                                                    )
                                                 }
                                                 iconAfter={
                                                     <Text

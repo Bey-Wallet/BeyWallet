@@ -42,10 +42,12 @@ export const historyService = {
         mintUrl: string,
         type: 'send' | 'receive' | 'mint' | 'melt',
         via: string,
-        extra?: Record<string, string>,
+        extra?: Record<string, any>,
         operationId?: string,
     ): Promise<void> => {
         try {
+            const normalized = mintUrl.trim().replace(/\/+$/, '');
+            const withSlash = normalized + '/';
             const repo = initService.getRepo();
             // Access raw ExpoSqliteDb wrapper — same pattern used by proofService
             const db = (repo.historyRepository as any).db as {
@@ -59,19 +61,22 @@ export const historyService = {
             if (operationId) {
                 row = await db.get(
                     `SELECT id, metadata FROM coco_cashu_history
-                     WHERE mintUrl = ? AND type = ? AND operationId = ?
+                     WHERE (mintUrl = ? OR mintUrl = ?) AND type = ? AND operationId = ?
                      ORDER BY createdAt DESC LIMIT 1`,
-                    [mintUrl, type, operationId],
+                    [normalized, withSlash, type, operationId],
                 );
             } else {
                 row = await db.get(
                     `SELECT id, metadata FROM coco_cashu_history
-                     WHERE mintUrl = ? AND type = ?
+                     WHERE (mintUrl = ? OR mintUrl = ?) AND type = ?
                      ORDER BY createdAt DESC LIMIT 1`,
-                    [mintUrl, type],
+                    [normalized, withSlash, type],
                 );
             }
-            if (!row) return;
+            if (!row) {
+                console.warn('[HistoryService] tagHistoryVia: target history row not found for mint:', normalized);
+                return;
+            }
 
             // Merge new via info with any pre-existing metadata
             const existing = row.metadata ? JSON.parse(row.metadata) : {};

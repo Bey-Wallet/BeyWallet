@@ -20,7 +20,7 @@ import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, ShieldCheck, Zap, ScanLine, Lock } from '@tamagui/lucide-icons'
+import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock } from '@tamagui/lucide-icons'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
@@ -76,6 +76,9 @@ export function SendModalScreen() {
     const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
     const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
     const [nostrSending, setNostrSending] = useState(false)
+    const [expiryEnabled, setExpiryEnabled] = useState(true)
+    const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
+    const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
     const router = useRouter()
     const queryClient = useQueryClient();
 
@@ -271,12 +274,18 @@ export function SendModalScreen() {
             refreshBalance();
             console.log('[SendModalScreen] Send successful. OpId:', result.id, 'Token length:', (result.encoded || result.token || '').length);
 
+            const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+            setExpiresAt(computedExpiry);
+
             // Tag this as a locally-created ecash token (not sent via Nostr)
             historyService.tagHistoryVia(
                 activeMintUrl,
                 'send',
                 'ecash_create',
-                undefined,
+                computedExpiry ? {
+                    expiresAt: computedExpiry,
+                    expiryHours: expiryHours,
+                } : undefined,
                 result.id,
             ).catch(() => {});
 
@@ -289,7 +298,7 @@ export function SendModalScreen() {
         } finally {
             setIsProcessing(false);
         }
-    }, [activeMintUrl, amount, balance, refreshBalance]);
+    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey]);
 
     // ── Nostr Send Handler ───────────────────────────────────────────────
     const handleNostrSend = useCallback(async () => {
@@ -346,6 +355,9 @@ export function SendModalScreen() {
             refreshBalance();
             queryClient.invalidateQueries({ queryKey: ['history'] });
 
+            const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+            setExpiresAt(computedExpiry);
+
             // Tag as Nostr send with recipient username
             historyService.tagHistoryVia(
                 activeMintUrl,
@@ -354,6 +366,10 @@ export function SendModalScreen() {
                 {
                     nostrPubkey: nostrRecipientNpub,
                     ...(nostrRecipientUsername ? { nostrUsername: nostrRecipientUsername.replace('@bey.cash', '') } : {}),
+                    ...(computedExpiry ? {
+                        expiresAt: computedExpiry,
+                        expiryHours: expiryHours,
+                    } : {}),
                 },
                 result.id,
             ).catch(() => {});
@@ -369,7 +385,7 @@ export function SendModalScreen() {
         } finally {
             setNostrSending(false);
         }
-    }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance]);
+    }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance, expiryEnabled, expiryHours, nostrRecipientUsername]);
 
     const handleAuthenticate = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -530,6 +546,7 @@ export function SendModalScreen() {
                     fee={estimatedFee}
                     error={error}
                     onClose={handleClose}
+                    expiresAt={expiresAt}
                 />
             )}
 
@@ -633,6 +650,57 @@ export function SendModalScreen() {
                                     <Text color="$gray10" fontSize="$2" fontWeight="800">V4 (Default)</Text>
                                 </XStack>
                             </XStack>
+                        )}
+
+                        <Separator borderColor="$borderColor" opacity={0.5} />
+
+                        <XStack justify="space-between" items="center" px="$4" py="$3">
+                            <XStack gap="$2" items="center">
+                                <Clock size={18} color="$gray10" />
+                                <Text color="$gray10" fontWeight="600">Set Expiry</Text>
+                            </XStack>
+                            <XStack gap="$2" items="center">
+                                <Text fontSize="$2" color={expiryEnabled ? '$green10' : '$gray10'} fontWeight="700">
+                                    {expiryEnabled ? `${expiryHours}h` : 'Off'}
+                                </Text>
+                                <Switch
+                                    value={expiryEnabled}
+                                    onValueChange={setExpiryEnabled}
+                                    trackColor={{ false: '#444', true: '#34C759' }}
+                                    thumbColor="white"
+                                />
+                            </XStack>
+                        </XStack>
+
+                        {expiryEnabled && (
+                            <>
+                                <Separator borderColor="$borderColor" opacity={0.5} />
+                                <XStack justify="space-between" items="center" px="$4" py="$2" gap="$2">
+                                    {[
+                                        { label: '1h', value: 1 },
+                                        { label: '12h', value: 12 },
+                                        { label: '24h', value: 24 },
+                                        { label: '7d', value: 168 },
+                                    ].map((opt) => (
+                                        <Button
+                                            key={opt.value}
+                                            flex={1}
+                                            size="$2"
+                                            bg={expiryHours === opt.value ? '$accent3' : '$gray3'}
+                                            borderWidth={expiryHours === opt.value ? 1 : 0}
+                                            borderColor="$accent8"
+                                            onPress={() => {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                setExpiryHours(opt.value);
+                                            }}
+                                        >
+                                            <Text fontSize="$2" fontWeight="700" color={expiryHours === opt.value ? '$accent10' : '$color'}>
+                                                {opt.label}
+                                            </Text>
+                                        </Button>
+                                    ))}
+                                </XStack>
+                            </>
                         )}
                     </YStack>
 
