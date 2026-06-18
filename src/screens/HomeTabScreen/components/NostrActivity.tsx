@@ -12,7 +12,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View } from 'tamagui';
+import { YStack, XStack, H6, Text, View, ListItem, YGroup, Separator, Button } from 'tamagui';
 import { ChevronRight, X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
@@ -20,7 +20,6 @@ import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import { Button } from 'tamagui';
 
 function formatNpub(hex: string): string {
     try {
@@ -115,54 +114,50 @@ export default function NostrActivity() {
                 </Text>
             </XStack>
 
-            <YStack gap="$3">
+            <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                 {unclaimed.map((item) => (
-                    <XStack
-                        key={item.id}
-                        items="center"
-                        justify="space-between"
-                        pressStyle={{ opacity: 0.7 }}
-                    >
-                        {/* Left — blockie + info */}
-                        <XStack items="center" gap="$3" flex={1}>
-                            <View position="relative">
-                                <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
-                                {!item.seen && (
-                                    <View
-                                        position="absolute" top={-2} right={-2}
-                                        bg="$red10" w={8} h={8} rounded="$10"
-                                        borderWidth={1.5} borderColor="$background"
-                                    />
-                                )}
-                            </View>
-                            <YStack flex={1}>
-                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
+                    <YGroup.Item key={item.id}>
+                        <ListItem
+                            hoverStyle={{ bg: '$backgroundHover' }}
+                            pressStyle={{ bg: '$backgroundPress' }}
+                            bg="transparent"
+                            py="$3.5"
+                            px="$4"
+                            onPress={() => handleOpenClaim(item)}
+                            icon={
+                                <View position="relative">
+                                    <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
+                                    {!item.seen && (
+                                        <View
+                                            position="absolute" top={-2} right={-2}
+                                            bg="$red10" w={8} h={8} rounded="$10"
+                                            borderWidth={1.5} borderColor="$background"
+                                        />
+                                    )}
+                                </View>
+                            }
+                            iconAfter={
+                                <Text
+                                    fontWeight="800"
+                                    fontSize="$5"
+                                    color="$accent3"
+                                >
+                                    {item.type === 'request' ? '?' : '+'}₿{item.amount.toLocaleString()}
+                                </Text>
+                            }
+                        >
+                            <YStack flex={1} gap="$0.5" mr="$2">
+                                <Text fontSize="$5" fontWeight="600" color="$accent5">
                                     {item.senderUsername || formatNpub(item.senderPubkey)}
                                 </Text>
-                                <Text fontSize="$1" color="$gray10">{timeAgo(item.receivedAt)}</Text>
+                                <Text fontSize="$3" color="$gray9">
+                                    {timeAgo(item.receivedAt)}
+                                </Text>
                             </YStack>
-                        </XStack>
-
-                        {/* Right — rounded amount button */}
-                        <XStack
-                            bg={item.type === 'request' ? '$orange3' : '$gray5'}
-                            px="$3"
-                            py="$2"
-                            rounded="$10"
-                            items="center"
-                            gap="$1"
-                            onPress={() => handleOpenClaim(item)}
-                            pressStyle={{ scale: 0.96, opacity: 0.85 }}
-                            cursor="pointer"
-                        >
-                            <Text fontSize={15} fontWeight="900" color={item.type === 'request' ? '$orange10' : '$accent4'} letterSpacing={-0.3}>
-                                {item.type === 'request' ? '?' : '+'}₿{item.amount.toLocaleString()}
-                            </Text>
-                            <ChevronRight size={14} strokeWidth={3} color={item.type === 'request' ? '$orange10' : '$accent4'} />
-                        </XStack>
-                    </XStack>
+                        </ListItem>
+                    </YGroup.Item>
                 ))}
-            </YStack>
+            </YGroup>
 
             <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
                 <YStack p="$4" gap="$4" flex={1}>

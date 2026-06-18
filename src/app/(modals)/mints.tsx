@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input, YGroup } from 'tamagui';
 import { ChevronLeft, ChevronDown, RefreshCw, Check, Building2, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -238,8 +238,7 @@ export default function MintsModal() {
                             </View>
                         </XStack>
 
-                        <YStack rounded="$5" theme="gray" bg="$gray2"
-                            overflow="hidden">
+                        <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                             {mints.length === 0 ? (
                                 <YStack py="$10" items="center" justify="center" gap="$3" opacity={0.5} p="$3">
                                     <View p="$4" bg="$gray2" rounded="$10">
@@ -253,50 +252,56 @@ export default function MintsModal() {
                                     </YStack>
                                 </YStack>
                             ) : (
-                                mints.map((mint, index) => {
+                                mints.map((mint) => {
                                     const balance = balances[mint.mintUrl] || 0;
                                     const isActive = mint.mintUrl === activeMintUrl;
 
                                     return (
-                                        <React.Fragment key={mint.mintUrl}>
-                                            <YStack
-                                                onPress={() => handleMintPress(mint)}
-                                                pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                                                py="$2"
-                                                px="$2"
+                                        <YGroup.Item key={mint.mintUrl}>
+                                            <ListItem
+                                                hoverStyle={{ bg: '$backgroundHover' }}
+                                                pressStyle={{ bg: '$backgroundPress' }}
+                                                bg="transparent"
+                                                py="$3"
                                                 pr="$3"
-
+                                                pl='$2.5'
+                                                onPress={() => handleMintPress(mint)}
+                                                icon={
+                                                    <Avatar rounded="$2" size="$2.5" borderWidth={1} borderColor={isActive ? "$blue10" : "$borderColor"}>
+                                                        <Avatar.Image src={mint.icon} />
+                                                        <Avatar.Fallback backgroundColor="transparent" alignItems="center" justifyContent="center">
+                                                            <Building2 size={22} color={isActive ? "$blue10" : "$color"} />
+                                                        </Avatar.Fallback>
+                                                    </Avatar>
+                                                }
+                                                iconAfter={
+                                                    <Text
+                                                        fontWeight="800"
+                                                        fontSize="$5"
+                                                        color="$accent3"
+                                                    >
+                                                        ₿{balance.toLocaleString()}
+                                                    </Text>
+                                                }
                                             >
-                                                <XStack justify="space-between" items="center">
-                                                    <XStack gap="$3" items="center">
-                                                        <Avatar rounded="$4" size="$3" borderWidth={1} borderColor={isActive ? "$blue10" : "$borderColor"}>
-                                                            <Avatar.Image src={mint.icon} />
-                                                            <Avatar.Fallback backgroundColor="$gray2" alignItems="center" justifyContent="center">
-                                                                <Building2 size={24} color="$gray10" />
-                                                            </Avatar.Fallback>
-                                                        </Avatar>
-                                                        <YStack>
-                                                            <XStack gap="$2" items="center" >
-                                                                <Text fontWeight="800" fontSize="$3" numberOfLines={1} ellipsizeMode="tail" maxW={150} color={isActive ? "$blue10" : "$color"} >
-                                                                    {mint.nickname || mint.name || 'Unnamed Mint'}
-                                                                </Text>
-                                                            </XStack>
-                                                        </YStack>
-                                                    </XStack>
-
-                                                    <YStack items="flex-end">
-                                                        <Text fontWeight="900" fontSize="$4" color={isActive ? "$blue10" : "$color"}>
-                                                            ₿{balance.toLocaleString()}
-                                                        </Text>
-                                                    </YStack>
+                                                <XStack flex={1} flexWrap="wrap" items="center" gap="$2" mr="$2">
+                                                    <Text fontSize="$5" fontWeight="600" color="$accent5">
+                                                        {mint.nickname || mint.name || 'Unnamed Mint'}
+                                                    </Text>
+                                                    {isActive && (
+                                                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '$blue2' }}>
+                                                            <Text fontSize={9} fontWeight="800" color="$blue10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                                                Active
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </XStack>
-                                            </YStack>
-                                            {index < mints.length - 1 && <Separator borderColor="$color8" opacity={0.5} />}
-                                        </React.Fragment>
+                                            </ListItem>
+                                        </YGroup.Item>
                                     );
                                 })
                             )}
-                        </YStack>
+                        </YGroup>
                     </YStack>
                 </YStack>
             </ScrollView>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, Avatar, Square } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, Avatar, Square, ListItem, YGroup } from 'tamagui';
 import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2, ChevronRight, Database, Zap } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -306,7 +306,7 @@ export default function EcashModal() {
               </View>
             </XStack>
 
-            <YStack rounded="$5" bg="$gray2" overflow="hidden">
+            <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
               {filteredEntries.length === 0 ? (
                 <YStack py="$10" items="center" justify="center" gap="$3" opacity={0.5} p="$3">
                   <View p="$4" bg="$gray2" rounded="$4">
@@ -320,67 +320,55 @@ export default function EcashModal() {
                   </YStack>
                 </YStack>
               ) : (
-                filteredEntries.map((entry, index) => {
+                filteredEntries.map((entry) => {
                   const style = getTransactionStyle(entry);
                   const statusLabel = entry.kind === 'nostr_request'
                     ? (entry.state === 'received' ? 'received' : 'awaiting')
                     : (entry.state || 'pending');
 
                   return (
-                    <React.Fragment key={entry.id}>
-                      <YStack
+                    <YGroup.Item key={entry.id}>
+                      <ListItem
+                        hoverStyle={{ bg: '$backgroundHover' }}
+                        pressStyle={{ bg: '$backgroundPress' }}
+                        bg="transparent"
+                        py="$3.5"
+                        px="$4"
                         onPress={() => handleItemPress(entry)}
-                        pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                        py="$2"
-                        px="$2"
+                        icon={<style.icon size={22} color={style.iconColor as any} strokeWidth={2.2} />}
+                        iconAfter={
+                          <Text
+                            fontWeight="800"
+                            fontSize="$5"
+                            color="$accent3"
+                          >
+                            {style.sign}₿{entry.amount.toLocaleString()}
+                          </Text>
+                        }
                       >
-                        <XStack justify="space-between" items="center">
-                          <XStack gap="$3" items="center">
-                            <View
-                              p="$2.5"
-                              rounded="$4"
-                              bg="$color6"
-                              theme="gray"
-                            >
-                              <style.icon size={22} strokeWidth={2.5} color={style.iconColor as any} />
-                            </View>
-                            <YStack>
-                              <XStack gap="$2" items="center">
-                                <Text fontWeight="700" fontSize="$4" textTransform="capitalize">
-                                  {getEntryLabel(entry)}
-                                </Text>
-                                <XStack px="$1.5" py="$0.5" bg="$gray5" rounded="$2">
-                                  <Text fontSize="$1" fontWeight="800" textTransform="uppercase" color="$gray10">
-                                    {statusLabel}
-                                  </Text>
-                                </XStack>
-                              </XStack>
-                              {entry.kind === 'nostr_request' && entry.nostrRequest?.description ? (
-                                <Text fontSize="$2" color="$gray9" numberOfLines={1}>
-                                  {entry.nostrRequest.description}
-                                </Text>
-                              ) : null}
-                            </YStack>
-                          </XStack>
-
-                          <YStack items="flex-end">
-                            <Text
-                              fontWeight="900"
-                              fontSize="$5"
-                              color={style.iconColor as any}
-                            >
-                              {style.sign}{entry.amount.toLocaleString()}
+                        <YStack flex={1} gap="$0.5" mr="$2">
+                          <XStack flexWrap="wrap" items="center" gap="$2">
+                            <Text fontSize="$5" fontWeight="600" color="$accent5" textTransform="capitalize">
+                              {getEntryLabel(entry)}
                             </Text>
-                            <Text fontSize="$1" color="$gray10" fontWeight="600">{entry.unit?.toUpperCase() || 'SATS'}</Text>
-                          </YStack>
-                        </XStack>
-                      </YStack>
-                      {index < filteredEntries.length - 1 && <Separator borderColor="$borderColor" opacity={0.5} />}
-                    </React.Fragment>
+                            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '$gray5' }}>
+                              <Text fontSize={9} fontWeight="800" textTransform="uppercase" color="$gray10">
+                                {statusLabel}
+                              </Text>
+                            </View>
+                          </XStack>
+                          {entry.kind === 'nostr_request' && entry.nostrRequest?.description ? (
+                            <Text fontSize="$3" color="$gray9" numberOfLines={2} mt="$1">
+                              {entry.nostrRequest.description}
+                            </Text>
+                          ) : null}
+                        </YStack>
+                      </ListItem>
+                    </YGroup.Item>
                   );
                 })
               )}
-            </YStack>
+            </YGroup>
           </YStack>
         </YStack>
       </ScrollView>

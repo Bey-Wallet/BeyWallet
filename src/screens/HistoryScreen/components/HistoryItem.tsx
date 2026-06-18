@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Text, XStack, ListItem } from 'tamagui';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Text, XStack, YStack, useTheme } from 'tamagui';
 import {
     BanknoteArrowUp,
     BanknoteArrowDown,
@@ -130,22 +130,28 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         onPress();
     };
 
+    const theme = useTheme();
+
     return (
-        <ListItem
-            hoverStyle={{ bg: '$backgroundHover' }}
-            pressStyle={{ bg: '$backgroundPress' }}
-            bg="transparent"
-            py="$3.5"
-            px="$4"
+        <TouchableOpacity
             onPress={handlePress}
-            icon={
-                <View style={[styles.iconBadge, { backgroundColor: bg }]}>
-                    <Icon size={18} color={tint as any} strokeWidth={2.2} />
-                </View>
-            }
-            title={
-                <XStack items="center" gap="$1.5">
-                    <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+            activeOpacity={0.7}
+            style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+            }}
+        >
+            {/* Left Icon */}
+            <View style={{ marginRight: 12 }}>
+                <Icon size={22} color={tint as any} strokeWidth={2.2} />
+            </View>
+
+            {/* Middle Section: Title + Subtitle */}
+            <YStack flex={1} gap="$0.5" mr="$2">
+                <XStack flexWrap="wrap" items="center" gap="$1.5">
+                    <Text fontSize="$5" fontWeight="600" color="$accent5">
                         {label}
                     </Text>
                     {isPending && (
@@ -156,31 +162,26 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
                         </View>
                     )}
                 </XStack>
-            }
-            subTitle={
-                viaInfo.label ? (
+                {viaInfo.label ? (
                     <XStack items="center" gap="$1" mt="$1">
                         {viaInfo.icon}
                         <Text fontSize="$3" color="$gray9" numberOfLines={1}>
                             {viaInfo.label}
                         </Text>
                     </XStack>
-                ) : null
-            }
-            iconAfter={
-                <XStack items="center" gap="$1.5">
-                    <Text
-                        fontWeight="800"
-                        fontSize="$5"
-                        style={{ color: amountColor }}
-                        fontVariant={['tabular-nums'] as any}
-                    >
-                        {sign}₿{amount.toLocaleString()}
-                    </Text>
-                    <ChevronRight size={14} color="$gray8" strokeWidth={2} />
-                </XStack>
-            }
-        />
+                ) : null}
+            </YStack>
+
+            {/* Right Side: Amount */}
+            <Text
+                fontWeight="800"
+                fontSize="$5"
+                color="$accent3"
+                fontVariant={['tabular-nums'] as any}
+            >
+                {sign}₿{amount.toLocaleString()}
+            </Text>
+        </TouchableOpacity>
     );
 };
 

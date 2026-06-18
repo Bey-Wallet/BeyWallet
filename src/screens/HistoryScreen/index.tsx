@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { YStack, XStack, Text, Button, Separator, View } from 'tamagui';
-import { StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { YStack, XStack, Text, Button, Separator, View, useTheme } from 'tamagui';
+import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView } from 'react-native';
 import { Clock, ChevronDown, Building2, Check, Calendar, SlidersHorizontal } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
@@ -30,6 +30,9 @@ interface HistoryEntry {
 export function HistoryScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const theme = useTheme();
+    const cardBg = theme.gray3?.val ?? '#1f1f1f';
+    const borderColor = theme.borderColor?.val ?? 'rgba(128,128,128,0.2)';
 
     const [mintFilter, setMintFilter] = useState('all');
     const [timeFilter, setTimeFilter] = useState('all');
@@ -173,9 +176,9 @@ export function HistoryScreen() {
                 const total = group.items.length;
                 const position =
                     total === 1 ? 'only'
-                    : idx === 0 ? 'first'
-                    : idx === total - 1 ? 'last'
-                    : 'middle';
+                        : idx === 0 ? 'first'
+                            : idx === total - 1 ? 'last'
+                                : 'middle';
                 items.push({ kind: 'item', entry, position });
             });
         }
@@ -201,23 +204,33 @@ export function HistoryScreen() {
         const isLast = position === 'last' || position === 'only';
 
         return (
-            <View
-                bg="$gray3"
-                borderTopLeftRadius={isFirst ? '$5' : 0}
-                borderTopRightRadius={isFirst ? '$5' : 0}
-                borderBottomLeftRadius={isLast ? '$5' : 0}
-                borderBottomRightRadius={isLast ? '$5' : 0}
-                overflow="hidden"
+            <RNView
+                style={{
+                    backgroundColor: cardBg,
+                    borderTopLeftRadius: isFirst ? 16 : 0,
+                    borderTopRightRadius: isFirst ? 16 : 0,
+                    borderBottomLeftRadius: isLast ? 16 : 0,
+                    borderBottomRightRadius: isLast ? 16 : 0,
+                    overflow: 'hidden',
+                }}
             >
                 <HistoryItem
                     {...entry}
                     status={entry.state || 'completed'}
                     onPress={() => handleTransactionPress(entry.id, entry.type)}
                 />
-                {!isLast && <Separator borderColor="$borderColor" opacity={0.5} />}
-            </View>
+                {!isLast && (
+                    <RNView
+                        style={{
+                            height: 1,
+                            backgroundColor: borderColor,
+                            opacity: 0.5,
+                        }}
+                    />
+                )}
+            </RNView>
         );
-    }, [handleTransactionPress]);
+    }, [handleTransactionPress, cardBg, borderColor]);
 
 
     useEffect(() => {
@@ -330,16 +343,6 @@ export function HistoryScreen() {
                     </TouchableOpacity>
                 )}
             </XStack>
-
-            {/* ── Summary badge ── */}
-            {filteredHistory.length > 0 && (
-                <XStack px="$4" pb="$2">
-                    <Text fontSize={11} color="$gray9" fontWeight="600">
-                        {filteredHistory.length} transaction{filteredHistory.length !== 1 ? 's' : ''}
-                        {isFiltered ? ' (filtered)' : ''}
-                    </Text>
-                </XStack>
-            )}
 
             {/* ── Content ── */}
             {flatItems.length === 0 ? (

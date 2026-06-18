@@ -64,7 +64,7 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
     return (
         <View style={[styles.row]}>
             {/* Left icon circle */}
-            <ShimmerRect width={38} height={38} borderRadius={12} progress={progress} />
+            <ShimmerRect width={22} height={22} borderRadius={6} progress={progress} />
 
             {/* Middle content — title + subtitle */}
             <View style={styles.middle}>
