@@ -1,3 +1,4 @@
+import React from 'react';
 import { YStack, XStack, Text, Button, View, H2, Circle, Separator } from 'tamagui';
 import { CheckCircle, XCircle, Zap, ArrowLeft, Copy, ExternalLink } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -110,7 +111,7 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                 )}
             </YStack>
 
-            <YStack position="absolute" b={0} l={0} r={0} p="$4" bg="$background" borderTopWidth={1} borderColor="$gray3">
+            <YStack position="absolute" b={0} l={0} r={0} py="$2" bg="$background" borderTopWidth={0} borderColor="$gray3">
                 <Button
                     bg={status === 'success' ? "$green10" : "$gray3"}
                     size="$5"

@@ -48,3 +48,86 @@ export function findExactSubset(target: number, proofs: CoreProof[]): CoreProof[
     if (search(0, 0)) return result;
     return null;
 }
+
+export interface SubsetOption {
+    amount: number;
+    proofs: CoreProof[];
+}
+
+export interface ClosestSubsetOptions {
+    lower: SubsetOption | null;
+    exact: SubsetOption | null;
+    higher: SubsetOption | null;
+}
+
+export function findClosestSubsetOptions(target: number, proofs: CoreProof[]): ClosestSubsetOptions {
+    if (proofs.length === 0 || target <= 0) {
+        return { lower: null, exact: null, higher: null };
+    }
+
+    // Sort descending to process larger numbers first (aids pruning and greedy matches)
+    const sortedProofs = [...proofs].sort((a, b) => b.amount - a.amount);
+
+    let bestLowerSum = 0;
+    let bestLowerProofs: CoreProof[] = [];
+
+    let bestHigherSum = Infinity;
+    let bestHigherProofs: CoreProof[] = [];
+
+    let exactProofs: CoreProof[] = [];
+    let exactFound = false;
+
+    // Track state during DFS
+    const currentProofs: CoreProof[] = [];
+
+    // Limit maximum steps to 10,000 to avoid blocking JS main thread
+    let steps = 0;
+    const searchWithLimit = (index: number, currentSum: number) => {
+        steps++;
+        if (steps > 10000 || exactFound) return;
+
+        if (currentSum === target) {
+            exactFound = true;
+            exactProofs = [...currentProofs];
+            bestLowerSum = currentSum;
+            bestLowerProofs = [...currentProofs];
+            bestHigherSum = currentSum;
+            bestHigherProofs = [...currentProofs];
+            return;
+        }
+
+        if (currentSum < target) {
+            if (currentSum > bestLowerSum) {
+                bestLowerSum = currentSum;
+                bestLowerProofs = [...currentProofs];
+            }
+        }
+
+        if (currentSum > target) {
+            if (currentSum < bestHigherSum) {
+                bestHigherSum = currentSum;
+                bestHigherProofs = [...currentProofs];
+            }
+            // PRUNE: Since all coin values are positive, adding more will only exceed higher bounds
+            return;
+        }
+
+        if (index >= sortedProofs.length) return;
+
+        // Option 1: Include sortedProofs[index]
+        currentProofs.push(sortedProofs[index]);
+        searchWithLimit(index + 1, currentSum + sortedProofs[index].amount);
+        currentProofs.pop();
+
+        // Option 2: Exclude sortedProofs[index]
+        searchWithLimit(index + 1, currentSum);
+    };
+
+    searchWithLimit(0, 0);
+
+    return {
+        lower: bestLowerSum > 0 ? { amount: bestLowerSum, proofs: bestLowerProofs } : null,
+        exact: exactFound ? { amount: target, proofs: exactProofs } : null,
+        higher: bestHigherSum !== Infinity ? { amount: bestHigherSum, proofs: bestHigherProofs } : null,
+    };
+}

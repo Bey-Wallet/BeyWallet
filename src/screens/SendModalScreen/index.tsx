@@ -20,7 +20,7 @@ import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock, CloudOff } from '@tamagui/lucide-icons'
+import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock, CloudOff, Cloud } from '@tamagui/lucide-icons'
 import * as Network from 'expo-network'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
@@ -28,6 +28,7 @@ import { eventService, proofService } from '~/services/core'
 import SendMethodSelector, { SendMode } from '~/components/SendMethodSelector'
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts'
 import Blockies from '~/components/UI/Blockies'
+import { OfflineOptimizationSheet, type OfflineOptimizationSheetRef } from '~/components/OfflineOptimizationSheet'
 
 type SendStep = 'amount' | 'result' | 'success' | 'payment_request';
 
@@ -80,15 +81,26 @@ export function SendModalScreen() {
     const [expiryEnabled, setExpiryEnabled] = useState(true)
     const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
     const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
-    const [isOffline, setIsOffline] = useState(false)
+    const [isHardwareOffline, setIsHardwareOffline] = useState(false)
+    const [forceOffline, setForceOffline] = useState(false)
+    const [selectedOfflineProofs, setSelectedOfflineProofs] = useState<any[] | null>(null)
+    const isOffline = isHardwareOffline || forceOffline
+    const optimizationSheetRef = React.useRef<OfflineOptimizationSheetRef>(null)
+
+    const handleOfflineOptimizationConfirm = useCallback((optimizedAmount: number, proofs: any[]) => {
+        console.log('[SendModalScreen] Offline optimization confirmed amount:', optimizedAmount, 'proofs:', proofs.length);
+        setAmount(String(optimizedAmount));
+        setSelectedOfflineProofs(proofs);
+        confirmSheetRef.current?.present();
+    }, []);
 
     React.useEffect(() => {
         const checkNetwork = async () => {
             try {
                 const state = await Network.getNetworkStateAsync();
-                setIsOffline(!state.isConnected || !state.isInternetReachable);
+                setIsHardwareOffline(!state.isConnected || !state.isInternetReachable);
             } catch (e) {
-                setIsOffline(false);
+                setIsHardwareOffline(false);
             }
         };
         checkNetwork();
@@ -260,10 +272,13 @@ export function SendModalScreen() {
             let result;
 
             if (isOffline) {
-                const repo = initService.getRepo();
-                const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
-                const { findExactSubset } = require('~/utils/offlineSendUtils');
-                const selected = findExactSubset(amountSats, availableProofs);
+                let selected = selectedOfflineProofs;
+                if (!selected || selected.length === 0) {
+                    const repo = initService.getRepo();
+                    const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
+                    const { findExactSubset } = require('~/utils/offlineSendUtils');
+                    selected = findExactSubset(amountSats, availableProofs);
+                }
                 if (!selected || selected.length === 0) {
                     throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
                 }
@@ -326,7 +341,7 @@ export function SendModalScreen() {
         } finally {
             setIsProcessing(false);
         }
-    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey, isOffline]);
+    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey, isOffline, selectedOfflineProofs]);
 
     // ── Nostr Send Handler ───────────────────────────────────────────────
     const handleNostrSend = useCallback(async () => {
@@ -442,7 +457,12 @@ export function SendModalScreen() {
     const handleNext = () => {
         if (step === 'amount') {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            confirmSheetRef.current?.present();
+            if (isOffline) {
+                optimizationSheetRef.current?.present();
+            } else {
+                setSelectedOfflineProofs(null);
+                confirmSheetRef.current?.present();
+            }
         }
     }
 
@@ -491,12 +511,36 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                         />
                     ),
-                    headerRight: () => isOffline ? (
-                        <XStack gap="$1.5" items="center" bg="$red3" px="$2.5" py="$1" rounded="$3" borderWidth={1} borderColor="$red7" mr="$2">
-                            <CloudOff size={12} color="$red10" />
-                            <Text fontSize="$2" fontWeight="800" color="$red10">Offline</Text>
-                        </XStack>
-                    ) : null
+                    headerRight: () => (
+                        <Button
+                            size="$2"
+                            bg={isOffline ? "$red3" : "$gray3"}
+                            borderColor={isOffline ? "$red7" : "$gray5"}
+                            borderWidth={1}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setForceOffline(!forceOffline);
+                            }}
+                            disabled={isHardwareOffline}
+                            disabledStyle={{ opacity: 0.8 }}
+                            pressStyle={{ scale: 0.95 }}
+                            mr="$2"
+                        >
+                            <XStack gap={6} items="center">
+                                {isOffline ? (
+                                    <>
+                                        <CloudOff size={12} color="$red10" />
+                                        <Text fontSize="$2" fontWeight="800" color="$red10">Offline</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Cloud size={12} color="$green10" />
+                                        <Text fontSize="$2" fontWeight="800" color="$green10">Online</Text>
+                                    </>
+                                )}
+                            </XStack>
+                        </Button>
+                    )
                 }}
             />
             {step === 'payment_request' && activeParsedRequest && (
@@ -535,6 +579,7 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                             error={error}
                             isOffline={isOffline}
+                            onSelectedProofsChange={setSelectedOfflineProofs}
                         />
                     )}
                     {sendMode === 'p2pk' && (
@@ -548,6 +593,7 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                             error={error}
                             isOffline={isOffline}
+                            onSelectedProofsChange={setSelectedOfflineProofs}
                         />
                     )}
                     {sendMode === 'scan' && (
@@ -747,6 +793,14 @@ export function SendModalScreen() {
                 title="Processing"
                 amount={parseInt(amount, 10) || 0}
                 detail="Creating ecash tokens..."
+            />
+
+            {/* Offline Optimization Selector */}
+            <OfflineOptimizationSheet
+                ref={optimizationSheetRef}
+                targetAmount={parseInt(amount, 10) || 0}
+                activeMintUrl={activeMintUrl}
+                onConfirm={handleOfflineOptimizationConfirm}
             />
         </YStack>
     )
