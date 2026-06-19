@@ -10,7 +10,7 @@ import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { ScanAndPayStage } from './ScanAndPayStage'
 import { biometricService } from '~/services/biometricService'
-import { walletService, mintManager, nostrService, historyService } from '~/services/core'
+import { walletService, mintManager, nostrService, historyService, initService } from '~/services/core'
 import { seedService } from '~/services/seedService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
@@ -20,7 +20,8 @@ import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock } from '@tamagui/lucide-icons'
+import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock, CloudOff } from '@tamagui/lucide-icons'
+import * as Network from 'expo-network'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
@@ -79,6 +80,22 @@ export function SendModalScreen() {
     const [expiryEnabled, setExpiryEnabled] = useState(true)
     const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
     const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
+    const [isOffline, setIsOffline] = useState(false)
+
+    React.useEffect(() => {
+        const checkNetwork = async () => {
+            try {
+                const state = await Network.getNetworkStateAsync();
+                setIsOffline(!state.isConnected || !state.isInternetReachable);
+            } catch (e) {
+                setIsOffline(false);
+            }
+        };
+        checkNetwork();
+        const interval = setInterval(checkNetwork, 4000);
+        return () => clearInterval(interval);
+    }, []);
+
     const router = useRouter()
     const queryClient = useQueryClient();
 
@@ -242,7 +259,18 @@ export function SendModalScreen() {
             // Send and get encoded token for sharing
             let result;
 
-            if (sendMode === 'p2pk') {
+            if (isOffline) {
+                const repo = initService.getRepo();
+                const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
+                const { findExactSubset } = require('~/utils/offlineSendUtils');
+                const selected = findExactSubset(amountSats, availableProofs);
+                if (!selected || selected.length === 0) {
+                    throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
+                }
+                result = await walletService.sendOffline(activeMintUrl, amountSats, selected);
+                setEncodedToken(result.encoded);
+                setOperationId(result.id);
+            } else if (sendMode === 'p2pk') {
                 let targetPubkey = receiverPubkey.trim();
 
                 // Decode npub/nprofile to hex if necessary
@@ -298,7 +326,7 @@ export function SendModalScreen() {
         } finally {
             setIsProcessing(false);
         }
-    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey]);
+    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey, isOffline]);
 
     // ── Nostr Send Handler ───────────────────────────────────────────────
     const handleNostrSend = useCallback(async () => {
@@ -463,6 +491,12 @@ export function SendModalScreen() {
                             isLoading={isProcessing}
                         />
                     ),
+                    headerRight: () => isOffline ? (
+                        <XStack gap="$1.5" items="center" bg="$red3" px="$2.5" py="$1" rounded="$3" borderWidth={1} borderColor="$red7" mr="$2">
+                            <CloudOff size={12} color="$red10" />
+                            <Text fontSize="$2" fontWeight="800" color="$red10">Offline</Text>
+                        </XStack>
+                    ) : null
                 }}
             />
             {step === 'payment_request' && activeParsedRequest && (
@@ -488,6 +522,10 @@ export function SendModalScreen() {
 
             {step === 'amount' && (
                 <YStack flex={1}>
+                    {(() => {
+                        console.log('[SendModalScreen] Rendering step: amount, sendMode:', sendMode, 'isOffline:', isOffline);
+                        return null;
+                    })()}
                     {sendMode === 'standard' && (
                         <AmountStage
                             amount={amount}
@@ -496,6 +534,7 @@ export function SendModalScreen() {
                             balance={balance}
                             isLoading={isProcessing}
                             error={error}
+                            isOffline={isOffline}
                         />
                     )}
                     {sendMode === 'p2pk' && (
@@ -508,6 +547,7 @@ export function SendModalScreen() {
                             balance={balance}
                             isLoading={isProcessing}
                             error={error}
+                            isOffline={isOffline}
                         />
                     )}
                     {sendMode === 'scan' && (
@@ -652,16 +692,14 @@ export function SendModalScreen() {
                             </XStack>
                         )}
 
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
                         <XStack justify="space-between" items="center" px="$4" py="$3">
                             <XStack gap="$2" items="center">
                                 <Clock size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Set Expiry</Text>
+                                <Text color="$gray10" fontWeight="600">7 Days Expiry</Text>
                             </XStack>
                             <XStack gap="$2" items="center">
                                 <Text fontSize="$2" color={expiryEnabled ? '$green10' : '$gray10'} fontWeight="700">
-                                    {expiryEnabled ? `${expiryHours}h` : 'Off'}
+                                    {expiryEnabled ? '7 Days' : 'Off'}
                                 </Text>
                                 <Switch
                                     value={expiryEnabled}
@@ -671,37 +709,6 @@ export function SendModalScreen() {
                                 />
                             </XStack>
                         </XStack>
-
-                        {expiryEnabled && (
-                            <>
-                                <Separator borderColor="$borderColor" opacity={0.5} />
-                                <XStack justify="space-between" items="center" px="$4" py="$2" gap="$2">
-                                    {[
-                                        { label: '1h', value: 1 },
-                                        { label: '12h', value: 12 },
-                                        { label: '24h', value: 24 },
-                                        { label: '7d', value: 168 },
-                                    ].map((opt) => (
-                                        <Button
-                                            key={opt.value}
-                                            flex={1}
-                                            size="$2"
-                                            bg={expiryHours === opt.value ? '$accent3' : '$gray3'}
-                                            borderWidth={expiryHours === opt.value ? 1 : 0}
-                                            borderColor="$accent8"
-                                            onPress={() => {
-                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                                setExpiryHours(opt.value);
-                                            }}
-                                        >
-                                            <Text fontSize="$2" fontWeight="700" color={expiryHours === opt.value ? '$accent10' : '$color'}>
-                                                {opt.label}
-                                            </Text>
-                                        </Button>
-                                    ))}
-                                </XStack>
-                            </>
-                        )}
                     </YStack>
 
                     <YStack gap="$3" pt="$2">
@@ -732,6 +739,14 @@ export function SendModalScreen() {
                 title="Sending via Nostr"
                 amount={parseInt(amount, 10) || 0}
                 detail={`Sending to ${nostrRecipientUsername || nostrRecipientNpub.slice(0, 10) + '…'}`}
+            />
+
+            {/* ProcessingSheet for standard send */}
+            <ProcessingSheet
+                visible={isProcessing && !isOffline && !nostrSending}
+                title="Processing"
+                amount={parseInt(amount, 10) || 0}
+                detail="Creating ecash tokens..."
             />
         </YStack>
     )

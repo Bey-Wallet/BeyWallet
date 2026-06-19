@@ -133,6 +133,7 @@ export function HistoryScreen() {
         let currentGroup: { title: string; items: HistoryEntry[] } | null = null;
 
         filteredHistory.forEach(entry => {
+            if (!entry || !entry.createdAt) return;
             const date = new Date(entry.createdAt);
             const today = new Date();
             const yesterday = new Date();
@@ -171,8 +172,10 @@ export function HistoryScreen() {
     const flatItems = useMemo((): FlatItem[] => {
         const items: FlatItem[] = [];
         for (const group of groupedHistory) {
-            items.push({ kind: 'header', title: group.title });
+            if (!group || !group.items) continue;
+            items.push({ kind: 'header', title: group.title || '' });
             group.items.forEach((entry, idx) => {
+                if (!entry) return;
                 const total = group.items.length;
                 const position =
                     total === 1 ? 'only'
@@ -195,10 +198,12 @@ export function HistoryScreen() {
     }, [router]);
 
     const renderItem = useCallback(({ item }: { item: FlatItem }) => {
+        if (!item) return null;
         if (item.kind === 'header') {
-            return <HistorySection title={item.title}>{null}</HistorySection>;
+            return <HistorySection title={item.title || ''}>{null}</HistorySection>;
         }
         const { entry, position } = item;
+        if (!entry) return null;
 
         const isFirst = position === 'first' || position === 'only';
         const isLast = position === 'last' || position === 'only';
@@ -207,17 +212,21 @@ export function HistoryScreen() {
             <RNView
                 style={{
                     backgroundColor: cardBg,
-                    borderTopLeftRadius: isFirst ? 16 : 0,
-                    borderTopRightRadius: isFirst ? 16 : 0,
-                    borderBottomLeftRadius: isLast ? 16 : 0,
-                    borderBottomRightRadius: isLast ? 16 : 0,
+                    borderTopLeftRadius: isFirst ? 10 : 0,
+                    borderTopRightRadius: isFirst ? 10 : 0,
+                    borderBottomLeftRadius: isLast ? 10 : 0,
+                    borderBottomRightRadius: isLast ? 10 : 0,
                     overflow: 'hidden',
                 }}
             >
                 <HistoryItem
-                    {...entry}
+                    id={entry.id}
+                    type={entry.type}
+                    amount={entry.amount}
+                    createdAt={entry.createdAt}
                     status={entry.state || 'completed'}
-                    onPress={() => handleTransactionPress(entry.id, entry.type)}
+                    metadata={entry.metadata}
+                    onPress={handleTransactionPress}
                 />
                 {!isLast && (
                     <RNView
@@ -376,8 +385,8 @@ export function HistoryScreen() {
                     data={flatItems}
                     keyExtractor={(item, i) =>
                         item.kind === 'header'
-                            ? `header-${item.title}`
-                            : `item-${item.entry.id}-${i}`
+                            ? `header-${item.title || i}`
+                            : `item-${item.entry?.id || i}-${i}`
                     }
                     renderItem={renderItem}
                     estimatedItemSize={72}

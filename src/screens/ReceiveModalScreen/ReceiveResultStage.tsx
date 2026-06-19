@@ -128,7 +128,7 @@ export function ReceiveResultStage({
 
                 {/* 4. Action Buttons (If Receive Later) */}
                 {isReceiveLater && currentToken && (
-                    <YStack px="$4" gap="$2" mb="$8">
+                    <YStack gap="$2" >
                         <Button
                             onPress={onClaimNow}
                             bg="$accent10"

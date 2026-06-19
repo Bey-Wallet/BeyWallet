@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
-import { Text, XStack, YStack, useTheme } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 import {
     BanknoteArrowUp,
     BanknoteArrowDown,
@@ -17,16 +17,6 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
-interface HistoryItemProps {
-    id: string;
-    type: string;
-    amount: number;
-    createdAt: number;
-    status: string;
-    metadata?: Record<string, any>;
-    onPress: () => void;
-}
-
 type ViaResult = { label: string; icon: React.ReactNode; color: string };
 
 function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
@@ -37,8 +27,8 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
         const username = metadata.nostrUsername
             ? `@${metadata.nostrUsername.replace('@bey.cash', '')}`
             : metadata.nostrPubkey
-            ? `${String(metadata.nostrPubkey).slice(0, 10)}…`
-            : 'Nostr';
+                ? `${String(metadata.nostrPubkey).slice(0, 10)}…`
+                : 'Nostr';
         return {
             label: `Via Nostr · ${username}`,
             icon: <AtSign size={10} strokeWidth={2.5} color="$purple10" />,
@@ -121,7 +111,18 @@ function getExpiryTimeLeftLabel(expiresAt?: any): string | null {
     return `Expires in <1m`;
 }
 
-export const HistoryItem: React.FC<HistoryItemProps> = ({
+export interface HistoryItemProps {
+    id: string;
+    type: string;
+    amount: number;
+    createdAt: number;
+    status: string;
+    metadata?: Record<string, any>;
+    onPress: (id: string, type: string) => void;
+}
+
+export const HistoryItem = React.memo<HistoryItemProps>(({
+    id,
     type,
     amount,
     status,
@@ -142,14 +143,11 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
     const label = getTypeLabel(type, metadata);
 
     const sign = type === 'swap' || type === 'receive-request' ? '' : isOutgoing ? '−' : '+';
-    const amountColor = type === 'swap' ? '#60a5fa' : isOutgoing ? '#ff6b6b' : '#4ade80';
 
     const handlePress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPress();
+        onPress(id, type);
     };
-
-    const theme = useTheme();
 
     const expiryLabel = isPending && expiresAt ? getExpiryTimeLeftLabel(expiresAt) : null;
     const subtitle = [viaInfo.label, expiryLabel].filter(Boolean).join(' · ');
@@ -161,7 +159,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
             style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingVertical: 14,
+                paddingVertical: 12,
                 paddingHorizontal: 16,
             }}
         >
@@ -173,27 +171,27 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
             {/* Middle Section: Title + Subtitle */}
             <YStack flex={1} gap="$0.5" mr="$2">
                 <XStack flexWrap="wrap" items="center" gap="$1.5">
-                    <Text fontSize="$5" fontWeight="600" color="$accent5">
+                    <Text fontSize="$4" fontWeight="700" color="$accent5">
                         {label}
                     </Text>
                     {isPending ? (
-                        <View style={[styles.badge, { backgroundColor: isExpired ? '#ef444422' : '#f59e0b22' }]}>
-                            <Text fontSize={9} fontWeight="800" color={isExpired ? "$red10" : "$orange10"} style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <View style={[styles.badge, { backgroundColor: isExpired ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)' }]}>
+                            <Text fontSize={9} fontWeight="900" color={isExpired ? "$red10" : "$orange10"} style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                 {isExpired ? 'EXPIRED' : status}
                             </Text>
                         </View>
                     ) : status.toLowerCase() === 'expired' || status.toLowerCase() === 'refunded' ? (
-                        <View style={[styles.badge, { backgroundColor: '#ef444422' }]}>
-                            <Text fontSize={9} fontWeight="800" color="$red10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <View style={[styles.badge, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                            <Text fontSize={9} fontWeight="900" color="$red10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                 {status}
                             </Text>
                         </View>
                     ) : null}
                 </XStack>
                 {subtitle ? (
-                    <XStack items="center" gap="$1" mt="$1">
+                    <XStack items="center" gap="$1.5" mt="$0.5">
                         {viaInfo.icon || <Clock size={10} strokeWidth={2.5} color="$orange10" />}
-                        <Text fontSize="$3" color="$gray9" numberOfLines={1}>
+                        <Text fontSize="$2" color="$gray10" numberOfLines={1}>
                             {subtitle}
                         </Text>
                     </XStack>
@@ -202,7 +200,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
 
             {/* Right Side: Amount */}
             <Text
-                fontWeight="800"
+                fontWeight="900"
                 fontSize="$5"
                 color="$accent3"
                 fontVariant={['tabular-nums'] as any}
@@ -211,7 +209,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
             </Text>
         </TouchableOpacity>
     );
-};
+});
 
 const styles = StyleSheet.create({
     touchable: {

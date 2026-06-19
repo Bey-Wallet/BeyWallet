@@ -12,6 +12,7 @@ import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { nip19 } from 'nostr-tools'
 import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
+import { ProcessingSheet } from '../../components/UI/ProcessingSheet'
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -41,8 +42,8 @@ export function ReceiveModalScreen() {
     const addMint = useWalletStore(s => s.addMint)
     const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
     const mints = useWalletStore(s => s.mints)
-
     const [isReceiveLater, setIsReceiveLater] = useState(false)
+    console.log('[ReceiveModalScreen] State - step:', step, 'isReceiving:', isReceiving);
 
     // Keep a stable ref to mints so handleDecodeToken never needs mints in its deps
     // (avoids infinite re-render when background fetchMintInfo updates the store)
@@ -143,7 +144,6 @@ export function ReceiveModalScreen() {
     const handleReceiveLater = useCallback(async () => {
         if (!tokenInfo) return;
 
-        setIsReceiving(true);
         setError(null);
 
         try {
@@ -151,13 +151,11 @@ export function ReceiveModalScreen() {
             console.log('[ReceiveModal] Saving for later:', mintUrl);
 
             // 1. Ensure mint is added/known (optional but good for UI consistency)
-            try {
-                const knownMints = mints.map(m => m.mintUrl.toLowerCase());
-                if (!knownMints.includes(mintUrl.toLowerCase())) {
-                    await addMint(mintUrl, { trusted: true });
-                }
-            } catch (e) {
-                console.warn('[ReceiveModal] Failed to add mint during save later:', e);
+            const knownMints = mints.map(m => m.mintUrl.toLowerCase());
+            if (!knownMints.includes(mintUrl.toLowerCase())) {
+                addMint(mintUrl, { trusted: true }).catch(e => {
+                    console.warn('[ReceiveModal] Failed to add mint in background during save later:', e);
+                });
             }
 
             // 2. Decode to get the full token object for storage
@@ -187,8 +185,6 @@ export function ReceiveModalScreen() {
             setError(err.message || 'Failed to save for later');
             setStatus('error');
             setStep('result');
-        } finally {
-            setIsReceiving(false);
         }
     }, [token, tokenInfo, mints, addMint]);
 
@@ -373,6 +369,14 @@ export function ReceiveModalScreen() {
                     title={status === 'success' ? (isReceiveLater ? 'Token Saved' : 'Ecash Received') : 'Receive Failed'}
                 />
             )}
+
+            {/* Global ProcessingSheet to prevent unmounting bugs during step transitions */}
+            <ProcessingSheet
+                visible={isReceiving}
+                title="Receiving"
+                amount={tokenInfo?.amount || 0}
+                detail={tokenInfo ? `Receiving from ${tokenInfo.preview?.name || tokenInfo.mint.replace(/^https?:\/\//, '').split('/')[0]}` : 'Receiving...'}
+            />
         </YStack>
     )
 }

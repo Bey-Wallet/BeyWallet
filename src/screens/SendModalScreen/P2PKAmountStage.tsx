@@ -24,6 +24,7 @@ interface P2PKAmountStageProps {
     balance: number;
     isLoading?: boolean;
     error?: string | null;
+    isOffline?: boolean;
 }
 
 export function P2PKAmountStage({
@@ -34,13 +35,47 @@ export function P2PKAmountStage({
     onContinue,
     balance,
     isLoading,
-    error
+    error,
+    isOffline
 }: P2PKAmountStageProps) {
     const { activeMintUrl, mints, setActiveMint, scannerResult, setScannerResult } = useWalletStore();
     const { secondaryCurrency } = useSettingsStore();
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const router = useRouter();
+
+    const [possibleAmounts, setPossibleAmounts] = React.useState<number[]>([]);
+    const [loadingOffline, setLoadingOffline] = React.useState(false);
+    console.log('[P2PKAmountStage] isOffline prop:', isOffline, 'possibleAmounts:', possibleAmounts.length);
+
+    React.useEffect(() => {
+        if (!isOffline || !activeMintUrl) return;
+        
+        const loadOfflineAmounts = async () => {
+            setLoadingOffline(true);
+            try {
+                const { initService } = require('~/services/core');
+                const repo = initService.getRepo();
+                const proofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
+                const { getPossibleAmounts } = require('~/utils/offlineSendUtils');
+                const list = getPossibleAmounts(proofs);
+                setPossibleAmounts(list);
+            } catch (e) {
+                console.warn('[P2PKAmountStage] Failed to load offline amounts:', e);
+                setPossibleAmounts([]);
+            } finally {
+                setLoadingOffline(false);
+            }
+        };
+
+        loadOfflineAmounts();
+    }, [isOffline, activeMintUrl]);
+
+    const handlePresetPress = (amt: number) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setAmount(String(amt));
+        setLocalInputValue(String(amt));
+    };
 
     // Check if we just returned from the scanner via store
     useEffect(() => {
@@ -264,15 +299,64 @@ export function P2PKAmountStage({
                 </XStack>
             )}
 
-            <NumericKeypad
-                showAmountDisplay={false}
-                value={localInputValue}
-                onValueChange={onKeypadChange}
-                onConfirm={onContinue}
-                confirmLabel={isLoading ? "Processing..." : "Continue"}
-                confirmDisabled={!isValidAmount || isLoading}
-                confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
-            />
+            {isOffline ? (
+                <YStack gap="$3" width="100%" pb="$4" pt="$2">
+                    <Text color="$gray10" fontSize="$2" textAlign="center" px="$4">
+                        Choose a possible amount to create ecash offline (exact subset sums of your unspent proofs).
+                    </Text>
+                    {loadingOffline ? (
+                        <YStack height={150} items="center" justify="center">
+                            <Spinner size="medium" />
+                        </YStack>
+                    ) : possibleAmounts.length === 0 ? (
+                        <YStack height={150} bg="$red3" p="$4" rounded="$4" items="center" justify="center" gap="$2" borderWidth={1} borderColor="$red7">
+                            <AlertCircle size={24} color="$red10" />
+                            <Text color="$red10" fontWeight="700" textAlign="center">No offline funds available</Text>
+                            <Text color="$gray10" fontSize="$2" textAlign="center">You do not have any unspent proofs for this mint to send offline.</Text>
+                        </YStack>
+                    ) : (
+                        <YStack gap="$2" width="100%">
+                            <XStack flexWrap="wrap" gap="$2" justify="center" maxHeight={180} overflow="scroll" p="$1">
+                                {possibleAmounts.map((amt) => (
+                                    <Button
+                                        key={amt}
+                                        size="$3.5"
+                                        width="29%"
+                                        bg={amount === String(amt) ? "$accent3" : "$gray3"}
+                                        borderColor={amount === String(amt) ? "$accent8" : "transparent"}
+                                        borderWidth={amount === String(amt) ? 1 : 0}
+                                        onPress={() => handlePresetPress(amt)}
+                                    >
+                                        <Text fontWeight="800" color={amount === String(amt) ? "$accent10" : "$color"}>
+                                            ₿{amt}
+                                        </Text>
+                                    </Button>
+                                ))}
+                            </XStack>
+                            <Button
+                                theme="accent"
+                                size="$5"
+                                mt="$3"
+                                rounded="$4"
+                                onPress={onContinue}
+                                disabled={!amount || amount === '0' || isOverBalance || receiverPubkey.length <= 10 || isLoading}
+                            >
+                                Continue (Offline)
+                            </Button>
+                        </YStack>
+                    )}
+                </YStack>
+            ) : (
+                <NumericKeypad
+                    showAmountDisplay={false}
+                    value={localInputValue}
+                    onValueChange={onKeypadChange}
+                    onConfirm={onContinue}
+                    confirmLabel={isLoading ? "Processing..." : "Continue"}
+                    confirmDisabled={!isValidAmount || isLoading}
+                    confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+                />
+            )}
 
             <MintSelectorSheet ref={sheetRef} />
         </YStack>

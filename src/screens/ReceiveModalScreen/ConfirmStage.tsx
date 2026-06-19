@@ -332,15 +332,7 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                         ? 'Token Already Spent'
                         : (isMintTrusted ? 'Receive' : 'Trust & Receive')}
                 </Button>
-
-
             </YStack>
-            <ProcessingSheet
-                visible={!!isLoading}
-                title="Receiving"
-                amount={tokenInfo.amount}
-                detail={`Receiving from ${getMintDisplayName(tokenInfo.mint)}`}
-            />
         </YStack >
     );
 }

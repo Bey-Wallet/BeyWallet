@@ -369,6 +369,65 @@ export const walletService = {
         return { encoded, token, id: operationId };
     },
 
+    /**
+     * Create an ecash token offline using a selected subset of proofs.
+     * Marks selected proofs as spent in the local repository and saves a history log.
+     */
+    sendOffline: async (
+        mintUrl: string,
+        amount: number,
+        selectedProofs: CoreProof[]
+    ): Promise<{ encoded: string; token: Token; id: string }> => {
+        console.log(`[WalletService] Creating offline send of ${amount} sats from ${mintUrl} using ${selectedProofs.length} proofs`);
+
+        const m = mgr();
+        const unsafeManager = m as any;
+        const operationId = generateSubId();
+
+        // 1. Mark selected proofs as spent in the local database
+        const secrets = selectedProofs.map(p => p.secret);
+        await unsafeManager.proofService.setProofState(mintUrl, secrets, 'spent');
+
+        // 2. Clean proofs to standard Cashu format (strip db-specific metadata)
+        const cleanProofs = selectedProofs.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            secret: p.secret,
+            C: p.C
+        }));
+
+        // 3. Build and Encode Token
+        const token: Token = {
+            mint: mintUrl,
+            proofs: cleanProofs,
+            unit: 'sat'
+        };
+        const encoded = encodeToken(token);
+
+        // 4. Add history entry
+        try {
+            await initService.getRepo().historyRepository.addHistoryEntry({
+                mintUrl,
+                unit: 'sat',
+                createdAt: Date.now(),
+                type: 'send',
+                amount: amount,
+                operationId: operationId,
+                state: 'pending',
+                token: token,
+                metadata: {
+                    via: 'ecash_create',
+                    offline: true,
+                }
+            });
+            console.log(`[WalletService] History tracking injected for offline send.`);
+        } catch (histErr) {
+            console.warn('[WalletService] Failed to inject history entry for offline send:', histErr);
+        }
+
+        return { encoded, token, id: operationId };
+    },
+
     // ─── Receiving ────────────────────────────────────────────
 
     /**
