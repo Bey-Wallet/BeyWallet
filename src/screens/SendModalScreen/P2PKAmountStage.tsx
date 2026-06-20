@@ -38,8 +38,8 @@ export function P2PKAmountStage({
     isOffline
 }: P2PKAmountStageProps) {
     const { activeMintUrl, mints, setActiveMint, scannerResult, setScannerResult } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const router = useRouter();
 

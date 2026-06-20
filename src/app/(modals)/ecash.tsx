@@ -70,7 +70,7 @@ export default function EcashModal() {
   const router = useRouter();
   const { mints } = useWalletStore();
   const insets = useSafeAreaInsets();
-  const { secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
   const [selectedMint, setSelectedMint] = useState('all');
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const queryClient = useQueryClient();
@@ -273,29 +273,46 @@ export default function EcashModal() {
           </XStack>
           <XStack justify="space-between" py="$2" items="flex-end">
             <YStack>
-              <RollingNumber
-                value={totalPending}
-                prefix="₿"
-                letterSpacing={-1}
-                fontSize={30}
-                fontWeight="900"
-                color="$accent3"
-                decimalOpacity={0.4}
-                showDecimals={false}
-              />
+              {primaryCurrency === 'SATS' ? (
+                <RollingNumber
+                  value={totalPending}
+                  prefix="₿"
+                  letterSpacing={-1}
+                  fontSize={30}
+                  fontWeight="900"
+                  color="$accent3"
+                  decimalOpacity={0.4}
+                  showDecimals={false}
+                />
+              ) : (
+                <RollingNumber
+                  value={fiatPending}
+                  letterSpacing={-1}
+                  fontSize={30}
+                  fontWeight="900"
+                  color="$accent3"
+                  decimalOpacity={0.4}
+                  showDecimals={true}
+                >
+                  {currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)}
+                </RollingNumber>
+              )}
             </YStack>
-            <Text color="$accent9" fontWeight="700">SATS</Text>
+            <Text color="$accent9" fontWeight="700">{primaryCurrency === 'SATS' ? 'SATS' : secondaryCurrency}</Text>
           </XStack>
           <RollingNumber
-            value={fiatPending}
+            value={primaryCurrency === 'SATS' ? fiatPending : totalPending}
+            prefix={primaryCurrency === 'SATS' ? '' : '₿'}
             letterSpacing={-1}
             fontSize={16}
             fontWeight="900"
             color="$accent8"
             decimalOpacity={0.4}
-            showDecimals={false}
+            showDecimals={primaryCurrency === 'SATS'}
           >
-            {currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)}
+            {primaryCurrency === 'SATS'
+              ? currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)
+              : undefined}
           </RollingNumber>
 
           <YStack pt="$4">
@@ -342,7 +359,13 @@ export default function EcashModal() {
                             fontSize="$5"
                             color="$accent3"
                           >
-                            {style.sign}₿{entry.amount.toLocaleString()}
+                            {primaryCurrency === 'SATS'
+                              ? `${style.sign}₿${entry.amount.toLocaleString()}`
+                              : `${style.sign}${currencyService.formatValue(
+                                  btcData?.price ? currencyService.convertSatsToCurrency(entry.amount, btcData.price) : 0,
+                                  secondaryCurrency as CurrencyCode
+                                )}`
+                            }
                           </Text>
                         }
                       >
@@ -373,33 +396,7 @@ export default function EcashModal() {
         </YStack>
       </ScrollView>
 
-      {/* Proof Manager link */}
-      <YStack
-        px="$4"
-        pb={insets.bottom + 16}
-        pt="$2"
-        borderTopWidth={1}
-        borderColor="$borderColor"
-        bg="$background"
-      >
-        <Button
-          size="$4"
-          theme="gray"
-          chromeless
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(modals)/proofs');
-          }}
-          icon={<Database size={16} color="$color10" />}
-          iconAfter={<ChevronRight size={16} color="$color10" />}
-          pressStyle={{ scale: 0.98, opacity: 0.85 }}
-          animation="quick"
-          bg="$gray2"
-          rounded="$4"
-        >
-          <Text fontWeight="700" fontSize="$3" flex={1}>Proof Manager</Text>
-        </Button>
-      </YStack>
+
 
       <MintSelectorSheet
         ref={sheetRef}

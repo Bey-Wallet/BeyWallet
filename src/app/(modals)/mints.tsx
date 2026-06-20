@@ -21,7 +21,7 @@ export default function MintsModal() {
     const router = useRouter();
     const { mints, balances, refreshBalance, isInitializing, activeMintUrl, setActiveMint, untrustMint, removeMint, refreshMintList, trustMint } = useWalletStore();
     const insets = useSafeAreaInsets();
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -206,28 +206,41 @@ export default function MintsModal() {
                     <YStack py="$2" gap="$2">
 
                         <XStack items="baseline" gap="$0" py="$2">
-
-                            <RollingNumber
-                                fontSize={30}
-                                prefix='₿'
-                                fontWeight="900"
-                                color="$accent4"
-                                showDecimals={false}
-                                letterSpacing={-2}
-
-                            >
-                                {totalBalance}
-                            </RollingNumber>
+                            {primaryCurrency === 'SATS' ? (
+                                <RollingNumber
+                                    fontSize={30}
+                                    prefix='₿'
+                                    fontWeight="900"
+                                    color="$accent4"
+                                    showDecimals={false}
+                                    letterSpacing={-2}
+                                >
+                                    {totalBalance}
+                                </RollingNumber>
+                            ) : (
+                                <RollingNumber
+                                    fontSize={30}
+                                    fontWeight="900"
+                                    color="$accent4"
+                                    showDecimals={true}
+                                    letterSpacing={-2}
+                                >
+                                    {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
+                                </RollingNumber>
+                            )}
                         </XStack>
                         <RollingNumber
-                            value={fiatBalance}
+                            value={primaryCurrency === 'SATS' ? fiatBalance : totalBalance}
+                            prefix={primaryCurrency === 'SATS' ? '' : '₿'}
                             fontSize={16}
                             fontWeight="900"
                             color="$accent8"
                             decimalOpacity={0.4}
-                            showDecimals={false}
+                            showDecimals={primaryCurrency === 'SATS'}
                         >
-                            {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
+                            {primaryCurrency === 'SATS'
+                                ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
+                                : undefined}
                         </RollingNumber>
                     </YStack>
 
@@ -291,7 +304,15 @@ export default function MintsModal() {
                                                         fontSize="$5"
                                                         color="$accent3"
                                                     >
-                                                        ₿{balance.toLocaleString()}
+                                                        {primaryCurrency === 'SATS'
+                                                            ? `₿${balance.toLocaleString()}`
+                                                            : currencyService.formatValue(
+                                                                btcData?.price
+                                                                    ? currencyService.convertSatsToCurrency(balance, btcData.price)
+                                                                    : 0,
+                                                                secondaryCurrency as CurrencyCode
+                                                              )
+                                                        }
                                                     </Text>
                                                 }
                                             >
@@ -382,17 +403,33 @@ export default function MintsModal() {
                         <YStack gap="$2" items="center" bg="$gray2" p="$4" rounded="$6">
                             <Text fontSize="$4" color="$gray10" fontWeight="700">Spendable Balance</Text>
                             <XStack items="baseline" gap="$0">
-
-                                <RollingNumber
-                                    letterSpacing={-1}
-                                    prefix='₿'
-                                    fontSize={32}
-                                    fontWeight="900"
-                                    color="$accent4"
-                                    showDecimals={false}
-                                >
-                                    {selectedMintForSheet ? (balances[selectedMintForSheet.mintUrl] || 0) : 0}
-                                </RollingNumber>
+                                {primaryCurrency === 'SATS' ? (
+                                    <RollingNumber
+                                        letterSpacing={-1}
+                                        prefix='₿'
+                                        fontSize={32}
+                                        fontWeight="900"
+                                        color="$accent4"
+                                        showDecimals={false}
+                                    >
+                                        {selectedMintForSheet ? (balances[selectedMintForSheet.mintUrl] || 0) : 0}
+                                    </RollingNumber>
+                                ) : (
+                                    <RollingNumber
+                                        letterSpacing={-1}
+                                        fontSize={32}
+                                        fontWeight="900"
+                                        color="$accent4"
+                                        showDecimals={true}
+                                    >
+                                        {selectedMintForSheet && btcData?.price
+                                            ? currencyService.formatValue(
+                                                currencyService.convertSatsToCurrency(balances[selectedMintForSheet.mintUrl] || 0, btcData.price),
+                                                secondaryCurrency as CurrencyCode
+                                              )
+                                            : '...'}
+                                    </RollingNumber>
+                                )}
                             </XStack>
                         </YStack>
 

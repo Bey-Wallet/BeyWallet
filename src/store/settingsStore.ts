@@ -8,6 +8,7 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 interface SettingsState {
     theme: ThemePreference;
     secondaryCurrency: string;
+    primaryCurrency: 'SATS' | 'FIAT';
     defaultMintUrl: string;
     initialized: boolean;
     npub: string | null;
@@ -17,6 +18,7 @@ interface SettingsState {
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
+    setPrimaryCurrency: (val: 'SATS' | 'FIAT') => Promise<void>;
     setDefaultMintUrl: (url: string) => Promise<void>;
     notificationsEnabled: boolean;
     setNotificationsEnabled: (enabled: boolean) => Promise<void>;
@@ -29,6 +31,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
     theme: 'system',
     secondaryCurrency: 'USD',
+    primaryCurrency: 'SATS',
     defaultMintUrl: DEFAULT_MINT,
     notificationsEnabled: true,
     biometricEnabled: false,
@@ -56,7 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -66,10 +69,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('nsec'),
                     repo.settingsRepository.getSetting('nip05'),
                     repo.settingsRepository.getSetting('hideBalance'),
+                    repo.settingsRepository.getSetting('primaryCurrency'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
                 if (storedCurrency) set({ secondaryCurrency: storedCurrency });
+                if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
                 if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
                 if (storedNotifications !== undefined && storedNotifications !== null) {
                     set({ notificationsEnabled: storedNotifications === 'true' });
@@ -138,6 +143,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set secondary currency:', error);
             set({ secondaryCurrency: currency });
+        }
+    },
+
+    setPrimaryCurrency: async (val: 'SATS' | 'FIAT') => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('primaryCurrency', val);
+            }
+            set({ primaryCurrency: val });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set primary currency:', error);
+            set({ primaryCurrency: val });
         }
     },
 

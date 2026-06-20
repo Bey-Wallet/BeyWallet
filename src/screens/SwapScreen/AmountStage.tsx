@@ -31,8 +31,8 @@ export function AmountStage({
     onContinue, isLoading, error
 }: AmountStageProps) {
     const { mints, balances } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
 
     // Bottom sheets for picking source/target mints
     const sourceSheetRef = useRef<AppBottomSheetRef>(null);

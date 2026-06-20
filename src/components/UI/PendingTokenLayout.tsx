@@ -56,7 +56,7 @@ export function PendingTokenLayout({
     expiresAt,
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
-    const { secondaryCurrency, npub } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
     const theme = useTheme();
     const { setLockDisabled } = useAuthStore();
 
@@ -266,8 +266,18 @@ export function PendingTokenLayout({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             setLockDisabled(true);
+
+            // Construct deep link to the receive screen
+            const claimLink = Linking.createURL('/(modals)/receive', {
+                queryParams: {
+                    scannedToken: currentToken
+                }
+            });
+
+            const shareMessage = `Claim my ecash send of ${amount} sats:\n\n${claimLink}`;
+
             await RNShare.share({
-                message: currentToken,
+                message: shareMessage,
                 title: 'Share Token'
             });
         } catch (error) {
@@ -373,10 +383,19 @@ export function PendingTokenLayout({
             {/* Details Table */}
             {!hideDetails && (
                 <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    <DetailItem label="Amount" value={`₿${amount} sats`} />
+                    {primaryCurrency === 'FIAT' ? (
+                        <>
+                            <DetailItem label="Amount" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                            <DetailItem label="Sats" value={`₿${amount} sats`} />
+                        </>
+                    ) : (
+                        <>
+                            <DetailItem label="Amount" value={`₿${amount} sats`} />
+                            <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                        </>
+                    )}
                     {fee > 0 && <DetailItem label="Fee" value={`₿${fee} sats`} />}
                     <DetailItem label="Unit" value="SATOSHIS" />
-                    <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
                     <DetailItem label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
                     {displayNpub && (
                         <DetailItem

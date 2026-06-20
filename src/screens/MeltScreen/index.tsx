@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/store/walletStore';
@@ -13,7 +13,7 @@ import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomShee
 import { Text, YStack, XStack, Button, Separator, View, H1, Image } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
-import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService';
+import { currencyService, SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/currencyService';
 import { Building2, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
@@ -43,7 +43,61 @@ export default function MeltScreen() {
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
     const mints = useWalletStore(s => s.mints);
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
+    const [localInputValue, setLocalInputValue] = useState(lnAddressAmount);
+
+    useEffect(() => {
+        if (inputMode === 'SATS') {
+            setLocalInputValue(lnAddressAmount);
+        }
+    }, [lnAddressAmount, inputMode]);
+
+    const onKeypadChange = (val: string) => {
+        setLocalInputValue(val);
+        if (inputMode === 'SATS') {
+            setLnAddressAmount(val);
+        } else {
+            if (btcData?.price) {
+                const sats = currencyService.convertCurrencyToSats(Number(val) || 0, btcData.price);
+                setLnAddressAmount(String(sats));
+            }
+        }
+    };
+
+    const toggleMode = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (inputMode === 'SATS') {
+            if (btcData?.price) {
+                const sats = Number(lnAddressAmount) || 0;
+                const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
+                setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
+            }
+            setInputMode('FIAT');
+        } else {
+            setLocalInputValue(lnAddressAmount);
+            setInputMode('SATS');
+        }
+    };
+
+    const currencySymbol = useMemo(() => {
+        return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
+    }, [secondaryCurrency]);
+
+    const conversionValue = useMemo(() => {
+        if (!btcData?.price) return '0';
+        if (inputMode === 'SATS') {
+            const sats = Number(lnAddressAmount) || 0;
+            return currencyService.formatValue(
+                currencyService.convertSatsToCurrency(sats, btcData.price),
+                secondaryCurrency as CurrencyCode
+            );
+        } else {
+            const sats = Number(lnAddressAmount) || 0;
+            return `₿${sats}`;
+        }
+    }, [lnAddressAmount, btcData?.price, inputMode, secondaryCurrency]);
+
     const confirmSheetRef = React.useRef<AppBottomSheetRef>(null);
 
     const { data: btcData } = useQuery({
@@ -317,8 +371,20 @@ export default function MeltScreen() {
                                 py="$4"
                                 color={isOverBalance || isOverMax ? "$red10" : isUnderMin ? "$orange10" : "$color"}
                             >
-                                ₿{lnAddressAmount || '0'}
+                                {inputMode === 'SATS' ? `₿${localInputValue || '0'}` : `${currencySymbol}${localInputValue || '0'}`}
                             </H1>
+
+                            <Button
+                                size="$2.5"
+                                theme="gray"
+                                fontWeight="400"
+                                color="$accent9"
+                                mt="$-2"
+                                onPress={toggleMode}
+                                pressStyle={{ scale: 0.95 }}
+                            >
+                                {conversionValue}
+                            </Button>
 
                             {isOverBalance && (
                                 <Text color="$red10" fontSize="$2">Exceeds available balance</Text>
@@ -355,8 +421,8 @@ export default function MeltScreen() {
 
                     <NumericKeypad
                         showAmountDisplay={false}
-                        value={lnAddressAmount}
-                        onValueChange={setLnAddressAmount}
+                        value={localInputValue}
+                        onValueChange={onKeypadChange}
                         onConfirm={handleAmountContinue}
                         confirmLabel={isGettingQuote ? "Getting Quote..." : "Continue"}
                         confirmDisabled={!isValidAmount || isGettingQuote}

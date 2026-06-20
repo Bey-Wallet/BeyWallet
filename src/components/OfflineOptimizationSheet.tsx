@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView } from 'tamagui';
-import { AlertCircle, ArrowRight, Check, Coins, ArrowLeft } from '@tamagui/lucide-icons';
+import { AlertCircle, ArrowRight, Check, Coins, ArrowLeft, EqualApproximately } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { OfflineDenominationSelector } from './OfflineDenominationSelector';
 import { findClosestSubsetOptions, SubsetOption } from '~/utils/offlineSendUtils';
@@ -24,7 +24,7 @@ interface OfflineOptimizationSheetProps {
 export const OfflineOptimizationSheet = forwardRef<OfflineOptimizationSheetRef, OfflineOptimizationSheetProps>(
     ({ targetAmount, activeMintUrl, onConfirm }, ref) => {
         const sheetRef = useRef<AppBottomSheetRef>(null);
-        const { secondaryCurrency } = useSettingsStore();
+        const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
         // 1. Fetch bitcoin price for fiat conversions
         const { data: btcData } = useQuery({
@@ -148,26 +148,38 @@ export const OfflineOptimizationSheet = forwardRef<OfflineOptimizationSheetRef, 
             <AppBottomSheet ref={sheetRef}>
                 <YStack p="$4" pt="$2" gap="$4">
                     {/* Header */}
-                    <XStack items="center" justify="space-between" borderBottomWidth={1} borderBottomColor="$borderColor" pb="$3">
-                        {viewMode === 'custom' ? (
-                            <Button
-                                size="$2"
-                                icon={<ArrowLeft size={16} />}
-                                onPress={() => setViewMode('closest')}
-                                chromeless
-                            >
-                                Back
-                            </Button>
-                        ) : (
-                            <XStack gap="$2" items="center">
-                                <AlertCircle size={20} color="$orange10" />
-                                <Text fontSize="$5" fontWeight="800">Offline Optimization</Text>
-                            </XStack>
-                        )}
-                        <Text color="$gray10" fontSize="$2" fontWeight="600">
-                            Target: ₿{targetAmount} sats
-                        </Text>
-                    </XStack>
+                    {/* Header */}
+                    <YStack borderBottomWidth={1} borderBottomColor="$borderColor" pb="$3" gap="$1.5">
+                        <XStack items="center" justify="space-between">
+                            {viewMode === 'custom' ? (
+                                <Button
+                                    size="$2"
+                                    icon={<ArrowLeft size={16} />}
+                                    onPress={() => setViewMode('closest')}
+                                    chromeless
+                                    p="$0"
+                                >
+                                    Back
+                                </Button>
+                            ) : (
+                                <XStack justify="space-between" width="100%">
+
+                                    <XStack gap="$2" items="center">
+                                        <AlertCircle size={20} color="$orange10" />
+                                        <Text fontSize="$5" fontWeight="800">Offline Optimization</Text>
+                                    </XStack>
+                                    <EqualApproximately color="$accent10" />
+
+                                    <Text color="$accent3" fontSize="$5" fontWeight="800">
+                                        ₿{Number(targetAmount).toLocaleString()}
+                                    </Text>
+
+                                </XStack>
+                            )}
+                        </XStack>
+
+
+                    </YStack>
 
                     {viewMode === 'closest' ? (
                         <YStack gap="$4">
@@ -199,22 +211,26 @@ export const OfflineOptimizationSheet = forwardRef<OfflineOptimizationSheetRef, 
                                                 )}
                                             </XStack>
                                             <XStack items="center" gap="$2">
-                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'lower' ? "white" : "$color"}>₿{targetAmount}</Text>
+                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'lower' ? "white" : "$color"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(targetAmount) : `₿${targetAmount}`}
+                                                </Text>
                                                 <ArrowRight size={14} color={selectedOptionType === 'lower' ? "white" : "$gray10"} />
-                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'lower' ? "white" : "$color"}>₿{options.lower.amount} sats</Text>
+                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'lower' ? "white" : "$color"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(options.lower.amount) : `₿${options.lower.amount} sats`}
+                                                </Text>
                                             </XStack>
                                             <Text fontSize="$2" color={selectedOptionType === 'lower' ? "rgba(255, 255, 255, 0.7)" : "$gray10"}>
-                                                {getFiatValue(options.lower.amount)} &bull; -{targetAmount - options.lower.amount} sats difference
+                                                {primaryCurrency === 'FIAT' ? `₿${options.lower.amount} sats` : getFiatValue(options.lower.amount)} &bull; -{targetAmount - options.lower.amount} sats difference
                                             </Text>
                                         </YStack>
-                                        <View 
-                                            width={24} 
-                                            height={24} 
-                                            rounded="$10" 
-                                            borderWidth={2} 
-                                            borderColor={selectedOptionType === 'lower' ? "white" : "$gray8"} 
+                                        <View
+                                            width={24}
+                                            height={24}
+                                            rounded="$10"
+                                            borderWidth={2}
+                                            borderColor={selectedOptionType === 'lower' ? "white" : "$gray8"}
                                             bg={selectedOptionType === 'lower' ? "white" : "transparent"}
-                                            items="center" 
+                                            items="center"
                                             justify="center"
                                         >
                                             {selectedOptionType === 'lower' && <Check size={14} color="#007AFF" strokeWidth={3} />}
@@ -243,22 +259,26 @@ export const OfflineOptimizationSheet = forwardRef<OfflineOptimizationSheetRef, 
                                                 </Text>
                                             </XStack>
                                             <XStack items="center" gap="$2">
-                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'exact' ? "white" : "$color"}>₿{targetAmount}</Text>
+                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'exact' ? "white" : "$color"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(targetAmount) : `₿${targetAmount}`}
+                                                </Text>
                                                 <ArrowRight size={14} color={selectedOptionType === 'exact' ? "white" : "$gray10"} />
-                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'exact' ? "white" : "$green10"}>₿{options.exact.amount} sats</Text>
+                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'exact' ? "white" : "$green10"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(options.exact.amount) : `₿${options.exact.amount} sats`}
+                                                </Text>
                                             </XStack>
                                             <Text fontSize="$2" color={selectedOptionType === 'exact' ? "rgba(255, 255, 255, 0.7)" : "$gray10"}>
-                                                {getFiatValue(options.exact.amount)} &bull; Exact subset sum available
+                                                {primaryCurrency === 'FIAT' ? `₿${options.exact.amount} sats` : getFiatValue(options.exact.amount)} &bull; Exact subset sum available
                                             </Text>
                                         </YStack>
-                                        <View 
-                                            width={24} 
-                                            height={24} 
-                                            rounded="$10" 
-                                            borderWidth={2} 
-                                            borderColor={selectedOptionType === 'exact' ? "white" : "$gray8"} 
+                                        <View
+                                            width={24}
+                                            height={24}
+                                            rounded="$10"
+                                            borderWidth={2}
+                                            borderColor={selectedOptionType === 'exact' ? "white" : "$gray8"}
                                             bg={selectedOptionType === 'exact' ? "white" : "transparent"}
-                                            items="center" 
+                                            items="center"
                                             justify="center"
                                         >
                                             {selectedOptionType === 'exact' && <Check size={14} color="#007AFF" strokeWidth={3} />}
@@ -289,22 +309,26 @@ export const OfflineOptimizationSheet = forwardRef<OfflineOptimizationSheetRef, 
                                                 )}
                                             </XStack>
                                             <XStack items="center" gap="$2">
-                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'higher' ? "white" : "$color"}>₿{targetAmount}</Text>
+                                                <Text fontSize="$5" fontWeight="800" color={selectedOptionType === 'higher' ? "white" : "$color"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(targetAmount) : `₿${targetAmount}`}
+                                                </Text>
                                                 <ArrowRight size={14} color={selectedOptionType === 'higher' ? "white" : "$gray10"} />
-                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'higher' ? "white" : "$color"}>₿{options.higher.amount} sats</Text>
+                                                <Text fontSize="$5" fontWeight="900" color={selectedOptionType === 'higher' ? "white" : "$color"}>
+                                                    {primaryCurrency === 'FIAT' ? getFiatValue(options.higher.amount) : `₿${options.higher.amount} sats`}
+                                                </Text>
                                             </XStack>
                                             <Text fontSize="$2" color={selectedOptionType === 'higher' ? "rgba(255, 255, 255, 0.7)" : "$gray10"}>
-                                                {getFiatValue(options.higher.amount)} &bull; +{options.higher.amount - targetAmount} sats difference
+                                                {primaryCurrency === 'FIAT' ? `₿${options.higher.amount} sats` : getFiatValue(options.higher.amount)} &bull; +{options.higher.amount - targetAmount} sats difference
                                             </Text>
                                         </YStack>
-                                        <View 
-                                            width={24} 
-                                            height={24} 
-                                            rounded="$10" 
-                                            borderWidth={2} 
-                                            borderColor={selectedOptionType === 'higher' ? "white" : "$gray8"} 
+                                        <View
+                                            width={24}
+                                            height={24}
+                                            rounded="$10"
+                                            borderWidth={2}
+                                            borderColor={selectedOptionType === 'higher' ? "white" : "$gray8"}
                                             bg={selectedOptionType === 'higher' ? "white" : "transparent"}
-                                            items="center" 
+                                            items="center"
                                             justify="center"
                                         >
                                             {selectedOptionType === 'higher' && <Check size={14} color="#007AFF" strokeWidth={3} />}

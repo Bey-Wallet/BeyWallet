@@ -23,8 +23,8 @@ interface AmountStageProps {
 
 export function AmountStage({ amount, setAmount, onContinue, balance, isLoading, error, isOffline }: AmountStageProps) {
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
-    const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>('SATS');
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
 

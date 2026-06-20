@@ -20,7 +20,7 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
     const isSuccess = status === 'success';
     const sats = parseInt(amount, 10);
 
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -98,12 +98,25 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
                         {status === 'success' ? 'Deposit Successful' : status === 'error' ? 'Deposit Failed' : 'Deposit Cancelled'}
                     </Text>
                     <YStack items="center" justify="center">
-                        <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$green11" : status === 'error' ? "$red11" : "$orange11"}>
-                            +₿{Number(amount || 0).toLocaleString()}
-                        </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                            Ecash SATS
-                        </Text>
+                        {primaryCurrency === 'SATS' ? (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$green11" : status === 'error' ? "$red11" : "$orange11"}>
+                                    +₿{Number(amount || 0).toLocaleString()}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    Ecash SATS
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$green11" : status === 'error' ? "$red11" : "$orange11"}>
+                                    +{fiatValue}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    +₿{Number(amount || 0).toLocaleString()} SATS
+                                </Text>
+                            </>
+                        )}
                     </YStack>
                     <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                         <Text color="$gray10" fontSize="$4" text="center">
@@ -114,13 +127,21 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
 
                 {/* Details Table */}
                 <ListTable>
-                    <ListTableRow label="Total Amount" value={`₿${sats} sats`} />
+                    {primaryCurrency === 'FIAT' ? (
+                        <ListTableRow label="Total Amount" value={fiatValue} />
+                    ) : (
+                        <ListTableRow label="Total Amount" value={`₿${sats} sats`} />
+                    )}
                     <ListTableRow label="Status" value={status === 'success' ? 'Deposited' : status === 'error' ? 'Failed' : 'Cancelled'} valueColor={getStatusColor()} />
                     {status === 'success' && (
                         <>
                             <ListTableRow label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                             {mintUrl && <ListTableRow label="Mint" value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]} />}
-                            <ListTableRow label="Fiat Value" value={fiatValue} />
+                            {primaryCurrency === 'FIAT' ? (
+                                <ListTableRow label="Sats Value" value={`₿${sats} sats`} />
+                            ) : (
+                                <ListTableRow label="Fiat Value" value={fiatValue} />
+                            )}
                         </>
                     )}
                 </ListTable>

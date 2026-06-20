@@ -219,6 +219,34 @@ async function disableWatchers(mgr: Manager): Promise<void> {
     }
 }
 
+// Custom logger to suppress expected keyset/WS/polling errors that are handled gracefully by the SDK/wallet wrappers
+const customLogger = {
+    error: (msg: string, ...meta: any[]) => {
+        if (
+            msg.includes('Keyset restore failed') ||
+            msg.includes('Restore completed with failures') ||
+            msg.includes('WS request error') ||
+            msg.includes('Polling task error')
+        ) {
+            // Suppress noisy expected background/network errors
+            return;
+        }
+        console.error(`[Coco] ${msg}`, ...meta);
+    },
+    warn: (msg: string, ...meta: any[]) => {
+        if (
+            msg.includes('WS request error') ||
+            msg.includes('Polling task error')
+        ) {
+            // Suppress noisy expected background/network warnings
+            return;
+        }
+        console.warn(`[Coco] ${msg}`, ...meta);
+    },
+    info: () => { },
+    debug: () => { },
+};
+
 /**
  * Core initialization with a mnemonic. Opens DB, creates repos,
  * creates Manager with explicit watcher enabling.
@@ -265,19 +293,7 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
         }
     );
 
-    // Custom logger to suppress expected keyset missing errors that our wrapper handles gracefully
-    const customLogger = {
-        error: (msg: string, ...meta: any[]) => {
-            if (msg.includes('Keyset restore failed') || msg.includes('Restore completed with failures')) {
-                // Suppress noisy expected internal restore errors
-                return;
-            }
-            console.error(`[Coco] ${msg}`, ...meta);
-        },
-        warn: (msg: string, ...meta: any[]) => console.warn(`[Coco] ${msg}`, ...meta),
-        info: () => { },
-        debug: () => { },
-    };
+    // Using the shared customLogger declared at module scope
 
     // Initialize Manager using constructor (rc47 pattern)
     manager = new Manager(
@@ -407,7 +423,7 @@ export const initService = {
         manager = new Manager(
             repositories,
             async () => new Uint8Array(seed),
-            new ConsoleLogger('Coco', { level: 'warn' }),
+            customLogger as any,
             undefined,
             [HistoryWatcherPlugin, npcPlugin]
         );

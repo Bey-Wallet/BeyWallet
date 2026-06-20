@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, useTheme } from 'tamagui';
-import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView } from 'react-native';
+import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView, FlatList } from 'react-native';
 import { Clock, ChevronDown, Building2, Check, Calendar, SlidersHorizontal } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
@@ -14,7 +14,6 @@ import { HistoryPageSkeleton } from './components/HistorySkeletonItem';
 import { ListItem, YGroup } from 'tamagui';
 import { MintSelectorSheet } from '../../components/HomeMintSelector';
 import { useNostrRequestStore } from '../../store/nostrRequestStore';
-import { FlashList } from '@shopify/flash-list';
 
 interface HistoryEntry {
     id: string;
@@ -381,7 +380,7 @@ export function HistoryScreen() {
                     )}
                 </YStack>
             ) : (
-                <FlashList
+                <FlatList
                     data={flatItems}
                     keyExtractor={(item, i) =>
                         item.kind === 'header'
@@ -389,8 +388,6 @@ export function HistoryScreen() {
                             : `item-${item.entry?.id || i}-${i}`
                     }
                     renderItem={renderItem}
-                    estimatedItemSize={72}
-                    getItemType={item => item.kind}
                     refreshControl={
                         <RefreshControl
                             refreshing={isRefetching}

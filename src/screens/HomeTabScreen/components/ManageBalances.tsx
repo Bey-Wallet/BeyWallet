@@ -21,6 +21,8 @@ import { useQuery } from "@tanstack/react-query";
 import { historyService } from "~/services/core";
 import * as Haptics from "expo-haptics";
 import { useAppTheme } from "~/context/ThemeContext";
+import { currencyService, CurrencyCode } from "~/services/currencyService";
+import { bitcoinService } from "~/services/bitcoinService";
 
 const nostrIconWhite = require("../../../assets/images/nostr-icon-white-transparent.png");
 const nostrIconBlack = require("../../../assets/images/nostr-icon-black-transparent.png");
@@ -48,17 +50,36 @@ interface BalanceRowProps {
 
 const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
   const { title, value, imageSource, onPress, isComingSoon } = item;
-  const { hideBalance } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, hideBalance } = useSettingsStore();
+
+  const { data: btcData } = useQuery({
+    queryKey: ["bitcoinPrice", secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30000,
+  });
 
   const displayValue = React.useMemo(() => {
     if (isComingSoon) return "NA";
     if (hideBalance) return "****";
+
+    if (primaryCurrency === 'FIAT' && typeof value === 'number') {
+      if (!btcData?.price) return '...';
+      const fiat = currencyService.convertSatsToCurrency(value, btcData.price);
+      return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
+    }
+
     return value;
-  }, [isComingSoon, hideBalance, value]);
+  }, [isComingSoon, hideBalance, value, primaryCurrency, secondaryCurrency, btcData?.price]);
 
   const currentTrigger = React.useMemo(() => {
-    return `${trigger}_${hideBalance ? "hidden" : "visible"}`;
-  }, [trigger, hideBalance]);
+    return `${trigger}_${hideBalance ? "hidden" : "visible"}_${primaryCurrency}`;
+  }, [trigger, hideBalance, primaryCurrency]);
+
+  const prefix = React.useMemo(() => {
+    if (isComingSoon || hideBalance) return "";
+    if (primaryCurrency === 'FIAT') return ""; // formatted currency already includes symbol
+    return "₿";
+  }, [isComingSoon, hideBalance, primaryCurrency]);
 
   return (
     <RowContainer
@@ -95,8 +116,8 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
           fontWeight="900"
           color="$accent4"
           decimalOpacity={0.4}
-          showDecimals={false}
-          prefix={(isComingSoon || hideBalance) ? "" : "₿"}
+          showDecimals={primaryCurrency === 'FIAT'}
+          prefix={prefix}
           trigger={currentTrigger}
         >
           {displayValue}

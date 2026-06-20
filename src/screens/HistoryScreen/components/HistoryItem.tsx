@@ -16,6 +16,10 @@ import {
     Clock,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
+import { useSettingsStore } from '../../../store/settingsStore';
+import { currencyService, CurrencyCode } from '../../../services/currencyService';
+import { bitcoinService } from '../../../services/bitcoinService';
 
 type ViaResult = { label: string; icon: React.ReactNode; color: string };
 
@@ -129,6 +133,23 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
     metadata,
     onPress,
 }) => {
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
+
+    const fiatAmount = React.useMemo(() => {
+        if (!btcData?.price) return 0;
+        return currencyService.convertSatsToCurrency(amount, btcData.price);
+    }, [amount, btcData?.price]);
+
+    const formattedFiat = React.useMemo(() => {
+        return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
+    }, [fiatAmount, secondaryCurrency]);
+
     const isOutgoing = type === 'send' || type === 'melt';
     const isPending =
         status.toLowerCase() === 'pending' ||
@@ -199,14 +220,47 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
             </YStack>
 
             {/* Right Side: Amount */}
-            <Text
-                fontWeight="900"
-                fontSize="$5"
-                color="$accent3"
-                fontVariant={['tabular-nums'] as any}
-            >
-                {sign}₿{amount.toLocaleString()}
-            </Text>
+            <YStack items="flex-end" justify="center">
+                {primaryCurrency === 'SATS' ? (
+                    <>
+                        <Text
+                            fontWeight="900"
+                            fontSize="$5"
+                            color="$accent3"
+                            fontVariant={['tabular-nums'] as any}
+                        >
+                            {sign}₿{amount.toLocaleString()}
+                        </Text>
+                        <Text
+                            fontSize="$2"
+                            color="$gray10"
+                            fontWeight="600"
+                            fontVariant={['tabular-nums'] as any}
+                        >
+                            {sign}{formattedFiat}
+                        </Text>
+                    </>
+                ) : (
+                    <>
+                        <Text
+                            fontWeight="900"
+                            fontSize="$5"
+                            color="$accent3"
+                            fontVariant={['tabular-nums'] as any}
+                        >
+                            {sign}{formattedFiat}
+                        </Text>
+                        <Text
+                            fontSize="$2"
+                            color="$gray10"
+                            fontWeight="600"
+                            fontVariant={['tabular-nums'] as any}
+                        >
+                            {sign}₿{amount.toLocaleString()}
+                        </Text>
+                    </>
+                )}
+            </YStack>
         </TouchableOpacity>
     );
 });

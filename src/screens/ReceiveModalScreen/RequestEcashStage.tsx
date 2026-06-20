@@ -100,7 +100,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const [step, setStep] = useState<RequestStep>('amount');
     const [amount, setAmount] = useState('0');
     const [localInputValue, setLocalInputValue] = useState('0');
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(() => useSettingsStore.getState().primaryCurrency);
     const [note, setNote] = useState('');
     const [showNote, setShowNote] = useState(false);
 
@@ -116,7 +116,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const toast = useToastController();
 
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency, npub } = useSettingsStore();
+    const { secondaryCurrency, npub, primaryCurrency } = useSettingsStore();
     const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
 
     // ── Restore from History (initialRequestId) ───────────────────────────────

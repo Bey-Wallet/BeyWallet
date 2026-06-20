@@ -22,6 +22,7 @@ import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
 import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock, CloudOff, Cloud } from '@tamagui/lucide-icons'
 import * as Network from 'expo-network'
+import { useToastController } from '@tamagui/toast'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
@@ -41,8 +42,8 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
         if (pr.transport) {
             const nostrTr = pr.transport.find(
                 (t: any) => t.type === PaymentRequestTransportType.NOSTR ||
-                             t.type === 'nostr' ||
-                             String(t.type) === '1'
+                    t.type === 'nostr' ||
+                    String(t.type) === '1'
             );
             if (nostrTr) nostrTarget = nostrTr.target;
         }
@@ -62,6 +63,7 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
 }
 
 export function SendModalScreen() {
+    const toast = useToastController()
     const [step, setStep] = useState<SendStep>('amount')
     const [amount, setAmount] = useState('0')
     const [status, setStatus] = useState<'success' | 'error'>('success')
@@ -330,7 +332,7 @@ export function SendModalScreen() {
                     expiryHours: expiryHours,
                 } : undefined,
                 result.id,
-            ).catch(() => {});
+            ).catch(() => { });
 
             setStep('result');
         } catch (err: any) {
@@ -373,7 +375,7 @@ export function SendModalScreen() {
             const mnemonic = await seedService.getMnemonic();
             if (!mnemonic) throw new Error('No mnemonic found');
             const keys = await seedService.getNostrKeys(mnemonic);
-            
+
             const sent = await nostrService.sendViaNostr(
                 result.encoded,
                 nostrRecipientNpub,
@@ -415,7 +417,7 @@ export function SendModalScreen() {
                     } : {}),
                 },
                 result.id,
-            ).catch(() => {});
+            ).catch(() => { });
 
             setStep('success');
 
@@ -479,7 +481,7 @@ export function SendModalScreen() {
 
         // Auto-redirect to receive if it looks like a token
         const isPaymentRequest = input.toLowerCase().startsWith('creqa') || input.toLowerCase().startsWith('creqb');
-        
+
         if (!isPaymentRequest) {
             // Treat as token and redirect to receive
             router.replace({
@@ -513,29 +515,38 @@ export function SendModalScreen() {
                     ),
                     headerRight: () => (
                         <Button
-                            size="$2"
-                            bg={isOffline ? "$red3" : "$gray3"}
-                            borderColor={isOffline ? "$red7" : "$gray5"}
-                            borderWidth={1}
+                            size="$4"
+                            circular
+                            chromeless
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setForceOffline(!forceOffline);
+                                const nextForceOffline = !forceOffline;
+                                setForceOffline(nextForceOffline);
+                                if (nextForceOffline) {
+                                    toast.show('Offline Mode Enabled', {
+                                        message: 'Using local ecash proofs for sends.',
+                                    });
+                                } else {
+                                    toast.show('Online Mode Enabled', {
+                                        message: 'Reconnected for standard online payments.',
+                                    });
+                                }
                             }}
                             disabled={isHardwareOffline}
                             disabledStyle={{ opacity: 0.8 }}
                             pressStyle={{ scale: 0.95 }}
-                            mr="$2"
+
                         >
-                            <XStack gap={6} items="center">
+                            <XStack items="center">
                                 {isOffline ? (
                                     <>
-                                        <CloudOff size={12} color="$red10" />
-                                        <Text fontSize="$2" fontWeight="800" color="$red10">Offline</Text>
+                                        <CloudOff color="$red10" />
+
                                     </>
                                 ) : (
                                     <>
-                                        <Cloud size={12} color="$green10" />
-                                        <Text fontSize="$2" fontWeight="800" color="$green10">Online</Text>
+                                        <Cloud color="$color" />
+
                                     </>
                                 )}
                             </XStack>

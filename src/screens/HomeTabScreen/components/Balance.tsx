@@ -18,11 +18,17 @@ export default function Balance() {
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
   const isRestoring = useWalletStore((s) => s.isRestoring);
-  const { secondaryCurrency, hideBalance, setHideBalance } = useSettingsStore();
+  const { primaryCurrency, setPrimaryCurrency, secondaryCurrency, hideBalance, setHideBalance } = useSettingsStore();
   const [showAllMints, setShowAllMints] = React.useState(false);
   const [localTrigger, setLocalTrigger] = React.useState(0);
 
-  const handleBalancePress = React.useCallback(() => {
+  const handlePrimaryCurrencyToggle = React.useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const nextVal = primaryCurrency === 'SATS' ? 'FIAT' : 'SATS';
+    setPrimaryCurrency(nextVal);
+  }, [primaryCurrency, setPrimaryCurrency]);
+
+  const handleHideBalanceToggle = React.useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setHideBalance(!hideBalance);
   }, [hideBalance, setHideBalance]);
@@ -97,47 +103,81 @@ export default function Balance() {
       </XStack>
 
       <XStack justify="center" py="$2" items="flex-end">
-        <YStack onPress={handleBalancePress} pressStyle={{ opacity: 0.7 }}>
-          <RollingNumber
-            value={hideBalance ? "****" : currentBalance}
-            prefix={hideBalance ? "" : "₿"}
-            trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible")}
-            letterSpacing={-1}
-            fontSize={36}
-            fontWeight="900"
-            color="$accent3"
-            decimalOpacity={0.4}
-            showDecimals={false}
-            style={hideBalance ? {
-              backgroundColor: 'rgba(150, 150, 150, 0.15)',
-              borderRadius: 120,
-              paddingHorizontal: 16,
-              paddingTop: 10,
-              alignItems: 'center',
-              justifyContent: 'center',
-              alignSelf: 'center',
-            } : undefined}
-          />
+        <YStack
+          onPress={handlePrimaryCurrencyToggle}
+          onLongPress={handleHideBalanceToggle}
+          delayLongPress={300}
+          pressStyle={{ opacity: 0.7 }}
+        >
+          {primaryCurrency === 'SATS' ? (
+            <RollingNumber
+              value={hideBalance ? "****" : currentBalance}
+              prefix={hideBalance ? "" : "₿"}
+              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats")}
+              letterSpacing={-1}
+              fontSize={36}
+              fontWeight="900"
+              color="$accent3"
+              decimalOpacity={0.4}
+              showDecimals={false}
+              style={hideBalance ? {
+                backgroundColor: 'rgba(150, 150, 150, 0.15)',
+                borderRadius: 120,
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'center',
+              } : undefined}
+            />
+          ) : (
+            <RollingNumber
+              value={hideBalance ? "****" : secondaryBalance}
+              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_fiat")}
+              letterSpacing={-1}
+              fontSize={36}
+              fontWeight="900"
+              color="$accent3"
+              decimalOpacity={0.4}
+              showDecimals={true}
+              style={hideBalance ? {
+                backgroundColor: 'rgba(150, 150, 150, 0.15)',
+                borderRadius: 120,
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'center',
+              } : undefined}
+            >
+              {hideBalance
+                ? undefined
+                : currencyService.formatValue(
+                  secondaryBalance,
+                  secondaryCurrency as CurrencyCode,
+                )}
+            </RollingNumber>
+          )}
         </YStack>
-        {/* <Text color="$accent9" fontSize={18} fontWeight="700">SATS</Text> */}
       </XStack>
 
       <RollingNumber
-        value={hideBalance ? "****" : secondaryBalance}
-        trigger={refreshCounter + (hideBalance ? "_hidden" : "_visible")}
+        value={hideBalance ? "****" : (primaryCurrency === 'SATS' ? secondaryBalance : currentBalance)}
+        prefix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : "₿")}
+        trigger={refreshCounter + (hideBalance ? "_hidden" : (primaryCurrency === 'SATS' ? "_visible_fiat_sub" : "_visible_sats_sub"))}
         letterSpacing={-1}
         fontSize={20}
         fontWeight="900"
         color="$accent7"
         decimalOpacity={0.4}
-        showDecimals={false}
+        showDecimals={primaryCurrency === 'SATS'}
       >
-        {hideBalance
-          ? undefined
-          : currencyService.formatValue(
+        {!hideBalance && primaryCurrency === 'SATS'
+          ? currencyService.formatValue(
             secondaryBalance,
             secondaryCurrency as CurrencyCode,
-          )}
+          )
+          : undefined}
       </RollingNumber>
     </YStack>
   );

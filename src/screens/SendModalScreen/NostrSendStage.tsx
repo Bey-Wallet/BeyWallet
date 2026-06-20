@@ -47,10 +47,10 @@ export function NostrSendStage({
     onContinue, balance, isLoading, error
 }: NostrSendStageProps) {
     const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const favorites = useContactsStore(s => s.favorites);
     const favoriteContacts = Object.values(favorites);
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const contactSheetRef = useRef<AppBottomSheetRef>(null);
 

@@ -2,8 +2,9 @@ import React, { useEffect, useRef } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { useTheme, YStack } from 'tamagui'
+import * as Linking from 'expo-linking'
 import { useAppTheme } from '../../context/ThemeContext'
 import { LockOverlay } from '../LockOverlay'
 
@@ -28,6 +29,7 @@ export function RootLayoutNav() {
     const { isOnboarded } = useOnboardingStore()
     const { biometricEnabled } = useSettingsStore()
     const appState = useRef(AppState.currentState)
+    const router = useRouter()
 
     // Subscribe to coco events for automatic balance/history updates
     useCocoEvents();
@@ -49,6 +51,55 @@ export function RootLayoutNav() {
             subscription.remove()
         }
     }, [lock, markBackgrounded, isOnboarded])
+
+    // Global listener for deep links to handle direct ecash receiving/claiming
+    useEffect(() => {
+        const handleUrl = (url: string) => {
+            console.log('[RootLayoutNav] Deep link received:', url);
+            if (!url) return;
+
+            let tokenFound = '';
+            
+            // Try to extract query parameter scannedToken
+            const match = url.match(/[?&]scannedToken=([^&]+)/);
+            if (match && match[1]) {
+                tokenFound = decodeURIComponent(match[1]);
+            } else {
+                // Fallback: Check if the URL contains a cashu token directly anywhere (e.g. cashuA... or cashuB...)
+                const cashuMatch = url.match(/(cashu[A-Za-z0-9_-]+)/);
+                if (cashuMatch && cashuMatch[1]) {
+                    tokenFound = cashuMatch[1];
+                }
+            }
+
+            if (tokenFound) {
+                console.log('[RootLayoutNav] Global deep link parsed token, redirecting to receive modal...');
+                // Stagger navigation slightly to ensure stack and layout are fully ready
+                setTimeout(() => {
+                    router.push({
+                        pathname: '/(modals)/receive',
+                        params: { scannedToken: tokenFound }
+                    });
+                }, 500);
+            }
+        };
+
+        // Listen for initial URL when app is opened via deep link
+        Linking.getInitialURL().then((url) => {
+            if (url) handleUrl(url);
+        }).catch(err => {
+            console.warn('[RootLayoutNav] Failed to get initial URL:', err);
+        });
+
+        // Listen for new incoming URLs
+        const subscription = Linking.addEventListener('url', (event) => {
+            handleUrl(event.url);
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [router]);
 
     const navigationTheme = {
         ...resolvedTheme === 'dark' ? DarkTheme : DefaultTheme,

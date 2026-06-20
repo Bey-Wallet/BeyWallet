@@ -17,7 +17,7 @@ interface MeltResultStageProps {
 }
 
 export function MeltResultStage({ status, amount, feeReserve, error, onClose }: MeltResultStageProps) {
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -85,12 +85,25 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                         {status === 'success' ? 'Payment Sent' : 'Payment Failed'}
                     </Text>
                     <YStack items="center" justify="center">
-                        <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$color" : "$red11"}>
-                            -₿{Number(amount || 0).toLocaleString()}
-                        </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                            Ecash SATS
-                        </Text>
+                        {primaryCurrency === 'SATS' ? (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$color" : "$red11"}>
+                                    -₿{Number(amount || 0).toLocaleString()}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    Ecash SATS
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$color" : "$red11"}>
+                                    -{fiatValue}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    -₿{Number(amount || 0).toLocaleString()} SATS
+                                </Text>
+                            </>
+                        )}
                     </YStack>
                     <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                         <Text color="$gray10" fontSize="$4" text="center">
@@ -102,11 +115,19 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                 {/* Details Table */}
                 {status === 'success' && (
                     <ListTable>
-                        <ListTableRow label="Total Amount" value={`₿${amount} sats`} />
+                        {primaryCurrency === 'FIAT' ? (
+                            <ListTableRow label="Total Amount" value={fiatValue} />
+                        ) : (
+                            <ListTableRow label="Total Amount" value={`₿${amount} sats`} />
+                        )}
                         <ListTableRow label="Fee Reserve" value={`~${feeReserve} sats`} valueColor="$orange10" />
                         <ListTableRow label="Status" value="PAID" valueColor="$green10" />
                         <ListTableRow label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                        <ListTableRow label="Fiat Value" value={fiatValue} />
+                        {primaryCurrency === 'FIAT' ? (
+                            <ListTableRow label="Sats Value" value={`₿${amount} sats`} />
+                        ) : (
+                            <ListTableRow label="Fiat Value" value={fiatValue} />
+                        )}
                     </ListTable>
                 )}
             </YStack>

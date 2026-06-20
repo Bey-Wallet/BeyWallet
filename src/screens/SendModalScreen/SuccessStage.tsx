@@ -19,7 +19,7 @@ export function SuccessStage({
     fee = 0,
     onClose
 }: SuccessStageProps) {
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -41,13 +41,25 @@ export function SuccessStage({
 
                 <H6 width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" color="$color">Sent Successfully!</H6>
                 <YStack items="center" justify="center">
-
-                    <H2 fontSize="$9" fontWeight="900" color="$green11">
-                        ₿{parseInt(amount).toLocaleString()}
-                    </H2>
-                    <H2 fontSize="$6" fontWeight="100" color="$gray10">
-                        sats
-                    </H2>
+                    {primaryCurrency === 'SATS' ? (
+                        <>
+                            <H2 fontSize="$9" fontWeight="900" color="$green11">
+                                ₿{parseInt(amount).toLocaleString()}
+                            </H2>
+                            <H2 fontSize="$6" fontWeight="100" color="$gray10">
+                                sats
+                            </H2>
+                        </>
+                    ) : (
+                        <>
+                            <H2 fontSize="$9" fontWeight="900" color="$green11">
+                                {fiatValue}
+                            </H2>
+                            <H2 fontSize="$6" fontWeight="100" color="$gray10">
+                                ₿{parseInt(amount).toLocaleString()} sats
+                            </H2>
+                        </>
+                    )}
                 </YStack>
                 <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                     <Text color="$gray10" fontSize="$4">The recipient has claimed your ecash</Text>
@@ -60,7 +72,11 @@ export function SuccessStage({
                 <DetailItem label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                 <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
                 <DetailItem label="Fee Paid" value={`₿${fee} sats`} />
-                <DetailItem label="Fiat Value" value={fiatValue} />
+                {primaryCurrency === 'FIAT' ? (
+                    <DetailItem label="Sats Value" value={`₿${parseInt(amount).toLocaleString()} sats`} />
+                ) : (
+                    <DetailItem label="Fiat Value" value={fiatValue} />
+                )}
             </YStack>
 
             <YStack mt="auto">

@@ -47,7 +47,7 @@ export function TransactionDetailsScreen() {
     const toast = useToastController();
     const params = useLocalSearchParams<{ id: string }>();
     const id = params.id?.toString();
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
     const { data: entry, refetch, isRefetching } = useQuery({
         queryKey: ['transaction', id],
@@ -554,7 +554,16 @@ export function TransactionDetailsScreen() {
 
                     {/* Details Table */}
                     <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                        <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
+                        {primaryCurrency === 'FIAT' ? (
+                            <>
+                                <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
+                                <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
+                            </>
+                        ) : (
+                            <>
+                                <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
+                            </>
+                        )}
                         <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
                         <DetailItem label="Type" value="Mint Ecash" />
                         <DetailItem label="Status" value="Unpaid" />
@@ -645,12 +654,25 @@ export function TransactionDetailsScreen() {
                                                     entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
                             </Text>
                             <YStack items="center" justify="center">
-                                <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
-                                    {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    {currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
-                                </Text>
+                                {primaryCurrency === 'SATS' ? (
+                                    <>
+                                        <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
+                                            {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                                        </Text>
+                                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                            {amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
+                                            {amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
+                                        </Text>
+                                        <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                            {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                                        </Text>
+                                    </>
+                                )}
                             </YStack>
                             <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                                 <Text color="$gray10" fontSize="$4" text="center">
@@ -667,7 +689,17 @@ export function TransactionDetailsScreen() {
 
                         {/* Details table */}
                         <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                            <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
+                            {primaryCurrency === 'FIAT' ? (
+                                <>
+                                    <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
+                                    <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
+                                </>
+                            ) : (
+                                <>
+                                    <DetailItem label="Amount" value={`${entry.amount || 0} sats`} />
+                                    <DetailItem label="Fiat" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
+                                </>
+                            )}
                             <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
                             <DetailItem label="Type" value={title} />
                             <DetailItem label="Status" value={formattedStatus} />

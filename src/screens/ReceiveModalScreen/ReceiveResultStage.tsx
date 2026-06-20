@@ -46,7 +46,7 @@ export function ReceiveResultStage({
     title = 'Receive Result'
 }: ReceiveResultStageProps) {
     const isSuccess = status === 'success';
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const router = useRouter();
     const toast = useToastController();
     const [copied, setCopied] = useState(false);
@@ -59,6 +59,14 @@ export function ReceiveResultStage({
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
         staleTime: 30000,
     });
+
+    const fiatValue = useMemo(() => {
+        if (!btcData?.price) return '...';
+        return currencyService.formatValue(
+            currencyService.convertSatsToCurrency(Number(amount), btcData.price),
+            secondaryCurrency as CurrencyCode
+        );
+    }, [amount, btcData?.price, secondaryCurrency]);
 
 
     useEffect(() => {
@@ -104,12 +112,25 @@ export function ReceiveResultStage({
                         {isReceiveLater ? 'Token Saved' : 'Received Successfully!'}
                     </Text>
                     <YStack items="center" justify="center">
-                        <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
-                            +₿{Number(amount || 0).toLocaleString()}
-                        </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                            Ecash SATS
-                        </Text>
+                        {primaryCurrency === 'SATS' ? (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
+                                    +₿{Number(amount || 0).toLocaleString()}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    Ecash SATS
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
+                                    +{fiatValue}
+                                </Text>
+                                <Text fontSize="$5" fontWeight="600" color="$gray10">
+                                    +₿{Number(amount || 0).toLocaleString()} SATS
+                                </Text>
+                            </>
+                        )}
                     </YStack>
                     <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
                         <Text color="$gray10" fontSize="$4" text="center">
@@ -120,9 +141,18 @@ export function ReceiveResultStage({
 
                 {/* 3. Details Table */}
                 <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    <DetailItem label="Total Amount" value={`₿${amount} sats`} />
+                    {primaryCurrency === 'FIAT' ? (
+                        <>
+                            <DetailItem label="Total Amount" value={fiatValue} />
+                            <DetailItem label="Sats" value={`₿${amount} sats`} />
+                        </>
+                    ) : (
+                        <>
+                            <DetailItem label="Total Amount" value={`₿${amount} sats`} />
+                            <DetailItem label="Fiat" value={fiatValue} />
+                        </>
+                    )}
                     <DetailItem label="Unit" value="SATOSHIS" />
-                    <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
                     <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
                 </YStack>
 
