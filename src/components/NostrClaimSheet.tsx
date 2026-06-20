@@ -434,11 +434,11 @@ export function NostrClaimSheet() {
     const handleDismiss = useCallback(() => {
         sheetRef.current?.dismiss();
         if (activeItem && claimStatus !== 'claiming') {
-            // Keep in inbox for later
+            dismiss(activeItem.id);
             setActiveItem(null);
             setClaimStatus('idle');
         }
-    }, [activeItem, claimStatus]);
+    }, [activeItem, claimStatus, dismiss]);
 
     const senderDisplay = activeItem?.senderUsername ||
         (activeItem?.senderPubkey ? (() => {
@@ -542,7 +542,7 @@ export function NostrClaimSheet() {
                                     disabled={claimStatus === 'claiming'}
                                     pressStyle={{ scale: 0.97 }}
                                 >
-                                    Dismiss
+                                    Delete
                                 </Button>
                                 <Button
                                     flex={2}

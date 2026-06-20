@@ -22,7 +22,7 @@ import { DEFAULT_MINT } from '../../store/constants'
 import { Buffer } from 'buffer'
 
 export function OnboardingScreen() {
-    const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding } = useOnboardingStore()
+    const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding, resetOnboarding } = useOnboardingStore()
     const initialize = useWalletStore(state => state.initialize)
     const restoreAllMints = useWalletStore(state => state.restoreAllMints)
     const mintRestoreStatuses = useWalletStore(state => state.mintRestoreStatuses)
@@ -33,6 +33,48 @@ export function OnboardingScreen() {
     const [importStatus, setImportStatus] = useState('')
     // Extra mints from a backup file
     const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([])
+    const [hasSavedWallet, setHasSavedWallet] = useState(false)
+
+    // Check on mount if a wallet exists but onboarding was not completed
+    React.useEffect(() => {
+        const checkWallet = async () => {
+            const exists = await initService.walletExists()
+            setHasSavedWallet(exists)
+        }
+        checkWallet()
+    }, [])
+
+    const handleResumeRestore = async () => {
+        setIsFinishing(true)
+        try {
+            console.log('[Onboarding] Resuming saved wallet setup...')
+            await initService.init()
+            await useSettingsStore.getState().initialize(true)
+            await initialize()
+            setStep('restoring')
+        } catch (err) {
+            console.error('[Onboarding] Failed to resume wallet:', err)
+            Alert.alert('Resume Failed', 'Failed to open saved wallet. You may need to delete it and start over.')
+        } finally {
+            setIsFinishing(false)
+        }
+    }
+
+    const handleDeleteSavedWallet = async () => {
+        setIsFinishing(true)
+        try {
+            console.log('[Onboarding] Deleting existing wallet to start over...')
+            await initService.destroyWallet()
+            await resetOnboarding()
+            setHasSavedWallet(false)
+            setStep('welcome')
+        } catch (err) {
+            console.error('[Onboarding] Failed to delete wallet:', err)
+            Alert.alert('Error', 'Failed to completely delete the wallet.')
+        } finally {
+            setIsFinishing(false)
+        }
+    }
 
     // ── Navigation ──────────────────────────────────────────────
 
@@ -258,6 +300,9 @@ export function OnboardingScreen() {
                         onCreateWallet={handleCreateWallet}
                         onImportWallet={handleImportWallet}
                         onImportFromFile={handleImportFromFile}
+                        hasSavedWallet={hasSavedWallet}
+                        onOpenSavedWallet={handleResumeRestore}
+                        onDeleteSavedWallet={handleDeleteSavedWallet}
                     />
                     <CreatingWalletSheet
                         open={currentStep === 'creating'}

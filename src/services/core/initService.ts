@@ -444,9 +444,8 @@ export const initService = {
     },
 
     createWallet: async (mnemonic: string): Promise<Manager> => {
-        if (manager) {
-            await initService.cleanup();
-        }
+        console.log('[InitService] Creating new wallet, destroying existing wallet first...');
+        await initService.destroyWallet();
 
         isInitializing = true;
         try {
@@ -527,11 +526,8 @@ export const initService = {
     },
 
     restoreWallet: async (mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> => {
-        console.log('[InitService] Starting deterministic wallet restore from seed...');
-
-        if (manager) {
-            await initService.cleanup();
-        }
+        console.log('[InitService] Restoring wallet, destroying existing wallet first...');
+        await initService.destroyWallet();
 
         await seedService.saveMnemonic(mnemonic);
 

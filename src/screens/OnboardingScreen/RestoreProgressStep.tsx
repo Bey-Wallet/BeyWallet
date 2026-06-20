@@ -258,24 +258,43 @@ export function RestoreProgressStep({
             </ScrollView>
 
             {/* Done button */}
-            <Button
-                size="$5"
-                theme={allDone ? 'accent' : 'gray'}
-                width="100%"
-                onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                    onDone()
-                }}
-                disabled={isRestoring}
-                opacity={isRestoring ? 0.5 : 1}
-                fontWeight="700"
-                fontSize="$5"
-                rounded="$4"
-                pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                icon={allDone ? <CheckCircle2 size={22} /> : undefined}
-            >
-                {isRestoring ? `Scanning ${doneMints}/${totalMints}…` : 'Go to Wallet'}
-            </Button>
+            <YStack gap="$2" width="100%">
+                <Button
+                    size="$5"
+                    theme={allDone ? 'accent' : 'gray'}
+                    width="100%"
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                        onDone()
+                    }}
+                    disabled={isRestoring}
+                    opacity={isRestoring ? 0.5 : 1}
+                    fontWeight="700"
+                    fontSize="$5"
+                    rounded="$4"
+                    pressStyle={{ scale: 0.98, opacity: 0.9 }}
+                    icon={allDone ? <CheckCircle2 size={22} /> : undefined}
+                >
+                    {isRestoring ? `Scanning ${doneMints}/${totalMints}…` : 'Go to Wallet'}
+                </Button>
+
+                {isRestoring && (
+                    <Button
+                        size="$4"
+                        chromeless
+                        width="100%"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                            onDone()
+                        }}
+                        color="$gray10"
+                        fontWeight="600"
+                        pressStyle={{ opacity: 0.7 }}
+                    >
+                        Skip and Go to Wallet
+                    </Button>
+                )}
+            </YStack>
         </YStack>
     )
 }

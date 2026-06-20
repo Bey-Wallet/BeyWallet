@@ -392,7 +392,15 @@ export const useWalletStore = create<WalletState>()(
                     try {
                         // Ensure mint is added and trusted before restoring
                         await mintManager.addMint(mintUrl, { trusted: true });
-                        await walletService.restore(mintUrl);
+                        
+                        // Restore with a strict 25-second timeout to prevent unresponsive or slow mints from blocking onboarding forever
+                        const restorePromise = walletService.restore(mintUrl);
+                        await Promise.race([
+                            restorePromise,
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('Restore timeout')), 25000)
+                            ),
+                        ]);
 
                         // Get restored balance for this mint
                         const allBalances = await walletService.getBalances();
