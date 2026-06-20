@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import {
     YStack,
     XStack,
@@ -97,6 +98,7 @@ function DetailItem({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targetUsername }: RequestEcashStageProps) {
+    const router = useRouter();
     const [step, setStep] = useState<RequestStep>('amount');
     const [amount, setAmount] = useState('0');
     const [localInputValue, setLocalInputValue] = useState('0');
@@ -329,68 +331,6 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     React.useEffect(() => {
         if (step !== 'result') return;
 
-        // Listen for incoming tokens BEFORE they are claimed!
-        const subIncoming = DeviceEventEmitter.addListener('nostr:incoming', async (data: any) => {
-            console.log('[RequestEcashStage] Received nostr:incoming event:', data);
-            
-            const isMatch = (data.requestId && data.requestId === currentRequestId) || 
-                            (data.amount === amtNum && data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
-            
-            if (isMatch) {
-                console.log('[RequestEcashStage] Auto-claiming matched incoming payment...');
-                try {
-                    const { useSettingsStore } = require('../../store/settingsStore');
-                    const { useNostrInboxStore } = require('../../store/nostrInboxStore');
-                    const nsec = useSettingsStore.getState().nsec;
-                    let privkeyHex = null;
-
-                    if (nsec) {
-                        try {
-                            if (nsec.startsWith('nsec')) {
-                                const decoded = nip19Decode(nsec);
-                                const bytes = decoded.data as Uint8Array;
-                                privkeyHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                            } else {
-                                privkeyHex = nsec; // Already hex
-                            }
-                        } catch { /* ignore */ }
-                    }
-
-                    if (privkeyHex) {
-                        await walletService.receiveP2PK(data.tokenString, privkeyHex);
-                    } else {
-                        await walletService.receive(data.tokenString);
-                    }
-
-                    // Mark as claimed in inbox so NostrClaimSheet doesn't show it again
-                    useNostrInboxStore.getState().markClaimed(data.eventId);
-                    
-                    // Mark as received in pending requests
-                    if (currentRequestId) {
-                        await useNostrRequestStore.getState().markReceived(currentRequestId);
-                    }
-                    
-                    useWalletStore.getState().refreshBalance();
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-                    // Tag this receive as arriving via Nostr, with sender info
-                    const senderNpub = data.senderPubkey
-                        ? (() => { try { return nprofileEncode({ pubkey: data.senderPubkey }); } catch { return data.senderPubkey?.slice(0, 8); } })()
-                        : undefined;
-                    historyService.tagHistoryVia(
-                        activeMintUrl,
-                        'receive',
-                        'nostr',
-                        senderNpub ? { nostrPubkey: senderNpub } : undefined,
-                    ).catch(() => {});
-
-                    setStep('success');
-                } catch (e) {
-                    console.error('[RequestEcashStage] Auto-claim failed:', e);
-                }
-            }
-        });
-
         const subReceived = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
             console.log('[RequestEcashStage] Received nostr:received event:', data);
             
@@ -400,15 +340,35 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
             
             if (isMatch) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setStep('success');
+                
+                // Search history after a short delay to get the transaction ID and redirect
+                setTimeout(async () => {
+                    try {
+                        const history = await historyService.getHistory(10, 0);
+                        const entry = history.find(
+                            (e: any) => e.type === 'receive' && Number(e.amount) === amtNum && e.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, '')
+                        );
+                        if (entry) {
+                            onClose?.(); // Close the receive modal
+                            router.push({
+                                pathname: '/(modals)/txn-details',
+                                params: { id: entry.id }
+                            });
+                        } else {
+                            setStep('success');
+                        }
+                    } catch (err) {
+                        console.warn('[RequestEcashStage] failed to check history for redirect:', err);
+                        setStep('success');
+                    }
+                }, 800);
             }
         });
 
         return () => {
-            subIncoming.remove();
             subReceived.remove();
         };
-    }, [step, currentRequestId, amtNum, activeMintUrl]);
+    }, [step, currentRequestId, amtNum, activeMintUrl, onClose, router]);
 
     // ── Manual Check Status ───────────────────────────────────────────────────
     const handleCheckStatus = useCallback(async () => {
@@ -430,6 +390,24 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
             if (!stillPending) {
                 // It was removed from pending, meaning it was received!
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                
+                // Search history to redirect to txn details
+                try {
+                    const history = await historyService.getHistory(10, 0);
+                    const entry = history.find(
+                        (e: any) => e.type === 'receive' && Number(e.amount) === amtNum && e.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, '')
+                    );
+                    if (entry) {
+                        onClose?.(); // Close receive modal
+                        router.push({
+                            pathname: '/(modals)/txn-details',
+                            params: { id: entry.id }
+                        });
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[RequestEcashStage] check status redirect query error:', err);
+                }
                 setStep('success');
             } else {
                 toast.show('Still Pending', { message: 'No payment received yet.' });
@@ -439,7 +417,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         } finally {
             setIsChecking(false);
         }
-    }, [currentRequestId, loadPendingRequests, toast]);
+    }, [currentRequestId, loadPendingRequests, toast, amtNum, activeMintUrl, onClose, router]);
 
     // ────────────────────────────────────────────────────────────────────────
     // AMOUNT STAGE

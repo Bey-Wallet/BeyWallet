@@ -313,12 +313,7 @@ class NostrService {
         const pr = PaymentRequest.fromEncodedRequest(creqString);
         if (pr.amount && pr.mints && pr.mints.length > 0) {
           const { useNostrInboxStore } = await import('../../store/nostrInboxStore');
-          
-          let senderUsername: string | undefined = undefined;
-          try {
-            const { useContactsStore } = await import('../../store/contactsStore');
-            senderUsername = await useContactsStore.getState().resolveUsername(sourceEvent.pubkey) || undefined;
-          } catch { }
+          const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
 
           useNostrInboxStore.getState().addIncoming({
             id: sourceEvent.id,
@@ -459,13 +454,8 @@ class NostrService {
 
     console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
-    // Resolve sender username from bey.cash directory
-    let senderUsername: string | undefined;
-    try {
-      senderUsername = await this.resolveUsername(sourceEvent.pubkey);
-    } catch {
-      // Non-fatal — display npub instead
-    }
+    // Resolve sender username from local contacts or directory
+    const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
 
     // ── Queue for manual claim via NostrClaimSheet ──────────────────────
     // Emit 'nostr:incoming' so the UI can present a claim sheet where the
@@ -480,6 +470,25 @@ class NostrService {
       requestId: requestIdFromPayload,
     });
     console.log(`[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`);
+  }
+
+  /**
+   * Get the sender's username, first checking local contacts, then directory.
+   */
+  private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
+    try {
+      const { useContactsStore } = await import('../../store/contactsStore');
+      const { nip19 } = await import('nostr-tools');
+      const npub = nip19.npubEncode(pubkeyHex);
+      const store = useContactsStore.getState();
+      const contact = store.contacts[npub] || store.favorites[npub];
+      if (contact?.username) {
+        return contact.username;
+      }
+    } catch (e) {
+      console.warn('[NostrService] Failed local contact username lookup:', e);
+    }
+    return this.resolveUsername(pubkeyHex);
   }
 
   // ── Username Resolution ──────────────────────────────────────────────────

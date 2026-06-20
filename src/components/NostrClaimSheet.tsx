@@ -15,17 +15,22 @@ import { ProcessingSheet } from './UI/ProcessingSheet';
 import Blockies from './UI/Blockies';
 import * as Haptics from 'expo-haptics';
 import { useNostrInboxStore, type NostrInboxItem } from '../store/nostrInboxStore';
-import { walletService, mintManager } from '../services/core';
+import { walletService, mintManager, historyService } from '../services/core';
 import { useWalletStore } from '../store/walletStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { nip19 } from 'nostr-tools';
 import { nostrRequestStore } from '../store/nostrRequestStore';
 import { Image } from 'tamagui';
+import { useToastController } from '@tamagui/toast';
+import { useRouter, usePathname } from 'expo-router';
 
 const nostrIcon = require('../assets/images/nostr-icon-white-transparent.png');
 
 export function NostrClaimSheet() {
     const sheetRef = useRef<AppBottomSheetRef>(null);
+    const toast = useToastController();
+    const router = useRouter();
+    const pathname = usePathname();
     const [activeItem, setActiveItem] = useState<NostrInboxItem | null>(null);
     const [claimStatus, setClaimStatus] = useState<'idle' | 'claiming' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
@@ -43,7 +48,7 @@ export function NostrClaimSheet() {
     useEffect(() => {
         const subscription = DeviceEventEmitter.addListener(
             'nostr:incoming',
-            (data: {
+            async (data: {
                 eventId: string;
                 tokenString: string;
                 amount: number;
@@ -57,6 +62,172 @@ export function NostrClaimSheet() {
                 if (existing && (existing.status === 'claimed' || existing.status === 'claiming')) {
                     console.log(`[NostrClaimSheet] Skipping already ${existing.status} event ${data.eventId.slice(0, 8)}`);
                     return;
+                }
+
+                // Ensure pending requests are loaded from DB
+                const { useNostrRequestStore } = require('../store/nostrRequestStore');
+                try {
+                    await useNostrRequestStore.getState().loadPendingRequests();
+                } catch (loadErr) {
+                    console.warn('[NostrClaimSheet] Failed to load pending requests on incoming event:', loadErr);
+                }
+
+                const pending = useNostrRequestStore.getState().pendingRequests;
+                const matchingRequest = pending.find(
+                    (r: any) => (data.requestId && r.id === data.requestId) ||
+                         (Number(r.amount) === Number(data.amount) && r.mintUrl.replace(/\/$/, '') === data.mintUrl.replace(/\/$/, '') && r.state === 'pending')
+                );
+
+                if (matchingRequest) {
+                    console.log('[NostrClaimSheet] Matches pending request! Auto-claiming...');
+                    toast.show('Claiming payment...', { message: 'Auto-claiming requested payment' });
+                    
+                    // Add to inbox store
+                    addIncoming({
+                        id: data.eventId,
+                        tokenString: data.tokenString,
+                        amount: data.amount,
+                        mintUrl: data.mintUrl,
+                        senderPubkey: data.senderPubkey,
+                        senderUsername: data.senderUsername,
+                    });
+                    
+                    markClaiming(data.eventId);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+                    try {
+                        // Ensure mint is trusted
+                        await mintManager.addMint(data.mintUrl, { trusted: true });
+
+                        // Decrypt private key
+                        let privkeyHex: string | null = null;
+                        if (settingsNsec) {
+                            try {
+                                if (settingsNsec.startsWith('nsec')) {
+                                    const decoded = nip19.decode(settingsNsec);
+                                    const bytes = decoded.data as Uint8Array;
+                                    privkeyHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                                } else {
+                                    privkeyHex = settingsNsec;
+                                }
+                            } catch { /* ignore */ }
+                        }
+
+                        let received = false;
+                        if (privkeyHex) {
+                            try {
+                                await walletService.receiveP2PK(data.tokenString, privkeyHex);
+                                received = true;
+                                console.log(`[NostrClaimSheet] Auto-claim: ✅ P2PK receive success: ${data.amount} sats`);
+                            } catch (p2pkErr: any) {
+                                const errMsg = p2pkErr?.message ?? '';
+                                const isP2PKError = errMsg.includes('locked') || errMsg.includes('P2PK') ||
+                                    errMsg.includes('public key') || errMsg.includes('Witness') ||
+                                    errMsg.includes('signature');
+
+                                if (errMsg.includes('already spent') || p2pkErr?.code === 11001) {
+                                    console.log(`[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`);
+                                    received = true;
+                                } else if (!isP2PKError) {
+                                    // Not P2PK locked — try standard receive
+                                    await walletService.receive(data.tokenString);
+                                    received = true;
+                                    console.log(`[NostrClaimSheet] Auto-claim: ✅ Standard receive success: ${data.amount} sats`);
+                                } else {
+                                    throw p2pkErr;
+                                }
+                            }
+                        } else {
+                            try {
+                                await walletService.receive(data.tokenString);
+                                received = true;
+                                console.log(`[NostrClaimSheet] Auto-claim: ✅ Standard receive success (no key): ${data.amount} sats`);
+                            } catch (stdErr: any) {
+                                if (stdErr?.message?.includes('already spent') || stdErr?.code === 11001) {
+                                    console.log(`[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`);
+                                    received = true;
+                                } else {
+                                    throw stdErr;
+                                }
+                            }
+                        }
+
+                        if (received) {
+                            markClaimed(data.eventId);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            refreshBalance();
+
+                            // Mark request as received
+                            await useNostrRequestStore.getState().markReceived(matchingRequest.id);
+
+                            // Tag history with sender info
+                            try {
+                                const senderNpub = data.senderPubkey
+                                    ? (() => {
+                                        try {
+                                            return nip19.npubEncode(data.senderPubkey);
+                                        } catch {
+                                            return data.senderPubkey;
+                                        }
+                                      })()
+                                    : undefined;
+                                
+                                await historyService.tagHistoryVia(
+                                    data.mintUrl,
+                                    'receive',
+                                    'nostr',
+                                    {
+                                        nostrPubkey: senderNpub,
+                                        nostrUsername: data.senderUsername ? data.senderUsername.replace('@bey.cash', '') : undefined
+                                    }
+                                );
+                            } catch (tagErr) {
+                                console.warn('[NostrClaimSheet] Failed to tag history on auto-claim:', tagErr);
+                            }
+
+                            // Emit received event
+                            DeviceEventEmitter.emit('nostr:received', {
+                                amount: data.amount,
+                                mintUrl: data.mintUrl,
+                                eventId: data.eventId,
+                                senderPubkey: data.senderPubkey,
+                            });
+
+                            toast.show('Payment Received! 🎉', { message: `₿${data.amount} sats claimed automatically` });
+
+                            // Fetch the history database after a short delay to get the transaction ID and navigate to details
+                            setTimeout(async () => {
+                                try {
+                                    const history = await historyService.getHistory(5, 0);
+                                    // Find entry that matches this mint and amount
+                                    const entry = history.find(
+                                        (e: any) => e.type === 'receive' && Number(e.amount) === Number(data.amount) && e.mintUrl.replace(/\/$/, '') === data.mintUrl.replace(/\/$/, '')
+                                    );
+                                    if (entry) {
+                                        // Only redirect if NOT on the receive screen (to let RequestEcashStage handle it cleanly)
+                                        if (!pathname.includes('receive')) {
+                                            router.push({
+                                                pathname: '/(modals)/txn-details',
+                                                params: { id: entry.id }
+                                            });
+                                        }
+                                    } else {
+                                        if (!pathname.includes('receive')) {
+                                            router.push('/(tabs)/history');
+                                        }
+                                    }
+                                } catch (navErr) {
+                                    console.warn('[NostrClaimSheet] Navigation to details failed:', navErr);
+                                }
+                            }, 800);
+                        }
+                    } catch (err: any) {
+                        console.error('[NostrClaimSheet] Auto-claim failed:', err);
+                        markFailed(data.eventId, err?.message || 'Failed to auto-claim');
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                        toast.show('Auto-claim Failed', { message: err.message || 'Could not claim requested payment' });
+                    }
+                    return; // Stop here since it was handled
                 }
 
                 console.log('[NostrClaimSheet] Incoming payment:', data.amount, 'sats');
@@ -91,7 +262,7 @@ export function NostrClaimSheet() {
         );
 
         return () => subscription.remove();
-    }, [addIncoming]);
+    }, [addIncoming, settingsNsec, markClaiming, markClaimed, markFailed, refreshBalance, router]);
 
     // Also allow opening from NostrActivity (via event)
     useEffect(() => {
@@ -218,6 +389,31 @@ export function NostrClaimSheet() {
                     eventId: activeItem.id,
                     senderPubkey: activeItem.senderPubkey,
                 });
+
+                // Tag history with sender info
+                try {
+                    const senderNpub = activeItem.senderPubkey
+                        ? (() => {
+                            try {
+                                return nip19.npubEncode(activeItem.senderPubkey);
+                            } catch {
+                                return activeItem.senderPubkey;
+                            }
+                          })()
+                        : undefined;
+                    
+                    historyService.tagHistoryVia(
+                        activeItem.mintUrl,
+                        'receive',
+                        'nostr',
+                        {
+                            nostrPubkey: senderNpub,
+                            nostrUsername: activeItem.senderUsername ? activeItem.senderUsername.replace('@bey.cash', '') : undefined
+                        }
+                    ).catch((e: any) => console.warn('[NostrClaimSheet] Failed to tag history:', e));
+                } catch (e) {
+                    console.warn('[NostrClaimSheet] Failed to tag history:', e);
+                }
 
                 // Auto-dismiss after 2s
                 setTimeout(() => {

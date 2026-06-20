@@ -1,5 +1,5 @@
 import React from "react";
-import { H1, H2, Paragraph, Text, View, XStack, YStack } from "tamagui";
+import { Button, H1, H2, Paragraph, Text, View, XStack, YStack } from "tamagui";
 import { useWalletStore } from "../../../store/walletStore";
 import { RollingNumber } from "../../../components/UI/RollingNumber";
 import { useSettingsStore } from "../../../store/settingsStore";
@@ -67,23 +67,19 @@ export default function Balance() {
     <YStack py="$2" height={220} gap="$3" justify="center" items="center">
       <XStack width="100%" items="center" justify="center">
         <XStack items="center">
-          <Paragraph
-            color="$accent9"
-            px="$2"
-            py="$0.5"
-            rounded="$2"
-            bg="$gray5"
-            fontSize="$2"
-            fontWeight="600"
+          <Button size="$2.5"
+            rounded="$10"
+            fontWeight={800}
+            theme="gray"
+
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowAllMints((prev) => !prev);
             }}
-            pressStyle={{ opacity: 0.7 }}
-            suppressHighlighting
           >
             {displayName}
-          </Paragraph>
+          </Button>
+
           {isRestoring && (
             <XStack ml="$2" items="center" gap="$2">
               <View

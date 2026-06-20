@@ -116,54 +116,14 @@ export default function ExploreTabScreen() {
                         />
                     }
                 >
-                    {/* Decoration Placeholder */}
-                    <YStack mx="$4" items="center" justify="center" py="$6" height={250} bg="$gray2" rounded="$5">
-                        <ZStack width={100} height={40} mb="$5">
-                            <Blockies seed="mint_alpha" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 0, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
-                            <Blockies seed="mint_beta" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 20, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
-                            <Blockies seed="mint_gamma" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 40, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
-                            <Blockies seed="mint_delta" size={8} scale={5} style={{ borderRadius: 20, borderWidth: 2, borderColor: '$gray2', position: 'absolute', top: 0, left: 60, shadowColor: '#000', shadowOffset: { width: -2, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 3 }} />
-                        </ZStack>
-
-                        <Text fontSize="$5" maxW={300} fontWeight="600" color="$gray10" text="center">
-                            Search mints & people
-                        </Text>
-                        <Text fontSize="$5" fontWeight="600" color="$gray10" text="center">
-                            on @bey.cash
-                        </Text>
-                    </YStack>
-
-                    {/* Quick Actions */}
-                    {/* <XStack px="$4" py="$2" gap="$2">
-                    <Button
-                        flex={1}
-                        size="$3"
-                        bg="$gray3"
-                        icon={<Plus size={16} />}
-                        onPress={() => addMintRef.current?.present()}
-                    >
-                        Add Mint
-                    </Button>
-                    <Button
-                        flex={1}
-                        size="$3"
-                        bg="$gray3"
-                        icon={<Star size={16} />}
-                        onPress={() => router.push('/(modals)/contact-search')}
-                    >
-                        Contacts
-                    </Button>
-                </XStack> */}
 
 
 
-                    {/* Contacts Section */}
-                    <YStack px="$4" mt="$2">
-                        <ContactsView />
-                    </YStack>
+
+
 
                     {/* Top Mints Section */}
-                    <YStack mt="$4">
+                    <YStack >
                         <XStack justify="space-between" px="$4">
                             <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle='dashed'>Discover Top Mints</H6>
                             <Button size="$2" chromeless onPress={() => router.push('/(modals)/discover-mints')}>
@@ -183,6 +143,10 @@ export default function ExploreTabScreen() {
                         )}
                     </YStack>
 
+                    {/* Contacts Section */}
+                    <YStack px="$4" mt="$2">
+                        <ContactsView />
+                    </YStack>
                     <YStack height={80} />
                 </ScrollView>
 

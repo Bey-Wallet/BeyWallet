@@ -84,6 +84,12 @@ export function HomeTabScreen() {
   const { lock } = useAuthStore();
 
   React.useEffect(() => {
+    // Load pending Nostr requests on mount so auto-claim matching works instantly
+    const { useNostrRequestStore } = require("../../store/nostrRequestStore");
+    useNostrRequestStore.getState().loadPendingRequests().catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
     if (error) {
       toast.show("Error", { message: error });
     }
@@ -148,8 +154,8 @@ export function HomeTabScreen() {
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>
           {/* <LazyBitcoinPriceCard /> */}
-          <ManageBalances />
           <NostrActivity />
+          <ManageBalances />
 
           {/* <LazySupportView /> */}
         </React.Suspense>

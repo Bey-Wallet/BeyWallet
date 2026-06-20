@@ -12,14 +12,18 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View, ListItem, YGroup, Separator, Button } from 'tamagui';
-import { ChevronRight, X, ArrowUpRight } from '@tamagui/lucide-icons';
+import { YStack, XStack, H6, Text, View, styled, Button } from 'tamagui';
+import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService } from '~/services/currencyService';
 
 function formatNpub(hex: string): string {
     try {
@@ -40,10 +44,25 @@ function timeAgo(ts: number): string {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+const RowContainer = styled(XStack, {
+    items: "center",
+    justify: "space-between",
+    gap: "$2",
+    pressStyle: { opacity: 0.7 },
+});
+
 export default function NostrActivity() {
     const items = useNostrInboxStore(s => s.items);
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const router = useRouter();
+
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
 
     // On mount, check if any "pending" items are actually already spent
     useEffect(() => {
@@ -92,11 +111,18 @@ export default function NostrActivity() {
     if (unclaimed.length === 0) return null;
 
     return (
-        <YStack width="100%" gap="$4" px="$1">
+        <YStack
+            width="100%"
+            gap="$4"
+            p="$2.5"
+            pr="$4"
+            rounded="$5"
+            bg={"$color2"}
+        >
             {/* Section header */}
             <XStack items="center" justify="space-between">
                 <XStack items="center" gap="$2">
-                    <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle="dashed">
+                    <H6 color="$gray10">
                         Incoming
                     </H6>
                     <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
@@ -114,50 +140,83 @@ export default function NostrActivity() {
                 </Text>
             </XStack>
 
-            <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                {unclaimed.map((item) => (
-                    <YGroup.Item key={item.id}>
-                        <ListItem
-                            hoverStyle={{ bg: '$backgroundHover' }}
-                            pressStyle={{ bg: '$backgroundPress' }}
-                            bg="transparent"
-                            py="$3.5"
-                            px="$4"
+            <YStack gap="$3">
+                {unclaimed.map((item) => {
+                    const fiatAmount = btcData?.price
+                        ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+                        : 0;
+                    const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+                    const sign = item.type === 'request' ? '?' : '+';
+
+                    return (
+                        <RowContainer
+                            key={item.id}
                             onPress={() => handleOpenClaim(item)}
-                            icon={
+                        >
+                            <XStack items="center" gap="$2">
                                 <View position="relative">
-                                    <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
+                                    <Blockies seed={item.senderPubkey} size={10} scale={4.5} style={{ borderRadius: 5 }} />
                                     {!item.seen && (
                                         <View
                                             position="absolute" top={-2} right={-2}
                                             bg="$red10" w={8} h={8} rounded="$10"
-                                            borderWidth={1.5} borderColor="$background"
+                                            borderWidth={1.5} borderColor="$color2"
                                         />
                                     )}
                                 </View>
-                            }
-                            iconAfter={
-                                <Text
-                                    fontWeight="800"
-                                    fontSize="$5"
-                                    color="$accent3"
-                                >
-                                    {item.type === 'request' ? '?' : '+'}₿{item.amount.toLocaleString()}
-                                </Text>
-                            }
-                        >
-                            <YStack flex={1} gap="$0.5" mr="$2">
-                                <Text fontSize="$5" fontWeight="600" color="$accent5">
-                                    {item.senderUsername || formatNpub(item.senderPubkey)}
-                                </Text>
-                                <Text fontSize="$3" color="$gray9">
-                                    {timeAgo(item.receivedAt)}
-                                </Text>
+                                <YStack gap="$0.5" mr="$2">
+                                    <H6 color="$accent4" textTransform="uppercase" numberOfLines={1} style={{ maxWidth: 180 }}>
+                                        {item.senderUsername ? item.senderUsername.replace('@bey.cash', '') : formatNpub(item.senderPubkey)}
+                                    </H6>
+                                    <Text fontSize="$2" color="$gray9">
+                                        {timeAgo(item.receivedAt)}
+                                    </Text>
+                                </YStack>
+                            </XStack>
+
+                            <YStack items="flex-end" justify="center">
+                                {primaryCurrency === 'SATS' ? (
+                                    <>
+                                        <Text
+                                            fontWeight="900"
+                                            fontSize={20}
+                                            letterSpacing={-1}
+                                            color="$accent4"
+                                        >
+                                            {sign}₿{item.amount.toLocaleString()}
+                                        </Text>
+                                        <Text
+                                            fontSize="$2"
+                                            color="$gray10"
+                                            fontWeight="600"
+                                        >
+                                            {sign}{formattedFiat}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text
+                                            fontWeight="900"
+                                            fontSize={20}
+                                            letterSpacing={-1}
+                                            color="$accent4"
+                                        >
+                                            {sign}{formattedFiat}
+                                        </Text>
+                                        <Text
+                                            fontSize="$2"
+                                            color="$gray10"
+                                            fontWeight="600"
+                                        >
+                                            {sign}₿{item.amount.toLocaleString()}
+                                        </Text>
+                                    </>
+                                )}
                             </YStack>
-                        </ListItem>
-                    </YGroup.Item>
-                ))}
-            </YGroup>
+                        </RowContainer>
+                    );
+                })}
+            </YStack>
 
             <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
                 <YStack p="$4" gap="$4" flex={1}>

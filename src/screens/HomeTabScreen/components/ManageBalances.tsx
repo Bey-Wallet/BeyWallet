@@ -10,6 +10,7 @@ import {
   styled,
   H5,
   useThemeName,
+  Button,
 } from "tamagui";
 import { ChevronRight } from "@tamagui/lucide-icons";
 import { RollingNumber } from "~/components/UI/RollingNumber";
@@ -49,7 +50,7 @@ interface BalanceRowProps {
 }
 
 const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
-  const { title, value, imageSource, onPress, isComingSoon } = item;
+  const { id, title, value, imageSource, onPress, isComingSoon } = item;
   const { primaryCurrency, secondaryCurrency, hideBalance } = useSettingsStore();
 
   const { data: btcData } = useQuery({
@@ -109,21 +110,42 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
         )}
       </XStack>
 
-      <YStack>
-        <RollingNumber
-          letterSpacing={-1}
-          fontSize={20}
-          fontWeight="900"
-          color="$accent4"
-          decimalOpacity={0.4}
-          showDecimals={primaryCurrency === 'FIAT'}
-          prefix={prefix}
-          trigger={currentTrigger}
+      {id === "nostr" || id === "bitcoin" ? (
+        <Button
+          onPress={() => {
+            if (onPress) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              onPress();
+            }
+          }}
+          size="$3"
+          theme="gray"
+          fontWeight={800}
+          rounded={200}
+          disabled={id === "bitcoin"}
         >
-          {displayValue}
-        </RollingNumber>
-      </YStack>
-    </RowContainer>
+
+          {id === "nostr" ? "Open" : "Soon"}
+
+        </Button>
+      ) : (
+        <YStack>
+          <RollingNumber
+            letterSpacing={-1}
+            fontSize={20}
+            fontWeight="900"
+            color="$accent4"
+            decimalOpacity={0.4}
+            showDecimals={primaryCurrency === 'FIAT'}
+            prefix={prefix}
+            trigger={currentTrigger}
+          >
+            {displayValue}
+          </RollingNumber>
+        </YStack>
+      )
+      }
+    </RowContainer >
   );
 };
 
