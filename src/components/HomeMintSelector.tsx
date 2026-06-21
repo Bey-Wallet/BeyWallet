@@ -19,7 +19,8 @@ import {
 } from "tamagui";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
-import React, { useRef, useMemo, useCallback } from "react";
+import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
+import * as Network from "expo-network";
 import { useWalletStore } from "../store/walletStore";
 import AppBottomSheet, { AppBottomSheetRef } from "./UI/AppBottomSheet";
 import EditNicknameModal, { EditNicknameModalRef } from "./EditNicknameModal";
@@ -294,6 +295,21 @@ export default function HomeHeaderMintSelector() {
   const refreshMintList = useWalletStore((s) => s.refreshMintList);
   const isInitializing = useWalletStore((s) => s.isInitializing);
   const isRefreshing = useWalletStore((s) => s.isRefreshing);
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const checkNetwork = async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        setIsOffline(!state.isConnected || !state.isInternetReachable);
+      } catch (e) {
+        setIsOffline(false);
+      }
+    };
+    checkNetwork();
+    const interval = setInterval(checkNetwork, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isLoading = isInitializing || isRefreshing;
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -324,9 +340,10 @@ export default function HomeHeaderMintSelector() {
       <Button
         size="$3"
         rounded="$4"
-        theme="gray"
+        bg={isOffline ? "$red10" : "$blue10"}
+        color="white"
         px={isLoading ? "$3" : "$1.5"}
-        borderWidth={1}
+        borderWidth={0}
         disabled={isLoading}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
@@ -334,19 +351,19 @@ export default function HomeHeaderMintSelector() {
           sheetRef.current?.present();
         }}
         maxW={170}
-        pressStyle={{ scale: 0.97, opacity: 0.9 }}
+        pressStyle={{ scale: 0.97, opacity: 0.95, bg: isOffline ? "$red11" : "$blue11" }}
         icon={
           isLoading ? (
-            <Spinner size={14} color="$gray10" />
+            <Spinner size={14} color="white" />
           ) : (
             <Avatar rounded="$3" size="$2">
               <Avatar.Image src={activeMint?.icon} />
               <Avatar.Fallback
-                backgroundColor="$color1"
+                backgroundColor="rgba(255,255,255,0.2)"
                 alignItems="center"
                 justifyContent="center"
               >
-                <Sprout size={14} color="$gray10" />
+                <Sprout size={14} color="white" />
               </Avatar.Fallback>
             </Avatar>
           )
@@ -356,11 +373,11 @@ export default function HomeHeaderMintSelector() {
             <Square
               size="$2"
               borderWidth={0.5}
-              borderColor="$borderColor"
-              bg="$gray2"
+              borderColor="rgba(255,255,255,0.2)"
+              bg="rgba(255,255,255,0.15)"
               rounded="$3"
             >
-              <ChevronDown size={12} strokeWidth={2.5} color="$color" />
+              <ChevronDown size={16} strokeWidth={3} color="white" />
             </Square>
           )
         }
@@ -369,6 +386,7 @@ export default function HomeHeaderMintSelector() {
           fontWeight: "700",
           maxW: 110,
           numberOfLines: 1,
+          color: "white",
         }}
         ellipse
       >
