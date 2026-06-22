@@ -71,8 +71,10 @@ export function ReceiveModalScreen() {
             handleDecodeToken(raw);
         } else if (params.requestId || params.from) {
             setReceiveMode('request');
+        } else if (params.mode) {
+            setReceiveMode(params.mode as ReceiveMode);
         }
-    }, [params.scannedToken, params.requestId, params.from]);
+    }, [params.scannedToken, params.requestId, params.from, params.mode]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -292,26 +294,17 @@ export function ReceiveModalScreen() {
         InteractionManager.runAfterInteractions(() => refreshBalance());
     }
 
+    const headerTitle = React.useMemo(() => {
+        if (step === 'result') return status === 'success' ? 'Success' : 'Error';
+        if (receiveMode === 'request') return 'Request Payment';
+        return 'Receive Ecash';
+    }, [step, status, receiveMode]);
+
     return (
         <YStack flex={1} bg="$background" >
             <Stack.Screen
                 options={{
-                    headerTitle: step === 'result'
-                        ? (status === 'success' ? 'Success' : 'Error')
-                        : () => (
-                            <ReceiveModeSelector
-                                mode={receiveMode}
-                                onSelect={(m) => {
-                                    setReceiveMode(m);
-                                    // Reset any pending state when switching
-                                    setError(null);
-                                    setToken('');
-                                    setTokenInfo(null);
-                                    setStep('input');
-                                }}
-                                isLoading={isDecoding || isReceiving}
-                            />
-                        ),
+                    headerTitle: headerTitle,
                     headerBackTitle: 'Back',
                 }}
             />

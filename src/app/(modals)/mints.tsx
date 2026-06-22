@@ -54,9 +54,10 @@ export default function MintsModal() {
 
     const handleMintPress = (mint: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSelectedMintForSheet(mint);
-        setQuote(null);
-        sheetRef.current?.present();
+        router.push({
+            pathname: '/(modals)/mint-details',
+            params: { mintUrl: mint.mintUrl }
+        });
     };
 
     const handleRequestMint = async () => {
@@ -213,7 +214,7 @@ export default function MintsModal() {
                                     fontWeight="900"
                                     color="$accent4"
                                     showDecimals={false}
-                                    letterSpacing={-2}
+
                                 >
                                     {totalBalance}
                                 </RollingNumber>
@@ -223,7 +224,7 @@ export default function MintsModal() {
                                     fontWeight="900"
                                     color="$accent4"
                                     showDecimals={true}
-                                    letterSpacing={-2}
+
                                 >
                                     {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
                                 </RollingNumber>
@@ -311,7 +312,7 @@ export default function MintsModal() {
                                                                     ? currencyService.convertSatsToCurrency(balance, btcData.price)
                                                                     : 0,
                                                                 secondaryCurrency as CurrencyCode
-                                                              )
+                                                            )
                                                         }
                                                     </Text>
                                                 }
@@ -426,7 +427,7 @@ export default function MintsModal() {
                                             ? currencyService.formatValue(
                                                 currencyService.convertSatsToCurrency(balances[selectedMintForSheet.mintUrl] || 0, btcData.price),
                                                 secondaryCurrency as CurrencyCode
-                                              )
+                                            )
                                             : '...'}
                                     </RollingNumber>
                                 )}

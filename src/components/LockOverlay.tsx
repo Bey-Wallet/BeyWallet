@@ -75,69 +75,38 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
             style={StyleSheet.absoluteFill}
             z={9999}
             bg="$background"
-            px="$3"
+            px="$4"
             py="$5"
             justify="space-between"
+            items="center"
         >
-            {/* Top Section */}
-            <YStack items="center" gap="$3" mt="$4">
-                <YStack items="center" gap="$1">
-                    <H2 fontSize="$8" fontWeight="700" color="$color">Wallet Locked</H2>
-                    <Text color="$gray10" fontSize="$3">Authenticate to continue</Text>
-                </YStack>
-            </YStack>
-
             {/* Middle Section - App Logo */}
             <YStack flex={1} justify="center" items="center">
-
                 <Image
                     source={resolvedTheme === 'dark'
                         ? require('../assets/icons/bey-logo-white-transparent.png')
                         : require('../assets/icons/bey-logo-black-transparent.png')}
-                    style={{ width: 100, height: 100 }}
+                    style={{ width: 120, height: 120 }}
                     resizeMode="contain"
                 />
-
             </YStack>
 
             {/* Bottom Section - Unlock Button */}
-            <YStack gap="$4" height={200} items="center" justify="flex-end">
-                {error && (
-                    <View px="$2" items="center">
-                        <Text
-                            color="$red10"
-                            bg="$red2"
-                            px="$4"
-                            py="$2"
-                            rounded="$2"
-                            text="center"
-                            fontSize="$3"
-                            fontWeight="600"
-                            animation="quick"
-                            enterStyle={{ opacity: 0, y: 10 }}
-                        >
-                            {error}
-                        </Text>
-                    </View>
-                )}
-                <View items="center">
-                    <Button
-                        size="$5"
-                        theme="gray"
-                        onPress={handleAuthenticate}
-                        icon={isAuthenticating ? <Spinner size='large' /> : <Fingerprint size={24} />}
-                        fontSize="$6"
-                        fontWeight="700"
-                        rounded="$5"
-                        pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                    >
-                        {isAuthenticating ? 'Authenticating...' : 'Unlock'}
-                    </Button>
-                </View>
+            <YStack gap="$4" pb="$8" width="100%" items="center" justify="flex-end">
+                <Button
+                    size="$4"
 
-                <Text text="center" color="$gray9" fontSize="$2" opacity={0.7}>
-                    Supports FaceID, TouchID or Passcode
-                </Text>
+                    theme="accent"
+                    onPress={handleAuthenticate}
+                    disabled={isAuthenticating}
+                    icon={isAuthenticating ? <Spinner /> : <Fingerprint size={20} />}
+                    fontSize="$5"
+                    fontWeight="700"
+                    rounded="$10"
+                    pressStyle={{ scale: 0.98, opacity: 0.9 }}
+                >
+                    {isAuthenticating ? 'Authenticating...' : (error ? 'Try Again' : 'Unlock')}
+                </Button>
             </YStack>
         </YStack>
     )

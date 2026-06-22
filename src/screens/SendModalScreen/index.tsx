@@ -122,6 +122,8 @@ export function SendModalScreen() {
             setSendMode('nostr');
             setNostrRecipientNpub(params.to as string);
             setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
+        } else if (params.mode) {
+            setSendMode(params.mode as SendMode);
         }
     }, [params.mode, params.to, params.username]);
 
@@ -502,17 +504,20 @@ export function SendModalScreen() {
         }
     }
 
+    const headerTitle = React.useMemo(() => {
+        if (step === 'result') return status === 'success' ? 'Success' : 'Error';
+        if (step === 'success') return 'Success';
+        if (sendMode === 'p2pk') return 'P2PK Send';
+        if (sendMode === 'nostr') return 'Nostr Send';
+        if (sendMode === 'scan') return 'Scan & Pay';
+        return 'Send Ecash';
+    }, [step, status, sendMode]);
+
     return (
         <YStack flex={1} bg="$background" p="$4">
             <Stack.Screen
                 options={{
-                    headerTitle: () => (
-                        <SendMethodSelector
-                            mode={sendMode}
-                            onSelect={setSendMode}
-                            isLoading={isProcessing}
-                        />
-                    ),
+                    headerTitle: headerTitle,
                     headerRight: () => (
                         <Button
                             size="$4"

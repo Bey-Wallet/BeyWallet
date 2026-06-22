@@ -48,6 +48,12 @@ export default function ModalLayout() {
             }}
         >
             <Stack.Screen
+                name="mint-details"
+                options={{
+                    presentation: "fullScreenModal",
+                }}
+            />
+            <Stack.Screen
                 name="receive"
                 options={{
                     title: 'Receive Ecash',

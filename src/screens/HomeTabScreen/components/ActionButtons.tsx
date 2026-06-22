@@ -1,45 +1,22 @@
-import React, { useRef, useCallback, useMemo } from "react";
-import { Button, XStack, YStack, Text, ListItem } from "tamagui";
-import { Landmark, ArrowRight } from "@tamagui/lucide-icons";
+import React, { useRef, useCallback } from "react";
+import { Button, XStack } from "tamagui";
+import { Landmark } from "@tamagui/lucide-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import SwapIcon from "~/components/icons/Swap";
 import ArrowDownIcon from "~/components/icons/ArrowDown";
 import SendIcon from "~/components/icons/Send";
-import AppBottomSheet, {
-  AppBottomSheetRef,
-} from "~/components/UI/AppBottomSheet";
-
-// Static config — never recreated
-const SHEET_ACTIONS = [
-  {
-    title: "Deposit or receive",
-    subTitle: "Add funds to Mint.",
-    path: "/mint",
-  },
-  {
-    title: "Withdraw or send",
-    subTitle: "Remove funds from Mint.",
-    path: "/melt",
-  },
-] as const;
+import ActionSelectorSheet, {
+  ActionSelectorSheetRef,
+} from "~/components/ActionSelectorSheet";
 
 export default React.memo(function ActionButtons() {
   const router = useRouter();
-  const sheetRef = useRef<AppBottomSheetRef>(null);
-
-  const handleOptionPress = useCallback(
-    (path: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      sheetRef.current?.dismiss();
-      router.push(path as any);
-    },
-    [router],
-  );
+  const actionSheetRef = useRef<ActionSelectorSheetRef>(null);
 
   const handleLandmark = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    sheetRef.current?.present();
+    actionSheetRef.current?.present('mint');
   }, []);
 
   const handleSwap = useCallback(() => {
@@ -49,13 +26,13 @@ export default React.memo(function ActionButtons() {
 
   const handleReceive = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/receive");
-  }, [router]);
+    actionSheetRef.current?.present('receive');
+  }, []);
 
   const handleSend = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push("/send");
-  }, [router]);
+    actionSheetRef.current?.present('send');
+  }, []);
 
   return (
     <>
@@ -88,7 +65,6 @@ export default React.memo(function ActionButtons() {
           onPress={handleReceive}
         />
         <Button
-
           theme="accent"
           flex={1}
           height={60}
@@ -99,37 +75,8 @@ export default React.memo(function ActionButtons() {
         />
       </XStack>
 
-      <AppBottomSheet ref={sheetRef}>
-        <YStack p="$4" gap="$2">
-          <XStack justify="center">
-            <Text
-              fontSize="$6"
-              color="$accent5"
-              fontWeight="bold"
-              mb="$2"
-              px="$2"
-            >
-              Select action
-            </Text>
-          </XStack>
-          {SHEET_ACTIONS.map((option, index) => (
-            <ListItem
-              key={index}
-              hoverTheme
-              pressTheme
-              title={option.title}
-              subTitle={option.subTitle}
-              size="$6"
-              iconAfter={<ArrowRight size={24} color="$color" />}
-              onPress={() => handleOptionPress(option.path)}
-              px="$4"
-              rounded="$5"
-              borderWidth={1}
-              borderColor="$color3"
-            />
-          ))}
-        </YStack>
-      </AppBottomSheet>
+      <ActionSelectorSheet ref={actionSheetRef} />
     </>
   );
 });
+
