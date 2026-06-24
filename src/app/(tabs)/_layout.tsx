@@ -102,7 +102,17 @@ export default function TabLayout() {
         options={{
           title: "Home",
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color }) => <HomeIcon color={color as any} />,
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={
+                resolvedTheme === "dark"
+                  ? require("../../assets/icons/bey-logo-white-transparent.png")
+                  : require("../../assets/icons/bey-logo-black-transparent.png")
+              }
+              style={{ width: 24, height: 24, tintColor: color }}
+              resizeMode="contain"
+            />
+          ),
           headerRight: () => (
             <XStack pr="$4" gap="$2">
               <Button

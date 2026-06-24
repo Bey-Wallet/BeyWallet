@@ -1,7 +1,7 @@
 import React, { useImperativeHandle, forwardRef, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { YStack, XStack, Text, View, Button } from 'tamagui';
-import { Send, Lock, Zap, ScanLine, ArrowDownToLine, QrCode, Landmark, X, HandCoins, Scan, Key, Users, KeyRound } from '@tamagui/lucide-icons';
+import { Send, Lock, Zap, ScanLine, ArrowDownToLine, QrCode, Landmark, X, HandCoins, Scan, Key, Users, KeyRound, Link } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
@@ -48,6 +48,13 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
         if (type === 'send') return 'Send Ecash';
         if (type === 'receive') return 'Receive Ecash';
         return 'Select Option';
+    }, [type]);
+
+    const headerIcon = useMemo(() => {
+        if (type === 'mint') return <Zap size={20} color="$accent1" />;
+        if (type === 'send') return <Send size={20} color="$accent1" />;
+        if (type === 'receive') return <ArrowDownToLine size={20} color="$accent1" />;
+        return null;
     }, [type]);
 
     const options = useMemo<OptionConfig[]>(() => {
@@ -98,7 +105,14 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     iconBg: '$blue4',
                     path: '/(modals)/send?mode=standard',
                 },
-
+                {
+                    key: 'link',
+                    label: 'Create eCash Link',
+                    subtitle: 'Generate a short zero-knowledge sharing link via Nostr',
+                    icon: <Link size={24} color="$gray12" strokeWidth={2.5} />,
+                    iconBg: '$yellow4',
+                    path: '/(modals)/send?mode=link',
+                },
                 {
                     key: 'p2pk',
                     label: 'Lock to Public Key',
@@ -175,7 +189,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
     const snapPoints = useMemo(() => {
         if (type === 'mint') return ['65%'];
         if (type === 'receive') return ['45%'];
-        if (type === 'send') return ['65%'];
+        if (type === 'send') return ['72%'];
         return ['50%'];
     }, [type]);
 
@@ -184,7 +198,9 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
             <YStack p="$4" pt="$2" gap="$4">
                 {/* Custom Header with centered Title and close button in top right */}
                 <XStack items="center" justify="space-between" width="100%" pb="$2">
-                    <View width="$4" height="$4" />
+                    <XStack width="$4" height="$4" items="center" justify="center">
+                        {headerIcon}
+                    </XStack>
                     <Text fontSize="$6" fontWeight="800" color="$accent1">
                         {title}
                     </Text>

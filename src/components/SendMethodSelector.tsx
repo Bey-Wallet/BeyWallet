@@ -15,13 +15,14 @@ import {
     Zap,
     ScanLine,
     Check,
+    Link,
 } from '@tamagui/lucide-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
 import { Spinner } from './UI/Spinner';
 
-export type SendMode = 'standard' | 'p2pk' | 'nostr' | 'scan';
+export type SendMode = 'standard' | 'p2pk' | 'nostr' | 'scan' | 'link';
 
 interface SendMethodSelectorProps {
     mode: SendMode;
@@ -41,6 +42,12 @@ const SEND_METHODS: {
             label: 'Standard',
             subtitle: 'Send a Cashu token to anyone',
             icon: <Send size={18} color="$color" />,
+        },
+        {
+            key: 'link',
+            label: 'eCash Link',
+            subtitle: 'Share encrypted link via Nostr',
+            icon: <Link size={18} color="$color" />,
         },
         {
             key: 'p2pk',
@@ -64,6 +71,7 @@ const SEND_METHODS: {
 
 const MODE_LABELS: Record<SendMode, string> = {
     standard: 'Standard',
+    link: 'eCash Link',
     p2pk: 'P2PK',
     nostr: 'Nostr',
     scan: 'Scan & Pay',
@@ -71,6 +79,7 @@ const MODE_LABELS: Record<SendMode, string> = {
 
 const MODE_ICONS: Record<SendMode, React.ReactNode> = {
     standard: <Send size={16} strokeWidth={3} color="$color" />,
+    link: <Link size={16} strokeWidth={3} color="$color" />,
     p2pk: <Lock size={16} strokeWidth={3} color="$color" />,
     nostr: <Zap size={16} strokeWidth={3} color="$color" />,
     scan: <ScanLine size={16} strokeWidth={3} color="$color" />,
@@ -94,7 +103,7 @@ export default function SendMethodSelector({
             {/* Pill button shown in the nav header */}
             <Button
                 size="$3"
-                theme={({ standard: 'white', p2pk: 'orange', nostr: 'pink', scan: 'green' } as const)[mode]}
+                theme={({ standard: 'white', link: 'yellow', p2pk: 'orange', nostr: 'pink', scan: 'green' } as const)[mode]}
                 px={isLoading ? '$3' : '$3'}
                 borderWidth={1}
                 disabled={isLoading}

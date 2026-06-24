@@ -60,20 +60,26 @@ export function RootLayoutNav() {
 
             let tokenFound = '';
             
-            // Try to extract query parameter scannedToken
-            const match = url.match(/[?&]scannedToken=([^&]+)/);
-            if (match && match[1]) {
-                tokenFound = decodeURIComponent(match[1]);
+            // Try to extract query parameter scannedToken or token
+            const match = url.match(/[?&](scannedToken|token)=([^&]+)/);
+            if (match && match[2]) {
+                tokenFound = decodeURIComponent(match[2]);
             } else {
-                // Fallback: Check if the URL contains a cashu token directly anywhere (e.g. cashuA... or cashuB...)
-                const cashuMatch = url.match(/(cashu[A-Za-z0-9_-]+)/);
-                if (cashuMatch && cashuMatch[1]) {
-                    tokenFound = cashuMatch[1];
+                // Check if the URL itself is the share link (ends with /c/#<hex>)
+                const shareLinkMatch = url.match(/(https?:\/\/[^\/]+\/c\/#[0-9a-fA-F]{64})/);
+                if (shareLinkMatch) {
+                    tokenFound = shareLinkMatch[0];
+                } else {
+                    // Fallback: Check if the URL contains a cashu token directly anywhere (e.g. cashuA... or cashuB...)
+                    const cashuMatch = url.match(/(cashu[A-Za-z0-9_-]+)/);
+                    if (cashuMatch && cashuMatch[1]) {
+                        tokenFound = cashuMatch[1];
+                    }
                 }
             }
 
             if (tokenFound) {
-                console.log('[RootLayoutNav] Global deep link parsed token, redirecting to receive modal...');
+                console.log('[RootLayoutNav] Global deep link parsed token, redirecting to receive modal:', tokenFound);
                 // Stagger navigation slightly to ensure stack and layout are fully ready
                 setTimeout(() => {
                     router.push({

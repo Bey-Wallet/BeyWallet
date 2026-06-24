@@ -180,7 +180,6 @@ export default function NostrActivity() {
                                         <Text
                                             fontWeight="900"
                                             fontSize={20}
-                                            letterSpacing={-1}
                                             color="$accent4"
                                         >
                                             {sign}₿{item.amount.toLocaleString()}
@@ -198,7 +197,6 @@ export default function NostrActivity() {
                                         <Text
                                             fontWeight="900"
                                             fontSize={20}
-                                            letterSpacing={-1}
                                             color="$accent4"
                                         >
                                             {sign}{formattedFiat}

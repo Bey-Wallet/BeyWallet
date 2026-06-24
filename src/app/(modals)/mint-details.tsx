@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Avatar, ListItem, YGroup } from 'tamagui';
-import { ChevronLeft, ChevronDown, ChevronUp, Landmark, ShieldCheck, ShieldAlert, Sprout, Share2, Building2, Globe, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from '@tamagui/lucide-icons';
+import { ChevronLeft, ChevronDown, ChevronUp, Landmark, ShieldCheck, ShieldAlert, Sprout, Share2, Building2, Globe, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Trash, Trash2 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { Share as RNShare, Platform } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,9 +26,27 @@ export default function MintDetailsModal() {
     const toast = useToastController();
     const insets = useSafeAreaInsets();
     const { mintUrl } = useLocalSearchParams<{ mintUrl: string }>();
-    const { mints, balances, setActiveMint, activeMintUrl } = useWalletStore();
+    const { mints, balances, setActiveMint, activeMintUrl, removeMint } = useWalletStore();
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const [isAboutExpanded, setIsAboutExpanded] = useState(false);
+    const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
+
+    const handleRemoveMint = async () => {
+        try {
+            removeMintSheetRef.current?.dismiss();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            await removeMint(mintUrl || '');
+            toast.show('Mint Removed', {
+                message: 'The mint has been successfully removed.',
+            });
+            router.back();
+        } catch (e: any) {
+            console.error('Failed to remove mint:', e);
+            toast.show('Error', {
+                message: e.message || 'Failed to remove mint.',
+            });
+        }
+    };
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -324,7 +343,7 @@ export default function MintDetailsModal() {
             <ScrollView
                 flex={1}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
             >
                 <YStack px="$4" pt="$4" gap="$5">
                     {/* Balance and Avatar Row */}
@@ -540,6 +559,88 @@ export default function MintDetailsModal() {
                     </YStack>
                 </YStack>
             </ScrollView>
+
+            {/* Floating Remove Mint Button */}
+            <XStack
+                px="$4"
+                pb={"$4"}
+                pt="$3"
+                bg="$background"
+                borderTopWidth={1}
+                borderColor="$borderColor"
+            >
+                <Button
+                    flex={1}
+                    size="$5"
+                    theme="red"
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        removeMintSheetRef.current?.present();
+                    }}
+                    fontWeight="800"
+                    icon={<Trash2 strokeWidth={2.5} />}
+                >
+                    Remove Mint
+                </Button>
+            </XStack>
+
+            {/* Remove Mint Confirmation Bottom Sheet */}
+            <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
+                <YStack p="$4" gap="$4">
+                    <View bg="$red3" p="$4" rounded="$4" borderWidth={1} borderColor="$red8">
+                        <XStack gap="$3">
+                            <AlertTriangle color="$red10" size={24} />
+                            <YStack flex={1}>
+                                <Text color="$red10" fontWeight="700" fontSize="$5">
+                                    Remove Mint
+                                </Text>
+                                <Text color="$red10" fontSize="$3" mt="$1">
+                                    Are you sure you want to remove this mint? This action will remove the mint configuration from your wallet.
+                                </Text>
+                            </YStack>
+                        </XStack>
+                    </View>
+
+                    {balance > 0 && (
+                        <View bg="$orange3" p="$4" rounded="$4" borderWidth={1} borderColor="$orange8">
+                            <XStack gap="$3">
+                                <AlertTriangle color="$orange10" size={24} />
+                                <YStack flex={1}>
+                                    <Text color="$orange10" fontWeight="700" fontSize="$5">
+                                        Active Balance Warning
+                                    </Text>
+                                    <Text color="$orange10" fontSize="$3" mt="$1">
+                                        You currently have a balance of <Text fontWeight="800">{balance.toLocaleString()} sats</Text> in this mint. If you remove it, you will lose access to these funds!
+                                    </Text>
+                                </YStack>
+                            </XStack>
+                        </View>
+                    )}
+
+                    <YStack gap="$3" mt="$2">
+                        <Button
+                            size="$5"
+                            bg="$red9"
+                            color="white"
+                            fontWeight="700"
+                            rounded="$4"
+                            onPress={handleRemoveMint}
+                            pressStyle={{ scale: 0.98, bg: '$red10' }}
+                        >
+                            Confirm Remove
+                        </Button>
+                        <Button
+                            size="$5"
+                            theme="gray"
+                            fontWeight="700"
+                            rounded="$4"
+                            onPress={() => removeMintSheetRef.current?.dismiss()}
+                        >
+                            Cancel
+                        </Button>
+                    </YStack>
+                </YStack>
+            </AppBottomSheet>
         </YStack>
     );
 }

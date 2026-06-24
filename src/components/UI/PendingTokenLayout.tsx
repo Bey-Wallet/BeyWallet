@@ -190,7 +190,7 @@ export function PendingTokenLayout({
     // Sets showAnimatedQR if >2 proofs (matches cashu.me behaviour) but does NOT
     // depend on showAnimatedQR itself, avoiding an infinite loop.
     useEffect(() => {
-        if (!currentToken) return;
+        if (!currentToken || currentToken.startsWith('http')) return;
 
         try {
             const clean = cleanToken(currentToken);
@@ -225,6 +225,11 @@ export function PendingTokenLayout({
         if (!currentToken) return;
 
         try {
+            if (currentToken.startsWith('http')) {
+                setQrCodeFragment(currentToken);
+                return;
+            }
+
             const clean = cleanToken(currentToken);
 
             if (showAnimatedQR) {
@@ -267,14 +272,9 @@ export function PendingTokenLayout({
         try {
             setLockDisabled(true);
 
-            // Construct deep link to the receive screen
-            const claimLink = Linking.createURL('/(modals)/receive', {
-                queryParams: {
-                    scannedToken: currentToken
-                }
-            });
-
-            const shareMessage = `Claim my ecash send of ${amount} sats:\n\n${claimLink}`;
+            const shareMessage = currentToken.startsWith('http')
+                ? `Claim my ecash send of ${amount} sats:\n\n${currentToken}`
+                : `Claim my ecash send of ${amount} sats:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
 
             await RNShare.share({
                 message: shareMessage,
@@ -379,6 +379,16 @@ export function PendingTokenLayout({
                     />
                 </XStack>
             </YStack>
+
+            {/* Link Text Display */}
+            {currentToken.startsWith('http') && (
+                <YStack bg="$gray3" p="$3" rounded="$5" mx="$1" gap="$1" items="center" borderStyle="dashed" borderWidth={1} borderColor="$gray6">
+                    <Text fontSize="$2" color="$gray9" fontWeight="700" textTransform="uppercase" letterSpacing={1}>eCash Sharing Link</Text>
+                    <Text fontSize="$3" color="$accent5" fontWeight="800" numberOfLines={1} text="center" style={{ maxWidth: '95%' }}>
+                        {currentToken}
+                    </Text>
+                </YStack>
+            )}
 
             {/* Details Table */}
             {!hideDetails && (

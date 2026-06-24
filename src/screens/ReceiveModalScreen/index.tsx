@@ -10,7 +10,9 @@ import { walletService, mintManager, initService, historyService } from '../../s
 import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import { nip19 } from 'nostr-tools'
+import { nip19, SimplePool } from 'nostr-tools'
+import { RELAYS } from '../../services/core/nostrService'
+import { deriveSharingKeys, decryptToken } from '../../utils/ecashSharing'
 import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
 import { ProcessingSheet } from '../../components/UI/ProcessingSheet'
 
@@ -85,9 +87,37 @@ export function ReceiveModalScreen() {
         setIsReceiveLater(false);
 
         try {
+            let tokenToParse = targetToken.trim();
+            const isShareLink = tokenToParse.includes('/c/#');
+            if (isShareLink) {
+                const hashIndex = tokenToParse.indexOf('#');
+                const secretKeyHex = tokenToParse.slice(hashIndex + 1);
+                if (secretKeyHex.length !== 64) {
+                    throw new Error('Invalid shared eCash link format');
+                }
+
+                console.log('[ReceiveModal] Fetching encrypted token from Nostr...');
+                const keys = deriveSharingKeys(secretKeyHex);
+                const pool = new SimplePool();
+                const event = await pool.get(RELAYS, {
+                    authors: [keys.ephemeralPk],
+                    kinds: [30078],
+                    '#d': [keys.dTag]
+                });
+                pool.close(RELAYS);
+
+                if (!event) {
+                    throw new Error('eCash token link not found or expired on Nostr.');
+                }
+
+                tokenToParse = decryptToken(event.content, keys.encryptionKey);
+                setToken(tokenToParse);
+                console.log('[ReceiveModal] Decrypted eCash token successfully.');
+            }
+
             // Decode using tokenUtils.decodeToken which supports V3, V4 (cashuB/CBOR),
             // and has a manual CBOR fallback that works WITHOUT pre-synced keysets.
-            const rawDecoded = decodeToken(targetToken.trim());
+            const rawDecoded = decodeToken(tokenToParse);
             console.log('[ReceiveModal] decoded — mint:', rawDecoded.mint, 'proofs:', rawDecoded.proofs?.length);
 
             const mintUrl = rawDecoded.mint || '';

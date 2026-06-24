@@ -1,7 +1,7 @@
 export type CurrencyCode = 
     | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'CHF' 
     | 'CNY' | 'INR' | 'BRL' | 'RUB' | 'ZAR' | 'MXN' | 'SGD' 
-    | 'HKD' | 'NZD' | 'SEK' | 'KRW' | 'TRY' | 'AED';
+    | 'HKD' | 'NZD' | 'SEK' | 'KRW' | 'TRY' | 'AED' | 'KWD';
 
 export interface Currency {
     code: CurrencyCode;
@@ -31,6 +31,7 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
     { code: 'KRW', symbol: '₩', name: 'South Korean Won', locale: 'ko-KR' },
     { code: 'TRY', symbol: '₺', name: 'Turkish Lira', locale: 'tr-TR' },
     { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', locale: 'ar-AE' },
+    { code: 'KWD', symbol: 'د.ك', name: 'Kuwaiti Dinar', locale: 'ar-KW' },
 ];
 
 // Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.

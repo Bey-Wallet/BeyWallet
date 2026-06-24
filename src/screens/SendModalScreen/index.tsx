@@ -69,6 +69,7 @@ export function SendModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const [encodedToken, setEncodedToken] = useState<string | null>(null)
+    const rawTokenRef = React.useRef<string | null>(null)
     const [operationId, setOperationId] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [sendMode, setSendMode] = useState<SendMode>('standard')
@@ -176,7 +177,9 @@ export function SendModalScreen() {
             if (source === 'event') {
                 try {
                     console.log(`[SendModalScreen] 🛡️ Verifying event success for:`, operationId);
-                    const states = await proofService.checkProofStates(encodedToken);
+                    const tokenToPoll = rawTokenRef.current;
+                    if (!tokenToPoll) return;
+                    const states = await proofService.checkProofStates(tokenToPoll);
                     const allSpent = states.length > 0 && states.every((s: any) => s.state === 'SPENT');
                     if (!allSpent) {
                         console.warn('[SendModalScreen] ⚠️ Event claimed but proofs still UNSPENT. Ignoring premature event.');
@@ -208,7 +211,9 @@ export function SendModalScreen() {
         const pollOnce = async () => {
             if (isDetected) return;
             try {
-                const states = await proofService.checkProofStates(encodedToken);
+                const tokenToPoll = rawTokenRef.current;
+                if (!tokenToPoll) return;
+                const states = await proofService.checkProofStates(tokenToPoll);
                 const spentCount = states.filter((s: any) => s.state === 'SPENT').length;
                 console.log(`[SendModalScreen] 🔍 Poll [${operationId}]: ${spentCount}/${states.length} SPENT`);
                 if (states.length > 0 && spentCount === states.length) {
@@ -287,6 +292,7 @@ export function SendModalScreen() {
                     throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
                 }
                 result = await walletService.sendOffline(activeMintUrl, amountSats, selected);
+                rawTokenRef.current = result.encoded;
                 setEncodedToken(result.encoded);
                 setOperationId(result.id);
             } else if (sendMode === 'p2pk') {
@@ -309,10 +315,43 @@ export function SendModalScreen() {
                 }
 
                 result = await walletService.sendP2PK(activeMintUrl, amountSats, targetPubkey);
+                rawTokenRef.current = result.encoded;
                 setEncodedToken(result.encoded);
+                setOperationId(result.id);
+            } else if (sendMode === 'link') {
+                result = await walletService.send(activeMintUrl, amountSats);
+                rawTokenRef.current = result.token;
+                const cashuToken = result.token;
+                
+                // 1. Generate 32 bytes random secret_key
+                const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+                const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
+                
+                // 2. Build Nostr event
+                const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
+                const { event } = buildEcashNostrEvent(cashuToken, secretKeyHex);
+                
+                // 3. Publish to relays
+                const { SimplePool } = require('nostr-tools');
+                const { RELAYS } = require('~/services/core/nostrService');
+                const pool = new SimplePool();
+                await Promise.any(pool.publish(RELAYS, event));
+                pool.close(RELAYS);
+                
+                // 4. Construct share link
+                let websiteUrl = 'https://bey.cash/c/';
+                if (__DEV__) {
+                    const hostUri = require('expo-constants').default.expoConfig?.hostUri || 'localhost:3000';
+                    const ip = hostUri.split(':')[0];
+                    websiteUrl = `http://${ip}:3000/c/`;
+                }
+                const shareLink = `${websiteUrl}#${secretKeyHex}`;
+                
+                setEncodedToken(shareLink);
                 setOperationId(result.id);
             } else {
                 result = await walletService.send(activeMintUrl, amountSats);
+                rawTokenRef.current = result.token;
                 setEncodedToken(result.token);
                 setOperationId(result.id);
             }
@@ -328,7 +367,7 @@ export function SendModalScreen() {
             historyService.tagHistoryVia(
                 activeMintUrl,
                 'send',
-                'ecash_create',
+                sendMode === 'link' ? 'ecash_link' : 'ecash_create',
                 computedExpiry ? {
                     expiresAt: computedExpiry,
                     expiryHours: expiryHours,
@@ -372,6 +411,7 @@ export function SendModalScreen() {
                 const stdResult = await walletService.send(activeMintUrl, amountSats);
                 result = { encoded: stdResult.token, token: null as any, id: stdResult.id };
             }
+            rawTokenRef.current = result.encoded;
 
             // Step 2: Send via Nostr DM
             const mnemonic = await seedService.getMnemonic();
@@ -507,6 +547,7 @@ export function SendModalScreen() {
     const headerTitle = React.useMemo(() => {
         if (step === 'result') return status === 'success' ? 'Success' : 'Error';
         if (step === 'success') return 'Success';
+        if (sendMode === 'link') return 'Create eCash Link';
         if (sendMode === 'p2pk') return 'P2PK Send';
         if (sendMode === 'nostr') return 'Nostr Send';
         if (sendMode === 'scan') return 'Scan & Pay';
@@ -586,7 +627,7 @@ export function SendModalScreen() {
                         console.log('[SendModalScreen] Rendering step: amount, sendMode:', sendMode, 'isOffline:', isOffline);
                         return null;
                     })()}
-                    {sendMode === 'standard' && (
+                    {(sendMode === 'standard' || sendMode === 'link') && (
                         <AmountStage
                             amount={amount}
                             setAmount={setAmount}

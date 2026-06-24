@@ -24,7 +24,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/notificationService';
-import amount from 'temp/Sovran/app/(receive-flow)/amount';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -648,6 +647,12 @@ export function TransactionDetailsScreen() {
     const speedLabel = intervalMs === 140 ? "F" : intervalMs === 250 ? "M" : "S";
     const sizeLabel = fragmentLength === 150 ? "L" : fragmentLength === 100 ? "M" : "S";
 
+    const showInvoiceLayout = useMemo(() => {
+        if (!savedInvoice) return false;
+        if (status.toUpperCase() !== 'UNPAID' && status.toUpperCase() !== 'PAID') return false;
+        return !isQuoteExpired;
+    }, [savedInvoice, status, isQuoteExpired]);
+
     if (!entry) {
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -663,12 +668,6 @@ export function TransactionDetailsScreen() {
     const isOutgoing = entry.type === 'send' || entry.type === 'melt';
     const amountColor = isOutgoing ? '$red10' : '$green11';
     const amountSign = isOutgoing ? '-' : '+';
-
-    const showInvoiceLayout = useMemo(() => {
-        if (!savedInvoice) return false;
-        if (status.toUpperCase() !== 'UNPAID' && status.toUpperCase() !== 'PAID') return false;
-        return !isQuoteExpired;
-    }, [savedInvoice, status, isQuoteExpired]);
 
     if (showInvoiceLayout && savedInvoice) {
         return (
