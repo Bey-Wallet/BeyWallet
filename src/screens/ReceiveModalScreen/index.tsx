@@ -316,11 +316,21 @@ export function ReceiveModalScreen() {
             setTokenInfo(null);
             setError(null);
         }
-        else router.back();
+        else {
+            if (router.canGoBack()) {
+                router.back();
+            } else {
+                router.replace('/(tabs)');
+            }
+        }
     }
 
     const handleClose = () => {
-        router.back();
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
         InteractionManager.runAfterInteractions(() => refreshBalance());
     }
 

@@ -339,12 +339,7 @@ export function SendModalScreen() {
                 pool.close(RELAYS);
                 
                 // 4. Construct share link
-                let websiteUrl = 'https://bey.cash/c/';
-                if (__DEV__) {
-                    const hostUri = require('expo-constants').default.expoConfig?.hostUri || 'localhost:3000';
-                    const ip = hostUri.split(':')[0];
-                    websiteUrl = `http://${ip}:3000/c/`;
-                }
+                const websiteUrl = 'https://bey.cash/c/';
                 const shareLink = `${websiteUrl}#${secretKeyHex}`;
                 
                 setEncodedToken(shareLink);
@@ -511,7 +506,11 @@ export function SendModalScreen() {
     }
 
     const handleClose = () => {
-        router.back();
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
         // Refresh balance AFTER navigation animation settles — prevents freeze
         InteractionManager.runAfterInteractions(() => refreshBalance());
     }
