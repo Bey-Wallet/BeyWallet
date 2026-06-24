@@ -277,7 +277,6 @@ export default function EcashModal() {
                 <RollingNumber
                   value={totalPending}
                   prefix="₿"
-                  letterSpacing={-1}
                   fontSize={30}
                   fontWeight="900"
                   color="$accent3"
@@ -287,7 +286,6 @@ export default function EcashModal() {
               ) : (
                 <RollingNumber
                   value={fiatPending}
-                  letterSpacing={-1}
                   fontSize={30}
                   fontWeight="900"
                   color="$accent3"
@@ -303,8 +301,7 @@ export default function EcashModal() {
           <RollingNumber
             value={primaryCurrency === 'SATS' ? fiatPending : totalPending}
             prefix={primaryCurrency === 'SATS' ? '' : '₿'}
-            letterSpacing={-1}
-            fontSize={16}
+            fontSize={18}
             fontWeight="900"
             color="$accent8"
             decimalOpacity={0.4}
@@ -362,9 +359,9 @@ export default function EcashModal() {
                             {primaryCurrency === 'SATS'
                               ? `${style.sign}₿${entry.amount.toLocaleString()}`
                               : `${style.sign}${currencyService.formatValue(
-                                  btcData?.price ? currencyService.convertSatsToCurrency(entry.amount, btcData.price) : 0,
-                                  secondaryCurrency as CurrencyCode
-                                )}`
+                                btcData?.price ? currencyService.convertSatsToCurrency(entry.amount, btcData.price) : 0,
+                                secondaryCurrency as CurrencyCode
+                              )}`
                             }
                           </Text>
                         }

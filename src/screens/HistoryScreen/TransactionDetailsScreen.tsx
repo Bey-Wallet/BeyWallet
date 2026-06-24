@@ -10,9 +10,11 @@ import QRCode from 'react-native-qrcode-svg';
 import { UR, UREncoder } from "@gandlaf21/bc-ur";
 import { Buffer } from 'buffer';
 import { formatFullLocalTime, formatRelativeTime } from '~/utils/time';
-import { historyService, initService, proofService, cleanToken, decodeToken, encodeToken, encodePeanut, encodeTokenV4, encodeTokenV3, walletService, mintManager } from '~/services/core';
+import { historyService, initService, proofService, cleanToken, decodeToken, encodeToken, encodePeanut, encodeTokenV4, encodeTokenV3, walletService, mintManager, quotesService } from '~/services/core';
 import { nip19 } from 'nostr-tools';
 import { PendingTokenLayout } from '~/components/UI/PendingTokenLayout';
+import { PendingMintInvoiceLayout } from './components/PendingMintInvoiceLayout';
+import { CompletedMintDetailsTable } from './components/CompletedMintDetailsTable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '~/store/settingsStore';
 import { sqliteStorage } from '~/store/sqliteStorage';
@@ -53,10 +55,61 @@ export function TransactionDetailsScreen() {
         queryKey: ['transaction', id],
         queryFn: async () => {
             if (!id) return null;
+            // 1. Try to load from historyRepository by ID (autoincrement ID)
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository) {
+                    const dbEntry = await (repo.historyRepository as any).getHistoryEntryById(id);
+                    if (dbEntry) {
+                        console.log('[TransactionDetails] Loaded entry directly by ID from historyRepository:', dbEntry);
+                        return dbEntry as HistoryEntry;
+                    }
+                }
+            } catch (err) {
+                console.warn('[TransactionDetails] Failed to load by ID from historyRepository:', err);
+            }
+
+            // 2. If it's a quoteId, try to find by quoteId or matching ID in repository entries
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository && typeof id === 'string') {
+                    const history = await (repo.historyRepository as any).getPaginatedHistoryEntries(200, 0);
+                    const dbEntry = history.find((e: any) => e.id === id || e.quoteId === id);
+                    if (dbEntry) {
+                        console.log('[TransactionDetails] Found entry by quoteId/id in paginated historyRepository entries:', dbEntry);
+                        return dbEntry as HistoryEntry;
+                    }
+                }
+            } catch (err) {
+                console.warn('[TransactionDetails] Failed to load by quoteId from historyRepository:', err);
+            }
+
+            // 3. Fallback to core historyService
+            console.log('[TransactionDetails] Falling back to core historyService search for id:', id);
             const history = await historyService.getHistory(200, 0);
             return (history.find((e: any) => e.id === id) as HistoryEntry) || null;
         },
         enabled: !!id,
+    });
+
+    // Fetch corresponding mint quote from DB to get the actual expiry
+    const { data: mintQuote, refetch: refetchMintQuote } = useQuery({
+        queryKey: ['mintQuote', entry?.mintUrl, (entry as any)?.quoteId],
+        queryFn: async () => {
+            if (!entry || entry.type !== 'mint' || !(entry as any).quoteId) return null;
+            try {
+                const repo = initService.getRepo();
+                if (repo?.mintQuoteRepository) {
+                    const quote = await repo.mintQuoteRepository.getMintQuote(entry.mintUrl, (entry as any).quoteId);
+                    console.log('[TransactionDetails] Loaded mintQuote from repository:', quote);
+                    return quote;
+                }
+            } catch (err) {
+                console.warn('[TransactionDetails] Failed to load mint quote from repository:', err);
+            }
+            return null;
+        },
+        enabled: !!entry && entry.type === 'mint' && !!(entry as any).quoteId,
     });
 
     const { data: btcData } = useQuery({
@@ -71,8 +124,70 @@ export function TransactionDetailsScreen() {
     }, [entry?.amount, btcData?.price]);
 
     const [token, setToken] = useState<string>('');
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+    const isQuoteExpired = useMemo(() => {
+        if (!mintQuote?.expiry) return false;
+        return mintQuote.expiry < Date.now() / 1000;
+    }, [mintQuote?.expiry]);
+
+    useEffect(() => {
+        if (!mintQuote?.expiry) {
+            setTimeLeft(null);
+            return;
+        }
+
+        const calculateTimeLeft = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = mintQuote.expiry - now;
+            return remaining > 0 ? remaining : 0;
+        };
+
+        setTimeLeft(calculateTimeLeft());
+
+        const timer = setInterval(() => {
+            const remaining = calculateTimeLeft();
+            setTimeLeft(remaining);
+            if (remaining <= 0) {
+                clearInterval(timer);
+                // Mark in DB as failed if it is still UNPAID/pending in history
+                const repo = initService.getRepo();
+                if (repo?.historyRepository && entry && (entry.state === 'UNPAID' || entry.state === 'PAID')) {
+                    (repo.historyRepository as any).updateHistoryMintEntry(entry.mintUrl, (entry as any).quoteId, 'failed')
+                        .then(() => {
+                            console.log('[TransactionDetails] Marked expired quote as failed in database');
+                            refetch();
+                            refetchMintQuote();
+                            queryClient.invalidateQueries({ queryKey: ['history'] });
+                        })
+                        .catch(e => console.warn('[TransactionDetails] Failed to update expired quote in DB:', e));
+                } else {
+                    refetch();
+                    refetchMintQuote();
+                    queryClient.invalidateQueries({ queryKey: ['history'] });
+                }
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [mintQuote?.expiry, entry?.id]);
     const [isStatusExpanded, setIsStatusExpanded] = useState(false);
     const [isReclaiming, setIsReclaiming] = useState(false);
+    const [isCheckingPaid, setIsCheckingPaid] = useState(false);
+
+    const status = entry?.state || 'completed';
+
+    const isPendingMint = useMemo(() => {
+        if (!entry) return false;
+        const s = (entry.state || '').toUpperCase();
+        return entry.type === 'mint' && (s === 'UNPAID' || s === 'PAID');
+    }, [entry]);
+
+    const isPendingSend = useMemo(() => {
+        if (!entry) return false;
+        const s = (entry.state || '').toUpperCase();
+        return entry.type === 'send' && (s === 'PENDING' || s === 'UNCLAIMED');
+    }, [entry]);
 
     const metadata = useMemo(() => {
         if (!entry?.metadata) return {};
@@ -180,8 +295,12 @@ export function TransactionDetailsScreen() {
     // Check for saved invoice for pending mints
     const [savedInvoice, setSavedInvoice] = useState<string | null>(null);
     useEffect(() => {
-        if (entry?.type === 'mint' && (status === 'pending' || status === 'unclaimed')) {
+        if (isPendingMint) {
             try {
+                if ((entry as any).paymentRequest) {
+                    setSavedInvoice((entry as any).paymentRequest);
+                    return;
+                }
                 const cached = sqliteStorage.getItem('mint_invoices');
                 if (cached) {
                     const invoices = JSON.parse(cached);
@@ -194,9 +313,7 @@ export function TransactionDetailsScreen() {
                 console.error('[TransactionDetails] Failed to read saved invoice:', e);
             }
         }
-    }, [entry, status]);
-
-    const status = entry?.state || 'completed';
+    }, [entry, isPendingMint]);
 
     // Animated QR states
     const [qrCodeFragment, setQrCodeFragment] = useState<string>('');
@@ -485,18 +602,39 @@ export function TransactionDetailsScreen() {
         else setFragmentLength(100);
     };
 
-    // Auto-refresh on mount and poll if pending — first check is immediate, then every 2.5s
+    // Auto-refresh on mount and poll if pending — first check is immediate, then every 3s
     useEffect(() => {
         if (!entry || !initService.isInitialized()) return;
-        const isPending = status === 'pending' || status === 'unclaimed';
-        if (!isPending || entry.type !== 'send') return;
 
-        // Fire immediately, then repeat every 2.5s
-        handleRefresh();
-        const interval = setInterval(handleRefresh, 2500);
+        const isPendingSend = entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
+        const isPendingMint = entry.type === 'mint' && (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
+
+        if (!isPendingSend && !isPendingMint) return;
+
+        const poll = async () => {
+            if (isPendingSend) {
+                await handleRefresh();
+            } else if (isPendingMint) {
+                try {
+                    const qId = (entry as any).quoteId || '';
+                    if (qId && entry.mintUrl) {
+                        await quotesService.redeemMintQuote(entry.mintUrl, qId);
+                        console.log('[TransactionDetails] Background redeem success for mint quote:', qId);
+                        queryClient.invalidateQueries({ queryKey: ['history'] });
+                        refetch();
+                    }
+                } catch (e) {
+                    // Not paid yet — normal in background polling
+                }
+            }
+        };
+
+        // Fire immediately
+        poll();
+        const interval = setInterval(poll, 3000);
 
         return () => clearInterval(interval);
-    }, [entry?.id, entry?.state]);
+    }, [entry?.id, entry?.state, status]);
     // Status text formatting
     const formattedStatus = useMemo(() => {
         if (!status || typeof status !== 'string') return 'Unknown';
@@ -526,50 +664,73 @@ export function TransactionDetailsScreen() {
     const amountColor = isOutgoing ? '$red10' : '$green11';
     const amountSign = isOutgoing ? '-' : '+';
 
-    if (savedInvoice && (status === 'pending' || status === 'unclaimed')) {
+    const showInvoiceLayout = useMemo(() => {
+        if (!savedInvoice) return false;
+        if (status.toUpperCase() !== 'UNPAID' && status.toUpperCase() !== 'PAID') return false;
+        return !isQuoteExpired;
+    }, [savedInvoice, status, isQuoteExpired]);
+
+    if (showInvoiceLayout && savedInvoice) {
         return (
             <>
                 <Stack.Screen
                     options={{
-                        title: 'Pending Deposit',
+                        headerTitleAlign: 'center',
+                        headerTitle: () => (
+                            <XStack>
+                                <Text fontWeight="700" fontSize={20} color="$color">Pending Deposit</Text>
+                            </XStack>
+                        ),
+                        headerRight: () => (
+                            <XStack p="$1" gap="$3" items="center" justify="center">
+                                <Button
+                                    circular
+                                    size="$3"
+                                    icon={isRefetching ? <Spinner /> : <RefreshCw size={22} color="$color" />}
+                                    chromeless
+                                    onPress={handleRefresh}
+                                    disabled={isRefetching}
+                                />
+                            </XStack>
+                        ),
                     }}
                 />
-                <ScrollView p="$4" gap="$3" pb="$8" bg="$background" showsVerticalScrollIndicator={false}>
-                    <YStack items="center" gap="$3"  >
-                        <Text fontWeight="600" fontSize="$5">Pay this invoice to mint tokens</Text>
-                        <YStack bg="white" p="$4" rounded="$4">
-                            <QRCode value={savedInvoice} size={200} />
-                        </YStack>
-                        <Button size="$3" variant="outline" onPress={async () => {
-                            await Clipboard.setStringAsync(savedInvoice);
+                <PendingMintInvoiceLayout
+                    savedInvoice={savedInvoice}
+                    timeLeft={timeLeft}
+                    entry={entry as any}
+                    formattedStatus={formattedStatus}
+                    primaryCurrency={primaryCurrency}
+                    secondaryCurrency={secondaryCurrency}
+                    fiatAmount={fiatAmount}
+                    isCheckingPaid={isCheckingPaid}
+                    onCancel={async () => {
+                        try {
+                            const repo = initService.getRepo();
+                            if (repo?.historyRepository) {
+                                await (repo.historyRepository as any).updateHistoryMintEntry(entry.mintUrl, (entry as any).quoteId, 'failed');
+                                toast.show('Cancelled', { message: 'Deposit invoice marked as failed.' });
+                                await handleRefresh();
+                            }
+                        } catch (e) {
+                            console.warn('[TransactionDetails] Failed to cancel quote:', e);
+                        }
+                    }}
+                    onPaid={async () => {
+                        setIsCheckingPaid(true);
+                        try {
+                            await quotesService.redeemMintQuote(entry.mintUrl, (entry as any).quoteId);
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            toast.show('Copied!', { message: 'Invoice copied to clipboard' });
-                        }}>
-                            Copy Invoice
-                        </Button>
-                        <Text color="$gray10" fontSize="$3" text="center" px="$4">
-                            Scan this QR code with a Lightning wallet to complete the deposit.
-                        </Text>
-                    </YStack>
-
-                    {/* Details Table */}
-                    <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                        {primaryCurrency === 'FIAT' ? (
-                            <>
-                                <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                                <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
-                            </>
-                        ) : (
-                            <>
-                                <DetailItem label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
-                            </>
-                        )}
-                        <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
-                        <DetailItem label="Type" value="Mint Ecash" />
-                        <DetailItem label="Status" value="Unpaid" />
-                        <DetailItem label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
-                    </YStack>
-                </ScrollView>
+                            toast.show('Paid!', { message: 'Ecash claimed successfully.' });
+                            await handleRefresh();
+                        } catch (err: any) {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                            toast.show('Not Paid Yet', { message: 'The invoice has not been paid yet. Please wait or try again.' });
+                        } finally {
+                            setIsCheckingPaid(false);
+                        }
+                    }}
+                />
             </>
         );
     }
@@ -688,78 +849,90 @@ export function TransactionDetailsScreen() {
                         </YStack>
 
                         {/* Details table */}
-                        <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                            {primaryCurrency === 'FIAT' ? (
-                                <>
-                                    <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                                    <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
-                                </>
-                            ) : (
-                                <>
-                                    <DetailItem label="Amount" value={`${entry.amount || 0} sats`} />
-                                    <DetailItem label="Fiat" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                                </>
-                            )}
-                            <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
-                            <DetailItem label="Type" value={title} />
-                            <DetailItem label="Status" value={formattedStatus} />
-                            {/* Via channel */}
-                            {(() => {
-                                let meta = entry.metadata ?? {};
-                                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
-                                const via: string | undefined = (meta as any)?.via;
-                                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
-                                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
-                                if (!via) return null;
-                                const viaLabel = via === 'nostr' ? 'Nostr'
-                                    : via === 'qr' || via === 'scan' ? 'QR Scan'
-                                    : via === 'nfc' ? 'NFC'
-                                    : via === 'ecash_create' ? 'Ecash Token'
-                                    : via === 'paste' ? 'Paste'
-                                    : via === 'lightning' ? 'Lightning'
-                                    : via;
-                                return (
+                        {entry.type === 'mint' ? (
+                            <CompletedMintDetailsTable
+                                entry={entry}
+                                formattedStatus={formattedStatus}
+                                primaryCurrency={primaryCurrency}
+                                secondaryCurrency={secondaryCurrency}
+                                fiatAmount={fiatAmount}
+                                title={title}
+                                savedInvoice={savedInvoice}
+                            />
+                        ) : (
+                            <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                                {primaryCurrency === 'FIAT' ? (
                                     <>
-                                        <DetailItem label="Channel" value={viaLabel} />
-                                        {via === 'nostr' && (nostrUsername || nostrPubkey) && (
-                                            <DetailItem
-                                                label={entry.type === 'send' ? 'Recipient' : 'Sender'}
-                                                value={nostrUsername
-                                                    ? `@${nostrUsername.replace('@bey.cash', '')}`
-                                                    : nostrPubkey
-                                                    ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
-                                                    : 'Unknown'}
-                                                isCopyable={!!nostrPubkey}
-                                                copyValue={nostrPubkey}
-                                                onCopy={async () => {
-                                                    if (nostrPubkey) {
-                                                        await Clipboard.setStringAsync(nostrPubkey);
-                                                        toast.show('Copied!', { message: 'Nostr pubkey copied' });
-                                                    }
-                                                }}
-                                            />
-                                        )}
+                                        <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
+                                        <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
                                     </>
-                                );
-                            })()}
-                            {lockedToNpub && (
-                                <DetailItem
-                                    label="Locked To"
-                                    value={lockedToNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`}
-                                    isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
-                                    onCopy={async () => {
-                                        await Clipboard.setStringAsync(lockedToNpub);
-                                        Haptics.selectionAsync();
-                                        toast.show('Copied!', { message: 'NPUB copied to clipboard' });
-                                    }}
-                                />
-                            )}
-                            <DetailItem label="Token" value={token && typeof token === 'string' ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}` : 'N/A'} isCopyable copyValue={token} onCopy={handleCopyToken} />
-                            <DetailItem label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
-                            {mintFee > 0 && (
-                                <DetailItem label="Fee Rate" value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`} />
-                            )}
-                        </YStack>
+                                ) : (
+                                    <>
+                                        <DetailItem label="Amount" value={`${entry.amount || 0} sats`} />
+                                        <DetailItem label="Fiat" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
+                                    </>
+                                )}
+                                <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
+                                <DetailItem label="Type" value={title} />
+                                <DetailItem label="Status" value={formattedStatus} />
+                                {/* Via channel */}
+                                {(() => {
+                                    let meta = entry.metadata ?? {};
+                                    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
+                                    const via: string | undefined = (meta as any)?.via;
+                                    const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
+                                    const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                                    if (!via) return null;
+                                    const viaLabel = via === 'nostr' ? 'Nostr'
+                                        : via === 'qr' || via === 'scan' ? 'QR Scan'
+                                        : via === 'nfc' ? 'NFC'
+                                        : via === 'ecash_create' ? 'Ecash Token'
+                                        : via === 'paste' ? 'Paste'
+                                        : via === 'lightning' ? 'Lightning'
+                                        : via;
+                                    return (
+                                        <>
+                                            <DetailItem label="Channel" value={viaLabel} />
+                                            {via === 'nostr' && (nostrUsername || nostrPubkey) && (
+                                                <DetailItem
+                                                    label={entry.type === 'send' ? 'Recipient' : 'Sender'}
+                                                    value={nostrUsername
+                                                        ? `@${nostrUsername.replace('@bey.cash', '')}`
+                                                        : nostrPubkey
+                                                        ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
+                                                        : 'Unknown'}
+                                                    isCopyable={!!nostrPubkey}
+                                                    copyValue={nostrPubkey}
+                                                    onCopy={async () => {
+                                                        if (nostrPubkey) {
+                                                            await Clipboard.setStringAsync(nostrPubkey);
+                                                            toast.show('Copied!', { message: 'Nostr pubkey copied' });
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                {lockedToNpub && (
+                                    <DetailItem
+                                        label="Locked To"
+                                        value={lockedToNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`}
+                                        isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
+                                        onCopy={async () => {
+                                            await Clipboard.setStringAsync(lockedToNpub);
+                                            Haptics.selectionAsync();
+                                            toast.show('Copied!', { message: 'NPUB copied to clipboard' });
+                                        }}
+                                    />
+                                )}
+                                <DetailItem label="Token" value={token && typeof token === 'string' ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}` : 'N/A'} isCopyable copyValue={token} onCopy={handleCopyToken} />
+                                <DetailItem label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
+                                {mintFee > 0 && (
+                                    <DetailItem label="Fee Rate" value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`} />
+                                )}
+                            </YStack>
+                        )}
                     </YStack>
 
 

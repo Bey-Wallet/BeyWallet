@@ -7,7 +7,7 @@ import { ConfirmStage } from "./ConfirmStage";
 import { PaymentStage } from "./PaymentStage";
 import { ResultStage } from "./ResultStage";
 import { useWalletStore } from "../../store/walletStore";
-import { eventService, quotesService } from "../../services/core";
+import { eventService, quotesService, initService } from "../../services/core";
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -94,9 +94,20 @@ export default function MintScreen() {
         else router.back();
     };
 
-    const handleCancel = () => {
+    const handleCancel = async () => {
         setStatus('cancelled');
         setStep('result');
+        if (quoteData && activeMintUrl) {
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository) {
+                    await (repo.historyRepository as any).updateHistoryMintEntry(activeMintUrl, quoteData.quoteId, 'failed');
+                    console.log('[MintScreen] Marked cancelled mint quote in history as failed:', quoteData.quoteId);
+                }
+            } catch (e) {
+                console.warn('[MintScreen] Failed to mark cancelled mint quote in history:', e);
+            }
+        }
     };
 
     const handlePaid = async () => {

@@ -1,7 +1,7 @@
 import React, { useImperativeHandle, forwardRef, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { YStack, XStack, Text, View, Button } from 'tamagui';
-import { Send, Lock, Zap, ScanLine, ArrowDownToLine, QrCode, Landmark, X, HandCoins } from '@tamagui/lucide-icons';
+import { Send, Lock, Zap, ScanLine, ArrowDownToLine, QrCode, Landmark, X, HandCoins, Scan, Key, Users, KeyRound } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
@@ -44,9 +44,9 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
     }));
 
     const title = useMemo(() => {
-        if (type === 'mint') return 'Mint/Melt';
-        if (type === 'send') return 'Ecash';
-        if (type === 'receive') return 'Ecash';
+        if (type === 'mint') return 'Fund & Withdraw';
+        if (type === 'send') return 'Send Ecash';
+        if (type === 'receive') return 'Receive Ecash';
         return 'Select Option';
     }, [type]);
 
@@ -55,32 +55,32 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
             return [
                 {
                     key: 'deposit_ln',
-                    label: 'Deposit via BTC LN',
-                    subtitle: 'Fund your wallet using Lightning Network',
+                    label: 'Top Up via Lightning',
+                    subtitle: 'Convert Bitcoin Lightning into private ecash',
                     icon: <Zap size={24} color="$yellow10" />,
                     iconBg: '$yellow4',
                     path: '/mint',
                 },
                 {
                     key: 'deposit_chain',
-                    label: 'Deposit via BTC on chain',
-                    subtitle: 'Fund wallet using Bitcoin On-chain (in dev)',
+                    label: 'Top Up via On-Chain',
+                    subtitle: 'Convert on-chain Bitcoin into private ecash (in dev)',
                     icon: <Landmark size={24} color="$gray10" />,
                     iconBg: '$gray4',
                     disabled: true,
                 },
                 {
                     key: 'withdraw_ln',
-                    label: 'Withdraw via BTC LN',
-                    subtitle: 'Withdraw to any Lightning invoice or address',
+                    label: 'Pay Lightning Invoice',
+                    subtitle: 'Melt ecash to pay any Lightning invoice or address',
                     icon: <Zap size={24} color="$orange10" />,
                     iconBg: '$orange4',
                     path: '/(modals)/melt',
                 },
                 {
                     key: 'withdraw_chain',
-                    label: 'Withdraw via BTC on chain',
-                    subtitle: 'Withdraw to a Bitcoin on-chain address (in dev)',
+                    label: 'Pay to On-Chain Address',
+                    subtitle: 'Melt ecash to an on-chain Bitcoin address (in dev)',
                     icon: <Landmark size={24} color="$gray10" />,
                     iconBg: '$gray4',
                     disabled: true,
@@ -92,34 +92,34 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
             return [
                 {
                     key: 'standard',
-                    label: 'Standard Send',
-                    subtitle: 'Create a shareable ecash token link',
-                    icon: <Send size={24} color="$gray12" strokeWidth={3} />,
+                    label: 'Create Ecash',
+                    subtitle: 'Create a secure ecash token link to send via any chat app',
+                    icon: <Send size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$blue4',
                     path: '/(modals)/send?mode=standard',
                 },
 
                 {
                     key: 'p2pk',
-                    label: 'P2PK Lock',
-                    subtitle: "Secure token to a recipient's public key",
-                    icon: <Lock size={24} color="$gray12" strokeWidth={3} />,
+                    label: 'Lock to Public Key',
+                    subtitle: 'Secure tokens so only a specific pubkey can claim them (P2PK)',
+                    icon: <KeyRound size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$purple4',
                     path: '/(modals)/send?mode=p2pk',
                 },
                 {
                     key: 'nostr',
-                    label: 'Nostr DM',
-                    subtitle: 'Send tokens directly to a Nostr contact',
-                    icon: <Zap size={24} color="$gray12" strokeWidth={3} />,
+                    label: 'Send via Nostr DM',
+                    subtitle: 'Deliver ecash directly to a Nostr contact via private message',
+                    icon: <Users size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$pink4',
                     path: '/(modals)/send?mode=nostr',
                 },
                 {
                     key: 'scan',
                     label: 'Scan & Pay',
-                    subtitle: 'Scan a Cashu token or payment request',
-                    icon: <ScanLine size={24} color="$gray12" strokeWidth={3} />,
+                    subtitle: 'Scan a QR code, Lightning invoice, or Cashu token',
+                    icon: <ScanLine size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$green4',
                     path: '/(modals)/send?mode=scan',
                 }
@@ -130,17 +130,17 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
             return [
                 {
                     key: 'receive',
-                    label: 'Receive Ecash',
-                    subtitle: 'Paste or scan a Cashu token to claim instantly',
-                    icon: <ArrowDownToLine size={24} color="$gray12" strokeWidth={3} />,
+                    label: 'Claim Ecash Token',
+                    subtitle: 'Paste or scan a Cashu token to claim it instantly',
+                    icon: <ArrowDownToLine size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$blue4',
                     path: '/(modals)/receive?mode=receive',
                 },
                 {
                     key: 'request',
                     label: 'Request Payment',
-                    subtitle: 'Generate a QR code or Lightning invoice to receive funds',
-                    icon: <HandCoins size={24} color="$gray12" strokeWidth={3} />,
+                    subtitle: 'Generate a Cashu request (creq) or Lightning invoice to receive funds',
+                    icon: <HandCoins size={24} color="$gray12" strokeWidth={2.5} />,
                     iconBg: '$orange4',
                     path: '/(modals)/receive?mode=request',
                 }
@@ -174,27 +174,27 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
     // Calculate snap points based on the number of options
     const snapPoints = useMemo(() => {
         if (type === 'mint') return ['65%'];
-        if (type === 'receive') return ['40%'];
-        if (type === 'send') return ['60%'];
+        if (type === 'receive') return ['45%'];
+        if (type === 'send') return ['65%'];
         return ['50%'];
     }, [type]);
 
     return (
-        <AppBottomSheet ref={sheetRef} snapPoints={snapPoints} backgroundColor="$gray1">
+        <AppBottomSheet ref={sheetRef} snapPoints={snapPoints} backgroundColor="$gray2">
             <YStack p="$4" pt="$2" gap="$4">
                 {/* Custom Header with centered Title and close button in top right */}
-                <XStack items="center" justify="center" position="relative" width="100%" pb="$2">
-                    <Text fontSize="$5" fontWeight="800" bg="$gray6" px='$3' py='$2' rounded='$10' color="$accent1">
+                <XStack items="center" justify="space-between" width="100%" pb="$2">
+                    <View width="$4" height="$4" />
+                    <Text fontSize="$6" fontWeight="800" color="$accent1">
                         {title}
                     </Text>
                     <Button
-                        position="absolute"
-                        r={0}
+
                         circular
-                        size="$3"
+                        size="$4"
                         bg="$gray5"
                         pressStyle={{ scale: 0.95, bg: '$gray5' }}
-                        icon={<X size={18} color="$color" strokeWidth={3} />}
+                        icon={<X size={20} color="$color" strokeWidth={3} />}
                         onPress={handleClose}
                     />
                 </XStack>
@@ -205,7 +205,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                             <XStack
                                 key={option.key}
                                 p="$3"
-                                bg="$gray3"
+                                bg="$gray4"
                                 rounded="$6"
                                 items="center"
                                 gap="$3"
@@ -214,9 +214,9 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                                 opacity={option.disabled ? 0.6 : 1}
                             >
                                 <View
-                                    bg="$gray5"
-                                    p="$3"
-                                    rounded={10}
+
+                                    p="$2"
+
                                     items="center"
                                     justify="center"
 
