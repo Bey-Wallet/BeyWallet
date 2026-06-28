@@ -32,6 +32,7 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
         token.trim().toLowerCase().includes('creq') ||
         token.trim().toLowerCase().startsWith('lnbc') ||
         token.trim().toLowerCase().startsWith('lnurl') ||
+        token.trim().toLowerCase().includes('/c#') ||
         token.trim().toLowerCase().includes('/c/#') ||
         // Check for variation selectors (Peanut format)
         /[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(token)

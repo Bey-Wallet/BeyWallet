@@ -4,7 +4,6 @@ import { ExpoSqliteRepositories } from '../store/test';
 import * as SQLite from 'expo-sqlite';
 import { seedService } from './seedService';
 import { AppState, AppStateStatus } from 'react-native';
-import { customSendService } from './fixes/CustomSendService';
 
 let cocoManager: Manager | null = null;
 let repo: ExpoSqliteRepositories | null = null;

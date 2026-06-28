@@ -88,10 +88,10 @@ export function ReceiveModalScreen() {
 
         try {
             let tokenToParse = targetToken.trim();
-            const isShareLink = tokenToParse.includes('/c/#');
+            const isShareLink = tokenToParse.includes('/c/#') || tokenToParse.includes('/c#');
             if (isShareLink) {
                 const hashIndex = tokenToParse.indexOf('#');
-                const secretKeyHex = tokenToParse.slice(hashIndex + 1);
+                const secretKeyHex = tokenToParse.slice(hashIndex + 1).trim();
                 if (secretKeyHex.length !== 64) {
                     throw new Error('Invalid shared eCash link format');
                 }

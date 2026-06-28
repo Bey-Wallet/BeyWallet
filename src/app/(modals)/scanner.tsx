@@ -11,9 +11,132 @@ import { useAuthStore } from '~/store/authStore';
 import { useWalletStore } from '~/store/walletStore';
 import * as Clipboard from 'expo-clipboard';
 import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
+import { nip19 } from 'nostr-tools';
+import { Buffer } from 'buffer';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
+
+async function tryResolveContact(data: string): Promise<{ npub: string; username?: string } | null> {
+    let raw = data.trim();
+
+    // 1. Strip protocol prefixes
+    if (raw.toLowerCase().startsWith('web+nostr:')) raw = raw.substring(10);
+    else if (raw.toLowerCase().startsWith('nostr://')) raw = raw.substring(8);
+    else if (raw.toLowerCase().startsWith('nostr:')) raw = raw.substring(6);
+
+    if (raw.startsWith('@')) raw = raw.substring(1);
+
+    // 2. Check if URL containing npub or nprofile or username
+    if (raw.toLowerCase().startsWith('http://') || raw.toLowerCase().startsWith('https://')) {
+        try {
+            const urlObj = new URL(raw);
+            const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+            const lastSegment = pathSegments[pathSegments.length - 1];
+            if (lastSegment) {
+                if (lastSegment.toLowerCase().startsWith('npub1') || lastSegment.toLowerCase().startsWith('nprofile1')) {
+                    raw = lastSegment;
+                } else if (urlObj.hostname === 'bey.cash' && (pathSegments[0] === 'u' || pathSegments[0] === 'user')) {
+                    raw = lastSegment;
+                }
+            }
+        } catch {}
+    }
+
+    const lower = raw.toLowerCase();
+
+    // 3. Check npub
+    if (lower.startsWith('npub1')) {
+        try {
+            const decoded = nip19.decode(lower);
+            if (decoded.type === 'npub') {
+                const hex = decoded.data as string;
+                let username: string | undefined = undefined;
+                try {
+                    const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
+                    if (res.ok) {
+                        const directory = await res.json();
+                        if (directory?.names) {
+                            const found = Object.keys(directory.names).find(name => directory.names[name].toLowerCase() === hex.toLowerCase());
+                            if (found) username = found;
+                        }
+                    }
+                } catch {}
+                return { npub: lower, username };
+            }
+        } catch {}
+    }
+
+    // 4. Check nprofile
+    if (lower.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(lower);
+            if (decoded.type === 'nprofile') {
+                const data = decoded.data as { pubkey: string };
+                const npub = nip19.npubEncode(data.pubkey);
+                let username: string | undefined = undefined;
+                try {
+                    const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
+                    if (res.ok) {
+                        const directory = await res.json();
+                        if (directory?.names) {
+                            const found = Object.keys(directory.names).find(name => directory.names[name].toLowerCase() === data.pubkey.toLowerCase());
+                            if (found) username = found;
+                        }
+                    }
+                } catch {}
+                return { npub, username };
+            }
+        } catch {}
+    }
+
+    // 5. Check 64-char hex pubkey
+    if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+        try {
+            const npub = nip19.npubEncode(raw.toLowerCase());
+            let username: string | undefined = undefined;
+            try {
+                const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
+                if (res.ok) {
+                    const directory = await res.json();
+                    if (directory?.names) {
+                        const found = Object.keys(directory.names).find(name => directory.names[name].toLowerCase() === raw.toLowerCase());
+                        if (found) username = found;
+                    }
+                }
+            } catch {}
+            return { npub, username };
+        } catch {}
+    }
+
+    // 6. Check Username / NIP-05 address
+    let uname = raw;
+    let domain = 'bey.cash';
+    if (raw.includes('@')) {
+        const parts = raw.split('@');
+        if (parts.length === 2 && parts[0] && parts[1]) {
+            uname = parts[0];
+            domain = parts[1];
+        }
+    }
+
+    // Attempt NIP-05 fetch for bey.cash or other domains
+    if (/^[a-zA-Z0-9._-]+$/.test(uname) && /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
+        try {
+            const res = await fetch(`https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(uname.toLowerCase())}&_t=${Date.now()}`);
+            if (res.ok) {
+                const data = await res.json();
+                const hex = data?.names?.[uname.toLowerCase()];
+                if (hex) {
+                    const npub = nip19.npubEncode(hex);
+                    return { npub, username: domain === 'bey.cash' ? uname : `${uname}@${domain}` };
+                }
+            }
+        } catch {}
+    }
+
+    return null;
+}
 
 export default function ScannerScreen() {
     const router = useRouter();
@@ -120,12 +243,26 @@ export default function ScannerScreen() {
         }
     };
 
-    const onSuccess = (data: string) => {
+    const onSuccess = async (data: string) => {
         setScanned(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         const trimmed = data.trim();
         const lower = trimmed.toLowerCase();
+
+        // ── Check Nostr Contact (npub or username) first ─────────────────
+        const contact = await tryResolveContact(trimmed);
+        if (contact) {
+            console.log('[Scanner] Nostr contact detected, redirecting to contact-details...', contact);
+            router.replace({
+                pathname: '/(modals)/contact-details',
+                params: {
+                    npub: contact.npub,
+                    ...(contact.username ? { username: contact.username } : {})
+                }
+            });
+            return;
+        }
 
         // Strip cashu: URI prefix so both cashu:cashuA... and cashuA... are handled uniformly
         const normalized = lower.startsWith('cashu:') ? trimmed.substring(6) : trimmed;
@@ -149,6 +286,17 @@ export default function ScannerScreen() {
             console.log('[Scanner] Returning result to store for:', params.returnTo);
             useWalletStore.getState().setScannerResult(normalized);
             router.back();
+            return;
+        }
+
+        // ── eCash Share Link (bey.cash/c#<hex>) ───────────────────────────
+        const isShareLink = lower.includes('/c#') || lower.includes('/c/#');
+        if (isShareLink) {
+            console.log('[Scanner] eCash share link detected, redirecting to receive...');
+            router.replace({
+                pathname: '/(modals)/receive',
+                params: { scannedToken: trimmed }
+            });
             return;
         }
 

@@ -36,7 +36,7 @@ export default function UniversalSearchScreen() {
     const router = useRouter();
 
     const { favorites } = useContactsStore();
-    const { mints } = useWalletStore();
+    const { mints, scannerResult, setScannerResult } = useWalletStore();
     const { recommendations, fetchRecommendations } = useMintRecommendationStore();
 
     // Load directory and recent searches
@@ -80,6 +80,14 @@ export default function UniversalSearchScreen() {
             setSearch(text);
             doSearch(text);
         }
+    };
+
+    const handleScan = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push({
+            pathname: '/(modals)/scanner',
+            params: { returnTo: '/search' }
+        });
     };
 
     const doSearch = useCallback((query: string) => {
@@ -206,6 +214,15 @@ export default function UniversalSearchScreen() {
         setResults(found);
     }, [directory, favorites, mints, recommendations]);
 
+    // Listen for scanner results returned to search screen
+    useEffect(() => {
+        if (scannerResult) {
+            setSearch(scannerResult);
+            doSearch(scannerResult);
+            setScannerResult(null);
+        }
+    }, [scannerResult, doSearch, setScannerResult]);
+
     // Debounce search
     useEffect(() => {
         if (!search.trim()) {
@@ -309,7 +326,7 @@ export default function UniversalSearchScreen() {
                     ) : search.length > 0 ? (
                         <Button size="$2" chromeless icon={<X size={16} />} onPress={() => setSearch('')} />
                     ) : (
-                        <Button size="$2" chromeless icon={<Scan strokeWidth={3} size={20} color="$gray10" />} onPress={handlePaste} />
+                        <Button size="$2" chromeless icon={<Scan strokeWidth={3} size={20} color="$gray10" />} onPress={handleScan} />
                     )}
                 </XStack>
             </XStack>

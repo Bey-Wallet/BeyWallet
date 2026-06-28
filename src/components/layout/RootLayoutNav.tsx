@@ -65,8 +65,8 @@ export function RootLayoutNav() {
             if (match && match[2]) {
                 tokenFound = decodeURIComponent(match[2]);
             } else {
-                // Check if the URL itself is the share link (ends with /c/#<hex>)
-                const shareLinkMatch = url.match(/(https?:\/\/[^\/]+\/c\/#[0-9a-fA-F]{64})/);
+                // Check if the URL itself is the share link (ends with /c/#<hex> or /c#<hex>)
+                const shareLinkMatch = url.match(/(https?:\/\/[^\/]+\/c\/?#[0-9a-fA-F]{64})/);
                 if (shareLinkMatch) {
                     tokenFound = shareLinkMatch[0];
                 } else {
