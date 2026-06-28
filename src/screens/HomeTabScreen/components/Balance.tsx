@@ -113,8 +113,9 @@ export default function Balance() {
               trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats")}
               letterSpacing={-1}
               fontSize={36}
-              fontWeight="900"
+              fontWeight="800"
               color="$accent3"
+              fontFamily="$mono"
               decimalOpacity={0.4}
               showDecimals={false}
               style={hideBalance ? {
@@ -133,7 +134,7 @@ export default function Balance() {
               trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_fiat")}
               letterSpacing={-1}
               fontSize={36}
-              fontWeight="900"
+              fontWeight="800"
               color="$accent3"
               decimalOpacity={0.4}
               showDecimals={true}
@@ -164,7 +165,7 @@ export default function Balance() {
         trigger={refreshCounter + (hideBalance ? "_hidden" : (primaryCurrency === 'SATS' ? "_visible_fiat_sub" : "_visible_sats_sub"))}
         letterSpacing={-1}
         fontSize={20}
-        fontWeight="900"
+        fontWeight="800"
         color="$accent7"
         decimalOpacity={0.4}
         showDecimals={primaryCurrency === 'SATS'}

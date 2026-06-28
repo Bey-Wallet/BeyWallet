@@ -111,7 +111,9 @@
         {
           "fonts": [
             "./src/assets/fonts/Inter-Tight-Medium.otf",
-            "./src/assets/fonts/Inter-Tight-SemiBold.otf"
+            "./src/assets/fonts/Inter-Tight-SemiBold.otf",
+            "./src/assets/fonts/Mono.otf",
+            "./src/assets/fonts/Oswald.otf"
           ]
         }
       ],

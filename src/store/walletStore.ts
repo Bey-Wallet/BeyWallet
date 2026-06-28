@@ -166,9 +166,8 @@ export const useWalletStore = create<WalletState>()(
                     // Defer heavy background work AFTER all sheet animations settle
                     // This matches Sovran — addMint never blocks the UI thread
                     InteractionManager.runAfterInteractions(() => {
-                        console.log(`[WalletStore] 🔄 Background: repair keysets + restore for: ${url}`);
+                        console.log(`[WalletStore] 🔄 Background: repair keysets for: ${url}`);
                         mintManager.repairMintKeysets(url, 'sat').catch(console.warn);
-                        get().restoreFromSeed(url);
                         get().syncMintsToNostr();
                     });
                 } catch (err: any) {

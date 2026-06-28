@@ -671,6 +671,85 @@ class NostrService {
       pool.close(RELAYS);
     }
   }
+
+  // ── NIP-60 Wallet Encrypted Proof Backup (Kind 37375) ──────────────────────
+
+  /**
+   * Publish NIP-60 compliant kind 37375 event.
+   * Encrypts active tokens/proofs with NIP-44 to self and backs up to Nostr relays.
+   */
+  public async backupWalletStateToNostr(
+    walletData: any,
+    privkeyHex: string,
+    pubkeyHex: string
+  ): Promise<boolean> {
+    try {
+      const privkeyBytes = hexToBytes(privkeyHex);
+      const conversationKey = nip44.v2.utils.getConversationKey(privkeyBytes, pubkeyHex);
+      const plaintext = JSON.stringify(walletData);
+      const ciphertext = nip44.v2.encrypt(plaintext, conversationKey);
+
+      const eventTemplate = {
+        kind: 37375,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['d', 'cashu-wallet-backup']],
+        content: ciphertext,
+      };
+
+      const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
+      const pool = this.pool ?? new SimplePool();
+
+      console.log(`[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`);
+      await Promise.any(pool.publish(RELAYS, signedEvent));
+      console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
+      return true;
+    } catch (err: any) {
+      console.error('[NostrService] Failed NIP-60 wallet state backup:', err?.message || err);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch and decrypt NIP-60 kind 37375 event to recover backed-up wallet state.
+   */
+  public async fetchWalletStateFromNostr(
+    privkeyHex: string,
+    pubkeyHex: string
+  ): Promise<any | null> {
+    console.log(`[NostrService] 📥 Fetching NIP-60 wallet state from Nostr…`);
+    const pool = new SimplePool();
+
+    try {
+      const filter: Filter = {
+        authors: [pubkeyHex],
+        kinds: [37375],
+        '#d': ['cashu-wallet-backup'],
+        limit: 1,
+      };
+
+      const events = await pool.querySync(RELAYS, filter);
+      if (!events || events.length === 0) {
+        console.log('[NostrService] No NIP-60 wallet backup found on Nostr.');
+        return null;
+      }
+
+      events.sort((a, b) => b.created_at - a.created_at);
+      const latestEvent = events[0];
+
+      const privkeyBytes = hexToBytes(privkeyHex);
+      const conversationKey = nip44.v2.utils.getConversationKey(privkeyBytes, pubkeyHex);
+      const decryptedText = nip44.v2.decrypt(latestEvent.content, conversationKey);
+      const walletData = JSON.parse(decryptedText);
+
+      console.log('[NostrService] ✅ Successfully recovered and decrypted NIP-60 wallet state.');
+      return walletData;
+    } catch (err: any) {
+      console.error('[NostrService] Failed NIP-60 wallet state recovery:', err?.message || err);
+      return null;
+    } finally {
+      pool.close(RELAYS);
+    }
+  }
 }
 
 export const nostrService = new NostrService();
