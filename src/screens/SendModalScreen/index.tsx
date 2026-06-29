@@ -3,18 +3,17 @@ import { InteractionManager, Switch } from 'react-native'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
+import { ConfirmStage } from './ConfirmStage'
 import { P2PKAmountStage } from './P2PKAmountStage'
 import { NostrSendStage } from './NostrSendStage'
 import { ResultStage } from './ResultStage'
 import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { ScanAndPayStage } from './ScanAndPayStage'
-import { biometricService } from '~/services/biometricService'
 import { walletService, mintManager, nostrService, historyService, initService } from '~/services/core'
 import { seedService } from '~/services/seedService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet'
 import { Text, YStack, XStack, Button, Separator, View } from 'tamagui'
 import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -31,7 +30,7 @@ import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts'
 import Blockies from '~/components/UI/Blockies'
 import { OfflineOptimizationSheet, type OfflineOptimizationSheetRef } from '~/components/OfflineOptimizationSheet'
 
-type SendStep = 'amount' | 'result' | 'success' | 'payment_request';
+type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
 /** Parse a NUT-18 creqA/creqB string into our UI model */
 function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
@@ -94,7 +93,7 @@ export function SendModalScreen() {
         console.log('[SendModalScreen] Offline optimization confirmed amount:', optimizedAmount, 'proofs:', proofs.length);
         setAmount(String(optimizedAmount));
         setSelectedOfflineProofs(proofs);
-        confirmSheetRef.current?.present();
+        setStep('confirm');
     }, []);
 
     React.useEffect(() => {
@@ -148,7 +147,6 @@ export function SendModalScreen() {
     const refreshBalance = useWalletStore(s => s.refreshBalance)
     const mints = useWalletStore(s => s.mints)
     const { secondaryCurrency } = useSettingsStore()
-    const confirmSheetRef = React.useRef<AppBottomSheetRef>(null)
     const [estimatedFee, setEstimatedFee] = React.useState(0)
 
     // Fetch fee when active mint changes
@@ -469,29 +467,21 @@ export function SendModalScreen() {
         }
     }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance, expiryEnabled, expiryHours, nostrRecipientUsername]);
 
-    const handleAuthenticate = async () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-        confirmSheetRef.current?.dismiss();
-
+    const handleExecuteSend = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
-            const success = await biometricService.authenticateAsync(`Authorize creating ₿${amount} ecash`)
-
-            if (success) {
-                if (sendMode === 'nostr') {
-                    await handleNostrSend();
-                } else {
-                    await handleSend();
-                }
+            if (sendMode === 'nostr') {
+                await handleNostrSend();
             } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                await handleSend();
             }
         } catch (error: any) {
-            console.error('[SendModal] Authentication error:', error);
-            setError(error.message || 'Authentication failed');
+            console.error('[SendModal] Execution error:', error);
+            setError(error.message || 'Send failed');
             setStatus('error');
             setStep('result');
         }
-    }
+    };
 
     const handleNext = () => {
         if (step === 'amount') {
@@ -500,10 +490,10 @@ export function SendModalScreen() {
                 optimizationSheetRef.current?.present();
             } else {
                 setSelectedOfflineProofs(null);
-                confirmSheetRef.current?.present();
+                setStep('confirm');
             }
         }
-    }
+    };
 
     const handleClose = () => {
         if (router.canGoBack()) {
@@ -513,7 +503,7 @@ export function SendModalScreen() {
         }
         // Refresh balance AFTER navigation animation settles — prevents freeze
         InteractionManager.runAfterInteractions(() => refreshBalance());
-    }
+    };
 
     const handleScanContinue = (forcedInput?: string) => {
         const input = (typeof forcedInput === 'string' ? forcedInput : scanInput).trim();
@@ -541,9 +531,10 @@ export function SendModalScreen() {
             setStatus('error');
             setStep('result');
         }
-    }
+    };
 
     const headerTitle = React.useMemo(() => {
+        if (step === 'confirm') return 'Confirm Send';
         if (step === 'result') return status === 'success' ? 'Success' : 'Error';
         if (step === 'success') return 'Success';
         if (sendMode === 'link') return 'Create eCash Link';
@@ -701,137 +692,24 @@ export function SendModalScreen() {
                 />
             )}
 
-            <AppBottomSheet ref={confirmSheetRef}>
-                <YStack p="$4" pt="$2" gap="$5">
-                    <YStack items="center" gap="$2" pt="$2">
-                        <Text fontSize="$6" fontWeight="800">Review Transaction</Text>
-                    </YStack>
-
-                    <YStack rounded="$5" bg="$gray2" overflow="hidden">
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <Text color="$gray10" fontWeight="600">Amount</Text>
-                            <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$6">₿{amount} sats</Text>
-                                <Text color="$gray10" fontSize="$3">{fiatValue}</Text>
-                            </YStack>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <ShieldCheck size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Fee</Text>
-                            </XStack>
-                            <Text fontWeight="800" fontSize="$5" color={estimatedFee > 0 ? "$orange10" : "$green10"}>
-                                {estimatedFee > 0 ? `~${estimatedFee} sats` : '0 sats'}
-                            </Text>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <Building2 size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Mint</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                {activeMint?.icon && (
-                                    <View rounded="$10" overflow="hidden" width={20} height={20}>
-                                        <Image source={{ uri: activeMint.icon }} width={20} height={20} />
-                                    </View>
-                                )}
-                                <Text fontWeight="800" fontSize="$5" numberOfLines={1} style={{ maxWidth: 180 }}>{mintName}</Text>
-                            </XStack>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        {sendMode === 'nostr' ? (
-                            <>
-                                <XStack justify="space-between" items="center" px="$4" py="$3">
-                                    <XStack gap="$2" items="center">
-                                        <Lock size={18} color="$gray10" />
-                                        <Text color="$gray10" fontWeight="600">P2PK Lock</Text>
-                                    </XStack>
-                                    <XStack gap="$2" items="center">
-                                        <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
-                                            {useP2PK ? 'Secured' : 'Off'}
-                                        </Text>
-                                        <Switch
-                                            value={useP2PK}
-                                            onValueChange={setUseP2PK}
-                                            trackColor={{ false: '#444', true: '#34C759' }}
-                                            thumbColor="white"
-                                        />
-                                    </XStack>
-                                </XStack>
-                                <Separator borderColor="$borderColor" opacity={0.5} />
-                                {nostrRecipientNpub ? (
-                                    <XStack justify="space-between" items="center" px="$4" py="$3">
-                                        <XStack gap="$2" items="center">
-                                            <Zap size={18} color="$purple10" />
-                                            <Text color="$gray10" fontWeight="600">To</Text>
-                                        </XStack>
-                                        <XStack gap="$2" items="center">
-                                            <Blockies seed={nostrRecipientNpub} size={6} scale={2} style={{ borderRadius: 2 }} />
-                                            <Text fontWeight="800" fontSize="$4" numberOfLines={1} style={{ maxWidth: 150 }}>
-                                                {nostrRecipientUsername || `${nostrRecipientNpub.slice(0, 8)}...`}
-                                            </Text>
-                                        </XStack>
-                                    </XStack>
-                                ) : null}
-                            </>
-                        ) : (
-                            <XStack justify="space-between" items="center" px="$4" py="$3">
-                                <XStack gap="$2" items="center">
-                                    <Zap size={18} color="$gray10" />
-                                    <Text color="$gray10" fontWeight="600">Version</Text>
-                                </XStack>
-                                <XStack bg="$gray5" px="$2" py="$1" rounded="$2">
-                                    <Text color="$gray10" fontSize="$2" fontWeight="800">V4 (Default)</Text>
-                                </XStack>
-                            </XStack>
-                        )}
-
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <Clock size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">7 Days Expiry</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                <Text fontSize="$2" color={expiryEnabled ? '$green10' : '$gray10'} fontWeight="700">
-                                    {expiryEnabled ? '7 Days' : 'Off'}
-                                </Text>
-                                <Switch
-                                    value={expiryEnabled}
-                                    onValueChange={setExpiryEnabled}
-                                    trackColor={{ false: '#444', true: '#34C759' }}
-                                    thumbColor="white"
-                                />
-                            </XStack>
-                        </XStack>
-                    </YStack>
-
-                    <YStack gap="$3" pt="$2">
-                        <Button
-                            theme="accent"
-                            size="$5"
-                            fontWeight="800"
-                            onPress={handleAuthenticate}
-                        >
-                            Confirm & Send
-                        </Button>
-                        <Button
-                            chromeless
-                            size="$4"
-                            onPress={() => confirmSheetRef.current?.dismiss()}
-                        >
-                            Cancel
-                        </Button>
-                    </YStack>
-                </YStack>
-            </AppBottomSheet>
+            {step === 'confirm' && (
+                <ConfirmStage
+                    amount={amount}
+                    mintUrl={activeMintUrl || ''}
+                    estimatedFee={estimatedFee}
+                    sendMode={sendMode}
+                    useP2PK={useP2PK}
+                    setUseP2PK={setUseP2PK}
+                    expiryEnabled={expiryEnabled}
+                    setExpiryEnabled={setExpiryEnabled}
+                    nostrRecipientNpub={nostrRecipientNpub}
+                    nostrRecipientUsername={nostrRecipientUsername}
+                    receiverPubkey={receiverPubkey}
+                    isLoading={isProcessing || nostrSending}
+                    onConfirm={handleExecuteSend}
+                    onBack={() => setStep('amount')}
+                />
+            )}
 
             {/* ProcessingSheet for Nostr sending */}
             <ProcessingSheet

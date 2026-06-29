@@ -6,6 +6,7 @@ import {
   ShieldOff,
   Edit3,
   Building2,
+  X,
 } from "@tamagui/lucide-icons";
 import {
   Button,
@@ -63,6 +64,13 @@ export const MintSelectorSheet = React.forwardRef<
     [setActiveMint, onSelect, ref, changeGlobalActiveMint],
   );
 
+  const handleClose = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (ref && "current" in ref && ref.current) {
+      (ref as React.RefObject<AppBottomSheetRef>).current?.dismiss();
+    }
+  }, [ref]);
+
   const handleAddMint = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (ref && "current" in ref && ref.current) {
@@ -80,19 +88,49 @@ export const MintSelectorSheet = React.forwardRef<
     editNicknameRef.current?.present(mint.mintUrl, mint.nickname);
   }, []);
 
+  const snapPoints = useMemo(() => {
+    const itemCount = mints.length + (showAllOption ? 1 : 0);
+    if (itemCount === 0) return ["32%"];
+    if (itemCount === 1) return ["38%"];
+    if (itemCount === 2) return ["48%"];
+    if (itemCount === 3) return ["58%"];
+    if (itemCount === 4) return ["68%"];
+    return ["80%"];
+  }, [mints.length, showAllOption]);
+
   return (
     <>
-      <AppBottomSheet ref={ref} snapPoints={["50%", "85%"]}>
-        <YStack p="$4" gap="$3" flex={1}>
-          <YStack gap="$1.5" mb="$2">
-            <Text fontWeight="800" fontSize="$6" color="$color">
-              Select Mint
-            </Text>
-            <Text fontSize="$3" color="$gray10">
-              Balances are shown for each mint. Transactions are processed on
-              the active mint.
-            </Text>
-          </YStack>
+      <AppBottomSheet ref={ref} snapPoints={snapPoints} backgroundColor="$gray2">
+        <YStack p="$4" pt="$2" gap="$4" flex={1}>
+          {/* Custom Header matching ActionSelectorSheet */}
+          <XStack items="center" justify="space-between" width="100%" pb="$2">
+            <XStack items="center" justify="center" gap="$3">
+
+              <Button
+                circular
+                size="$4"
+                bg="$gray5"
+                pressStyle={{ scale: 0.95, bg: "$gray5" }}
+                icon={<X size={20} color="$color" strokeWidth={3} />}
+                onPress={handleClose}
+              />
+              <Text fontSize="$6" fontWeight="800" color="$accent1">
+                Select Mint
+              </Text>
+            </XStack>
+            <Button
+              rounded="$10"
+              size="$4"
+              fontSize="$5"
+              fontWeight="800"
+              bg="$gray5"
+              pressStyle={{ scale: 0.95, bg: "$gray5" }}
+              icon={<Plus size={20} color="$color" strokeWidth={3} />}
+              onPress={handleAddMint}
+            >
+              Add
+            </Button>
+          </XStack>
 
           <BottomSheetScrollView showsVerticalScrollIndicator={false}>
             <YStack gap="$2" pb="$4">
@@ -102,15 +140,16 @@ export const MintSelectorSheet = React.forwardRef<
                   justify="space-between"
                   items="center"
                   onPress={() => handleSelectMint("all")}
-                  pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                  pressStyle={{ scale: 0.98, bg: "$gray4" }}
                   p="$3"
-                  borderWidth={1}
+                  bg="$gray4"
+                  borderWidth={1.5}
                   borderColor={
-                    activeMintUrl === "all" ? "$accentColor" : "$borderColor"
+                    activeMintUrl === "all" ? "$accentColor" : "transparent"
                   }
-                  rounded="$7"
+                  rounded="$6"
                 >
-                  <XStack gap="$3" items="center">
+                  <XStack gap="$3" items="center" flex={1}>
                     <View
                       bg="$gray3"
                       p="$2.5"
@@ -123,8 +162,8 @@ export const MintSelectorSheet = React.forwardRef<
                     >
                       <Building2 size={20} color="$gray10" />
                     </View>
-                    <YStack gap="$0.5">
-                      <Text fontWeight="600" fontSize="$4" numberOfLines={1}>
+                    <YStack gap="$0.5" flex={1}>
+                      <Text fontWeight="700" fontSize="$5" color="$accent3" numberOfLines={1}>
                         All Mints
                       </Text>
                       <Text fontSize="$3" color="$gray10">
@@ -170,17 +209,18 @@ export const MintSelectorSheet = React.forwardRef<
                     justify="space-between"
                     items="center"
                     onPress={() => handleSelectMint(mint.mintUrl)}
-                    pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                    pressStyle={{ scale: 0.98, bg: "$gray4" }}
                     p="$3"
-                    borderWidth={1}
+                    bg="$gray4"
+                    borderWidth={1.5}
                     borderColor={
                       activeMintUrl === mint.mintUrl
                         ? "$accentColor"
-                        : "$borderColor"
+                        : "transparent"
                     }
-                    rounded="$7"
+                    rounded="$6"
                   >
-                    <XStack gap="$3" items="center">
+                    <XStack gap="$3" items="center" flex={1}>
                       <View
                         bg={mint.trusted ? "$green3" : "$gray3"}
                         p={mint.icon ? "$0" : "$2"}
@@ -205,12 +245,14 @@ export const MintSelectorSheet = React.forwardRef<
                           <ShieldOff size={20} color="$gray10" />
                         )}
                       </View>
-                      <YStack gap="$0.5">
-                        <XStack items="center" gap="$1">
+                      <YStack gap="$0.5" flex={1}>
+                        <XStack items="center" gap="$1.5">
                           <Text
-                            fontWeight="600"
-                            fontSize="$4"
+                            fontWeight="700"
+                            fontSize="$5"
+                            color="$accent3"
                             numberOfLines={1}
+                            flexShrink={1}
                           >
                             {mint.nickname ||
                               mint.name ||
@@ -221,7 +263,8 @@ export const MintSelectorSheet = React.forwardRef<
                           <Button
                             size="$1.5"
                             circular
-                            icon={<Edit3 size={12} />}
+                            chromeless
+                            icon={<Edit3 size={12} color="$gray10" />}
                             onPress={(e) => {
                               e.stopPropagation();
                               handleEditNickname(mint);
@@ -229,8 +272,8 @@ export const MintSelectorSheet = React.forwardRef<
                           />
                         </XStack>
                         <Text
-                          fontWeight="500"
-                          fontSize="$5"
+                          fontWeight="600"
+                          fontSize="$4"
                           numberOfLines={1}
                           color="$accent6"
                         >
@@ -273,16 +316,6 @@ export const MintSelectorSheet = React.forwardRef<
               )}
             </YStack>
           </BottomSheetScrollView>
-
-          <Button
-            size="$4"
-            theme="gray"
-            onPress={handleAddMint}
-            icon={<Plus size={18} />}
-            mt="auto"
-          >
-            Add New Mint
-          </Button>
         </YStack>
       </AppBottomSheet>
       <EditNicknameModal ref={editNicknameRef} />

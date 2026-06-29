@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Button, View } from "tamagui";
-import { ChevronDown, Sprout, AlertCircle } from "@tamagui/lucide-icons";
+import { YStack, XStack, Text, H1, Button, Avatar, Square } from "tamagui";
+import { ChevronDown, Sprout, ArrowUpDown, AlertCircle, Wallet } from "@tamagui/lucide-icons";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 import { Spinner } from '~/components/UI/Spinner';
 import { useWalletStore } from '~/store/walletStore';
@@ -11,6 +11,7 @@ import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
+
 interface AmountStageProps {
     amount: string;
     setAmount: (val: string) => void;
@@ -19,21 +20,16 @@ interface AmountStageProps {
     isLoading?: boolean;
     error?: string | null;
     isOffline?: boolean;
+    onSelectedProofsChange?: (proofs: any[]) => void;
 }
 
 export function AmountStage({ amount, setAmount, onContinue, balance, isLoading, error, isOffline }: AmountStageProps) {
-    const { activeMintUrl, mints, setActiveMint } = useWalletStore();
+    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
-
-
-    const handlePresetPress = (amt: number) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setAmount(String(amt));
-        setLocalInputValue(String(amt));
-    };
+    const isLoadingMint = isInitializing || isRefreshing;
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -47,10 +43,16 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
 
     const activeMint = useMemo(() => {
         if (!activeMintUrl) return null;
-        return mints.find(m => m.mintUrl.replace(/\/$/, '') === activeMintUrl.replace(/\/$/, ''));
+        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+        return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
     }, [mints, activeMintUrl]);
 
-    const mintName = activeMint?.nickname || activeMint?.name || activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') || "Select Mint";
+    const displayName = useMemo(() => {
+        if (!activeMintUrl) return "Select Mint";
+        if (activeMint?.nickname) return activeMint.nickname;
+        if (activeMint?.name) return activeMint.name;
+        return activeMintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    }, [activeMint, activeMintUrl]);
 
     const parsedAmountSats = parseInt(amount, 10) || 0;
     const isOverBalance = parsedAmountSats > balance;
@@ -71,7 +73,6 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
-    // Local input value state to handle fiat decimals smoothly
     const [localInputValue, setLocalInputValue] = React.useState(amount);
 
     React.useEffect(() => {
@@ -80,8 +81,37 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
         }
     }, [amount, inputMode]);
 
-    const onKeypadChange = (val: string) => {
+    const onKeypadChange = (rawVal: string) => {
+        let val = rawVal;
+
+        if (val === '.') {
+            val = '0.';
+        }
+
+        if (inputMode === 'SATS') {
+            val = val.replace(/\./g, '');
+        } else {
+            const parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
+            }
+            if (parts.length === 2 && parts[1].length > 2) {
+                val = parts[0] + '.' + parts[1].slice(0, 2);
+            }
+        }
+
+        if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
+            val = val.replace(/^0+/, '');
+            if (val === '') val = '0';
+        }
+
+        const maxLen = 11;
+        if (val.length > maxLen) {
+            val = val.slice(0, maxLen);
+        }
+
         setLocalInputValue(val);
+
         if (inputMode === 'SATS') {
             setAmount(val);
         } else {
@@ -107,12 +137,6 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
         }
     };
 
-    const handleSelectMint = (mintUrl: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setActiveMint(mintUrl);
-        sheetRef.current?.dismiss();
-    };
-
     const handleMax = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const maxSats = balance.toString();
@@ -125,60 +149,160 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
         }
     };
 
+    const formattedDisplayValue = useMemo(() => {
+        if (!localInputValue || localInputValue === '0') return '0';
+        if (inputMode === 'SATS') {
+            const num = Number(localInputValue);
+            if (!isNaN(num)) {
+                return num.toLocaleString('en-US');
+            }
+        } else {
+            const parts = localInputValue.split('.');
+            const integerPart = Number(parts[0]);
+            if (!isNaN(integerPart)) {
+                const formattedInt = integerPart.toLocaleString('en-US');
+                return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+            }
+        }
+        return localInputValue;
+    }, [localInputValue, inputMode]);
+
+    const dynamicFontSize = useMemo(() => {
+        const len = formattedDisplayValue.length;
+        if (len <= 6) return 44;
+        if (len <= 8) return 38;
+        if (len <= 10) return 32;
+        if (len <= 13) return 26;
+        return 20;
+    }, [formattedDisplayValue]);
+
     return (
         <YStack flex={1} justify="space-between">
-            <YStack width="100%" height={330} rounded="$4" borderWidth={0.5} borderColor="$color3" justify="space-between" bg="$color2" items="center">
-                <XStack
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                        sheetRef.current?.present();
-                    }}
+            <YStack items="center" gap="$3" width="100%">
+                {/* Card Box Container */}
+                <YStack
                     width="100%"
-                    p="$3"
+                    bg="$gray2"
+                    rounded="$5"
+                    p="$4"
                     items="center"
-                    borderBottomWidth={1}
-                    borderBottomColor="$color3"
-                    justify="space-between"
-                    hoverStyle={{ bg: "$color3" }}
-                    pressStyle={{ bg: "$color5", opacity: 0.8, rounded: "$4" }}
+                    gap="$3"
+                    borderWidth={0}
                 >
-                    <XStack gap="$2" items="center">
-                        <Sprout size={18} strokeWidth={2.5} color="$color" />
+                    {/* Mint selector pill button at top of card */}
+                    <XStack justify="center" items="center" width="100%">
+                        <Button
+                            size="$3"
+                            rounded="$4"
+                            bg="$blue10"
+                            color="white"
+                            px={isLoadingMint ? "$3" : "$1.5"}
+                            borderWidth={0}
+                            disabled={isLoadingMint}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                                refreshMintList();
+                                sheetRef.current?.present();
+                            }}
+                            maxW={170}
+                            pressStyle={{ scale: 0.97, opacity: 0.95, bg: "$blue11" }}
+                            icon={
+                                isLoadingMint ? (
+                                    <Spinner size={14} color="white" />
+                                ) : (
+                                    <Avatar rounded="$3" size="$2">
+                                        <Avatar.Image src={activeMint?.icon} />
+                                        <Avatar.Fallback
+                                            backgroundColor="rgba(255,255,255,0.2)"
+                                            alignItems="center"
+                                            justifyContent="center"
+                                        >
+                                            <Sprout size={14} color="white" />
+                                        </Avatar.Fallback>
+                                    </Avatar>
+                                )
+                            }
+                            iconAfter={
+                                isLoadingMint ? undefined : (
+                                    <Square
+                                        size="$2"
+                                        borderWidth={0.5}
+                                        borderColor="rgba(255,255,255,0.2)"
+                                        bg="rgba(255,255,255,0.15)"
+                                        rounded="$3"
+                                    >
+                                        <ChevronDown size={16} strokeWidth={3} color="white" />
+                                    </Square>
+                                )
+                            }
+                            textProps={{
+                                fontSize: "$3",
+                                fontWeight: "700",
+                                maxW: 110,
+                                numberOfLines: 1,
+                                color: "white",
+                            }}
+                            ellipse
+                        >
+                            {isLoadingMint ? "Loading..." : displayName}
+                        </Button>
                     </XStack>
-                    <Text fontWeight="800" fontSize="$4">{mintName}</Text>
-                    <ChevronDown size={18} strokeWidth={2.5} color="$color" />
-                </XStack>
 
-                <YStack items="center" gap="$1">
-                    <Text color="$gray10" fontSize="$3">How much to send?</Text>
+                    {/* Amount Display Section */}
+                    <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+                        {error || isOverBalance ? (
+                            <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
+                                {error || "Exceeds available balance"}
+                            </Text>
+                        ) : (
+                            <Text color="$gray10" fontSize="$3" fontWeight="500">
+                                How much to send?
+                            </Text>
+                        )}
 
-                    <H1 fontWeight="400" letterSpacing={-2} py="$4" color={isOverBalance ? "$red10" : "$color"}>
-                        {inputMode === 'SATS' ? `₿${localInputValue || '0'}` : `${currencySymbol}${localInputValue || '0'}`}
-                    </H1>
+                        <H1
+                            fontSize={dynamicFontSize}
+                            fontVariant={['tabular-nums']}
+                            fontWeight="700"
+                            letterSpacing={-1}
+                            py="$2"
+                            color={isOverBalance ? "$red10" : "$color"}
+                            text="center"
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            style={{ maxWidth: '100%', overflow: 'hidden' }}
+                        >
+                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                        </H1>
 
-                    <Button
-                        size="$2.5"
-                        theme="gray"
-                        fontWeight="400"
-                        color="$accent9"
-                        mt="$-2"
-                        onPress={toggleMode}
-                        pressStyle={{ scale: 0.95 }}
-                    >
-                        {conversionValue}
-                    </Button>
+                        <Button
+                            size="$3"
+                            rounded="$10"
+                            bg="$gray5"
+                            pressStyle={{ scale: 0.96, bg: "$gray5" }}
+                            onPress={toggleMode}
+                            iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                        >
 
-                    {isOverBalance && (
-                        <Text color="$red10" fontSize="$2" mt="$2">Exceeds available balance</Text>
-                    )}
+                            {conversionValue}
+
+                        </Button>
+                    </YStack>
+
+
                 </YStack>
 
-                <XStack width="100%" p="$3" borderTopWidth={1} borderTopColor="$color3" justify="space-between" items="center">
-                    <Text color="$gray10" fontWeight="400" fontSize="$3">Available Balance</Text>
+                {/* Available Balance Bar */}
+                <XStack width="100%" p="$3" borderTopWidth={0} borderTopColor="$borderColor" justify="space-between" items="center">
                     <XStack gap="$2" items="center">
-                        <Text color="$gray10" fontWeight="600" fontSize="$3">₿{balance}</Text>
+                        <Wallet size={16} color="$gray10" />
+                        <Text color="$gray10" fontWeight="500" fontSize="$3">Available Balance</Text>
+                    </XStack>
+                    <XStack gap="$2" items="center">
+                        <Text color="$gray10" fontWeight="700" fontSize="$3">₿{balance.toLocaleString('en-US')}</Text>
                         <Button
                             size="$2"
+                            rounded="$3"
                             onPress={handleMax}
                             disabled={balance === 0}
                         >
@@ -187,14 +311,6 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
                     </XStack>
                 </XStack>
             </YStack>
-
-            {/* Error Display */}
-            {error && (
-                <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$4">
-                    <AlertCircle size={18} color="$red10" />
-                    <Text color="$red10" fontSize="$3" flex={1}>{error}</Text>
-                </XStack>
-            )}
 
             <NumericKeypad
                 showAmountDisplay={false}
@@ -210,4 +326,3 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
         </YStack>
     );
 }
-

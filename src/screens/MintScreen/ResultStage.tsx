@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
-import { YStack, XStack, Text, Button, H2, Separator, Circle } from "tamagui";
-import { CheckCircle, XCircle, AlertCircle } from "@tamagui/lucide-icons";
+import React, { useEffect, useMemo } from 'react';
+import { YStack, XStack, Text, Button, H1, Separator, Avatar } from "tamagui";
+import { CheckCircle2, XCircle, AlertCircle, Sprout, Zap } from "@tamagui/lucide-icons";
 import * as Haptics from 'expo-haptics';
-import { ListTable, ListTableRow } from '~/components/UI/ListTable';
-import { currencyService, CurrencyCode } from '~/services/currencyService';
+import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import { useSettingsStore } from '~/store/settingsStore';
+import { useWalletStore } from '~/store/walletStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 
@@ -18,9 +18,10 @@ interface ResultStageProps {
 
 export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultStageProps) {
     const isSuccess = status === 'success';
-    const sats = parseInt(amount, 10);
+    const sats = parseInt(amount, 10) || 0;
 
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { mints } = useWalletStore();
+    const { secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -28,12 +29,29 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
         staleTime: 30000,
     });
 
-    const fiatValue = btcData?.price
-        ? currencyService.formatValue(
-            currencyService.convertSatsToCurrency(Number(amount), btcData.price),
-            secondaryCurrency as CurrencyCode
-        )
-        : '...';
+    const currencySymbol = useMemo(() => {
+        return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
+    }, [secondaryCurrency]);
+
+    const fiatValue = useMemo(() => {
+        if (!btcData?.price) return '0.00';
+        const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
+        return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
+    }, [sats, btcData?.price, secondaryCurrency]);
+
+    const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+
+    const activeMint = useMemo(() => {
+        if (!mintUrl) return null;
+        return mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl));
+    }, [mints, mintUrl]);
+
+    const mintDisplayName = useMemo(() => {
+        if (!mintUrl) return "Selected Mint";
+        if (activeMint?.nickname) return activeMint.nickname;
+        if (activeMint?.name) return activeMint.name;
+        return mintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    }, [activeMint, mintUrl]);
 
     useEffect(() => {
         if (isSuccess) {
@@ -43,126 +61,176 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
         } else {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
+    }, [status, isSuccess]);
+
+    const statusTitle = useMemo(() => {
+        switch (status) {
+            case 'success': return 'Deposit Successful';
+            case 'error': return 'Deposit Failed';
+            case 'cancelled': return 'Deposit Cancelled';
+        }
     }, [status]);
 
-    const getIcon = () => {
+    const statusColor = useMemo(() => {
         switch (status) {
-            case 'success':
-                return <CheckCircle size={40} color="white" />;
-            case 'error':
-                return <XCircle size={40} color="white" />;
-            case 'cancelled':
-                return <AlertCircle size={40} color="white" />;
+            case 'success': return '$green11';
+            case 'error': return '$red10';
+            case 'cancelled': return '$orange10';
         }
-    };
+    }, [status]);
 
-    const getTitle = () => {
+    const statusBg = useMemo(() => {
         switch (status) {
-            case 'success':
-                return 'Deposit Successful';
-            case 'error':
-                return 'Deposit Failed';
-            case 'cancelled':
-                return 'Deposit Cancelled';
+            case 'success': return '$green3';
+            case 'error': return '$red3';
+            case 'cancelled': return '$orange3';
         }
-    };
+    }, [status]);
 
-    const getMessage = () => {
+    const StatusIcon = useMemo(() => {
         switch (status) {
-            case 'success':
-                return `Successfully minted ${sats} SATS to your wallet.`;
-            case 'error':
-                return error || 'An error occurred while processing your deposit.';
-            case 'cancelled':
-                return 'The transaction was cancelled.';
+            case 'success': return <CheckCircle2 size={22} color="$green11" />;
+            case 'error': return <XCircle size={22} color="$red10" />;
+            case 'cancelled': return <AlertCircle size={22} color="$orange10" />;
         }
-    };
+    }, [status]);
 
-    const getStatusColor = () => {
-        switch (status) {
-            case 'success':
-                return '$green10';
-            case 'error':
-                return '$red10';
-            case 'cancelled':
-                return '$orange10';
-        }
-    };
+    const formattedSatsString = useMemo(() => {
+        return sats.toLocaleString('en-US');
+    }, [sats]);
+
+    const dynamicFontSize = useMemo(() => {
+        const len = formattedSatsString.length + 2;
+        if (len <= 6) return 44;
+        if (len <= 8) return 38;
+        if (len <= 10) return 32;
+        if (len <= 13) return 26;
+        return 20;
+    }, [formattedSatsString]);
+
+    const timeString = useMemo(() => {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }, []);
 
     return (
-        <YStack flex={1} bg="$background">
-            <YStack flex={1}>
-                {/* 1. Status and Amount Display */}
-                <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
-                    <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'error' ? "$red10" : status === 'cancelled' ? "$orange10" : "$color"}>
-                        {status === 'success' ? 'Deposit Successful' : status === 'error' ? 'Deposit Failed' : 'Deposit Cancelled'}
-                    </Text>
-                    <YStack items="center" justify="center">
-                        {primaryCurrency === 'SATS' ? (
-                            <>
-                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$green11" : status === 'error' ? "$red11" : "$orange11"}>
-                                    +₿{Number(amount || 0).toLocaleString()}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    Ecash SATS
-                                </Text>
-                            </>
-                        ) : (
-                            <>
-                                <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$green11" : status === 'error' ? "$red11" : "$orange11"}>
-                                    +{fiatValue}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    +₿{Number(amount || 0).toLocaleString()} SATS
-                                </Text>
-                            </>
-                        )}
-                    </YStack>
-                    <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
-                        <Text color="$gray10" fontSize="$4" text="center">
-                            {status === 'success' ? `Successfully minted to your wallet.` : status === 'error' ? (error || 'An error occurred while processing.') : 'The transaction was cancelled.'}
+        <YStack flex={1} justify="space-between">
+            <YStack gap="$4" width="100%">
+                {/* Hero Card Box Container matching ConfirmStage */}
+                <YStack
+                    width="100%"
+                    bg="$gray2"
+                    rounded="$5"
+                    p="$4"
+                    items="center"
+                    gap="$3"
+                    borderWidth={0}
+                >
+                    {/* Status badge at top of card */}
+                    <XStack justify="center" items="center" width="100%">
+                        <XStack bg={statusBg} px="$3" py="$1.5" rounded="$10" items="center" gap="$2">
+                            {StatusIcon}
+                            <Text fontSize="$3" fontWeight="700" color={statusColor}>
+                                {statusTitle}
+                            </Text>
+                        </XStack>
+                    </XStack>
+
+                    {/* Amount Display Section */}
+                    <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
+                        <Text color="$gray10" fontSize="$3" fontWeight="500">
+                            {isSuccess ? 'Minted Amount' : 'Attempted Amount'}
+                        </Text>
+
+                        <H1
+                            fontSize={dynamicFontSize}
+                            fontVariant={['tabular-nums']}
+                            fontWeight="700"
+                            letterSpacing={-1}
+                            py="$2"
+                            color={isSuccess ? "$green11" : statusColor}
+                            text="center"
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            style={{ maxWidth: '100%', overflow: 'hidden' }}
+                        >
+                            {isSuccess ? '+' : ''}₿{formattedSatsString}
+                        </H1>
+
+                        <Text fontSize="$3" fontWeight="600" color="$accent10">
+                            ≈ {fiatValue} {secondaryCurrency}
                         </Text>
                     </YStack>
                 </YStack>
 
-                {/* Details Table */}
-                <ListTable>
-                    {primaryCurrency === 'FIAT' ? (
-                        <ListTableRow label="Total Amount" value={fiatValue} />
-                    ) : (
-                        <ListTableRow label="Total Amount" value={`₿${sats} sats`} />
-                    )}
-                    <ListTableRow label="Status" value={status === 'success' ? 'Deposited' : status === 'error' ? 'Failed' : 'Cancelled'} valueColor={getStatusColor()} />
-                    {status === 'success' && (
-                        <>
-                            <ListTableRow label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                            {mintUrl && <ListTableRow label="Mint" value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]} />}
-                            {primaryCurrency === 'FIAT' ? (
-                                <ListTableRow label="Sats Value" value={`₿${sats} sats`} />
-                            ) : (
-                                <ListTableRow label="Fiat Value" value={fiatValue} />
-                            )}
-                        </>
-                    )}
-                </ListTable>
+                {/* Detailed Breakdown Card matching ConfirmStage */}
+                <YStack bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+                    <DetailItem
+                        label="Status"
+                        value={isSuccess ? 'Completed' : status === 'error' ? 'Failed' : 'Cancelled'}
+                        valueColor={statusColor}
+                    />
+                    <DetailItem
+                        label="Mint"
+                        value={mintDisplayName}
+                        icon={
+                            <Avatar rounded="$3" size="$1.5">
+                                <Avatar.Image src={activeMint?.icon} />
+                                <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                    <Sprout size={12} color="$green10" />
+                                </Avatar.Fallback>
+                            </Avatar>
+                        }
+                    />
+                    <DetailItem
+                        label="Method"
+                        value="Top Up via Lightning"
+                        icon={<Zap size={16} color="$yellow10" />}
+                    />
+                    <DetailItem
+                        label="Amount (SATS)"
+                        value={`${formattedSatsString} SATS`}
+                    />
+                    <DetailItem
+                        label="Amount (Fiat)"
+                        value={`${fiatValue}`}
+                    />
+                    <DetailItem
+                        label="Time"
+                        value={timeString}
+                    />
+                </YStack>
             </YStack>
 
-            <YStack position="absolute" b={0} l={0} r={0} bg="$background" borderTopWidth={1} borderColor="$gray3">
+            {/* Action Button at bottom */}
+            <YStack pb="$2">
                 <Button
-                    bg={status === 'success' ? "$green10" : "$gray3"}
+                    theme={isSuccess ? "accent" : "gray"}
                     size="$5"
                     height={55}
+                    rounded="$4"
+                    fontWeight="800"
                     onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         onClose();
                     }}
-                    fontWeight="800"
-                    color={status === 'success' ? "white" : "$color"}
-                    rounded="$4"
                 >
-                    DONE
+                    Done
                 </Button>
             </YStack>
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+                    {value}
+                </Text>
+            </XStack>
+        </XStack>
     );
 }

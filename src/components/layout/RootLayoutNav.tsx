@@ -148,17 +148,6 @@ export function RootLayoutNav() {
                             gestureDirection: 'horizontal',
                         }}
                     />
-
-                    <Stack.Screen
-                        name="modal"
-                        options={{
-                            title: 'Tamagui + Expo',
-                            presentation: 'formSheet',
-                            animation: 'slide_from_right',
-                            gestureEnabled: true,
-                            gestureDirection: 'horizontal',
-                        }}
-                    />
                 </Stack>
 
                 {/* Lock overlay - only shows when onboarded and locked */}

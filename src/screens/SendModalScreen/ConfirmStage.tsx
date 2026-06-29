@@ -1,24 +1,50 @@
 import React, { useMemo } from 'react';
 import { YStack, XStack, Text, Button, H1, Separator, Avatar, View } from "tamagui";
-import { Sprout, Zap } from "@tamagui/lucide-icons";
-import { Spinner } from '../../components/UI/Spinner';
-import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
-import { useWalletStore } from "~/store/walletStore";
-import { useSettingsStore } from "~/store/settingsStore";
-import { useQuery } from "@tanstack/react-query";
-import { bitcoinService } from "~/services/bitcoinService";
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
+import { Switch } from 'react-native';
+import { Sprout, Zap, ShieldCheck, Lock, Clock } from "@tamagui/lucide-icons";
+import { Spinner } from '~/components/UI/Spinner';
+import { useWalletStore } from '~/store/walletStore';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
+import { SendMode } from '~/components/SendMethodSelector';
+import Blockies from '~/components/UI/Blockies';
 import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
     amount: string;
     mintUrl: string;
+    estimatedFee: number;
+    sendMode: SendMode;
+    useP2PK: boolean;
+    setUseP2PK: (val: boolean) => void;
+    expiryEnabled: boolean;
+    setExpiryEnabled: (val: boolean) => void;
+    nostrRecipientNpub?: string;
+    nostrRecipientUsername?: string;
+    receiverPubkey?: string;
     isLoading?: boolean;
     onConfirm: () => void;
     onBack: () => void;
 }
 
-export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: ConfirmStageProps) {
+export function ConfirmStage({
+    amount,
+    mintUrl,
+    estimatedFee,
+    sendMode,
+    useP2PK,
+    setUseP2PK,
+    expiryEnabled,
+    setExpiryEnabled,
+    nostrRecipientNpub,
+    nostrRecipientUsername,
+    receiverPubkey,
+    isLoading,
+    onConfirm,
+    onBack
+}: ConfirmStageProps) {
     const sats = parseInt(amount, 10) || 0;
     const { mints } = useWalletStore();
     const { secondaryCurrency } = useSettingsStore();
@@ -58,7 +84,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
     }, [sats]);
 
     const dynamicFontSize = useMemo(() => {
-        const len = formattedSatsString.length + 2; // +2 for +₿
+        const len = formattedSatsString.length + 1; // +1 for ₿
         if (len <= 6) return 44;
         if (len <= 8) return 38;
         if (len <= 10) return 32;
@@ -66,10 +92,33 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
         return 20;
     }, [formattedSatsString]);
 
+    const recipientSeed = useMemo(() => {
+        if (sendMode === 'nostr' && nostrRecipientNpub) return nostrRecipientNpub;
+        if (sendMode === 'p2pk' && receiverPubkey) return receiverPubkey;
+        return null;
+    }, [sendMode, nostrRecipientNpub, receiverPubkey]);
+
+    const displayRecipientText = useMemo(() => {
+        if (sendMode === 'nostr') {
+            return nostrRecipientUsername || (nostrRecipientNpub ? `${nostrRecipientNpub.slice(0, 10)}...` : '');
+        }
+        if (sendMode === 'p2pk' && receiverPubkey) {
+            return `${receiverPubkey.slice(0, 10)}...`;
+        }
+        return '';
+    }, [sendMode, nostrRecipientNpub, nostrRecipientUsername, receiverPubkey]);
+
+    const methodTitle = useMemo(() => {
+        if (sendMode === 'link') return 'Create eCash Link';
+        if (sendMode === 'p2pk') return 'P2PK Send';
+        if (sendMode === 'nostr') return 'Nostr Direct Send';
+        return 'Standard Ecash Send';
+    }, [sendMode]);
+
     return (
         <YStack flex={1} justify="space-between">
             <YStack gap="$4" width="100%">
-                {/* Hero Card Box Container matching AmountStage */}
+                {/* Hero Card Box Container matching Mint ConfirmStage */}
                 <YStack
                     width="100%"
                     bg="$gray2"
@@ -78,16 +127,12 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                     items="center"
                     gap="$3"
                     borderWidth={0}
-                    borderColor="$borderColor"
                 >
-                    {/* Mint info header badge */}
-
-
 
                     {/* Amount Display Section */}
                     <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
                         <Text color="$gray10" fontSize="$3" fontWeight="500">
-                            Confirm Deposit Amount
+                            Confirm Send Amount
                         </Text>
 
                         <H1
@@ -95,21 +140,19 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                             fontVariant={['tabular-nums']}
                             fontWeight="700"
                             letterSpacing={-1}
-                            py="$3"
+                            py="$2"
                             color="$color"
                             text="center"
                             numberOfLines={1}
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            +₿{formattedSatsString}
+                            ₿{formattedSatsString}
                         </H1>
-
 
                         <Text fontSize="$3" fontWeight="600" color="$accent10">
                             ≈ {fiatValue} {secondaryCurrency}
                         </Text>
-
                     </YStack>
                 </YStack>
 
@@ -129,26 +172,69 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                     />
                     <DetailItem
                         label="Method"
-                        value="Top Up via Lightning"
-                        icon={<Zap size={16} color="$yellow10" />}
-                    />
-                    <DetailItem
-                        label="Amount (SATS)"
-                        value={`${formattedSatsString} SATS`}
-                    />
-                    <DetailItem
-                        label="Amount (Fiat)"
-                        value={`${currencySymbol}${fiatValue}`}
+                        value={methodTitle}
+
                     />
                     <DetailItem
                         label="Estimated Fee"
-                        value="0 SATS (Free)"
-                        valueColor="$green10"
+                        value={estimatedFee > 0 ? `~${estimatedFee} SATS` : '0 SATS (Free)'}
+                        valueColor={estimatedFee > 0 ? "$orange10" : "$green11"}
+                        icon={<ShieldCheck size={16} color="$green11" />}
                     />
+
+                    {recipientSeed && (
+                        <XStack justify="space-between" items="center" py="$3" px="$4">
+                            <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
+                            <XStack gap="$2" items="center">
+                                <Blockies seed={recipientSeed} size={6} scale={2} style={{ borderRadius: 2 }} />
+                                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
+                                    {displayRecipientText}
+                                </Text>
+                            </XStack>
+                        </XStack>
+                    )}
+
+                    {sendMode === 'nostr' && (
+                        <XStack justify="space-between" items="center" py="$3" px="$4">
+                            <XStack gap="$2" items="center">
+                                <Lock size={16} color="$gray10" />
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">P2PK Lock</Text>
+                            </XStack>
+                            <XStack gap="$2" items="center">
+                                <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
+                                    {useP2PK ? 'Secured' : 'Off'}
+                                </Text>
+                                <Switch
+                                    value={useP2PK}
+                                    onValueChange={setUseP2PK}
+                                    trackColor={{ false: '#444', true: '#34C759' }}
+                                    thumbColor="white"
+                                />
+                            </XStack>
+                        </XStack>
+                    )}
+
+                    <XStack justify="space-between" items="center" py="$3" px="$4">
+                        <XStack gap="$2" items="center">
+                            <Clock size={16} color="$gray10" />
+                            <Text fontSize="$3" color="$gray10" fontWeight="600">7 Days Expiry</Text>
+                        </XStack>
+                        <XStack gap="$2" items="center">
+                            <Text fontSize="$2" color={expiryEnabled ? '$green11' : '$gray10'} fontWeight="700">
+                                {expiryEnabled ? '7 Days' : 'Off'}
+                            </Text>
+                            <Switch
+                                value={expiryEnabled}
+                                onValueChange={setExpiryEnabled}
+                                trackColor={{ false: '#444', true: '#34C759' }}
+                                thumbColor="white"
+                            />
+                        </XStack>
+                    </XStack>
                 </YStack>
             </YStack>
 
-            {/* Action Buttons */}
+            {/* Action Buttons (Confirm Top, Back Bottom, NO Bio Auth) */}
             <YStack gap="$3" pb="$2">
                 <Button
                     theme="accent"
@@ -163,7 +249,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                         onConfirm();
                     }}
                 >
-                    {isLoading ? 'Creating Invoice...' : 'Confirm Deposit'}
+                    {isLoading ? 'Creating Ecash...' : 'Confirm & Send'}
                 </Button>
                 <Button
                     bg="$gray3"
@@ -181,13 +267,6 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                     Go Back
                 </Button>
             </YStack>
-
-            <ProcessingSheet
-                visible={!!isLoading}
-                title="Creating Invoice"
-                amount={sats}
-                detail={`Requesting from ${mintDisplayName}`}
-            />
         </YStack>
     );
 }
