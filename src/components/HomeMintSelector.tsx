@@ -31,12 +31,13 @@ export interface MintSelectorSheetProps {
   onSelect?: (mintUrl: string) => void;
   activeMintUrl?: string;
   showAllOption?: boolean;
+  changeGlobalActiveMint?: boolean;
 }
 
 export const MintSelectorSheet = React.forwardRef<
   AppBottomSheetRef,
   MintSelectorSheetProps
->(({ onSelect, activeMintUrl: propActiveMintUrl, showAllOption }, ref) => {
+>(({ onSelect, activeMintUrl: propActiveMintUrl, showAllOption, changeGlobalActiveMint = true }, ref) => {
   const storeActiveMintUrl = useWalletStore((s) => s.activeMintUrl);
   const balances = useWalletStore((s) => s.balances);
   const mints = useWalletStore((s) => s.mints);
@@ -49,7 +50,7 @@ export const MintSelectorSheet = React.forwardRef<
   const handleSelectMint = useCallback(
     (mintUrl: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      if (mintUrl !== "all") {
+      if (mintUrl !== "all" && changeGlobalActiveMint) {
         setActiveMint(mintUrl);
       }
       if (onSelect) {
@@ -59,7 +60,7 @@ export const MintSelectorSheet = React.forwardRef<
         (ref as React.RefObject<AppBottomSheetRef>).current?.dismiss();
       }
     },
-    [setActiveMint, onSelect, ref],
+    [setActiveMint, onSelect, ref, changeGlobalActiveMint],
   );
 
   const handleAddMint = useCallback(() => {

@@ -8,7 +8,7 @@ import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/
 import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from "expo-haptics";
-import { ChevronDown, ArrowDownCircle, ArrowUpRight } from "@tamagui/lucide-icons";
+import { ChevronDown, ArrowDownCircle, ArrowUpRight, ArrowUpDown } from "@tamagui/lucide-icons";
 import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 
@@ -55,6 +55,13 @@ export function AmountStage({
     };
 
     const sourceBalance = sourceMintUrl ? (balances[sourceMintUrl] || 0) : 0;
+
+    const handleFlipMints = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        const temp = sourceMintUrl;
+        setSourceMintUrl(targetMintUrl);
+        setTargetMintUrl(temp);
+    };
 
     const conversionValue = useMemo(() => {
         if (!btcData?.price) return '0';
@@ -116,11 +123,9 @@ export function AmountStage({
         }
     };
 
-
-
     return (
         <YStack flex={1} justify="space-between">
-            <YStack width="100%" rounded="$4" borderWidth={0.5} borderColor="$borderColor" justify="space-between" bg="$color2" items="center" mb="$4">
+            <YStack width="100%" rounded="$4" borderWidth={0.5} borderColor="$borderColor" justify="space-between" bg="$color2" items="center" mb="$4" position="relative">
                 {/* Source Mint Selector */}
                 <XStack
                     onPress={() => {
@@ -151,6 +156,21 @@ export function AmountStage({
                     </YStack>
                     <ChevronDown size={18} strokeWidth={2.5} color="$color" />
                 </XStack>
+
+                {/* Flip Direction Button */}
+                <View position="absolute" top={52} z={10} right={20}>
+                    <Button
+                        circular
+                        size="$2.5"
+                        bg="$background"
+                        borderColor="$borderColor"
+                        borderWidth={1}
+                        elevation={2}
+                        icon={<ArrowUpDown size={14} color="$color" />}
+                        onPress={handleFlipMints}
+                        pressStyle={{ scale: 0.9 }}
+                    />
+                </View>
 
                 {/* Target Mint Selector */}
                 <XStack
@@ -214,11 +234,11 @@ export function AmountStage({
                 onConfirm={onContinue}
                 confirmLabel="Review Swap"
                 maxAmount={sourceBalance}
-                confirmDisabled={!sourceMintUrl || !targetMintUrl || !amount || Number(amount) <= 0 || Number(amount) > sourceBalance}
+                confirmDisabled={!sourceMintUrl || !targetMintUrl || sourceMintUrl === targetMintUrl || !amount || Number(amount) <= 0 || Number(amount) > sourceBalance}
             />
 
-            <MintSelectorSheet ref={sourceSheetRef} onSelect={setSourceMintUrl} />
-            <MintSelectorSheet ref={targetSheetRef} onSelect={setTargetMintUrl} />
+            <MintSelectorSheet ref={sourceSheetRef} activeMintUrl={sourceMintUrl} changeGlobalActiveMint={false} onSelect={setSourceMintUrl} />
+            <MintSelectorSheet ref={targetSheetRef} activeMintUrl={targetMintUrl} changeGlobalActiveMint={false} onSelect={setTargetMintUrl} />
             <ProcessingSheet
                 visible={!!isLoading}
                 title="Swapping"

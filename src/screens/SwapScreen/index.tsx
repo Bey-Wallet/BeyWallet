@@ -23,13 +23,19 @@ export default function SwapScreen() {
     const [step, setStep] = useState<SwapStep>('amount');
     const [amount, setAmount] = useState('0');
 
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+
     // We auto-select the first mint with balance as source, or active
     const firstFunded = React.useMemo(() => {
-        return mints.find(m => (balances[m.mintUrl] || 0) > 0)?.mintUrl || mints[0]?.mintUrl;
-    }, [mints, balances]);
+        return activeMintUrl || mints.find(m => (balances[m.mintUrl] || 0) > 0)?.mintUrl || mints[0]?.mintUrl;
+    }, [activeMintUrl, mints, balances]);
+
+    const defaultTarget = React.useMemo(() => {
+        return mints.find(m => m.mintUrl !== firstFunded)?.mintUrl || mints[0]?.mintUrl || '';
+    }, [mints, firstFunded]);
 
     const [sourceMintUrl, setSourceMintUrl] = useState<string>(firstFunded || '');
-    const [targetMintUrl, setTargetMintUrl] = useState<string>(mints[0]?.mintUrl || '');
+    const [targetMintUrl, setTargetMintUrl] = useState<string>(defaultTarget || '');
 
     const [status, setStatus] = useState<'success' | 'error' | 'cancelled'>('success');
     const [error, setError] = useState<string | null>(null);
@@ -70,24 +76,34 @@ export default function SwapScreen() {
                 const token = await walletService.send(sourceMintUrl, amountNum);
                 await walletService.receive(token.token as any);
             } else {
-                // Cross-mint swap via Lightning (Melt -> Mint)
-                console.log(`[Swap] Cross-mint swapping ${amountNum} sats from ${sourceMintUrl} to ${targetMintUrl}`);
+                // Cross-mint swap via NUT-19 (Direct Atomic Swap or Optimized Route)
+                console.log(`[Swap] Executing NUT-19 cross-mint swap (${amountNum} sats) from ${sourceMintUrl} to ${targetMintUrl}`);
+                await quotesService.swapMintToMint(sourceMintUrl, targetMintUrl, amountNum);
+            }
 
-                // 1. Get Mint Invoice
-                const mintQuote = await quotesService.createMintQuote(targetMintUrl, amountNum);
-
-                // 2. Prepare Melt
-                const meltOp = await quotesService.prepareMelt(sourceMintUrl, mintQuote.invoice);
-
-                // 3. Execute Melt
-                await quotesService.executeMelt(meltOp.id);
-
-                // 4. Try immediately redeeming mint
-                try {
-                    await quotesService.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
-                } catch (e: any) {
-                    console.log('[Swap] Manual redeem failed, watcher might catch it:', e.message);
+            // Record transaction history entry for NUT-19 atomic swap
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository) {
+                    await (repo.historyRepository as any).addHistoryEntry({
+                        mintUrl: sourceMintUrl,
+                        type: 'swap',
+                        unit: 'sat',
+                        amount: amountNum,
+                        createdAt: Date.now(),
+                        state: 'completed',
+                        metadata: {
+                            via: 'swap',
+                            protocol: 'NUT-19',
+                            sourceMintUrl,
+                            targetMintUrl,
+                            sourceMintName: sourceMint?.name || sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0],
+                            targetMintName: targetMint?.name || targetMintUrl.replace(/^https?:\/\//, '').split('/')[0],
+                        }
+                    });
                 }
+            } catch (histErr) {
+                console.warn('[Swap] Failed to record history entry:', histErr);
             }
 
             setStatus('success');

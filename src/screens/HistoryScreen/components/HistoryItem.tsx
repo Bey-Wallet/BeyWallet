@@ -35,24 +35,33 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
                 : 'Nostr';
         return {
             label: `Via Nostr · ${username}`,
-            icon: <AtSign size={10} strokeWidth={2.5} color="$purple10" />,
-            color: '$purple10',
+            icon: <AtSign size={10} strokeWidth={2.5} color="#a855f7" />,
+            color: '#a855f7',
+        };
+    }
+    if (metadata.via === 'swap' || metadata.protocol === 'NUT-19' || type === 'swap') {
+        const sourceName = metadata.sourceMintName || 'Mint';
+        const targetName = metadata.targetMintName || 'Mint';
+        return {
+            label: metadata.sourceMintName && metadata.targetMintName ? `${sourceName} ➔ ${targetName}` : 'NUT-19 Atomic Swap',
+            icon: <RefreshCw size={10} strokeWidth={2.5} color="#3b82f6" />,
+            color: '#3b82f6'
         };
     }
     if (metadata.via === 'nfc') {
-        return { label: 'Via NFC', icon: <Nfc size={10} strokeWidth={2.5} color="$blue10" />, color: '$blue10' };
+        return { label: 'Via NFC', icon: <Nfc size={10} strokeWidth={2.5} color="#3b82f6" />, color: '#3b82f6' };
     }
     if (metadata.via === 'qr' || metadata.via === 'scan') {
-        return { label: 'Via QR Scan', icon: <QrCode size={10} strokeWidth={2.5} color="$green10" />, color: '$green10' };
+        return { label: 'Via QR Scan', icon: <QrCode size={10} strokeWidth={2.5} color="#22c55e" />, color: '#22c55e' };
     }
     if (metadata.via === 'paste') {
-        return { label: 'Via Paste', icon: <Box size={10} strokeWidth={2.5} color="$gray10" />, color: '$gray10' };
+        return { label: 'Via Paste', icon: <Box size={10} strokeWidth={2.5} color="#71717a" />, color: '#71717a' };
     }
     if (metadata.via === 'ecash_create') {
-        return { label: 'Ecash Token', icon: <Box size={10} strokeWidth={2.5} color="$orange9" />, color: '$orange9' };
+        return { label: 'Ecash Token', icon: <Box size={10} strokeWidth={2.5} color="#f97316" />, color: '#f97316' };
     }
     if (type === 'mint' || type === 'melt' || metadata.via === 'lightning') {
-        return { label: 'Via Lightning', icon: <Zap size={10} strokeWidth={2.5} color="$yellow10" />, color: '$yellow10' };
+        return { label: 'Via Lightning', icon: <Zap size={10} strokeWidth={2.5} color="#eab308" />, color: '#eab308' };
     }
     if (metadata.type === 'p2pk' || metadata.p2pkPubkey) {
         return { label: 'P2PK Locked', icon: <ShieldCheck size={10} strokeWidth={2.5} color="$orange10" />, color: '$orange10' };
@@ -74,7 +83,7 @@ function getTypeLabel(type: string, metadata?: Record<string, any>): string {
         case 'receive-request': return 'Payment Request';
         case 'mint': return 'Lightning Receive';
         case 'melt': return 'Lightning Send';
-        case 'swap': return 'Optimized';
+        case 'swap': return 'NUT-19 Atomic Swap';
         default: return type.charAt(0).toUpperCase() + type.slice(1);
     }
 }

@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/notificationService';
+import { AppDropdownMenu, DropdownMenuItem } from '~/components/UI/AppDropdownMenu';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -40,6 +41,73 @@ interface HistoryEntry {
     createdAt: number;
     metadata?: any;
     token?: any;
+}
+
+function TxnHeaderContextMenu({
+    id,
+    token,
+    isRefetching,
+    onRefresh,
+    onShare,
+    onCopyToken,
+}: {
+    id?: string;
+    token?: string;
+    isRefetching: boolean;
+    onRefresh: () => void;
+    onShare: () => void;
+    onCopyToken: () => void;
+}) {
+    const toast = useToastController();
+
+    const menuItems: DropdownMenuItem[] = [
+        {
+            key: 'refresh',
+            title: 'Refresh Status',
+            subTitle: 'Sync latest on-chain state',
+            icon: isRefetching ? <Spinner size="small" /> : <RefreshCw size={18} color="$color" />,
+            action: onRefresh,
+        },
+        {
+            key: 'copy-id',
+            title: 'Copy Txn ID',
+            subTitle: id ? `${id.slice(0, 12)}...` : undefined,
+            icon: <Copy size={18} color="$color" />,
+            action: async () => {
+                if (id) {
+                    await Clipboard.setStringAsync(id);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    toast.show('Copied!', { message: 'Transaction ID copied' });
+                }
+            },
+        },
+    ];
+
+    if (token) {
+        menuItems.push({
+            key: 'copy-token',
+            title: 'Copy Token',
+            subTitle: 'Raw Cashu eCash string',
+            icon: <Copy size={18} color="$color" />,
+            action: onCopyToken,
+        });
+    }
+
+    menuItems.push({
+        key: 'share',
+        title: 'Share Transaction',
+        subTitle: 'Share via device apps',
+        icon: <Share2 size={18} color="$color" />,
+        action: onShare,
+    });
+
+    return (
+        <AppDropdownMenu
+            items={menuItems}
+            placement="bottom-end"
+            width={210}
+        />
+    );
 }
 
 export function TransactionDetailsScreen() {
@@ -681,14 +749,14 @@ export function TransactionDetailsScreen() {
                             </XStack>
                         ),
                         headerRight: () => (
-                            <XStack p="$1" gap="$3" items="center" justify="center">
-                                <Button
-                                    circular
-                                    size="$3"
-                                    icon={isRefetching ? <Spinner /> : <RefreshCw size={22} color="$color" />}
-                                    chromeless
-                                    onPress={handleRefresh}
-                                    disabled={isRefetching}
+                            <XStack p="$1" gap="$2" items="center" justify="center">
+                                <TxnHeaderContextMenu
+                                    id={entry?.id}
+                                    token={token}
+                                    isRefetching={isRefetching}
+                                    onRefresh={handleRefresh}
+                                    onShare={handleShare}
+                                    onCopyToken={handleCopyToken}
                                 />
                             </XStack>
                         ),
@@ -741,14 +809,14 @@ export function TransactionDetailsScreen() {
                     options={{
                         title: 'Pending Ecash',
                         headerRight: () => (
-                            <XStack gap="$2">
-                                <Button
-                                    circular
-                                    size="$3"
-                                    icon={isRefetching ? <Spinner size={22} /> : <RefreshCw size={22} color="$color" />}
-                                    chromeless
-                                    onPress={handleRefresh}
-                                    disabled={isRefetching}
+                            <XStack p="$1" gap="$2" items="center" justify="center">
+                                <TxnHeaderContextMenu
+                                    id={entry?.id}
+                                    token={token}
+                                    isRefetching={isRefetching}
+                                    onRefresh={handleRefresh}
+                                    onShare={handleShare}
+                                    onCopyToken={handleCopyToken}
                                 />
                             </XStack>
                         ),
@@ -785,16 +853,14 @@ export function TransactionDetailsScreen() {
                             </XStack>
                         ),
                         headerRight: () => (
-                            <XStack p="$1" gap="$3" items="center" justify="center">
-
-
-                                <Button
-                                    circular
-                                    size="$3"
-                                    icon={isRefetching ? <Spinner /> : <RefreshCw size={22} color="$color" />}
-                                    chromeless
-                                    onPress={handleRefresh}
-                                    disabled={isRefetching}
+                            <XStack p="$1" gap="$2" items="center" justify="center">
+                                <TxnHeaderContextMenu
+                                    id={entry?.id}
+                                    token={token}
+                                    isRefetching={isRefetching}
+                                    onRefresh={handleRefresh}
+                                    onShare={handleShare}
+                                    onCopyToken={handleCopyToken}
                                 />
                             </XStack>
                         ),
@@ -808,6 +874,7 @@ export function TransactionDetailsScreen() {
                                 {status === 'failed' || status === 'error' ? 'Transaction Failed' :
                                     status === 'expired' || status === 'refunded' ? 'Transaction Expired' :
                                     status === 'pending' || status === 'unclaimed' ? 'Transaction Pending' :
+                                        entry.type === 'swap' || metadata?.via === 'swap' ? 'Swapped Successfully!' :
                                         entry.type === 'send' ? 'Sent Successfully!' :
                                             entry.type === 'receive' ? 'Received Successfully!' :
                                                 entry.type === 'mint' ? 'Minted Successfully!' :
@@ -816,20 +883,20 @@ export function TransactionDetailsScreen() {
                             <YStack items="center" justify="center">
                                 {primaryCurrency === 'SATS' ? (
                                     <>
-                                        <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
-                                            {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                                        <Text fontSize="$9" fontWeight="900" color={entry.type === 'swap' ? '$blue10' : isOutgoing ? '$red10' : '$green11'}>
+                                            {entry.type === 'swap' ? '' : amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
                                         </Text>
                                         <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                            {amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
+                                            {entry.type === 'swap' ? '' : amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
                                         </Text>
                                     </>
                                 ) : (
                                     <>
-                                        <Text fontSize="$9" fontWeight="900" color={isOutgoing ? '$red10' : '$green11'}>
-                                            {amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
+                                        <Text fontSize="$9" fontWeight="900" color={entry.type === 'swap' ? '$blue10' : isOutgoing ? '$red10' : '$green11'}>
+                                            {entry.type === 'swap' ? '' : amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
                                         </Text>
                                         <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                            {amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
+                                            {entry.type === 'swap' ? '' : amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
                                         </Text>
                                     </>
                                 )}
@@ -839,6 +906,7 @@ export function TransactionDetailsScreen() {
                                     {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
                                         status === 'expired' || status === 'refunded' ? 'Funds were returned to your wallet.' :
                                         status === 'pending' || status === 'unclaimed' ? 'Wait for payment to be processed.' :
+                                            entry.type === 'swap' || metadata?.via === 'swap' ? 'Atomic transfer completed between mints.' :
                                             entry.type === 'send' ? 'The recipient has claimed your ecash.' :
                                                 entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
                                                     entry.type === 'mint' ? 'Ecash added to your wallet.' :
@@ -872,15 +940,28 @@ export function TransactionDetailsScreen() {
                                     </>
                                 )}
                                 <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
-                                <DetailItem label="Type" value={title} />
+                                <DetailItem label="Type" value={entry.type === 'swap' ? 'NUT-19 Atomic Swap' : title} />
                                 <DetailItem label="Status" value={formattedStatus} />
-                                {/* Via channel */}
+                                {/* Via channel & Swap Mints */}
                                 {(() => {
                                     let meta = entry.metadata ?? {};
                                     if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
                                     const via: string | undefined = (meta as any)?.via;
                                     const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
                                     const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                                    const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
+                                    const targetMintName: string | undefined = (meta as any)?.targetMintName;
+
+                                    if (entry.type === 'swap' || via === 'swap') {
+                                        return (
+                                            <>
+                                                <DetailItem label="Channel" value="NUT-19 Direct Swap" />
+                                                {sourceMintName && <DetailItem label="Source Mint" value={sourceMintName} />}
+                                                {targetMintName && <DetailItem label="Target Mint" value={targetMintName} />}
+                                            </>
+                                        );
+                                    }
+
                                     if (!via) return null;
                                     const viaLabel = via === 'nostr' ? 'Nostr'
                                         : via === 'qr' || via === 'scan' ? 'QR Scan'
