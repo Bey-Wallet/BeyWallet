@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react'
-import { InteractionManager } from 'react-native'
+import React, { useState, useCallback, useEffect } from 'react'
+import { InteractionManager, BackHandler } from 'react-native'
 import { YStack } from 'tamagui'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { InputStage } from './InputStage'
@@ -310,29 +310,34 @@ export function ReceiveModalScreen() {
         else if (step === 'confirm') handleReceive();
     }
 
-    const handleBack = () => {
-        if (step === 'confirm') {
-            setStep('input');
-            setTokenInfo(null);
-            setError(null);
-        }
-        else {
-            if (router.canGoBack()) {
-                router.back();
-            } else {
-                router.replace('/(tabs)');
-            }
-        }
-    }
-
-    const handleClose = () => {
-        if (router.canGoBack()) {
+    const handleClose = useCallback(() => {
+        if (!params.scannedToken && router.canGoBack()) {
             router.back();
         } else {
             router.replace('/(tabs)');
         }
         InteractionManager.runAfterInteractions(() => refreshBalance());
-    }
+    }, [params.scannedToken, router, refreshBalance]);
+
+    const handleBack = useCallback(() => {
+        if (step === 'confirm' && !params.scannedToken) {
+            setStep('input');
+            setTokenInfo(null);
+            setError(null);
+        } else {
+            handleClose();
+        }
+    }, [step, params.scannedToken, handleClose]);
+
+    // Handle OS hardware back button (Android) safely for deep links
+    useEffect(() => {
+        const onBackPress = () => {
+            handleBack();
+            return true; // prevent default exit/crash
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [handleBack]);
 
     const headerTitle = React.useMemo(() => {
         if (step === 'result') return status === 'success' ? 'Success' : 'Error';

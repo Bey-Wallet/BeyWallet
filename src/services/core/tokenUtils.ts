@@ -4,7 +4,7 @@
  */
 
 import { getDecodedToken as getDecodedTokenCoco, getEncodedToken } from 'coco-cashu-core';
-import { getEncodedTokenV4, getDecodedToken } from '@cashu/cashu-ts';
+import { getEncodedTokenV4, getDecodedToken, PaymentRequest } from '@cashu/cashu-ts';
 import type { DecodedTokenPreview } from './types';
 
 
@@ -385,9 +385,18 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
         }
     }
 
-    // ── Friendly error messages ──────────────────────────────────────────────
+    // ── NUT-18 Payment Requests (creqA... / creqB...) ──────────────────────
     if (cleaned.startsWith('creq')) {
-        throw new Error('This is a Cashu Request (creq). Receiving creq tokens is not yet supported.');
+        const req = decodePaymentRequest(cleaned);
+        return {
+            mint: req.mints?.[0] || '',
+            amount: req.amount || 0,
+            unit: req.unit || 'sat',
+            proofs: [],
+            memo: req.description,
+            isPaymentRequest: true,
+            raw: req,
+        };
     }
     const lower = cleaned.toLowerCase();
     if (lower.startsWith('lnbc') || lower.startsWith('lightning:lnbc')) {
@@ -399,5 +408,27 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
 
     console.error('[decodeToken] ❌ All decoders failed. Token prefix:', cleaned.substring(0, 50));
     throw new Error('Invalid or unsupported cashu token format.');
+}
+
+/**
+ * Decode a NUT-18 Payment Request (creqA... or creqB...) using standard @cashu/cashu-ts helpers.
+ */
+export function decodePaymentRequest(requestString: string) {
+    const cleaned = cleanToken(requestString);
+    try {
+        const req = PaymentRequest.fromEncoded(cleaned);
+        return {
+            raw: cleaned,
+            id: req.id,
+            amount: req.amount,
+            unit: req.unit,
+            description: req.description,
+            mints: req.mints || [],
+            transports: req.transport,
+        };
+    } catch (e: any) {
+        console.warn('[tokenUtils] PaymentRequest.fromEncoded failed:', e?.message);
+        throw new Error(`Invalid payment request format: ${e?.message || 'Failed to decode creq'}`);
+    }
 }
 

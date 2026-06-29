@@ -80,13 +80,14 @@ export function RootLayoutNav() {
 
             if (tokenFound) {
                 console.log('[RootLayoutNav] Global deep link parsed token, redirecting to receive modal:', tokenFound);
-                // Stagger navigation slightly to ensure stack and layout are fully ready
+                // Ensure root tabs exist underneath the modal when launching directly via deep link
+                router.replace('/(tabs)');
                 setTimeout(() => {
                     router.push({
                         pathname: '/(modals)/receive',
                         params: { scannedToken: tokenFound }
                     });
-                }, 500);
+                }, 300);
             }
         };
 

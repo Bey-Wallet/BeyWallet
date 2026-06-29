@@ -35,6 +35,7 @@ export { expiryService } from './expiryService';
 export {
     cleanToken,
     decodeToken,
+    decodePaymentRequest,
     encodeToken,
     encodeTokenV3,
     encodeTokenV4,

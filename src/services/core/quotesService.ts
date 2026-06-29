@@ -150,4 +150,62 @@ export const quotesService = {
         await mgr().quotes.payMeltQuote(mintUrl, quoteId);
         console.log('[QuotesService] Melt quote paid');
     },
+
+    // ─── NUT-17 WebSocket Subscriptions (wss://) ───────────────
+
+    /**
+     * Subscribe to real-time mint quote status updates via NUT-17 WebSocket.
+     * Replaces HTTP polling for instant payment detection and lower battery consumption.
+     *
+     * @param mintUrl - The mint URL
+     * @param quoteId - The mint quote ID to monitor
+     * @param onPaid - Callback triggered when invoice payment is confirmed
+     * @returns Unsubscribe function to close WebSocket connection
+     */
+    subscribeMintQuoteWss: (mintUrl: string, quoteId: string, onPaid: () => void): (() => void) => {
+        let ws: WebSocket | null = null;
+        let isClosed = false;
+
+        try {
+            const wsUrl = mintUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/v1/ws';
+            console.log(`[QuotesService] 📡 Connecting NUT-17 WebSocket for quote ${quoteId} to ${wsUrl}`);
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                if (isClosed) return;
+                ws?.send(JSON.stringify({
+                    kind: 'subscribe',
+                    subId: `sub_mint_${quoteId.slice(0, 8)}`,
+                    params: { kind: 'bolt11_mint_quote', filters: [quoteId] }
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                if (isClosed) return;
+                try {
+                    const data = JSON.parse(event.data);
+                    const payload = data.params ?? data;
+                    if ((payload.quote === quoteId || payload.id === quoteId) && (payload.state === 'PAID' || payload.state === 'ISSUED')) {
+                        console.log(`[QuotesService] ⚡ NUT-17 WSS: Mint Quote ${quoteId} is PAID!`);
+                        onPaid();
+                    }
+                } catch (e) {
+                    // Ignore JSON parse errors
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.warn('[QuotesService] NUT-17 WSS error:', err);
+            };
+        } catch (e) {
+            console.warn('[QuotesService] NUT-17 WSS connection failed:', e);
+        }
+
+        return () => {
+            isClosed = true;
+            if (ws) {
+                try { ws.close(); } catch (e) {}
+            }
+        };
+    },
 };

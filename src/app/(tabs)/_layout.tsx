@@ -109,7 +109,7 @@ export default function TabLayout() {
                   ? require("../../assets/icons/bey-logo-white-transparent.png")
                   : require("../../assets/icons/bey-logo-black-transparent.png")
               }
-              style={{ width: 24, height: 24, tintColor: color }}
+              style={{ width: 28, height: 28, tintColor: color }}
               resizeMode="contain"
             />
           ),
@@ -153,7 +153,7 @@ export default function TabLayout() {
           headerShown: false,
           title: "Explore",
           tabBarIcon: ({ color }) => (
-            <Search strokeWidth={2.5} color={color as any} />
+            <Search size={28} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">
@@ -181,7 +181,7 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color }) => (
-            <History strokeWidth={2.5} color={color as any} />
+            <History size={28} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">
@@ -200,7 +200,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
 
-          tabBarIcon: ({ color }) => <SettingsIcon color={color as any} />,
+          tabBarIcon: ({ color }) => <SettingsIcon size={28} color={color as any} />,
           headerRight: () => (
             <XStack pr="$4">
               <Button
