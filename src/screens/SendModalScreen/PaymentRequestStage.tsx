@@ -39,6 +39,7 @@ import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import { walletService } from '~/services/core';
 import { sendNostrToken } from '~/services/core/nostrService';
+import { decodeToken } from '~/services/core/tokenUtils';
 import {
   PaymentStatusOverlay,
   type PaymentStatusState,
@@ -167,24 +168,24 @@ export function PaymentRequestStage({
       const keys = await seedService.getNostrKeys(mnemonic);
       const senderPrivkeyHex = keys.privkey;
 
-      console.log(`[PaymentRequestStage] Sending ${amountSats} sats P2PK to ${request.nostrTarget}`);
-      const { encoded, token, id: operationId } = await walletService.sendP2PK(
+      console.log(`[PaymentRequestStage] Sending ${amountSats} sats for payment request to ${request.nostrTarget}`);
+      const { token: tokenString, id: operationId } = await walletService.send(
         matchedMint!,
         amountSats,
-        request.nostrTarget,
       );
 
       console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
       
-      let payloadToEncrypt = encoded;
-      if (request.id) {
-          const payloadObj = {
-              id: request.id,
-              mint: matchedMint,
-              proofs: token.proofs
-          };
-          payloadToEncrypt = JSON.stringify(payloadObj);
-      }
+      const decodedToken = decodeToken(tokenString);
+      const proofs = decodedToken.proofs || [];
+
+      const payloadObj = {
+        id: request.id,
+        mint: matchedMint,
+        unit: request.unit || 'sat',
+        proofs: proofs,
+      };
+      const payloadToEncrypt = JSON.stringify(payloadObj);
 
       const published = await sendNostrToken(payloadToEncrypt, request.nostrTarget, senderPrivkeyHex);
 

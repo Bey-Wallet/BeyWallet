@@ -10,6 +10,8 @@ import {
     ScrollView,
     View,
     Input,
+    Avatar,
+    Square,
 } from 'tamagui';
 import { DeviceEventEmitter } from 'react-native';
 import {
@@ -23,6 +25,8 @@ import {
     ChevronUp,
     AlertCircle,
     Zap,
+    Sprout,
+    ArrowUpDown,
 } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { NumericKeypad } from '../../components/UI/NumericKeypad';
@@ -181,13 +185,37 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         return `${currencySymbol}${val.toFixed(2)}`;
     }, [amtNum, btcData?.price, currencySymbol]);
 
+    const formattedDisplayValue = React.useMemo(() => {
+        if (!localInputValue || localInputValue === '0') return '0';
+        if (inputMode === 'SATS') {
+            const num = parseInt(localInputValue, 10);
+            return isNaN(num) ? '0' : num.toLocaleString();
+        }
+        return localInputValue;
+    }, [localInputValue, inputMode]);
+
+    const dynamicFontSize = React.useMemo(() => {
+        const len = formattedDisplayValue.length;
+        if (len > 12) return 32;
+        if (len > 9) return 40;
+        if (len > 6) return 48;
+        return 56;
+    }, [formattedDisplayValue]);
+
     // ── Keypad ────────────────────────────────────────────────────────────────
     const onKeypadChange = (val: string) => {
-        setLocalInputValue(val);
+        let cleaned = val;
         if (inputMode === 'SATS') {
-            setAmount(val);
+            cleaned = val.replace(/[^0-9]/g, '');
+            if (cleaned.length > 1 && cleaned.startsWith('0')) {
+                cleaned = cleaned.replace(/^0+/, '');
+            }
+        }
+        setLocalInputValue(cleaned || '0');
+        if (inputMode === 'SATS') {
+            setAmount(cleaned || '0');
         } else if (btcData?.price) {
-            const sats = currencyService.convertCurrencyToSats(Number(val) || 0, btcData.price);
+            const sats = currencyService.convertCurrencyToSats(Number(cleaned) || 0, btcData.price);
             setAmount(String(sats));
         }
     };
@@ -245,7 +273,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                 {
                     type: PaymentRequestTransportType.NOSTR,
                     target: target,
-                    tags: [],
+                    tags: [['n', '17']],
                 }
             ] : [];
 
@@ -424,123 +452,137 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     // ────────────────────────────────────────────────────────────────────────
     if (step === 'amount') {
         return (
-            <YStack flex={1} p="$4" justify="space-between">
-                {/* ── Card ──────────────────────────────────────────────────── */}
+            <YStack flex={1} p="$4" justify="space-between" bg="$background">
+                {/* ── Main Amount Box Container ───────────────────────────────────── */}
                 <YStack
                     width="100%"
-                    rounded="$4"
-                    borderWidth={0.5}
-                    borderColor="$borderColor"
-                    justify="space-between"
-                    bg="$color2"
+                    rounded="$5"
+                    bg="$gray2"
                     items="center"
+                    pt="$3"
+                    pb="$4"
+                    px="$4"
+                    gap="$3"
                 >
-                    {/* Mint selector row */}
+                    {/* Mint Selector Pill at Top */}
                     <XStack
                         onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                             sheetRef.current?.present();
                         }}
-                        width="100%"
-                        p="$3"
-                        items="center"
-                        borderBottomWidth={1}
-                        borderBottomColor="$color3"
-                        justify="space-between"
-                        pressStyle={{ bg: '$color5', opacity: 0.8, rounded: '$4' }}
-                    >
-                        <Building2 size={18} strokeWidth={2.5} color="$color" />
-                        <Text fontWeight="800" fontSize="$4">{mintName}</Text>
-                        <ChevronDown size={18} strokeWidth={2.5} color="$color" />
-                    </XStack>
-
-                    {/* Amount display */}
-                    <YStack items="center" gap="$1" py="$5">
-                        <Text color="$gray10" fontSize="$3">How much to request?</Text>
-                        <H1
-                            fontWeight="400"
-                            letterSpacing={-2}
-                            py="$3"
-                            color={amtNum === 0 ? '$gray7' : '$color'}
-                        >
-                            {inputMode === 'SATS'
-                                ? `₿${localInputValue || '0'}`
-                                : `${currencySymbol}${localInputValue || '0'}`}
-                        </H1>
-                        <Button
-                            size="$2.5"
-                            theme="gray"
-                            fontWeight="400"
-                            color="$accent9"
-                            mt="$-2"
-                            onPress={toggleMode}
-                            pressStyle={{ scale: 0.95 }}
-                        >
-                            {conversionLabel}
-                        </Button>
-                    </YStack>
-
-                    {/* Optional note row */}
-                    <XStack
-                        width="100%"
-                        borderTopWidth={1}
-                        borderTopColor="$color3"
+                        bg="$gray3"
                         px="$3"
-                        py="$2"
+                        py="$1.5"
+                        rounded="$full"
                         items="center"
                         gap="$2"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setShowNote((v) => !v);
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
+                        pressStyle={{ opacity: 0.8, scale: 0.98 }}
                     >
-                        <Text fontSize="$3" color="$gray9" flex={1}>
-                            {note || 'Add a note (optional)'}
+                        <Building2 size={14} color="$gray11" />
+                        <Text fontWeight="700" fontSize="$2" color="$gray11">
+                            {mintName}
                         </Text>
-                        {showNote ? <ChevronUp size={16} color="$gray9" /> : <ChevronDown size={16} color="$gray9" />}
+                        <ChevronDown size={14} color="$gray11" />
                     </XStack>
 
-                    {showNote && (
-                        <XStack width="100%" px="$3" py="$2" borderTopWidth={0.5} borderTopColor="$color3">
-                            <Input
-                                value={note}
-                                onChangeText={setNote}
-                                placeholder="What's this for?"
-                                bg="transparent"
-                                borderWidth={0}
-                                flex={1}
-                                fontSize="$3"
-                                p={0}
-                                placeholderTextColor="$gray8"
-                                autoFocus
-                                maxLength={80}
-                            />
+                    {/* Amount Display with Dynamic Scaling */}
+                    <YStack items="center" justify="center" minHeight={110} py="$2">
+                        {generateError ? (
+                            <YStack items="center" gap="$2" px="$4">
+                                <AlertCircle size={28} color="$red10" />
+                                <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
+                                    {generateError}
+                                </Text>
+                            </YStack>
+                        ) : !activeMintUrl ? (
+                            <YStack items="center" gap="$2" px="$4">
+                                <AlertCircle size={28} color="$orange10" />
+                                <Text color="$orange10" fontSize="$3" fontWeight="600" textAlign="center">
+                                    Select a mint to generate a request
+                                </Text>
+                            </YStack>
+                        ) : !npub ? (
+                            <YStack items="center" gap="$2" px="$4">
+                                <AlertCircle size={28} color="$red10" />
+                                <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
+                                    Nostr profile required to receive directly.
+                                </Text>
+                            </YStack>
+                        ) : (
+                            <>
+                                <Text color="$gray10" fontSize="$3" fontWeight="600" mb="$1">
+                                    How much to request?
+                                </Text>
+                                <H1
+                                    fontSize={dynamicFontSize}
+                                    lineHeight={dynamicFontSize * 1.1}
+                                    fontWeight="800"
+                                    color={localInputValue === '0' ? '$gray8' : '$color'}
+                                    textAlign="center"
+                                    fontFamily="$mono"
+                                >
+                                    {inputMode === 'SATS'
+                                        ? `₿ ${formattedDisplayValue}`
+                                        : `${currencySymbol}${formattedDisplayValue}`}
+                                </H1>
+                            </>
+                        )}
+                    </YStack>
+
+                    {/* Fiat Conversion Toggle Button */}
+                    <Button
+                        size="$2.5"
+                        bg="$gray4"
+                        rounded="$full"
+                        px="$3"
+                        onPress={toggleMode}
+                        pressStyle={{ scale: 0.96 }}
+                        icon={<ArrowUpDown size={12} color="$gray11" />}
+                    >
+                        <Text fontSize="$2" fontWeight="700" color="$gray11">
+                            {conversionLabel}
+                        </Text>
+                    </Button>
+
+                    {/* Optional Note Divider & Row */}
+                    <YStack width="100%" mt="$2" pt="$3" borderTopWidth={1} borderTopColor="$gray3">
+                        <XStack
+                            width="100%"
+                            items="center"
+                            justify="space-between"
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setShowNote((v) => !v);
+                            }}
+                            pressStyle={{ opacity: 0.7 }}
+                        >
+                            <Text fontSize="$3" color="$gray10" fontWeight="600">
+                                {note ? `Note: ${note}` : 'Add a note (optional)'}
+                            </Text>
+                            {showNote ? <ChevronUp size={16} color="$gray10" /> : <ChevronDown size={16} color="$gray10" />}
                         </XStack>
-                    )}
+
+                        {showNote && (
+                            <XStack width="100%" mt="$2" pt="$2">
+                                <Input
+                                    value={note}
+                                    onChangeText={setNote}
+                                    placeholder="What's this request for?"
+                                    bg="$gray3"
+                                    borderWidth={0}
+                                    rounded="$3"
+                                    flex={1}
+                                    fontSize="$3"
+                                    px="$3"
+                                    py="$2"
+                                    placeholderTextColor="$gray8"
+                                    autoFocus
+                                    maxLength={80}
+                                />
+                            </XStack>
+                        )}
+                    </YStack>
                 </YStack>
-
-                {/* ── Error ────────────────────────────────────────────────── */}
-                {generateError && (
-                    <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
-                        <AlertCircle size={18} color="$red10" />
-                        <Text color="$red10" fontSize="$3" flex={1}>{generateError}</Text>
-                    </XStack>
-                )}
-
-                {!activeMintUrl && (
-                    <XStack bg="$orange3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
-                        <AlertCircle size={18} color="$orange10" />
-                        <Text color="$orange10" fontSize="$3" flex={1}>Select a mint to generate a request</Text>
-                    </XStack>
-                )}
-                
-                {!npub && (
-                    <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$2">
-                        <AlertCircle size={18} color="$red10" />
-                        <Text color="$red10" fontSize="$3" flex={1}>Nostr profile required to receive directly. Go to Profile to generate.</Text>
-                    </XStack>
-                )}
 
                 {/* ── Keypad ───────────────────────────────────────────────── */}
                 <NumericKeypad

@@ -6,6 +6,7 @@ import {
   nip44,
   finalizeEvent,
 } from 'nostr-tools';
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { unwrapEvent } from 'nostr-tools/nip59';
 import { hexToBytes } from '@noble/hashes/utils';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
@@ -518,13 +519,66 @@ class NostrService {
   // ── Sending via Nostr ──────────────────────────────────────────────────────
 
   /**
-   * Send a cashu token to a recipient via Nostr DM (NIP-04 Kind 4).
+   * Helper to build a NIP-17 Gift Wrap event (Kind 1059 wrapping Kind 13 Seal wrapping Kind 14 Rumor).
+   * Used by cashu.me and modern Nostr wallets for direct message subscriptions.
+   */
+  private async createNip17GiftWrap(
+    message: string,
+    recipientPubkeyHex: string,
+    senderPrivkeyHex: string
+  ): Promise<Event> {
+    const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
+    const senderPubkeyHex = getPublicKey(senderPrivkeyBytes);
+
+    // 1. Rumor (Kind 14) - Unsigned inner DM
+    const rumor = {
+      kind: 14,
+      created_at: Math.floor(Date.now() / 1000),
+      pubkey: senderPubkeyHex,
+      tags: [['p', recipientPubkeyHex]],
+      content: message,
+    };
+    const rumorString = JSON.stringify(rumor);
+
+    // 2. Seal (Kind 13) - Encrypted with sender <-> recipient key & signed by sender
+    const sealConvKey = nip44.v2.utils.getConversationKey(senderPrivkeyBytes, recipientPubkeyHex);
+    const encryptedRumor = nip44.v2.encrypt(rumorString, sealConvKey);
+
+    const sealTemplate = {
+      kind: 13,
+      created_at: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 10),
+      pubkey: senderPubkeyHex,
+      tags: [],
+      content: encryptedRumor,
+    };
+    const signedSeal = finalizeEvent(sealTemplate, senderPrivkeyBytes);
+    const sealString = JSON.stringify(signedSeal);
+
+    // 3. Gift Wrap (Kind 1059) - Encrypted with ephemeral random key & signed by ephemeral key
+    const ephemeralPrivkeyBytes = generateSecretKey();
+    const ephemeralPubkeyHex = getPublicKey(ephemeralPrivkeyBytes);
+    const wrapConvKey = nip44.v2.utils.getConversationKey(ephemeralPrivkeyBytes, recipientPubkeyHex);
+    const encryptedSeal = nip44.v2.encrypt(sealString, wrapConvKey);
+
+    const randomPastTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400);
+
+    const wrapTemplate = {
+      kind: 1059,
+      created_at: randomPastTime,
+      pubkey: ephemeralPubkeyHex,
+      tags: [['p', recipientPubkeyHex]],
+      content: encryptedSeal,
+    };
+
+    return finalizeEvent(wrapTemplate, ephemeralPrivkeyBytes);
+  }
+
+  /**
+   * Send a cashu token / payment payload to a recipient via Nostr DM.
+   * Dual-publishes using both NIP-04 (Kind 4) and NIP-17 (Kind 1059 Gift Wrap)
+   * so all Nostr wallets (cashu.me, minibits, nutsack, etc.) receive the payment.
    *
-   * This is used to fulfil a NUT-18 payment request that uses Nostr transport.
-   * The token is encrypted to the recipient's pubkey and published across all
-   * 12 relays so wallets like cashu.me and minibits can pick it up.
-   *
-   * @param tokenString   Encoded cashu token (cashuA... or cashuB...)
+   * @param tokenString   Encoded cashu token or JSON payment payload string
    * @param recipientPubkeyHexOrNpub  Recipient's hex pubkey or npub
    * @param senderPrivkeyHex  Sender's Nostr private key (hex)
    * @returns true if published to at least one relay
@@ -553,35 +607,48 @@ class NostrService {
 
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
 
-    // Encrypt with NIP-04 (standard for ecash DMs — compatible with cashu.me / minibits)
+    // Build NIP-04 Event
     const encryptedContent = await nip04.encrypt(
       senderPrivkeyHex,
       recipientPubkeyHex,
       tokenString,
     );
-
-    const eventTemplate = {
+    const nip04Event = finalizeEvent({
       kind: 4,
       created_at: Math.floor(Date.now() / 1000),
       tags: [['p', recipientPubkeyHex]],
       content: encryptedContent,
-    };
+    }, senderPrivkeyBytes);
 
-    const signedEvent = finalizeEvent(eventTemplate, senderPrivkeyBytes);
+    // Build NIP-17 Gift Wrap Event
+    let nip17Event: Event | null = null;
+    try {
+      nip17Event = await this.createNip17GiftWrap(
+        tokenString,
+        recipientPubkeyHex,
+        senderPrivkeyHex,
+      );
+    } catch (e) {
+      console.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e);
+    }
 
     const pool = this.pool ?? new SimplePool();
 
     console.log(
-      `[NostrService] 📤 Sending token via Nostr DM to ${recipientPubkeyHex.slice(0, 8)}… on ${RELAYS.length} relays`,
+      `[NostrService] 📤 Sending token via Nostr DM (NIP-04 & NIP-17) to ${recipientPubkeyHex.slice(0, 8)}… on ${RELAYS.length} relays`,
     );
 
     try {
-      await Promise.any(pool.publish(RELAYS, signedEvent));
-      console.log(`[NostrService] ✅ Token published via Nostr. Event: ${signedEvent.id}`);
+      const promises = [Promise.any(pool.publish(RELAYS, nip04Event))];
+      if (nip17Event) {
+        promises.push(Promise.any(pool.publish(RELAYS, nip17Event)));
+      }
+      await Promise.allSettled(promises);
+      console.log(`[NostrService] ✅ Token published via Nostr.`);
 
       // Emit event for UI
       DeviceEventEmitter.emit('nostr:sent', {
-        eventId: signedEvent.id,
+        eventId: nip04Event.id,
         recipientPubkeyHex,
       });
 
