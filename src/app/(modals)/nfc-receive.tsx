@@ -72,15 +72,21 @@ export default function NFCReceiveScreen() {
                 throw new Error('No data found on tag');
             }
 
-            const decoded = new TextDecoder().decode(new Uint8Array(payload));
-            console.log('[NFCReceive] Decoded payload:', decoded);
+            // Remove NDEF Text metadata if present (language code prefix)
+            let decoded = new TextDecoder().decode(new Uint8Array(payload));
+            console.log('[NFCReceive] Decoded raw payload:', decoded);
 
+            // NDEF text records prefix the payload with language identifier length (usually 0x02 or 0x05) + 'en' or similar.
+            // Let's strip non-printable ASCII prefix characters to get the clean text string.
+            decoded = decoded.replace(/^[\u0000-\u001F]+(?:en|es|fr|de|it)?/i, '').trim();
+            console.log('[NFCReceive] Cleaned decoded payload:', decoded);
+
+            // 1. Check for Cashu token
             const tokenMatch = decoded.match(/(cashu[A-Za-z0-9_-]+)/);
-
             if (tokenMatch) {
                 const token = tokenMatch[1];
-                console.log('[NFCReceive] Found token:', token.substring(0, 20));
-
+                console.log('[NFCReceive] Found Cashu token, receiving...');
+                
                 setProcessing(true);
                 setStatus('processing');
                 setErrorMessage('');
@@ -92,13 +98,40 @@ export default function NFCReceiveScreen() {
                 setTimeout(() => {
                     setProcessing(false);
                 }, 3000);
-            } else {
-                throw new Error('No valid Cashu token found on tag');
+                return;
             }
+
+            // 2. Check for NUT-18 Payment Request (creq...)
+            const reqMatch = decoded.match(/(creq[a-zA-Z0-9]+)/i);
+            if (reqMatch) {
+                const paymentRequest = reqMatch[1];
+                console.log('[NFCReceive] Found NUT-18 payment request, redirecting to send...');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest }
+                });
+                return;
+            }
+
+            // 3. Check for Lightning Invoice (lnbc...)
+            const lnMatch = decoded.match(/(lnbc[a-zA-Z0-9]+)/i) || decoded.match(/lightning:(lnbc[a-zA-Z0-9]+)/i);
+            if (lnMatch) {
+                const invoice = lnMatch[1];
+                console.log('[NFCReceive] Found Lightning invoice, redirecting to send...');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest: invoice }
+                });
+                return;
+            }
+
+            throw new Error('No valid Cashu token, Payment Request, or Lightning invoice found');
         } catch (err: any) {
             console.error('[NFCReceive] Error processing tag:', err);
             setStatus('error');
-            setErrorMessage(err.message || 'Failed to read NFC tag');
+            setErrorMessage(err.message || 'Failed to process NFC tag');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
     };
