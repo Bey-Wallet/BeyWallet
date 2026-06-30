@@ -2,6 +2,7 @@ import { initializeCoco, Manager, getDecodedToken, getEncodedToken } from 'coco-
 import { getEncodedTokenV4 } from '@cashu/cashu-ts';
 import { ExpoSqliteRepositories } from '../store/test';
 import * as SQLite from 'expo-sqlite';
+import { getDb } from '../store/sqliteStorage';
 import { seedService } from './seedService';
 import { AppState, AppStateStatus } from 'react-native';
 
@@ -155,7 +156,7 @@ export const cocoService = {
 
         // Initializing Expo SQLite repository
         console.log('[CocoService] Opening database...');
-        const db = await SQLite.openDatabaseAsync('coco_wallet.db');
+        const db = getDb();
         const repositoriesInstance = new ExpoSqliteRepositories({ database: db });
 
         console.log('[CocoService] Initializing repositories...');

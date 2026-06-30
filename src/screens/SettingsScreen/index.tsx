@@ -48,7 +48,6 @@ export function SettingsScreen() {
     const [isSeedVisible, setIsSeedVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const [isConsolidating, setIsConsolidating] = useState(false);
     const [isVerifyingDleq, setIsVerifyingDleq] = useState(false);
 
     const handleSettingPress = async (id: string) => {
@@ -67,7 +66,7 @@ export function SettingsScreen() {
                 handleExportWallet();
                 break;
             case 'consolidate':
-                handleConsolidate();
+                router.push('/(modals)/optimize-wallet');
                 break;
             case 'verify-dleq':
                 handleVerifyDleq();
@@ -131,49 +130,7 @@ export function SettingsScreen() {
         }
     };
 
-    const handleConsolidate = async () => {
-        if (!activeMintUrl) {
-            Alert.alert('No Active Mint', 'Select a mint first before optimizing.');
-            return;
-        }
 
-        // Analyse first so we can show user what will happen
-        let analysis;
-        try {
-            analysis = await consolidationService.getFragmentationAnalysis(activeMintUrl);
-        } catch (err: any) {
-            Alert.alert('Error', err.message);
-            return;
-        }
-
-        if (analysis.proofCount <= 3) {
-            Alert.alert('Already Optimized ✅', `Your wallet only has ${analysis.proofCount} proof${analysis.proofCount === 1 ? '' : 's'} — no consolidation needed.`);
-            return;
-        }
-
-        // Gate with biometric
-        const authed = await biometricService.authenticateAsync('Authorize wallet optimization');
-        if (!authed) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            return;
-        }
-
-        setIsConsolidating(true);
-        try {
-            const result = await consolidationService.consolidateMint(activeMintUrl);
-            await refreshBalance();
-            Alert.alert(
-                '✅ Wallet Optimized',
-                `Proofs reduced: ${result.before.count} → ${result.after.count}\n` +
-                `Saved ${result.savedProofs} proof${result.savedProofs === 1 ? '' : 's'}\n` +
-                `Balance unchanged: ${result.after.totalAmount} sats`,
-            );
-        } catch (err: any) {
-            Alert.alert('Optimization Failed', err.message || 'Could not consolidate proofs.');
-        } finally {
-            setIsConsolidating(false);
-        }
-    };
 
     const handleExportWallet = async () => {
         const authed = await biometricService.authenticateAsync('Authenticate to export your wallet backup');
@@ -317,9 +274,8 @@ export function SettingsScreen() {
                 {
                     id: 'consolidate',
                     title: 'Optimize Wallet',
-                    subtitle: isConsolidating ? 'Consolidating proofs…' : 'Reduce proof count for faster sends',
-                    icon: isConsolidating ? ActivityIndicator : Zap,
-                    disabled: isConsolidating,
+                    subtitle: 'Reduce proof count for faster sends',
+                    icon: Zap,
                     color: '$green10',
                 },
                 {

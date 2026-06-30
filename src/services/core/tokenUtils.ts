@@ -416,7 +416,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
 export function decodePaymentRequest(requestString: string) {
     const cleaned = cleanToken(requestString);
     try {
-        const req = PaymentRequest.fromEncoded(cleaned);
+        const req = PaymentRequest.fromEncodedRequest(cleaned);
         return {
             raw: cleaned,
             id: req.id,

@@ -167,6 +167,13 @@ export default function ModalLayout() {
                 }}
             />
             <Stack.Screen
+                name="optimize-wallet"
+                options={{
+                    presentation: "modal",
+                    title: 'Optimize Wallet',
+                }}
+            />
+            <Stack.Screen
                 name="nostr-username"
                 options={{
                     title: 'Nostr Username',
