@@ -28,9 +28,37 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyServic
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function safeNpubEncode(pubkey: string): string {
+    if (!pubkey) return '';
+    if (pubkey.startsWith('npub1')) return pubkey;
+    if (pubkey.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(pubkey);
+            if (decoded.type === 'nprofile') {
+                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+            }
+        } catch {}
+        return pubkey;
+    }
+    // Assume hex
+    try {
+        return nip19.npubEncode(hexToBytes(pubkey));
+    } catch {
+        return pubkey;
+    }
+}
+
 function formatNpub(hex: string): string {
     try {
-        const npub = nip19.npubEncode(hex);
+        const npub = safeNpubEncode(hex);
         return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
     } catch {
         return `${hex.slice(0, 6)}…`;
@@ -41,7 +69,7 @@ function hexToNpub(hex: string): string {
     try {
         // Strip 02 prefix if present (SEC1 compressed key)
         const clean = hex.startsWith('02') && hex.length === 66 ? hex.slice(2) : hex;
-        return nip19.npubEncode(clean);
+        return safeNpubEncode(clean);
     } catch {
         return hex;
     }
@@ -87,16 +115,8 @@ function useResolveUsername(pubkey: string): string | undefined {
     const contacts = useContactsStore(s => s.contacts || {});
 
     return useMemo(() => {
-        // pubkey can be hex, npub, or 02-prefixed hex
-        // Try all possible keys
-        const candidates = [pubkey];
-        // Try npub conversion
-        try {
-            const clean = pubkey.startsWith('02') && pubkey.length === 66 ? pubkey.slice(2) : pubkey;
-            if (!clean.startsWith('npub')) {
-                candidates.push(nip19.npubEncode(clean));
-            }
-        } catch {}
+        const npub = safeNpubEncode(pubkey);
+        const candidates = [pubkey, npub];
 
         for (const key of candidates) {
             if (favorites[key]?.username) return favorites[key].username!;

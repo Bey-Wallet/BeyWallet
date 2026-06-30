@@ -26,6 +26,34 @@ import { useRouter, usePathname } from 'expo-router';
 
 const nostrIcon = require('../assets/images/nostr-icon-white-transparent.png');
 
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function safeNpubEncode(pubkey: string): string {
+    if (!pubkey) return '';
+    if (pubkey.startsWith('npub1')) return pubkey;
+    if (pubkey.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(pubkey);
+            if (decoded.type === 'nprofile') {
+                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+            }
+        } catch {}
+        return pubkey;
+    }
+    // Assume hex
+    try {
+        return nip19.npubEncode(hexToBytes(pubkey));
+    } catch {
+        return pubkey;
+    }
+}
+
 export function NostrClaimSheet() {
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const toast = useToastController();
@@ -163,13 +191,7 @@ export function NostrClaimSheet() {
                             // Tag history with sender info
                             try {
                                 const senderNpub = data.senderPubkey
-                                    ? (() => {
-                                        try {
-                                            return nip19.npubEncode(data.senderPubkey);
-                                        } catch {
-                                            return data.senderPubkey;
-                                        }
-                                      })()
+                                    ? safeNpubEncode(data.senderPubkey)
                                     : undefined;
                                 
                                 await historyService.tagHistoryVia(
@@ -393,13 +415,7 @@ export function NostrClaimSheet() {
                 // Tag history with sender info
                 try {
                     const senderNpub = activeItem.senderPubkey
-                        ? (() => {
-                            try {
-                                return nip19.npubEncode(activeItem.senderPubkey);
-                            } catch {
-                                return activeItem.senderPubkey;
-                            }
-                          })()
+                        ? safeNpubEncode(activeItem.senderPubkey)
                         : undefined;
                     
                     historyService.tagHistoryVia(
@@ -442,17 +458,11 @@ export function NostrClaimSheet() {
 
     const senderDisplay = activeItem?.senderUsername ||
         (activeItem?.senderPubkey ? (() => {
-            try {
-                const npub = nip19.npubEncode(activeItem.senderPubkey);
-                return `${npub.slice(0, 10)}...${npub.slice(-6)}`;
-            } catch {
-                return `${activeItem.senderPubkey.slice(0, 8)}...`;
-            }
+            const npub = safeNpubEncode(activeItem.senderPubkey);
+            return `${npub.slice(0, 10)}...${npub.slice(-6)}`;
         })() : 'Unknown');
 
-    const senderNpub = activeItem?.senderPubkey ? (() => {
-        try { return nip19.npubEncode(activeItem.senderPubkey); } catch { return activeItem.senderPubkey; }
-    })() : '';
+    const senderNpub = activeItem?.senderPubkey ? safeNpubEncode(activeItem.senderPubkey) : '';
 
     const mintDomain = activeItem?.mintUrl
         ? activeItem.mintUrl.replace(/^https?:\/\//, '').split('/')[0]

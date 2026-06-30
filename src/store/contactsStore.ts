@@ -24,9 +24,27 @@ function normalizeNpub(pub: string): string {
     if (trimmed.startsWith('npub1')) {
         return trimmed;
     }
+    if (trimmed.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(trimmed);
+            if (decoded.type === 'nprofile') {
+                const hex = decoded.data.pubkey;
+                const bytes = new Uint8Array(hex.length / 2);
+                for (let i = 0; i < bytes.length; i++) {
+                    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+                }
+                return nip19.npubEncode(bytes);
+            }
+        } catch {}
+        return trimmed;
+    }
     // Assume hex
     try {
-        return nip19.npubEncode(trimmed);
+        const bytes = new Uint8Array(trimmed.length / 2);
+        for (let i = 0; i < bytes.length; i++) {
+            bytes[i] = parseInt(trimmed.substring(i * 2, i * 2 + 2), 16);
+        }
+        return nip19.npubEncode(bytes);
     } catch (e) {
         console.warn('[ContactsStore] Failed to encode hex pubkey to npub:', pub, e);
         return trimmed;

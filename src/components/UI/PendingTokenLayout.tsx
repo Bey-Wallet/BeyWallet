@@ -85,7 +85,7 @@ export function PendingTokenLayout({
                 const hours = Math.floor(diff / (60 * 60 * 1000));
                 const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
                 const secs = Math.floor((diff % (60 * 1000)) / 1000);
-                
+
                 if (hours > 0) {
                     setTimeLeftStr(`${hours}h ${mins}m left`);
                 } else if (mins > 0) {
@@ -114,11 +114,11 @@ export function PendingTokenLayout({
 
     const handleNfcShare = async () => {
         if (!currentToken) return;
-        
+
         setShowNfcSheet(true);
         setNfcStatus('processing');
         setNfcMessage('Checking NFC status...');
-        
+
         try {
             const enabled = await nfcService.isEnabled();
             if (!enabled) {
@@ -127,7 +127,7 @@ export function PendingTokenLayout({
                 setNfcError('Please enable NFC in your device settings.');
                 return;
             }
-            
+
             if (Platform.OS === 'android') {
                 setNfcMessage('Broadcasting... Hold near receiver phone.');
                 const session = await nfcService.startHceSimulation(currentToken);
@@ -287,8 +287,6 @@ export function PendingTokenLayout({
         }
     };
 
-
-
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
@@ -323,60 +321,88 @@ export function PendingTokenLayout({
                     )}
                 </View>
 
-                {/* Quick Share Actions moved here */}
-                <XStack gap="$2" width="100%" justify="center" >
-                    <Button
-                        flex={1}
-                        theme="orange"
-                        size="$5"
-                        fontWeight="700"
-                        icon={<Nfc size={24} />}
-                        rounded="$4"
-                        py="$6"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (onNfcPress) {
-                                onNfcPress();
-                            } else {
-                                handleNfcShare();
-                            }
-                        }}
-                    />
-                    <Button
-                        flex={1}
-                        theme="purple"
-                        size="$5"
-                        fontWeight="700"
-                        icon={<NostrIcon size={28} />}
-                        disabled={!!displayNpub}
-                        opacity={displayNpub ? 0.5 : 1}
-                        rounded="$4"
-                        py="$6"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
-                        }}
-                    />
-                    <Button
-                        flex={1}
-                        onPress={handleShare}
-                        theme="teal"
-                        size="$5"
-                        fontWeight="800"
-                        icon={<Share2 size={24} strokeWidth={2} />}
-                        rounded="$4"
-                        py="$6"
-                    />
-                    <Button
-                        flex={1}
-                        onPress={handleCopy}
-                        theme="gray"
-                        size="$5"
-                        fontWeight="800"
-                        icon={copied ? <Check size={24} /> : <Copy size={24} />}
-                        rounded="$4"
-                        py="$6"
-                    />
+                {/* Quick Share Actions */}
+                <XStack gap="$3" width="100%" justify="center" py="$2">
+                    {/* NFC Share */}
+                    <YStack items="center" gap="$1" flex={1}>
+                        <Button
+                            bg="$gray3"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+
+                            size="$6"
+                            circular
+                            items="center"
+                            justify="center"
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                if (onNfcPress) onNfcPress();
+                                else handleNfcShare();
+                            }}
+                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
+                            icon={<Nfc size={20} color="$color" />}
+                        />
+                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>NFC</Text>
+                    </YStack>
+
+                    {/* Nostr Send */}
+                    <YStack items="center" gap="$1" flex={1}>
+                        <Button
+                            bg="$gray3"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+
+                            size="$6"
+                            circular
+                            items="center"
+                            justify="center"
+                            disabled={!!displayNpub}
+                            opacity={displayNpub ? 0.3 : 1}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
+                            }}
+                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
+                            icon={<NostrIcon size={22} color="$color" />}
+                        />
+                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Nostr</Text>
+                    </YStack>
+
+                    {/* Share Link */}
+                    <YStack items="center" gap="$1" flex={1}>
+                        <Button
+                            bg="$gray3"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+
+                            size="$6"
+                            circular
+                            items="center"
+                            justify="center"
+                            onPress={handleShare}
+                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
+                            icon={<Share2 size={20} color="$color" />}
+                        />
+                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Share</Text>
+                    </YStack>
+
+                    {/* Copy Token */}
+                    <YStack items="center" gap="$1" flex={1}>
+                        <Button
+                            bg="$gray3"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+
+                            size="$6"
+                            circular
+                            items="center"
+                            justify="center"
+                            onPress={handleCopy}
+                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
+                            icon={copied ? <Check size={20} color="$green10" /> : <Copy size={20} color="$color" />}
+                        />
+                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Copy</Text>
+                    </YStack>
                 </XStack>
             </YStack>
 
@@ -405,7 +431,6 @@ export function PendingTokenLayout({
                         </>
                     )}
                     {fee > 0 && <DetailItem label="Fee" value={`₿${fee} sats`} />}
-                    <DetailItem label="Unit" value="SATOSHIS" />
                     <DetailItem label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
                     {displayNpub && (
                         <DetailItem
@@ -423,57 +448,39 @@ export function PendingTokenLayout({
                 </YStack>
             )}
 
-
-
             {/* Action Buttons */}
             {!hideActions && (
                 <YStack mt="auto" pb="$8" gap="$4">
                     {onClaim ? (
-                        <>
+                        <Button
+                            bg="$accent10"
+                            hoverStyle={{ bg: "$accent11" }}
+                            color="white"
+                            size="$5"
+                            height={55}
+                            rounded="$5"
+                            onPress={onClaim}
+                            disabled={isClaiming}
+                            icon={isClaiming ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
+                            fontWeight="800"
+                        >
+                            CLAIM NOW
+                        </Button>
+                    ) : (
+                        onReclaim && (
                             <Button
-                                bg="$green10"
-                                color="white"
+                                onPress={onReclaim}
+                                theme="gray"
                                 size="$5"
                                 height={55}
-                                rounded="$4"
-                                onPress={onClaim}
-                                disabled={isClaiming}
-                                icon={isClaiming ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
-                            >
-                                CLAIM NOW
-                            </Button>
-                            <XStack gap="$2" width="100%">
-                                <Button flex={1} bg="$gray3" color="$color" height={55} icon={<Copy size={18} />} onPress={handleCopy} fontWeight="800">Copy</Button>
-                                <Button flex={1} bg="$gray3" color="$color" height={55} icon={<Share2 size={18} />} onPress={handleShare} fontWeight="800">Share</Button>
-                            </XStack>
-                        </>
-                    ) : (
-                        <XStack gap="$2" width="100%">
-                            {onReclaim && (
-                                <Button
-                                    flex={1}
-                                    onPress={onReclaim}
-                                    theme="gray"
-                                    size="$5"
-                                    fontWeight="800"
-                                    icon={isReclaiming ? <Spinner size="small" /> : <RotateCcw size={18} />}
-                                    disabled={isReclaiming}
-                                >
-                                    {isReclaiming ? '' : 'Reclaim'}
-                                </Button>
-                            )}
-
-                            <Button
-                                flex={2}
-                                onPress={handleCopy}
-                                size="$5"
-                                theme="gray"
+                                rounded="$5"
                                 fontWeight="800"
-                                icon={copied ? <Check size={18} /> : <Copy size={18} />}
+                                icon={isReclaiming ? <Spinner size="small" /> : <RotateCcw size={18} />}
+                                disabled={isReclaiming}
                             >
-                                {copied ? 'Copied!' : 'Copy Token'}
+                                {isReclaiming ? 'Reclaiming...' : 'Reclaim'}
                             </Button>
-                        </XStack>
+                        )
                     )}
                 </YStack>
             )}

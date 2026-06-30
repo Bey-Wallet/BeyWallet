@@ -24,14 +24,59 @@ import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService } from '~/services/currencyService';
+import { useContactsStore } from '~/store/contactsStore';
+
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function safeNpubEncode(pubkey: string): string {
+    if (!pubkey) return '';
+    if (pubkey.startsWith('npub1')) return pubkey;
+    if (pubkey.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(pubkey);
+            if (decoded.type === 'nprofile') {
+                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+            }
+        } catch {}
+        return pubkey;
+    }
+    // Assume hex
+    try {
+        return nip19.npubEncode(hexToBytes(pubkey));
+    } catch {
+        return pubkey;
+    }
+}
 
 function formatNpub(hex: string): string {
     try {
-        const npub = nip19.npubEncode(hex);
+        const npub = safeNpubEncode(hex);
         return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
     } catch {
         return `${hex.slice(0, 6)}…`;
     }
+}
+
+function useResolveUsername(pubkey: string): string | undefined {
+    const favorites = useContactsStore(s => s.favorites);
+    const contacts = useContactsStore(s => s.contacts || {});
+
+    return useMemo(() => {
+        const npub = safeNpubEncode(pubkey);
+        const candidates = [pubkey, npub];
+
+        for (const key of candidates) {
+            if (favorites[key]?.username) return favorites[key].username!;
+            if (contacts[key]?.username) return contacts[key].username!;
+        }
+        return undefined;
+    }, [pubkey, favorites, contacts]);
 }
 
 function timeAgo(ts: number): string {
@@ -55,6 +100,9 @@ export default function NostrActivity() {
     const items = useNostrInboxStore(s => s.items);
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const router = useRouter();
+
+    const favorites = useContactsStore(s => s.favorites);
+    const contacts = useContactsStore(s => s.contacts || {});
 
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
@@ -80,6 +128,9 @@ export default function NostrActivity() {
 
     const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
     const sheetRef = React.useRef<AppBottomSheetRef>(null);
+
+    const resolvedRequestUsername = useResolveUsername(selectedRequest?.senderPubkey || '');
+    const requestDisplayName = selectedRequest?.senderUsername || resolvedRequestUsername || (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
 
     const handleOpenClaim = (item: NostrInboxItem) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -148,6 +199,13 @@ export default function NostrActivity() {
                     const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
                     const sign = item.type === 'request' ? '?' : '+';
 
+                    const npub = safeNpubEncode(item.senderPubkey);
+                    const resolvedUsername = favorites[item.senderPubkey]?.username || 
+                                             contacts[item.senderPubkey]?.username ||
+                                             favorites[npub]?.username || 
+                                             contacts[npub]?.username;
+                    const displayName = item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
+
                     return (
                         <RowContainer
                             key={item.id}
@@ -166,7 +224,7 @@ export default function NostrActivity() {
                                 </View>
                                 <YStack gap="$0.5" mr="$2">
                                     <H6 color="$accent4" textTransform="uppercase" numberOfLines={1} style={{ maxWidth: 180 }}>
-                                        {item.senderUsername ? item.senderUsername.replace('@bey.cash', '') : formatNpub(item.senderPubkey)}
+                                        {displayName.replace('@bey.cash', '')}
                                     </H6>
                                     <Text fontSize="$2" color="$gray9">
                                         {timeAgo(item.receivedAt)}
@@ -221,7 +279,7 @@ export default function NostrActivity() {
                     <YStack items="center" gap="$2" mb="$2">
                         <Text fontSize="$5" fontWeight="800" color="$color">Payment Request</Text>
                         <Text fontSize="$3" color="$gray10" textAlign="center">
-                            {selectedRequest?.senderUsername || (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone')} is requesting ₿{selectedRequest?.amount?.toLocaleString()} sats from you.
+                            {requestDisplayName} is requesting ₿{selectedRequest?.amount?.toLocaleString()} sats from you.
                         </Text>
                     </YStack>
                     <YStack gap="$3">

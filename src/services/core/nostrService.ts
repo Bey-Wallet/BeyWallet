@@ -473,14 +473,17 @@ class NostrService {
     console.log(`[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`);
   }
 
-  /**
-   * Get the sender's username, first checking local contacts, then directory.
-   */
   private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
     try {
       const { useContactsStore } = await import('../../store/contactsStore');
       const { nip19 } = await import('nostr-tools');
-      const npub = nip19.npubEncode(pubkeyHex);
+      
+      const bytes = new Uint8Array(pubkeyHex.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(pubkeyHex.substring(i * 2, i * 2 + 2), 16);
+      }
+      const npub = nip19.npubEncode(bytes);
+      
       const store = useContactsStore.getState();
       const contact = store.contacts[npub] || store.favorites[npub];
       if (contact?.username) {
