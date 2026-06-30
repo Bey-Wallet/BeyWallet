@@ -15,6 +15,7 @@ import { RELAYS } from '../../services/core/nostrService'
 import { deriveSharingKeys, decryptToken } from '../../utils/ecashSharing'
 import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
 import { ProcessingSheet } from '../../components/UI/ProcessingSheet'
+import * as ClipboardAPI from 'expo-clipboard';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -39,7 +40,7 @@ export function ReceiveModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
-    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string, from?: string, username?: string }>()
+    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string, from?: string, username?: string, mode?: string, paste?: string }>()
     const refreshBalance = useWalletStore(s => s.refreshBalance)
     const addMint = useWalletStore(s => s.addMint)
     const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
@@ -53,30 +54,6 @@ export function ReceiveModalScreen() {
     React.useEffect(() => { mintsRef.current = mints; }, [mints]);
     const fetchMintInfoRef = React.useRef(fetchMintInfo);
     React.useEffect(() => { fetchMintInfoRef.current = fetchMintInfo; }, [fetchMintInfo]);
-
-    React.useEffect(() => {
-        if (params.scannedToken) {
-            const raw = params.scannedToken.trim();
-            const lower = raw.toLowerCase();
-
-            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
-            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
-                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
-                router.replace({
-                    pathname: '/(modals)/send',
-                    params: { paymentRequest: raw },
-                });
-                return;
-            }
-
-            setToken(raw);
-            handleDecodeToken(raw);
-        } else if (params.requestId || params.from) {
-            setReceiveMode('request');
-        } else if (params.mode) {
-            setReceiveMode(params.mode as ReceiveMode);
-        }
-    }, [params.scannedToken, params.requestId, params.from, params.mode]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -172,6 +149,55 @@ export function ReceiveModalScreen() {
             setIsDecoding(false);
         }
     }, [token]); // stable — only depends on token state, reads mints via ref
+
+    React.useEffect(() => {
+        console.log('[ReceiveModal] Params updated:', params);
+        if (params.scannedToken) {
+            const raw = params.scannedToken.trim();
+            const lower = raw.toLowerCase();
+
+            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest: raw },
+                });
+                return;
+            }
+
+            setToken(raw);
+            handleDecodeToken(raw);
+        } else if (params.requestId || params.from) {
+            setReceiveMode('request');
+        } else if (params.mode) {
+            setReceiveMode(params.mode as ReceiveMode);
+        }
+
+        if (params.paste === 'true') {
+            console.log('[ReceiveModal] Auto-paste check triggered');
+            ClipboardAPI.getStringAsync().then((text) => {
+                console.log('[ReceiveModal] Retrieved clipboard text:', text ? `${text.slice(0, 20)}...` : 'empty');
+                if (text && text.trim()) {
+                    const trimmed = text.trim();
+                    // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+                    const lower = trimmed.toLowerCase();
+                    if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                        console.log('[ReceiveModal] Clipboard auto-paste detected NUT-18 payment request, redirecting to send...');
+                        router.replace({
+                            pathname: '/(modals)/send',
+                            params: { paymentRequest: trimmed },
+                        });
+                        return;
+                    }
+
+                    setToken(trimmed);
+                }
+            }).catch(err => {
+                console.warn('[ReceiveModal] Failed to auto-paste from clipboard:', err);
+            });
+        }
+    }, [params.scannedToken, params.requestId, params.from, params.mode, params.paste]);
 
     const handleReceiveLater = useCallback(async () => {
         if (!tokenInfo) return;

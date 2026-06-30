@@ -47,7 +47,7 @@ const HeaderLeft = React.memo(
       pl="$4"
     >
       <Blockies
-        style={{ borderRadius: 3 }}
+        style={{ borderRadius: 5 }}
         seed={useSettingsStore((state) => state.npub) || "bey-cash"}
         size={10}
         scale={3.3}
@@ -71,20 +71,20 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.color.val,
-        tabBarInactiveTintColor: theme.color4.val,
+        tabBarActiveTintColor: theme.color?.val,
+        tabBarInactiveTintColor: theme.color4?.val,
         headerShadowVisible: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: theme.background.val,
-          borderTopColor: theme.borderColor.val,
+          backgroundColor: theme.background?.val,
+          borderTopColor: theme.borderColor?.val,
           height: 60 + (insets.bottom > 0 ? insets.bottom : 20),
           paddingTop: 12,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
         },
         headerStyle: {
-          backgroundColor: theme.background.val,
-          borderBottomColor: theme.borderColor.val,
+          backgroundColor: theme.background?.val,
+          borderBottomColor: theme.borderColor?.val,
         },
         headerTitle: ({ children }) => (
           <DefaultHeaderTitle>{children as string}</DefaultHeaderTitle>
@@ -109,7 +109,7 @@ export default function TabLayout() {
                   ? require("../../assets/icons/bey-logo-white-transparent.png")
                   : require("../../assets/icons/bey-logo-black-transparent.png")
               }
-              style={{ width: 28, height: 28, tintColor: color }}
+              style={{ width: 28, height: 28 }}
               resizeMode="contain"
             />
           ),
@@ -119,20 +119,7 @@ export default function TabLayout() {
                 circular
                 size="$3"
                 chromeless
-                icon={<Scan strokeWidth={3} size={24} color="$accent5" />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({
-                    pathname: "/(modals)/scanner",
-                    params: { returnTo: "/receive" },
-                  });
-                }}
-              />
-              <Button
-                circular
-                size="$3"
-                chromeless
-                icon={<Nfc size={24} strokeWidth={3} color="$accent5" />}
+                icon={<Nfc size={24} strokeWidth={3} color="$accent8" />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/(modals)/nfc-receive");

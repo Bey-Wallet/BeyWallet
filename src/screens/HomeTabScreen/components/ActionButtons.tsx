@@ -1,9 +1,8 @@
 import React, { useRef, useCallback } from "react";
 import { Button, XStack } from "tamagui";
-import { Landmark } from "@tamagui/lucide-icons";
+import { Scan, ArrowLeftRight, Shuffle, RefreshCcw, ScanLine } from "@tamagui/lucide-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import SwapIcon from "~/components/icons/Swap";
 import ArrowDownIcon from "~/components/icons/ArrowDown";
 import SendIcon from "~/components/icons/Send";
 import ActionSelectorSheet, {
@@ -14,10 +13,13 @@ export default React.memo(function ActionButtons() {
   const router = useRouter();
   const actionSheetRef = useRef<ActionSelectorSheetRef>(null);
 
-  const handleLandmark = useCallback(() => {
+  const handleScan = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    actionSheetRef.current?.present('mint');
-  }, []);
+    router.push({
+      pathname: "/(modals)/scanner",
+      params: { returnTo: "/receive" },
+    });
+  }, [router]);
 
   const handleSwap = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -43,8 +45,8 @@ export default React.memo(function ActionButtons() {
           height={60}
           size="$7"
           rounded="$5"
-          icon={<Landmark size={28} />}
-          onPress={handleLandmark}
+          icon={<ScanLine size={28} strokeWidth={3} />}
+          onPress={handleScan}
         />
         <Button
           bg="$gray4"
@@ -52,7 +54,7 @@ export default React.memo(function ActionButtons() {
           height={60}
           size="$7"
           rounded="$5"
-          icon={<SwapIcon size={28} />}
+          icon={<RefreshCcw size={28} strokeWidth={2.5} />}
           onPress={handleSwap}
         />
         <Button
