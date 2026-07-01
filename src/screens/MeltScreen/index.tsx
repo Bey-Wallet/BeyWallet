@@ -35,68 +35,43 @@ export default function MeltScreen() {
     const [quoteAmount, setQuoteAmount] = useState(0);
     const [feeReserve, setFeeReserve] = useState(0);
     const [quoteId, setQuoteId] = useState<string | null>(null);
-    const [lnMinSats, setLnMinSats] = useState(1);
-    const [lnMaxSats, setLnMaxSats] = useState(Infinity);
     const router = useRouter();
 
     const balance = useWalletStore(s => s.balance);
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
     const mints = useWalletStore(s => s.mints);
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
-    const [localInputValue, setLocalInputValue] = useState(lnAddressAmount);
+    const { secondaryCurrency } = useSettingsStore();
 
+    // Auto-fetch quote for bolt11 invoice to display its amount immediately
     useEffect(() => {
-        if (inputMode === 'SATS') {
-            setLocalInputValue(lnAddressAmount);
+        const cleaned = invoice.trim();
+        if (!cleaned) {
+            setLnAddressAmount('0');
+            return;
         }
-    }, [lnAddressAmount, inputMode]);
 
-    const onKeypadChange = (val: string) => {
-        setLocalInputValue(val);
-        if (inputMode === 'SATS') {
-            setLnAddressAmount(val);
-        } else {
-            if (btcData?.price) {
-                const sats = currencyService.convertCurrencyToSats(Number(val) || 0, btcData.price);
-                setLnAddressAmount(String(sats));
-            }
+        const inputType = detectLightningInputType(cleaned);
+        if (inputType === 'bolt11' && activeMintUrl) {
+            setIsGettingQuote(true);
+            setError(null);
+            quotesService.createMeltQuote(activeMintUrl, cleaned)
+                .then(quote => {
+                    console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
+                    setQuoteAmount(quote.amount);
+                    setFeeReserve(quote.fee_reserve);
+                    setQuoteId(quote.quote);
+                    setLnAddressAmount(quote.amount.toString());
+                })
+                .catch(err => {
+                    console.error('[MeltScreen] Auto-quote failed:', err);
+                    setError(err.message || 'Failed to parse invoice amount');
+                })
+                .finally(() => {
+                    setIsGettingQuote(false);
+                });
         }
-    };
-
-    const toggleMode = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        if (inputMode === 'SATS') {
-            if (btcData?.price) {
-                const sats = Number(lnAddressAmount) || 0;
-                const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
-                setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
-            }
-            setInputMode('FIAT');
-        } else {
-            setLocalInputValue(lnAddressAmount);
-            setInputMode('SATS');
-        }
-    };
-
-    const currencySymbol = useMemo(() => {
-        return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
-    }, [secondaryCurrency]);
-
-    const conversionValue = useMemo(() => {
-        if (!btcData?.price) return '0';
-        if (inputMode === 'SATS') {
-            const sats = Number(lnAddressAmount) || 0;
-            return currencyService.formatValue(
-                currencyService.convertSatsToCurrency(sats, btcData.price),
-                secondaryCurrency as CurrencyCode
-            );
-        } else {
-            const sats = Number(lnAddressAmount) || 0;
-            return `₿${sats}`;
-        }
-    }, [lnAddressAmount, btcData?.price, inputMode, secondaryCurrency]);
+    }, [invoice, activeMintUrl]);
 
     const confirmSheetRef = React.useRef<AppBottomSheetRef>(null);
 
@@ -159,18 +134,34 @@ export default function MeltScreen() {
 
                 const minSats = Math.ceil(params.minSendable / 1000);
                 const maxSats = Math.floor(params.maxSendable / 1000);
-                setLnMinSats(minSats);
-                setLnMaxSats(maxSats);
-                setLnAddressAmount(minSats.toString());
 
-                console.log(`[MeltScreen] LN address resolved: min=${minSats}, max=${maxSats} sats`);
-
-                // If min === max, skip amount input
-                if (minSats === maxSats) {
-                    await resolveAndGetQuote(cleaned, minSats);
-                } else {
-                    setStep('amount');
+                const amountSats = parseInt(lnAddressAmount, 10);
+                if (isNaN(amountSats) || amountSats <= 0) {
+                    setError('Enter a valid amount');
+                    setIsResolvingAddress(false);
+                    return;
                 }
+
+                if (amountSats < minSats) {
+                    setError(`Minimum amount is ${minSats} sats`);
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                if (amountSats > maxSats) {
+                    setError(`Maximum amount is ${maxSats} sats`);
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                if (amountSats > balance) {
+                    setError('Insufficient balance');
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sats`);
+                await resolveAndGetQuote(cleaned, amountSats);
             } catch (err: any) {
                 console.error('[MeltScreen] LN address resolution failed:', err);
                 setError(err.message || 'Failed to resolve Lightning address');
@@ -180,7 +171,7 @@ export default function MeltScreen() {
         } else {
             setError('Invalid input. Enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)');
         }
-    }, [activeMintUrl, invoice]);
+    }, [activeMintUrl, invoice, lnAddressAmount, balance, resolveAndGetQuote]);
 
     // ─── Resolve LN address to invoice and get quote ──────────
     const resolveAndGetQuote = useCallback(async (address: string, amountSats: number) => {
@@ -234,33 +225,7 @@ export default function MeltScreen() {
         }
     }, [activeMintUrl, balance]);
 
-    // ─── Amount Stage: Continue Handler ───────────────────────
-    const handleAmountContinue = useCallback(async () => {
-        if (!lnAddress) return;
 
-        const amountSats = parseInt(lnAddressAmount, 10);
-        if (isNaN(amountSats) || amountSats <= 0) {
-            setError('Enter a valid amount');
-            return;
-        }
-
-        if (amountSats < lnMinSats) {
-            setError(`Minimum amount is ${lnMinSats} sats`);
-            return;
-        }
-
-        if (amountSats > lnMaxSats) {
-            setError(`Maximum amount is ${lnMaxSats} sats`);
-            return;
-        }
-
-        if (amountSats > balance) {
-            setError('Insufficient balance');
-            return;
-        }
-
-        await resolveAndGetQuote(lnAddress, amountSats);
-    }, [lnAddress, lnAddressAmount, lnMinSats, lnMaxSats, balance, resolveAndGetQuote]);
 
     // ─── Pay Handler ──────────────────────────────────────────
     const handlePay = useCallback(async () => {
@@ -317,118 +282,20 @@ export default function MeltScreen() {
     };
 
     // ─── Amount Stage for LN Address ──────────────────────────
-    const parsedAmountSats = parseInt(lnAddressAmount, 10) || 0;
-    const isOverBalance = parsedAmountSats > balance;
-    const isOverMax = parsedAmountSats > lnMaxSats;
-    const isUnderMin = parsedAmountSats > 0 && parsedAmountSats < lnMinSats;
-    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && !isOverMax && !isUnderMin;
-
     return (
         <YStack flex={1} bg="$background" p="$4">
-            {/* Step 1: Invoice Input */}
+            {/* Step 1: Input Invoice and Amount Stage */}
             {step === 'invoice' && (
                 <InvoiceStage
+                    amount={lnAddressAmount}
+                    setAmount={setLnAddressAmount}
                     invoice={invoice}
                     setInvoice={setInvoice}
                     onContinue={handleInvoiceContinue}
+                    balance={balance}
                     isLoading={isGettingQuote || isResolvingAddress}
                     error={error}
                 />
-            )}
-
-            {/* Step 2: Amount Input (for Lightning addresses) */}
-            {step === 'amount' && (
-                <YStack flex={1} justify="space-between">
-                    <YStack
-                        width="100%"
-                        height={280}
-                        rounded="$4"
-                        borderWidth={0.5}
-                        borderColor="$borderColor"
-                        justify="space-between"
-                        bg="$color2"
-                        items="center"
-                    >
-                        <XStack
-                            width="100%"
-                            p="$3"
-                            items="center"
-                            borderBottomWidth={1}
-                            borderBottomColor="$color3"
-                            justify="center"
-                        >
-                            <YStack items="center" gap="$0.5">
-                                <Text fontWeight="600" fontSize="$3" color="$orange10">Paying to</Text>
-                                <Text fontWeight="800" fontSize="$4">{lnAddress}</Text>
-                            </YStack>
-                        </XStack>
-
-                        <YStack items="center" gap="$1">
-                            <Text color="$gray10" fontSize="$3">How much to send?</Text>
-                            <H1
-                                fontWeight="400"
-                                letterSpacing={-2}
-                                py="$4"
-                                color={isOverBalance || isOverMax ? "$red10" : isUnderMin ? "$orange10" : "$color"}
-                            >
-                                {inputMode === 'SATS' ? `₿${localInputValue || '0'}` : `${currencySymbol}${localInputValue || '0'}`}
-                            </H1>
-
-                            <Button
-                                size="$2.5"
-                                theme="gray"
-                                fontWeight="400"
-                                color="$accent9"
-                                mt="$-2"
-                                onPress={toggleMode}
-                                pressStyle={{ scale: 0.95 }}
-                            >
-                                {conversionValue}
-                            </Button>
-
-                            {isOverBalance && (
-                                <Text color="$red10" fontSize="$2">Exceeds available balance</Text>
-                            )}
-                            {isOverMax && !isOverBalance && (
-                                <Text color="$red10" fontSize="$2">Maximum: {lnMaxSats} sats</Text>
-                            )}
-                            {isUnderMin && !isOverMax && (
-                                <Text color="$orange10" fontSize="$2">Minimum: {lnMinSats} sats</Text>
-                            )}
-                        </YStack>
-
-                        <XStack
-                            width="100%"
-                            p="$3"
-                            borderTopWidth={1}
-                            borderTopColor="$color3"
-                            justify="space-between"
-                            items="center"
-                        >
-                            <Text color="$gray10" fontWeight="400" fontSize="$3">
-                                Range: {lnMinSats} – {lnMaxSats >= 1_000_000_000 ? '∞' : lnMaxSats.toLocaleString()} sats
-                            </Text>
-                            <Text color="$gray10" fontWeight="600" fontSize="$3">₿{balance}</Text>
-                        </XStack>
-                    </YStack>
-
-                    {error && (
-                        <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$4">
-                            <AlertCircle size={18} color="$red10" />
-                            <Text color="$red10" fontSize="$3" flex={1}>{error}</Text>
-                        </XStack>
-                    )}
-
-                    <NumericKeypad
-                        showAmountDisplay={false}
-                        value={localInputValue}
-                        onValueChange={onKeypadChange}
-                        onConfirm={handleAmountContinue}
-                        confirmLabel={isGettingQuote ? "Getting Quote..." : "Continue"}
-                        confirmDisabled={!isValidAmount || isGettingQuote}
-                        confirmIcon={isGettingQuote ? <Spinner size="small" /> : undefined}
-                    />
-                </YStack>
             )}
 
             {/* Step 3: Result */}

@@ -148,13 +148,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                         path: '/(modals)/send?mode=standard',
                     },
                     {
-                        key: 'link',
-                        label: 'Create eCash Link',
-                        icon: <Link size={24} color="$gray12" strokeWidth={2.5} />,
-                        iconBg: '$yellow4',
-                        path: '/(modals)/send?mode=link',
-                    },
-                    {
                         key: 'p2pk',
                         label: 'Lock to Public Key',
                         icon: <KeyRound size={24} color="$gray12" strokeWidth={2.5} />,

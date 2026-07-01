@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme } from "tamagui";
-import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc } from "@tamagui/lucide-icons";
+import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc, Globe } from "@tamagui/lucide-icons";
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
@@ -287,6 +287,45 @@ export function PendingTokenLayout({
         }
     };
 
+    const [isPublishing, setIsPublishing] = useState(false);
+
+    const handlePublishToWeb = async () => {
+        if (!currentToken || currentToken.startsWith('http')) return;
+        
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setIsPublishing(true);
+        try {
+            // 1. Generate 32 bytes random secret_key
+            const secretKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
+            const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
+            
+            // 2. Build Nostr event containing the Cashu token
+            const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
+            const { event } = buildEcashNostrEvent(cleanToken(currentToken), secretKeyHex);
+            
+            // 3. Publish to relays
+            const { SimplePool } = require('nostr-tools');
+            const { RELAYS } = require('~/services/core/nostrService');
+            const pool = new SimplePool();
+            await Promise.any(pool.publish(RELAYS, event));
+            pool.close(RELAYS);
+            
+            // 4. Construct share link
+            const websiteUrl = 'https://bey.cash/c/';
+            const shareLink = `${websiteUrl}#${secretKeyHex}`;
+            
+            setCurrentToken(shareLink);
+            toast.show('Published!', { message: 'Token published on bey.cash' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e: any) {
+            console.error('[PendingTokenLayout] Publish to web failed:', e);
+            toast.show('Publish Failed', { message: e?.message || 'Could not publish to Nostr relays' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
@@ -406,6 +445,24 @@ export function PendingTokenLayout({
                 </XStack>
             </YStack>
 
+            {/* Submit to Web Button (if raw Cashu token) */}
+            {!currentToken.startsWith('http') && (
+                <Button
+                    size="$5"
+                    bg="$purple10"
+                    color="white"
+                    fontWeight="800"
+                    rounded="$5"
+                    mx="$1"
+                    icon={isPublishing ? <Spinner size="small" color="white" /> : <Globe size={20} />}
+                    onPress={handlePublishToWeb}
+                    disabled={isPublishing}
+                    pressStyle={{ scale: 0.97, bg: "$purple11" }}
+                >
+                    {isPublishing ? 'Publishing...' : 'Publish on bey.cash'}
+                </Button>
+            )}
+
             {/* Link Text Display */}
             {currentToken.startsWith('http') && (
                 <YStack bg="$gray3" p="$3" rounded="$5" mx="$1" gap="$1" items="center" borderStyle="dashed" borderWidth={1} borderColor="$gray6">
@@ -445,6 +502,18 @@ export function PendingTokenLayout({
                         />
                     )}
                     <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
+                    {currentToken.startsWith('http') && (
+                        <DetailItem
+                            label="Web Link"
+                            value={`${currentToken.slice(0, 18)}…${currentToken.slice(-6)}`}
+                            isCopyable
+                            onCopy={async () => {
+                                await Clipboard.setStringAsync(currentToken);
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                toast.show('Copied!', { message: 'Web share link copied to clipboard' });
+                            }}
+                        />
+                    )}
                 </YStack>
             )}
 
