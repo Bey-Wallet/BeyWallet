@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-    YStack, XStack, Text, Image, View, ScrollView,
+    YStack, XStack, Text, View, ScrollView,
     Separator, H1, H3
 } from 'tamagui'
 import {
@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router'
 import { Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants'
+import BeyIcon from '~/components/icons/BeyIcon'
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.1.0'
 const BUILD_NUMBER =
@@ -94,11 +95,7 @@ export default function AboutModal() {
                         borderColor="$borderColor"
                         elevation={4}
                     >
-                        <Image
-                            source={require('../../assets/icons/bey-logo-black-transparent.png')}
-                            style={{ width: 50, height: 50 }}
-                            resizeMode="cover"
-                        />
+                        <BeyIcon size={50} color="black" />
                     </View>
 
                     <YStack items="center" gap="$1">

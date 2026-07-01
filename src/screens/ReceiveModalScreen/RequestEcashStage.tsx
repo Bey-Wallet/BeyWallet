@@ -113,6 +113,8 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const [note, setNote] = useState('');
     const [showNote, setShowNote] = useState(false);
 
+
+
     // NUT-18 payment request
     const [creqString, setCreqString] = useState<string | null>(null);
     const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
@@ -126,7 +128,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const toast = useToastController();
 
-    const { activeMintUrl, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    const { activeMintUrl, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing, balance } = useWalletStore();
     const { secondaryCurrency, npub, primaryCurrency } = useSettingsStore();
     const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
 
@@ -293,6 +295,18 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         } else {
             setLocalInputValue(amount);
             setInputMode('SATS');
+        }
+    };
+
+    const handleMax = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        const maxSats = balance.toString();
+        setAmount(maxSats);
+        if (inputMode === 'SATS') {
+            setLocalInputValue(maxSats);
+        } else if (btcData?.price) {
+            const fiat = currencyService.convertSatsToCurrency(balance, btcData.price);
+            setLocalInputValue(fiat.toFixed(2));
         }
     };
 
@@ -556,6 +570,69 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         return (
             <YStack flex={1} px="$4" justify="space-between" bg="$background">
                 <YStack items="center" gap="$3" width="100%" >
+                    {/* Mint Selector Row */}
+                    <XStack
+                        justify="space-between"
+                        items="center"
+                        width="100%"
+                        bg="$gray2"
+                        px="$3"
+                        py="$3"
+                        rounded="$5"
+                        mb="$1"
+                    >
+                        <XStack
+                            gap="$2"
+                            items="center"
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                                refreshMintList();
+                                sheetRef.current?.present();
+                            }}
+                            pressStyle={{ opacity: 0.7 }}
+                            flex={1}
+                        >
+                            {isLoadingMint ? (
+                                <Spinner size={14} color="$accent10" />
+                            ) : (
+                                <Avatar rounded="$3" size="$2">
+                                    <Avatar.Image src={activeMint?.icon} />
+                                    <Avatar.Fallback
+                                        backgroundColor="$gray4"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                    >
+                                        <Sprout size={14} color="$accent10" />
+                                    </Avatar.Fallback>
+                                </Avatar>
+                            )}
+                            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
+                                {isLoadingMint ? "Loading..." : displayName}
+                            </Text>
+                            <ChevronDown size={16} color="$gray10" />
+                        </XStack>
+
+                        <XStack gap="$2" items="center">
+                            <Text fontSize="$3" color="$accent6" fontWeight="500">
+                                ₿{balance.toLocaleString('en-US')}
+                            </Text>
+                            <Button
+                                size="$2"
+                                rounded="$3"
+
+                                borderWidth={0}
+                                color="$color"
+                                fontWeight="600"
+                                onPress={handleMax}
+                                disabled={balance === 0}
+                                pressStyle={{ scale: 0.96, bg: "$gray4" }}
+                            >
+                                Max
+                            </Button>
+
+                        </XStack>
+                    </XStack>
+
                     {/* Card Box Container matching Send stages */}
                     <YStack
                         width="100%"
@@ -566,65 +643,6 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                         gap="$3"
                         borderWidth={0}
                     >
-                        {/* Mint selector pill button at top of card */}
-                        <XStack justify="center" items="center" width="100%">
-                            <Button
-                                size="$3"
-                                rounded="$4"
-                                bg="$blue10"
-                                color="white"
-                                px={isLoadingMint ? "$3" : "$1.5"}
-                                borderWidth={0}
-                                disabled={isLoadingMint}
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                                    refreshMintList();
-                                    sheetRef.current?.present();
-                                }}
-                                maxW={170}
-                                pressStyle={{ scale: 0.97, opacity: 0.95, bg: "$blue11" }}
-                                icon={
-                                    isLoadingMint ? (
-                                        <Spinner size={14} color="white" />
-                                    ) : (
-                                        <Avatar rounded="$3" size="$2">
-                                            <Avatar.Image src={activeMint?.icon} />
-                                            <Avatar.Fallback
-                                                backgroundColor="rgba(255,255,255,0.2)"
-                                                alignItems="center"
-                                                justifyContent="center"
-                                            >
-                                                <Sprout size={14} color="white" />
-                                            </Avatar.Fallback>
-                                        </Avatar>
-                                    )
-                                }
-                                iconAfter={
-                                    isLoadingMint ? undefined : (
-                                        <Square
-                                            size="$2"
-                                            borderWidth={0.5}
-                                            borderColor="rgba(255,255,255,0.2)"
-                                            bg="rgba(255,255,255,0.15)"
-                                            rounded="$3"
-                                        >
-                                            <ChevronDown size={16} strokeWidth={3} color="white" />
-                                        </Square>
-                                    )
-                                }
-                                textProps={{
-                                    fontSize: "$3",
-                                    fontWeight: "700",
-                                    maxW: 110,
-                                    numberOfLines: 1,
-                                    color: "white",
-                                }}
-                                ellipse
-                            >
-                                {isLoadingMint ? "Loading..." : displayName}
-                            </Button>
-                        </XStack>
-
                         {/* Amount Display Section */}
                         <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
                             {generateError ? (

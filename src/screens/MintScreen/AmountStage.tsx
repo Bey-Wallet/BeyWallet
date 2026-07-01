@@ -19,7 +19,7 @@ interface AmountStageProps {
 }
 
 export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps) {
-    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, balance } = useWalletStore();
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -176,131 +176,122 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
 
     return (
         <YStack flex={1} justify="space-between">
-            {/* Card Box Container */}
-            <YStack
-                width="100%"
-                bg="$gray2"
-                rounded="$5"
-                p="$4"
-                items="center"
-                gap="$3"
-                borderWidth={0}
-                borderColor="$borderColor"
-            >
-                {/* Mint selector pill button at top of card */}
-                <XStack justify="center" items="center" width="100%">
-                    <Button
-                        size="$3"
-                        rounded="$4"
-                        bg="$blue10"
-                        color="white"
-                        px={isLoadingMint ? "$3" : "$1.5"}
-                        borderWidth={0}
-                        disabled={isLoadingMint}
+            <YStack items="center" gap="$3" width="100%">
+                {/* Mint Selector Row */}
+                <XStack
+                    justify="space-between"
+                    items="center"
+                    width="100%"
+                    bg="$gray2"
+                    px="$3"
+                    py="$3"
+                    rounded="$5"
+                    mb="$1"
+                >
+                    <XStack
+                        gap="$2"
+                        items="center"
                         onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                             refreshMintList();
                             sheetRef.current?.present();
                         }}
-                        maxW={170}
-                        pressStyle={{ scale: 0.97, opacity: 0.95, bg: "$blue11" }}
-                        icon={
-                            isLoadingMint ? (
-                                <Spinner size={14} color="white" />
-                            ) : (
-                                <Avatar rounded="$3" size="$2">
-                                    <Avatar.Image src={activeMint?.icon} />
-                                    <Avatar.Fallback
-                                        backgroundColor="rgba(255,255,255,0.2)"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                    >
-                                        <Sprout size={14} color="white" />
-                                    </Avatar.Fallback>
-                                </Avatar>
-                            )
-                        }
-                        iconAfter={
-                            isLoadingMint ? undefined : (
-                                <Square
-                                    size="$2"
-                                    borderWidth={0.5}
-                                    borderColor="rgba(255,255,255,0.2)"
-                                    bg="rgba(255,255,255,0.15)"
-                                    rounded="$3"
+                        pressStyle={{ opacity: 0.7 }}
+                        flex={1}
+                    >
+                        {isLoadingMint ? (
+                            <Spinner size={14} color="$accent10" />
+                        ) : (
+                            <Avatar rounded="$3" size="$2">
+                                <Avatar.Image src={activeMint?.icon} />
+                                <Avatar.Fallback
+                                    backgroundColor="$gray4"
+                                    alignItems="center"
+                                    justifyContent="center"
                                 >
-                                    <ChevronDown size={16} strokeWidth={3} color="white" />
-                                </Square>
-                            )
-                        }
-                        textProps={{
-                            fontSize: "$3",
-                            fontWeight: "700",
-                            maxW: 110,
-                            numberOfLines: 1,
-                            color: "white",
-                        }}
-                        ellipse
-                    >
-                        {isLoadingMint ? "Loading..." : displayName}
-                    </Button>
-                </XStack>
-
-                {/* Amount Display Section */}
-                <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-                    <Text color="$gray10" fontSize="$3" fontWeight="500">
-                        Enter Amount
-                    </Text>
-
-                    <H1
-                        fontSize={dynamicFontSize}
-                        fontVariant={['tabular-nums']}
-                        fontWeight="700"
-                        letterSpacing={-1}
-                        py="$2"
-                        color="$color"
-                        text="center"
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        style={{ maxWidth: '100%', overflow: 'hidden' }}
-                    >
-                        {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
-                    </H1>
-
-                    <Button
-                        size="$3"
-                        rounded="$10"
-                        bg="$gray4"
-                        pressStyle={{ scale: 0.96, bg: "$gray5" }}
-                        onPress={toggleMode}
-                        iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
-                    >
-                        <Text fontSize="$3" fontWeight="600" color="$accent10">
-                            {conversionValue}
+                                    <Sprout size={14} color="$accent10" />
+                                </Avatar.Fallback>
+                            </Avatar>
+                        )}
+                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
+                            {isLoadingMint ? "Loading..." : displayName}
                         </Text>
-                    </Button>
-                </YStack>
-            </YStack>
+                        <ChevronDown size={16} color="$gray10" />
+                    </XStack>
 
-            {/* Presets and Numeric Keypad */}
-            <YStack width="100%" gap="$4">
-                {/* 3 Preset buttons above numpad */}
-                <XStack width="100%" justify="center" gap="$3" px="$2">
-                    <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('1000')}>1k</Button>
-                    <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('5000')}>5k</Button>
-                    <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('20000')}>20k</Button>
+                    <Text fontSize="$3" color="$gray10" fontWeight="500">
+                        ₿{balance.toLocaleString('en-US')}
+                    </Text>
                 </XStack>
 
-                <NumericKeypad
-                    showAmountDisplay={false}
-                    value={localInputValue}
-                    onValueChange={onKeypadChange}
-                    onConfirm={onContinue}
-                    confirmLabel="Continue"
-                />
-            </YStack>
+                {/* Card Box Container */}
+                <YStack
+                    width="100%"
+                    bg="$gray2"
+                    rounded="$5"
+                    p="$4"
+                    items="center"
+                    gap="$3"
+                    borderWidth={0}
+                    borderColor="$borderColor"
+                >
 
-            <MintSelectorSheet ref={sheetRef} />
+                    {/* Amount Display Section */}
+                    <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+                        <Text color="$gray10" fontSize="$3" fontWeight="500">
+                            Enter Amount
+                        </Text>
+
+                        <H1
+                            fontSize={dynamicFontSize}
+                            fontVariant={['tabular-nums']}
+                            fontWeight="700"
+                            letterSpacing={-1}
+                            py="$2"
+                            color="$color"
+                            text="center"
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            style={{ maxWidth: '100%', overflow: 'hidden' }}
+                        >
+                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                        </H1>
+
+                        <Button
+                            size="$3"
+                            rounded="$10"
+                            bg="$gray4"
+                            pressStyle={{ scale: 0.96, bg: "$gray5" }}
+                            onPress={toggleMode}
+                            iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                        >
+                            <Text fontSize="$3" fontWeight="600" color="$accent10">
+                                {conversionValue}
+                            </Text>
+                        </Button>
+                    </YStack>
+                </YStack>
+
+                {/* Presets and Numeric Keypad */}
+                <YStack width="100%" gap="$4">
+                    {/* 3 Preset buttons above numpad */}
+                    <XStack width="100%" justify="center" gap="$3" px="$2">
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('1000')}>1k</Button>
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('5000')}>5k</Button>
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('20000')}>20k</Button>
+                    </XStack>
+
+                    <NumericKeypad
+                        showAmountDisplay={false}
+                        value={localInputValue}
+                        onValueChange={onKeypadChange}
+                        onConfirm={onContinue}
+                        confirmLabel="Continue"
+                    />
+                </YStack>
+
+                <MintSelectorSheet ref={sheetRef} />
+            </YStack>
         </YStack>
     );
 }

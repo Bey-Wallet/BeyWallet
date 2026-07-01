@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { YStack, Text, Button, Spinner, H2, Image, View } from 'tamagui'
+import { YStack, Text, Button, Spinner, H2, View } from 'tamagui'
 import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
 import { AppState, AppStateStatus, StyleSheet } from 'react-native'
-import { useAppTheme } from '../context/ThemeContext'
+import BeyIcon from '~/components/icons/BeyIcon'
 
 export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
     const [isAuthenticating, setIsAuthenticating] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const { resolvedTheme } = useAppTheme()
 
     // Track whether we've auto-triggered so we only do it ONCE per mount
     const hasAutoTriggered = useRef(false)
@@ -40,29 +39,25 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         }
     }, [onUnlock])
 
-    // Auto-trigger biometric ONCE on mount — fast (300ms delay)
     useEffect(() => {
-        if (hasAutoTriggered.current) return
-        hasAutoTriggered.current = true
-
-        const timer = setTimeout(() => {
-            handleAuthenticate()
-        }, 300)
-
-        return () => clearTimeout(timer)
-    }, [handleAuthenticate])
-
-    // On foreground: only re-trigger if we haven't already succeeded
-    // and only after the user has actually backgrounded (not on mount)
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-            if (nextAppState === 'active' && !isAuthRef.current) {
-                // Re-trigger auth when coming back from background
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'active' && !hasAutoTriggered.current) {
+                hasAutoTriggered.current = true
                 handleAuthenticate()
             }
-        })
+        }
 
-        return () => subscription.remove()
+        const subscription = AppState.addEventListener('change', handleAppStateChange)
+
+        // Initial trigger on mount
+        if (!hasAutoTriggered.current) {
+            hasAutoTriggered.current = true
+            handleAuthenticate()
+        }
+
+        return () => {
+            subscription.remove()
+        }
     }, [handleAuthenticate])
 
     return (
@@ -82,13 +77,7 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         >
             {/* Middle Section - App Logo */}
             <YStack flex={1} justify="center" items="center">
-                <Image
-                    source={resolvedTheme === 'dark'
-                        ? require('../assets/icons/bey-logo-white-transparent.png')
-                        : require('../assets/icons/bey-logo-black-transparent.png')}
-                    style={{ width: 120, height: 120 }}
-                    resizeMode="contain"
-                />
+                <BeyIcon size={120} />
             </YStack>
 
             {/* Bottom Section - Unlock Button */}

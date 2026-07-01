@@ -1,5 +1,5 @@
 import { RefreshControl, Animated } from "react-native";
-import { YStack, ScrollView, Button, Image } from "tamagui";
+import { YStack, ScrollView, Button } from "tamagui";
 import * as Haptics from "expo-haptics";
 import { useToastController } from "@tamagui/toast";
 import WalletCard from "./components/WalletCard";
@@ -7,7 +7,7 @@ import ActionButtons from "./components/ActionButtons";
 import { useWalletStore } from "../../store/walletStore";
 import React from "react";
 import StatusScreen from "../../components/StatusScreen";
-import { useAppTheme } from "../../context/ThemeContext";
+import BeyIcon from "~/components/icons/BeyIcon";
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -27,7 +27,6 @@ type StatusType = "success" | "error" | "pending" | null;
 
 /** Skeleton fallback shown while lazy components load */
 function HomeSkeleton() {
-  const { resolvedTheme } = useAppTheme();
   const pulseAnim = React.useRef(new Animated.Value(0.3)).current;
 
   React.useEffect(() => {
@@ -59,17 +58,7 @@ function HomeSkeleton() {
       justify="center"
     >
       <Animated.View style={{ opacity: pulseAnim }}>
-        <Image
-          alt="bey"
-          source={
-            resolvedTheme === "dark"
-              ? require("../../assets/icons/bey-logo-white-transparent.png")
-              : require("../../assets/icons/bey-logo-black-transparent.png")
-          }
-          width={40}
-          height={40}
-          resizeMode="contain"
-        />
+        <BeyIcon size={40} />
       </Animated.View>
     </YStack>
   );

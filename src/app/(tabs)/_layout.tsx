@@ -1,6 +1,6 @@
 import React from "react";
 import { router, Tabs } from "expo-router";
-import { Button, XStack, Text, useTheme, Image, H1 } from "tamagui";
+import { Button, XStack, Text, useTheme, H1 } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   History,
@@ -26,6 +26,7 @@ import { useAuthStore } from "~/store/authStore";
 import HomeHeaderMintSelector from "~/components/HomeMintSelector";
 import SettingsIcon from "~/components/icons/Settings";
 import WalletIcon from "~/components/icons/Wallet";
+import BeyIcon from "~/components/icons/BeyIcon";
 import HistoryVolume from "~/components/HistoryVolume";
 import LockIcon from "~/components/icons/Lock";
 import NFCFillIcon from "~/components/icons/NFC-fill";
@@ -103,15 +104,7 @@ export default function TabLayout() {
           title: "Home",
           headerTitle: () => <HomeHeaderMintSelector />,
           tabBarIcon: ({ color }) => (
-            <Image
-              source={
-                resolvedTheme === "dark"
-                  ? require("../../assets/icons/bey-logo-white-transparent.png")
-                  : require("../../assets/icons/bey-logo-black-transparent.png")
-              }
-              style={{ width: 28, height: 28 }}
-              resizeMode="contain"
-            />
+            <BeyIcon size={28} color={color} />
           ),
           headerRight: () => (
             <XStack pr="$4" gap="$2">

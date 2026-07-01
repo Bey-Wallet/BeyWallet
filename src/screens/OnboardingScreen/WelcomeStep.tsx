@@ -1,11 +1,11 @@
 import React from 'react'
-import { YStack, Text, Button, H1, Image, View, XStack } from 'tamagui'
+import { YStack, Text, Button, H1, View, XStack } from 'tamagui'
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Alert } from 'react-native'
-import { useAppTheme } from '../../context/ThemeContext'
 import GlowCard from '~/components/UI/GlowCard'
+import BeyIcon from '~/components/icons/BeyIcon'
 
 interface WelcomeStepProps {
     onCreateWallet: () => void
@@ -24,7 +24,6 @@ export function WelcomeStep({
     onOpenSavedWallet,
     onDeleteSavedWallet
 }: WelcomeStepProps) {
-    const { resolvedTheme } = useAppTheme()
     const insets = useSafeAreaInsets()
 
     const handleCreate = () => {
@@ -57,9 +56,7 @@ export function WelcomeStep({
 
 
             <YStack height={400} width='100%' bg="$gray2" rounded="$5" alignItems="center" justifyContent="center" >
-                <Image source={resolvedTheme === 'dark' ? require('../../assets/icons/bey-logo-white-transparent.png') : require('../../assets/icons/bey-logo-black-transparent.png')} width={100} height={100}
-                    // rotate="90deg"
-                    resizeMode="contain" />
+                <BeyIcon size={100} />
             </YStack>
 
 

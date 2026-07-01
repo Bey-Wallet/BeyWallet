@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { YStack, Text, Button, Spinner, H2, Image, View } from 'tamagui'
+import { YStack, Text, Button, Spinner, H2, View } from 'tamagui'
 import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
 import { AppState, AppStateStatus } from 'react-native'
 import { useAppTheme } from '../context/ThemeContext'
+import BeyIcon from '~/components/icons/BeyIcon'
 
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -88,13 +89,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                     borderWidth={1}
                     borderColor="$borderColor"
                 >
-                    <Image
-                        source={resolvedTheme === 'dark'
-                            ? require('../assets/icons/bey-logo-black-transparent.png')
-                            : require('../assets/icons/bey-logo-white-transparent.png')}
-                        style={{ width: 100, height: 100 }}
-                        resizeMode="contain"
-                    />
+                    <BeyIcon size={100} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
                 </View>
             </YStack>
 

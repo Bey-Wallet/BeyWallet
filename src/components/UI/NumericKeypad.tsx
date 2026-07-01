@@ -38,7 +38,7 @@ const NumButton = React.memo(({ digit, onPress }: { digit: string; onPress: (d: 
         onPress={() => onPress(digit)}
         pressStyle={{ bg: "$colorTransparent", borderColor: "$colorTransparent", scale: 1.5 }}
     >
-        <Text fontSize={32} fontWeight="600" color="$color">
+        <Text fontSize={32} fontVariant={['tabular-nums']} fontWeight="800" color="$color">
             {digit}
         </Text>
     </Button>

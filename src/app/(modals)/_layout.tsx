@@ -21,29 +21,28 @@ export default function ModalLayout() {
                 headerShown: true,
                 presentation: 'formSheet',
                 headerStyle: {
-                    backgroundColor: theme.background.val,
+                    backgroundColor: theme.background?.val,
                 },
                 headerTitleStyle: {
-                    color: theme.color.val,
+                    color: theme.color?.val,
                     fontWeight: '500',
 
                 },
                 headerTitleAlign: 'center',
-                headerTintColor: theme.color.val,
+                headerTintColor: theme.color?.val,
                 headerShadowVisible: false,
                 headerTitle: ({ children }) => <DefaultHeaderTitle>{children}</DefaultHeaderTitle>,
                 headerLeft: () => (
                     <Button
                         circular
                         size="$3"
-                        chromeless
                         rounded="$10"
                         icon={<X size={24} color="$color" />}
                         onPress={() => router.back()}
                     />
                 ),
                 contentStyle: {
-                    backgroundColor: theme.background.val,
+                    backgroundColor: theme.background?.val,
                 },
             }}
         >
@@ -141,8 +140,9 @@ export default function ModalLayout() {
             <Stack.Screen
                 name="nostr-profile"
                 options={{
-                    title: 'Nostr Identity',
                     presentation: "fullScreenModal",
+                    headerShown: true,
+                    headerTitle: '',
                 }}
             />
             <Stack.Screen

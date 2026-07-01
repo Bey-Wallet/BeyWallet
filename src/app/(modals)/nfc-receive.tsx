@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { YStack, XStack, Text, Button, View, useTheme, Theme, Image } from 'tamagui';
+import { YStack, XStack, Text, Button, View, useTheme, Theme } from 'tamagui';
 import Blockies from '~/components/UI/Blockies';
 import { useWalletStore } from '~/store/walletStore';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
@@ -12,6 +12,7 @@ import { useAppTheme } from '~/context/ThemeContext';
 import { Scan } from '@tamagui/lucide-icons';
 import NFCFillIcon from '~/components/icons/NFC-fill';
 import { router, useFocusEffect } from 'expo-router';
+import BeyIcon from '~/components/icons/BeyIcon';
 import { nfcService } from '~/services/nfcService';
 import { walletService } from '~/services/core';
 import { useToastController } from '@tamagui/toast';
@@ -185,15 +186,7 @@ export default function NFCReceiveScreen() {
                         <NFCFill2 size={40} color={theme.color1.val} />
                     </XStack>
                     <View width="100%" justify="center" items="center">
-
-                        <Image alt='bey' source={resolvedTheme === 'dark'
-                            ? require('../../assets/icons/bey-logo-black-transparent.png')
-                            : require('../../assets/icons/bey-logo-white-transparent.png')}
-
-                            width={250} height={80}
-                            resizeMode="contain"
-                        />
-
+                        <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
                     </View>
                     {/* Bottom Row */}
                     <XStack justify="space-between" items="flex-end">
