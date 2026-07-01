@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
+import { Buffer } from 'buffer';
 import {
     YStack,
     XStack,
@@ -27,11 +28,13 @@ import {
     Zap,
     Sprout,
     ArrowUpDown,
+    Globe,
 } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { NumericKeypad } from '../../components/UI/NumericKeypad';
 import { AppBottomSheetRef } from '../../components/UI/AppBottomSheet';
 import { MintSelectorSheet } from '../../components/HomeMintSelector';
+import Blockies from '../../components/UI/Blockies';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
@@ -42,7 +45,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useNostrRequestStore } from '../../store/nostrRequestStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
-import { currencyService, SUPPORTED_CURRENCIES } from '../../services/currencyService';
+import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '../../services/currencyService';
 import { walletService, historyService } from '../../services/core';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
@@ -117,11 +120,13 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const [isChecking, setIsChecking] = useState(false);
     const [generateError, setGenerateError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishedLink, setPublishedLink] = useState<string | null>(null);
 
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const toast = useToastController();
 
-    const { activeMintUrl, mints, setActiveMint } = useWalletStore();
+    const { activeMintUrl, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
     const { secondaryCurrency, npub, primaryCurrency } = useSettingsStore();
     const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
 
@@ -150,14 +155,20 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         }
     }, [initialRequestId]);
 
-    const activeMint = mints.find(
-        (m) => m.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
-    );
-    const mintName =
-        activeMint?.nickname ||
-        activeMint?.name ||
-        activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') ||
-        'Select Mint';
+    const activeMint = React.useMemo(() => {
+        if (!activeMintUrl) return null;
+        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+        return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
+    }, [mints, activeMintUrl]);
+
+    const displayName = React.useMemo(() => {
+        if (!activeMintUrl) return "Select Mint";
+        if (activeMint?.nickname) return activeMint.nickname;
+        if (activeMint?.name) return activeMint.name;
+        return activeMintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    }, [activeMint, activeMintUrl]);
+
+    const isLoadingMint = isInitializing || isRefreshing;
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -179,6 +190,19 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         return `₿${amtNum}`;
     }, [amtNum, btcData?.price, inputMode, currencySymbol]);
 
+    const conversionValue = React.useMemo(() => {
+        if (!btcData?.price) return '0';
+        if (inputMode === 'SATS') {
+            const sats = Number(amount) || 0;
+            return currencyService.formatValue(
+                currencyService.convertSatsToCurrency(sats, btcData.price),
+                secondaryCurrency as CurrencyCode
+            );
+        } else {
+            return `₿${Number(amount) || 0}`;
+        }
+    }, [amount, btcData?.price, inputMode, secondaryCurrency]);
+
     const fiatValueLabel = React.useMemo(() => {
         if (!btcData?.price || !amtNum) return '—';
         const val = currencyService.convertSatsToCurrency(amtNum, btcData.price);
@@ -188,34 +212,72 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const formattedDisplayValue = React.useMemo(() => {
         if (!localInputValue || localInputValue === '0') return '0';
         if (inputMode === 'SATS') {
-            const num = parseInt(localInputValue, 10);
-            return isNaN(num) ? '0' : num.toLocaleString();
+            const num = Number(localInputValue);
+            if (!isNaN(num)) {
+                return num.toLocaleString('en-US');
+            }
+        } else {
+            const parts = localInputValue.split('.');
+            const integerPart = Number(parts[0]);
+            if (!isNaN(integerPart)) {
+                const formattedInt = integerPart.toLocaleString('en-US');
+                return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+            }
         }
         return localInputValue;
     }, [localInputValue, inputMode]);
 
     const dynamicFontSize = React.useMemo(() => {
         const len = formattedDisplayValue.length;
-        if (len > 12) return 32;
-        if (len > 9) return 40;
-        if (len > 6) return 48;
-        return 56;
+        if (len <= 6) return 44;
+        if (len <= 8) return 38;
+        if (len <= 10) return 32;
+        if (len <= 13) return 26;
+        return 20;
     }, [formattedDisplayValue]);
 
+    const formatNpub = (str: string | null) => {
+        if (!str) return '';
+        if (str.length < 20) return str;
+        return `${str.slice(0, 10)}...${str.slice(-6)}`;
+    };
+
     // ── Keypad ────────────────────────────────────────────────────────────────
-    const onKeypadChange = (val: string) => {
-        let cleaned = val;
+    const onKeypadChange = (rawVal: string) => {
+        let val = rawVal;
+
+        if (val === '.') {
+            val = '0.';
+        }
+
         if (inputMode === 'SATS') {
-            cleaned = val.replace(/[^0-9]/g, '');
-            if (cleaned.length > 1 && cleaned.startsWith('0')) {
-                cleaned = cleaned.replace(/^0+/, '');
+            val = val.replace(/\./g, '');
+        } else {
+            const parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
+            }
+            if (parts.length === 2 && parts[1].length > 2) {
+                val = parts[0] + '.' + parts[1].slice(0, 2);
             }
         }
-        setLocalInputValue(cleaned || '0');
+
+        if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
+            val = val.replace(/^0+/, '');
+            if (val === '') val = '0';
+        }
+
+        const maxLen = 11;
+        if (val.length > maxLen) {
+            val = val.slice(0, maxLen);
+        }
+
+        setLocalInputValue(val);
+
         if (inputMode === 'SATS') {
-            setAmount(cleaned || '0');
+            setAmount(val);
         } else if (btcData?.price) {
-            const sats = currencyService.convertCurrencyToSats(Number(cleaned) || 0, btcData.price);
+            const sats = currencyService.convertCurrencyToSats(Number(val) || 0, btcData.price);
             setAmount(String(sats));
         }
     };
@@ -224,7 +286,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (inputMode === 'SATS') {
             if (btcData?.price) {
-                const fiat = currencyService.convertSatsToCurrency(amtNum, btcData.price);
+                const fiat = currencyService.convertSatsToCurrency(Number(amount) || 0, btcData.price);
                 setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
             }
             setInputMode('FIAT');
@@ -249,6 +311,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         setGenerateError(null);
 
         try {
+            const reqId = makeRequestId();
             // NUT-18: PaymentRequest(transport, id, amount, unit, mints, description)
             let target = npub;
             if (npub && npub.startsWith('npub1')) {
@@ -300,7 +363,6 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
             }
 
             // ── Persist request to local DB so E-Cash screen shows it ──────────
-            const reqId = makeRequestId();
             setCurrentRequestId(reqId);
 
             if (npub && activeMintUrl) {
@@ -353,7 +415,45 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
         setCreqString(null);
         setGenerateError(null);
         setCopied(false);
+        setPublishedLink(null);
     };
+
+    const handlePublish = useCallback(async () => {
+        if (!creqString) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setIsPublishing(true);
+        try {
+            // 1. Generate 32 bytes random secret_key
+            const secretKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
+            const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
+
+            // 2. Build Nostr event with the JSON payload including creq and note
+            const { buildEcashNostrEvent } = require('../../utils/ecashSharing');
+            const payload = JSON.stringify({ creq: creqString, note: note.trim() });
+            const { event } = buildEcashNostrEvent(payload, secretKeyHex);
+
+            // 3. Publish to relays
+            const { SimplePool } = require('nostr-tools');
+            const { RELAYS } = require('../../services/core/nostrService');
+            const pool = new SimplePool();
+            await Promise.any(pool.publish(RELAYS, event));
+            pool.close(RELAYS);
+
+            // 4. Construct share link
+            const websiteUrl = 'https://bey.cash/r/';
+            const shareLink = `${websiteUrl}#${secretKeyHex}`;
+            setPublishedLink(shareLink);
+
+            toast.show('Published!', { message: 'Request published on bey.cash' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err: any) {
+            console.error('[RequestEcashStage] Failed to publish request:', err);
+            toast.show('Publish Failed', { message: err?.message || 'Could not publish to relays' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            setIsPublishing(false);
+        }
+    }, [creqString, note, toast]);
 
     // ── Real-Time Nostr Listener ──────────────────────────────────────────────
     React.useEffect(() => {
@@ -361,14 +461,14 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
 
         const subReceived = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
             console.log('[RequestEcashStage] Received nostr:received event:', data);
-            
+
             // Check if this payment matches our current request
-            const isMatch = (data.requestId && data.requestId === currentRequestId) || 
-                            (data.amount === amtNum && data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
-            
+            const isMatch = (data.requestId && data.requestId === currentRequestId) ||
+                (data.amount === amtNum && data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
+
             if (isMatch) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                
+
                 // Search history after a short delay to get the transaction ID and redirect
                 setTimeout(async () => {
                     try {
@@ -402,7 +502,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const handleCheckStatus = useCallback(async () => {
         setIsChecking(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        
+
         try {
             // Force nostrService to reconnect and fetch recent events
             const { nostrService } = require('../../services/core/nostrService');
@@ -414,11 +514,11 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
             await loadPendingRequests();
             const reqs = useNostrRequestStore.getState().pendingRequests;
             const stillPending = reqs.find(r => r.id === currentRequestId);
-            
+
             if (!stillPending) {
                 // It was removed from pending, meaning it was received!
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                
+
                 // Search history to redirect to txn details
                 try {
                     const history = await historyService.getHistory(10, 0);
@@ -450,141 +550,208 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     // ────────────────────────────────────────────────────────────────────────
     // AMOUNT STAGE
     // ────────────────────────────────────────────────────────────────────────
+    // AMOUNT STAGE
+    // ────────────────────────────────────────────────────────────────────────
     if (step === 'amount') {
         return (
-            <YStack flex={1} p="$4" justify="space-between" bg="$background">
-                {/* ── Main Amount Box Container ───────────────────────────────────── */}
-                <YStack
-                    width="100%"
-                    rounded="$5"
-                    bg="$gray2"
-                    items="center"
-                    pt="$3"
-                    pb="$4"
-                    px="$4"
-                    gap="$3"
-                >
-                    {/* Mint Selector Pill at Top */}
-                    <XStack
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            sheetRef.current?.present();
-                        }}
-                        bg="$gray3"
-                        px="$3"
-                        py="$1.5"
-                        rounded="$full"
+            <YStack flex={1} px="$4" justify="space-between" bg="$background">
+                <YStack items="center" gap="$3" width="100%" >
+                    {/* Card Box Container matching Send stages */}
+                    <YStack
+                        width="100%"
+                        bg="$gray2"
+                        rounded="$5"
+                        p="$4"
                         items="center"
-                        gap="$2"
-                        pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                        gap="$3"
+                        borderWidth={0}
                     >
-                        <Building2 size={14} color="$gray11" />
-                        <Text fontWeight="700" fontSize="$2" color="$gray11">
-                            {mintName}
-                        </Text>
-                        <ChevronDown size={14} color="$gray11" />
-                    </XStack>
-
-                    {/* Amount Display with Dynamic Scaling */}
-                    <YStack items="center" justify="center" minHeight={110} py="$2">
-                        {generateError ? (
-                            <YStack items="center" gap="$2" px="$4">
-                                <AlertCircle size={28} color="$red10" />
-                                <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
-                                    {generateError}
-                                </Text>
-                            </YStack>
-                        ) : !activeMintUrl ? (
-                            <YStack items="center" gap="$2" px="$4">
-                                <AlertCircle size={28} color="$orange10" />
-                                <Text color="$orange10" fontSize="$3" fontWeight="600" textAlign="center">
-                                    Select a mint to generate a request
-                                </Text>
-                            </YStack>
-                        ) : !npub ? (
-                            <YStack items="center" gap="$2" px="$4">
-                                <AlertCircle size={28} color="$red10" />
-                                <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
-                                    Nostr profile required to receive directly.
-                                </Text>
-                            </YStack>
-                        ) : (
-                            <>
-                                <Text color="$gray10" fontSize="$3" fontWeight="600" mb="$1">
-                                    How much to request?
-                                </Text>
-                                <H1
-                                    fontSize={dynamicFontSize}
-                                    lineHeight={dynamicFontSize * 1.1}
-                                    fontWeight="800"
-                                    color={localInputValue === '0' ? '$gray8' : '$color'}
-                                    textAlign="center"
-                                    fontFamily="$mono"
-                                >
-                                    {inputMode === 'SATS'
-                                        ? `₿ ${formattedDisplayValue}`
-                                        : `${currencySymbol}${formattedDisplayValue}`}
-                                </H1>
-                            </>
-                        )}
-                    </YStack>
-
-                    {/* Fiat Conversion Toggle Button */}
-                    <Button
-                        size="$2.5"
-                        bg="$gray4"
-                        rounded="$full"
-                        px="$3"
-                        onPress={toggleMode}
-                        pressStyle={{ scale: 0.96 }}
-                        icon={<ArrowUpDown size={12} color="$gray11" />}
-                    >
-                        <Text fontSize="$2" fontWeight="700" color="$gray11">
-                            {conversionLabel}
-                        </Text>
-                    </Button>
-
-                    {/* Optional Note Divider & Row */}
-                    <YStack width="100%" mt="$2" pt="$3" borderTopWidth={1} borderTopColor="$gray3">
-                        <XStack
-                            width="100%"
-                            items="center"
-                            justify="space-between"
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setShowNote((v) => !v);
-                            }}
-                            pressStyle={{ opacity: 0.7 }}
-                        >
-                            <Text fontSize="$3" color="$gray10" fontWeight="600">
-                                {note ? `Note: ${note}` : 'Add a note (optional)'}
-                            </Text>
-                            {showNote ? <ChevronUp size={16} color="$gray10" /> : <ChevronDown size={16} color="$gray10" />}
+                        {/* Mint selector pill button at top of card */}
+                        <XStack justify="center" items="center" width="100%">
+                            <Button
+                                size="$3"
+                                rounded="$4"
+                                bg="$blue10"
+                                color="white"
+                                px={isLoadingMint ? "$3" : "$1.5"}
+                                borderWidth={0}
+                                disabled={isLoadingMint}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                                    refreshMintList();
+                                    sheetRef.current?.present();
+                                }}
+                                maxW={170}
+                                pressStyle={{ scale: 0.97, opacity: 0.95, bg: "$blue11" }}
+                                icon={
+                                    isLoadingMint ? (
+                                        <Spinner size={14} color="white" />
+                                    ) : (
+                                        <Avatar rounded="$3" size="$2">
+                                            <Avatar.Image src={activeMint?.icon} />
+                                            <Avatar.Fallback
+                                                backgroundColor="rgba(255,255,255,0.2)"
+                                                alignItems="center"
+                                                justifyContent="center"
+                                            >
+                                                <Sprout size={14} color="white" />
+                                            </Avatar.Fallback>
+                                        </Avatar>
+                                    )
+                                }
+                                iconAfter={
+                                    isLoadingMint ? undefined : (
+                                        <Square
+                                            size="$2"
+                                            borderWidth={0.5}
+                                            borderColor="rgba(255,255,255,0.2)"
+                                            bg="rgba(255,255,255,0.15)"
+                                            rounded="$3"
+                                        >
+                                            <ChevronDown size={16} strokeWidth={3} color="white" />
+                                        </Square>
+                                    )
+                                }
+                                textProps={{
+                                    fontSize: "$3",
+                                    fontWeight: "700",
+                                    maxW: 110,
+                                    numberOfLines: 1,
+                                    color: "white",
+                                }}
+                                ellipse
+                            >
+                                {isLoadingMint ? "Loading..." : displayName}
+                            </Button>
                         </XStack>
 
-                        {showNote && (
-                            <XStack width="100%" mt="$2" pt="$2">
-                                <Input
-                                    value={note}
-                                    onChangeText={setNote}
-                                    placeholder="What's this request for?"
-                                    bg="$gray3"
-                                    borderWidth={0}
-                                    rounded="$3"
-                                    flex={1}
-                                    fontSize="$3"
-                                    px="$3"
-                                    py="$2"
-                                    placeholderTextColor="$gray8"
-                                    autoFocus
-                                    maxLength={80}
-                                />
+                        {/* Amount Display Section */}
+                        <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
+                            {generateError ? (
+                                <YStack items="center" gap="$2" px="$4">
+                                    <AlertCircle size={28} color="$red10" />
+                                    <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
+                                        {generateError}
+                                    </Text>
+                                </YStack>
+                            ) : !activeMintUrl ? (
+                                <YStack items="center" gap="$2" px="$4">
+                                    <AlertCircle size={28} color="$orange10" />
+                                    <Text color="$orange10" fontSize="$3" fontWeight="600" textAlign="center">
+                                        Select a mint to generate a request
+                                    </Text>
+                                </YStack>
+                            ) : !npub ? (
+                                <YStack items="center" gap="$2" px="$4">
+                                    <AlertCircle size={28} color="$red10" />
+                                    <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
+                                        Nostr profile required to receive directly.
+                                    </Text>
+                                </YStack>
+                            ) : (
+                                <>
+                                    <Text color="$gray10" fontSize="$3" fontWeight="500">
+                                        How much to request?
+                                    </Text>
+
+                                    <H1
+                                        fontSize={dynamicFontSize}
+                                        fontVariant={['tabular-nums']}
+                                        fontWeight="700"
+                                        letterSpacing={-1}
+                                        py="$2"
+                                        color={localInputValue === '0' ? '$gray8' : '$color'}
+                                        textAlign="center"
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit
+                                        style={{ maxWidth: '100%', overflow: 'hidden' }}
+                                    >
+                                        {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                                    </H1>
+
+                                    <Button
+                                        size="$3"
+                                        rounded="$10"
+                                        bg="$gray5"
+                                        pressStyle={{ scale: 0.96, bg: "$gray5" }}
+                                        onPress={toggleMode}
+                                        iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                                    >
+                                        {conversionValue}
+                                    </Button>
+                                </>
+                            )}
+                        </YStack>
+
+                        {/* Optional Note Divider & Row */}
+                        <YStack width="100%" mt="$2" pt="$3" borderTopWidth={1} borderTopColor="$gray3">
+                            <XStack
+                                width="100%"
+                                items="center"
+                                justify="space-between"
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setShowNote((v) => !v);
+                                }}
+                                pressStyle={{ opacity: 0.7 }}
+                            >
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">
+                                    {note ? `Note: ${note}` : 'Add a note (optional)'}
+                                </Text>
+                                {showNote ? <ChevronUp size={16} color="$gray10" /> : <ChevronDown size={16} color="$gray10" />}
                             </XStack>
-                        )}
+
+                            {showNote && (
+                                <XStack width="100%" mt="$2" pt="$2">
+                                    <Input
+                                        value={note}
+                                        onChangeText={setNote}
+                                        placeholder="What's this request for?"
+                                        bg="$gray3"
+                                        borderWidth={0}
+                                        rounded="$3"
+                                        flex={1}
+                                        fontSize="$3"
+                                        px="$3"
+                                        py="$2"
+                                        placeholderTextColor="$gray8"
+                                        autoFocus
+                                        maxLength={80}
+                                    />
+                                </XStack>
+                            )}
+                        </YStack>
                     </YStack>
+
+                    {/* Recipient display bar (if targetNpub is provided) */}
+                    {targetNpub && (
+                        <XStack
+                            width="100%"
+                            bg="$gray2"
+                            rounded="$5"
+                            px="$3"
+                            py="$4"
+                            items="center"
+                            justify="space-between"
+                        >
+                            <XStack gap="$3" items="center" flex={1}>
+                                <Blockies seed={targetNpub} size={8} scale={3} style={{ borderRadius: 3 }} />
+                                <YStack flex={1}>
+                                    <Text fontSize="$2" color="$gray10">Requesting from</Text>
+                                    <Text fontWeight="800" fontSize="$3" numberOfLines={1}>
+                                        {targetUsername || formatNpub(targetNpub)}
+                                    </Text>
+                                    {targetUsername && (
+                                        <Text fontSize="$2" color="$gray10" numberOfLines={1}>{formatNpub(targetNpub)}</Text>
+                                    )}
+                                </YStack>
+                            </XStack>
+                        </XStack>
+                    )}
                 </YStack>
 
                 {/* ── Keypad ───────────────────────────────────────────────── */}
+
                 <NumericKeypad
                     showAmountDisplay={false}
                     value={localInputValue}
@@ -684,9 +851,22 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                         <DetailItem label="Amount" value={`₿${amtNum} sats`} />
                         <DetailItem label="Fiat" value={fiatValueLabel} />
                         <DetailItem label="Unit" value="SATOSHIS" />
-                        <DetailItem label="Mint" value={mintName} />
+                        <DetailItem label="Mint" value={displayName} />
                         {note ? <DetailItem label="Note" value={note} /> : null}
                         {targetNpub ? <DetailItem label="Sent To" value={targetUsername || `${targetNpub.slice(0, 10)}...${targetNpub.slice(-6)}`} /> : null}
+                        {publishedLink ? (
+                            <DetailItem
+                                label="Web Link"
+                                value={`${publishedLink.slice(0, 14)}…${publishedLink.slice(-6)}`}
+                                isCopyable
+                                onCopy={() => {
+                                    Clipboard.setStringAsync(publishedLink);
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    toast.show('Copied!', { message: 'Web request link copied to clipboard' });
+                                }}
+                                onShare={() => Share.share({ message: publishedLink })}
+                            />
+                        ) : null}
                         <DetailItem
                             label="Request"
                             value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
@@ -724,6 +904,22 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                                 {copied ? 'Copied!' : 'Copy Request'}
                             </Button>
                         </XStack>
+
+                        {!publishedLink && (
+                            <Button
+                                size="$5"
+                                bg="$purple10"
+                                color="white"
+                                fontWeight="800"
+                                rounded="$4"
+                                icon={isPublishing ? <Spinner size="small" color="white" /> : <Globe size={20} />}
+                                onPress={handlePublish}
+                                disabled={isPublishing}
+                                pressStyle={{ scale: 0.97, bg: "$purple11" }}
+                            >
+                                {isPublishing ? 'Publishing...' : 'Publish on bey.cash'}
+                            </Button>
+                        )}
 
                         <XStack justify="center" gap="$4">
                             <Button

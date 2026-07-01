@@ -213,6 +213,7 @@ export function NostrClaimSheet() {
                                 mintUrl: data.mintUrl,
                                 eventId: data.eventId,
                                 senderPubkey: data.senderPubkey,
+                                requestId: data.requestId,
                             });
 
                             toast.show('Payment Received! 🎉', { message: `₿${data.amount} sats claimed automatically` });
@@ -410,6 +411,7 @@ export function NostrClaimSheet() {
                     mintUrl: activeItem.mintUrl,
                     eventId: activeItem.id,
                     senderPubkey: activeItem.senderPubkey,
+                    requestId: activeItem.requestId || match?.id,
                 });
 
                 // Tag history with sender info
