@@ -271,7 +271,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
         if (type === 'mint') return ['65%'];
         if (stage === 'main') return ['45%'];
         if (type === 'receive') return ['58%']; // 4 options
-        if (type === 'send') return ['72%']; // 5 options
+        if (type === 'send') return ['58%']; // 5 options
         return ['50%'];
     }, [type, stage]);
 

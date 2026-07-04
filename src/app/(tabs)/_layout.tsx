@@ -103,7 +103,7 @@ export default function TabLayout() {
           title: "Home",
           headerTitle: () => <HomeHeaderMintSelector />,
           tabBarIcon: ({ color }) => (
-            <BeyIcon size={28} color={color} />
+            <BeyIcon size={24} color={color} />
           ),
           headerRight: () => (
             <XStack pr="$4" gap="$2">
@@ -132,7 +132,7 @@ export default function TabLayout() {
           headerShown: false,
           title: "Explore",
           tabBarIcon: ({ color }) => (
-            <Compass size={28} strokeWidth={2.5} color={color as any} />
+            <Compass size={24} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">
@@ -160,7 +160,7 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color }) => (
-            <Clock size={28} strokeWidth={2.5} color={color as any} />
+            <Clock size={24} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">
@@ -179,7 +179,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
 
-          tabBarIcon: ({ color }) => <SettingsIcon size={28} color={color as any} />,
+          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color as any} />,
           headerRight: () => (
             <XStack pr="$4">
               <Button

@@ -49,7 +49,10 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       left={0}
       right={0}
       px="$4"
+      py="$1"
       backgroundColor="$background"
+      borderColor="$borderColor"
+      borderTopWidth={0.3}
 
       pb={insets.bottom}
     >
@@ -70,7 +73,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                 bottom: MARGIN,
                 width: indicatorWidth,
                 borderRadius: 100,
-                backgroundColor: theme.color3?.val,
+                backgroundColor: theme.color2?.val,
               },
               animatedBackgroundStyle,
             ]}
@@ -104,7 +107,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             ? options.tabBarIcon({
               focused: isFocused,
               color: isFocused ? activeColor : inactiveColor,
-              size: 28,
+              size: 24,
             })
             : null;
 
