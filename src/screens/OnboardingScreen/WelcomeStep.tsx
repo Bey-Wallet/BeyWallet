@@ -1,5 +1,5 @@
 import React from 'react'
-import { YStack, Text, Button, H1, View, XStack } from 'tamagui'
+import { YStack, Text, Button, H1, View, XStack, Image } from 'tamagui'
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -55,8 +55,29 @@ export function WelcomeStep({
             {/* Center - Logo and Title */}
 
 
-            <YStack height={400} width='100%' bg="$gray2" rounded="$5" alignItems="center" justifyContent="center" >
-                <BeyIcon size={100} />
+            <YStack
+                height={400}
+                width="100%"
+                bg="$gray2"
+                rounded="$5"
+                items="center"
+                justify="center"
+                position="relative"
+                overflow="hidden"
+            >
+                <Image
+                    source={require('~/assets/images/Moving-clouds.gif')}
+                    position="absolute"
+                    t={0}
+                    l={0}
+                    r={0}
+                    b={0}
+                    width="100%"
+                    height="100%"
+
+                    resizeMode="cover"
+                />
+                <BeyIcon color="black" size={50} />
             </YStack>
 
 
@@ -66,31 +87,18 @@ export function WelcomeStep({
             <YStack gap="$3" mb="$4" justify="center" items="center" pb="$4">
 
                 <YStack items="center" gap="$2">
-                    <H1 fontSize="$9" text="center" lineHeight="$9" fontWeight="700" color="$color">
-                        {hasSavedWallet ? "Resume Setup" : "Bitcoin for online & offline."}
+                    <H1 fontSize="$9" letterSpacing={-0.5} text="center" lineHeight="$9" fontWeight="700" color="$color">
+                        {hasSavedWallet ? "Finish Setup" : "Bitcoin, Reimagined."}
                     </H1>
-                    <Text color="$gray10" pb="$4" fontSize="$4" text="center" px="$4">
-                        {hasSavedWallet 
-                            ? "We found a saved wallet that didn't finish initialization."
-                            : "Cashu wallet for private, instant Bitcoin payments."}
+                    <Text color="$gray10" pb="$4" fontSize="$4" text="center" px="$4" lineHeight={22}>
+                        {hasSavedWallet
+                            ? "We found a wallet setup in progress. Let's finish initializing it."
+                            : "A beautiful e-cash wallet designed for instant payments, privacy, and full offline support."}
                     </Text>
                 </YStack>
 
                 {hasSavedWallet ? (
                     <>
-                        <Button
-                            size="$5"
-                            theme="accent"
-                            width="100%"
-                            onPress={onOpenSavedWallet}
-                            icon={<Wallet size={24} />}
-                            fontSize="$5"
-                            fontWeight="700"
-                            rounded="$5"
-                            pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                        >
-                            Open saved wallet
-                        </Button>
 
                         <Button
                             size="$5"
@@ -106,8 +114,8 @@ export function WelcomeStep({
                                     ]
                                 )
                             }}
-                            icon={<FolderOpen size={24} color="$red10" />}
-                            fontSize="$5"
+
+                            fontSize="$6"
                             fontWeight="700"
                             rounded="$5"
                             pressStyle={{ scale: 0.98, opacity: 0.9 }}
@@ -115,35 +123,46 @@ export function WelcomeStep({
                         >
                             Delete & Start Over
                         </Button>
-                    </>
-                ) : (
-                    <>
                         <Button
                             size="$5"
                             theme="accent"
                             width="100%"
-                            onPress={handleCreate}
-                            icon={<Wallet size={24} />}
-                            fontSize="$5"
+                            onPress={onOpenSavedWallet}
+                            fontSize="$6"
                             fontWeight="700"
                             rounded="$5"
                             pressStyle={{ scale: 0.98, opacity: 0.9 }}
                         >
-                            Create a new wallet
+                            Open saved wallet
                         </Button>
+                    </>
+                ) : (
+                    <>
+
 
                         <Button
                             size="$5"
                             theme="gray"
                             width="100%"
                             onPress={handleImport}
-                            icon={<KeyRound size={24} />}
-                            fontSize="$5"
+                            fontSize="$6"
                             fontWeight="700"
                             rounded="$5"
                             pressStyle={{ scale: 0.98, opacity: 0.9 }}
                         >
                             Import existing wallet
+                        </Button>
+                        <Button
+                            size="$5"
+                            theme="accent"
+                            width="100%"
+                            onPress={handleCreate}
+                            fontSize="$6"
+                            fontWeight="700"
+                            rounded="$5"
+                            pressStyle={{ scale: 0.98, opacity: 0.9 }}
+                        >
+                            Create a new wallet
                         </Button>
                     </>
                 )}

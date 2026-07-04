@@ -1,5 +1,5 @@
-import { RefreshControl, Animated } from "react-native";
-import { YStack, ScrollView, Button } from "tamagui";
+import { RefreshControl, Animated, Easing } from "react-native";
+import { YStack, ScrollView, Button, XStack, Text, View } from "tamagui";
 import * as Haptics from "expo-haptics";
 import { useToastController } from "@tamagui/toast";
 import WalletCard from "./components/WalletCard";
@@ -15,8 +15,10 @@ import BeyIcon from "~/components/icons/BeyIcon";
 import ManageBalances from "./components/ManageBalances";
 import NostrActivity from "./components/NostrActivity";
 import { NostrClaimSheet } from "../../components/NostrClaimSheet";
-import { ArrowRight } from "@tamagui/lucide-icons";
+import { ArrowRight, AlertTriangle } from "@tamagui/lucide-icons";
 import { useAuthStore } from "~/store/authStore";
+import { useSettingsStore } from "~/store/settingsStore";
+import { useRouter } from "expo-router";
 const LazyBitcoinPriceCard = React.lazy(
   () => import("./components/BitcoinPriceCard"),
 );
@@ -64,8 +66,45 @@ function HomeSkeleton() {
   );
 }
 
+function SpinnerIcon() {
+  const rotation = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    ).start();
+  }, [rotation]);
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ rotate: spin }] }}>
+      <View
+        width={18}
+        height={18}
+        borderRadius={999}
+        borderWidth={2}
+        borderColor="$blue9"
+        borderTopColor="transparent"
+      />
+    </Animated.View>
+  );
+}
+
 export function HomeTabScreen() {
+  const router = useRouter();
+  const seedBackedUp = useSettingsStore((s) => s.seedBackedUp);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
+  const isRestoring = useWalletStore((s) => s.isRestoring);
+  const mintRestoreStatuses = useWalletStore((s) => s.mintRestoreStatuses);
   const error = useWalletStore((s) => s.error);
   const [refreshing, setRefreshing] = React.useState(false);
   const [showStatus, setShowStatus] = React.useState<StatusType>(null);
@@ -139,6 +178,63 @@ export function HomeTabScreen() {
         {/* Above-the-fold: renders immediately */}
         <WalletCard />
         <ActionButtons />
+
+        {isRestoring && (
+          <XStack
+            width="100%"
+            bg="$blue2"
+            borderWidth={1}
+            borderColor="$blue6"
+            p="$3.5"
+            rounded="$4"
+            alignItems="center"
+            gap="$3"
+          >
+            <View width={24} height={24} items="center" justify="center">
+              <SpinnerIcon />
+            </View>
+            <YStack flex={1} gap="$0.5">
+              <Text fontWeight="800" fontSize="$4" color="$blue11">
+                Restoring Wallet Balances
+              </Text>
+              <Text fontSize="$2" color="$blue10" lineHeight={16}>
+                Scanning mint backups... ({mintRestoreStatuses.filter(e => e.status === 'done').length} of {mintRestoreStatuses.length} mints)
+              </Text>
+            </YStack>
+          </XStack>
+        )}
+
+        {!seedBackedUp && (
+          <XStack
+            width="100%"
+            bg="$orange2"
+            borderWidth={1}
+            borderColor="$orange6"
+            p="$3.5"
+            rounded="$4"
+            justify="space-between"
+            alignItems="center"
+            gap="$3"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/(modals)/backup-seed");
+            }}
+            pressStyle={{ opacity: 0.9, scale: 0.99 }}
+          >
+            <XStack gap="$3" alignItems="center" flex={1}>
+              <AlertTriangle size={24} color="$orange10" />
+              <YStack flex={1} gap="$0.5">
+                <Text fontWeight="800" fontSize="$4" color="$orange11">
+                  Secure Your Wallet
+                </Text>
+                <Text fontSize="$2" color="$orange10" lineHeight={16}>
+                  Your backup phrase is not verified. Back up your seed phrase now to protect your funds.
+                </Text>
+              </YStack>
+            </XStack>
+            <ArrowRight size={20} color="$orange10" />
+          </XStack>
+        )}
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

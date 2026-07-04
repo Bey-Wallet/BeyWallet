@@ -15,6 +15,8 @@ interface SettingsState {
     nsec: string | null;
     nip05: string | null;             // e.g. "zaheer@nostrcheck.me"
     hideBalance: boolean;
+    seedBackedUp: boolean;
+    setSeedBackedUp: (val: boolean) => Promise<void>;
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
@@ -40,6 +42,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     nsec: null,
     nip05: null,
     hideBalance: false,
+    seedBackedUp: false,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -59,7 +62,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -70,6 +73,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('nip05'),
                     repo.settingsRepository.getSetting('hideBalance'),
                     repo.settingsRepository.getSetting('primaryCurrency'),
+                    repo.settingsRepository.getSetting('seedBackedUp'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
@@ -78,6 +82,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
                 if (storedNotifications !== undefined && storedNotifications !== null) {
                     set({ notificationsEnabled: storedNotifications === 'true' });
+                }
+                if (storedSeedBackedUp !== undefined && storedSeedBackedUp !== null) {
+                    set({ seedBackedUp: storedSeedBackedUp === 'true' });
                 }
                 
                 // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
@@ -227,6 +234,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set hideBalance:', error);
             set({ hideBalance: hide });
+        }
+    },
+
+    setSeedBackedUp: async (val: boolean) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('seedBackedUp', val.toString());
+            }
+            set({ seedBackedUp: val });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set seedBackedUp:', error);
+            set({ seedBackedUp: val });
         }
     },
 }));

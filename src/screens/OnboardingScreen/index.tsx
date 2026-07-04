@@ -9,6 +9,8 @@ import { NostrStep } from './NostrStep'
 import { ImportSeedStep } from './ImportSeedStep'
 import { MintConfirmationStep } from './MintConfirmationStep'
 import { RestoreProgressStep } from './RestoreProgressStep'
+import { ConsentStep } from './ConsentStep'
+import { PermissionsStep } from './PermissionsStep'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { seedService } from '../../services/seedService'
@@ -19,6 +21,7 @@ import { walletFileService } from '../../services/walletFileService'
 import { ActivityIndicator, Alert } from 'react-native'
 import { YStack, Text } from 'tamagui'
 import { DEFAULT_MINT } from '../../store/constants'
+import { generateDeterministicUsername, registerNip05Username } from '../../utils/username'
 import { Buffer } from 'buffer'
 
 export function OnboardingScreen() {
@@ -31,6 +34,11 @@ export function OnboardingScreen() {
     const [isImporting, setIsImporting] = useState(false)
     const [isFinishing, setIsFinishing] = useState(false)
     const [importStatus, setImportStatus] = useState('')
+    const [tempUsername, setTempUsername] = useState('anon')
+    const [tempNpub, setTempNpub] = useState('')
+    const [isImportingFlow, setIsImportingFlow] = useState(false)
+    const [tempBackupState, setTempBackupState] = useState<any>(null)
+    const [finishingStatus, setFinishingStatus] = useState('Preparing your secure wallet. This may take a few moments.')
     // Extra mints from a backup file
     const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([])
     const [hasSavedWallet, setHasSavedWallet] = useState(false)
@@ -78,75 +86,120 @@ export function OnboardingScreen() {
 
     // ── Navigation ──────────────────────────────────────────────
 
-    const handleCreateWallet = () => setStep('creating')
-    const handleImportWallet = () => setStep('import')
+    const handleCreateWallet = () => {
+        setIsImportingFlow(false)
+        setStep('consent')
+    }
+    const handleImportWallet = () => {
+        setIsImportingFlow(true)
+        setStep('import')
+    }
 
-    const handleCreatingComplete = (mnemonic: string) => {
+    const handleConsentComplete = () => {
+        if (isImportingFlow) {
+            setStep('import')
+        } else {
+            setStep('creating')
+        }
+    }
+
+    const handleCreatingComplete = async (mnemonic: string) => {
         setGeneratedMnemonic(mnemonic)
-        setStep('seed')
+        try {
+            const keys = await seedService.getNostrKeys(mnemonic)
+            setTempNpub(keys.npub)
+            const genName = generateDeterministicUsername(keys.pubkey)
+            setTempUsername(genName)
+        } catch (e) {
+            setTempUsername('anon')
+        }
+        setStep('permissions')
     }
 
-    const handleSeedContinue = () => setStep('biometric')
-
-    // After biometric → go to mint picker (new wallet flow only)
-    const handleBiometricComplete = async () => {
+    const handlePermissionsComplete = async (username: string, isBiometricEnabled: boolean) => {
         if (!generatedMnemonic) {
-            console.error('[Onboarding] No mnemonic found')
+            setStep('welcome')
             return
         }
 
         setIsFinishing(true)
         try {
-            await initService.createWallet(generatedMnemonic)
-            
-            // Now that the repo exists, persist the choice made in BiometricStep
-            const currentBiometricEnabled = useSettingsStore.getState().biometricEnabled
-            await useSettingsStore.getState().setBiometricEnabled(currentBiometricEnabled)
+            const keys = await seedService.getNostrKeys(generatedMnemonic)
+            const pubkeyHex = keys.pubkey
+            const privkeyHex = keys.privkey
 
-            await useSettingsStore.getState().initialize(true)
-            await initialize()
-        } catch (err) {
-            console.error('[Onboarding] Failed to init wallet:', err)
-            setIsFinishing(false)
-            return
-        }
-        setIsFinishing(false)
+            if (isImportingFlow) {
+                setFinishingStatus('Initializing wallet…')
+                await initService.restoreWallet(generatedMnemonic, { quiet: !!tempBackupState })
 
-        // Move to notifications step
-        setStep('notifications')
-    }
+                await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled)
+                await useSettingsStore.getState().initialize(true)
 
-    const handleNotificationNext = () => setStep('nostr')
-    const handleNostrNext = () => setStep('mintpicker')
+                if (tempBackupState) {
+                    setFinishingStatus('Restoring balance and history…')
+                    const { backupService } = require('~/services/backupService')
+                    await backupService.importState(tempBackupState)
 
-    // Called when user confirms default mints on new wallet
-    const handleMintPickerComplete = async (selectedMintUrls: string[]) => {
-        setIsFinishing(true)
-        try {
-            // Add all selected mints
-            for (const url of selectedMintUrls) {
-                await mintManager.addMint(url, { trusted: true })
+                    console.log('[Onboarding] Refreshing wallet state after import...')
+                    await initService.reinitFast()
+                }
+
+                await initialize()
+
+                // Try NIP-05 registration just in case they modified or generated a new one
+                try {
+                    setFinishingStatus('Registering profile…')
+                    const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
+                    if (registerResult.ok && registerResult.nip05) {
+                        await useSettingsStore.getState().setNip05(registerResult.nip05)
+                    } else {
+                        await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                    }
+                } catch (err) {
+                    await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                }
+
+                await mintManager.addMint(DEFAULT_MINT, { trusted: true })
+                await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+
+                const hasFunds = tempBackupState && tempBackupState.proofs && tempBackupState.proofs.length > 0
+
+                if (!hasFunds) {
+                    console.log('[Onboarding] Kicking off multi-mint scanning in background...')
+                    restoreAllMints(extraRestoreMints)
+                }
+
+                setFinishingStatus('Finalizing setup…')
+                await completeOnboarding()
+                useAuthStore.getState().setAuthenticated(true)
+            } else {
+                setFinishingStatus('Creating secure keypair…')
+                await initService.createWallet(generatedMnemonic)
+                await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled)
+                await useSettingsStore.getState().initialize(true)
+                await initialize()
+
+                try {
+                    setFinishingStatus('Registering username…')
+                    const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
+                    if (registerResult.ok && registerResult.nip05) {
+                        await useSettingsStore.getState().setNip05(registerResult.nip05)
+                    } else {
+                        await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                    }
+                } catch (err) {
+                    await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                }
+
+                await mintManager.addMint(DEFAULT_MINT, { trusted: true })
+                await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+
+                setFinishingStatus('Finalizing setup…')
+                await completeOnboarding()
+                useAuthStore.getState().setAuthenticated(true)
             }
-
-            // Restore from the first one as a baseline (minibits)
-            if (selectedMintUrls.length > 0) {
-                await useSettingsStore.getState().setDefaultMintUrl(selectedMintUrls[0])
-            }
-
-            await completeOnboarding()
-            useAuthStore.getState().setAuthenticated(true)
         } catch (err) {
-            console.error('[Onboarding] mint confirmation failed:', err)
-        } finally {
-            setIsFinishing(false)
-        }
-    }
-
-    const handleMintPickerSkip = async () => {
-        setIsFinishing(true)
-        try {
-            await completeOnboarding()
-            useAuthStore.getState().setAuthenticated(true)
+            console.error('[Onboarding] Onboarding completion failed:', err)
         } finally {
             setIsFinishing(false)
         }
@@ -166,10 +219,10 @@ export function OnboardingScreen() {
 
             // Check Nostr for mint backups
             let nostrMints: string[] = []
+            let keys: any = null
             try {
                 setImportStatus('Checking for Nostr backups…')
-                const keys = await seedService.getNostrKeys(mnemonic)
-                // keys.pubkey is already a hex string in modern nostr-tools
+                keys = await seedService.getNostrKeys(mnemonic)
                 const pubkeyHex = keys.pubkey
                 nostrMints = await nostrService.fetchMintsFromNostr(pubkeyHex)
                 
@@ -182,47 +235,52 @@ export function OnboardingScreen() {
                 console.warn('[Onboarding] Failed to fetch Nostr backup mints:', err)
             }
 
-            setImportStatus('Initializing wallet…')
-            // 1. Setup the wallet and repositories
-            // Use quiet mode if we have a backupState to avoid DB locks during insertion
-            await initService.restoreWallet(mnemonic, { quiet: !!backupState })
-
-            // 2. If we have full backup state (v3), import it into the DB now
-            if (backupState) {
-                setImportStatus('Restoring balance and history…')
-                const { backupService } = require('~/services/backupService')
-                await backupService.importState(backupState)
-
-                // IMPORTANT: Re-initialize to pick up the imported state (mints, keysets, etc.)
-                console.log('[Onboarding] Refreshing wallet state after import...')
-                await initService.reinitFast()
-                console.log('[Onboarding] Full state imported and synced successfully')
+            if (!keys) {
+                keys = await seedService.getNostrKeys(mnemonic)
             }
 
-            // 3. Store extra mints (from backup file + Nostr backup) for the restore step
+            const pubkeyHex = keys.pubkey
+
+            // Remote NIP-05 username lookup
+            let fetchedUsername: string | null = null
+            try {
+                setImportStatus('Checking for registered username…')
+                const response = await fetch('https://bey.cash/.well-known/nostr.json')
+                if (response.ok) {
+                    const data = await response.json()
+                    const names = data?.names || {}
+                    for (const [name, val] of Object.entries(names)) {
+                        if (typeof val === 'string' && val.toLowerCase() === pubkeyHex.toLowerCase()) {
+                            fetchedUsername = name
+                            break
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[Onboarding] Remote NIP-05 lookup failed:', err)
+            }
+
+            if (fetchedUsername) {
+                console.log(`[Onboarding] Found remote username: ${fetchedUsername}`)
+                setTempUsername(fetchedUsername)
+            } else {
+                const genName = generateDeterministicUsername(pubkeyHex)
+                setTempUsername(genName)
+            }
+
+            // Save variables for execution inside handlePermissionsComplete
+            setGeneratedMnemonic(mnemonic)
+            setTempNpub(keys.npub)
+            setTempBackupState(backupState)
+
             const combinedMints = Array.from(new Set([...additionalMints, ...nostrMints]))
             setExtraRestoreMints(combinedMints)
 
-            // 4. Decide if we need the slow "restoring" step or can go home
-            // If we have proofs (money) already in the DB from backup, skip the scan
-            const hasFunds = backupState && backupState.proofs && backupState.proofs.length > 0
-
-            if (hasFunds) {
-                console.log('[Onboarding] Found funds in backup, skipping deterministic scan.')
-                setImportStatus('Welcome back! Finalizing…')
-                await completeOnboarding()
-                useAuthStore.getState().setAuthenticated(true)
-                await useSettingsStore.getState().initialize(true)
-                await initialize()
-            } else {
-                console.log('[Onboarding] Navigating to restore progress step...')
-                await useSettingsStore.getState().initialize(true)
-                setStep('restoring')
-            }
+            setIsImporting(false)
+            setStep('permissions')
         } catch (err) {
             console.error('[Onboarding] Import failed:', err)
             setImportStatus('Import failed. Please try again.')
-        } finally {
             setIsImporting(false)
         }
     }
@@ -312,29 +370,20 @@ export function OnboardingScreen() {
                 </>
             )
 
-        case 'seed':
-            if (!generatedMnemonic) { setStep('welcome'); return null }
+        case 'consent':
             return (
-                <SeedStep
-                    mnemonic={generatedMnemonic}
-                    onContinue={handleSeedContinue}
+                <ConsentStep
+                    onComplete={handleConsentComplete}
+                    onBack={() => setStep('welcome')}
                 />
             )
 
-        case 'biometric':
-            return <BiometricStep onComplete={handleBiometricComplete} onSkip={handleBiometricComplete} />
-
-        case 'notifications':
-            return <NotificationStep onComplete={handleNotificationNext} onSkip={handleNotificationNext} />
-
-        case 'nostr':
-            return <NostrStep onComplete={handleNostrNext} onSkip={handleNostrNext} />
-
-        case 'mintpicker':
+        case 'permissions':
             return (
-                <MintConfirmationStep
-                    onComplete={handleMintPickerComplete}
-                    onSkip={handleMintPickerSkip}
+                <PermissionsStep
+                    initialUsername={tempUsername}
+                    npub={tempNpub}
+                    onComplete={handlePermissionsComplete}
                 />
             )
 
@@ -373,7 +422,7 @@ export function OnboardingScreen() {
                 visible={isImporting || isFinishing}
                 status="processing"
                 title={isImporting ? 'Importing wallet...' : 'Setting up wallet...'}
-                detail={isImporting ? importStatus : 'Preparing your secure wallet. This may take a few moments.'}
+                detail={isImporting ? importStatus : finishingStatus}
             />
         </YStack>
     )
