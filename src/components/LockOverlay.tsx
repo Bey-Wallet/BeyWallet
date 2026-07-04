@@ -10,13 +10,14 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
     const [isAuthenticating, setIsAuthenticating] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Track whether we've auto-triggered so we only do it ONCE per mount
-    const hasAutoTriggered = useRef(false)
+    // Track active authentication request to prevent overlapping promise races
+    const activeAuthId = useRef(0)
     const isAuthRef = useRef(false) // mirror isAuthenticating for stable closure
 
     const handleAuthenticate = useCallback(async () => {
-        // Guard: prevent concurrent auth attempts
         if (isAuthRef.current) return
+        
+        const currentId = ++activeAuthId.current
         isAuthRef.current = true
         setIsAuthenticating(true)
         setError(null)
@@ -24,25 +25,36 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
         try {
             const success = await biometricService.authenticateAsync('Unlock Bey Wallet to continue')
-            if (success) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-                onUnlock()
-            } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-                setError('Authentication failed. Please try again.')
+            if (currentId === activeAuthId.current) {
+                if (success) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                    onUnlock()
+                } else {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                    setError('Authentication failed. Please try again.')
+                }
             }
         } catch (e) {
-            setError('An error occurred during authentication.')
+            if (currentId === activeAuthId.current) {
+                setError('An error occurred during authentication.')
+            }
         } finally {
-            isAuthRef.current = false
-            setIsAuthenticating(false)
+            if (currentId === activeAuthId.current) {
+                isAuthRef.current = false
+                setIsAuthenticating(false)
+            }
         }
     }, [onUnlock])
 
     useEffect(() => {
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
-            if (nextAppState === 'active' && !hasAutoTriggered.current) {
-                hasAutoTriggered.current = true
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // Cancel active prompt and clean up spinner states immediately
+                await biometricService.cancelAuthenticate()
+                isAuthRef.current = false
+                setIsAuthenticating(false)
+            } else if (nextAppState === 'active') {
+                // Re-trigger biometrics automatically on resume
                 handleAuthenticate()
             }
         }
@@ -50,10 +62,7 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         const subscription = AppState.addEventListener('change', handleAppStateChange)
 
         // Initial trigger on mount
-        if (!hasAutoTriggered.current) {
-            hasAutoTriggered.current = true
-            handleAuthenticate()
-        }
+        handleAuthenticate()
 
         return () => {
             subscription.remove()

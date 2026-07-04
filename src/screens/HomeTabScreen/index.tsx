@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useToastController } from "@tamagui/toast";
 import WalletCard from "./components/WalletCard";
 import ActionButtons from "./components/ActionButtons";
+import BackupWarningCard from "./components/BackupWarningCard";
 import { useWalletStore } from "../../store/walletStore";
 import React from "react";
 import StatusScreen from "../../components/StatusScreen";
@@ -15,9 +16,7 @@ import BeyIcon from "~/components/icons/BeyIcon";
 import ManageBalances from "./components/ManageBalances";
 import NostrActivity from "./components/NostrActivity";
 import { NostrClaimSheet } from "../../components/NostrClaimSheet";
-import { ArrowRight, AlertTriangle } from "@tamagui/lucide-icons";
 import { useAuthStore } from "~/store/authStore";
-import { useSettingsStore } from "~/store/settingsStore";
 import { useRouter } from "expo-router";
 const LazyBitcoinPriceCard = React.lazy(
   () => import("./components/BitcoinPriceCard"),
@@ -101,7 +100,6 @@ function SpinnerIcon() {
 
 export function HomeTabScreen() {
   const router = useRouter();
-  const seedBackedUp = useSettingsStore((s) => s.seedBackedUp);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const mintRestoreStatuses = useWalletStore((s) => s.mintRestoreStatuses);
@@ -204,37 +202,7 @@ export function HomeTabScreen() {
           </XStack>
         )}
 
-        {!seedBackedUp && (
-          <XStack
-            width="100%"
-            bg="$orange2"
-            borderWidth={1}
-            borderColor="$orange6"
-            p="$3.5"
-            rounded="$4"
-            justify="space-between"
-            alignItems="center"
-            gap="$3"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/(modals)/backup-seed");
-            }}
-            pressStyle={{ opacity: 0.9, scale: 0.99 }}
-          >
-            <XStack gap="$3" alignItems="center" flex={1}>
-              <AlertTriangle size={24} color="$orange10" />
-              <YStack flex={1} gap="$0.5">
-                <Text fontWeight="800" fontSize="$4" color="$orange11">
-                  Secure Your Wallet
-                </Text>
-                <Text fontSize="$2" color="$orange10" lineHeight={16}>
-                  Your backup phrase is not verified. Back up your seed phrase now to protect your funds.
-                </Text>
-              </YStack>
-            </XStack>
-            <ArrowRight size={20} color="$orange10" />
-          </XStack>
-        )}
+        <BackupWarningCard />
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

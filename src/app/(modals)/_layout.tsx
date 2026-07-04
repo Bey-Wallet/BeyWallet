@@ -6,7 +6,7 @@ import HomeHeaderMintSelector from '~/components/HomeMintSelector'
 
 // Extracted to module scope — never recreated on re-render
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
-    <Text fontWeight="700" fontSize={20} color="$color">
+    <Text fontWeight="bold" fontSize={20} color="$color">
         {children}
     </Text>
 ))

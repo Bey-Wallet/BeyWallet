@@ -63,6 +63,8 @@ const baselGroteskFont = createFont({
     4: "400",
     5: "500",
     6: "600",
+    1000: "1000",
+    bold: "bold",
   },
   letterSpacing: {
     4: 0,
@@ -72,7 +74,8 @@ const baselGroteskFont = createFont({
     400: { normal: "BaselGroteskBook" },
     500: { normal: "BaselGroteskMedium" },
     600: { normal: "BaselGroteskMedium" },
-    bold: { normal: "BaselGroteskMedium" },
+    1000: { normal: "BaselGroteskBold" },
+    bold: { normal: "BaselGroteskBold" },
   },
 });
 

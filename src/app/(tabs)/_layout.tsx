@@ -3,7 +3,7 @@ import { router, Tabs } from "expo-router";
 import { Button, XStack, Text, useTheme, H1 } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  History,
+  Clock,
   Settings,
   Home,
   Scan,
@@ -15,6 +15,7 @@ import {
   Globe,
   ArrowLeft,
   Search,
+  Compass,
   Nfc,
   Bitcoin,
   Square,
@@ -34,6 +35,7 @@ import * as Haptics from "expo-haptics";
 import HomeIcon from "~/components/icons/Home";
 import Blockies from "~/components/UI/Blockies";
 import { useSettingsStore } from "~/store/settingsStore";
+import { CustomTabBar } from "~/components/CustomTabBar";
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(
@@ -71,17 +73,14 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: theme.color?.val,
         tabBarInactiveTintColor: theme.color4?.val,
         headerShadowVisible: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: theme.background?.val,
-          borderTopColor: theme.borderColor?.val,
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 20),
-          paddingTop: 12,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+          display: "none",
         },
         headerStyle: {
           backgroundColor: theme.background?.val,
@@ -133,7 +132,7 @@ export default function TabLayout() {
           headerShown: false,
           title: "Explore",
           tabBarIcon: ({ color }) => (
-            <Search size={28} strokeWidth={2.5} color={color as any} />
+            <Compass size={28} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">
@@ -161,7 +160,7 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color }) => (
-            <History size={28} strokeWidth={2.5} color={color as any} />
+            <Clock size={28} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">

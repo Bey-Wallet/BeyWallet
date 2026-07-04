@@ -14,7 +14,7 @@ import { walletService, mintManager, nostrService, historyService, initService }
 import { seedService } from '~/services/seedService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
-import { Text, YStack, XStack, Button, Separator, View } from 'tamagui'
+import { Text, YStack, XStack, Button, Separator, View, H2, H4 } from 'tamagui'
 import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
@@ -320,26 +320,26 @@ export function SendModalScreen() {
                 result = await walletService.send(activeMintUrl, amountSats);
                 rawTokenRef.current = result.token;
                 const cashuToken = result.token;
-                
+
                 // 1. Generate 32 bytes random secret_key
                 const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
                 const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
-                
+
                 // 2. Build Nostr event
                 const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
                 const { event } = buildEcashNostrEvent(cashuToken, secretKeyHex);
-                
+
                 // 3. Publish to relays
                 const { SimplePool } = require('nostr-tools');
                 const { RELAYS } = require('~/services/core/nostrService');
                 const pool = new SimplePool();
                 await Promise.any(pool.publish(RELAYS, event));
                 pool.close(RELAYS);
-                
+
                 // 4. Construct share link
                 const websiteUrl = 'https://bey.cash/c/';
                 const shareLink = `${websiteUrl}#${secretKeyHex}`;
-                
+
                 setEncodedToken(shareLink);
                 setOperationId(result.id);
             } else {
@@ -537,7 +537,6 @@ export function SendModalScreen() {
         if (step === 'confirm') return 'Confirm Send';
         if (step === 'result') return status === 'success' ? 'Success' : 'Error';
         if (step === 'success') return 'Success';
-        if (sendMode === 'link') return 'Create eCash Link';
         if (sendMode === 'p2pk') return 'P2PK Send';
         if (sendMode === 'nostr') return 'Nostr Send';
         if (sendMode === 'scan') return 'Scan & Pay';
@@ -548,7 +547,11 @@ export function SendModalScreen() {
         <YStack flex={1} bg="$background" p="$4">
             <Stack.Screen
                 options={{
-                    headerTitle: headerTitle,
+                    headerTitle: () => (
+                        <H4 fontWeight="bold">{headerTitle}</H4>
+                    )
+
+                    ,
                     headerRight: () => (
                         <Button
                             size="$4"

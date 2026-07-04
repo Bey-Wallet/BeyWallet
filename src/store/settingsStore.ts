@@ -17,6 +17,8 @@ interface SettingsState {
     hideBalance: boolean;
     seedBackedUp: boolean;
     setSeedBackedUp: (val: boolean) => Promise<void>;
+    backupDismissedAt: number;
+    setBackupDismissedAt: (val: number) => Promise<void>;
     initialize: (force?: boolean) => Promise<void>;
     setTheme: (theme: ThemePreference) => Promise<void>;
     setSecondaryCurrency: (currency: string) => Promise<void>;
@@ -43,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     nip05: null,
     hideBalance: false,
     seedBackedUp: false,
+    backupDismissedAt: 0,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -62,7 +65,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp, storedBackupDismissedAt] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -74,6 +77,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('hideBalance'),
                     repo.settingsRepository.getSetting('primaryCurrency'),
                     repo.settingsRepository.getSetting('seedBackedUp'),
+                    repo.settingsRepository.getSetting('backupDismissedAt'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
@@ -85,6 +89,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 }
                 if (storedSeedBackedUp !== undefined && storedSeedBackedUp !== null) {
                     set({ seedBackedUp: storedSeedBackedUp === 'true' });
+                }
+                if (storedBackupDismissedAt !== undefined && storedBackupDismissedAt !== null) {
+                    set({ backupDismissedAt: parseInt(storedBackupDismissedAt, 10) || 0 });
                 }
                 
                 // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
@@ -248,6 +255,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set seedBackedUp:', error);
             set({ seedBackedUp: val });
+        }
+    },
+
+    setBackupDismissedAt: async (val: number) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('backupDismissedAt', val.toString());
+            }
+            set({ backupDismissedAt: val });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set backupDismissedAt:', error);
+            set({ backupDismissedAt: val });
         }
     },
 }));
