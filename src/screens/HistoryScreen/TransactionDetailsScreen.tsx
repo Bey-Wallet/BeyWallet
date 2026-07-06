@@ -190,6 +190,16 @@ export function TransactionDetailsScreen() {
         return currencyService.convertSatsToCurrency(entry.amount, btcData.price);
     }, [entry?.amount, btcData?.price]);
 
+    const formattedAmountTitle = useMemo(() => {
+        if (!entry) return '';
+        const amt = entry.amount;
+        if (primaryCurrency === 'SATS') {
+            return `₿${Number(amt).toLocaleString()}`;
+        } else {
+            return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
+        }
+    }, [entry, primaryCurrency, fiatAmount, secondaryCurrency]);
+
     const [token, setToken] = useState<string>('');
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
 

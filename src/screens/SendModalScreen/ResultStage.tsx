@@ -99,7 +99,6 @@ export function ResultStage({
                         isReclaiming={isReclaiming}
                         expiresAt={expiresAt}
                     />
-                ) : (
                     <YStack flex={1} p="$4" justify="center" items="center" gap="$6" mt="$6">
                         {/* Big Amount Display */}
                         <YStack width="100%" justify="center" items="center" py="$2">

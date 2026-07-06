@@ -11,6 +11,7 @@ import { useToastController } from '@tamagui/toast';
 import * as Linking from 'expo-linking';
 
 import { Spinner } from './Spinner';
+import { Stack } from 'expo-router';
 
 import { UR, UREncoder } from "@gandlaf21/bc-ur";
 import { useSettingsStore } from '~/store/settingsStore';

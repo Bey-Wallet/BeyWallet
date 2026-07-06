@@ -19,7 +19,8 @@ export function normalizeBitcoinAddress(value: string): string {
 }
 
 export function onchainNetwork(address: string): OnchainNetwork {
-  return normalizeBitcoinAddress(address).toLowerCase().startsWith("tb1")
+  const lower = normalizeBitcoinAddress(address).toLowerCase();
+  return (lower.startsWith("tb1") || lower.startsWith("bcrt1"))
     ? "mutinynet"
     : "bitcoin";
 }
@@ -34,7 +35,7 @@ function mempoolBaseForAddress(value: string): string | null {
   if (lower.startsWith("bc1") || /^[13]/.test(address)) {
     return "https://mempool.space/api";
   }
-  if (lower.startsWith("tb1")) {
+  if (lower.startsWith("tb1") || lower.startsWith("bcrt1")) {
     return "https://mutinynet.com/api";
   }
   if (/^[mn2]/.test(address)) {

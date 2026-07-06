@@ -5,6 +5,7 @@ import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
+import { Stack } from 'expo-router';
 
 interface SuccessStageProps {
     amount: string;

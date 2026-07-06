@@ -410,7 +410,7 @@ export const quotesService = {
         const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: btcAddress, amount, unit: 'sat' })
+            body: JSON.stringify({ request: btcAddress, amount, unit: 'sat' })
         });
         if (!res.ok) {
             const text = await res.text();
@@ -435,13 +435,17 @@ export const quotesService = {
     /**
      * Pay an On-Chain Bitcoin Melt quote.
      */
-    payOnchainMeltQuote: async (mintUrl: string, meltQuote: any): Promise<any> => {
-        console.log(`[QuotesService] Paying on-chain melt quote ${meltQuote.quote} from ${mintUrl}`);
+    payOnchainMeltQuote: async (mintUrl: string, meltQuote: any, selectedFeeIndex?: number): Promise<any> => {
+        console.log(`[QuotesService] Paying on-chain melt quote ${meltQuote.quote} from ${mintUrl} with fee index ${selectedFeeIndex}`);
         const repo = initService.getRepo();
         
+        // Find the selected fee option, or default to the first option
+        const feeOption = meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) || meltQuote.fee_options?.[0];
+        const feeReserve = feeOption ? feeOption.fee_reserve : (meltQuote.fee_reserve ?? 0);
+        const totalCost = meltQuote.amount + feeReserve;
+
         // 1. Get ready proofs
         const availableProofs = await repo.proofRepository.getReadyProofs(mintUrl);
-        const totalCost = meltQuote.amount + meltQuote.fee_reserve;
         
         // 2. Coin selection
         const sorted = [...availableProofs].sort((a, b) => b.amount - a.amount);
@@ -470,16 +474,55 @@ export const quotesService = {
             C: p.C
         })));
 
-        // 4. Complete Melt
-        const response = await wallet.completeMelt(preview);
+        // Get the selected fee_index
+        const feeIndex = selectedFeeIndex !== undefined ? selectedFeeIndex : (meltQuote.selected_fee_index ?? feeOption?.fee_index ?? 0);
 
-        // 5. Update Database: Set inputs as spent, save changes as ready
+        // Clean up inputs (strip DLEQ for privacy/compatibility)
+        const preparedInputs = selected.map(p => {
+            const { dleq, p2pk_e, ...rest } = p;
+            return {
+                ...rest,
+                witness: p.witness && typeof p.witness !== 'string' ? JSON.stringify(p.witness) : p.witness
+            };
+        });
+
+        const outputs = preview.outputData.map(h => h.blindedMessage);
+
+        const payload = {
+            quote: meltQuote.quote,
+            inputs: preparedInputs,
+            outputs: outputs,
+            fee_index: feeIndex
+        };
+
+        console.log('[QuotesService] Executing raw on-chain melt payload:', JSON.stringify(payload));
+        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/onchain`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`On-chain melt failed: ${errBody}`);
+        }
+
+        const meltResult = await res.json();
+        console.log('[QuotesService] Melt executed successfully:', JSON.stringify(meltResult));
+
+        // Construct change proofs if change is returned synchronously (usually empty for PENDING)
+        const keyset = wallet.getKeyset(preview.keysetId);
+        const changeProofs = meltResult.change?.map((sig: any, idx: number) => {
+            return preview.outputData[idx].toProof(sig, keyset);
+        }) ?? [];
+
+        // 5. Update Database: Set inputs as inflight (not spent yet, since transaction is PENDING)
         const inputSecrets = selected.map(p => p.secret);
         const m = initService.getManager() as any;
-        await m.proofService.setProofState(mintUrl, inputSecrets, 'spent');
+        await m.proofService.setProofState(mintUrl, inputSecrets, 'inflight');
 
-        if (response.change && response.change.length > 0) {
-            const changeCoreProofs = response.change.map(p => ({
+        if (changeProofs.length > 0) {
+            const changeCoreProofs = changeProofs.map((p: any) => ({
                 ...p,
                 mintUrl,
                 state: 'ready' as const
@@ -487,6 +530,10 @@ export const quotesService = {
             await repo.proofRepository.saveProofs(mintUrl, changeCoreProofs);
         }
 
-        return response;
+        return {
+            ...meltResult,
+            changeOutputs: preview.outputData,
+            selectedInputs: selected
+        };
     },
 };

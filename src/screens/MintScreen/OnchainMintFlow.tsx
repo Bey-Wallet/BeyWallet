@@ -106,6 +106,15 @@ export function OnchainMintFlow() {
             if (delta > 0) {
                 console.log('[OnchainMintFlow] Payment detected, redeeming...', delta, 'sats');
                 await quotesService.redeemOnchainMintQuote(activeMintUrl, quoteData.quote, quoteData.privKey);
+                
+                // Update history entry state in DB
+                try {
+                    const repo = initService.getRepo();
+                    await repo.historyRepository.updateHistoryMintEntry(activeMintUrl, quoteData.quote, 'paid');
+                } catch (dbErr) {
+                    console.warn('[OnchainMintFlow] Failed to update history state to paid:', dbErr);
+                }
+
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setStep('success');
                 refreshBalance();

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { YStack, XStack, Text, H1, Input, Button, Separator, ScrollView, View, Spinner } from "tamagui";
-import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, ShieldCheck, Landmark, Check } from "@tamagui/lucide-icons";
+import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, ShieldCheck, Landmark, Check, Zap, ArrowUpDown, Coins, Info } from "@tamagui/lucide-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useWalletStore } from "~/store/walletStore";
-import { quotesService } from "~/services/core";
+import { quotesService, initService } from "~/services/core";
 import { useToastController } from "@tamagui/toast";
 import { onchainNetwork } from "~/utils/onchain";
 
@@ -27,6 +27,7 @@ export function OnchainMeltFlow() {
 
     // Quote details
     const [meltQuote, setMeltQuote] = useState<any>(null);
+    const [selectedFeeIndex, setSelectedFeeIndex] = useState<number>(0);
 
     // Watch for scanned QR codes
     useEffect(() => {
@@ -81,19 +82,50 @@ export function OnchainMeltFlow() {
         }
     };
 
+    // Automatically clean and parse pasted Bitcoin URIs
+    const handleAddressChange = (text: string) => {
+        let cleaned = text.trim();
+        if (cleaned.toLowerCase().startsWith("bitcoin:")) {
+            const parsed = cleaned.replace(/^bitcoin:/i, "");
+            cleaned = parsed.split("?")[0];
+            
+            // Extract amount if present
+            const amountMatch = parsed.match(/amount=([0-9.]+)/i);
+            if (amountMatch && amountMatch[1]) {
+                const btc = parseFloat(amountMatch[1]);
+                const sats = Math.round(btc * 100000000);
+                setAmount(sats.toString());
+            }
+        }
+        setAddress(cleaned);
+    };
+
     // Address verification helper
     const isValidAddress = useMemo(() => {
         const cleaned = address.trim();
         if (!cleaned) return false;
-        // Simple regex check for standard mainnet/testnet bitcoin addresses
-        return (
-            /^(1|3|bc1|tb1|m|n|2)[a-km-zA-HJ-NP-Z1-9]{25,90}$/i.test(cleaned)
-        );
+        // Support standard base58 and bech32/bech32m addresses (which contain 0 and go up to 90+ chars)
+        const regex = /^(1|3|bc1|tb1|bcrt1|m|n|2)[a-zA-Z0-9]{25,95}$/i;
+        const matched = regex.test(cleaned);
+        console.log('[OnchainMeltFlow] isValidAddress check:', {
+            address: cleaned,
+            length: cleaned.length,
+            regexMatch: matched
+        });
+        return matched;
     }, [address]);
 
     const amountSats = parseInt(amount, 10) || 0;
     const isOverBalance = amountSats > balance;
     const canContinue = isValidAddress && amountSats > 0 && !isOverBalance;
+
+    console.log('[OnchainMeltFlow] canContinue calculation:', {
+        isValidAddress,
+        amountSats,
+        balance,
+        isOverBalance,
+        canContinue
+    });
 
     // Handle quote creation
     const handleGetQuote = async () => {
@@ -104,6 +136,9 @@ export function OnchainMeltFlow() {
         try {
             const quote = await quotesService.createOnchainMeltQuote(activeMintUrl, address.trim(), amountSats);
             setMeltQuote(quote);
+            if (quote.fee_options?.length) {
+                setSelectedFeeIndex(quote.fee_options[0].fee_index);
+            }
             setStep('confirm');
         } catch (err: any) {
             console.error('[OnchainMeltFlow] Melt quote failed:', err);
@@ -119,12 +154,21 @@ export function OnchainMeltFlow() {
         setStep('paying');
 
         try {
-            await quotesService.payOnchainMeltQuote(activeMintUrl, meltQuote);
+            const response = await quotesService.payOnchainMeltQuote(activeMintUrl, meltQuote, selectedFeeIndex);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             
             // Log outgoing transaction in history
             try {
                 const repo = quotesService.getRepo ? quotesService.getRepo() : initService.getRepo();
+                const selectedOption = meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) || meltQuote.fee_options?.[0];
+                const selectedFeeReserve = selectedOption ? selectedOption.fee_reserve : (meltQuote.fee_reserve ?? 0);
+
+                const changeOutputsSerialized = response.changeOutputs?.map((h: any) => ({
+                    secret: Array.from(h.secret).map((b: any) => b.toString(16).padStart(2, '0')).join(''),
+                    blindingFactor: h.blindingFactor.toString(),
+                    blindedMessage: h.blindedMessage
+                })) ?? [];
+
                 await repo.historyRepository.addHistoryEntry({
                     mintUrl: activeMintUrl,
                     unit: 'sat',
@@ -132,11 +176,13 @@ export function OnchainMeltFlow() {
                     type: 'melt',
                     amount: amountSats,
                     quoteId: meltQuote.quote,
-                    state: 'paid',
+                    state: 'pending',
                     metadata: {
                         via: 'onchain',
                         address: address.trim(),
-                        fee: meltQuote.fee_reserve
+                        fee: selectedFeeReserve,
+                        inputs: response.selectedInputs?.map((p: any) => ({ secret: p.secret, amount: p.amount, id: p.id, C: p.C })),
+                        changeOutputs: changeOutputsSerialized
                     }
                 });
             } catch (histErr) {
@@ -158,7 +204,7 @@ export function OnchainMeltFlow() {
         return (
             <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
                 <Spinner size="large" color="$accent10" />
-                <Paragraph color="$gray10">Processing your transaction...</Paragraph>
+                <Text color="$gray10">Processing your transaction...</Text>
             </YStack>
         );
     }
@@ -168,7 +214,7 @@ export function OnchainMeltFlow() {
         return (
             <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
                 <Text fontSize={18} fontWeight="bold" color="$red10">Transaction Failed</Text>
-                <Paragraph textAlign="center" color="$gray10">{errorMsg}</Paragraph>
+                <Text text="center" color="$gray10">{errorMsg}</Text>
                 <Button theme="accent" size="$5" rounded="$5" width="100%" onPress={() => setStep('input')} mt="$4">
                     Try Again
                 </Button>
@@ -185,9 +231,9 @@ export function OnchainMeltFlow() {
                 </View>
                 <YStack items="center" gap="$2">
                     <Text fontSize={24} fontWeight="bold" color="$color">Payment Sent!</Text>
-                    <Paragraph textAlign="center" color="$gray10" maxW={300}>
+                    <Text text="center" color="$gray10" maxW={300}>
                         {amountSats} satoshis are on their way to the target Bitcoin address.
-                    </Paragraph>
+                    </Text>
                 </YStack>
                 <Button theme="accent" size="$5" rounded="$5" width="100%" onPress={() => router.back()}>
                     Done
@@ -198,44 +244,140 @@ export function OnchainMeltFlow() {
 
     // Render confirmation state
     if (step === 'confirm' && meltQuote) {
-        const total = meltQuote.amount + meltQuote.fee_reserve;
+        const selectedOption = meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) || meltQuote.fee_options?.[0];
+        const selectedFeeReserve = selectedOption ? selectedOption.fee_reserve : (meltQuote.fee_reserve ?? 0);
+        const total = meltQuote.amount + selectedFeeReserve;
+        const shortMintUrl = activeMintUrl?.replace(/^https?:\/\//, '');
+
         return (
             <YStack flex={1} bg="$background" justify="space-between" p="$4">
-                <YStack gap="$6" pt="$4">
-                    <YStack items="center" gap="$1">
-                        <Text fontSize="$4" color="$gray11">You are sending</Text>
-                        <H1 fontSize={44} fontWeight="800" color="$color">{meltQuote.amount} sats</H1>
-                    </YStack>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
+                    <YStack gap="$5" pt="$3">
+                        {/* Header Amount */}
+                        <YStack items="center" gap="$1" py="$3">
+                            <H1 fontSize={40} fontWeight="800" color="$color">Pay {meltQuote.amount} sats</H1>
+                            <Text fontSize="$3" color="$gray11" fontWeight="600">On-Chain Bitcoin Payout</Text>
+                        </YStack>
 
-                    <YStack bg="$gray3" p="$4" rounded="$5" gap="$3">
-                        <XStack justify="space-between" items="center">
-                            <Text color="$gray11">Address</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxWidth: "60%" }}>
-                                <Text fontWeight="600" fontFamily="$mono">{address}</Text>
-                            </ScrollView>
-                        </XStack>
-                        <XStack justify="space-between" items="center">
-                            <Text color="$gray11">Network</Text>
-                            <Text fontWeight="600" color="$accent10">{onchainNetwork(address) === 'mutinynet' ? 'Mutinynet' : 'Bitcoin'}</Text>
-                        </XStack>
-                        <Separator />
-                        <XStack justify="space-between" items="center">
-                            <Text color="$gray11">On-chain Network Fee</Text>
-                            <Text fontWeight="600">{meltQuote.fee_reserve} sats</Text>
-                        </XStack>
-                        <Separator />
-                        <XStack justify="space-between" items="center">
-                            <Text fontWeight="bold" color="$color">Total Cost</Text>
-                            <Text fontWeight="bold" fontSize={18} color="$accent10">{total} sats</Text>
-                        </XStack>
-                    </YStack>
-                </YStack>
+                        {/* Fee Option Selection Selector */}
+                        {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
+                            <YStack gap="$2">
+                                <Text fontSize="$3" color="$gray11" fontWeight="600" px="$1">Choose confirmation speed</Text>
+                                <YStack gap="$2">
+                                    {meltQuote.fee_options.map((option: any) => {
+                                        const isSelected = option.fee_index === selectedFeeIndex;
+                                        return (
+                                            <XStack
+                                                key={option.fee_index}
+                                                borderWidth={2}
+                                                borderColor={isSelected ? "$accent10" : "$gray5"}
+                                                p="$3"
+                                                rounded="$4"
+                                                justify="space-between"
+                                                items="center"
+                                                onPress={() => setSelectedFeeIndex(option.fee_index)}
+                                                pressStyle={{ opacity: 0.85 }}
+                                            >
+                                                <YStack>
+                                                    <Text fontWeight="700" fontSize="$4" color="$color">
+                                                        {option.estimated_blocks} {option.estimated_blocks === 1 ? 'block' : 'blocks'}
+                                                    </Text>
+                                                    <Text fontSize="$2" color="$gray10">Estimated confirmation</Text>
+                                                </YStack>
+                                                <XStack gap="$3" items="center">
+                                                    <YStack items="flex-end">
+                                                        <Text fontWeight="700" fontSize="$4" color="$color">
+                                                            {option.fee_reserve} sats
+                                                        </Text>
+                                                        <Text fontSize="$2" color="$gray10">fee reserve</Text>
+                                                    </YStack>
+                                                    <View
+                                                        width={22}
+                                                        height={22}
+                                                        rounded="$11"
+                                                        borderWidth={2}
+                                                        borderColor={isSelected ? "$accent10" : "$gray8"}
+                                                        items="center"
+                                                        justify="center"
+                                                    >
+                                                        {isSelected && (
+                                                            <View width={10} height={10} rounded="$5" bg="$accent10" />
+                                                        )}
+                                                    </View>
+                                                </XStack>
+                                            </XStack>
+                                        );
+                                    })}
+                                </YStack>
+                            </YStack>
+                        )}
 
-                <YStack gap="$2" pb="$4">
-                    <Button theme="accent" size="$5" rounded="$5" onPress={handlePayMelt}>
-                        Confirm & Pay
+                        {/* Details List table */}
+                        <YStack gap="$4" bg="$gray3" p="$4" rounded="$5" mt="$2">
+                            {/* Amount Row */}
+                            <XStack justify="space-between" items="center">
+                                <XStack gap="$2" items="center">
+                                    <Zap size={18} color="$yellow10" />
+                                    <Text fontWeight="600" color="$gray11">Amount</Text>
+                                </XStack>
+                                <Text fontWeight="700" color="$color">{meltQuote.amount} sats</Text>
+                            </XStack>
+
+                            {/* Fee Reserve Row */}
+                            <XStack justify="space-between" items="center">
+                                <XStack gap="$2" items="center">
+                                    <ArrowUpDown size={18} color="$purple10" />
+                                    <Text fontWeight="600" color="$gray11">Fee Reserve</Text>
+                                </XStack>
+                                <Text fontWeight="700" color="$color">{selectedFeeReserve} sats</Text>
+                            </XStack>
+
+                            {/* Unit Row */}
+                            <XStack justify="space-between" items="center">
+                                <XStack gap="$2" items="center">
+                                    <Coins size={18} color="$green10" />
+                                    <Text fontWeight="600" color="$gray11">Unit</Text>
+                                </XStack>
+                                <Text fontWeight="700" color="$color">SAT</Text>
+                            </XStack>
+
+                            {/* State Row */}
+                            <XStack justify="space-between" items="center">
+                                <XStack gap="$2" items="center">
+                                    <Info size={18} color="$gray10" />
+                                    <Text fontWeight="600" color="$gray11">State</Text>
+                                </XStack>
+                                <Text fontWeight="700" color="$red10">Unpaid</Text>
+                            </XStack>
+
+                            {/* Mint Row */}
+                            <XStack justify="space-between" items="center">
+                                <XStack gap="$2" items="center">
+                                    <Landmark size={18} color="$orange10" />
+                                    <Text fontWeight="600" color="$gray11">Mint</Text>
+                                </XStack>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxWidth: "60%" }}>
+                                    <Text fontWeight="700" color="$color">{shortMintUrl}</Text>
+                                </ScrollView>
+                            </XStack>
+
+                            <Separator my="$1" />
+
+                            {/* Total Cost Row */}
+                            <XStack justify="space-between" items="center">
+                                <Text fontWeight="bold" fontSize="$5" color="$color">Total Cost</Text>
+                                <Text fontWeight="bold" fontSize={20} color="$accent10">{total} sats</Text>
+                            </XStack>
+                        </YStack>
+                    </YStack>
+                </ScrollView>
+
+                {/* Confirm and Pay Actions */}
+                <YStack gap="$2" pt="$3" pb="$4">
+                    <Button theme="accent" size="$5" rounded="$5" fontWeight="bold" onPress={handlePayMelt}>
+                        PAY
                     </Button>
-                    <Button size="$5" bg="$gray4" rounded="$5" onPress={() => setStep('input')}>
+                    <Button size="$5" bg="$gray4" rounded="$5" fontWeight="bold" onPress={() => setStep('input')}>
                         Cancel
                     </Button>
                 </YStack>
@@ -256,7 +398,7 @@ export function OnchainMeltFlow() {
                                 size="$4"
                                 placeholder="Paste or scan BTC address..."
                                 value={address}
-                                onChangeText={setAddress}
+                                onChangeText={handleAddressChange}
                                 rounded="$4"
                                 autoCapitalize="none"
                                 autoCorrect={false}
