@@ -7,7 +7,9 @@
 
 import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
-import type { MintQuoteResponse, MeltQuoteResponse } from '@cashu/cashu-ts';
+import { Wallet, Mint as CashuMint, type MintQuoteResponse, type MeltQuoteResponse } from '@cashu/cashu-ts';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { Buffer } from 'buffer';
 
 function mgr() {
     return initService.getManager();
@@ -316,5 +318,175 @@ export const quotesService = {
             console.log(`[QuotesService] ✅ NUT-20 Signed Melt Quote created: ${quote.quote}`);
             return quote;
         });
+    },
+
+    // ─── NUT-30 On-Chain Bitcoin Methods ────────────────────────────
+
+    /**
+     * Create an On-Chain Bitcoin Mint quote (NUT-30 deposit).
+     */
+    createOnchainMintQuote: async (mintUrl: string): Promise<{ quote: string; request: string; privKey: string; pubKey: string }> => {
+        const privKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
+        const privKey = Buffer.from(privKeyBytes).toString('hex');
+        const pubKeyBytes = secp256k1.getPublicKey(privKeyBytes);
+        const pubKey = Buffer.from(pubKeyBytes).toString('hex');
+
+        console.log(`[QuotesService] Creating on-chain mint quote at ${mintUrl} for pubkey ${pubKey}`);
+        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unit: 'sat', pubkey: pubKey })
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Failed to create on-chain mint quote: ${text}`);
+        }
+        const data = await res.json();
+        return {
+            quote: data.quote,
+            request: data.request,
+            privKey,
+            pubKey
+        };
+    },
+
+    /**
+     * Check the status of an On-Chain Bitcoin Mint quote.
+     */
+    checkOnchainMintQuote: async (mintUrl: string, quoteId: string): Promise<{ quote: string; request: string; state: string; amount_paid: number; amount_issued: number; expiry: number }> => {
+        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain/${quoteId}`, {
+            method: 'GET'
+        });
+        if (!res.ok) {
+            throw new Error(`Failed to check on-chain mint quote: ${await res.text()}`);
+        }
+        return await res.json();
+    },
+
+    /**
+     * Redeem paid On-Chain Bitcoin Mint quote.
+     */
+    redeemOnchainMintQuote: async (mintUrl: string, quoteId: string, privKey: string): Promise<any> => {
+        console.log(`[QuotesService] Redeeming on-chain mint quote ${quoteId} at ${mintUrl}`);
+        const quoteStatus = await quotesService.checkOnchainMintQuote(mintUrl, quoteId);
+        const delta = quoteStatus.amount_paid - quoteStatus.amount_issued;
+        if (delta <= 0) {
+            throw new Error('Address not paid');
+        }
+
+        const mint = new CashuMint(mintUrl);
+        const wallet = new Wallet(mint);
+        await wallet.loadMint();
+
+        const preview = await wallet.prepareMint('onchain', delta, quoteStatus, {
+            privkey: privKey
+        });
+        const proofs = await wallet.completeMint(preview);
+
+        // Map proofs to CoreProof format and save to repository
+        const repo = initService.getRepo();
+        const coreProofs = proofs.map(p => ({
+            ...p,
+            mintUrl,
+            state: 'ready' as const
+        }));
+        await repo.proofRepository.saveProofs(mintUrl, coreProofs);
+
+        // Update history entry state to paid
+        try {
+            await repo.historyRepository.updateHistoryMintEntry(mintUrl, quoteId, 'paid');
+        } catch (e) {
+            console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
+        }
+
+        return proofs;
+    },
+
+    /**
+     * Create an On-Chain Bitcoin Melt quote (NUT-30 withdrawal).
+     */
+    createOnchainMeltQuote: async (mintUrl: string, btcAddress: string, amount: number): Promise<any> => {
+        console.log(`[QuotesService] Creating on-chain melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`);
+        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: btcAddress, amount, unit: 'sat' })
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Failed to create on-chain melt quote: ${text}`);
+        }
+        return await res.json();
+    },
+
+    /**
+     * Check the status of an On-Chain Bitcoin Melt quote.
+     */
+    checkOnchainMeltQuote: async (mintUrl: string, quoteId: string): Promise<any> => {
+        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain/${quoteId}`, {
+            method: 'GET'
+        });
+        if (!res.ok) {
+            throw new Error(`Failed to check on-chain melt quote: ${await res.text()}`);
+        }
+        return await res.json();
+    },
+
+    /**
+     * Pay an On-Chain Bitcoin Melt quote.
+     */
+    payOnchainMeltQuote: async (mintUrl: string, meltQuote: any): Promise<any> => {
+        console.log(`[QuotesService] Paying on-chain melt quote ${meltQuote.quote} from ${mintUrl}`);
+        const repo = initService.getRepo();
+        
+        // 1. Get ready proofs
+        const availableProofs = await repo.proofRepository.getReadyProofs(mintUrl);
+        const totalCost = meltQuote.amount + meltQuote.fee_reserve;
+        
+        // 2. Coin selection
+        const sorted = [...availableProofs].sort((a, b) => b.amount - a.amount);
+        const selected: any[] = [];
+        let currentAmount = 0;
+        for (const proof of sorted) {
+            selected.push(proof);
+            currentAmount += proof.amount;
+            if (currentAmount >= totalCost) {
+                break;
+            }
+        }
+        if (currentAmount < totalCost) {
+            throw new Error(`Insufficient balance: need ${totalCost} sats, have ${currentAmount} sats`);
+        }
+
+        const mint = new CashuMint(mintUrl);
+        const wallet = new Wallet(mint);
+        await wallet.loadMint();
+
+        // 3. Prepare Melt
+        const preview = await wallet.prepareMelt('onchain', meltQuote, selected.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            secret: p.secret,
+            C: p.C
+        })));
+
+        // 4. Complete Melt
+        const response = await wallet.completeMelt(preview);
+
+        // 5. Update Database: Set inputs as spent, save changes as ready
+        const inputSecrets = selected.map(p => p.secret);
+        const m = initService.getManager() as any;
+        await m.proofService.setProofState(mintUrl, inputSecrets, 'spent');
+
+        if (response.change && response.change.length > 0) {
+            const changeCoreProofs = response.change.map(p => ({
+                ...p,
+                mintUrl,
+                state: 'ready' as const
+            }));
+            await repo.proofRepository.saveProofs(mintUrl, changeCoreProofs);
+        }
+
+        return response;
     },
 };

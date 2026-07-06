@@ -6,6 +6,7 @@ import {
     walletService,
     mintManager,
     nostrService,
+    quotesService,
 } from '../services/core';
 import type { MintInfo } from '../services/core';
 import { useSettingsStore } from './settingsStore';
@@ -52,6 +53,7 @@ interface WalletState {
     restoreAllMints: (extraMintUrls?: string[]) => Promise<void>;
     setScannerResult: (result: string | null) => void;
     syncMintsToNostr: () => Promise<void>;
+    autoCheckPendingOnchainQuotes: () => Promise<void>;
 }
 
 
@@ -209,6 +211,13 @@ export const useWalletStore = create<WalletState>()(
                     const balance = balances[activeUrl] ?? 0;
 
                     set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
+
+                    // Auto-check and redeem pending on-chain quotes in the background
+                    InteractionManager.runAfterInteractions(() => {
+                        get().autoCheckPendingOnchainQuotes().catch(err => {
+                            console.warn('[WalletStore] Background pending on-chain quote check failed:', err);
+                        });
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Error refreshing balance:', err);
                     set({ error: err.message, isRefreshing: false });
@@ -477,6 +486,37 @@ export const useWalletStore = create<WalletState>()(
                     }
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to sync mints to Nostr:', err?.message || err);
+                }
+            },
+
+            autoCheckPendingOnchainQuotes: async () => {
+                const activeUrl = get().activeMintUrl;
+                if (!activeUrl || !initService.isInitialized()) return;
+
+                try {
+                    const repo = initService.getRepo();
+                    const history = await repo.historyRepository.getPaginatedHistoryEntries(100, 0);
+                    const pendingOnchain = history.filter(
+                        h => h.type === 'mint' && h.state === 'pending' && h.metadata?.via === 'onchain'
+                    );
+
+                    for (const entry of pendingOnchain) {
+                        try {
+                            console.log(`[WalletStore] Auto-checking pending on-chain quote ${entry.quoteId} for mint ${entry.mintUrl}`);
+                            const status = await quotesService.checkOnchainMintQuote(entry.mintUrl, entry.quoteId);
+                            const delta = status.amount_paid - status.amount_issued;
+                            if (delta > 0) {
+                                console.log(`[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sats...`);
+                                await quotesService.redeemOnchainMintQuote(entry.mintUrl, entry.quoteId, entry.metadata.privKey);
+                                // Refresh balance again once redeemed!
+                                get().refreshBalance();
+                            }
+                        } catch (err) {
+                            console.warn(`[WalletStore] Failed checking pending quote ${entry.quoteId}:`, err);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[WalletStore] Failed to auto-check pending on-chain quotes:', e);
                 }
             },
 

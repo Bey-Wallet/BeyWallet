@@ -60,6 +60,9 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
     if (metadata.via === 'ecash_create') {
         return { label: 'Ecash Token', icon: <Box size={10} strokeWidth={2.5} color="#f97316" />, color: '#f97316' };
     }
+    if (metadata.via === 'onchain') {
+        return { label: 'On-chain BTC', icon: <Landmark size={10} strokeWidth={2.5} color="#f59e0b" />, color: '#f59e0b' };
+    }
     if (type === 'mint' || type === 'melt' || metadata.via === 'lightning') {
         return { label: 'Via Lightning', icon: <Zap size={10} strokeWidth={2.5} color="#eab308" />, color: '#eab308' };
     }
@@ -81,8 +84,12 @@ function getTypeLabel(type: string, metadata?: Record<string, any>): string {
             if (metadata?.via === 'nfc') return 'Received via NFC';
             return 'Received';
         case 'receive-request': return 'Payment Request';
-        case 'mint': return 'Lightning Receive';
-        case 'melt': return 'Lightning Send';
+        case 'mint':
+            if (metadata?.via === 'onchain') return 'On-chain Receive';
+            return 'Lightning Receive';
+        case 'melt':
+            if (metadata?.via === 'onchain') return 'On-chain Send';
+            return 'Lightning Send';
         case 'swap': return 'NUT-19 Atomic Swap';
         default: return type.charAt(0).toUpperCase() + type.slice(1);
     }
@@ -99,6 +106,7 @@ function getIconConfig(type: string, metadata?: Record<string, any>) {
         case 'mint':
             return { Icon: Landmark, bg: '#f59e0b18', tint: '#fbbf24' };
         case 'melt':
+            if (metadata?.via === 'onchain') return { Icon: Landmark, bg: '#f59e0b18', tint: '#fbbf24' };
             return { Icon: Zap, bg: '#f59e0b18', tint: '#fbbf24' };
         case 'swap':
             return { Icon: RefreshCw, bg: '#3b82f618', tint: '#60a5fa' };

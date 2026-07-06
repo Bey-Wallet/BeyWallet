@@ -504,8 +504,12 @@ export function TransactionDetailsScreen() {
                 if (via === 'qr' || via === 'scan') return 'Received via QR';
                 if (via === 'nfc') return 'Received via NFC';
                 return 'Received Ecash';
-            case 'mint': return 'Lightning → Ecash';
-            case 'melt': return 'Ecash → Lightning';
+            case 'mint':
+                if (via === 'onchain') return 'On-chain → Ecash';
+                return 'Lightning → Ecash';
+            case 'melt':
+                if (via === 'onchain') return 'Ecash → On-chain';
+                return 'Ecash → Lightning';
             default: return 'Transaction';
         }
     }, [entry?.type, entry?.metadata]);
@@ -878,7 +882,7 @@ export function TransactionDetailsScreen() {
                                         entry.type === 'send' ? 'Sent Successfully!' :
                                             entry.type === 'receive' ? 'Received Successfully!' :
                                                 entry.type === 'mint' ? 'Minted Successfully!' :
-                                                    entry.type === 'melt' ? 'Invoice Paid!' : 'Transaction Completed!'}
+                                                    entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain Payment Sent!' : 'Invoice Paid!') : 'Transaction Completed!'}
                             </Text>
                             <YStack items="center" justify="center">
                                 {primaryCurrency === 'SATS' ? (
@@ -910,7 +914,7 @@ export function TransactionDetailsScreen() {
                                             entry.type === 'send' ? 'The recipient has claimed your ecash.' :
                                                 entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
                                                     entry.type === 'mint' ? 'Ecash added to your wallet.' :
-                                                        entry.type === 'melt' ? 'Lightning invoice was successfully paid.' : 'Transaction processed.'}
+                                                        entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain payment was broadcast successfully.' : 'Lightning invoice was successfully paid.') : 'Transaction processed.'}
                                 </Text>
                             </YStack>
                         </YStack>

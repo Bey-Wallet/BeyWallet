@@ -94,7 +94,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     label: 'Top Up via On-Chain',
                     icon: <Landmark size={24} color="$gray10" />,
                     iconBg: '$gray4',
-                    disabled: true,
+                    path: '/mint?mode=onchain',
                 },
                 {
                     key: 'withdraw_ln',
@@ -108,7 +108,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     label: 'Pay to On-Chain Address',
                     icon: <Landmark size={24} color="$gray10" />,
                     iconBg: '$gray4',
-                    disabled: true,
+                    path: '/(modals)/melt?mode=onchain',
                 }
             ];
         }
@@ -135,7 +135,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                         label: 'On-chain',
                         icon: <Landmark size={24} color="$gray10" />,
                         iconBg: '$gray2',
-                        disabled: true,
+                        path: '/(modals)/melt?mode=onchain',
                     }
                 ];
             } else {
@@ -194,7 +194,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                         label: 'On-chain',
                         icon: <Landmark size={24} color="$gray10" />,
                         iconBg: '$gray2',
-                        disabled: true,
+                        path: '/mint?mode=onchain',
                     }
                 ];
             } else {

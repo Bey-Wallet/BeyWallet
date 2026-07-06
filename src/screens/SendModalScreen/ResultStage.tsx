@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { YStack, Text, Button, ScrollView, View, XStack } from "tamagui";
-import { XCircle, Check } from "@tamagui/lucide-icons";
+import { XCircle, Check, ChevronDown, ChevronUp } from "@tamagui/lucide-icons";
 import { Stack } from 'expo-router';
 
 import { PendingTokenLayout } from '../../components/UI/PendingTokenLayout';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService, CurrencyCode } from '~/services/currencyService';
+import { ListTable, ListTableRow } from '~/components/UI/ListTable';
 
 interface ResultStageProps {
     status: 'success' | 'error';
@@ -33,7 +38,23 @@ export function ResultStage({
     expiresAt
 }: ResultStageProps) {
     const isSuccess = status === 'success';
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
     const [isReclaiming, setIsReclaiming] = useState(false);
+
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
+
+    const fiatValue = React.useMemo(() => {
+        if (!btcData?.price) return '...';
+        return currencyService.formatValue(
+            currencyService.convertSatsToCurrency(Number(amount), btcData.price),
+            secondaryCurrency as CurrencyCode
+        );
+    }, [amount, btcData?.price, secondaryCurrency]);
 
     const handleReclaim = async () => {
         if (onReclaim) {
@@ -80,6 +101,29 @@ export function ResultStage({
                     />
                 ) : (
                     <YStack flex={1} p="$4" justify="center" items="center" gap="$6" mt="$6">
+                        {/* Big Amount Display */}
+                        <YStack width="100%" justify="center" items="center" py="$2">
+                            {primaryCurrency === 'SATS' ? (
+                                <>
+                                    <Text fontSize={38} fontWeight="900" color="$color">
+                                        ₿{Number(amount || 0).toLocaleString()}
+                                    </Text>
+                                    <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
+                                        {fiatValue}
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text fontSize={38} fontWeight="900" color="$color">
+                                        {fiatValue}
+                                    </Text>
+                                    <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
+                                        ₿{Number(amount || 0).toLocaleString()} sats
+                                    </Text>
+                                </>
+                            )}
+                        </YStack>
+
                         <View
                             width={100}
                             height={100}
@@ -100,25 +144,6 @@ export function ResultStage({
                             </Text>
                         </YStack>
 
-                        <YStack width="100%" gap="$0" bg="$gray2" rounded="$5" overflow="hidden" mt="$4">
-                            <XStack justify="space-between" p="$4" borderBottomWidth={1} borderColor="$color3">
-                                <Text color="$gray10" fontWeight="600">Amount</Text>
-                                <Text color="$color" fontWeight="800">₿{amount} sats</Text>
-                            </XStack>
-                            {fee > 0 && (
-                                <XStack justify="space-between" p="$4" borderBottomWidth={1} borderColor="$color3">
-                                    <Text color="$gray10" fontWeight="600">Fee</Text>
-                                    <Text color="$color" fontWeight="800">₿{fee} sats</Text>
-                                </XStack>
-                            )}
-                            {mintUrl && (
-                                <XStack justify="space-between" p="$4">
-                                    <Text color="$gray10" fontWeight="600">Mint</Text>
-                                    <Text color="$color" fontWeight="800">{mintUrl.replace(/^https?:\/\//, '').split('/')[0]}</Text>
-                                </XStack>
-                            )}
-                        </YStack>
-
                         <Button
                             mt="auto"
                             size="$5"
@@ -131,6 +156,43 @@ export function ResultStage({
                         >
                             Done
                         </Button>
+
+                        <ListTable width="100%" mt="$2">
+                            <ListTableRow
+                                label="Transaction Details"
+                                rightContent={
+                                    isDetailsExpanded ? (
+                                        <ChevronUp size={18} color="$gray10" />
+                                    ) : (
+                                        <ChevronDown size={18} color="$gray10" />
+                                    )
+                                }
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setIsDetailsExpanded(!isDetailsExpanded);
+                                }}
+                            />
+
+                            {isDetailsExpanded && (
+                                <>
+                                    {primaryCurrency === 'FIAT' ? (
+                                        <>
+                                            <ListTableRow label="Amount" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                                            <ListTableRow label="Sats" value={`₿${amount} sats`} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ListTableRow label="Amount" value={`₿${amount} sats`} />
+                                            <ListTableRow label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                                        </>
+                                    )}
+                                    {fee > 0 && <ListTableRow label="Fee" value={`₿${fee} sats`} />}
+                                    {mintUrl && (
+                                        <ListTableRow label="Mint" value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]} />
+                                    )}
+                                </>
+                            )}
+                        </ListTable>
                     </YStack>
                 )}
             </ScrollView>

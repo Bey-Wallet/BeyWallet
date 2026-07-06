@@ -40,7 +40,7 @@ export default React.memo(function ActionButtons() {
     <>
       <XStack gap="$2" justify="space-between">
         <Button
-          theme="gray"
+          bg="$gray4"
 
           flex={1}
           height={60}
@@ -50,7 +50,7 @@ export default React.memo(function ActionButtons() {
           onPress={handleScan}
         />
         <Button
-          theme="gray"
+          bg="$gray4"
 
           flex={1}
           height={60}
@@ -60,7 +60,7 @@ export default React.memo(function ActionButtons() {
           onPress={handleSwap}
         />
         <Button
-          theme="gray"
+          bg="$gray4"
 
           flex={1}
           height={60}

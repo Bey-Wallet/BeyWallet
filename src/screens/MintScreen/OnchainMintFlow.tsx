@@ -1,0 +1,274 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { YStack, XStack, Text, Button, View, Paragraph, Separator, ScrollView, Spinner } from "tamagui";
+import { Copy, Check, Clock, ShieldCheck, Landmark, RefreshCw, X } from "@tamagui/lucide-icons";
+import QRCode from "react-native-qrcode-svg";
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
+import { useToastController } from '@tamagui/toast';
+import { useRouter } from 'expo-router';
+import { useWalletStore } from "~/store/walletStore";
+import { quotesService, initService } from "~/services/core";
+import { onchainNetworkDisplay } from "~/utils/onchain";
+
+export function OnchainMintFlow() {
+    const router = useRouter();
+    const toast = useToastController();
+    const activeMintUrl = useWalletStore(s => s.activeMintUrl);
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
+
+    const [step, setStep] = useState<'loading' | 'deposit' | 'success' | 'error'>('loading');
+    const [quoteData, setQuoteData] = useState<{ quote: string; request: string; privKey: string; pubKey: string } | null>(null);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [copied, setCopied] = useState(false);
+    
+    // Payment status tracking
+    const [isChecking, setIsChecking] = useState(false);
+    const [amountPaid, setAmountPaid] = useState(0);
+    const [amountIssued, setAmountIssued] = useState(0);
+    const [txState, setTxState] = useState('UNPAID');
+
+    // Create the quote on mount
+    useEffect(() => {
+        if (!activeMintUrl) {
+            setErrorMsg('No active mint selected');
+            setStep('error');
+            return;
+        }
+
+        let isMounted = true;
+        quotesService.createOnchainMintQuote(activeMintUrl)
+            .then(async data => {
+                if (isMounted) {
+                    setQuoteData(data);
+                    setStep('deposit');
+
+                    // Save quote details to local history database
+                    try {
+                        const repo = initService.getRepo();
+                        await repo.historyRepository.addHistoryEntry({
+                            mintUrl: activeMintUrl,
+                            unit: 'sat',
+                            createdAt: Date.now(),
+                            type: 'mint',
+                            amount: 0, // initially 0
+                            quoteId: data.quote,
+                            state: 'pending',
+                            paymentRequest: data.request, // BTC address as paymentRequest
+                            metadata: {
+                                via: 'onchain',
+                                privKey: data.privKey,
+                                pubKey: data.pubKey,
+                                address: data.request
+                            }
+                        });
+                        console.log('[OnchainMintFlow] Saved on-chain quote in local database history:', data.quote);
+                    } catch (dbErr) {
+                        console.warn('[OnchainMintFlow] Failed to save on-chain quote to history:', dbErr);
+                    }
+                }
+            })
+            .catch(err => {
+                if (isMounted) {
+                    console.error('[OnchainMintFlow] Failed to create quote:', err);
+                    setErrorMsg(err.message || 'Failed to request deposit address');
+                    setStep('error');
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [activeMintUrl]);
+
+    // Handle copying Bitcoin address
+    const handleCopy = async () => {
+        if (!quoteData) return;
+        await Clipboard.setStringAsync(quoteData.request);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setCopied(true);
+        toast.show('Copied!', { message: 'Address copied to clipboard' });
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    // Manual check and redeem handler
+    const handleCheckPayment = useCallback(async (showToast = true) => {
+        if (!activeMintUrl || !quoteData || isChecking) return;
+
+        setIsChecking(true);
+        try {
+            console.log('[OnchainMintFlow] Checking deposit status for:', quoteData.quote);
+            const status = await quotesService.checkOnchainMintQuote(activeMintUrl, quoteData.quote);
+            setAmountPaid(status.amount_paid);
+            setAmountIssued(status.amount_issued);
+            setTxState(status.state);
+
+            const delta = status.amount_paid - status.amount_issued;
+            if (delta > 0) {
+                console.log('[OnchainMintFlow] Payment detected, redeeming...', delta, 'sats');
+                await quotesService.redeemOnchainMintQuote(activeMintUrl, quoteData.quote, quoteData.privKey);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setStep('success');
+                refreshBalance();
+            } else {
+                if (showToast) {
+                    toast.show('Checking status', { message: 'No new payments detected yet.' });
+                }
+            }
+        } catch (err: any) {
+            console.error('[OnchainMintFlow] Check payment error:', err);
+            if (showToast) {
+                toast.show('Error checking payment', { message: err.message || 'Failed to check status' });
+            }
+        } finally {
+            setIsChecking(false);
+        }
+    }, [activeMintUrl, quoteData, isChecking, refreshBalance, toast]);
+
+    // Periodically poll for payment status
+    useEffect(() => {
+        if (step !== 'deposit' || !quoteData) return;
+
+        const interval = setInterval(() => {
+            handleCheckPayment(false);
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [step, quoteData, handleCheckPayment]);
+
+    // Render loading state
+    if (step === 'loading') {
+        return (
+            <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
+                <Spinner size="large" color="$accent10" />
+                <Paragraph color="$gray10">Generating on-chain deposit address...</Paragraph>
+            </YStack>
+        );
+    }
+
+    // Render error state
+    if (step === 'error') {
+        return (
+            <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
+                <Text fontSize={18} fontWeight="bold" color="$red10">Error</Text>
+                <Paragraph textAlign="center" color="$gray10">{errorMsg}</Paragraph>
+                <Button theme="accent" onPress={() => router.back()} mt="$4">
+                    Go Back
+                </Button>
+            </YStack>
+        );
+    }
+
+    // Render success state
+    if (step === 'success') {
+        return (
+            <YStack flex={1} justify="center" items="center" gap="$6" bg="$background" p="$6">
+                <View bg="$green4" p="$4" rounded="$10">
+                    <ShieldCheck size={64} color="$green10" />
+                </View>
+                <YStack items="center" gap="$2">
+                    <Text fontSize={24} fontWeight="bold" color="$color">Deposit Received!</Text>
+                    <Paragraph textAlign="center" color="$gray10" maxW={300}>
+                        Your on-chain Bitcoin deposit was successfully recognized and minted as ecash tokens in your wallet.
+                    </Paragraph>
+                </YStack>
+                <Button theme="accent" size="$5" rounded="$5" width="100%" onPress={() => router.back()}>
+                    Awesome
+                </Button>
+            </YStack>
+        );
+    }
+
+    // Render deposit state (displays Bitcoin address and QR code)
+    return (
+        <YStack flex={1} bg="$background" justify="space-between">
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any} px="$4" pt="$4">
+                <YStack items="center" gap="$4" mb="$6">
+                    <Text fontSize="$4" fontWeight="600" color="$gray11">
+                        Send Bitcoin (BTC) to this address
+                    </Text>
+                    
+                    {quoteData && (
+                        <View bg="white" p="$3" borderColor="$borderColor" borderWidth={1} rounded="$5">
+                            <QRCode
+                                value={quoteData.request}
+                                size={220}
+                                backgroundColor="white"
+                                color="black"
+                                quietZone={10}
+                            />
+                        </View>
+                    )}
+
+                    <XStack
+                        bg="$gray4"
+                        p="$3"
+                        rounded="$5"
+                        items="center"
+                        justify="space-between"
+                        gap="$2"
+                        width="100%"
+                        onPress={handleCopy}
+                        pressStyle={{ opacity: 0.8 }}
+                    >
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                            <Text fontSize="$3" color="$color" fontFamily="$mono">
+                                {quoteData?.request}
+                            </Text>
+                        </ScrollView>
+                        <Button
+                            size="$3"
+                            bg="$gray5"
+                            circular
+                            icon={copied ? <Check size={18} color="$green10" /> : <Copy size={18} color="$color" />}
+                            onPress={handleCopy}
+                        />
+                    </XStack>
+                </YStack>
+
+                <Separator />
+
+                <YStack gap="$4" py="$6">
+                    <XStack justify="space-between" items="center">
+                        <XStack gap="$2" items="center">
+                            <Landmark size={20} color="$gray10" />
+                            <Text fontWeight="600">Network</Text>
+                        </XStack>
+                        <Text color="$accent10">{quoteData ? onchainNetworkDisplay(quoteData.request) : 'Bitcoin'}</Text>
+                    </XStack>
+
+                    <XStack justify="space-between" items="center">
+                        <XStack gap="$2" items="center">
+                            <Clock size={20} color="$gray10" />
+                            <Text fontWeight="600">Checking Status</Text>
+                        </XStack>
+                        <XStack gap="$2" items="center">
+                            {isChecking && <Spinner size="small" color="$accent10" />}
+                            <Text color="$gray10">Every 10s</Text>
+                        </XStack>
+                    </XStack>
+                </YStack>
+            </ScrollView>
+
+            <YStack p="$4" bg="$background" gap="$2">
+                <Button
+                    theme="accent"
+                    size="$5"
+                    rounded="$5"
+                    icon={isChecking ? <Spinner size="small" /> : <RefreshCw size={20} />}
+                    onPress={() => handleCheckPayment(true)}
+                    disabled={isChecking}
+                >
+                    Check Deposit Status
+                </Button>
+                <Button
+                    size="$5"
+                    bg="$gray4"
+                    rounded="$5"
+                    onPress={() => router.back()}
+                >
+                    Close
+                </Button>
+            </YStack>
+        </YStack>
+    );
+}

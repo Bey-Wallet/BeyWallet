@@ -1,11 +1,12 @@
 import { YStack } from "tamagui";
-import { useRouter, Stack } from "expo-router";
+import { useRouter, Stack, useLocalSearchParams } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
 import { InteractionManager } from "react-native";
 import { AmountStage } from "./AmountStage";
 import { ConfirmStage } from "./ConfirmStage";
 import { PaymentStage } from "./PaymentStage";
 import { ResultStage } from "./ResultStage";
+import { OnchainMintFlow } from "./OnchainMintFlow";
 import { useWalletStore } from "../../store/walletStore";
 import { eventService, quotesService, initService } from "../../services/core";
 
@@ -20,8 +21,18 @@ interface MintQuoteData {
 
 export default function MintScreen() {
     const router = useRouter();
+    const { mode } = useLocalSearchParams<{ mode?: string }>();
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
+
+    if (mode === 'onchain') {
+        return (
+            <YStack flex={1} bg="$background" p="$4">
+                <Stack.Screen options={{ headerTitle: 'Top Up via On-Chain' }} />
+                <OnchainMintFlow />
+            </YStack>
+        );
+    }
 
     const [step, setStep] = useState<MintStep>('amount');
     const [amount, setAmount] = useState("0");

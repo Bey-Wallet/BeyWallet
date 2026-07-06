@@ -65,7 +65,7 @@ export default function Balance() {
   }, [currentBalance, btcData?.price]);
 
   return (
-    <YStack py="$2" height={220} gap="$3" justify="center" items="center">
+    <YStack py="$2" height={230} gap="$3" justify="center" items="center">
       <XStack width="100%" items="center" justify="center">
         <XStack items="center">
           <Button size="$2.5"
@@ -99,7 +99,7 @@ export default function Balance() {
         </XStack>
       </XStack>
 
-      <XStack justify="center" py="$2" items="flex-end">
+      <XStack justify="center" py="$3" items="flex-end">
         <YStack
           onPress={handlePrimaryCurrencyToggle}
           onLongPress={handleHideBalanceToggle}

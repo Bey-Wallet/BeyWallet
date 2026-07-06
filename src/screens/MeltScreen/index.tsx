@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { InteractionManager } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '~/store/walletStore';
 import { useSettingsStore } from '~/store/settingsStore';
 import { InvoiceStage } from './InvoiceStage';
 import { MeltResultStage } from './ResultStage';
+import { OnchainMeltFlow } from './OnchainMeltFlow';
 import { quotesService, mintManager } from '~/services/core';
 import { detectLightningInputType, requestInvoiceFromLnurl, getLnurlPayParams } from '~/services/lnurlService';
 import { biometricService } from '~/services/biometricService';
@@ -22,6 +23,17 @@ import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 type MeltStep = 'invoice' | 'amount' | 'result';
 
 export default function MeltScreen() {
+    const { mode } = useLocalSearchParams<{ mode?: string }>();
+
+    if (mode === 'onchain') {
+        return (
+            <YStack flex={1} bg="$background" p="$4">
+                <Stack.Screen options={{ headerTitle: 'Pay to On-Chain Address' }} />
+                <OnchainMeltFlow />
+            </YStack>
+        );
+    }
+
     const [step, setStep] = useState<MeltStep>('invoice');
     const [invoice, setInvoice] = useState('');
     const [resolvedInvoice, setResolvedInvoice] = useState<string | null>(null);

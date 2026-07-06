@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme } from "tamagui";
-import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc, Globe } from "@tamagui/lucide-icons";
+import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc, Globe, ChevronDown, ChevronUp, ChevronRight, User2, UsersRound } from "@tamagui/lucide-icons";
+import { ListTable, ListTableRow } from './ListTable';
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
@@ -60,6 +61,7 @@ export function PendingTokenLayout({
     const theme = useTheme();
     const { setLockDisabled } = useAuthStore();
 
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
     const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
@@ -178,6 +180,14 @@ export function PendingTokenLayout({
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
         staleTime: 30000,
     });
+
+    const fiatValue = React.useMemo(() => {
+        if (!btcData?.price) return '...';
+        return currencyService.formatValue(
+            currencyService.convertSatsToCurrency(Number(amount), btcData.price),
+            secondaryCurrency as CurrencyCode
+        );
+    }, [amount, btcData?.price, secondaryCurrency]);
 
     // Sync currentToken when prop token changes
     useEffect(() => {
@@ -329,7 +339,30 @@ export function PendingTokenLayout({
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
-        <YStack flex={1} bg="$background" gap="$3" width="100%">
+        <YStack flex={1} bg="$background" gap="$3" pb="$5" width="100%">
+            {/* Big Amount Display */}
+            <YStack items="center" justify="center" py="$4">
+                {primaryCurrency === 'SATS' ? (
+                    <>
+                        <Text fontSize={38} fontVariant={['tabular-nums']} fontWeight="900" color="$color">
+                            ₿{Number(amount || 0).toLocaleString()}
+                        </Text>
+                        <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
+                            {fiatValue}
+                        </Text>
+                    </>
+                ) : (
+                    <>
+                        <Text fontSize={38} fontWeight="900" color="$color">
+                            {fiatValue}
+                        </Text>
+                        <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
+                            ₿{Number(amount || 0).toLocaleString()} sats
+                        </Text>
+                    </>
+                )}
+            </YStack>
+
             {/* QR Code */}
             <YStack items="center" gap="$3" >
                 <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
@@ -366,9 +399,7 @@ export function PendingTokenLayout({
                     <YStack items="center" gap="$1" flex={1}>
                         <Button
                             bg="$gray3"
-                            borderWidth={1}
-                            borderColor="$borderColor"
-
+                            
                             size="$6"
                             circular
                             items="center"
@@ -388,9 +419,7 @@ export function PendingTokenLayout({
                     <YStack items="center" gap="$1" flex={1}>
                         <Button
                             bg="$gray3"
-                            borderWidth={1}
-                            borderColor="$borderColor"
-
+                            
                             size="$6"
                             circular
                             items="center"
@@ -402,18 +431,16 @@ export function PendingTokenLayout({
                                 toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
                             }}
                             pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={<NostrIcon size={22} color="$color" />}
+                            icon={<UsersRound size={22} color="$color" />}
                         />
-                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Nostr</Text>
+                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Contact</Text>
                     </YStack>
 
                     {/* Share Link */}
                     <YStack items="center" gap="$1" flex={1}>
                         <Button
                             bg="$gray3"
-                            borderWidth={1}
-                            borderColor="$borderColor"
-
+                            
                             size="$6"
                             circular
                             items="center"
@@ -429,128 +456,126 @@ export function PendingTokenLayout({
                     <YStack items="center" gap="$1" flex={1}>
                         <Button
                             bg="$gray3"
-                            borderWidth={1}
-                            borderColor="$borderColor"
-
+                            
                             size="$6"
                             circular
                             items="center"
                             justify="center"
                             onPress={handleCopy}
                             pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={copied ? <Check size={20} color="$green10" /> : <Copy size={20} color="$color" />}
+                            icon={copied ? <Check size={20} color="$color" /> : <Copy size={20} color="$color" />}
                         />
                         <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Copy</Text>
                     </YStack>
                 </XStack>
             </YStack>
 
-            {/* Submit to Web Button (if raw Cashu token) */}
-            {!currentToken.startsWith('http') && (
-                <Button
-                    size="$5"
-                    bg="$purple10"
-                    color="white"
-                    fontWeight="800"
-                    rounded="$5"
-                    mx="$1"
-                    icon={isPublishing ? <Spinner size="small" color="white" /> : <Globe size={20} />}
-                    onPress={handlePublishToWeb}
-                    disabled={isPublishing}
-                    pressStyle={{ scale: 0.97, bg: "$purple11" }}
-                >
-                    {isPublishing ? 'Publishing...' : 'Publish on bey.cash'}
-                </Button>
-            )}
+            {/* Unified Actions & Details Table */}
+            <ListTable mb="$4">
+                {/* Submit to Web Button (if raw Cashu token) */}
+                {!currentToken.startsWith('http') && (
+                    <ListTableRow
+                        label="Publish on bey.cash"
+                        icon={Globe}
+                        iconColor="$purple10"
+                        rightContent={isPublishing ? <Spinner size="small" /> : <ChevronRight size={16} color="$gray10" />}
+                        onPress={handlePublishToWeb}
+                    />
+                )}
 
-            {/* Link Text Display */}
-            {currentToken.startsWith('http') && (
-                <YStack bg="$gray3" p="$3" rounded="$5" mx="$1" gap="$1" items="center" borderStyle="dashed" borderWidth={1} borderColor="$gray6">
-                    <Text fontSize="$2" color="$gray9" fontWeight="700" textTransform="uppercase" letterSpacing={1}>eCash Sharing Link</Text>
-                    <Text fontSize="$3" color="$accent5" fontWeight="800" numberOfLines={1} text="center" style={{ maxWidth: '95%' }}>
-                        {currentToken}
-                    </Text>
-                </YStack>
-            )}
+                {/* Link Text Display / Copy Web Link */}
+                {currentToken.startsWith('http') && (
+                    <ListTableRow
+                        label="Web Link"
+                        value={`${currentToken.slice(0, 18)}…${currentToken.slice(-6)}`}
+                        isCopyable
+                        onCopy={async () => {
+                            await Clipboard.setStringAsync(currentToken);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            toast.show('Copied!', { message: 'Web share link copied to clipboard' });
+                        }}
+                    />
+                )}
 
-            {/* Details Table */}
-            {!hideDetails && (
-                <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    {primaryCurrency === 'FIAT' ? (
-                        <>
-                            <DetailItem label="Amount" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
-                            <DetailItem label="Sats" value={`₿${amount} sats`} />
-                        </>
-                    ) : (
-                        <>
-                            <DetailItem label="Amount" value={`₿${amount} sats`} />
-                            <DetailItem label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
-                        </>
-                    )}
-                    {fee > 0 && <DetailItem label="Fee" value={`₿${fee} sats`} />}
-                    <DetailItem label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
-                    {displayNpub && (
-                        <DetailItem
-                            label="Locked To"
-                            value={displayNpub === npub ? "You (Safe)" : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`}
-                            isCopyable={displayNpub !== npub}
-                            onCopy={async () => {
-                                await Clipboard.setStringAsync(displayNpub);
-                                Haptics.selectionAsync();
-                                toast.show('Copied!', { message: 'NPUB copied to clipboard' });
-                            }}
-                        />
-                    )}
-                    <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
-                    {currentToken.startsWith('http') && (
-                        <DetailItem
-                            label="Web Link"
-                            value={`${currentToken.slice(0, 18)}…${currentToken.slice(-6)}`}
-                            isCopyable
-                            onCopy={async () => {
-                                await Clipboard.setStringAsync(currentToken);
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                toast.show('Copied!', { message: 'Web share link copied to clipboard' });
-                            }}
-                        />
-                    )}
-                </YStack>
-            )}
+                {/* Details Table Collapse Toggle */}
+                {!hideDetails && (
+                    <ListTableRow
+                        label="Transaction Details"
+                        rightContent={
+                            isDetailsExpanded ? (
+                                <ChevronUp size={18} color="$gray10" />
+                            ) : (
+                                <ChevronDown size={18} color="$gray10" />
+                            )
+                        }
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setIsDetailsExpanded(!isDetailsExpanded);
+                        }}
+                    />
+                )}
 
-            {/* Action Buttons */}
-            {!hideActions && (
+                {/* Details Rows (Conditional on details expansion) */}
+                {!hideDetails && isDetailsExpanded && (
+                    <>
+                        {primaryCurrency === 'FIAT' ? (
+                            <>
+                                <ListTableRow label="Amount" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                                <ListTableRow label="Sats" value={`₿${amount} sats`} />
+                            </>
+                        ) : (
+                            <>
+                                <ListTableRow label="Amount" value={`₿${amount} sats`} />
+                                <ListTableRow label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
+                            </>
+                        )}
+                        {fee > 0 && <ListTableRow label="Fee" value={`₿${fee} sats`} />}
+                        <ListTableRow label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
+                        {displayNpub && (
+                            <ListTableRow
+                                label="Locked To"
+                                value={displayNpub === npub ? "You (Safe)" : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`}
+                                isCopyable={displayNpub !== npub}
+                                onCopy={async () => {
+                                    await Clipboard.setStringAsync(displayNpub);
+                                    Haptics.selectionAsync();
+                                    toast.show('Copied!', { message: 'NPUB copied to clipboard' });
+                                }}
+                            />
+                        )}
+                        <ListTableRow label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
+                    </>
+                )}
+
+                {/* Reclaim Action Row */}
+                {onReclaim && !onClaim && (
+                    <ListTableRow
+                        label="Reclaim Token"
+                        icon={RotateCcw}
+                        iconColor="$red10"
+                        rightContent={isReclaiming ? <Spinner size="small" /> : <ChevronRight size={16} color="$gray10" />}
+                        onPress={onReclaim}
+                    />
+                )}
+            </ListTable>
+
+            {/* Main Action Button (Claim Now) */}
+            {!hideActions && onClaim && (
                 <YStack mt="auto" pb="$8" gap="$4">
-                    {onClaim ? (
-                        <Button
-                            bg="$accent10"
-                            hoverStyle={{ bg: "$accent11" }}
-                            color="white"
-                            size="$5"
-                            height={55}
-                            rounded="$5"
-                            onPress={onClaim}
-                            disabled={isClaiming}
-                            icon={isClaiming ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
-                            fontWeight="800"
-                        >
-                            CLAIM NOW
-                        </Button>
-                    ) : (
-                        onReclaim && (
-                            <Button
-                                onPress={onReclaim}
-                                theme="gray"
-                                size="$5"
-                                height={55}
-                                rounded="$5"
-                                fontWeight="800"
-                                icon={isReclaiming ? <Spinner size="small" /> : <RotateCcw size={18} />}
-                                disabled={isReclaiming}
-                            >
-                                {isReclaiming ? 'Reclaiming...' : 'Reclaim'}
-                            </Button>
-                        )
-                    )}
+                    <Button
+                        bg="$accent10"
+                        hoverStyle={{ bg: "$accent11" }}
+                        color="white"
+                        size="$5"
+                        height={55}
+                        rounded="$5"
+                        onPress={onClaim}
+                        disabled={isClaiming}
+                        icon={isClaiming ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
+                        fontWeight="800"
+                    >
+                        CLAIM NOW
+                    </Button>
                 </YStack>
             )}
             <ProcessingSheet
@@ -569,21 +594,5 @@ export function PendingTokenLayout({
                 }
             />
         </YStack>
-    );
-}
-
-function DetailItem({ label, value, isCopyable, copyValue, onCopy }: { label: string, value: string, isCopyable?: boolean, copyValue?: string, onCopy?: () => void }) {
-    return (
-        <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
-            <XStack gap="$2" items="center">
-                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
-                    {value}
-                </Text>
-                {isCopyable && (
-                    <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
-                )}
-            </XStack>
-        </XStack>
     );
 }
