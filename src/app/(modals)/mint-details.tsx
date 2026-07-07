@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Avatar, ListItem, YGroup } from 'tamagui';
-import { ChevronLeft, ChevronDown, ChevronUp, Landmark, ShieldCheck, ShieldAlert, Sprout, Share2, Building2, Globe, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Trash, Trash2 } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Avatar, ListItem, YGroup, Spinner } from 'tamagui';
+import { ChevronLeft, ChevronDown, ChevronUp, Landmark, ShieldCheck, ShieldAlert, Sprout, Share2, Building2, Globe, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Trash, Trash2, RefreshCw } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { Share as RNShare, Platform } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '~/store/walletStore';
 import { useSettingsStore } from '~/store/settingsStore';
@@ -24,9 +24,10 @@ import * as WebBrowser from 'expo-web-browser';
 export default function MintDetailsModal() {
     const router = useRouter();
     const toast = useToastController();
+    const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
     const { mintUrl } = useLocalSearchParams<{ mintUrl: string }>();
-    const { mints, balances, setActiveMint, activeMintUrl, removeMint } = useWalletStore();
+    const { mints, balances, setActiveMint, activeMintUrl, removeMint, restoreFromSeed, isRestoring, restoringMintUrl } = useWalletStore();
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const [isAboutExpanded, setIsAboutExpanded] = useState(false);
     const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
@@ -45,6 +46,22 @@ export default function MintDetailsModal() {
             toast.show('Error', {
                 message: e.message || 'Failed to remove mint.',
             });
+        }
+    };
+
+    const handleRestoreProofs = async () => {
+        if (!mintUrl) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        try {
+            toast.show('Restoring...', { message: 'Checking for unspent proofs on this mint...' });
+            await restoreFromSeed(mintUrl);
+            toast.show('Restore Complete', { message: 'Finished checking for proofs.' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            queryClient.invalidateQueries({ queryKey: ['history'] });
+        } catch (e: any) {
+            console.error('[MintDetails] Restore failed:', e);
+            toast.show('Restore Failed', { message: e.message || 'Error occurred during restore.' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
     };
 
@@ -560,7 +577,7 @@ export default function MintDetailsModal() {
                 </YStack>
             </ScrollView>
 
-            {/* Floating Remove Mint Button */}
+            {/* Floating Action Buttons */}
             <XStack
                 px="$4"
                 pb={"$4"}
@@ -568,7 +585,20 @@ export default function MintDetailsModal() {
                 bg="$background"
                 borderTopWidth={1}
                 borderColor="$borderColor"
+                gap="$2.5"
             >
+                <Button
+                    flex={1.2}
+                    size="$5"
+                  variant='outlined'
+                    onPress={handleRestoreProofs}
+                    disabled={isRestoring}
+                    fontWeight="800"
+                    icon={isRestoring && restoringMintUrl === mintUrl ? <Spinner size="small" color="$accent10" /> : <RefreshCw size={18} />}
+                >
+                    {isRestoring && restoringMintUrl === mintUrl ? "Restoring..." : "Restore"}
+                </Button>
+
                 <Button
                     flex={1}
                     size="$5"
@@ -580,7 +610,7 @@ export default function MintDetailsModal() {
                     fontWeight="800"
                     icon={<Trash2 strokeWidth={2.5} />}
                 >
-                    Remove Mint
+                    Remove
                 </Button>
             </XStack>
 

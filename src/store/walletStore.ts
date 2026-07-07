@@ -320,6 +320,7 @@ export const useWalletStore = create<WalletState>()(
                             set({ activeMintUrl: nextActive || null });
                         }
                     }
+                    await get().refreshBalance();
                     InteractionManager.runAfterInteractions(() => {
                         get().syncMintsToNostr();
                     });

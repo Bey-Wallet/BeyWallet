@@ -256,7 +256,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
             py="$3"
             items="center"
             pr="$3"
-            rounded="$4"
+            rounded="$5"
         >
             <TouchableOpacity
                 onPress={handlePress}

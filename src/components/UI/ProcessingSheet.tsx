@@ -161,6 +161,7 @@ export function ProcessingSheet({
   const isProcessing = status === 'processing';
   const isSuccess = status === 'success';
   const isError = status === 'error';
+  const isOfflineSaved = isError && errorMessage && (errorMessage.includes('Could not connect to mint') || errorMessage.includes('saved to your transaction history') || errorMessage.includes('saved in your history'));
 
   const mintDomain = mintUrl
     ? mintUrl.replace(/^https?:\/\//, '').split('/')[0]
@@ -213,16 +214,20 @@ export function ProcessingSheet({
               <CheckCircle2 size={48} color="$green10" strokeWidth={2.5} />
             )}
 
-            {isError && (
+            {isError && !isOfflineSaved && (
               <XCircle size={48} color="$red10" strokeWidth={2.5} />
+            )}
+
+            {isOfflineSaved && (
+              <Clock size={48} color="$orange10" strokeWidth={2.5} />
             )}
 
             <Text
               fontSize="$5"
               fontWeight="700"
-              color={isError ? "$red10" : isSuccess ? "$green10" : "$color1"}
+              color={isOfflineSaved ? "$orange10" : isError ? "$red10" : isSuccess ? "$green10" : "$color1"}
             >
-              {isError ? "Payment Failed" : isSuccess ? "Success" : title}
+              {isOfflineSaved ? "Received Offline" : isError ? "Payment Failed" : isSuccess ? "Success" : title}
             </Text>
           </YStack>
 
@@ -246,8 +251,8 @@ export function ProcessingSheet({
           {/* ── Details / Error Message ────────────────────────────────── */}
           <View width="100%" items="center" justify="center">
             {isError && errorMessage && (
-              <YStack items="center" gap="$3" width="100%" bg="$red3" p="$4" rounded="$4">
-                <Text fontSize="$3" color="$red11" textAlign="center" fontWeight="500">
+              <YStack items="center" gap="$3" width="100%" bg={isOfflineSaved ? "$orange2" : "$red3"} p="$4" rounded="$4" borderWidth={1} borderColor={isOfflineSaved ? "$orange7" : "$red8"}>
+                <Text fontSize="$3" color={isOfflineSaved ? "$orange11" : "$red11"} textAlign="center" fontWeight="500">
                   {errorMessage}
                 </Text>
               </YStack>
@@ -280,13 +285,21 @@ export function ProcessingSheet({
 
             {isError && (
               <>
-                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$5" pressStyle={{ scale: 0.97 }}>
-                  Dismiss
-                </Button>
-                {onRetry && (
-                  <Button flex={1} bg="$red9" color="white" size="$5" fontWeight="700" onPress={onRetry} rounded="$5" pressStyle={{ scale: 0.97 }}>
-                    Try Again
+                {isOfflineSaved ? (
+                  <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$5" pressStyle={{ scale: 0.97 }}>
+                    Got it
                   </Button>
+                ) : (
+                  <>
+                    <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$5" pressStyle={{ scale: 0.97 }}>
+                      Dismiss
+                    </Button>
+                    {onRetry && (
+                      <Button flex={1} bg="$red9" color="white" size="$5" fontWeight="700" onPress={onRetry} rounded="$5" pressStyle={{ scale: 0.97 }}>
+                        Try Again
+                      </Button>
+                    )}
+                  </>
                 )}
               </>
             )}

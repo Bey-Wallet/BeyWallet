@@ -49,6 +49,23 @@ export const mintManager = {
         } else {
             await (repo.mintRepository as any).deleteMint?.(mintUrl);
         }
+
+        // Clean up all tables containing the deleted mintUrl to purge data completely
+        try {
+            const db = (repo as any).db;
+            if (db && typeof db.run === 'function') {
+                console.log(`[MintManager] Wiping database tables for mint: ${mintUrl}`);
+                await db.run('DELETE FROM coco_cashu_keysets WHERE mintUrl = ?', [mintUrl]);
+                await db.run('DELETE FROM coco_cashu_counters WHERE mintUrl = ?', [mintUrl]);
+                await db.run('DELETE FROM coco_cashu_proofs WHERE mintUrl = ?', [mintUrl]);
+                await db.run('DELETE FROM coco_cashu_mint_quotes WHERE mintUrl = ?', [mintUrl]);
+                await db.run('DELETE FROM coco_cashu_melt_quotes WHERE mintUrl = ?', [mintUrl]);
+                await db.run('DELETE FROM coco_cashu_history WHERE mintUrl = ?', [mintUrl]);
+            }
+        } catch (dbErr) {
+            console.error('[MintManager] Failed to wipe DB tables for removed mint:', dbErr);
+        }
+
         console.log(`[MintManager] Mint removed: ${mintUrl}`);
     },
 

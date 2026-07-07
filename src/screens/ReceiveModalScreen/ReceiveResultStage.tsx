@@ -87,7 +87,20 @@ export function ReceiveResultStage({
         }
     };
 
+    const isOfflineSaved = !isSuccess && error && (error.includes('Could not connect to mint') || error.includes('saved to your transaction history') || error.includes('saved in your history'));
+
     if (!isSuccess) {
+        if (isOfflineSaved) {
+            return (
+                <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
+                    <Clock size={80} color="$orange10" />
+                    <Text color="$orange10" fontSize="$6" fontWeight="700" text="center">Received Offline</Text>
+                    <Text color="$gray10" fontSize="$4" text="center" px="$4" lineHeight={22}>{error}</Text>
+                    <Button theme="accent" size="$5" width="100%" onPress={onClose} mt="$4">Got it</Button>
+                </YStack>
+            );
+        }
+
         return (
             <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
                 <AlertCircle size={80} color="$red10" />

@@ -227,7 +227,11 @@ const customLogger = {
             msg.includes('Keyset restore failed') ||
             msg.includes('Restore completed with failures') ||
             msg.includes('WS request error') ||
-            msg.includes('Polling task error')
+            msg.includes('Polling task error') ||
+            msg.includes('Failed to process mint quote') ||
+            msg.includes('Failed to redeem mint quote') ||
+            msg.includes('had undefined amount') ||
+            msg.includes('Quote amount undefined')
         ) {
             // Suppress noisy expected background/network errors
             return;
@@ -237,7 +241,11 @@ const customLogger = {
     warn: (msg: string, ...meta: any[]) => {
         if (
             msg.includes('WS request error') ||
-            msg.includes('Polling task error')
+            msg.includes('Polling task error') ||
+            msg.includes('had undefined amount') ||
+            msg.includes('Quote amount undefined') ||
+            msg.includes('Failed to process mint quote') ||
+            msg.includes('Failed to redeem mint quote')
         ) {
             // Suppress noisy expected background/network warnings
             return;

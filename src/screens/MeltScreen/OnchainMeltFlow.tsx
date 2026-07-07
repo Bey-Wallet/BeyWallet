@@ -107,25 +107,12 @@ export function OnchainMeltFlow() {
         // Support standard base58 and bech32/bech32m addresses (which contain 0 and go up to 90+ chars)
         const regex = /^(1|3|bc1|tb1|bcrt1|m|n|2)[a-zA-Z0-9]{25,95}$/i;
         const matched = regex.test(cleaned);
-        console.log('[OnchainMeltFlow] isValidAddress check:', {
-            address: cleaned,
-            length: cleaned.length,
-            regexMatch: matched
-        });
         return matched;
     }, [address]);
 
     const amountSats = parseInt(amount, 10) || 0;
     const isOverBalance = amountSats > balance;
     const canContinue = isValidAddress && amountSats > 0 && !isOverBalance;
-
-    console.log('[OnchainMeltFlow] canContinue calculation:', {
-        isValidAddress,
-        amountSats,
-        balance,
-        isOverBalance,
-        canContinue
-    });
 
     // Handle quote creation
     const handleGetQuote = async () => {

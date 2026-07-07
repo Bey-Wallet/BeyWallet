@@ -11,7 +11,7 @@
 
 import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
-import { cleanToken, encodeToken } from './tokenUtils';
+import { cleanToken, encodeToken, decodeToken } from './tokenUtils';
 import type { Token } from '@cashu/cashu-ts';
 import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
@@ -133,6 +133,88 @@ async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retr
     }
 }
 
+function isNetworkError(err: any): boolean {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+        msg.includes('fetch') ||
+        msg.includes('network') ||
+        msg.includes('connect') ||
+        msg.includes('unreachable') ||
+        msg.includes('timeout') ||
+        msg.includes('abort') ||
+        msg.includes('status code 5') ||
+        msg.includes('failed to fetch') ||
+        err?.name === 'AbortError' ||
+        err?.name === 'TypeError'
+    );
+}
+
+async function handleOfflineReceive(token: string, mintUrl: string | null, error: any) {
+    try {
+        console.log('[WalletService] 🔌 Network error during receive. Saving token to history...');
+        const decoded = decodeToken(token);
+        const finalMintUrl = mintUrl || decoded.mint;
+        if (!finalMintUrl) {
+            console.warn('[WalletService] Cannot save offline token: no mint URL found');
+            return;
+        }
+
+        const repo = initService.getRepo();
+        if (!repo?.historyRepository) {
+            console.warn('[WalletService] Cannot save offline token: historyRepository not initialized');
+            return;
+        }
+
+        // 1. Ensure mint is added/known so it appears in the mint list and filters
+        const mintsList = await repo.mintRepository.getAllMints();
+        const knownMints = mintsList.map((m: any) => m.mintUrl.toLowerCase());
+        if (!knownMints.includes(finalMintUrl.toLowerCase())) {
+            try {
+                const { mintManager } = require('./mintManager');
+                await mintManager.addMint(finalMintUrl, { trusted: true });
+                console.log('[WalletService] Offline Receive: added/trusted unknown mint:', finalMintUrl);
+            } catch (addErr) {
+                console.warn('[WalletService] Offline Receive: failed to auto-add mint in background:', addErr);
+            }
+        }
+
+        // 2. Check if this token is already in history to prevent duplicates
+        const historyList = await repo.historyRepository.getPaginatedHistoryEntries(100, 0);
+        const exists = historyList.find((item: any) => {
+            const itemToken = typeof item.tokenJson === 'string' ? item.tokenJson : JSON.stringify(item.token);
+            return itemToken && (itemToken.includes(token) || token.includes(itemToken));
+        });
+
+        if (exists) {
+            console.log('[WalletService] Offline Receive: Token already exists in history as ID:', exists.id);
+            throw new Error(`Could not connect to mint. This token is already saved in your history (ID: ${exists.id}) to claim later.`);
+        }
+
+        // 3. Add to history as 'unclaimed' receive
+        const newEntry = await (repo.historyRepository as any).addHistoryEntry({
+            mintUrl: finalMintUrl,
+            type: 'receive',
+            unit: decoded.unit || 'sat',
+            amount: decoded.amount || 0,
+            createdAt: Date.now(),
+            state: 'unclaimed',
+            token: decoded,
+            metadata: {
+                offline: true,
+                memo: decoded.memo || 'Offline Receive',
+                originalError: error?.message || 'Network request failed'
+            }
+        });
+
+        console.log('[WalletService] Offline token saved as transaction ID:', newEntry.id);
+        throw new Error("Could not connect to mint. The token has been saved to your transaction history so you can claim it later when you are online.");
+    } catch (saveErr: any) {
+        if (saveErr.message.includes('Could not connect to mint')) {
+            throw saveErr;
+        }
+        console.error('[WalletService] Failed to save offline token:', saveErr);
+    }
+}
 
 export const walletService = {
     // ─── Sending ──────────────────────────────────────────────
@@ -515,6 +597,9 @@ export const walletService = {
                     console.log('[WalletService] ✅ Token received (after cache clear)');
                     return;
                 } catch (retryErr: any) {
+                    if (isNetworkError(retryErr)) {
+                        await handleOfflineReceive(cleaned, mintUrl, retryErr);
+                    }
                     throw retryErr;
                 }
             }
@@ -525,6 +610,10 @@ export const walletService = {
 
             if (msg.includes('could not be verified') || msg.includes('outputs')) {
                 throw new Error('Token proofs could not be verified. The token may have already been redeemed.');
+            }
+
+            if (isNetworkError(err)) {
+                await handleOfflineReceive(cleaned, mintUrl, err);
             }
 
             throw err;

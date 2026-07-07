@@ -384,7 +384,7 @@ export function HistoryScreen() {
 
             {/* ── Content ── */}
             {flatItems.length === 0 ? (
-                <YStack flex={1} items="center" justify="center" gap="$4" pb={100}>
+                <YStack flex={1} items="center" justify="flex-start" gap="$4" pb={100}>
                     <View style={styles.emptyIcon}>
                         <Clock size={36} color="$gray8" />
                     </View>
