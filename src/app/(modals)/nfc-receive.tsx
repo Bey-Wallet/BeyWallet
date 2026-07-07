@@ -68,19 +68,49 @@ export default function NFCReceiveScreen() {
 
     const processTag = async (tag: any) => {
         try {
-            const payload = tag.ndefMessage?.[0]?.payload;
+            const ndefMessage = tag.ndefMessage;
+            if (!ndefMessage || ndefMessage.length === 0) {
+                throw new Error('No NDEF message found on tag');
+            }
+
+            const record = ndefMessage[0];
+            const payload = record?.payload;
             if (!payload) {
                 throw new Error('No data found on tag');
             }
 
-            // Remove NDEF Text metadata if present (language code prefix)
-            let decoded = new TextDecoder().decode(new Uint8Array(payload));
-            console.log('[NFCReceive] Decoded raw payload:', decoded);
+            // Detect record type (tnf + type bytes)
+            // TNF 1 = Well-Known; type 0x54 = 'T' (Text), type 0x55 = 'U' (URI)
+            const tnf = record.tnf;
+            const typeArr: number[] = record.type ?? [];
+            const isUriRecord = tnf === 1 && typeArr[0] === 0x55;
 
-            // NDEF text records prefix the payload with language identifier length (usually 0x02 or 0x05) + 'en' or similar.
-            // Let's strip non-printable ASCII prefix characters to get the clean text string.
-            decoded = decoded.replace(/^[\u0000-\u001F]+(?:en|es|fr|de|it)?/i, '').trim();
-            console.log('[NFCReceive] Cleaned decoded payload:', decoded);
+            let decoded: string;
+
+            if (isUriRecord) {
+                // NDEF URI payload: first byte is URI identifier code
+                // 0x00 = no prefix, 0x01 = 'http://www.', etc.
+                // For 'cashu:' we use 0x00 (no prefix), so skip first byte
+                const payloadBytes = new Uint8Array(payload);
+                const uriPrefix = payloadBytes[0];
+                let uriBody = new TextDecoder().decode(payloadBytes.slice(1));
+                // Map standard URI prefix codes
+                const prefixes: Record<number, string> = {
+                    0x00: '', 0x01: 'http://www.', 0x02: 'https://www.',
+                    0x03: 'http://', 0x04: 'https://'
+                };
+                decoded = (prefixes[uriPrefix] ?? '') + uriBody;
+                console.log('[NFCReceive] Decoded URI record:', decoded);
+                // Strip cashu: scheme prefix so token matching works below
+                if (decoded.startsWith('cashu:')) {
+                    decoded = decoded.slice(6);
+                }
+            } else {
+                // Text record — strip language code prefix
+                decoded = new TextDecoder().decode(new Uint8Array(payload));
+                decoded = decoded.replace(/^[\u0000-\u001F]+(?:en|es|fr|de|it)?/i, '').trim();
+                console.log('[NFCReceive] Decoded text record:', decoded);
+            }
 
             // 1. Check for Cashu token
             const tokenMatch = decoded.match(/(cashu[A-Za-z0-9_-]+)/);

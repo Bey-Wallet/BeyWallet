@@ -4,7 +4,7 @@ import {
     Avatar, Square, Circle, useTheme
 } from 'tamagui';
 import {
-    ChevronLeft, RefreshCw, Building2, CheckCircle2, AlertCircle,
+    ChevronLeft, RefreshCw, Landmark, CheckCircle2, AlertCircle,
     Clock, Trash2, Share2, ChevronDown, Check, ShieldOff,
     Database, Layers, PackageOpen, Copy, ArrowLeft, Zap, ChevronRight
 } from '@tamagui/lucide-icons';
@@ -731,7 +731,7 @@ export default function ProofsModal() {
                                 <Avatar rounded="$3" size="$1.5">
                                     <Avatar.Image src={activeMintInfo?.icon} />
                                     <Avatar.Fallback bg="$color5" items="center" justify="center">
-                                        <Building2 size={12} color="$color10" />
+                                        <Landmark size={12} color="$color10" />
                                     </Avatar.Fallback>
                                 </Avatar>
                             }
@@ -875,7 +875,7 @@ export default function ProofsModal() {
                                             <Avatar rounded="$3" size="$3">
                                                 <Avatar.Image src={info?.icon} />
                                                 <Avatar.Fallback bg="$gray3" items="center" justify="center">
-                                                    <Building2 size={16} color="$gray10" />
+                                                    <Landmark size={16} color="$gray10" />
                                                 </Avatar.Fallback>
                                             </Avatar>
                                             <YStack flex={1}>

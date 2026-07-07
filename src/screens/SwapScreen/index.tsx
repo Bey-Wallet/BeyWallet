@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { YStack, XStack, Text, Button, View, Separator, Spinner } from 'tamagui';
-import { RefreshCw, ShieldCheck, Building2, Zap } from '@tamagui/lucide-icons';
+import { RefreshCw, ShieldCheck, Landmark, Zap } from '@tamagui/lucide-icons';
 import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
@@ -182,7 +182,7 @@ export default function SwapScreen() {
 
                         <XStack justify="space-between" items="center" px="$4" py="$3">
                             <XStack gap="$2" items="center">
-                                <Building2 size={18} color="$gray10" />
+                                <Landmark size={18} color="$gray10" />
                                 <Text color="$gray10" fontWeight="600">From</Text>
                             </XStack>
                             <Text fontWeight="800" fontSize="$5" numberOfLines={1} style={{ maxWidth: 180 }}>
@@ -194,7 +194,7 @@ export default function SwapScreen() {
 
                         <XStack justify="space-between" items="center" px="$4" py="$3">
                             <XStack gap="$2" items="center">
-                                <Building2 size={18} color="$gray10" />
+                                <Landmark size={18} color="$gray10" />
                                 <Text color="$gray10" fontWeight="600">To</Text>
                             </XStack>
                             <Text fontWeight="800" fontSize="$5" numberOfLines={1} style={{ maxWidth: 180 }}>

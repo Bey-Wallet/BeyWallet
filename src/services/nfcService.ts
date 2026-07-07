@@ -71,9 +71,15 @@ const startHceSimulation = async (text: string) => {
     
     try {
         useAuthStore.getState().setLockDisabled(true);
+
+        // Use URL record type — more reliably dispatched by Android's NFC reader
+        // mode (used by Minibits and other wallets). Wrap the raw cashu token as
+        // a URL with "cashu:" prefix so receivers can parse it as a URI or plain text.
+        const content = text.startsWith('http') ? text : `cashu:${text}`;
+
         const tag = new NFCTagType4({
-            type: NFCTagType4NDEFContentType.Text,
-            content: text,
+            type: NFCTagType4NDEFContentType.URL,
+            content,
             writable: false,
         });
 
@@ -82,7 +88,7 @@ const startHceSimulation = async (text: string) => {
             throw new Error('Failed to get HCE session instance');
         }
 
-        session.setApplication(tag);
+        await session.setApplication(tag);
         await session.setEnabled(true);
         return session;
     } catch (e: any) {

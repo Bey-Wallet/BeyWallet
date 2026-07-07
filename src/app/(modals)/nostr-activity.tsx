@@ -12,7 +12,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, Text, View, Separator, H6, Theme, Button, Spinner } from 'tamagui';
-import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight, Building2, Clock, Lock, User, Copy, Zap } from '@tamagui/lucide-icons';
+import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight, Landmark, Clock, Lock, User, Copy, Zap } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
@@ -389,7 +389,7 @@ export default function NostrActivityModal() {
                                         <DetailSheetRow pubkey={detailItem.pubkey} storedUsername={detailItem.username} type={detailItem.type} />
                                         <Separator borderColor="$borderColor" opacity={0.3} />
                                         <DetailRow
-                                            icon={<Building2 size={16} color="$gray9" />}
+                                            icon={<Landmark size={16} color="$gray9" />}
                                             label="Mint"
                                             value={mintDomain}
                                         />

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, Avatar, Square, ListItem, YGroup } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2, ChevronRight, Database, Zap } from '@tamagui/lucide-icons';
+import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Landmark, BanknoteArrowUp, BanknoteArrowDown, Clock, Trash2, ChevronRight, Database, Zap, Bitcoin } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -186,8 +186,30 @@ export default function EcashModal() {
       };
     }
     const isOutgoing = entry.type === 'send' || entry.type === 'melt';
+    const metadata = entry.historyEntry?.metadata;
+    const via = (() => {
+      if (!metadata) return undefined;
+      if (typeof metadata === 'string') {
+        try {
+          return JSON.parse(metadata).via;
+        } catch {
+          return undefined;
+        }
+      }
+      return metadata.via;
+    })();
+
+    let icon = isOutgoing ? BanknoteArrowUp : BanknoteArrowDown;
+    if (entry.type === 'mint') {
+      icon = via === 'onchain' ? Bitcoin : Landmark;
+    } else if (entry.type === 'melt') {
+      icon = via === 'onchain' ? Bitcoin : Zap;
+    } else if (entry.type === 'swap') {
+      icon = RefreshCw;
+    }
+
     return {
-      icon: entry.type === 'mint' ? Landmark : (isOutgoing ? BanknoteArrowUp : BanknoteArrowDown),
+      icon,
       iconColor: isOutgoing ? '$red10' : '$green11',
       bgColor: isOutgoing ? '$red2' : '$green2',
       sign: isOutgoing ? '-' : '+',
@@ -257,7 +279,7 @@ export default function EcashModal() {
                 <Avatar rounded="$3" size="$1.5">
                   <Avatar.Image src={activeMint?.icon} />
                   <Avatar.Fallback backgroundColor="$color5" alignItems="center" justifyContent="center">
-                    <Building2 size={12} color="$color10" />
+                    <Landmark size={12} color="$color10" />
                   </Avatar.Fallback>
                 </Avatar>
               }

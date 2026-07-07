@@ -1,11 +1,16 @@
 import React from 'react';
-import { YStack, Text, Button, Separator, Circle, H2, ScrollView, H6 } from "tamagui";
+import { YStack, XStack, Text, Button, Separator, H2, ScrollView, H6 } from "tamagui";
 import { Check } from "@tamagui/lucide-icons";
 import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { Stack } from 'expo-router';
+import { ListTable, ListTableRow } from '~/components/UI/ListTable';
+import { StatusBadge } from '~/components/UI/StatusBadge';
+import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 
 interface SuccessStageProps {
     amount: string;
@@ -21,6 +26,7 @@ export function SuccessStage({
     onClose
 }: SuccessStageProps) {
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -35,77 +41,108 @@ export function SuccessStage({
         )
         : '...';
 
+    const primaryAmountLabel = primaryCurrency === 'SATS'
+        ? `₿${parseInt(amount).toLocaleString()}`
+        : fiatValue;
+    const secondaryAmountLabel = primaryCurrency === 'SATS'
+        ? fiatValue
+        : `₿${parseInt(amount).toLocaleString()} sats`;
+
     return (
         <YStack flex={1} bg="$background" p="$0" gap="$3">
+            {/* Header: amount as title + Success badge */}
+            <Stack.Screen
+                options={{
+                    headerTitleAlign: 'center',
+                    headerTitle: () => (
+                        <YStack items="center" justify="center" gap={1}>
+                            <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
+                                {primaryAmountLabel}
+                            </Text>
+                            <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
+                                {secondaryAmountLabel}
+                            </Text>
+                        </YStack>
+                    ),
+                    headerRight: () => (
+                        <XStack pr="$2" items="center">
+                            <StatusBadge status="success" />
+                        </XStack>
+                    ),
+                }}
+            />
 
-            <YStack width="100%" justify="space-between" height={300} bg="$gray2" rounded="$5" items="center" gap="$4">
-
-                <H6 width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" color="$color">Sent Successfully!</H6>
-                <YStack items="center" justify="center">
-                    {primaryCurrency === 'SATS' ? (
-                        <>
-                            <H2 fontSize="$9" fontWeight="900" color="$green11">
-                                ₿{parseInt(amount).toLocaleString()}
-                            </H2>
-                            <H2 fontSize="$6" fontWeight="100" color="$gray10">
-                                sats
-                            </H2>
-                        </>
-                    ) : (
-                        <>
-                            <H2 fontSize="$9" fontWeight="900" color="$green11">
-                                {fiatValue}
-                            </H2>
-                            <H2 fontSize="$6" fontWeight="100" color="$gray10">
-                                ₿{parseInt(amount).toLocaleString()} sats
-                            </H2>
-                        </>
-                    )}
+            {/* Success icon card */}
+            <YStack width="100%" justify="center" items="center" gap="$4" py="$6" bg="$gray2" rounded="$5">
+                <YStack
+                    width={90}
+                    height={90}
+                    rounded="$10"
+                    bg="$green4"
+                    items="center"
+                    justify="center"
+                    animation="bouncy"
+                    enterStyle={{ scale: 0, opacity: 0 }}
+                >
+                    <Check size={46} color="$green10" strokeWidth={3} />
                 </YStack>
-                <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
+                <YStack items="center" gap="$1">
+                    <Text fontSize="$6" fontWeight="900" color="$color">Sent Successfully!</Text>
                     <Text color="$gray10" fontSize="$4">The recipient has claimed your ecash</Text>
                 </YStack>
             </YStack>
 
-
-            <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                <DetailItem label="Status" value="Claimed" />
-                <DetailItem label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
-                <DetailItem label="Fee Paid" value={`₿${fee} sats`} />
-                {primaryCurrency === 'FIAT' ? (
-                    <DetailItem label="Sats Value" value={`₿${parseInt(amount).toLocaleString()} sats`} />
-                ) : (
-                    <DetailItem label="Fiat Value" value={fiatValue} />
+            {/* Details table */}
+            <ListTable>
+                <ListTableRow
+                    label="Transaction Details"
+                    rightContent={
+                        isDetailsExpanded
+                            ? <ChevronUp size={18} color="$gray10" />
+                            : <ChevronDown size={18} color="$gray10" />
+                    }
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setIsDetailsExpanded(v => !v);
+                    }}
+                />
+                {isDetailsExpanded && (
+                    <>
+                        <ListTableRow label="Status" value="Claimed" />
+                        <ListTableRow
+                            label="Date"
+                            value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        />
+                        {mintUrl && (
+                            <ListTableRow
+                                label="Mint"
+                                value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]}
+                            />
+                        )}
+                        <ListTableRow label="Fee Paid" value={`₿${fee} sats`} />
+                        {primaryCurrency === 'FIAT' ? (
+                            <ListTableRow label="Sats Value" value={`₿${parseInt(amount).toLocaleString()} sats`} />
+                        ) : (
+                            <ListTableRow label="Fiat Value" value={fiatValue} />
+                        )}
+                    </>
                 )}
-            </YStack>
+            </ListTable>
 
-            <YStack mt="auto">
+            <YStack mt="auto" px="$4" pb="$6">
                 <Button
                     theme="green"
                     bg="$green10"
                     color="white"
                     size="$5"
+                    height={55}
+                    rounded="$5"
                     fontWeight="800"
                     onPress={onClose}
                 >
                     Done
                 </Button>
             </YStack>
-        </YStack >
+        </YStack>
     );
 }
-
-function DetailItem({ label, value }: { label: string, value: string }) {
-    return (
-        <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
-            <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
-                {value}
-            </Text>
-        </XStack>
-    );
-}
-
-// Need to import XStack for DetailItem
-import { XStack } from "tamagui";

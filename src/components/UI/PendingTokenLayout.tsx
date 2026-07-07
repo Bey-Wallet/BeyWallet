@@ -25,6 +25,7 @@ import NostrIcon from '~/components/icons/NostrIcon';
 import { nfcService } from '~/services/nfcService';
 import { ProcessingSheet, ProcessingStatus } from './ProcessingSheet';
 import { useAuthStore } from '~/store/authStore';
+import { StatusBadge, BadgeStatus } from './StatusBadge';
 
 export interface PendingTokenLayoutProps {
     token: string;
@@ -40,6 +41,12 @@ export interface PendingTokenLayoutProps {
     isClaiming?: boolean;
     onNfcPress?: () => void;
     expiresAt?: number;
+    /** Controls the status badge color in the header. Defaults to 'pending'. */
+    headerStatus?: BadgeStatus;
+    /** Called when the status badge is tapped. */
+    onCheckStatus?: () => void | Promise<void>;
+    /** Shows spinner on the badge while a status check is in-flight. */
+    isCheckingStatus?: boolean;
 }
 
 export function PendingTokenLayout({
@@ -56,6 +63,9 @@ export function PendingTokenLayout({
     isClaiming = false,
     onNfcPress,
     expiresAt,
+    headerStatus = 'pending',
+    onCheckStatus,
+    isCheckingStatus = false,
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
     const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
@@ -339,30 +349,41 @@ export function PendingTokenLayout({
 
     const displayNpub = lockedToNpub || parsedNpub;
 
+    // Header amount display values
+    const primaryAmountLabel = primaryCurrency === 'SATS'
+        ? `₿${Number(amount || 0).toLocaleString()}`
+        : fiatValue;
+    const secondaryAmountLabel = primaryCurrency === 'SATS'
+        ? fiatValue
+        : `₿${Number(amount || 0).toLocaleString()} sats`;
+
     return (
         <YStack flex={1} bg="$background" gap="$3" pb="$5" width="100%">
-            {/* Big Amount Display */}
-            <YStack items="center" justify="center" py="$4">
-                {primaryCurrency === 'SATS' ? (
-                    <>
-                        <Text fontSize={38} fontVariant={['tabular-nums']} fontWeight="900" color="$color">
-                            ₿{Number(amount || 0).toLocaleString()}
-                        </Text>
-                        <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
-                            {fiatValue}
-                        </Text>
-                    </>
-                ) : (
-                    <>
-                        <Text fontSize={38} fontWeight="900" color="$color">
-                            {fiatValue}
-                        </Text>
-                        <Text fontSize="$4" fontWeight="600" color="$gray10" mt="$1">
-                            ₿{Number(amount || 0).toLocaleString()} sats
-                        </Text>
-                    </>
-                )}
-            </YStack>
+            {/* Header: amount as title + status badge as right action */}
+            <Stack.Screen
+                options={{
+                    headerTitleAlign: 'center',
+                    headerTitle: () => (
+                        <YStack items="center" justify="center" gap={1}>
+                            <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
+                                {primaryAmountLabel}
+                            </Text>
+                            <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
+                                {secondaryAmountLabel}
+                            </Text>
+                        </YStack>
+                    ),
+                    headerRight: () => (
+                        <XStack pr="$2" items="center">
+                            <StatusBadge
+                                status={headerStatus}
+                                onPress={onCheckStatus}
+                                isChecking={isCheckingStatus}
+                            />
+                        </XStack>
+                    ),
+                }}
+            />
 
             {/* QR Code */}
             <YStack items="center" gap="$3" >
@@ -401,8 +422,9 @@ export function PendingTokenLayout({
                         <Button
                             bg="$gray3"
                             
-                            size="$6"
-                            circular
+                            size="$5"
+                            width="$8"
+                            
                             items="center"
                             justify="center"
                             onPress={() => {
@@ -421,8 +443,9 @@ export function PendingTokenLayout({
                         <Button
                             bg="$gray3"
                             
-                            size="$6"
-                            circular
+                            size="$5"
+                            width="$8"
+                            
                             items="center"
                             justify="center"
                             disabled={!!displayNpub}
@@ -442,8 +465,9 @@ export function PendingTokenLayout({
                         <Button
                             bg="$gray3"
                             
-                            size="$6"
-                            circular
+                            size="$5"
+                            width="$8"
+                            
                             items="center"
                             justify="center"
                             onPress={handleShare}
@@ -458,8 +482,9 @@ export function PendingTokenLayout({
                         <Button
                             bg="$gray3"
                             
-                            size="$6"
-                            circular
+                            size="$5"
+                            width="$8"
+                            
                             items="center"
                             justify="center"
                             onPress={handleCopy}

@@ -16,6 +16,7 @@ import {
     Coins,
     ChevronLeft,
     Clipboard,
+    Bitcoin,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { LayoutAnimation } from 'react-native';
@@ -92,7 +93,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                 {
                     key: 'deposit_chain',
                     label: 'Top Up via On-Chain',
-                    icon: <Landmark size={24} color="$gray10" />,
+                    icon: <Bitcoin size={24} color="$gray10" />,
                     iconBg: '$gray4',
                     path: '/mint?mode=onchain',
                 },
@@ -106,7 +107,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                 {
                     key: 'withdraw_chain',
                     label: 'Pay to On-Chain Address',
-                    icon: <Landmark size={24} color="$gray10" />,
+                    icon: <Bitcoin size={24} color="$gray10" />,
                     iconBg: '$gray4',
                     path: '/(modals)/melt?mode=onchain',
                 }
@@ -133,7 +134,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     {
                         key: 'onchain',
                         label: 'On-chain',
-                        icon: <Landmark size={24} color="$gray10" />,
+                        icon: <Bitcoin size={24} color="$gray10" />,
                         iconBg: '$gray2',
                         path: '/(modals)/melt?mode=onchain',
                     }
@@ -192,7 +193,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     {
                         key: 'onchain',
                         label: 'On-chain',
-                        icon: <Landmark size={24} color="$gray10" />,
+                        icon: <Bitcoin size={24} color="$gray10" />,
                         iconBg: '$gray2',
                         path: '/mint?mode=onchain',
                     }

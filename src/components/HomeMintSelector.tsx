@@ -5,7 +5,7 @@ import {
   ShieldCheck,
   ShieldOff,
   Edit3,
-  Building2,
+  Landmark,
   X,
 } from "@tamagui/lucide-icons";
 import {
@@ -160,7 +160,7 @@ export const MintSelectorSheet = React.forwardRef<
                       items="center"
                       justify="center"
                     >
-                      <Building2 size={20} color="$gray10" />
+                      <Landmark size={20} color="$gray10" />
                     </View>
                     <YStack gap="$0.5" flex={1}>
                       <Text fontWeight="700" fontSize="$5" color="$accent3" numberOfLines={1}>

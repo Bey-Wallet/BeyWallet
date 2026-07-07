@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { YStack, XStack, Text, Button, Separator, View, useTheme } from 'tamagui';
-import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView, FlatList } from 'react-native';
-import { Clock, ChevronDown, Building2, Check, Calendar, SlidersHorizontal } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Button, Separator, View, useTheme, ScrollView as TScrollView } from 'tamagui';
+import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView, FlatList, ScrollView } from 'react-native';
+import { Clock, ChevronDown, Building2, Check, Calendar, Zap, Landmark, Box, Filter, X, Bitcoin } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
 import { useRouter } from 'expo-router';
@@ -35,6 +35,7 @@ export function HistoryScreen() {
 
     const [mintFilter, setMintFilter] = useState('all');
     const [timeFilter, setTimeFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
     const { mints } = useWalletStore();
 
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
@@ -88,6 +89,28 @@ export function HistoryScreen() {
             filtered = filtered.filter(e => e.createdAt >= cutoff);
         }
 
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(e => {
+                const via = (() => {
+                    let m = e.metadata ?? {};
+                    if (typeof m === 'string') { try { m = JSON.parse(m); } catch { m = {}; } }
+                    return (m as any)?.via;
+                })();
+                switch (typeFilter) {
+                    case 'pending':
+                        return ['pending', 'unpaid', 'unclaimed'].includes((e.state || '').toLowerCase());
+                    case 'ecash':
+                        return e.type === 'send' || e.type === 'receive';
+                    case 'lightning':
+                        return (e.type === 'mint' || e.type === 'melt') && via !== 'onchain';
+                    case 'onchain':
+                        return via === 'onchain';
+                    default:
+                        return true;
+                }
+            });
+        }
+
         const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
         const merged: HistoryEntry[] = [];
         const skipIds = new Set<string>();
@@ -125,7 +148,7 @@ export function HistoryScreen() {
             if (!isSwap) merged.push(current);
         }
         return merged;
-    }, [history, pendingRequests, mintFilter, timeFilter]);
+    }, [history, pendingRequests, mintFilter, timeFilter, typeFilter]);
 
     const groupedHistory = useMemo(() => {
         const groups: { title: string; items: HistoryEntry[] }[] = [];
@@ -201,44 +224,23 @@ export function HistoryScreen() {
         if (item.kind === 'header') {
             return <HistorySection title={item.title || ''}>{null}</HistorySection>;
         }
-        const { entry, position } = item;
+        const { entry } = item;
         if (!entry) return null;
 
-        const isFirst = position === 'first' || position === 'only';
-        const isLast = position === 'last' || position === 'only';
-
         return (
-            <RNView
-                style={{
-                    backgroundColor: cardBg,
-                    borderTopLeftRadius: isFirst ? 10 : 0,
-                    borderTopRightRadius: isFirst ? 10 : 0,
-                    borderBottomLeftRadius: isLast ? 10 : 0,
-                    borderBottomRightRadius: isLast ? 10 : 0,
-                    overflow: 'hidden',
-                }}
-            >
-                <HistoryItem
-                    id={entry.id}
-                    type={entry.type}
-                    amount={entry.amount}
-                    createdAt={entry.createdAt}
-                    status={entry.state || 'completed'}
-                    metadata={entry.metadata}
-                    onPress={handleTransactionPress}
-                />
-                {!isLast && (
-                    <RNView
-                        style={{
-                            height: 1,
-                            backgroundColor: borderColor,
-                            opacity: 0.5,
-                        }}
-                    />
-                )}
-            </RNView>
+            <HistoryItem
+                id={entry.id}
+                type={entry.type}
+                amount={entry.amount}
+                createdAt={entry.createdAt}
+                status={entry.state || 'completed'}
+                metadata={entry.metadata}
+                onPress={handleTransactionPress}
+                mintUrl={entry.mintUrl}
+                quoteId={(entry as any).quoteId}
+            />
         );
-    }, [handleTransactionPress, cardBg, borderColor]);
+    }, [handleTransactionPress]);
 
 
     useEffect(() => {
@@ -277,7 +279,15 @@ export function HistoryScreen() {
         return val.replace(/^https?:\/\//, '').substring(0, 15);
     };
 
-    const isFiltered = mintFilter !== 'all' || timeFilter !== 'all';
+    const isFiltered = mintFilter !== 'all' || timeFilter !== 'all' || typeFilter !== 'all';
+
+    const FILTER_CHIPS: { key: string; label: string; icon?: React.ReactNode }[] = [
+        { key: 'all', label: 'All' },
+        { key: 'pending', label: 'Pending', icon: <Clock size={13} strokeWidth={2.5} /> },
+        { key: 'ecash', label: 'Ecash', icon: <Box size={13} strokeWidth={2.5} /> },
+        { key: 'lightning', label: 'Lightning', icon: <Zap size={13} strokeWidth={2.5} /> },
+        { key: 'onchain', label: 'On-chain', icon: <Bitcoin size={13} strokeWidth={2.5} /> },
+    ];
 
     // Show skeleton during initial load
     if (isLoading && !isRefetching) {
@@ -295,66 +305,86 @@ export function HistoryScreen() {
 
     return (
         <YStack flex={1} bg="$background">
-            {/* ── Filter bar ── */}
-            <XStack px="$4" pt="$3" pb="$2" gap="$2" items="center">
-                <Button
-                    flex={1}
-                    size="$3"
-                    bg={mintFilter !== 'all' ? '$accent3' : '$gray2'}
-                    borderWidth={mintFilter !== 'all' ? 1 : 0}
-                    borderColor={mintFilter !== 'all' ? '$accent8' : 'transparent'}
-                    rounded="$4"
+            {/* ── Scrollable Filter Chips ── */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 8 }}
+            >
+                {FILTER_CHIPS.map(chip => {
+                    const active = typeFilter === chip.key;
+                    return (
+                        <Button
+                            key={chip.key}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setTypeFilter(chip.key);
+                            }}
+                            size="$2.5"
+                            chromeless={active ? false : true}
+                            color={active ? "$color" : "$gray10"}
+
+                        >
+                            
+                                {chip.label}
+                           
+                        </Button>
+                    );
+                })}
+                {/* Mint filter chip */}
+                <TouchableOpacity
                     onPress={() => mintSheetRef.current?.present()}
-                    icon={<Building2 size={13} color={mintFilter !== 'all' ? '$accent10' : '$gray10'} />}
-                    iconAfter={<ChevronDown size={13} color="$gray10" />}
+                    style={[
+                        styles.chip,
+                        mintFilter !== 'all' && styles.chipActive,
+                    ]}
+                    activeOpacity={0.7}
                 >
+                    <Landmark size={13} strokeWidth={2.5} color={mintFilter !== 'all' ? 'white' : '#888'} />
                     <Text
-                        fontSize="$3"
-                        maxW={100}
-                        ellipsizeMode="tail"
+                        fontSize={13}
                         fontWeight="700"
                         numberOfLines={1}
-                        color={mintFilter !== 'all' ? '$accent10' : '$color'}
+                        color={mintFilter !== 'all' ? 'white' : '$gray11'}
                     >
                         {getMintFilterLabel(mintFilter)}
                     </Text>
-                </Button>
-
-                <Button
-                    flex={1}
-                    size="$3"
-                    bg={timeFilter !== 'all' ? '$accent3' : '$gray2'}
-                    borderWidth={timeFilter !== 'all' ? 1 : 0}
-                    borderColor={timeFilter !== 'all' ? '$accent8' : 'transparent'}
-                    rounded="$4"
+                </TouchableOpacity>
+                {/* Time filter chip */}
+                <TouchableOpacity
                     onPress={() => timeSheetRef.current?.present()}
-                    icon={<Calendar size={13} color={timeFilter !== 'all' ? '$accent10' : '$gray10'} />}
-                    iconAfter={<ChevronDown size={13} color="$gray10" />}
+                    style={[
+                        styles.chip,
+                        timeFilter !== 'all' && styles.chipActive,
+                    ]}
+                    activeOpacity={0.7}
                 >
+                    <Calendar size={13} strokeWidth={2.5} color={timeFilter !== 'all' ? 'white' : '#888'} />
                     <Text
-                        fontSize="$3"
+                        fontSize={13}
                         fontWeight="700"
                         numberOfLines={1}
-                        color={timeFilter !== 'all' ? '$accent10' : '$color'}
+                        color={timeFilter !== 'all' ? 'white' : '$gray11'}
                     >
                         {getTimeFilterLabel(timeFilter)}
                     </Text>
-                </Button>
-
+                </TouchableOpacity>
+                {/* Clear chip */}
                 {isFiltered && (
                     <TouchableOpacity
-                        onPress={() => { setMintFilter('all'); setTimeFilter('all'); }}
-                        style={styles.clearBtn}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => { setMintFilter('all'); setTimeFilter('all'); setTypeFilter('all'); }}
+                        style={[styles.chip, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
+                        activeOpacity={0.7}
                     >
-                        <Text fontSize={11} fontWeight="700" color="$gray9">Clear</Text>
+                        <X size={13} strokeWidth={2.5} color="#ef4444" />
+                        <Text fontSize={13} fontWeight="700" color="#ef4444">Clear</Text>
                     </TouchableOpacity>
                 )}
-            </XStack>
+            </ScrollView>
 
             {/* ── Content ── */}
             {flatItems.length === 0 ? (
-                <YStack flex={1} items="center" justify="center" gap="$4" pb="$16">
+                <YStack flex={1} items="center" justify="center" gap="$4" pb={100}>
                     <View style={styles.emptyIcon}>
                         <Clock size={36} color="$gray8" />
                     </View>
@@ -373,7 +403,7 @@ export function HistoryScreen() {
                             size="$3"
                             bg="$gray3"
                             rounded="$4"
-                            onPress={() => { setMintFilter('all'); setTimeFilter('all'); }}
+                            onPress={() => { setMintFilter('all'); setTimeFilter('all'); setTypeFilter('all'); }}
                         >
                             <Text fontWeight="700">Clear Filters</Text>
                         </Button>
@@ -395,7 +425,7 @@ export function HistoryScreen() {
                             tintColor="#FFD700"
                         />
                     }
-                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
                     showsVerticalScrollIndicator={false}
                 />
             )}
@@ -447,6 +477,18 @@ const styles = StyleSheet.create({
         height: 36,
         borderRadius: 10,
         backgroundColor: 'rgba(128,128,128,0.12)',
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 20,
+        backgroundColor: 'rgba(128,128,128,0.1)',
+    },
+    chipActive: {
+        backgroundColor: '#FFD700',
     },
     clearBtn: {
         paddingHorizontal: 8,

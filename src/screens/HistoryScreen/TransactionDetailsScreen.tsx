@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, ScrollView, View, Separator, Circle, Popover, ListItem, Adapt, Sheet, Square } from 'tamagui';
-import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, MoreHorizontal, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp, Menu } from '@tamagui/lucide-icons';
+import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -14,7 +14,7 @@ import { historyService, initService, proofService, cleanToken, decodeToken, enc
 import { nip19 } from 'nostr-tools';
 import { PendingTokenLayout } from '~/components/UI/PendingTokenLayout';
 import { PendingMintInvoiceLayout } from './components/PendingMintInvoiceLayout';
-import { CompletedMintDetailsTable } from './components/CompletedMintDetailsTable';
+import { ListTable, ListTableRow } from '~/components/UI/ListTable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '~/store/settingsStore';
 import { sqliteStorage } from '~/store/sqliteStorage';
@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/notificationService';
-import { AppDropdownMenu, DropdownMenuItem } from '~/components/UI/AppDropdownMenu';
+import { StatusBadge, BadgeStatus } from '~/components/UI/StatusBadge';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -43,72 +43,6 @@ interface HistoryEntry {
     token?: any;
 }
 
-function TxnHeaderContextMenu({
-    id,
-    token,
-    isRefetching,
-    onRefresh,
-    onShare,
-    onCopyToken,
-}: {
-    id?: string;
-    token?: string;
-    isRefetching: boolean;
-    onRefresh: () => void;
-    onShare: () => void;
-    onCopyToken: () => void;
-}) {
-    const toast = useToastController();
-
-    const menuItems: DropdownMenuItem[] = [
-        {
-            key: 'refresh',
-            title: 'Refresh Status',
-            subTitle: 'Sync latest on-chain state',
-            icon: isRefetching ? <Spinner size="small" /> : <RefreshCw size={18} color="$color" />,
-            action: onRefresh,
-        },
-        {
-            key: 'copy-id',
-            title: 'Copy Txn ID',
-            subTitle: id ? `${id.slice(0, 12)}...` : undefined,
-            icon: <Copy size={18} color="$color" />,
-            action: async () => {
-                if (id) {
-                    await Clipboard.setStringAsync(id);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    toast.show('Copied!', { message: 'Transaction ID copied' });
-                }
-            },
-        },
-    ];
-
-    if (token) {
-        menuItems.push({
-            key: 'copy-token',
-            title: 'Copy Token',
-            subTitle: 'Raw Cashu eCash string',
-            icon: <Copy size={18} color="$color" />,
-            action: onCopyToken,
-        });
-    }
-
-    menuItems.push({
-        key: 'share',
-        title: 'Share Transaction',
-        subTitle: 'Share via device apps',
-        icon: <Share2 size={18} color="$color" />,
-        action: onShare,
-    });
-
-    return (
-        <AppDropdownMenu
-            items={menuItems}
-            placement="bottom-end"
-            width={210}
-        />
-    );
-}
 
 export function TransactionDetailsScreen() {
     const router = useRouter();
@@ -735,6 +669,59 @@ export function TransactionDetailsScreen() {
         return !isQuoteExpired;
     }, [savedInvoice, status, isQuoteExpired]);
 
+    // Shared header amount title (primary + secondary)
+    const headerPrimaryAmount = primaryCurrency === 'SATS'
+        ? `₿${Number(entry?.amount || 0).toLocaleString()}`
+        : currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
+    const headerSecondaryAmount = primaryCurrency === 'SATS'
+        ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
+        : `₿${Number(entry?.amount || 0).toLocaleString()} sats`;
+
+    // Derive badge status from entry state
+    const badgeStatus: BadgeStatus = (() => {
+        const s = (status || '').toLowerCase();
+        if (s === 'success' || s === 'claimed' || s === 'completed' || s === 'paid' || s === 'refunded') return 'success';
+        if (s === 'pending' || s === 'unclaimed' || s === 'unpaid') return 'pending';
+        if (s === 'failed' || s === 'error' || s === 'expired') return 'failed';
+        return 'pending';
+    })();
+
+    // Reusable header title + right component builder
+    // Used for PENDING branches: shows amount in title + StatusBadge with refresh
+    const makeHeaderOptions = () => ({
+        headerTitleAlign: 'center' as const,
+        headerTitle: () => (
+            <YStack items="center" justify="center" gap={1}>
+                <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
+                    {headerPrimaryAmount}
+                </Text>
+                <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
+                    {headerSecondaryAmount}
+                </Text>
+            </YStack>
+        ),
+        headerRight: () => (
+            <XStack pr="$1" gap="$2" items="center">
+                <StatusBadge
+                    status={badgeStatus}
+                    onPress={handleRefresh}
+                    isChecking={isRefetching}
+                />
+            </XStack>
+        ),
+    });
+
+    // Used for FINALIZED branches (done/error/success): empty title, only badge
+    const makeFinalizedHeaderOptions = () => ({
+        headerTitle: () => null,
+        headerRight: () => (
+            <XStack pr="$1" items="center">
+                <StatusBadge status={badgeStatus} />
+            </XStack>
+        ),
+    });
+
+
     if (!entry) {
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -754,28 +741,7 @@ export function TransactionDetailsScreen() {
     if (showInvoiceLayout && savedInvoice) {
         return (
             <>
-                <Stack.Screen
-                    options={{
-                        headerTitleAlign: 'center',
-                        headerTitle: () => (
-                            <XStack>
-                                <Text fontWeight="700" fontSize={20} color="$color">Pending Deposit</Text>
-                            </XStack>
-                        ),
-                        headerRight: () => (
-                            <XStack p="$1" gap="$2" items="center" justify="center">
-                                <TxnHeaderContextMenu
-                                    id={entry?.id}
-                                    token={token}
-                                    isRefetching={isRefetching}
-                                    onRefresh={handleRefresh}
-                                    onShare={handleShare}
-                                    onCopyToken={handleCopyToken}
-                                />
-                            </XStack>
-                        ),
-                    }}
-                />
+                <Stack.Screen options={makeHeaderOptions()} />
                 <PendingMintInvoiceLayout
                     savedInvoice={savedInvoice}
                     timeLeft={timeLeft}
@@ -819,23 +785,7 @@ export function TransactionDetailsScreen() {
     if (token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed')) {
         return (
             <>
-                <Stack.Screen
-                    options={{
-                        title: 'Pending Ecash',
-                        headerRight: () => (
-                            <XStack p="$1" gap="$2" items="center" justify="center">
-                                <TxnHeaderContextMenu
-                                    id={entry?.id}
-                                    token={token}
-                                    isRefetching={isRefetching}
-                                    onRefresh={handleRefresh}
-                                    onShare={handleShare}
-                                    onCopyToken={handleCopyToken}
-                                />
-                            </XStack>
-                        ),
-                    }}
-                />
+                <Stack.Screen options={makeHeaderOptions()} />
                 <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
                     <PendingTokenLayout
                         token={token}
@@ -848,6 +798,8 @@ export function TransactionDetailsScreen() {
                         onReclaim={entry.type === 'send' ? handleReclaim : undefined}
                         isReclaiming={isReclaiming}
                         expiresAt={expiresAt}
+                        onCheckStatus={handleRefresh}
+                        isCheckingStatus={isRefetching}
                     />
 
                 </ScrollView>
@@ -858,194 +810,151 @@ export function TransactionDetailsScreen() {
     try {
         return (
             <>
-                <Stack.Screen
-                    options={{
-                        headerTitleAlign: 'center',
-                        headerTitle: () => (
-                            <XStack>
-                                <Text fontWeight="700" fontSize={20} color="$color">Details</Text>
-                            </XStack>
-                        ),
-                        headerRight: () => (
-                            <XStack p="$1" gap="$2" items="center" justify="center">
-                                <TxnHeaderContextMenu
-                                    id={entry?.id}
-                                    token={token}
-                                    isRefetching={isRefetching}
-                                    onRefresh={handleRefresh}
-                                    onShare={handleShare}
-                                    onCopyToken={handleCopyToken}
-                                />
-                            </XStack>
-                        ),
-                    }}
-                />
+                <Stack.Screen options={makeFinalizedHeaderOptions()} />
                 <ScrollView gap="$3" pb="$8" p="$4" bg="$background" showsVerticalScrollIndicator={false}>
-                    <YStack bg="$background" gap="$3" >
-                        {/* SuccessStage-like Amount Display */}
-                        <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$3" >
-                            <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color={status === 'failed' || status === 'error' || status === 'expired' || status === 'refunded' ? '$red10' : status === 'pending' || status === 'unclaimed' ? '$orange10' : '$color'}>
-                                {status === 'failed' || status === 'error' ? 'Transaction Failed' :
-                                    status === 'expired' || status === 'refunded' ? 'Transaction Expired' :
-                                    status === 'pending' || status === 'unclaimed' ? 'Transaction Pending' :
-                                        entry.type === 'swap' || metadata?.via === 'swap' ? 'Swapped Successfully!' :
-                                        entry.type === 'send' ? 'Sent Successfully!' :
-                                            entry.type === 'receive' ? 'Received Successfully!' :
-                                                entry.type === 'mint' ? 'Minted Successfully!' :
-                                                    entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain Payment Sent!' : 'Invoice Paid!') : 'Transaction Completed!'}
+                    <YStack bg="$background" gap="$3">
+                        {/* Big Amount */}
+                        <YStack gap="$2" items="center" justify="center" py="$5">
+                            <Text>{title}</Text>
+                            <Text
+                                fontSize={48}
+                                fontWeight="600"
+                                 fontVariant={['tabular-nums']}
+                                letterSpacing={-1}
+                                lineHeight={52}
+                                color="$color"
+                            >
+                                {entry.type !== 'swap' ? amountSign : ''}{headerPrimaryAmount}
                             </Text>
-                            <YStack items="center" justify="center">
-                                {primaryCurrency === 'SATS' ? (
-                                    <>
-                                        <Text fontSize="$9" fontWeight="900" color={entry.type === 'swap' ? '$blue10' : isOutgoing ? '$red10' : '$green11'}>
-                                            {entry.type === 'swap' ? '' : amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
-                                        </Text>
-                                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                            {entry.type === 'swap' ? '' : amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
-                                        </Text>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Text fontSize="$9" fontWeight="900" color={entry.type === 'swap' ? '$blue10' : isOutgoing ? '$red10' : '$green11'}>
-                                            {entry.type === 'swap' ? '' : amountSign}{currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)}
-                                        </Text>
-                                        <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                            {entry.type === 'swap' ? '' : amountSign}₿{entry.amount?.toLocaleString() ?? '0'}
-                                        </Text>
-                                    </>
-                                )}
-                            </YStack>
-                            <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
-                                <Text color="$gray10" fontSize="$4" text="center">
-                                    {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
-                                        status === 'expired' || status === 'refunded' ? 'Funds were returned to your wallet.' :
-                                        status === 'pending' || status === 'unclaimed' ? 'Wait for payment to be processed.' :
-                                            entry.type === 'swap' || metadata?.via === 'swap' ? 'Atomic transfer completed between mints.' :
-                                            entry.type === 'send' ? 'The recipient has claimed your ecash.' :
-                                                entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
-                                                    entry.type === 'mint' ? 'Ecash added to your wallet.' :
-                                                        entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain payment was broadcast successfully.' : 'Lightning invoice was successfully paid.') : 'Transaction processed.'}
-                                </Text>
-                            </YStack>
+                            <Text fontSize="$5"  fontVariant={['tabular-nums']} fontWeight="600" color="$gray10" mt="$1">
+                                {entry.type !== 'swap' ? amountSign : ''}{headerSecondaryAmount}
+                            </Text>
                         </YStack>
 
-                        {/* Details table */}
-                        {entry.type === 'mint' ? (
-                            <CompletedMintDetailsTable
-                                entry={entry}
-                                formattedStatus={formattedStatus}
-                                primaryCurrency={primaryCurrency}
-                                secondaryCurrency={secondaryCurrency}
-                                fiatAmount={fiatAmount}
-                                title={title}
-                                savedInvoice={savedInvoice}
-                            />
-                        ) : (
-                            <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                                {primaryCurrency === 'FIAT' ? (
-                                    <>
-                                        <DetailItem label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                                        <DetailItem label="Sats" value={`${entry.amount || 0} sats`} />
-                                    </>
-                                ) : (
-                                    <>
-                                        <DetailItem label="Amount" value={`${entry.amount || 0} sats`} />
-                                        <DetailItem label="Fiat" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                                    </>
-                                )}
-                                <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
-                                <DetailItem label="Type" value={entry.type === 'swap' ? 'NUT-19 Atomic Swap' : title} />
-                                <DetailItem label="Status" value={formattedStatus} />
-                                {/* Via channel & Swap Mints */}
-                                {(() => {
-                                    let meta = entry.metadata ?? {};
-                                    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
-                                    const via: string | undefined = (meta as any)?.via;
-                                    const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
-                                    const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
-                                    const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
-                                    const targetMintName: string | undefined = (meta as any)?.targetMintName;
+                        {/* Compact status description */}
+                        <YStack bg="$gray2" rounded="$5" px="$4" py="$3" items="center" gap="$1">
+                            <Text color="$gray10" fontSize="$4" textAlign="center">
+                                {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
+                                    status === 'expired' || status === 'refunded' ? 'Funds were returned to your wallet.' :
+                                    status === 'pending' || status === 'unclaimed' ? 'Waiting for payment to be processed.' :
+                                        entry.type === 'swap' || metadata?.via === 'swap' ? 'Atomic transfer completed between mints.' :
+                                        entry.type === 'send' ? 'The recipient has claimed your ecash.' :
+                                            entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
+                                                entry.type === 'mint' ? 'Ecash added to your wallet.' :
+                                                    entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain payment was broadcast successfully.' : 'Lightning invoice was successfully paid.') : 'Transaction processed.'}
+                            </Text>
+                        </YStack>
+                        {/* Details table — no amount/fiat/type (shown in header) */}
+                        <ListTable>
+                            <ListTableRow label="Status" value={formattedStatus} />
+                            <ListTableRow label="Date" value={formatFullLocalTime(entry.createdAt)} />
+                            <ListTableRow label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
+                            {mintFee > 0 && (
+                                <ListTableRow label="Fee Rate" value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`} />
+                            )}
+                            {/* Via channel & contacts */}
+                            {(() => {
+                                let meta = entry.metadata ?? {};
+                                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
+                                const via: string | undefined = (meta as any)?.via;
+                                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
+                                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                                const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
+                                const targetMintName: string | undefined = (meta as any)?.targetMintName;
 
-                                    if (entry.type === 'swap' || via === 'swap') {
-                                        return (
-                                            <>
-                                                <DetailItem label="Channel" value="NUT-19 Direct Swap" />
-                                                {sourceMintName && <DetailItem label="Source Mint" value={sourceMintName} />}
-                                                {targetMintName && <DetailItem label="Target Mint" value={targetMintName} />}
-                                            </>
-                                        );
-                                    }
-
-                                    if (!via) return null;
-                                    const viaLabel = via === 'nostr' ? 'Nostr'
-                                        : via === 'qr' || via === 'scan' ? 'QR Scan'
-                                        : via === 'nfc' ? 'NFC'
-                                        : via === 'ecash_create' ? 'Ecash Token'
-                                        : via === 'paste' ? 'Paste'
-                                        : via === 'lightning' ? 'Lightning'
-                                        : via;
+                                if (entry.type === 'swap' || via === 'swap') {
                                     return (
                                         <>
-                                            <DetailItem label="Channel" value={viaLabel} />
-                                            {via === 'nostr' && (nostrUsername || nostrPubkey) && (
-                                                <DetailItem
-                                                    label={entry.type === 'send' ? 'Recipient' : 'Sender'}
-                                                    value={nostrUsername
-                                                        ? `@${nostrUsername.replace('@bey.cash', '')}`
-                                                        : nostrPubkey
-                                                        ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
-                                                        : 'Unknown'}
-                                                    isCopyable={!!nostrPubkey}
-                                                    copyValue={nostrPubkey}
-                                                    onCopy={async () => {
-                                                        if (nostrPubkey) {
-                                                            await Clipboard.setStringAsync(nostrPubkey);
-                                                            toast.show('Copied!', { message: 'Nostr pubkey copied' });
-                                                        }
-                                                    }}
-                                                />
-                                            )}
+                                            <ListTableRow label="Channel" value="NUT-19 Direct Swap" />
+                                            {sourceMintName && <ListTableRow label="Source Mint" value={sourceMintName} />}
+                                            {targetMintName && <ListTableRow label="Target Mint" value={targetMintName} />}
                                         </>
                                     );
-                                })()}
-                                {lockedToNpub && (
-                                    <DetailItem
-                                        label="Locked To"
-                                        value={lockedToNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`}
-                                        isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
-                                        onCopy={async () => {
-                                            await Clipboard.setStringAsync(lockedToNpub);
-                                            Haptics.selectionAsync();
-                                            toast.show('Copied!', { message: 'NPUB copied to clipboard' });
-                                        }}
-                                    />
-                                )}
-                                <DetailItem label="Token" value={token && typeof token === 'string' ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}` : 'N/A'} isCopyable copyValue={token} onCopy={handleCopyToken} />
-                                <DetailItem label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
-                                {mintFee > 0 && (
-                                    <DetailItem label="Fee Rate" value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`} />
-                                )}
-                            </YStack>
-                        )}
-                    </YStack>
+                                }
 
-
-                    {token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed') && (
-                        <YStack gap="$3" mt="$3" pb="$4" >
-                            {entry.type === 'send' ? (
-                                <PendingTokenLayout
-                                    token={token}
-                                    amount={entry.amount}
-                                    fee={mintFee}
-                                    mintUrl={entry.mintUrl}
-                                    lockedToNpub={lockedToNpub}
-                                    hideDetails={true}
-                                    onReclaim={handleReclaim}
-                                    isReclaiming={isReclaiming}
-                                    expiresAt={expiresAt}
+                                if (!via) return null;
+                                const viaLabel = via === 'nostr' ? 'Nostr'
+                                    : via === 'qr' || via === 'scan' ? 'QR Scan'
+                                    : via === 'nfc' ? 'NFC'
+                                    : via === 'ecash_create' ? 'Ecash Token'
+                                    : via === 'paste' ? 'Paste'
+                                    : via === 'lightning' ? 'Lightning'
+                                    : via;
+                                return (
+                                    <>
+                                        <ListTableRow label="Channel" value={viaLabel} />
+                                        {via === 'nostr' && (nostrUsername || nostrPubkey) && (
+                                            <ListTableRow
+                                                label={entry.type === 'send' ? 'Recipient' : 'Sender'}
+                                                value={nostrUsername
+                                                    ? `@${nostrUsername.replace('@bey.cash', '')}`
+                                                    : nostrPubkey
+                                                    ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
+                                                    : 'Unknown'}
+                                                isCopyable={!!nostrPubkey}
+                                                onCopy={async () => {
+                                                    if (nostrPubkey) {
+                                                        await Clipboard.setStringAsync(nostrPubkey);
+                                                        toast.show('Copied!', { message: 'Nostr pubkey copied' });
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </>
+                                );
+                            })()}
+                            {lockedToNpub && (
+                                <ListTableRow
+                                    label="Locked To"
+                                    value={lockedToNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`}
+                                    isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
+                                    onCopy={async () => {
+                                        await Clipboard.setStringAsync(lockedToNpub);
+                                        Haptics.selectionAsync();
+                                        toast.show('Copied!', { message: 'NPUB copied to clipboard' });
+                                    }}
                                 />
-                            ) : entry.type === 'receive' && status === 'unclaimed' ? (
-                                <YStack gap="$2">
+                            )}
+                            {/* Invoice for mint txns */}
+                            {savedInvoice && (
+                                <ListTableRow
+                                    label="Invoice"
+                                    value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
+                                    isCopyable
+                                    onCopy={async () => {
+                                        await Clipboard.setStringAsync(savedInvoice);
+                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                        toast.show('Copied!', { message: 'Invoice copied' });
+                                    }}
+                                />
+                            )}
+                            {/* Token for send/receive txns */}
+                            {token && typeof token === 'string' && (
+                                <ListTableRow
+                                    label="Token"
+                                    value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
+                                    isCopyable
+                                    onCopy={handleCopyToken}
+                                />
+                            )}
+                        </ListTable>
+
+                        {/* Pending actions */}
+                        {token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed') && (
+                            <YStack gap="$3">
+                                {entry.type === 'send' ? (
+                                    <PendingTokenLayout
+                                        token={token}
+                                        amount={entry.amount}
+                                        fee={mintFee}
+                                        mintUrl={entry.mintUrl}
+                                        lockedToNpub={lockedToNpub}
+                                        hideDetails={true}
+                                        onReclaim={handleReclaim}
+                                        isReclaiming={isReclaiming}
+                                        expiresAt={expiresAt}
+                                    />
+                                ) : entry.type === 'receive' && status === 'unclaimed' ? (
                                     <Button
                                         bg="$green10"
                                         color="white"
@@ -1058,21 +967,16 @@ export function TransactionDetailsScreen() {
                                     >
                                         CLAIM NOW
                                     </Button>
-                                </YStack>
-                            ) : null}
+                                ) : null}
+                            </YStack>
+                        )}
 
-                            <XStack gap="$2" px={entry.type === 'receive' ? "$0" : "$0"}>
-                                <Button flex={1} bg="$gray3" color="$color" height={55} icon={<Copy size={18} />} onPress={handleCopyToken} fontWeight="800">Copy</Button>
-                                <Button flex={1} bg="$gray3" color="$color" height={55} icon={<Share2 size={18} />} onPress={handleShare} fontWeight="800">Share</Button>
-                            </XStack>
-                        </YStack>
-                    )}
-
-                    {token && typeof token === 'string' && (status === 'claimed' || status === 'completed') && (
-                        <YStack gap="$3" mt="$3" pb="$4" >
-                            <Button bg="$gray3" color="$color" icon={<Copy size={18} />} onPress={handleCopyToken} fontWeight="800">Copy Token</Button>
-                        </YStack>
-                    )}
+                        {/* Copy & Share buttons */}
+                        <XStack gap="$2">
+                            <Button flex={1} bg="$gray3" color="$color" height={55} rounded="$4" icon={<Copy size={18} />} onPress={handleCopyToken} fontWeight="800">Copy</Button>
+                            <Button flex={1} bg="$gray3" color="$color" height={55} rounded="$4" icon={<Share2 size={18} />} onPress={handleShare} fontWeight="800">Share</Button>
+                        </XStack>
+                    </YStack>
 
                 </ScrollView>
             </>
@@ -1091,20 +995,3 @@ export function TransactionDetailsScreen() {
         );
     }
 }
-
-function DetailItem({ label, value, isCopyable, copyValue, onCopy }: { label: string, value: string, isCopyable?: boolean, copyValue?: string, onCopy?: () => void }) {
-    return (
-        <XStack justify="space-between" items="center" py="$3" px="$4">
-            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
-            <XStack gap="$2" items="center">
-                <Text fontSize="$3" text="right" fontWeight="800" color="$color" numberOfLines={2} style={{ maxWidth: 200 }}>
-                    {value}
-                </Text>
-                {isCopyable && (
-                    <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
-                )}
-            </XStack>
-        </XStack>
-    );
-}
-

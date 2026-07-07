@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import {
     BanknoteArrowUp,
@@ -12,14 +12,18 @@ import {
     Nfc,
     Box,
     ShieldCheck,
-    ChevronRight,
     Clock,
+    Bitcoin,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
-import { useSettingsStore } from '../../../store/settingsStore';
-import { currencyService, CurrencyCode } from '../../../services/currencyService';
-import { bitcoinService } from '../../../services/bitcoinService';
+import { useSettingsStore } from '~/store/settingsStore';
+import { currencyService, CurrencyCode } from '~/services/currencyService';
+import { bitcoinService } from '~/services/bitcoinService';
+import { StatusBadge, BadgeStatus } from '~/components/UI/StatusBadge';
+import { proofService, walletService, initService, cleanToken, decodeToken, quotesService } from '~/services/core';
+import { useToastController } from '@tamagui/toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 type ViaResult = { label: string; icon: React.ReactNode; color: string };
 
@@ -61,7 +65,7 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
         return { label: 'Ecash Token', icon: <Box size={10} strokeWidth={2.5} color="#f97316" />, color: '#f97316' };
     }
     if (metadata.via === 'onchain') {
-        return { label: 'On-chain BTC', icon: <Landmark size={10} strokeWidth={2.5} color="#f59e0b" />, color: '#f59e0b' };
+        return { label: 'On-chain BTC', icon: <Bitcoin size={10} strokeWidth={2.5} color="#f59e0b" />, color: '#f59e0b' };
     }
     if (type === 'mint' || type === 'melt' || metadata.via === 'lightning') {
         return { label: 'Via Lightning', icon: <Zap size={10} strokeWidth={2.5} color="#eab308" />, color: '#eab308' };
@@ -95,25 +99,25 @@ function getTypeLabel(type: string, metadata?: Record<string, any>): string {
     }
 }
 
-// Map type to icon + colors
+// Map type to icon + colors (solid bg circle)
 function getIconConfig(type: string, metadata?: Record<string, any>) {
-    const isOutgoing = type === 'send' || type === 'melt';
     switch (type) {
         case 'send':
-            return { Icon: BanknoteArrowUp, bg: '#ff414115', tint: '#ff6b6b' };
+            return { Icon: BanknoteArrowUp, bg: '#ff414120', tint: '#ff6b6b' };
         case 'receive':
-            return { Icon: BanknoteArrowDown, bg: '#22c55e18', tint: '#4ade80' };
+            return { Icon: BanknoteArrowDown, bg: '#22c55e20', tint: '#4ade80' };
         case 'mint':
-            return { Icon: Landmark, bg: '#f59e0b18', tint: '#fbbf24' };
+            if (metadata?.via === 'onchain') return { Icon: Bitcoin, bg: '#f59e0b20', tint: '#fbbf24' };
+            return { Icon: Landmark, bg: '#f59e0b20', tint: '#fbbf24' };
         case 'melt':
-            if (metadata?.via === 'onchain') return { Icon: Landmark, bg: '#f59e0b18', tint: '#fbbf24' };
-            return { Icon: Zap, bg: '#f59e0b18', tint: '#fbbf24' };
+            if (metadata?.via === 'onchain') return { Icon: Bitcoin, bg: '#f59e0b20', tint: '#fbbf24' };
+            return { Icon: Zap, bg: '#f59e0b20', tint: '#fbbf24' };
         case 'swap':
-            return { Icon: RefreshCw, bg: '#3b82f618', tint: '#60a5fa' };
+            return { Icon: RefreshCw, bg: '#3b82f620', tint: '#60a5fa' };
         case 'receive-request':
-            return { Icon: Box, bg: '#a855f718', tint: '#c084fc' };
+            return { Icon: Box, bg: '#a855f720', tint: '#c084fc' };
         default:
-            return { Icon: BanknoteArrowDown, bg: '#22c55e18', tint: '#4ade80' };
+            return { Icon: BanknoteArrowDown, bg: '#22c55e20', tint: '#4ade80' };
     }
 }
 
@@ -122,13 +126,9 @@ function getExpiryTimeLeftLabel(expiresAt?: any): string | null {
     const diff = Number(expiresAt) - Date.now();
     if (diff <= 0) return 'Expired';
     const hours = Math.floor(diff / (60 * 60 * 1000));
-    if (hours > 0) {
-        return `Expires in ${hours}h`;
-    }
+    if (hours > 0) return `Expires in ${hours}h`;
     const mins = Math.floor(diff / (60 * 1000));
-    if (mins > 0) {
-        return `Expires in ${mins}m`;
-    }
+    if (mins > 0) return `Expires in ${mins}m`;
     return `Expires in <1m`;
 }
 
@@ -140,6 +140,8 @@ export interface HistoryItemProps {
     status: string;
     metadata?: Record<string, any>;
     onPress: (id: string, type: string) => void;
+    mintUrl?: string;
+    quoteId?: string;
 }
 
 export const HistoryItem = React.memo<HistoryItemProps>(({
@@ -149,8 +151,13 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
     status,
     metadata,
     onPress,
+    mintUrl,
+    quoteId,
 }) => {
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const toast = useToastController();
+    const queryClient = useQueryClient();
+    const [isChecking, setIsChecking] = useState(false);
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -173,6 +180,8 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
         status.toLowerCase() === 'unpaid' ||
         status.toLowerCase() === 'unclaimed';
 
+    const isFailed = status.toLowerCase() === 'failed' || status.toLowerCase() === 'error' || status.toLowerCase() === 'expired' || status.toLowerCase() === 'refunded';
+
     const expiresAt = metadata?.expiresAt;
     const isExpired = expiresAt && Date.now() > Number(expiresAt);
 
@@ -187,115 +196,165 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
         onPress(id, type);
     };
 
+    // Status check for pending items — tap the badge to refresh proof state
+    const handleCheckStatus = async () => {
+        if (isChecking) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setIsChecking(true);
+        try {
+            // 1. If it has a token (pending ecash)
+            let token = metadata?.token;
+            if (token && typeof token === 'string') {
+                const states = await proofService.checkProofStates(token);
+                const isSpent = states.some((s: any) => s.state === 'SPENT');
+                if (isSpent) {
+                    const repo = initService.getRepo();
+                    if (repo?.historyRepository) {
+                        await (repo.historyRepository as any).updateHistoryEntryState(id, 'claimed');
+                    }
+                    toast.show('Claimed!', { message: 'Token has been claimed' });
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    queryClient.invalidateQueries({ queryKey: ['history'] });
+                } else {
+                    toast.show('Still Pending', { message: 'Token has not been claimed yet' });
+                }
+            } 
+            // 2. If it's a pending mint with quoteId (lightning/on-chain deposit)
+            else if (type === 'mint' && quoteId && mintUrl) {
+                try {
+                    await quotesService.redeemMintQuote(mintUrl, quoteId);
+                    toast.show('Deposit Successful!', { message: 'Funds have been received' });
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    queryClient.invalidateQueries({ queryKey: ['history'] });
+                } catch (err: any) {
+                    toast.show('Still Pending', { message: err?.message || 'Invoice is not paid yet' });
+                }
+            }
+            // 3. Otherwise, just show a message
+            else {
+                toast.show('Pending', { message: 'Waiting for transaction to complete' });
+            }
+        } catch (e: any) {
+            console.warn('[HistoryItem] Status check failed:', e);
+            toast.show('Check Failed', { message: e?.message || 'Could not verify status' });
+        } finally {
+            setIsChecking(false);
+        }
+    };
+
     const expiryLabel = isPending && expiresAt ? getExpiryTimeLeftLabel(expiresAt) : null;
     const subtitle = [viaInfo.label, expiryLabel].filter(Boolean).join(' · ');
 
-    return (
-        <TouchableOpacity
-            onPress={handlePress}
-            activeOpacity={0.7}
-            style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-            }}
-        >
-            {/* Left Icon */}
-            <View style={{ marginRight: 12 }}>
-                <Icon size={22} color={tint as any} strokeWidth={2.2} />
-            </View>
+    // Badge status derivation
+    const badgeStatus: BadgeStatus = isExpired ? 'expired' : isPending ? 'pending' : isFailed ? 'failed' : 'success';
 
-            {/* Middle Section: Title + Subtitle */}
-            <YStack flex={1} gap="$0.5" mr="$2">
-                <XStack flexWrap="wrap" items="center" gap="$1.5">
-                    <Text fontSize="$4" fontWeight="700" color="$accent5">
-                        {label}
-                    </Text>
-                    {isPending ? (
-                        <View style={[styles.badge, { backgroundColor: isExpired ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)' }]}>
-                            <Text fontSize={9} fontWeight="900" color={isExpired ? "$red10" : "$orange10"} style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                {isExpired ? 'EXPIRED' : status}
-                            </Text>
-                        </View>
-                    ) : status.toLowerCase() === 'expired' || status.toLowerCase() === 'refunded' ? (
-                        <View style={[styles.badge, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                            <Text fontSize={9} fontWeight="900" color="$red10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                {status}
-                            </Text>
-                        </View>
-                    ) : null}
-                </XStack>
-                {subtitle ? (
-                    <XStack items="center" gap="$1.5" mt="$0.5">
-                        {viaInfo.icon || <Clock size={10} strokeWidth={2.5} color="$orange10" />}
-                        <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                            {subtitle}
+    return (
+        <XStack
+            bg="$gray2"
+            my="$1"
+            px="$2"
+            py="$3"
+            items="center"
+            pr="$3"
+            rounded="$4"
+        >
+            <TouchableOpacity
+                onPress={handlePress}
+                activeOpacity={0.7}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+            >
+                {/* Left: icon with bg circle */}
+                <View style={[styles.iconCircle, { backgroundColor: bg }]}>
+                    <Icon size={20} color={tint as any} strokeWidth={2.2} />
+                </View>
+
+                {/* Middle: title + subtitle */}
+                <YStack flex={1} gap="$0.5" mr="$2">
+                    <XStack items="center" gap="$1.5">
+                        <Text fontSize="$4" fontWeight="700" color="$color" numberOfLines={1}>
+                            {label}
                         </Text>
                     </XStack>
-                ) : null}
-            </YStack>
+                    {subtitle ? (
+                        <XStack items="center" gap="$1.5">
+                            {viaInfo.icon || <Clock size={10} strokeWidth={2.5} color="$orange10" />}
+                            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                                {subtitle}
+                            </Text>
+                        </XStack>
+                    ) : null}
+                </YStack>
 
-            {/* Right Side: Amount */}
-            <YStack items="flex-end" justify="center">
-                {primaryCurrency === 'SATS' ? (
-                    <>
-                        <Text
-                            fontWeight="900"
-                            fontSize="$5"
-                            color="$accent3"
-                            fontVariant={['tabular-nums'] as any}
-                        >
-                            {sign}₿{amount.toLocaleString()}
-                        </Text>
-                        <Text
-                            fontSize="$2"
-                            color="$gray10"
-                            fontWeight="600"
-                            fontVariant={['tabular-nums'] as any}
-                        >
-                            {sign}{formattedFiat}
-                        </Text>
-                    </>
-                ) : (
-                    <>
-                        <Text
-                            fontWeight="900"
-                            fontSize="$5"
-                            color="$accent3"
-                            fontVariant={['tabular-nums'] as any}
-                        >
-                            {sign}{formattedFiat}
-                        </Text>
-                        <Text
-                            fontSize="$2"
-                            color="$gray10"
-                            fontWeight="600"
-                            fontVariant={['tabular-nums'] as any}
-                        >
-                            {sign}₿{amount.toLocaleString()}
-                        </Text>
-                    </>
-                )}
-            </YStack>
-        </TouchableOpacity>
+                {/* Right: amount */}
+                <YStack items="flex-end" justify="center" mr={(isPending || isFailed) ? "$2" : "$0"}>
+                    {primaryCurrency === 'SATS' ? (
+                        <>
+                            <Text
+                                fontWeight="800"
+                                fontSize="$4"
+                                color="$color"
+                                fontVariant={['tabular-nums'] as any}
+                            >
+                                {sign}₿{amount.toLocaleString()}
+                            </Text>
+                            <Text
+                                fontSize="$2"
+                                color="$gray10"
+                                fontWeight="600"
+                                fontVariant={['tabular-nums'] as any}
+                            >
+                                {sign}{formattedFiat}
+                            </Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text
+                                fontWeight="800"
+                                fontSize="$4"
+                                color="$color"
+                                fontVariant={['tabular-nums'] as any}
+                            >
+                                {sign}{formattedFiat}
+                            </Text>
+                            <Text
+                                fontSize="$2"
+                                color="$gray10"
+                                fontWeight="600"
+                                fontVariant={['tabular-nums'] as any}
+                            >
+                                {sign}₿{amount.toLocaleString()}
+                            </Text>
+                        </>
+                    )}
+                </YStack>
+            </TouchableOpacity>
+
+            {/* Status badge — only for pending or failed */}
+            {(isPending || isFailed) && (
+                <StatusBadge
+                    status={badgeStatus}
+                    onPress={isPending ? handleCheckStatus : undefined}
+                    isChecking={isChecking}
+                    size={28}
+                />
+            )}
+        </XStack>
     );
 });
 
 const styles = StyleSheet.create({
-    touchable: {
-        backgroundColor: 'transparent',
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+       
     },
-    iconBadge: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
+    iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    badge: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
+        marginRight: 12,
     },
 });

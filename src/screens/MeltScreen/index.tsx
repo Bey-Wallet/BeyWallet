@@ -15,7 +15,7 @@ import { Text, YStack, XStack, Button, Separator, View, H1, Image } from 'tamagu
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/currencyService';
-import { Building2, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
+import { Landmark, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
@@ -366,7 +366,7 @@ export default function MeltScreen() {
                         {/* Mint */}
                         <XStack justify="space-between" items="center" py="$3" px="$4">
                             <XStack gap="$2" items="center">
-                                <Building2 size={16} color="$gray10" />
+                                <Landmark size={16} color="$gray10" />
                                 <Text fontSize="$4" color="$gray10" fontWeight="600">Mint</Text>
                             </XStack>
                             <XStack gap="$2" items="center">

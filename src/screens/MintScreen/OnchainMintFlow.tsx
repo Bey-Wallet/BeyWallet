@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text, Button, View, Paragraph, Separator, ScrollView, Spinner } from "tamagui";
-import { Copy, Check, Clock, ShieldCheck, Landmark, RefreshCw, X } from "@tamagui/lucide-icons";
+import { Copy, Check, Clock, ShieldCheck, RefreshCw, X, Bitcoin } from "@tamagui/lucide-icons";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -239,7 +239,7 @@ export function OnchainMintFlow() {
                 <YStack gap="$4" py="$6">
                     <XStack justify="space-between" items="center">
                         <XStack gap="$2" items="center">
-                            <Landmark size={20} color="$gray10" />
+                            <Bitcoin size={20} color="$gray10" />
                             <Text fontWeight="600">Network</Text>
                         </XStack>
                         <Text color="$accent10">{quoteData ? onchainNetworkDisplay(quoteData.request) : 'Bitcoin'}</Text>

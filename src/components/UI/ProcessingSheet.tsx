@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, Button, Theme, useTheme } from 'tamagui';
-import { CheckCircle2, XCircle, Clock, Building2, Zap, User, Smartphone, Wifi } from '@tamagui/lucide-icons';
+import { CheckCircle2, XCircle, Clock, Landmark, Zap, User, Smartphone, Wifi } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
 import { Spinner } from './Spinner';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
@@ -256,7 +256,7 @@ export function ProcessingSheet({
             {isSuccess && mintUrl && (
               <YStack width="100%" gap="$4" py="$2">
                 <DetailRow icon={<User size={16} color="$color1" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
-                <DetailRow icon={<Building2 size={16} color="$color1" />} label="Mint" value={mintDomain} />
+                <DetailRow icon={<Landmark size={16} color="$color1" />} label="Mint" value={mintDomain} />
                 <DetailRow icon={<Clock size={16} color="$color1" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                 <DetailRow icon={<Zap size={16} color="$color1" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
               </YStack>

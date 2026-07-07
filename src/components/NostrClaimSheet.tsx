@@ -9,7 +9,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, Text, Button, View, Separator, Theme } from 'tamagui';
-import { ArrowDownLeft, Building2, User, ShieldCheck, Zap } from '@tamagui/lucide-icons';
+import { ArrowDownLeft, Landmark, User, ShieldCheck, Zap } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
 import { ProcessingSheet } from './UI/ProcessingSheet';
 import Blockies from './UI/Blockies';
@@ -509,7 +509,7 @@ export function NostrClaimSheet() {
                                 />
                                 <Separator borderColor="$borderColor" opacity={0.3} />
                                 <DetailRow
-                                    icon={<Building2 size={16} color="$gray9" />}
+                                    icon={<Landmark size={16} color="$gray9" />}
                                     label="Mint"
                                     value={mintDomain}
                                 />

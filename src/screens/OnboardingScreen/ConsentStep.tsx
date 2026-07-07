@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { YStack, XStack, Text, Button, H1, View, ScrollView } from 'tamagui';
-import { Check, ShieldAlert, Coins, Building2, ChevronRight, AlertTriangle } from '@tamagui/lucide-icons';
+import { Check, ShieldAlert, Coins, Landmark, ChevronRight, AlertTriangle } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -111,7 +111,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                         </View>
                         <YStack flex={1} gap="$0.5">
                             <XStack gap="$2" items="center">
-                                <Building2 size={14} color={checkedMints ? "$orange10" : "$gray10"} />
+                                <Landmark size={14} color={checkedMints ? "$orange10" : "$gray10"} />
                                 <Text fontWeight="700" fontSize="$3" color="$color">Mints Hold the Bitcoin</Text>
                             </XStack>
                             <Text fontSize="$2" color="$gray10" lineHeight={15}>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input, YGroup } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, Check, Building2, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle, Sprout } from '@tamagui/lucide-icons';
+import { ChevronLeft, ChevronDown, RefreshCw, Check, Landmark, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle, Sprout } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -350,7 +350,7 @@ export default function MintsModal() {
                             <Avatar rounded="$6" size="$6" borderWidth={2} borderColor="$borderColor">
                                 <Avatar.Image src={selectedMintForSheet?.icon} />
                                 <Avatar.Fallback bg="$gray2" items="center" justify="center">
-                                    <Building2 size={48} color="$gray10" />
+                                    <Landmark size={48} color="$gray10" />
                                 </Avatar.Fallback>
                             </Avatar>
                             <YStack flex={1}>
