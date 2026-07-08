@@ -24,7 +24,6 @@
   "dependencies": {
     "@cashu/cashu-ts": "^3.3.0",
     "@gandlaf21/bc-ur": "^1.1.12",
-    "qrcode": "^1.5.4",
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-navigation/native": "^7.1.6",
     "@scure/bip32": "^2.0.1",
@@ -79,6 +78,7 @@
     "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.9",
     "nostr-tools": "^2.22.1",
+    "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-is": "^19.2.4",

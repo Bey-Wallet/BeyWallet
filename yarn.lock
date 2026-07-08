@@ -6707,6 +6707,7 @@ __metadata:
     expo-updates: "npm:~29.0.16"
     expo-web-browser: "npm:~15.0.9"
     nostr-tools: "npm:^2.22.1"
+    qrcode: "npm:^1.5.4"
     react: "npm:19.1.0"
     react-dom: "npm:19.1.0"
     react-is: "npm:^19.2.4"
