@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, useTheme, ScrollView as TScrollView } from 'tamagui';
 import { StyleSheet, TouchableOpacity, RefreshControl, View as RNView, FlatList, ScrollView } from 'react-native';
-import { Clock, ChevronDown, Building2, Check, Calendar, Zap, Landmark, Box, Filter, X, Bitcoin } from '@tamagui/lucide-icons';
+import { Clock, ChevronDown, Building2, Check, Calendar, Zap, Landmark, Box, Filter, X, Bitcoin, Inbox } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
 import { useRouter } from 'expo-router';
@@ -105,6 +105,8 @@ export function HistoryScreen() {
                         return (e.type === 'mint' || e.type === 'melt') && via !== 'onchain';
                     case 'onchain':
                         return via === 'onchain';
+                    case 'requests':
+                        return e.type === ('receive-request' as any);
                     default:
                         return true;
                 }
@@ -284,6 +286,7 @@ export function HistoryScreen() {
     const FILTER_CHIPS: { key: string; label: string; icon?: React.ReactNode }[] = [
         { key: 'all', label: 'All' },
         { key: 'pending', label: 'Pending', icon: <Clock size={13} strokeWidth={2.5} /> },
+        { key: 'requests', label: 'Requests', icon: <Inbox size={13} strokeWidth={2.5} /> },
         { key: 'ecash', label: 'Ecash', icon: <Box size={13} strokeWidth={2.5} /> },
         { key: 'lightning', label: 'Lightning', icon: <Zap size={13} strokeWidth={2.5} /> },
         { key: 'onchain', label: 'On-chain', icon: <Bitcoin size={13} strokeWidth={2.5} /> },
@@ -309,6 +312,7 @@ export function HistoryScreen() {
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0 }}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 8 }}
             >
                 {FILTER_CHIPS.map(chip => {
@@ -332,53 +336,47 @@ export function HistoryScreen() {
                     );
                 })}
                 {/* Mint filter chip */}
-                <TouchableOpacity
-                    onPress={() => mintSheetRef.current?.present()}
-                    style={[
-                        styles.chip,
-                        mintFilter !== 'all' && styles.chipActive,
-                    ]}
-                    activeOpacity={0.7}
+                <Button
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        mintSheetRef.current?.present();
+                    }}
+                    size="$2.5"
+                    chromeless={mintFilter === 'all'}
+                    color={mintFilter !== 'all' ? '$color' : '$gray10'}
+                    icon={<Landmark size={13} strokeWidth={2.5} color={mintFilter !== 'all' ? '$color' : '#888'} />}
                 >
-                    <Landmark size={13} strokeWidth={2.5} color={mintFilter !== 'all' ? 'white' : '#888'} />
-                    <Text
-                        fontSize={13}
-                        fontWeight="700"
-                        numberOfLines={1}
-                        color={mintFilter !== 'all' ? 'white' : '$gray11'}
-                    >
-                        {getMintFilterLabel(mintFilter)}
-                    </Text>
-                </TouchableOpacity>
+                    {getMintFilterLabel(mintFilter)}
+                </Button>
                 {/* Time filter chip */}
-                <TouchableOpacity
-                    onPress={() => timeSheetRef.current?.present()}
-                    style={[
-                        styles.chip,
-                        timeFilter !== 'all' && styles.chipActive,
-                    ]}
-                    activeOpacity={0.7}
+                <Button
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        timeSheetRef.current?.present();
+                    }}
+                    size="$2.5"
+                    chromeless={timeFilter === 'all'}
+                    color={timeFilter !== 'all' ? '$color' : '$gray10'}
+                    icon={<Calendar size={13} strokeWidth={2.5} color={timeFilter !== 'all' ? '$color' : '#888'} />}
                 >
-                    <Calendar size={13} strokeWidth={2.5} color={timeFilter !== 'all' ? 'white' : '#888'} />
-                    <Text
-                        fontSize={13}
-                        fontWeight="700"
-                        numberOfLines={1}
-                        color={timeFilter !== 'all' ? 'white' : '$gray11'}
-                    >
-                        {getTimeFilterLabel(timeFilter)}
-                    </Text>
-                </TouchableOpacity>
+                    {getTimeFilterLabel(timeFilter)}
+                </Button>
                 {/* Clear chip */}
                 {isFiltered && (
-                    <TouchableOpacity
-                        onPress={() => { setMintFilter('all'); setTimeFilter('all'); setTypeFilter('all'); }}
-                        style={[styles.chip, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
-                        activeOpacity={0.7}
+                    <Button
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setMintFilter('all');
+                            setTimeFilter('all');
+                            setTypeFilter('all');
+                        }}
+                        size="$2.5"
+                        theme="red"
+                        color="#ef4444"
+                        icon={<X size={13} strokeWidth={2.5} color="#ef4444" />}
                     >
-                        <X size={13} strokeWidth={2.5} color="#ef4444" />
-                        <Text fontSize={13} fontWeight="700" color="#ef4444">Clear</Text>
-                    </TouchableOpacity>
+                        Clear
+                    </Button>
                 )}
             </ScrollView>
 

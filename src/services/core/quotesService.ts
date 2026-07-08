@@ -394,7 +394,7 @@ export const quotesService = {
 
         // Update history entry state to paid
         try {
-            await repo.historyRepository.updateHistoryMintEntry(mintUrl, quoteId, 'paid');
+            await (repo.historyRepository as any).updateHistoryMintEntry(mintUrl, quoteId, 'paid', quoteStatus.amount_paid);
         } catch (e) {
             console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
         }

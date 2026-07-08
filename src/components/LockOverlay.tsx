@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { YStack, Text, Button, Spinner, H2, View } from 'tamagui'
+import { YStack, Text, Button, Spinner, H2, View, Image } from 'tamagui'
 import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
@@ -86,7 +86,12 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         >
             {/* Middle Section - App Logo */}
             <YStack flex={1} justify="center" items="center">
-                <BeyIcon size={120} />
+                <Image
+                source={require('../assets/icons/adaptive-icon.png')}
+                width={350}
+                height={350}
+                alt='Icon'
+                />
             </YStack>
 
             {/* Bottom Section - Unlock Button */}

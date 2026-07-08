@@ -915,6 +915,39 @@ export function TransactionDetailsScreen() {
                                     }}
                                 />
                             )}
+                            {/* On-chain Details */}
+                            {(() => {
+                                let meta = entry.metadata ?? {};
+                                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = {}; } }
+                                const via = (meta as any)?.via;
+                                if (via !== 'onchain') return null;
+
+                                const btcAddress = entry.type === 'mint' ? entry.paymentRequest : (meta as any)?.address;
+                                const onchainFee = (meta as any)?.fee;
+
+                                return (
+                                    <>
+                                        {btcAddress ? (
+                                            <ListTableRow
+                                                label="BTC Address"
+                                                value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
+                                                isCopyable
+                                                onCopy={async () => {
+                                                    await Clipboard.setStringAsync(btcAddress);
+                                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                                    toast.show('Copied!', { message: 'BTC Address copied' });
+                                                }}
+                                            />
+                                        ) : null}
+                                        {entry.type === 'melt' && onchainFee !== undefined ? (
+                                            <ListTableRow
+                                                label="Network Fee"
+                                                value={`${onchainFee} sats`}
+                                            />
+                                        ) : null}
+                                    </>
+                                );
+                            })()}
                             {/* Invoice for mint txns */}
                             {savedInvoice && (
                                 <ListTableRow

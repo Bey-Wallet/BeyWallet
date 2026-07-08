@@ -120,21 +120,21 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     {
                         key: 'ecash',
                         label: 'Ecash',
-                        icon: <Coins size={24} color="$accent10" />,
+                        icon: <Coins size={24} color="$gray12" />,
                         iconBg: '$accent2',
                         onPressCustom: () => transitionTo('ecash'),
                     },
                     {
                         key: 'lightning',
                         label: 'Lightning',
-                        icon: <Zap size={24} color="$yellow10" />,
+                        icon: <Zap size={24} color="$gray12" />,
                         iconBg: '$yellow2',
                         path: '/(modals)/melt',
                     },
                     {
                         key: 'onchain',
                         label: 'On-chain',
-                        icon: <Bitcoin size={24} color="$gray10" />,
+                        icon: <Bitcoin size={24} color="$gray12" />,
                         iconBg: '$gray2',
                         path: '/(modals)/melt?mode=onchain',
                     }
@@ -179,21 +179,21 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                     {
                         key: 'ecash',
                         label: 'Ecash',
-                        icon: <Coins size={24} color="$accent10" />,
+                        icon: <Coins size={24} color="$gray12" />,
                         iconBg: '$accent2',
                         onPressCustom: () => transitionTo('ecash'),
                     },
                     {
                         key: 'lightning',
                         label: 'Lightning',
-                        icon: <Zap size={24} color="$yellow10" />,
+                        icon: <Zap size={24} color="$gray12" />,
                         iconBg: '$yellow2',
                         path: '/mint',
                     },
                     {
                         key: 'onchain',
                         label: 'On-chain',
-                        icon: <Bitcoin size={24} color="$gray10" />,
+                        icon: <Bitcoin size={24} color="$gray12" />,
                         iconBg: '$gray2',
                         path: '/mint?mode=onchain',
                     }
