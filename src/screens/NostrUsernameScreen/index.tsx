@@ -4,6 +4,7 @@ import {
 } from 'tamagui';
 import { ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { networkService } from '../../services/networkService';
 import {
     AtSign, CheckCircle, XCircle, Globe, Copy, Trash2, Edit3
 } from '@tamagui/lucide-icons';
@@ -203,6 +204,11 @@ export function NostrUsernameScreen() {
 
         setCheckState('checking');
         debounceRef.current = setTimeout(async () => {
+            const offline = await networkService.isOffline();
+            if (offline) {
+                setCheckState('error');
+                return;
+            }
             const result = await checkAvailability(input);
             setCheckState(result);
         }, 500);
@@ -216,6 +222,10 @@ export function NostrUsernameScreen() {
         }
         
         if (checkState !== 'available') return;
+
+        const offline = await networkService.checkOfflineAndAlert('claim username');
+        if (offline) return;
+
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         const hexPub = npubToHex(npub);
@@ -273,6 +283,9 @@ export function NostrUsernameScreen() {
                     text: 'Delete',
                     style: 'destructive',
                     onPress: async () => {
+                        const offline = await networkService.checkOfflineAndAlert('delete username');
+                        if (offline) return;
+
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                         const hexPub = npubToHex(npub);
                         const hexSec = nsecToHex(nsec);

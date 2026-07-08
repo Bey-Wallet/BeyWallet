@@ -14,6 +14,7 @@ import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, CurrencyCode } from '../../services/currencyService';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import { PrimaryBalance } from 'temp/Sovran/features/wallet';
 
 interface TokenInfo {
     mint: string;
@@ -184,7 +185,7 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                 <YStack p="$4" gap="$2">
                     {/* Sleek Dark Cashu Token Preview Card */}
                     <Theme >
-                        <View rounded="$5" bg="$gray1" borderWidth={0} borderColor="$borderColor" p="$5" justify="space-between" overflow="hidden" position="relative">
+                        <View rounded="$5" bg="$gray3" borderWidth={0} borderColor="$borderColor" p="$5" justify="space-between" overflow="hidden" position="relative">
                             {/* Background glow & animated shimmer reflection */}
 
                             {/* Wrapped Monospace Token Text */}
@@ -220,12 +221,12 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                                     </Text>
                                     <XStack items="flex-start" gap="$1.5">
                                         <Text color="$accent5" fontSize={13} fontWeight="600" numberOfLines={2} flex={1}>
-                                            {getMintDisplayName(tokenInfo.mint)}
+                                        {getMintDisplayName(tokenInfo.mint)}
                                         </Text>
                                     </XStack>
                                 </YStack>
 
-                                <Text fontFamily="$oswald" fontSize={46} fontWeight="700" color="$accent3" lineHeight={48} shrink={0} letterSpacing={-1.5} text="right">
+                                <Text  fontSize={46} fontWeight="700" color="$accent3" lineHeight={48} shrink={0} letterSpacing={-1.5} text="right">
                                     {tokenInfo.amount.toLocaleString()}
                                 </Text>
                             </XStack>

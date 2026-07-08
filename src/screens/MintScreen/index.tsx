@@ -9,6 +9,7 @@ import { ResultStage } from "./ResultStage";
 import { OnchainMintFlow } from "./OnchainMintFlow";
 import { useWalletStore } from "../../store/walletStore";
 import { eventService, quotesService, initService } from "../../services/core";
+import { networkService } from "../../services/networkService";
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -63,6 +64,14 @@ export default function MintScreen() {
     const handleCreateQuote = useCallback(async () => {
         if (!activeMintUrl) {
             setError('No active mint selected');
+            return;
+        }
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            setStatus('error');
+            setStep('result');
             return;
         }
 

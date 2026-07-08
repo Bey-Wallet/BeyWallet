@@ -20,6 +20,7 @@ export default function ModalLayout() {
             screenOptions={{
                 headerShown: true,
                 presentation: 'formSheet',
+                animation: "slide_from_right",
                 headerStyle: {
                     backgroundColor: theme.background?.val,
                 },
@@ -57,6 +58,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Receive Ecash',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -64,6 +66,7 @@ export default function ModalLayout() {
                 options={{
                     headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -78,6 +81,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Send',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -93,6 +97,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Mint Cash',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -100,6 +105,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Pay Lightning',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -107,6 +113,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Swap',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -114,6 +121,7 @@ export default function ModalLayout() {
                 options={{
                     headerShown: false,
                     presentation: "modal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen

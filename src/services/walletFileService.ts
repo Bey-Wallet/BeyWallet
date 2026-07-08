@@ -151,12 +151,39 @@ export const walletFileService = {
             throw new Error('The selected file is not a valid Bey wallet backup.');
         }
 
-        if (!backup.mnemonic || typeof backup.mnemonic !== 'string') {
+        let mnemonic = backup.mnemonic;
+        if (!mnemonic && (backup as any)['cashu.mnemonic']) {
+            mnemonic = (backup as any)['cashu.mnemonic'];
+        }
+
+        if (!mnemonic || typeof mnemonic !== 'string') {
             throw new Error('The backup file does not contain a mnemonic.');
         }
 
-        if (!bip39.validateMnemonic(backup.mnemonic.trim())) {
+        if (!bip39.validateMnemonic(mnemonic.trim())) {
             throw new Error('The mnemonic in the backup file is invalid. It may be corrupted.');
+        }
+
+        // Extract proofs from cashu.me if double-serialized
+        let proofs = backup.proofs ?? [];
+        if (proofs.length === 0 && (backup as any)['cashu.dexie.db.proofs']) {
+            try {
+                proofs = JSON.parse((backup as any)['cashu.dexie.db.proofs']);
+            } catch (e) {
+                console.warn('[WalletFileService] Failed to parse cashu.me dexie proofs:', e);
+            }
+        }
+
+        // Extract defaultMintUrl from cashu.me
+        let defaultMintUrl = backup.defaultMintUrl ?? '';
+        if (!defaultMintUrl && (backup as any)['cashu.activeMintUrl']) {
+            defaultMintUrl = (backup as any)['cashu.activeMintUrl'];
+        }
+
+        // Extract secondaryCurrency from cashu.me
+        let secondaryCurrency = backup.secondaryCurrency ?? 'USD';
+        if (secondaryCurrency === 'USD' && (backup as any)['cashu.settings.bitcoinPriceCurrency']) {
+            secondaryCurrency = (backup as any)['cashu.settings.bitcoinPriceCurrency'];
         }
 
         console.log('[WalletFileService] ✅ Valid wallet backup parsed successfully.');
@@ -164,17 +191,101 @@ export const walletFileService = {
         // Return with safe defaults for fields that may be missing in older v1/v2 backups
         return {
             version: backup.version ?? 1,
-            mnemonic: backup.mnemonic.trim(),
+            mnemonic: mnemonic.trim(),
             mints: backup.mints ?? [],
             keysets: backup.keysets ?? [],
-            proofs: backup.proofs ?? [],
+            proofs,
             counters: backup.counters ?? [],
             history: backup.history ?? [],
             mintQuotes: backup.mintQuotes ?? [],
-            defaultMintUrl: backup.defaultMintUrl ?? '',
-            secondaryCurrency: backup.secondaryCurrency ?? 'USD',
+            defaultMintUrl,
+            secondaryCurrency,
             theme: backup.theme ?? 'system',
             exportedAt: backup.exportedAt ?? '',
         };
+    },
+
+    /**
+     * Export active proofs as a .json file containing the proofs array.
+     */
+    exportProofsToFile: async (proofs: any[]): Promise<void> => {
+        console.log('[WalletFileService] Exporting proofs to file...');
+        const payload = {
+            type: 'bey-cashu-proofs',
+            proofs,
+            exportedAt: new Date().toISOString(),
+        };
+
+        const filePath =
+            (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') +
+            'bey-cashu-proofs.json';
+
+        await FileSystem.writeAsStringAsync(filePath, JSON.stringify(payload, null, 2), {
+            encoding: 'utf8',
+        });
+
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (!isAvailable) {
+            throw new Error('Sharing is not available on this device.');
+        }
+
+        await Sharing.shareAsync(filePath, {
+            mimeType: 'application/json',
+            dialogTitle: 'Export Cashu Proofs File',
+            UTI: 'public.json',
+        });
+    },
+
+    /**
+     * Import proofs from a selected .json file.
+     * Returns the array of proofs.
+     */
+    importProofsFromFile: async (): Promise<any[]> => {
+        console.log('[WalletFileService] Importing proofs from file...');
+        const result = await DocumentPicker.getDocumentAsync({
+            copyToCacheDirectory: true,
+            multiple: false,
+        });
+
+        if (result.canceled || !result.assets || result.assets.length === 0) {
+            throw new Error('File selection was cancelled.');
+        }
+
+        const asset = result.assets[0];
+        const contents = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'utf8',
+        });
+
+        let data: any;
+        try {
+            data = JSON.parse(contents);
+        } catch {
+            throw new Error('The selected file is not a valid JSON file.');
+        }
+
+        let proofsArray: any[] = [];
+        if (data && data.type === 'bey-cashu-proofs' && Array.isArray(data.proofs)) {
+            proofsArray = data.proofs;
+        } else if (Array.isArray(data)) {
+            proofsArray = data;
+        } else if (data && typeof data === 'object' && 'cashu.dexie.db.proofs' in data) {
+            try {
+                // cashu.me double serialises proofs list in backup as a JSON string
+                const proofsStr = data['cashu.dexie.db.proofs'];
+                proofsArray = JSON.parse(proofsStr);
+            } catch {
+                throw new Error('Could not parse the cashu.me proofs database string inside the backup file.');
+            }
+        } else {
+            throw new Error('The file does not contain a valid list of Cashu proofs.');
+        }
+
+        for (const proof of proofsArray) {
+            if (!proof.secret || !proof.C || !proof.amount || !proof.id || !proof.mintUrl) {
+                throw new Error('The file contains invalid or incomplete Cashu proofs.');
+            }
+        }
+
+        return proofsArray;
     },
 };

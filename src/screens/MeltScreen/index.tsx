@@ -9,6 +9,7 @@ import { OnchainMeltFlow } from './OnchainMeltFlow';
 import { quotesService, mintManager } from '~/services/core';
 import { detectLightningInputType, requestInvoiceFromLnurl, getLnurlPayParams } from '~/services/lnurlService';
 import { biometricService } from '~/services/biometricService';
+import { networkService } from '~/services/networkService';
 import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { Text, YStack, XStack, Button, Separator, View, H1, Image } from 'tamagui';
@@ -117,6 +118,12 @@ export default function MeltScreen() {
             return;
         }
 
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            return;
+        }
+
         const cleaned = invoice.trim();
         if (!cleaned) {
             setError('Please enter a Lightning invoice or address');
@@ -207,6 +214,12 @@ export default function MeltScreen() {
     const getQuoteForInvoice = useCallback(async (bolt11: string) => {
         if (!activeMintUrl) return;
 
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            return;
+        }
+
         setIsGettingQuote(true);
         setError(null);
 
@@ -242,6 +255,13 @@ export default function MeltScreen() {
     // ─── Pay Handler ──────────────────────────────────────────
     const handlePay = useCallback(async () => {
         if (!activeMintUrl || !quoteId) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            confirmSheetRef.current?.dismiss();
+            return;
+        }
 
         setIsPaying(true);
         setError(null);

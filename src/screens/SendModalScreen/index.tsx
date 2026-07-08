@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { InteractionManager, Switch } from 'react-native'
+import { InteractionManager, Switch, Alert } from 'react-native'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
@@ -118,14 +118,29 @@ export function SendModalScreen() {
 
     // Auto-select Nostr mode + pre-fill recipient when coming from contact-details
     React.useEffect(() => {
-        if (params.mode === 'nostr' && params.to) {
-            setSendMode('nostr');
-            setNostrRecipientNpub(params.to as string);
-            setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
-        } else if (params.mode) {
-            setSendMode(params.mode as SendMode);
-        }
-    }, [params.mode, params.to, params.username]);
+        const checkOfflineMode = async () => {
+            try {
+                const state = await Network.getNetworkStateAsync();
+                const offline = !state.isConnected || !state.isInternetReachable;
+                if (offline && (params.mode === 'nostr' || params.mode === 'scan')) {
+                    Alert.alert('You are offline', `${params.mode === 'nostr' ? 'Nostr Send' : 'Scan & Pay'} is not available offline. Switched to Standard Mode.`);
+                    setSendMode('standard');
+                    return;
+                }
+            } catch (e) {
+                console.warn('[SendModalScreen] Network check error:', e);
+            }
+
+            if (params.mode === 'nostr' && params.to) {
+                setSendMode('nostr');
+                setNostrRecipientNpub(params.to as string);
+                setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
+            } else if (params.mode) {
+                setSendMode(params.mode as SendMode);
+            }
+        };
+        checkOfflineMode();
+    }, [params.mode, params.to, params.username, isHardwareOffline]);
 
     const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
         if (!params.paymentRequest) return null;
@@ -471,6 +486,12 @@ export function SendModalScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             if (sendMode === 'nostr') {
+                if (isOffline) {
+                    setError('You are offline. Cannot send via Nostr.');
+                    setStatus('error');
+                    setStep('result');
+                    return;
+                }
                 await handleNostrSend();
             } else {
                 await handleSend();

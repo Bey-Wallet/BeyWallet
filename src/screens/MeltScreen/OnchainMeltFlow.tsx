@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { YStack, XStack, Text, H1, Input, Button, Separator, ScrollView, View, Spinner, Avatar } from "tamagui";
 import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, Landmark, Check, Zap, ArrowUpDown, Coins, Info, ShieldCheck, CheckCircle2, XCircle, Bitcoin, ChevronDown, Sprout } from "@tamagui/lucide-icons";
 import * as Clipboard from "expo-clipboard";
+import { networkService } from "~/services/networkService";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useWalletStore } from "~/store/walletStore";
@@ -315,6 +316,13 @@ export function OnchainMeltFlow() {
     // Handle quote creation
     const handleGetQuote = async () => {
         if (!activeMintUrl || !canContinue) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setErrorMsg('You are offline. Please check your internet connection.');
+            return;
+        }
+
         setErrorMsg(null);
         setStep('paying');
 
@@ -335,6 +343,13 @@ export function OnchainMeltFlow() {
     // Confirm and melt payments
     const handlePayMelt = async () => {
         if (!activeMintUrl || !meltQuote) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setErrorMsg('You are offline. Please check your internet connection.');
+            return;
+        }
+
         setErrorMsg(null);
         setStep('paying');
 

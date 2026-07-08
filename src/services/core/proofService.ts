@@ -263,5 +263,13 @@ export const proofService = {
 
         return results;
     },
+
+    /**
+     * Save/insert imported proofs into the DB.
+     */
+    saveProofs: async (mintUrl: string, proofs: CoreProof[]): Promise<void> => {
+        const repo = initService.getRepo();
+        return repo.proofRepository.saveProofs(mintUrl, proofs);
+    },
 };
 

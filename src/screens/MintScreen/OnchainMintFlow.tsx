@@ -3,6 +3,7 @@ import { YStack, XStack, Text, Button, View, Paragraph, Separator, ScrollView, S
 import { Copy, Check, Clock, ShieldCheck, RefreshCw, X, Bitcoin, XCircle } from "@tamagui/lucide-icons";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from 'expo-clipboard';
+import { networkService } from '~/services/networkService';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useRouter } from 'expo-router';
@@ -61,8 +62,19 @@ export function OnchainMintFlow() {
         }
 
         let isMounted = true;
-        quotesService.createOnchainMintQuote(activeMintUrl)
-            .then(async data => {
+
+        const initFlow = async () => {
+            const offline = await networkService.isOffline();
+            if (offline) {
+                if (isMounted) {
+                    setErrorMsg('You are offline. Please check your internet connection.');
+                    setStep('error');
+                }
+                return;
+            }
+
+            try {
+                const data = await quotesService.createOnchainMintQuote(activeMintUrl);
                 if (isMounted) {
                     setQuoteData(data);
                     setStep('deposit');
@@ -91,14 +103,16 @@ export function OnchainMintFlow() {
                         console.warn('[OnchainMintFlow] Failed to save on-chain quote to history:', dbErr);
                     }
                 }
-            })
-            .catch(err => {
+            } catch (err: any) {
                 if (isMounted) {
                     console.error('[OnchainMintFlow] Failed to create quote:', err);
                     setErrorMsg(err.message || 'Failed to request deposit address');
                     setStep('error');
                 }
-            });
+            }
+        };
+
+        initFlow();
 
         return () => {
             isMounted = false;

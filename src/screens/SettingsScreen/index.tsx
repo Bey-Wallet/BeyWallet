@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
-import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw, Zap } from '@tamagui/lucide-icons';
+import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw, Zap, ArrowUpFromLine, Sparkles } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -64,6 +64,9 @@ export function SettingsScreen() {
                 break;
             case 'export':
                 handleExportWallet();
+                break;
+            case 'import':
+                handleImportWalletBackup();
                 break;
             case 'consolidate':
                 router.push('/(modals)/optimize-wallet');
@@ -164,7 +167,78 @@ export function SettingsScreen() {
         } finally {
             setIsExporting(false);
         }
-    };
+     };
+
+     const handleImportWalletBackup = async () => {
+         const authed = await biometricService.authenticateAsync('Authenticate to import wallet backup');
+         if (!authed) {
+             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+             return;
+         }
+
+         Alert.alert(
+             'Confirm Restore',
+             'This will replace your current wallet data with the backup. This cannot be undone. Are you sure you want to proceed?',
+             [
+                 { text: 'Cancel', style: 'cancel' },
+                 {
+                     text: 'Restore',
+                     style: 'destructive',
+                     onPress: async () => {
+                         setIsDeleting(true);
+                         try {
+                             const backup = await walletFileService.importWalletFromFile();
+                             
+                             // 1. Destroy current database
+                             await initService.destroyWallet();
+
+                             // 2. Re-create wallet seed
+                             await initService.restoreWallet(backup.mnemonic, { quiet: true });
+
+                             // 3. Import full DB state
+                             const backupState = {
+                                 mints: backup.mints,
+                                 keysets: backup.keysets,
+                                 proofs: backup.proofs,
+                                 counters: backup.counters,
+                                 history: backup.history,
+                                 mintQuotes: backup.mintQuotes,
+                             };
+                             const { backupService } = require('~/services/backupService');
+                             await backupService.importState(backupState);
+
+                             // 4. Re-init fast
+                             await initService.reinitFast();
+
+                             // 5. Restore settings
+                             const settingsStore = useSettingsStore.getState();
+                             if (backup.secondaryCurrency) await settingsStore.setSecondaryCurrency(backup.secondaryCurrency);
+                             if (backup.theme) await settingsStore.setTheme(backup.theme);
+                             if (backup.defaultMintUrl) await settingsStore.setDefaultMintUrl(backup.defaultMintUrl);
+
+                             Alert.alert('Restore Completed', 'Your wallet has been restored successfully. Please restart the app.', [
+                                 {
+                                     text: 'OK',
+                                     onPress: () => {
+                                         if (__DEV__ && DevSettings?.reload) {
+                                             DevSettings.reload();
+                                         }
+                                     }
+                                 }
+                             ]);
+                         } catch (err: any) {
+                             if (err?.message !== 'File selection was cancelled.') {
+                                 console.error('[Settings] Restore failed:', err);
+                                 Alert.alert('Restore Failed', err?.message ?? 'Could not import backup.');
+                             }
+                         } finally {
+                             setIsDeleting(false);
+                         }
+                     }
+                 }
+             ]
+         );
+     };
 
     const handleDeleteWallet = async () => {
         const authed = await biometricService.authenticateAsync('Authenticate to delete your wallet');
@@ -229,9 +303,17 @@ export function SettingsScreen() {
                 },
                 {
                     id: 'export',
-                    title: 'Export Wallet File',
-                    icon: isExporting ? ActivityIndicator : Download,
+                    title: 'Export wallet data',
+                    subTitle: 'Download a dump of your wallet. You can restore your wallet from this file in the welcome screen of a new wallet. This file will be out of sync if you keep using your wallet after exporting it.',
+                    icon: isExporting ? ActivityIndicator : ArrowUpFromLine,
                     disabled: isExporting,
+                    color: '$blue10',
+                },
+                {
+                    id: 'import',
+                    title: 'Import wallet backup',
+                    subTitle: 'Restore your wallet from a previously exported backup file. This will replace your current wallet data with the backup.',
+                    icon: Download,
                     color: '$blue10',
                 },
             ],
@@ -275,8 +357,8 @@ export function SettingsScreen() {
                     id: 'consolidate',
                     title: 'Optimize Wallet',
                     subtitle: 'Reduce proof count for faster sends',
-                    icon: Zap,
-                    color: '$green10',
+                    icon: Sparkles,
+                    color: '$blue10',
                 },
                 {
                     id: 'verify-dleq',

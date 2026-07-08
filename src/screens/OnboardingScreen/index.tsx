@@ -310,9 +310,9 @@ export function OnboardingScreen() {
                 .map((m: any) => typeof m === 'string' ? m : (m.url || m.mintUrl))
                 .filter((url: string) => url && url !== DEFAULT_MINT)
 
-            // Package up the state if version >= 3
+            // Package up the state if proofs exist in the backup (v3 or cashu.me compatible)
             let backupState: any = undefined
-            if (backup.version && backup.version >= 3) {
+            if (backup.proofs && backup.proofs.length > 0) {
                 backupState = {
                     mints: backup.mints,
                     keysets: backup.keysets,

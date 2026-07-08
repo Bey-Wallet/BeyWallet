@@ -37,6 +37,7 @@ export default function NFCReceiveScreen() {
     const balance = activeMintUrl ? balances[activeMintUrl] || 0 : 0;
 
     const processTagRef = useRef<any>();
+    const handleReceiveRef = useRef<any>();
 
     useFocusEffect(
         useCallback(() => {
@@ -54,6 +55,13 @@ export default function NFCReceiveScreen() {
                                 processTagRef.current(tag);
                             }
                         });
+
+                        // Auto-start active reading session immediately on focus
+                        setTimeout(() => {
+                            if (handleReceiveRef.current) {
+                                handleReceiveRef.current();
+                            }
+                        }, 500);
                     }
                 }
             };
@@ -169,7 +177,8 @@ export default function NFCReceiveScreen() {
 
     useEffect(() => {
         processTagRef.current = processTag;
-    }, [processTag]);
+        handleReceiveRef.current = handleReceive;
+    }, [processTag, handleReceive]);
 
     const handleReceive = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

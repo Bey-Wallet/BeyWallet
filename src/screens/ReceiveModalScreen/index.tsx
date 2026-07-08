@@ -10,6 +10,7 @@ import { walletService, mintManager, initService, historyService } from '../../s
 import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
+import { networkService } from '../../services/networkService'
 import { nip19, SimplePool } from 'nostr-tools'
 import { RELAYS } from '../../services/core/nostrService'
 import { deriveSharingKeys, decryptToken } from '../../utils/ecashSharing'
@@ -248,6 +249,14 @@ export function ReceiveModalScreen() {
 
     const handleReceive = useCallback(async () => {
         if (!tokenInfo) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            setStatus('error');
+            setStep('result');
+            return;
+        }
 
         setIsReceiving(true);
         setError(null);
