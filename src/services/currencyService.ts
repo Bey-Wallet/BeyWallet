@@ -1,3 +1,5 @@
+import { useSettingsStore } from "../store/settingsStore";
+
 export type CurrencyCode = 
     | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'CHF' 
     | 'CNY' | 'INR' | 'BRL' | 'RUB' | 'ZAR' | 'MXN' | 'SGD' 
@@ -39,6 +41,23 @@ const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
 const decimalFormatterCache = new Map<string, Intl.NumberFormat>();
 
 export const currencyService = {
+    formatSats(sats: number, options?: { explicitSign?: boolean }): string {
+        const showBitcoinSymbol = useSettingsStore.getState().showBitcoinSymbol;
+        const isNegative = sats < 0;
+        const absSats = Math.abs(sats);
+        const formatted = absSats.toLocaleString();
+        let sign = '';
+        if (isNegative) {
+            sign = '-';
+        } else if (options?.explicitSign && sats > 0) {
+            sign = '+';
+        }
+        if (showBitcoinSymbol) {
+            return `${sign}₿${formatted}`;
+        }
+        return `${sign}${formatted} SATS`;
+    },
+
     formatValue(value: number, currencyCode: CurrencyCode): string {
         const currency = SUPPORTED_CURRENCIES.find(c => c.code === currencyCode) || SUPPORTED_CURRENCIES[0];
         try {

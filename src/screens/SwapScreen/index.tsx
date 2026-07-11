@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
 import { walletService, mintManager, quotesService } from '~/services/core';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { currencyService } from '~/services/currencyService';
 
 import { AmountStage } from './AmountStage';
 import { ResultStage } from './ResultStage';
@@ -174,7 +175,7 @@ export default function SwapScreen() {
                         <XStack justify="space-between" items="center" px="$4" py="$3">
                             <Text color="$gray10" fontWeight="600">Amount</Text>
                             <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$6">₿{amount} sats</Text>
+                                <Text fontWeight="800" fontSize="$6">{currencyService.formatSats(Number(amount))}</Text>
                             </YStack>
                         </XStack>
 

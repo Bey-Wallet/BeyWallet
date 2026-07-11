@@ -292,7 +292,7 @@ export default function MeltScreen() {
 
         try {
             const success = await biometricService.authenticateAsync(
-                `Pay Lightning ₿${quoteAmount} sats`
+                `Pay Lightning ${currencyService.formatSats(quoteAmount)}`
             );
 
             if (success) {
@@ -356,7 +356,7 @@ export default function MeltScreen() {
                                 <Text fontSize="$4" color="$gray10" fontWeight="600">Invoice Amount</Text>
                             </XStack>
                             <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$5" color="$color">₿{quoteAmount} sats</Text>
+                                <Text fontWeight="800" fontSize="$5" color="$color">{currencyService.formatSats(quoteAmount)}</Text>
                                 <Text color="$gray10" fontSize="$3">{fiatValue}</Text>
                             </YStack>
                         </XStack>

@@ -42,11 +42,11 @@ export function SuccessStage({
         : '...';
 
     const primaryAmountLabel = primaryCurrency === 'SATS'
-        ? `₿${parseInt(amount).toLocaleString()}`
+        ? currencyService.formatSats(parseInt(amount))
         : fiatValue;
     const secondaryAmountLabel = primaryCurrency === 'SATS'
         ? fiatValue
-        : `₿${parseInt(amount).toLocaleString()} sats`;
+        : currencyService.formatSats(parseInt(amount));
 
     return (
         <YStack flex={1} bg="$background" p="$0" gap="$3">
@@ -119,9 +119,9 @@ export function SuccessStage({
                                 value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]}
                             />
                         )}
-                        <ListTableRow label="Fee Paid" value={`₿${fee} sats`} />
+                        <ListTableRow label="Fee Paid" value={currencyService.formatSats(fee)} />
                         {primaryCurrency === 'FIAT' ? (
-                            <ListTableRow label="Sats Value" value={`₿${parseInt(amount).toLocaleString()} sats`} />
+                            <ListTableRow label="Sats Value" value={currencyService.formatSats(parseInt(amount))} />
                         ) : (
                             <ListTableRow label="Fiat Value" value={fiatValue} />
                         )}

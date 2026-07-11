@@ -360,7 +360,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
                                 color="$color"
                                 fontVariant={['tabular-nums'] as any}
                             >
-                                {sign}₿{amount.toLocaleString()}
+                                {sign}{currencyService.formatSats(amount)}
                             </Text>
                             <Text
                                 fontSize="$2"
@@ -387,7 +387,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(({
                                 fontWeight="600"
                                 fontVariant={['tabular-nums'] as any}
                             >
-                                {sign}₿{amount.toLocaleString()}
+                                {sign}{currencyService.formatSats(amount)}
                             </Text>
                         </>
                     )}

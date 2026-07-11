@@ -47,7 +47,7 @@ export function NostrSendStage({
     onContinue, balance, isLoading, error
 }: NostrSendStageProps) {
     const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const favorites = useContactsStore(s => s.favorites);
     const favoriteContacts = Object.values(favorites);
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
@@ -190,7 +190,7 @@ export function NostrSendStage({
                 secondaryCurrency as CurrencyCode
             );
         } else {
-            return `₿${Number(amount) || 0}`;
+            return currencyService.formatSats(Number(amount) || 0);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -336,7 +336,7 @@ export function NostrSendStage({
                     </XStack>
                     <XStack gap="$2" items="center">
                         <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            ₿{balance.toLocaleString('en-US')}
+                            {currencyService.formatSats(balance)}
                         </Text>
                         <Button
                             size="$2"
@@ -387,7 +387,7 @@ export function NostrSendStage({
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                         </H1>
 
                         <Button

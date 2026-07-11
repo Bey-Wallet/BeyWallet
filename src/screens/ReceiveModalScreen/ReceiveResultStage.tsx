@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Spinner, YStack, XStack, Text, Button, Circle, View, Separator, ScrollView } from "tamagui";
-import { Check, X, ArrowDownLeft, AlertCircle, CheckCircle2, Copy, Share2, Gauge, ZoomIn, Hexagon, ArrowDown, Clock } from "@tamagui/lucide-icons";
+import React, { useEffect, useState, useMemo } from 'react';
+import { Spinner, YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup } from "tamagui";
+import { Check, ArrowDownLeft, AlertCircle, Copy, Clock } from "@tamagui/lucide-icons";
 import * as Haptics from 'expo-haptics';
 import * as ExpoClipboard from 'expo-clipboard';
 import { Stack, useRouter } from 'expo-router';
@@ -8,11 +8,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, CurrencyCode } from '../../services/currencyService';
-import QRCode from 'react-native-qrcode-svg';
-import { UR, UREncoder } from "@gandlaf21/bc-ur";
 import { Buffer } from 'buffer';
-import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '../../services/core';
-import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 
 // Ensure Buffer is available globally
@@ -68,6 +64,34 @@ export function ReceiveResultStage({
         );
     }, [amount, btcData?.price, secondaryCurrency]);
 
+    const decoded = useMemo(() => {
+        if (!token) return null;
+        try {
+            const { decodeToken } = require('../../services/core/tokenUtils');
+            return decodeToken(token);
+        } catch (e) {
+            console.warn('[ReceiveResultStage] Failed to decode token:', e);
+            return null;
+        }
+    }, [token]);
+
+    const [estimatedFee, setEstimatedFee] = useState(0);
+    useEffect(() => {
+        const mint = decoded?.token?.[0]?.mint || mintUrl;
+        const proofCount = decoded?.proofs?.length || 0;
+        if (mint && proofCount > 0) {
+            const { mintManager } = require('../../services/core');
+            mintManager.getFeePpk(mint).then((feePpk: number) => {
+                const fee = feePpk > 0 ? Math.ceil(proofCount * feePpk / 1000) : 0;
+                setEstimatedFee(fee);
+            }).catch(() => setEstimatedFee(0));
+        }
+    }, [decoded, mintUrl]);
+
+    const receiveTime = useMemo(() => {
+        return new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    }, []);
+
 
     useEffect(() => {
         if (isSuccess) {
@@ -85,6 +109,12 @@ export function ReceiveResultStage({
             toast.show('Copied!', { message: 'Token copied to clipboard' });
             setTimeout(() => setCopied(false), 2000);
         }
+    };
+
+    const handleCopyText = async (text: string, label: string) => {
+        await ExpoClipboard.setStringAsync(text);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        toast.show('Copied!', { message: `${label} copied to clipboard` });
     };
 
     const isOfflineSaved = !isSuccess && error && (error.includes('Could not connect to mint') || error.includes('saved to your transaction history') || error.includes('saved in your history'));
@@ -119,86 +149,113 @@ export function ReceiveResultStage({
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
                 px="$4"
             >
-                {/* 1. Status and Amount Display */}
-                <YStack width="100%" justify="space-between" height={260} bg="$gray2" rounded="$5" items="center" gap="$4" mb="$6">
-                    <Text width="100%" p="$3" text="center" borderBottomWidth={1} borderColor="$borderColor" fontWeight="800" fontSize="$5" color="$color">
-                        {isReceiveLater ? 'Token Saved' : 'Received Successfully!'}
-                    </Text>
-                    <YStack items="center" justify="center">
-                        {primaryCurrency === 'SATS' ? (
-                            <>
-                                <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
-                                    +₿{Number(amount || 0).toLocaleString()}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    Ecash SATS
-                                </Text>
-                            </>
-                        ) : (
-                            <>
-                                <Text fontSize="$9" fontWeight="900" color={isReceiveLater ? "$orange10" : "$green11"}>
-                                    +{fiatValue}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    +₿{Number(amount || 0).toLocaleString()} SATS
-                                </Text>
-                            </>
-                        )}
+                <YStack gap="$4">
+                    {/* Middle Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                            {currencyService.formatSats(Number(amount || 0))}
+                        </Text>
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
+                            {fiatValue}
+                        </Text>
                     </YStack>
-                    <YStack items="center" width="100%" gap="$1" p="$3" borderTopWidth={1} borderColor="$borderColor">
-                        <Text color="$gray10" fontSize="$4" text="center">
+
+                    {/* Proof verification status badge */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg={
+                            isReceiveLater ? '$orange9' : '$green9'
+                        }
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        {isReceiveLater ? <Clock size={16} color="white" /> : <Check size={16} color="white" />}
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            {isReceiveLater ? 'Saved Later' : 'Received'}
+                        </Text>
+                    </XStack>
+
+                    {/* Description Text */}
+                    <YStack px="$4" py="$2">
+                        <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
                             {isReceiveLater ? 'You can claim this later from History.' : 'The ecash has been added to your wallet.'}
                         </Text>
                     </YStack>
-                </YStack>
 
-                {/* 3. Details Table */}
-                <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    {primaryCurrency === 'FIAT' ? (
-                        <>
-                            <DetailItem label="Total Amount" value={fiatValue} />
-                            <DetailItem label="Sats" value={`₿${amount} sats`} />
-                        </>
-                    ) : (
-                        <>
-                            <DetailItem label="Total Amount" value={`₿${amount} sats`} />
-                            <DetailItem label="Fiat" value={fiatValue} />
-                        </>
-                    )}
-                    <DetailItem label="Unit" value="SATOSHIS" />
-                    <DetailItem label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
-                </YStack>
-
-                {/* 4. Action Buttons (If Receive Later) */}
-                {isReceiveLater && currentToken && (
-                    <YStack gap="$2" >
-                        <Button
-                            onPress={onClaimNow}
-                            bg="$accent10"
-                            color="white"
-                            size="$5"
-                            height={55}
-                            rounded="$4"
-                            fontWeight="800"
-                            disabled={isLoading}
-                            icon={isLoading ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
-                        >
-                            CLAIM NOW
-                        </Button>
-                        <Button
-                            onPress={handleCopy}
-                            size="$5"
-                            height={55}
-                            rounded="$4"
-                            bg="$gray3"
-                            color="$color"
-                            fontWeight="800"
-                            icon={copied ? <Check size={20} /> : <Copy size={20} />}
-                        >
-                            {copied ? 'Copied!' : 'Copy Token'}
-                        </Button>
+                    {/* Details List */}
+                    <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$6">
+                        <View p="$3" px="$4">
+                            <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                        </View>
+                        <Separator borderColor="$borderColor" opacity={0.3} />
+                        <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                            {token && (
+                                <DetailItem
+                                    label="Token"
+                                    value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
+                                    isCopyable
+                                    onCopy={() => handleCopyText(token, 'Token')}
+                                />
+                            )}
+                            <DetailItem
+                                label="Mint"
+                                value={mintUrl ? (mintUrl.replace(/^https?:\/\//, '').split('/')[0]) : 'Unknown'}
+                                isCopyable={!!mintUrl}
+                                onCopy={mintUrl ? () => handleCopyText(mintUrl, 'Mint URL') : undefined}
+                            />
+                            <DetailItem
+                                label="Proofs"
+                                value={(decoded?.proofs?.length || 0).toString()}
+                            />
+                            <DetailItem
+                                label="Fee"
+                                value={`${estimatedFee} sats`}
+                            />
+                            <DetailItem
+                                label="Time"
+                                value={receiveTime}
+                            />
+                        </YGroup>
                     </YStack>
-                )}
+
+                    {/* Action Buttons (If Receive Later) */}
+                    {isReceiveLater && currentToken && (
+                        <YStack gap="$2" >
+                            <Button
+                                onPress={onClaimNow}
+                                bg="$accent10"
+                                color="white"
+                                size="$5"
+                                height={55}
+                                rounded="$4"
+                                fontWeight="800"
+                                disabled={isLoading}
+                                icon={isLoading ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
+                            >
+                                CLAIM NOW
+                            </Button>
+                            <Button
+                                onPress={handleCopy}
+                                size="$5"
+                                height={55}
+                                rounded="$4"
+                                bg="$gray3"
+                                color="$color"
+                                fontWeight="800"
+                                icon={copied ? <Check size={20} /> : <Copy size={20} />}
+                            >
+                                {copied ? 'Copied!' : 'Copy Token'}
+                            </Button>
+                        </YStack>
+                    )}
+                </YStack>
             </ScrollView>
 
             {/* Final Done Button (Only if not receive later OR if not busy claiming) */}

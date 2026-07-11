@@ -128,7 +128,7 @@ export function TransactionDetailsScreen() {
         if (!entry) return '';
         const amt = entry.amount;
         if (primaryCurrency === 'SATS') {
-            return `₿${Number(amt).toLocaleString()}`;
+            return currencyService.formatSats(Number(amt));
         } else {
             return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
         }
@@ -671,11 +671,11 @@ export function TransactionDetailsScreen() {
 
     // Shared header amount title (primary + secondary)
     const headerPrimaryAmount = primaryCurrency === 'SATS'
-        ? `₿${Number(entry?.amount || 0).toLocaleString()}`
+        ? currencyService.formatSats(Number(entry?.amount || 0))
         : currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
     const headerSecondaryAmount = primaryCurrency === 'SATS'
         ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-        : `₿${Number(entry?.amount || 0).toLocaleString()} sats`;
+        : currencyService.formatSats(Number(entry?.amount || 0));
 
     // Derive badge status from entry state
     const badgeStatus: BadgeStatus = (() => {
@@ -686,40 +686,14 @@ export function TransactionDetailsScreen() {
         return 'pending';
     })();
 
-    // Reusable header title + right component builder
-    // Used for PENDING branches: shows amount in title + StatusBadge with refresh
-    const makeHeaderOptions = () => ({
+    const headerOptions = {
+        title: title || 'Transaction',
         headerTitleAlign: 'center' as const,
-        headerTitle: () => (
-            <YStack items="center" justify="center" gap={1}>
-                <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
-                    {headerPrimaryAmount}
-                </Text>
-                <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
-                    {headerSecondaryAmount}
-                </Text>
-            </YStack>
-        ),
-        headerRight: () => (
-            <XStack pr="$1" gap="$2" items="center">
-                <StatusBadge
-                    status={badgeStatus}
-                    onPress={handleRefresh}
-                    isChecking={isRefetching}
-                />
-            </XStack>
-        ),
-    });
+        headerRight: () => null,
+    };
 
-    // Used for FINALIZED branches (done/error/success): empty title, only badge
-    const makeFinalizedHeaderOptions = () => ({
-        headerTitle: () => null,
-        headerRight: () => (
-            <XStack pr="$1" items="center">
-                <StatusBadge status={badgeStatus} />
-            </XStack>
-        ),
-    });
+    const makeHeaderOptions = () => headerOptions;
+    const makeFinalizedHeaderOptions = () => headerOptions;
 
 
     if (!entry) {
@@ -810,43 +784,68 @@ export function TransactionDetailsScreen() {
     try {
         return (
             <>
-                <Stack.Screen options={makeFinalizedHeaderOptions()} />
+                <Stack.Screen options={headerOptions} />
                 <ScrollView gap="$3" pb="$8" p="$4" bg="$background" showsVerticalScrollIndicator={false}>
-                    <YStack bg="$background" gap="$3">
+                    <YStack bg="$background" gap="$4">
                         {/* Big Amount */}
                         <YStack gap="$2" items="center" justify="center" py="$5">
-                            <Text>{title}</Text>
+                            <Text fontSize="$4" fontWeight="600" color="$gray10">{title}</Text>
                             <Text
-                                fontSize={48}
-                                fontWeight="600"
-                                 fontVariant={['tabular-nums']}
+                                fontSize={52}
+                                fontWeight="700"
+                                fontFamily="$oswald"
                                 letterSpacing={-1}
-                                lineHeight={52}
-                                color="$color"
+                                lineHeight={54}
+                                color="$accent3"
                             >
                                 {entry.type !== 'swap' ? amountSign : ''}{headerPrimaryAmount}
                             </Text>
-                            <Text fontSize="$5"  fontVariant={['tabular-nums']} fontWeight="600" color="$gray10" mt="$1">
+                            <Text color="$accent5" fontWeight="600" fontSize={16} mt="$1">
                                 {entry.type !== 'swap' ? amountSign : ''}{headerSecondaryAmount}
                             </Text>
                         </YStack>
 
+                        {/* Status Badge */}
+                        <XStack
+                            self="center"
+                            items="center"
+                            gap="$2"
+                            bg={statusConfig.headerBg}
+                            px="$4"
+                            py="$3"
+                            rounded="$10"
+                        >
+                            {React.createElement(statusConfig.icon, { size: 16, color: 'white' })}
+                            <Text
+                                fontSize="$3"
+                                fontWeight="700"
+                                color="white"
+                            >
+                                {statusConfig.label}
+                            </Text>
+                        </XStack>
+
                         {/* Compact status description */}
-                        <YStack bg="$gray2" rounded="$5" px="$4" py="$3" items="center" gap="$1">
-                            <Text color="$gray10" fontSize="$4" textAlign="center">
+                        <YStack px="$4" py="$2">
+                            <Text color="$gray10" fontSize="$4" textAlign="center" lineHeight={20}>
                                 {status === 'failed' || status === 'error' ? 'Funds were not transferred.' :
                                     status === 'expired' || status === 'refunded' ? 'Funds were returned to your wallet.' :
                                     status === 'pending' || status === 'unclaimed' ? 'Waiting for payment to be processed.' :
-                                        entry.type === 'swap' || metadata?.via === 'swap' ? 'Atomic transfer completed between mints.' :
-                                        entry.type === 'send' ? 'The recipient has claimed your ecash.' :
-                                            entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
-                                                entry.type === 'mint' ? 'Ecash added to your wallet.' :
-                                                    entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain payment was broadcast successfully.' : 'Lightning invoice was successfully paid.') : 'Transaction processed.'}
+                                    entry.type === 'swap' || metadata?.via === 'swap' ? 'Atomic transfer completed between mints.' :
+                                    entry.type === 'send' ? 'The recipient has claimed your ecash.' :
+                                    entry.type === 'receive' ? 'The ecash has been added to your wallet.' :
+                                    entry.type === 'mint' ? 'Ecash added to your wallet.' :
+                                    entry.type === 'melt' ? (metadata?.via === 'onchain' ? 'On-chain payment was broadcast successfully.' : 'Lightning invoice was successfully paid.') : 'Transaction processed.'}
                             </Text>
                         </YStack>
-                        {/* Details table — no amount/fiat/type (shown in header) */}
+
+                        {/* Details table */}
                         <ListTable>
-                            <ListTableRow label="Status" value={formattedStatus} />
+                            <View p="$3" px="$4">
+                                <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                            </View>
+                            <Separator borderColor="$borderColor" opacity={0.3} />
+                            
                             <ListTableRow label="Date" value={formatFullLocalTime(entry.createdAt)} />
                             <ListTableRow label="Mint" value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]} />
                             {mintFee > 0 && (
@@ -942,7 +941,7 @@ export function TransactionDetailsScreen() {
                                         {entry.type === 'melt' && onchainFee !== undefined ? (
                                             <ListTableRow
                                                 label="Network Fee"
-                                                value={`${onchainFee} sats`}
+                                                value={currencyService.formatSats(onchainFee)}
                                             />
                                         ) : null}
                                     </>
@@ -1005,7 +1004,7 @@ export function TransactionDetailsScreen() {
                         )}
 
                         {/* Copy & Share buttons */}
-                        <XStack gap="$2">
+                        <XStack gap="$2" mt="$4">
                             <Button flex={1} bg="$gray3" color="$color" height={55} rounded="$4" icon={<Copy size={18} />} onPress={handleCopyToken} fontWeight="800">Copy</Button>
                             <Button flex={1} bg="$gray3" color="$color" height={55} rounded="$4" icon={<Share2 size={18} />} onPress={handleShare} fontWeight="800">Share</Button>
                         </XStack>

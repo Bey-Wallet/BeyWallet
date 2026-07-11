@@ -227,21 +227,16 @@ export function OnchainMintFlow() {
                             <Text fontWeight="800" fontSize="$5" color="$green10">Deposit Received!</Text>
                             <YStack items="center" justify="center">
                                 {primaryCurrency === 'SATS' ? (
-                                    <>
-                                        <Text fontSize="$8" fontWeight="900" color="$color">
-                                            +₿{amountPaid.toLocaleString()}
-                                        </Text>
-                                        <Text fontSize="$4" fontWeight="600" color="$gray10">
-                                            SATS
-                                        </Text>
-                                    </>
+                                    <Text fontSize="$8" fontWeight="900" color="$color">
+                                        +{currencyService.formatSats(amountPaid)}
+                                    </Text>
                                 ) : (
                                     <>
                                         <Text fontSize="$8" fontWeight="900" color="$color">
                                             +{fiatValue}
                                         </Text>
                                         <Text fontSize="$4" fontWeight="600" color="$gray10">
-                                            +₿{amountPaid.toLocaleString()} SATS
+                                            +{currencyService.formatSats(amountPaid)}
                                         </Text>
                                     </>
                                 )}

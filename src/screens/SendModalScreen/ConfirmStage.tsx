@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, Button, H1, Separator, Avatar, View } from "tamagui";
+import { YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
 import { Switch } from 'react-native';
 import { Sprout, Zap, ShieldCheck, Lock, Clock } from "@tamagui/lucide-icons";
 import { Spinner } from '~/components/UI/Spinner';
@@ -55,10 +55,6 @@ export function ConfirmStage({
         staleTime: 30000,
     });
 
-    const currencySymbol = useMemo(() => {
-        return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
-    }, [secondaryCurrency]);
-
     const fiatValue = useMemo(() => {
         if (!btcData?.price) return '0.00';
         const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
@@ -82,15 +78,6 @@ export function ConfirmStage({
     const formattedSatsString = useMemo(() => {
         return sats.toLocaleString('en-US');
     }, [sats]);
-
-    const dynamicFontSize = useMemo(() => {
-        const len = formattedSatsString.length + 1; // +1 for ₿
-        if (len <= 6) return 44;
-        if (len <= 8) return 38;
-        if (len <= 10) return 32;
-        if (len <= 13) return 26;
-        return 20;
-    }, [formattedSatsString]);
 
     const recipientSeed = useMemo(() => {
         if (sendMode === 'nostr' && nostrRecipientNpub) return nostrRecipientNpub;
@@ -116,126 +103,123 @@ export function ConfirmStage({
     }, [sendMode]);
 
     return (
-        <YStack flex={1} justify="space-between">
-            <YStack gap="$4" width="100%">
-                {/* Hero Card Box Container matching Mint ConfirmStage */}
-                <YStack
-                    width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    p="$4"
-                    items="center"
-                    gap="$3"
-                    borderWidth={0}
-                >
-
-                    {/* Amount Display Section */}
-                    <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
-                        <Text color="$gray10" fontSize="$3" fontWeight="500">
-                            Confirm Send Amount
+        <YStack flex={1} bg="$background">
+            <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
+                <YStack  gap="$4">
+                    {/* Middle Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                            {currencyService.formatSats(sats)}
                         </Text>
-
-                        <H1
-                            fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color="$color"
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            ₿{formattedSatsString}
-                        </H1>
-
-                        <Text fontSize="$3" fontWeight="600" color="$accent10">
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
                             ≈ {fiatValue} {secondaryCurrency}
                         </Text>
                     </YStack>
-                </YStack>
 
-                {/* Detailed Breakdown Card */}
-                <YStack bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
-                    <DetailItem
-                        label="Mint"
-                        value={mintDisplayName}
-                        icon={
-                            <Avatar rounded="$3" size="$1.5">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback bg="$green3" items="center" justify="center">
-                                    <Sprout size={12} color="$green10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        }
-                    />
-                    <DetailItem
-                        label="Method"
-                        value={methodTitle}
-
-                    />
-                    <DetailItem
-                        label="Estimated Fee"
-                        value={estimatedFee > 0 ? `~${estimatedFee} SATS` : '0 SATS (Free)'}
-                        valueColor={estimatedFee > 0 ? "$orange10" : "$green11"}
-                        icon={<ShieldCheck size={16} color="$green11" />}
-                    />
-
-                    {recipientSeed && (
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
-                            <XStack gap="$2" items="center">
-                                <Blockies seed={recipientSeed} size={6} scale={2} style={{ borderRadius: 2 }} />
-                                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
-                                    {displayRecipientText}
-                                </Text>
-                            </XStack>
-                        </XStack>
-                    )}
-
-                    {sendMode === 'nostr' && (
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <Lock size={16} color="$gray10" />
-                                <Text fontSize="$3" color="$gray10" fontWeight="600">P2PK Lock</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
-                                    {useP2PK ? 'Secured' : 'Off'}
-                                </Text>
-                                <Switch
-                                    value={useP2PK}
-                                    onValueChange={setUseP2PK}
-                                    trackColor={{ false: '#444', true: '#34C759' }}
-                                    thumbColor="white"
-                                />
-                            </XStack>
-                        </XStack>
-                    )}
-
-                    <XStack justify="space-between" items="center" py="$3" px="$4">
-                        <XStack gap="$2" items="center">
-                            <Clock size={16} color="$gray10" />
-                            <Text fontSize="$3" color="$gray10" fontWeight="600">7 Days Expiry</Text>
-                        </XStack>
-                        <XStack gap="$2" items="center">
-                            <Text fontSize="$2" color={expiryEnabled ? '$green11' : '$gray10'} fontWeight="700">
-                                {expiryEnabled ? '7 Days' : 'Off'}
-                            </Text>
-                            <Switch
-                                value={expiryEnabled}
-                                onValueChange={setExpiryEnabled}
-                                trackColor={{ false: '#444', true: '#34C759' }}
-                                thumbColor="white"
-                            />
-                        </XStack>
+                    {/* Send Method Badge */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg="$accent9"
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        {sendMode === 'nostr' ? <Zap size={16} color="white" />
+                            : sendMode === 'p2pk' ? <Lock size={16} color="white" />
+                                : <Sprout size={16} color="white" />}
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            {methodTitle}
+                        </Text>
                     </XStack>
-                </YStack>
-            </YStack>
 
-            {/* Action Buttons (Confirm Top, Back Bottom, NO Bio Auth) */}
-            <YStack gap="$3" pb="$2">
+                    {/* Details List */}
+                    <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
+                        <View p="$3" px="$4">
+                            <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                        </View>
+                        <Separator borderColor="$borderColor" opacity={0.3} />
+                        <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                            <DetailItem
+                                label="Mint"
+                                value={mintDisplayName}
+                                icon={
+                                    <Avatar rounded="$3" size="$1.5">
+                                        <Avatar.Image src={activeMint?.icon} />
+                                        <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                            <Sprout size={12} color="$green10" />
+                                        </Avatar.Fallback>
+                                    </Avatar>
+                                }
+                            />
+                            <DetailItem
+                                label="Estimated Fee"
+                                value={estimatedFee > 0 ? `~${currencyService.formatSats(estimatedFee)}` : `${currencyService.formatSats(0)} (Free)`}
+                                valueColor={estimatedFee > 0 ? "$orange10" : "$green11"}
+                                icon={<ShieldCheck size={16} color="$green11" />}
+                            />
+
+                            {recipientSeed && (
+                                <XStack justify="space-between" items="center" py="$3" px="$4">
+                                    <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
+                                    <XStack gap="$2" items="center">
+                                        <Blockies seed={recipientSeed} size={6} scale={2} style={{ borderRadius: 2 }} />
+                                        <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
+                                            {displayRecipientText}
+                                        </Text>
+                                    </XStack>
+                                </XStack>
+                            )}
+
+                            {sendMode === 'nostr' && (
+                                <XStack justify="space-between" items="center" py="$3" px="$4">
+                                    <XStack gap="$2" items="center">
+                                        <Lock size={16} color="$gray10" />
+                                        <Text fontSize="$3" color="$gray10" fontWeight="600">P2PK Lock</Text>
+                                    </XStack>
+                                    <XStack gap="$2" items="center">
+                                        <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
+                                            {useP2PK ? 'Secured' : 'Off'}
+                                        </Text>
+                                        <Switch
+                                            value={useP2PK}
+                                            onValueChange={setUseP2PK}
+                                            trackColor={{ false: '#444', true: '#34C759' }}
+                                            thumbColor="white"
+                                        />
+                                    </XStack>
+                                </XStack>
+                            )}
+
+                            <XStack justify="space-between" items="center" py="$3" px="$4">
+                                <XStack gap="$2" items="center">
+                                    <Clock size={16} color="$gray10" />
+                                    <Text fontSize="$3" color="$gray10" fontWeight="600">7 Days Expiry</Text>
+                                </XStack>
+                                <XStack gap="$2" items="center">
+                                    <Text fontSize="$2" color={expiryEnabled ? '$green11' : '$gray10'} fontWeight="700">
+                                        {expiryEnabled ? '7 Days' : 'Off'}
+                                    </Text>
+                                    <Switch
+                                        value={expiryEnabled}
+                                        onValueChange={setExpiryEnabled}
+                                        trackColor={{ false: '#444', true: '#34C759' }}
+                                        thumbColor="white"
+                                    />
+                                </XStack>
+                            </XStack>
+                        </YGroup>
+                    </YStack>
+                </YStack>
+            </ScrollView>
+
+            {/* Action Buttons */}
+            <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
                 <Button
                     theme="accent"
                     size="$5"

@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, H1, H2, Paragraph, Text, View, XStack, YStack } from "tamagui";
+import { H1, H2, Paragraph, Text, View, XStack, YStack } from "tamagui";
 import { useWalletStore } from "../../../store/walletStore";
 import { RollingNumber } from "../../../components/UI/RollingNumber";
 import { useSettingsStore } from "../../../store/settingsStore";
@@ -14,13 +14,9 @@ import { ProcessingSheet } from "../../../components/UI/ProcessingSheet";
 
 export default function Balance() {
   const balance = useWalletStore((s) => s.balance);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
-  const mints = useWalletStore((s) => s.mints);
-  const balances = useWalletStore((s) => s.balances);
   const isRestoring = useWalletStore((s) => s.isRestoring);
-  const { primaryCurrency, setPrimaryCurrency, secondaryCurrency, hideBalance, setHideBalance } = useSettingsStore();
-  const [showAllMints, setShowAllMints] = React.useState(false);
+  const { primaryCurrency, setPrimaryCurrency, secondaryCurrency, hideBalance, setHideBalance, showBitcoinSymbol } = useSettingsStore();
   const [localTrigger, setLocalTrigger] = React.useState(0);
 
   const handlePrimaryCurrencyToggle = React.useCallback(() => {
@@ -39,25 +35,7 @@ export default function Balance() {
     staleTime: 30000,
   });
 
-  // Normalize URLs for comparison
-  const normalizeUrl = (url: string) => url.replace(/\/$/, "");
-
-  const activeMint = mints.find(
-    (m) =>
-      activeMintUrl && normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl),
-  );
-
-  // Determine display values based on toggle state
-  const currentBalance = showAllMints
-    ? Object.values(balances).reduce((acc, val) => acc + val, 0)
-    : balance;
-
-  const displayName = showAllMints
-    ? "All Mints"
-    : activeMint?.nickname ||
-    activeMint?.name ||
-    activeMintUrl?.replace(/^https?:\/\//, "").replace(/\/$/, "") ||
-    "No Mint Selected";
+  const currentBalance = balance;
 
   const secondaryBalance = React.useMemo(() => {
     if (!btcData?.price) return 0;
@@ -66,38 +44,6 @@ export default function Balance() {
 
   return (
     <YStack py="$2" height={230} gap="$3" justify="center" items="center">
-      <XStack width="100%" items="center" justify="center">
-        <XStack items="center">
-          <Button size="$2.5"
-            rounded="$10"
-            fontWeight={800}
-            theme="gray"
-
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowAllMints((prev) => !prev);
-            }}
-          >
-            {displayName}
-          </Button>
-
-          {isRestoring && (
-            <XStack ml="$2" items="center" gap="$2">
-              <View
-                width={8}
-                height={8}
-                rounded="$10"
-                bg="$accent10"
-                animation="lazy"
-                opacity={0.8}
-              />
-              <Text fontSize="$2" color="$gray10" fontWeight="600">
-                Syncing...
-              </Text>
-            </XStack>
-          )}
-        </XStack>
-      </XStack>
 
       <XStack justify="center" py="$3" items="flex-end">
         <YStack
@@ -106,16 +52,34 @@ export default function Balance() {
           delayLongPress={300}
           pressStyle={{ opacity: 0.7 }}
         >
+      <View justify="center" items="center">
+        {isRestoring && (
+          <XStack items="center" gap="$2">
+            <View
+              width={8}
+              height={8}
+              rounded="$10"
+              bg="$accent10"
+              animation="lazy"
+              opacity={0.8}
+            />
+            <Text fontSize="$2" color="$gray10" fontWeight="600">
+              Syncing...
+            </Text>
+          </XStack>
+        )}
+      </View>
           {primaryCurrency === 'SATS' ? (
             <RollingNumber
               value={hideBalance ? "****" : currentBalance}
-              prefix={hideBalance ? "" : "₿"}
-              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats")}
+              prefix={hideBalance ? "" : (showBitcoinSymbol ? "₿" : "")}
+              suffix={hideBalance ? "" : (showBitcoinSymbol ? "" : " SATS")}
+              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats") + `_${showBitcoinSymbol}`}
               letterSpacing={-1}
               fontSize={36}
               fontWeight="800"
               color="$accent3"
-              fontFamily="$mono"
+              fontFamily="$oswald"
               decimalOpacity={0.4}
               showDecimals={false}
               style={hideBalance ? {
@@ -136,6 +100,7 @@ export default function Balance() {
               fontSize={36}
               fontWeight="800"
               color="$accent3"
+              fontFamily="$oswald"
               decimalOpacity={0.4}
               showDecimals={true}
               style={hideBalance ? {
@@ -161,12 +126,14 @@ export default function Balance() {
 
       <RollingNumber
         value={hideBalance ? "****" : (primaryCurrency === 'SATS' ? secondaryBalance : currentBalance)}
-        prefix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : "₿")}
-        trigger={refreshCounter + (hideBalance ? "_hidden" : (primaryCurrency === 'SATS' ? "_visible_fiat_sub" : "_visible_sats_sub"))}
+        prefix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : (showBitcoinSymbol ? "₿" : ""))}
+        suffix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : (showBitcoinSymbol ? "" : " SATS"))}
+        trigger={refreshCounter + (hideBalance ? "_hidden" : (primaryCurrency === 'SATS' ? "_visible_fiat_sub" : "_visible_sats_sub")) + `_${showBitcoinSymbol}`}
         letterSpacing={-1}
         fontSize={20}
         fontWeight="800"
         color="$accent7"
+        fontFamily="$oswald"
         decimalOpacity={0.4}
         showDecimals={primaryCurrency === 'SATS'}
       >

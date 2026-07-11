@@ -28,7 +28,7 @@ export function OnchainMeltFlow() {
     const scannerResult = useWalletStore(s => s.scannerResult);
     const setScannerResult = useWalletStore(s => s.setScannerResult);
     const { mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
@@ -117,7 +117,7 @@ export function OnchainMeltFlow() {
             );
         } else {
             const sats = Number(amount) || 0;
-            return `₿${sats}`;
+            return currencyService.formatSats(sats);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -443,21 +443,16 @@ export function OnchainMeltFlow() {
                             <Text fontWeight="800" fontSize="$5" color="$green10">Payment Broadcasted</Text>
                             <YStack items="center" justify="center">
                                 {primaryCurrency === 'SATS' ? (
-                                    <>
-                                        <Text fontSize="$8" fontWeight="900" color="$color">
-                                            -₿{amountSats.toLocaleString()}
-                                        </Text>
-                                        <Text fontSize="$4" fontWeight="600" color="$gray10">
-                                            SATS
-                                        </Text>
-                                    </>
+                                    <Text fontSize="$8" fontWeight="900" color="$color">
+                                        -{currencyService.formatSats(amountSats)}
+                                    </Text>
                                 ) : (
                                     <>
                                         <Text fontSize="$8" fontWeight="900" color="$color">
                                             -{fiatValue}
                                         </Text>
                                         <Text fontSize="$4" fontWeight="600" color="$gray10">
-                                            -₿{amountSats.toLocaleString()} SATS
+                                            -{currencyService.formatSats(amountSats)}
                                         </Text>
                                     </>
                                 )}
@@ -531,7 +526,7 @@ export function OnchainMeltFlow() {
                                 color="$color"
                                 text="center"
                             >
-                                -₿{meltQuote.amount.toLocaleString()}
+                                -{currencyService.formatSats(meltQuote.amount)}
                             </H1>
                             <Text fontSize="$3" fontWeight="600" color="$accent10">
                                 ≈ {currencySymbol}{formattedFiat} {secondaryCurrency}
@@ -663,7 +658,7 @@ export function OnchainMeltFlow() {
                         </XStack>
                         <XStack gap="$2" items="center">
                             <Text fontSize="$3" color="$accent6" fontWeight="500">
-                                ₿{balance.toLocaleString('en-US')}
+                                {currencyService.formatSats(balance)}
                             </Text>
                             <Button
                                 size="$2"
@@ -706,7 +701,7 @@ export function OnchainMeltFlow() {
                                 adjustsFontSizeToFit
                                 style={{ maxWidth: '100%', overflow: 'hidden' }}
                             >
-                                {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                                {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                             </H1>
 
                             <Button

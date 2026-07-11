@@ -21,7 +21,7 @@ interface ConfirmStageProps {
 export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: ConfirmStageProps) {
     const sats = parseInt(amount, 10) || 0;
     const { mints } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
+    const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -102,7 +102,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            +₿{formattedSatsString}
+                            +{showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
                         </H1>
 
 

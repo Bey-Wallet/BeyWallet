@@ -240,7 +240,7 @@ export default function NostrActivity() {
                                             fontSize={20}
                                             color="$accent4"
                                         >
-                                            {sign}₿{item.amount.toLocaleString()}
+                                            {sign}{currencyService.formatSats(item.amount)}
                                         </Text>
                                         <Text
                                             fontSize="$2"
@@ -264,7 +264,7 @@ export default function NostrActivity() {
                                             color="$gray10"
                                             fontWeight="600"
                                         >
-                                            {sign}₿{item.amount.toLocaleString()}
+                                            {sign}{currencyService.formatSats(item.amount)}
                                         </Text>
                                     </>
                                 )}
@@ -279,7 +279,7 @@ export default function NostrActivity() {
                     <YStack items="center" gap="$2" mb="$2">
                         <Text fontSize="$5" fontWeight="800" color="$color">Payment Request</Text>
                         <Text fontSize="$3" color="$gray10" textAlign="center">
-                            {requestDisplayName} is requesting ₿{selectedRequest?.amount?.toLocaleString()} sats from you.
+                            {requestDisplayName} is requesting {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.
                         </Text>
                     </YStack>
                     <YStack gap="$3">

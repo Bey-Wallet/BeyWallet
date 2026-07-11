@@ -129,7 +129,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const toast = useToastController();
 
     const { activeMintUrl, mints, setActiveMint, refreshMintList, isInitializing, isRefreshing, balance } = useWalletStore();
-    const { secondaryCurrency, npub, primaryCurrency } = useSettingsStore();
+    const { secondaryCurrency, npub, primaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
 
     // ── Restore from History (initialRequestId) ───────────────────────────────
@@ -189,7 +189,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
             const val = currencyService.convertSatsToCurrency(amtNum, btcData.price);
             return `${currencySymbol}${val.toFixed(2)}`;
         }
-        return `₿${amtNum}`;
+        return currencyService.formatSats(amtNum);
     }, [amtNum, btcData?.price, inputMode, currencySymbol]);
 
     const conversionValue = React.useMemo(() => {
@@ -201,7 +201,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                 secondaryCurrency as CurrencyCode
             );
         } else {
-            return `₿${Number(amount) || 0}`;
+            return currencyService.formatSats(Number(amount) || 0);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -614,7 +614,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
 
                         <XStack gap="$2" items="center">
                             <Text fontSize="$3" color="$accent6" fontWeight="500">
-                                ₿{balance.toLocaleString('en-US')}
+                                {currencyService.formatSats(balance)}
                             </Text>
                             <Button
                                 size="$2"
@@ -684,7 +684,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                                         adjustsFontSizeToFit
                                         style={{ maxWidth: '100%', overflow: 'hidden' }}
                                     >
-                                        {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                                        {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                                     </H1>
 
                                     <Button
@@ -866,7 +866,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                         overflow="hidden"
                         separator={<Separator borderColor="$borderColor" opacity={0.5} />}
                     >
-                        <DetailItem label="Amount" value={`₿${amtNum} sats`} />
+                        <DetailItem label="Amount" value={currencyService.formatSats(amtNum)} />
                         <DetailItem label="Fiat" value={fiatValueLabel} />
                         <DetailItem label="Unit" value="SATOSHIS" />
                         <DetailItem label="Mint" value={displayName} />

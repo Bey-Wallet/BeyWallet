@@ -12,7 +12,7 @@ import {
   useThemeName,
   Button,
 } from "tamagui";
-import { ChevronRight } from "@tamagui/lucide-icons";
+import { ChevronRight, Landmark } from "@tamagui/lucide-icons";
 import { RollingNumber } from "~/components/UI/RollingNumber";
 import { useRouter } from "expo-router";
 import { useWalletStore } from "~/store/walletStore";
@@ -32,7 +32,8 @@ interface BalanceItem {
   id: string;
   title: string;
   value: number | string;
-  imageSource: any;
+  imageSource?: any;
+  icon?: React.ReactNode;
   onPress?: () => void;
   isComingSoon?: boolean;
 }
@@ -50,8 +51,8 @@ interface BalanceRowProps {
 }
 
 const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
-  const { id, title, value, imageSource, onPress, isComingSoon } = item;
-  const { primaryCurrency, secondaryCurrency, hideBalance } = useSettingsStore();
+  const { id, title, value, imageSource, icon, onPress, isComingSoon } = item;
+  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   const { data: btcData } = useQuery({
     queryKey: ["bitcoinPrice", secondaryCurrency],
@@ -79,8 +80,14 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
   const prefix = React.useMemo(() => {
     if (isComingSoon || hideBalance) return "";
     if (primaryCurrency === 'FIAT') return ""; // formatted currency already includes symbol
-    return "₿";
-  }, [isComingSoon, hideBalance, primaryCurrency]);
+    return showBitcoinSymbol ? "₿" : "";
+  }, [isComingSoon, hideBalance, primaryCurrency, showBitcoinSymbol]);
+
+  const suffix = React.useMemo(() => {
+    if (isComingSoon || hideBalance) return "";
+    if (primaryCurrency === 'FIAT') return "";
+    return showBitcoinSymbol ? "" : " SATS";
+  }, [isComingSoon, hideBalance, primaryCurrency, showBitcoinSymbol]);
 
   return (
     <RowContainer
@@ -94,14 +101,18 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
       disabled={isComingSoon}
     >
       <XStack items="center" gap="$2">
-        <Image
-          source={imageSource}
-          alt={title}
-          rounded="$2"
-          bg={item.title === "Nostr" ? "$purple10" : "transparent"}
-          width={45}
-          height={45}
-        />
+        {icon ? (
+          icon
+        ) : (
+          <Image
+            source={imageSource}
+            alt={title}
+            rounded="$2"
+            bg={item.title === "Nostr" ? "$purple10" : "transparent"}
+            width={45}
+            height={45}
+          />
+        )}
         <H6 color="$accent4" textTransform="uppercase">
           {title}
         </H6>
@@ -137,7 +148,8 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
             decimalOpacity={0.4}
             showDecimals={primaryCurrency === 'FIAT'}
             prefix={prefix}
-            trigger={currentTrigger}
+            suffix={suffix}
+            trigger={currentTrigger + `_${showBitcoinSymbol}`}
           >
             {displayValue}
           </RollingNumber>
@@ -178,24 +190,35 @@ const ManageBalances = () => {
 
   const totalNostrUnclaimed = useMemo(() => {
     return nostrItems
-      .filter((i) => i.status === "pending" || i.status === "failed")
-      .reduce((sum, i) => sum + i.amount, 0);
+    .filter((i) => i.status === "pending" || i.status === "failed")
+    .reduce((sum, i) => sum + i.amount, 0);
   }, [nostrItems]);
-
+  
   const balanceData: BalanceItem[] = [
+    {
+      id: "mints",
+      title: "Mints",
+      value: totalSpendable,
+      icon: (
+        <View
+          width={45}
+          height={45}
+          rounded="$2"
+          bg="#C1FF72"
+          items="center"
+          justify="center"
+        >
+          <Landmark size={24} strokeWidth={2.5} color="black" />
+        </View>
+      ),
+      onPress: () => router.push("/(modals)/mints"),
+    },
     {
       id: "ecash",
       title: "E-Cash",
       value: totalPending,
       imageSource: require("../../../assets/images/Cashu.jpg"),
       onPress: () => router.push("/(modals)/ecash"),
-    },
-    {
-      id: "mints",
-      title: "Mints",
-      value: totalSpendable,
-      imageSource: require("../../../assets/images/Mint.png"),
-      onPress: () => router.push("/(modals)/mints"),
     },
     {
       id: "nostr",

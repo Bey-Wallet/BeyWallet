@@ -88,10 +88,7 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                         {primaryCurrency === 'SATS' ? (
                             <>
                                 <Text fontSize="$9" fontWeight="900" color={status === 'success' ? "$color" : "$red11"}>
-                                    -₿{Number(amount || 0).toLocaleString()}
-                                </Text>
-                                <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    Ecash SATS
+                                    -{currencyService.formatSats(Number(amount || 0))}
                                 </Text>
                             </>
                         ) : (
@@ -100,7 +97,7 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                                     -{fiatValue}
                                 </Text>
                                 <Text fontSize="$5" fontWeight="600" color="$gray10">
-                                    -₿{Number(amount || 0).toLocaleString()} SATS
+                                    -{currencyService.formatSats(Number(amount || 0))}
                                 </Text>
                             </>
                         )}
@@ -118,13 +115,13 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
                         {primaryCurrency === 'FIAT' ? (
                             <ListTableRow label="Total Amount" value={fiatValue} />
                         ) : (
-                            <ListTableRow label="Total Amount" value={`₿${amount} sats`} />
+                            <ListTableRow label="Total Amount" value={currencyService.formatSats(Number(amount || 0))} />
                         )}
                         <ListTableRow label="Fee Reserve" value={`~${feeReserve} sats`} valueColor="$orange10" />
                         <ListTableRow label="Status" value="PAID" valueColor="$green10" />
                         <ListTableRow label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                         {primaryCurrency === 'FIAT' ? (
-                            <ListTableRow label="Sats Value" value={`₿${amount} sats`} />
+                            <ListTableRow label="Sats Value" value={currencyService.formatSats(Number(amount || 0))} />
                         ) : (
                             <ListTableRow label="Fiat Value" value={fiatValue} />
                         )}

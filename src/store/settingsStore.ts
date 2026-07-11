@@ -30,6 +30,8 @@ interface SettingsState {
     setBiometricEnabled: (enabled: boolean) => Promise<void>;
     setNip05: (identifier: string | null) => Promise<void>;
     setHideBalance: (hide: boolean) => Promise<void>;
+    showBitcoinSymbol: boolean;
+    setShowBitcoinSymbol: (val: boolean) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -46,6 +48,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     hideBalance: false,
     seedBackedUp: false,
     backupDismissedAt: 0,
+    showBitcoinSymbol: false,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -65,7 +68,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp, storedBackupDismissedAt] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp, storedBackupDismissedAt, storedShowBitcoinSymbol] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -78,6 +81,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('primaryCurrency'),
                     repo.settingsRepository.getSetting('seedBackedUp'),
                     repo.settingsRepository.getSetting('backupDismissedAt'),
+                    repo.settingsRepository.getSetting('showBitcoinSymbol'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
@@ -92,6 +96,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 }
                 if (storedBackupDismissedAt !== undefined && storedBackupDismissedAt !== null) {
                     set({ backupDismissedAt: parseInt(storedBackupDismissedAt, 10) || 0 });
+                }
+                if (storedShowBitcoinSymbol !== undefined && storedShowBitcoinSymbol !== null) {
+                    set({ showBitcoinSymbol: storedShowBitcoinSymbol === 'true' });
                 }
                 
                 // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
@@ -269,6 +276,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set backupDismissedAt:', error);
             set({ backupDismissedAt: val });
+        }
+    },
+
+    setShowBitcoinSymbol: async (val: boolean) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('showBitcoinSymbol', val.toString());
+            }
+            set({ showBitcoinSymbol: val });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set showBitcoinSymbol:', error);
+            set({ showBitcoinSymbol: val });
         }
     },
 }));

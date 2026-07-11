@@ -90,11 +90,11 @@ export function PendingMintInvoiceLayout({
                     {primaryCurrency === 'FIAT' ? (
                         <>
                             <ListTableRow label="Amount" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
-                            <ListTableRow label="Sats" value={`${entry.amount || 0} sats`} />
+                            <ListTableRow label="Sats" value={currencyService.formatSats(entry.amount || 0)} />
                         </>
                     ) : (
                         <>
-                            <ListTableRow label="Amount" value={`${entry.amount || 0} ${entry.unit || 'sats'}`} />
+                            <ListTableRow label="Amount" value={currencyService.formatSats(entry.amount || 0)} />
                             <ListTableRow label="Fiat" value={currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)} />
                         </>
                     )}

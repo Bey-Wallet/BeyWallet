@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme } from "tamagui";
-import { Copy, Share2, Check, RotateCcw, Hexagon, Gauge, ZoomIn, ArrowDownLeft, Share, Nfc, Globe, ChevronDown, ChevronUp, ChevronRight, User2, UsersRound } from "@tamagui/lucide-icons";
+import { Copy, Share2, Check, RotateCcw, Gauge, ArrowDownLeft, Nfc, Globe, ChevronRight, UsersRound, Clock, AlertCircle } from "@tamagui/lucide-icons";
 import { ListTable, ListTableRow } from './ListTable';
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
@@ -72,7 +72,6 @@ export function PendingTokenLayout({
     const theme = useTheme();
     const { setLockDisabled } = useAuthStore();
 
-    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<string>(token || '');
     const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
@@ -358,32 +357,58 @@ export function PendingTokenLayout({
         : `₿${Number(amount || 0).toLocaleString()} sats`;
 
     return (
-        <YStack flex={1} bg="$background" gap="$3" pb="$5" width="100%">
-            {/* Header: amount as title + status badge as right action */}
+        <YStack flex={1} bg="$background" gap="$4" pb="$5" width="100%">
+            {/* Header Title */}
             <Stack.Screen
                 options={{
+                    title: 'Pending Ecash',
                     headerTitleAlign: 'center',
-                    headerTitle: () => (
-                        <YStack items="center" justify="center" gap={1}>
-                            <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
-                                {primaryAmountLabel}
-                            </Text>
-                            <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
-                                {secondaryAmountLabel}
-                            </Text>
-                        </YStack>
-                    ),
-                    headerRight: () => (
-                        <XStack pr="$2" items="center">
-                            <StatusBadge
-                                status={headerStatus}
-                                onPress={onCheckStatus}
-                                isChecking={isCheckingStatus}
-                            />
-                        </XStack>
-                    ),
+                    headerRight: () => null,
                 }}
             />
+
+            {/* Middle Amount Display */}
+            <YStack gap="$3" py="$6" items="center" justify="center">
+                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                    {currencyService.formatSats(Number(amount || 0))}
+                </Text>
+                <Text color="$accent5" fontWeight="600" fontSize={16}>
+                    {fiatValue}
+                </Text>
+            </YStack>
+
+            {/* Proof verification status badge */}
+            <XStack
+                self="center"
+                items="center"
+                gap="$2"
+                bg={
+                    headerStatus === 'success' ? '$green9'
+                        : headerStatus === 'failed' ? '$red9'
+                            : '$orange9'
+                }
+                px="$4"
+                py="$3"
+                rounded="$10"
+                onPress={onCheckStatus}
+                pressStyle={{ opacity: 0.8 }}
+            >
+                {isCheckingStatus ? <Spinner size="small" color="white" /> : (
+                    headerStatus === 'success' ? <Check size={16} color="white"
+                        /> : headerStatus === 'failed' ? <AlertCircle size={16} color="white" />
+                            : <Clock size={16} color="white" />
+                )}
+                <Text
+                    fontSize="$3"
+                    fontWeight="700"
+                    color="white"
+                >
+                    {isCheckingStatus ? 'Checking Status...'
+                        : headerStatus === 'success' ? 'Claimed'
+                            : headerStatus === 'failed' ? 'Failed'
+                                : 'Pending Claim'}
+                </Text>
+            </XStack>
 
             {/* QR Code */}
             <YStack items="center" gap="$3" >
@@ -498,6 +523,11 @@ export function PendingTokenLayout({
 
             {/* Unified Actions & Details Table */}
             <ListTable mb="$4">
+                <View p="$3" px="$4">
+                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                </View>
+                <Separator borderColor="$borderColor" opacity={0.3} />
+
                 {/* Submit to Web Button (if raw Cashu token) */}
                 {!currentToken.startsWith('http') && (
                     <ListTableRow
@@ -523,38 +553,8 @@ export function PendingTokenLayout({
                     />
                 )}
 
-                {/* Details Table Collapse Toggle */}
                 {!hideDetails && (
-                    <ListTableRow
-                        label="Transaction Details"
-                        rightContent={
-                            isDetailsExpanded ? (
-                                <ChevronUp size={18} color="$gray10" />
-                            ) : (
-                                <ChevronDown size={18} color="$gray10" />
-                            )
-                        }
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setIsDetailsExpanded(!isDetailsExpanded);
-                        }}
-                    />
-                )}
-
-                {/* Details Rows (Conditional on details expansion) */}
-                {!hideDetails && isDetailsExpanded && (
                     <>
-                        {primaryCurrency === 'FIAT' ? (
-                            <>
-                                <ListTableRow label="Amount" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
-                                <ListTableRow label="Sats" value={`₿${amount} sats`} />
-                            </>
-                        ) : (
-                            <>
-                                <ListTableRow label="Amount" value={`₿${amount} sats`} />
-                                <ListTableRow label="Fiat" value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'} />
-                            </>
-                        )}
                         {fee > 0 && <ListTableRow label="Fee" value={`₿${fee} sats`} />}
                         <ListTableRow label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
                         {displayNpub && (

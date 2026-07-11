@@ -39,7 +39,7 @@ export function SettingsScreen() {
     const biometricSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
-    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
+    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled, showBitcoinSymbol, setShowBitcoinSymbol } = useSettingsStore();
     const { activeMintUrl, refreshBalance } = useWalletStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
@@ -334,6 +334,18 @@ export function SettingsScreen() {
                     value: secondaryCurrency,
                     icon: undefined,
                     color: '$blue10',
+                },
+                {
+                    id: 'showBitcoinSymbol',
+                    title: 'Use ₿ Symbol as Sats',
+                    icon: undefined,
+                    color: '$blue10',
+                    isSwitch: true,
+                    checked: showBitcoinSymbol,
+                    onCheckedChange: (val) => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShowBitcoinSymbol(val);
+                    }
                 },
             ],
         },

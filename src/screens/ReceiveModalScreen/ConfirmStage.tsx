@@ -1,8 +1,7 @@
 import React from 'react';
-import { YStack, XStack, Text, Button, View, Separator, Circle, ScrollView, YGroup, Theme, useTheme } from 'tamagui';
-import { ArrowDownLeft, Check, ShieldCheck, AlertTriangle, Copy, Building2, DollarSign, Clock, Loader, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup } from 'tamagui';
+import { ShieldCheck, AlertTriangle, Copy, Clock, Check } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
-import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
@@ -12,9 +11,6 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, CurrencyCode } from '../../services/currencyService';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { PrimaryBalance } from 'temp/Sovran/features/wallet';
 
 interface TokenInfo {
     mint: string;
@@ -37,27 +33,11 @@ interface ConfirmStageProps {
 }
 
 export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceiveLater, onBack }: ConfirmStageProps) {
-    const theme = useTheme();
     const { mints } = useWalletStore();
     const { secondaryCurrency } = useSettingsStore();
     const toast = useToastController();
     const [isSavingLater, setIsSavingLater] = React.useState(false);
     const [estimatedFee, setEstimatedFee] = React.useState(0);
-    const [showDetails, setShowDetails] = React.useState(false);
-
-    // ── Shimmer animation for card reflection ──
-    const shimmerX = useSharedValue(-250);
-    React.useEffect(() => {
-        shimmerX.value = withRepeat(
-            withTiming(350, { duration: 2400, easing: Easing.linear }),
-            -1,
-            false
-        );
-    }, []);
-
-    const animatedShimmerStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: shimmerX.value }, { rotate: '25deg' }],
-    }));
 
     // ── Proof state verification (NUT-07) ────────────────────────────
     type ProofStatus = 'checking' | 'valid' | 'spent' | 'unknown';
@@ -182,57 +162,46 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
     return (
         <YStack flex={1} bg="$background">
             <ScrollView contentContainerStyle={{ paddingBottom: 250 } as any} showsVerticalScrollIndicator={false}>
-                <YStack p="$4" gap="$2">
-                    {/* Sleek Dark Cashu Token Preview Card */}
-                    <Theme >
-                        <View rounded="$5" bg="$gray3" borderWidth={0} borderColor="$borderColor" p="$5" justify="space-between" overflow="hidden" position="relative">
-                            {/* Background glow & animated shimmer reflection */}
+                <YStack p="$4" gap="$4">
+                    {/* Middle Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                            {currencyService.formatSats(tokenInfo.amount)}
+                        </Text>
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
+                            {btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(tokenInfo.amount, btcData.price), secondaryCurrency as CurrencyCode) : '$0.00'}
+                        </Text>
+                    </YStack>
 
-                            {/* Wrapped Monospace Token Text */}
-                            <Text
-                                fontFamily="$mono"
-                                fontSize={11}
-                                color="$gray9"
-                                lineHeight={16}
-                                numberOfLines={12}
-
-                                onPress={() => handleCopy(token, 'Token')}
-                                pressStyle={{ opacity: 0.6 }}
-                                style={{ wordBreak: 'break-all', cursor: 'pointer' } as any}
-                            >
-                                {token}
-                            </Text>
-
-                            {/* Linear Gradient & Opacity Overflow Fade */}
-                            <View position="absolute" l={0} r={0} b={0} height={140} pointerEvents="none" z={5}>
-                                <LinearGradient
-                                    colors={['transparent', theme.gray1?.val, theme.gray1?.val]}
-                                    style={{ flex: 1 }}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 0, y: 1 }}
-                                />
-                            </View>
-
-                            {/* Bottom Row */}
-                            <XStack justify="space-between" items="flex-end" mt="$-1" z={10} width="100%">
-                                <YStack gap="$1" flex={1} mr="$3" shrink={1}>
-                                    <Text color="$accent3" fontWeight="600" fontSize={15}>
-                                        {btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(tokenInfo.amount, btcData.price), secondaryCurrency as CurrencyCode) : '$0.00'}
-                                    </Text>
-                                    <XStack items="flex-start" gap="$1.5">
-                                        <Text color="$accent5" fontSize={13} fontWeight="600" numberOfLines={2} flex={1}>
-                                        {getMintDisplayName(tokenInfo.mint)}
-                                        </Text>
-                                    </XStack>
-                                </YStack>
-
-                                <Text  fontSize={46} fontWeight="700" color="$accent3" lineHeight={48} shrink={0} letterSpacing={-1.5} text="right">
-                                    {tokenInfo.amount.toLocaleString()}
-                                </Text>
-                            </XStack>
-                        </View>
-                    </Theme>
-
+                    {/* Proof verification status badge (NUT-07) */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg={
+                            proofStatus === 'valid' ? '$green9'
+                                : proofStatus === 'spent' ? '$red9'
+                                    : '$gray9'
+                        }
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        {proofStatus === 'checking' && <Spinner size="small" color="white" />}
+                        {proofStatus === 'valid' && <Check size={16} color="white" />}
+                        {proofStatus === 'spent' && <AlertTriangle size={16} color="white" />}
+                        {proofStatus === 'unknown' && <AlertTriangle size={16} color="white" />}
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            {proofStatus === 'checking' ? 'Checking...'
+                                : proofStatus === 'valid' ? 'Unspent'
+                                    : proofStatus === 'spent' ? 'Spent'
+                                        : 'Unverified'}
+                        </Text>
+                    </XStack>
 
                     {/* Warning for untrusted mint */}
                     {!isMintTrusted && (
@@ -250,134 +219,50 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                         </YStack>
                     )}
 
-                    {/* ── Proof verification status badge (NUT-07) ── */}
-                    <XStack
-                        justify="space-between"
-                        items="center"
-                        bg={
-                            proofStatus === 'valid' ? '$green3'
-                                : proofStatus === 'spent' ? '$red3'
-                                    : '$gray3'
-                        }
-                        p="$3"
-                        px="$4"
-                        rounded="$4"
-                    >
-                        {/* Left Element: Icon & Title */}
-                        <XStack items="center" gap="$2" flex={1} mr="$2">
-                            {proofStatus === 'checking' && <Spinner size="small" color="$gray10" />}
-                            {proofStatus === 'valid' && <ShieldCheck size={16} color="$green10" />}
-                            {proofStatus === 'spent' && <AlertTriangle size={16} color="$red10" />}
-                            {proofStatus === 'unknown' && <AlertTriangle size={16} color="$gray10" />}
-                            <Text
-                                fontSize="$3"
-                                fontWeight="600"
-                                numberOfLines={1}
-                                color={
-                                    proofStatus === 'valid' ? '$green10'
-                                        : proofStatus === 'spent' ? '$red10'
-                                            : '$gray10'
-                                }
-                            >
-                                {proofStatus === 'checking' ? 'Verifying proofs with mint…'
-                                    : proofStatus === 'valid' ? 'Proof Status'
-                                        : proofStatus === 'spent' ? 'Proof Warning'
-                                            : 'Verification Status'}
-                            </Text>
-                        </XStack>
-
-                        {/* Right Element: Status Value */}
-                        <XStack items="center">
-                            <Text
-                                fontSize="$3"
-                                fontWeight="700"
-                                color={
-                                    proofStatus === 'valid' ? '$green10'
-                                        : proofStatus === 'spent' ? '$red10'
-                                            : '$gray10'
-                                }
-                            >
-                                {proofStatus === 'checking' ? 'Checking...'
-                                    : proofStatus === 'valid' ? 'Unspent ✓'
-                                        : proofStatus === 'spent' ? 'Already Spent'
-                                            : 'Unverified'}
-                            </Text>
-                        </XStack>
-                    </XStack>
-
-
-                    {/* Collapsible Details Trigger & List */}
+                    {/* Details List */}
                     <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
-                        <XStack
-                            p="$3"
-                            px="$4"
-                            justify="space-between"
-                            items="center"
-                            onPress={() => {
-                                Haptics.selectionAsync();
-                                setShowDetails(!showDetails);
-                            }}
-                            pressStyle={{ opacity: 0.8 }}
-                        >
+                        <View p="$3" px="$4">
                             <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
-                            <XStack items="center" gap="$1.5">
-                                <Text fontSize="$2" color="$gray9" fontWeight="600">{showDetails ? 'Hide' : 'Show'}</Text>
-                                {showDetails ? <ChevronUp size={16} color="$gray9" /> : <ChevronDown size={16} color="$gray9" />}
-                            </XStack>
-                        </XStack>
-
-                        {showDetails && (
-                            <>
-                                <Separator borderColor="$borderColor" opacity={0.3} />
-                                <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                                    <DetailItem
-                                        label="Amount"
-                                        value={`${tokenInfo.amount} sats`}
-                                    />
-                                    <DetailItem
-                                        label="Fiat"
-                                        value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(tokenInfo.amount, btcData.price), secondaryCurrency as CurrencyCode) : '...'}
-                                    />
-                                    <DetailItem
-                                        label="Proofs"
-                                        value={tokenInfo.proofCount.toString()}
-                                    />
-                                    <DetailItem
-                                        label="Expiry"
-                                        value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'}
-                                    />
-                                    {tokenInfo.p2pkNpub && (
-                                        <DetailItem
-                                            label="Locked To"
-                                            value={tokenInfo.p2pkNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${tokenInfo.p2pkNpub.substring(0, 10)}...${tokenInfo.p2pkNpub.substring(tokenInfo.p2pkNpub.length - 6)}`}
-                                            isCopyable={tokenInfo.p2pkNpub !== useSettingsStore.getState().npub}
-                                            onCopy={() => handleCopy(tokenInfo.p2pkNpub!, "NPUB")}
-                                        />
-                                    )}
-                                    <DetailItem
-                                        label="Mint"
-                                        value={getMintDisplayName(tokenInfo.mint)}
-                                        isCopyable
-                                        onCopy={() => handleCopy(tokenInfo.mint, "Mint URL")}
-                                    />
-                                    {tokenInfo.preview?.description && (
-                                        <DetailItem label="Description" value={tokenInfo.preview.description} />
-                                    )}
-                                    {estimatedFee > 0 && (
-                                        <>
-                                            <DetailItem
-                                                label="Fee"
-                                                value={`-${estimatedFee} sats`}
-                                            />
-                                            <DetailItem
-                                                label="You Receive"
-                                                value={`${tokenInfo.amount - estimatedFee} sats`}
-                                            />
-                                        </>
-                                    )}
-                                </YGroup>
-                            </>
-                        )}
+                        </View>
+                        <Separator borderColor="$borderColor" opacity={0.3} />
+                        <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                            <DetailItem
+                                label="Token"
+                                value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
+                                isCopyable
+                                onCopy={() => handleCopy(token, "Token")}
+                            />
+                            <DetailItem
+                                label="Proofs"
+                                value={tokenInfo.proofCount.toString()}
+                            />
+                            <DetailItem
+                                label="Mint"
+                                value={getMintDisplayName(tokenInfo.mint)}
+                                isCopyable
+                                onCopy={() => handleCopy(tokenInfo.mint, "Mint URL")}
+                            />
+                            {estimatedFee > 0 && (
+                                <DetailItem
+                                    label="Fee"
+                                    value={`${estimatedFee} sats`}
+                                />
+                            )}
+                            {tokenInfo.p2pkNpub && (
+                                <DetailItem
+                                    label="Locked To"
+                                    value={tokenInfo.p2pkNpub === useSettingsStore.getState().npub ? "You (Safe)" : `${tokenInfo.p2pkNpub.substring(0, 10)}...${tokenInfo.p2pkNpub.substring(tokenInfo.p2pkNpub.length - 6)}`}
+                                    isCopyable={tokenInfo.p2pkNpub !== useSettingsStore.getState().npub}
+                                    onCopy={() => handleCopy(tokenInfo.p2pkNpub!, "NPUB")}
+                                />
+                            )}
+                            {expiresAt && (
+                                <DetailItem
+                                    label="Expiry"
+                                    value={timeLeftStr || 'Checking...'}
+                                />
+                            )}
+                        </YGroup>
                     </YStack>
 
                 </YStack>
@@ -405,10 +290,6 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                 >
                     {isSavingLater ? 'Saving...' : 'Receive Later'}
                 </Button>
-
-
-
-
 
                 <Button
                     bg={proofStatus === 'spent' ? '$red9' : isMintTrusted ? "$green9" : "$orange9"}

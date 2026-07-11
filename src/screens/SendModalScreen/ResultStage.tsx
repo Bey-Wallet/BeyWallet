@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { YStack, Text, Button, ScrollView, View, XStack } from "tamagui";
-import { XCircle, Check, ChevronDown, ChevronUp } from "@tamagui/lucide-icons";
+import React, { useState, useMemo } from 'react';
+import { YStack, Text, Button, ScrollView, View, XStack, Separator, YGroup } from "tamagui";
+import { XCircle, Check, Copy } from "@tamagui/lucide-icons";
 import { Stack } from 'expo-router';
 
 import { PendingTokenLayout } from '../../components/UI/PendingTokenLayout';
@@ -8,9 +8,10 @@ import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
-import { ListTable, ListTableRow } from '~/components/UI/ListTable';
 import { StatusBadge } from '~/components/UI/StatusBadge';
 import * as Haptics from 'expo-haptics';
+import * as ExpoClipboard from 'expo-clipboard';
+import { useToastController } from '@tamagui/toast';
 
 interface ResultStageProps {
     status: 'success' | 'error';
@@ -45,7 +46,7 @@ export function ResultStage({
 }: ResultStageProps) {
     const isSuccess = status === 'success';
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
-    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+    const toast = useToastController();
     const [isReclaiming, setIsReclaiming] = useState(false);
 
     const { data: btcData } = useQuery({
@@ -54,7 +55,7 @@ export function ResultStage({
         staleTime: 30000,
     });
 
-    const fiatValue = React.useMemo(() => {
+    const fiatValue = useMemo(() => {
         if (!btcData?.price) return '...';
         return currencyService.formatValue(
             currencyService.convertSatsToCurrency(Number(amount), btcData.price),
@@ -63,11 +64,11 @@ export function ResultStage({
     }, [amount, btcData?.price, secondaryCurrency]);
 
     const primaryAmountLabel = primaryCurrency === 'SATS'
-        ? `₿${Number(amount || 0).toLocaleString()}`
+        ? currencyService.formatSats(Number(amount || 0))
         : fiatValue;
     const secondaryAmountLabel = primaryCurrency === 'SATS'
         ? fiatValue
-        : `₿${Number(amount || 0).toLocaleString()} sats`;
+        : currencyService.formatSats(Number(amount || 0));
 
     const handleReclaim = async () => {
         if (onReclaim) {
@@ -104,6 +105,12 @@ export function ResultStage({
         ),
     };
 
+    const successHeaderOptions = {
+        title: title || 'Success',
+        headerTitleAlign: 'center' as const,
+        headerRight: () => null,
+    };
+
     if (!isSuccess) {
         return (
             <YStack flex={1} bg="$background">
@@ -135,11 +142,11 @@ export function ResultStage({
 
     return (
         <YStack flex={1} bg="$background">
-            <Stack.Screen options={headerOptions} />
+            <Stack.Screen options={token ? headerOptions : successHeaderOptions} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ flexGrow: 1 } as any}
-                px="$0"
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
+                px="$4"
             >
                 {token ? (
                     <PendingTokenLayout
@@ -155,89 +162,101 @@ export function ResultStage({
                         isCheckingStatus={isCheckingStatus}
                     />
                 ) : (
-                    <YStack flex={1} p="$4" gap="$4">
-                        {/* Success icon */}
-                        <YStack items="center" justify="center" py="$6" gap="$3">
-                            <View
-                                width={100}
-                                height={100}
-                                rounded="$10"
-                                bg="$green4"
-                                items="center"
-                                justify="center"
-                                animation="bouncy"
-                                enterStyle={{ scale: 0, opacity: 0 }}
-                            >
-                                <Check size={50} color="$green10" strokeWidth={3} />
-                            </View>
-                            <YStack items="center" gap="$2">
-                                <Text fontSize="$7" fontWeight="900" color="$color">Success!</Text>
-                                <Text fontSize="$4" color="$gray10" textAlign="center">
-                                    Transaction of ₿{amount} sats completed.
-                                </Text>
-                            </YStack>
+                    <YStack gap="$4">
+                        {/* Middle Amount Display */}
+                        <YStack gap="$3" py="$6" items="center" justify="center">
+                            <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                                {currencyService.formatSats(Number(amount || 0))}
+                            </Text>
+                            <Text color="$accent5" fontWeight="600" fontSize={16}>
+                                {fiatValue}
+                            </Text>
                         </YStack>
 
-                        {/* Details table */}
-                        <ListTable width="100%">
-                            <ListTableRow
-                                label="Transaction Details"
-                                rightContent={
-                                    isDetailsExpanded
-                                        ? <ChevronUp size={18} color="$gray10" />
-                                        : <ChevronDown size={18} color="$gray10" />
-                                }
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    setIsDetailsExpanded(v => !v);
-                                }}
-                            />
-                            {isDetailsExpanded && (
-                                <>
-                                    {primaryCurrency === 'FIAT' ? (
-                                        <>
-                                            <ListTableRow
-                                                label="Amount"
-                                                value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'}
-                                            />
-                                            <ListTableRow label="Sats" value={`₿${amount} sats`} />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ListTableRow label="Amount" value={`₿${amount} sats`} />
-                                            <ListTableRow
-                                                label="Fiat"
-                                                value={btcData?.price ? currencyService.formatValue(currencyService.convertSatsToCurrency(Number(amount), btcData.price), secondaryCurrency as CurrencyCode) : '...'}
-                                            />
-                                        </>
-                                    )}
-                                    {fee > 0 && <ListTableRow label="Fee" value={`₿${fee} sats`} />}
-                                    {mintUrl && (
-                                        <ListTableRow
-                                            label="Mint"
-                                            value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]}
-                                        />
-                                    )}
-                                </>
-                            )}
-                        </ListTable>
-
-                        <YStack mt="auto" pb="$6">
-                            <Button
-                                size="$5"
-                                height={55}
-                                rounded="$5"
-                                theme="accent"
-                                fontWeight="800"
-                                onPress={onClose}
-                                pressStyle={{ scale: 0.97 }}
+                        {/* Success Badge */}
+                        <XStack
+                            self="center"
+                            items="center"
+                            gap="$2"
+                            bg="$green9"
+                            px="$4"
+                            py="$3"
+                            rounded="$10"
+                        >
+                            <Check size={16} color="white" />
+                            <Text
+                                fontSize="$3"
+                                fontWeight="700"
+                                color="white"
                             >
-                                Done
-                            </Button>
+                                Sent Successfully
+                            </Text>
+                        </XStack>
+
+                        {/* Description Text */}
+                        <YStack px="$4" py="$2">
+                            <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
+                                The ecash has been sent from your wallet.
+                            </Text>
+                        </YStack>
+
+                        {/* Details List */}
+                        <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$6">
+                            <View p="$3" px="$4">
+                                <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                            </View>
+                            <Separator borderColor="$borderColor" opacity={0.3} />
+                            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                                {mintUrl && (
+                                    <DetailItem
+                                        label="Mint"
+                                        value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]}
+                                    />
+                                )}
+                                {fee > 0 && (
+                                    <DetailItem
+                                        label="Fee"
+                                        value={`${fee} sats`}
+                                    />
+                                )}
+                            </YGroup>
                         </YStack>
                     </YStack>
                 )}
             </ScrollView>
+
+            {/* Final Done Button (Only if not pending token link) */}
+            {!token && (
+                <YStack position="absolute" b="$4" l="$1" r="$1">
+                    <Button
+                        bg="$green10"
+                        color="white"
+                        size="$5"
+                        height={50}
+                        onPress={onClose}
+                        fontWeight="800"
+                        rounded="$4"
+                    >
+                        DONE
+                    </Button>
+                </YStack>
+            )}
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, isCopyable, onCopy }: { label: string, value: string, isCopyable?: boolean, onCopy?: () => void }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                    {value}
+                </Text>
+                {isCopyable && (
+                    <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+                )}
+            </XStack>
+        </XStack>
     );
 }

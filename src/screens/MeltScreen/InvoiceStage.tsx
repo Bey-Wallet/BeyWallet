@@ -38,7 +38,7 @@ export function InvoiceStage({
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
   const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, scannerResult, setScannerResult } = useWalletStore();
-  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const router = useRouter();
@@ -109,7 +109,7 @@ export function InvoiceStage({
       );
     } else {
       const sats = Number(amount) || 0;
-      return `₿${sats}`;
+      return currencyService.formatSats(sats);
     }
   }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -303,7 +303,7 @@ export function InvoiceStage({
           </XStack>
           <XStack gap="$2" items="center">
             <Text fontSize="$3" color="$accent6" fontWeight="500">
-              ₿{balance.toLocaleString('en-US')}
+              {currencyService.formatSats(balance)}
             </Text>
             <Button
               size="$2"
@@ -354,7 +354,7 @@ export function InvoiceStage({
               adjustsFontSizeToFit
               style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
-              {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+              {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
             </H1>
 
             <Button

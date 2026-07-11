@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListItem, H6, Text } from 'tamagui';
+import { ListItem, H6, Text, Switch } from 'tamagui';
 import { SettingItemConfig } from './types';
 
 export const SettingItem: React.FC<SettingItemConfig> = ({
@@ -12,9 +12,24 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
     opacity,
     bg = "transparent",
     hoverStyle,
-    pressStyle
+    pressStyle,
+    isSwitch,
+    checked,
+    onCheckedChange
 }) => {
     const renderRight = () => {
+        if (isSwitch) {
+            return (
+                <Switch
+                    size="$3"
+                    checked={checked}
+                    onCheckedChange={onCheckedChange}
+                    backgroundColor={checked ? "#34C759" : "$gray5"}
+                >
+                    <Switch.Thumb animation="bouncy" />
+                </Switch>
+            );
+        }
         if (value) {
             return (
                 <Text 
@@ -42,7 +57,7 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
             px='$4'
             icon={undefined}
             iconAfter={renderRight()}
-            onPress={onPress}
+            onPress={isSwitch ? () => onCheckedChange?.(!checked) : onPress}
             disabled={disabled}
             opacity={opacity}
         />

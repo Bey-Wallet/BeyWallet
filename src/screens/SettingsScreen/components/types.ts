@@ -14,6 +14,9 @@ export interface SettingItemConfig {
     bg?: string;
     hoverStyle?: any;
     pressStyle?: any;
+    isSwitch?: boolean;
+    checked?: boolean;
+    onCheckedChange?: (val: boolean) => void;
 }
 
 export interface SettingSectionConfig {

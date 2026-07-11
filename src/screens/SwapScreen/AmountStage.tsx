@@ -31,7 +31,7 @@ export function AmountStage({
     onContinue, isLoading, error
 }: AmountStageProps) {
     const { mints, balances } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
 
     // Bottom sheets for picking source/target mints
@@ -96,7 +96,7 @@ export function AmountStage({
             );
         } else {
             const sats = Number(amount) || 0;
-            return `₿${sats}`;
+            return currencyService.formatSats(sats);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -247,7 +247,7 @@ export function AmountStage({
                     </XStack>
                     <XStack gap="$2" items="center">
                         <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            ₿{sourceBalance.toLocaleString('en-US')}
+                            {currencyService.formatSats(sourceBalance)}
                         </Text>
                         <Button
                             size="$2"
@@ -320,7 +320,7 @@ export function AmountStage({
                     </XStack>
                     <XStack gap="$2" items="center" pr="$2">
                         <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            ₿{targetBalance.toLocaleString('en-US')}
+                            {currencyService.formatSats(targetBalance)}
                         </Text>
                     </XStack>
                 </XStack>
@@ -358,7 +358,7 @@ export function AmountStage({
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                         </H1>
 
                         <Button

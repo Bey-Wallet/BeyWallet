@@ -20,7 +20,7 @@ interface AmountStageProps {
 
 export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps) {
     const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, balance } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
@@ -60,7 +60,7 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
             );
         } else {
             const sats = Number(amount) || 0;
-            return `₿${sats}`;
+            return currencyService.formatSats(sats);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -220,7 +220,7 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
                     </XStack>
 
                     <Text fontSize="$3" color="$gray10" fontWeight="500">
-                        ₿{balance.toLocaleString('en-US')}
+                        {currencyService.formatSats(balance)}
                     </Text>
                 </XStack>
 
@@ -254,7 +254,7 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                         </H1>
 
                         <Button

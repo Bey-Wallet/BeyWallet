@@ -25,7 +25,7 @@ interface AmountStageProps {
 
 export function AmountStage({ amount, setAmount, onContinue, balance, isLoading, error, isOffline }: AmountStageProps) {
     const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
 
@@ -69,7 +69,7 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
             );
         } else {
             const sats = Number(amount) || 0;
-            return `₿${sats}`;
+            return currencyService.formatSats(sats);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -225,7 +225,7 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
                     </XStack>
                     <XStack gap="$2" items="center">
                         <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            ₿{balance.toLocaleString('en-US')}
+                            {currencyService.formatSats(balance)}
                         </Text>
                         <Button
                             size="$2"
@@ -278,7 +278,7 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            {inputMode === 'SATS' ? `₿${formattedDisplayValue}` : `${currencySymbol}${formattedDisplayValue}`}
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
                         </H1>
 
                         <Button

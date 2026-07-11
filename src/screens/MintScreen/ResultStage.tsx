@@ -21,7 +21,7 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
     const sats = parseInt(amount, 10) || 0;
 
     const { mints } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
+    const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -153,7 +153,7 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
                             adjustsFontSizeToFit
                             style={{ maxWidth: '100%', overflow: 'hidden' }}
                         >
-                            {isSuccess ? '+' : ''}₿{formattedSatsString}
+                            {isSuccess ? '+' : ''}{currencyService.formatSats(sats)}
                         </H1>
 
                         <Text fontSize="$3" fontWeight="600" color="$accent10">

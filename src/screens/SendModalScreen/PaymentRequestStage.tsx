@@ -88,7 +88,7 @@ export function PaymentRequestStage({
   const [overlayState, setOverlayState] = useState<PaymentStatusState | null>(null);
 
   const { balance, activeMintUrl, mints } = useWalletStore();
-  const { secondaryCurrency } = useSettingsStore();
+  const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -253,7 +253,7 @@ export function PaymentRequestStage({
               adjustsFontSizeToFit
               style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
-              ₿{formattedSatsString}
+              {showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
             </H1>
 
             <Text fontSize="$3" fontWeight="600" color="$accent10">
@@ -305,7 +305,7 @@ export function PaymentRequestStage({
           )}
           <DetailItem
             label="Your Balance"
-            value={`₿${balance.toLocaleString('en-US')} SATS`}
+            value={currencyService.formatSats(balance)}
             valueColor={isEnough ? "$green11" : "$red10"}
             icon={<ShieldCheck size={16} color={isEnough ? "$green11" : "$red10"} />}
           />
@@ -347,7 +347,7 @@ export function PaymentRequestStage({
           icon={isSending ? <TamaguiSpinner size="small" color="$color" /> : undefined}
           opacity={(!isCompatible || !isEnough) ? 0.5 : 1}
         >
-          {isSending ? 'Sending…' : `Pay ₿${formattedSatsString} via Nostr`}
+          {isSending ? 'Sending…' : `Pay ${currencyService.formatSats(amountSats)} via Nostr`}
         </Button>
         <Button
           bg="$gray3"
