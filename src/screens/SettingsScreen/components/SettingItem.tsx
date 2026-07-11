@@ -8,7 +8,7 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
     icon: Icon,
     onPress,
     disabled,
-    color = '$blue10',
+    color = '$color',
     opacity,
     bg = "transparent",
     hoverStyle,
@@ -52,7 +52,7 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
             hoverStyle={hoverStyle || { bg: '$backgroundHover' }}
             pressStyle={pressStyle || { bg: '$backgroundPress' }}
             bg={bg}
-            title={typeof title === 'string' ? <H6 fontSize="$5" fontWeight="600" color={bg === '$red3' ? '$red10' : '$color'}>{title}</H6> : title}
+            title={typeof title === 'string' ? <H6 fontSize="$5" fontWeight="600" color={bg === '$red3' ? '$red10' : '$accent8'}>{title}</H6> : title}
             py='$3.5'
             px='$4'
             icon={undefined}

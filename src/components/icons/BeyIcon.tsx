@@ -39,7 +39,7 @@ const BeyIcon: React.FC<BeyIconProps> = ({ size = 24, color = "$color" }) => {
                         x2={500}
                         y2={467}
                         stroke="black"
-                        strokeWidth={37}
+                        strokeWidth={45}
                         strokeLinecap="square"
                     />
                 </Mask>

@@ -142,7 +142,7 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
       ) : (
         <YStack>
           <RollingNumber
-            fontSize={20}
+            fontSize={16}
             fontWeight="900"
             color="$accent4"
             decimalOpacity={0.4}

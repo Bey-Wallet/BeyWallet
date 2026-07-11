@@ -293,13 +293,13 @@ export function SettingsScreen() {
                     title: 'Biometric Lock',
                     value: biometricEnabled ? 'Enabled' : 'Disabled',
                     icon: Fingerprint,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'backup',
                     title: 'Backup Recovery Phrase',
                     icon: ShieldCheck,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'export',
@@ -307,14 +307,14 @@ export function SettingsScreen() {
                     subTitle: 'Download a dump of your wallet. You can restore your wallet from this file in the welcome screen of a new wallet. This file will be out of sync if you keep using your wallet after exporting it.',
                     icon: isExporting ? ActivityIndicator : ArrowUpFromLine,
                     disabled: isExporting,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'import',
                     title: 'Import wallet backup',
                     subTitle: 'Restore your wallet from a previously exported backup file. This will replace your current wallet data with the backup.',
                     icon: Download,
-                    color: '$blue10',
+                 
                 },
             ],
         },
@@ -326,20 +326,20 @@ export function SettingsScreen() {
                     title: 'Theme',
                     value: theme.charAt(0).toUpperCase() + theme.slice(1),
                     icon: Palette,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'currency',
                     title: 'Currency',
                     value: secondaryCurrency,
                     icon: undefined,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'showBitcoinSymbol',
                     title: 'Use ₿ Symbol as Sats',
                     icon: undefined,
-                    color: '$blue10',
+                 
                     isSwitch: true,
                     checked: showBitcoinSymbol,
                     onCheckedChange: (val) => {
@@ -357,20 +357,20 @@ export function SettingsScreen() {
                     title: 'Default Mint',
                     value: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None',
                     icon: Server,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'notifications',
                     title: 'Notifications',
                     icon: Bell,
-                    color: '$blue10',
+                 
                 },
                 {
                     id: 'consolidate',
                     title: 'Optimize Wallet',
-                    subtitle: 'Reduce proof count for faster sends',
+              
                     icon: Sparkles,
-                    color: '$blue10',
+                
                 },
                 {
                     id: 'verify-dleq',
@@ -378,14 +378,14 @@ export function SettingsScreen() {
                     subtitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
                     icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
                     disabled: isVerifyingDleq,
-                    color: '$blue10',
+                  
                 },
                 {
                     id: 'language',
                     title: 'Language',
                     value: 'System',
                     icon: Globe,
-                    color: '$blue10',
+                    
                     opacity: 0.5,
                 },
             ],
@@ -404,7 +404,6 @@ export function SettingsScreen() {
                     title: 'Nostr Username',
                     value: liveNip05 ? liveNip05.split('@')[0] : (nip05Loading ? 'Looking up…' : 'Claim Free'),
                     icon: AtSign,
-                    color: '$blue10',
                 },
             ],
         },
@@ -415,7 +414,7 @@ export function SettingsScreen() {
                     id: 'update',
                     title: 'Check for Updates',
                     icon: RefreshCw,
-                    color: '$gray10',
+            
                     onPress: async () => {
                         try {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -439,7 +438,7 @@ export function SettingsScreen() {
                     title: 'Version',
                     value: APP_VERSION,
                     icon: Info,
-                    color: '$gray10',
+              
                     pressStyle: { bg: '$gray3' },
                     onPress: () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

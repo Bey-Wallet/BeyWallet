@@ -435,45 +435,72 @@ export function OnchainMeltFlow() {
             : '...';
 
         return (
-            <YStack flex={1} justify="space-between" bg="$background" >
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
+            <YStack flex={1} justify="space-between" bg="$background">
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any} px="$4">
                     <YStack gap="$4" width="100%">
-                        {/* Status Card Box */}
-                        <YStack width="100%" justify="space-between" height={220} bg="$gray2" rounded="$5" items="center" gap="$3" py="$4" px="$3">
-                            <Text fontWeight="800" fontSize="$5" color="$green10">Payment Broadcasted</Text>
-                            <YStack items="center" justify="center">
-                                {primaryCurrency === 'SATS' ? (
-                                    <Text fontSize="$8" fontWeight="900" color="$color">
-                                        -{currencyService.formatSats(amountSats)}
-                                    </Text>
-                                ) : (
-                                    <>
-                                        <Text fontSize="$8" fontWeight="900" color="$color">
-                                            -{fiatValue}
-                                        </Text>
-                                        <Text fontSize="$4" fontWeight="600" color="$gray10">
-                                            -{currencyService.formatSats(amountSats)}
-                                        </Text>
-                                    </>
-                                )}
-                            </YStack>
-                            <Text color="$gray10" fontSize="$3" text="center" px="$2">
+                        {/* Oswald Typography Amount Display */}
+                        <YStack gap="$3" py="$6" items="center" justify="center">
+                            <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$orange10" lineHeight={54}>
+                                -{currencyService.formatSats(amountSats)}
+                            </Text>
+                            <Text color="$accent5" fontWeight="600" fontSize={16}>
+                                ≈ {fiatValue} {secondaryCurrency}
+                            </Text>
+                        </YStack>
+
+                        {/* Centered orange/pending badge */}
+                        <XStack
+                            self="center"
+                            items="center"
+                            gap="$2"
+                            bg="$orange9"
+                            px="$4"
+                            py="$3"
+                            rounded="$10"
+                        >
+                            <Check size={16} color="white" />
+                            <Text
+                                fontSize="$3"
+                                fontWeight="700"
+                                color="white"
+                            >
+                                Payment Broadcasted
+                            </Text>
+                        </XStack>
+
+                        {/* Description Text */}
+                        <YStack px="$4" py="$2">
+                            <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
                                 Transaction successfully broadcast to the network.
                             </Text>
                         </YStack>
 
                         {/* Details Table */}
-                        <ListTable>
-                            <ListTableRow label="Status" value="PENDING" valueColor="$orange10" />
-                            <ListTableRow label="Destination" value={`${address.substring(0, 10)}...${address.substring(address.length - 8)}`} />
-                            <ListTableRow label="Mint" value={mintDisplayName} />
-                            <ListTableRow label="Date" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                        </ListTable>
+                        <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$6" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+                            <XStack justify="space-between" items="center" py="$3" px="$4">
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">Status</Text>
+                                <Text fontSize="$3" fontWeight="800" color="$orange10">PENDING</Text>
+                            </XStack>
+                            <XStack justify="space-between" items="center" py="$3" px="$4">
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">Destination</Text>
+                                <Text fontSize="$3" fontWeight="800" color="$color">{`${address.substring(0, 10)}...${address.substring(address.length - 8)}`}</Text>
+                            </XStack>
+                            <XStack justify="space-between" items="center" py="$3" px="$4">
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">Mint</Text>
+                                <Text fontSize="$3" fontWeight="800" color="$color">{mintDisplayName}</Text>
+                            </XStack>
+                            <XStack justify="space-between" items="center" py="$3" px="$4">
+                                <Text fontSize="$3" color="$gray10" fontWeight="600">Date</Text>
+                                <Text fontSize="$3" fontWeight="800" color="$color">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                            </XStack>
+                        </YStack>
                     </YStack>
                 </ScrollView>
-                <Button theme="accent" size="$5" height={55} rounded="$4" fontWeight="800" onPress={() => router.back()}>
-                    DONE
-                </Button>
+                <YStack py="$4" px="$4" bg="$background">
+                    <Button theme="accent" size="$5" height={55} rounded="$4" fontWeight="800" onPress={() => router.back()}>
+                        Awesome
+                    </Button>
+                </YStack>
             </YStack>
         );
     }

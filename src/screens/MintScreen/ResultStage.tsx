@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { YStack, XStack, Text, Button, H1, Separator, Avatar } from "tamagui";
-import { CheckCircle2, XCircle, AlertCircle, Sprout, Zap } from "@tamagui/lucide-icons";
+import { YStack, XStack, Text, Button, H1, Separator, Avatar, ScrollView } from "tamagui";
+import { Check, XCircle, AlertCircle, Sprout, Zap } from "@tamagui/lucide-icons";
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import { useSettingsStore } from '~/store/settingsStore';
@@ -21,17 +21,13 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
     const sats = parseInt(amount, 10) || 0;
 
     const { mints } = useWalletStore();
-    const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+    const { secondaryCurrency } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
         staleTime: 30000,
     });
-
-    const currencySymbol = useMemo(() => {
-        return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
-    }, [secondaryCurrency]);
 
     const fiatValue = useMemo(() => {
         if (!btcData?.price) return '0.00';
@@ -63,148 +59,129 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
         }
     }, [status, isSuccess]);
 
-    const statusTitle = useMemo(() => {
-        switch (status) {
-            case 'success': return 'Deposit Successful';
-            case 'error': return 'Deposit Failed';
-            case 'cancelled': return 'Deposit Cancelled';
-        }
-    }, [status]);
-
-    const statusColor = useMemo(() => {
-        switch (status) {
-            case 'success': return '$green11';
-            case 'error': return '$red10';
-            case 'cancelled': return '$orange10';
-        }
-    }, [status]);
-
-    const statusBg = useMemo(() => {
-        switch (status) {
-            case 'success': return '$green3';
-            case 'error': return '$red3';
-            case 'cancelled': return '$orange3';
-        }
-    }, [status]);
-
-    const StatusIcon = useMemo(() => {
-        switch (status) {
-            case 'success': return <CheckCircle2 size={22} color="$green11" />;
-            case 'error': return <XCircle size={22} color="$red10" />;
-            case 'cancelled': return <AlertCircle size={22} color="$orange10" />;
-        }
-    }, [status]);
-
-    const formattedSatsString = useMemo(() => {
-        return sats.toLocaleString('en-US');
-    }, [sats]);
-
-    const dynamicFontSize = useMemo(() => {
-        const len = formattedSatsString.length + 2;
-        if (len <= 6) return 44;
-        if (len <= 8) return 38;
-        if (len <= 10) return 32;
-        if (len <= 13) return 26;
-        return 20;
-    }, [formattedSatsString]);
-
     const timeString = useMemo(() => {
         return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }, []);
 
-    return (
-        <YStack flex={1} justify="space-between">
-            <YStack gap="$4" width="100%">
-                {/* Hero Card Box Container matching ConfirmStage */}
+    if (!isSuccess) {
+        return (
+            <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
                 <YStack
-                    width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    p="$4"
+                    width={100}
+                    height={100}
+                    rounded="$10"
+                    bg={status === 'cancelled' ? "$orange4" : "$red4"}
                     items="center"
-                    gap="$3"
-                    borderWidth={0}
+                    justify="center"
+                    animation="bouncy"
                 >
-                    {/* Status badge at top of card */}
-                    <XStack justify="center" items="center" width="100%">
-                        <XStack bg={statusBg} px="$3" py="$1.5" rounded="$10" items="center" gap="$2">
-                            {StatusIcon}
-                            <Text fontSize="$3" fontWeight="700" color={statusColor}>
-                                {statusTitle}
-                            </Text>
-                        </XStack>
-                    </XStack>
+                    {status === 'cancelled' ? (
+                        <AlertCircle size={50} color="$orange10" strokeWidth={2.5} />
+                    ) : (
+                        <XCircle size={50} color="$red10" strokeWidth={2.5} />
+                    )}
+                </YStack>
+                <YStack items="center" gap="$2">
+                    <Text fontSize="$7" fontWeight="900" color="$color">
+                        {status === 'cancelled' ? 'Deposit Cancelled' : 'Deposit Failed'}
+                    </Text>
+                    <Text color="$gray10" fontSize="$4" textAlign="center" px="$4">
+                        {error || 'An error occurred while depositing.'}
+                    </Text>
+                </YStack>
+                <Button theme="gray" size="$5" width="100%" onPress={onClose} mt="$4">Go Back</Button>
+            </YStack>
+        );
+    }
 
-                    {/* Amount Display Section */}
-                    <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
-                        <Text color="$gray10" fontSize="$3" fontWeight="500">
-                            {isSuccess ? 'Minted Amount' : 'Attempted Amount'}
+    return (
+        <YStack flex={1} bg="$background">
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
+              
+            >
+                <YStack gap="$4">
+                    {/* Oswald Typography Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$green10" lineHeight={54}>
+                            +{currencyService.formatSats(sats)}
                         </Text>
-
-                        <H1
-                            fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color={isSuccess ? "$green11" : statusColor}
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {isSuccess ? '+' : ''}{currencyService.formatSats(sats)}
-                        </H1>
-
-                        <Text fontSize="$3" fontWeight="600" color="$accent10">
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
                             ≈ {fiatValue} {secondaryCurrency}
                         </Text>
                     </YStack>
-                </YStack>
 
-                {/* Detailed Breakdown Card matching ConfirmStage */}
-                <YStack bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
-                    <DetailItem
-                        label="Status"
-                        value={isSuccess ? 'Completed' : status === 'error' ? 'Failed' : 'Cancelled'}
-                        valueColor={statusColor}
-                    />
-                    <DetailItem
-                        label="Mint"
-                        value={mintDisplayName}
-                        icon={
-                            <Avatar rounded="$3" size="$1.5">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback bg="$green3" items="center" justify="center">
-                                    <Sprout size={12} color="$green10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        }
-                    />
-                    <DetailItem
-                        label="Method"
-                        value="Top Up via Lightning"
-                        icon={<Zap size={16} color="$yellow10" />}
-                    />
-                    <DetailItem
-                        label="Amount (SATS)"
-                        value={`${formattedSatsString} SATS`}
-                    />
-                    <DetailItem
-                        label="Amount (Fiat)"
-                        value={`${fiatValue}`}
-                    />
-                    <DetailItem
-                        label="Time"
-                        value={timeString}
-                    />
-                </YStack>
-            </YStack>
+                    {/* Centered green badge */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg="$green9"
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        <Check size={16} color="white" />
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            Deposit Successful
+                        </Text>
+                    </XStack>
 
-            {/* Action Button at bottom */}
-            <YStack pb="$2">
+                    {/* Description Text */}
+                    <YStack px="$4" py="$2">
+                        <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
+                            Your deposit has been recognized and ecash minted successfully.
+                        </Text>
+                    </YStack>
+
+                    {/* Details Table */}
+                    <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$6" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+                        <DetailItem
+                            label="Status"
+                            value="Completed"
+                            valueColor="$green10"
+                        />
+                        <DetailItem
+                            label="Mint"
+                            value={mintDisplayName}
+                            icon={
+                                <Avatar rounded="$3" size="$1.5">
+                                    <Avatar.Image src={activeMint?.icon} />
+                                    <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                        <Sprout size={12} color="$green10" />
+                                    </Avatar.Fallback>
+                                </Avatar>
+                            }
+                        />
+                        <DetailItem
+                            label="Method"
+                            value="Top Up via Lightning"
+                            icon={<Zap size={16} color="$yellow10" />}
+                        />
+                        <DetailItem
+                            label="Amount (SATS)"
+                            value={currencyService.formatSats(sats)}
+                        />
+                        <DetailItem
+                            label="Amount (Fiat)"
+                            value={fiatValue}
+                        />
+                        <DetailItem
+                            label="Time"
+                            value={timeString}
+                        />
+                    </YStack>
+                </YStack>
+            </ScrollView>
+
+            <YStack position="absolute" b={0} l={0} r={0} py="$4"  bg="$background" borderTopWidth={0}>
                 <Button
-                    theme={isSuccess ? "accent" : "gray"}
+                    theme="accent"
                     size="$5"
                     height={55}
                     rounded="$4"

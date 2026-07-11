@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { LayoutAnimation } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
+import * as ClipboardAPI from 'expo-clipboard';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
@@ -205,7 +206,29 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                         label: 'Paste',
                         icon: <Clipboard size={24} color="$gray12" strokeWidth={2.5} />,
                         iconBg: '$blue4',
-                        path: '/(modals)/receive?mode=receive',
+                        onPressCustom: async () => {
+                            sheetRef.current?.dismiss();
+                            try {
+                                const text = await ClipboardAPI.getStringAsync();
+                                if (text && text.trim()) {
+                                    router.push({
+                                        pathname: '/(modals)/receive',
+                                        params: { mode: 'receive', scannedToken: text.trim() }
+                                    });
+                                } else {
+                                    router.push({
+                                        pathname: '/(modals)/receive',
+                                        params: { mode: 'receive' }
+                                    });
+                                    toast.show('Clipboard Empty', { message: 'No text found in clipboard.' });
+                                }
+                            } catch (e) {
+                                router.push({
+                                    pathname: '/(modals)/receive',
+                                    params: { mode: 'receive' }
+                                });
+                            }
+                        }
                     },
                     {
                         key: 'scan',

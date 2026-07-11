@@ -1,7 +1,11 @@
-import React from 'react';
-import { YStack, XStack, Text, Button, View, Separator, ScrollView } from "tamagui";
-import { Check, CheckCircle2, AlertCircle, RefreshCw, XCircle } from "@tamagui/lucide-icons";
+import React, { useMemo } from 'react';
+import { YStack, XStack, Text, Button, Separator, ScrollView } from "tamagui";
+import { Check, XCircle, AlertCircle } from "@tamagui/lucide-icons";
 import { useWalletStore } from "~/store/walletStore";
+import { currencyService, CurrencyCode } from '~/services/currencyService';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
 
 interface ResultStageProps {
     status: 'success' | 'error' | 'cancelled';
@@ -12,21 +16,9 @@ interface ResultStageProps {
     onClose: () => void;
 }
 
-const DetailItem = ({ label, value, isError = false }: { label: string, value: string | React.ReactNode, isError?: boolean }) => (
-    <XStack justify="space-between" items="center" px="$4" py="$3" bg="$colorTransparent">
-        <Text color="$gray10" fontSize="$4" fontWeight="600">{label}</Text>
-        {typeof value === 'string' ? (
-            <Text color={isError ? "$red10" : "$color"} fontSize="$4" fontWeight="500" numberOfLines={1} style={{ maxWidth: 200 }} ellipsizeMode="middle">
-                {value}
-            </Text>
-        ) : (
-            value
-        )}
-    </XStack>
-);
-
 export function ResultStage({ status, amount, sourceMintUrl, targetMintUrl, error, onClose }: ResultStageProps) {
     const { mints } = useWalletStore();
+    const { secondaryCurrency } = useSettingsStore();
 
     const getMintName = (url: string) => {
         const mint = mints.find(m => m.mintUrl.replace(/\/$/, '') === url.replace(/\/$/, ''));
@@ -35,66 +27,143 @@ export function ResultStage({ status, amount, sourceMintUrl, targetMintUrl, erro
 
     const isSuccess = status === 'success';
 
-    return (
-        <YStack flex={1} bg="$background" justify="space-between">
-            <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-                <YStack items="center" gap="$4" pt="$6" pb="$4">
-                    <View
-                        p="$4"
-                        rounded="$10"
-                        bg={isSuccess ? "$green3" : status === 'cancelled' ? "$orange3" : "$red3"}
-                    >
-                        {isSuccess ? (
-                            <CheckCircle2 size={48} color="$green10" />
-                        ) : status === 'cancelled' ? (
-                            <XCircle size={48} color="$orange10" />
-                        ) : (
-                            <AlertCircle size={48} color="$red10" />
-                        )}
-                    </View>
-                    <YStack items="center" gap="$2">
-                        <Text fontSize="$6" fontWeight="800">
-                            {isSuccess ? 'Swap Complete' : status === 'cancelled' ? 'Swap Cancelled' : 'Swap Failed'}
-                        </Text>
-                        {isSuccess ? (
-                            <Text fontSize="$8" fontWeight="800" color="$green10">
-                                {amount} SATS
-                            </Text>
-                        ) : error ? (
-                            <Text color="$red10" fontSize="$3" text="center" px="$4">
-                                {error}
-                            </Text>
-                        ) : null}
-                    </YStack>
-                </YStack>
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
 
-                <YStack gap="$0" mb="$6" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    <DetailItem label="Status" value={
-                        <XStack items="center" gap="$2">
-                            {isSuccess ? <Check size={14} color="$green10" /> : <AlertCircle size={14} color="$red10" />}
-                            <Text color={isSuccess ? "$green10" : "$red10"} fontSize="$2" fontWeight="600" textTransform="uppercase">
-                                {status}
-                            </Text>
-                        </XStack>
-                    } />
-                    <DetailItem label="Amount" value={`${amount} SATS`} />
-                    <DetailItem label="Source" value={getMintName(sourceMintUrl)} />
-                    <DetailItem label="Target" value={getMintName(targetMintUrl)} />
+    const fiatValue = useMemo(() => {
+        if (!btcData?.price) return '0.00';
+        const fiat = currencyService.convertSatsToCurrency(Number(amount), btcData.price);
+        return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
+    }, [amount, btcData?.price, secondaryCurrency]);
+
+    if (!isSuccess) {
+        return (
+            <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
+                <YStack
+                    width={100}
+                    height={100}
+                    rounded="$10"
+                    bg={status === 'cancelled' ? "$orange4" : "$red4"}
+                    items="center"
+                    justify="center"
+                    animation="bouncy"
+                >
+                    {status === 'cancelled' ? (
+                        <AlertCircle size={50} color="$orange10" strokeWidth={2.5} />
+                    ) : (
+                        <XCircle size={50} color="$red10" strokeWidth={2.5} />
+                    )}
+                </YStack>
+                <YStack items="center" gap="$2">
+                    <Text fontSize="$7" fontWeight="900" color="$color">
+                        {status === 'cancelled' ? 'Swap Cancelled' : 'Swap Failed'}
+                    </Text>
+                    <Text color="$gray10" fontSize="$4" textAlign="center" px="$4">
+                        {error || 'An error occurred while swapping.'}
+                    </Text>
+                </YStack>
+                <Button theme="gray" size="$5" width="100%" onPress={onClose} mt="$4">Go Back</Button>
+            </YStack>
+        );
+    }
+
+    return (
+        <YStack flex={1} bg="$background">
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
+                px="$4"
+            >
+                <YStack gap="$4">
+                    {/* Oswald Typography Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$color" lineHeight={54}>
+                            {currencyService.formatSats(Number(amount))}
+                        </Text>
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
+                            ≈ {fiatValue} {secondaryCurrency}
+                        </Text>
+                    </YStack>
+
+                    {/* Centered green badge */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg="$green9"
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        <Check size={16} color="white" />
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            Swap Complete
+                        </Text>
+                    </XStack>
+
+                    {/* Description Text */}
+                    <YStack px="$4" py="$2">
+                        <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
+                            Your swap has been processed successfully.
+                        </Text>
+                    </YStack>
+
+                    {/* Details Table */}
+                    <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$6" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+                        <DetailItem
+                            label="Status"
+                            value="Success"
+                            valueColor="$green10"
+                        />
+                        <DetailItem
+                            label="Amount"
+                            value={currencyService.formatSats(Number(amount))}
+                        />
+                        <DetailItem
+                            label="Source Mint"
+                            value={getMintName(sourceMintUrl)}
+                        />
+                        <DetailItem
+                            label="Target Mint"
+                            value={getMintName(targetMintUrl)}
+                        />
+                    </YStack>
                 </YStack>
             </ScrollView>
 
-            <YStack pb="$4" pt="$2" bg="$background">
+            <YStack position="absolute" b={0} l={0} r={0} py="$4" px="$4" bg="$background" borderTopWidth={0}>
                 <Button
                     theme="accent"
                     size="$5"
-                    width="100%"
+                    height={55}
                     rounded="$4"
                     fontWeight="800"
                     onPress={onClose}
                 >
-                    DONE
+                    Done
                 </Button>
             </YStack>
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+                    {value}
+                </Text>
+            </XStack>
+        </XStack>
     );
 }
