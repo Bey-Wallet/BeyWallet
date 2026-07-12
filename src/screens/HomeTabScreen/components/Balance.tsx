@@ -42,7 +42,7 @@ export default function Balance() {
   }, [currentBalance, btcData?.price]);
 
   return (
-    <YStack py="$2" gap="$3" height={230} justify="center" items="center" position="relative">
+    <YStack py="$2" gap="$3" height={220} justify="center" items="center" position="relative">
       
       {/* Syncing Indicator at the top (absolute) */}
       {isRestoring && (
