@@ -220,7 +220,7 @@ export function OnchainMintFlow() {
 
         return (
             <YStack flex={1} justify="space-between" bg="$background">
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any} px="$4">
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any} >
                     <YStack gap="$4" width="100%">
                         {/* Oswald Typography Amount Display */}
                         <YStack gap="$3" py="$6" items="center" justify="center">
@@ -280,7 +280,7 @@ export function OnchainMintFlow() {
                         </YStack>
                     </YStack>
                 </ScrollView>
-                <YStack py="$4" px="$4" bg="$background">
+                <YStack py="$4"  bg="$background">
                     <Button theme="accent" size="$5" height={55} rounded="$4" fontWeight="800" onPress={() => router.back()}>
                         Awesome
                     </Button>

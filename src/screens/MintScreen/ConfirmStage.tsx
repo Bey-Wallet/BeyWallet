@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, Button, H1, Separator, Avatar, View } from "tamagui";
-import { Sprout, Zap } from "@tamagui/lucide-icons";
-import { Spinner } from '../../components/UI/Spinner';
+import { YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
+import { Sprout, Zap, ShieldCheck } from "@tamagui/lucide-icons";
+import { Spinner } from '~/components/UI/Spinner';
 import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
@@ -57,99 +57,77 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
         return sats.toLocaleString('en-US');
     }, [sats]);
 
-    const dynamicFontSize = useMemo(() => {
-        const len = formattedSatsString.length + 2; // +2 for +₿
-        if (len <= 6) return 44;
-        if (len <= 8) return 38;
-        if (len <= 10) return 32;
-        if (len <= 13) return 26;
-        return 20;
-    }, [formattedSatsString]);
-
     return (
-        <YStack flex={1} justify="space-between">
-            <YStack gap="$4" width="100%">
-                {/* Hero Card Box Container matching AmountStage */}
-                <YStack
-                    width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    p="$4"
-                    items="center"
-                    gap="$3"
-                    borderWidth={0}
-                    borderColor="$borderColor"
-                >
-                    {/* Mint info header badge */}
-
-
-
-                    {/* Amount Display Section */}
-                    <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
-                        <Text color="$gray10" fontSize="$3" fontWeight="500">
-                            Confirm Deposit Amount
-                        </Text>
-
-                        <H1
-                            fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$3"
-                            color="$color"
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
+        <YStack flex={1} bg="$background">
+            <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
+                <YStack gap="$4">
+                    {/* Middle Amount Display */}
+                    <YStack gap="$3" py="$6" items="center" justify="center">
+                        <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
                             +{showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
-                        </H1>
-
-
-                        <Text fontSize="$3" fontWeight="600" color="$accent10">
+                        </Text>
+                        <Text color="$accent5" fontWeight="600" fontSize={16}>
                             ≈ {fiatValue} {secondaryCurrency}
                         </Text>
+                    </YStack>
 
+                    {/* Send Method Badge */}
+                    <XStack
+                        self="center"
+                        items="center"
+                        gap="$2"
+                        bg="$accent9"
+                        px="$4"
+                        py="$3"
+                        rounded="$10"
+                    >
+                        <Zap size={16} color="white" />
+                        <Text
+                            fontSize="$3"
+                            fontWeight="700"
+                            color="white"
+                        >
+                            Top Up via Lightning
+                        </Text>
+                    </XStack>
+
+                    {/* Details List */}
+                    <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
+                        <View p="$3" px="$4">
+                            <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                        </View>
+                        <Separator borderColor="$borderColor" opacity={0.3} />
+                        <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                            <DetailItem
+                                label="Mint"
+                                value={mintDisplayName}
+                                icon={
+                                    <Avatar rounded="$3" size="$1.5">
+                                        <Avatar.Image src={activeMint?.icon} />
+                                        <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                            <Sprout size={12} color="$green10" />
+                                        </Avatar.Fallback>
+                                    </Avatar>
+                                }
+                            />
+                            <DetailItem
+                                label="Method"
+                                value="Top Up via Lightning"
+                                icon={<Zap size={16} color="$yellow10" />}
+                            />
+                            <DetailItem
+                                label="Estimated Fee"
+                                value="0 SATS (Free)"
+                                valueColor="$green11"
+                                icon={<ShieldCheck size={16} color="$green11" />}
+                            />
+                        </YGroup>
                     </YStack>
                 </YStack>
-
-                {/* Detailed Breakdown Card */}
-                <YStack bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
-                    <DetailItem
-                        label="Mint"
-                        value={mintDisplayName}
-                        icon={
-                            <Avatar rounded="$3" size="$1.5">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback bg="$green3" items="center" justify="center">
-                                    <Sprout size={12} color="$green10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        }
-                    />
-                    <DetailItem
-                        label="Method"
-                        value="Top Up via Lightning"
-                        icon={<Zap size={16} color="$yellow10" />}
-                    />
-                    <DetailItem
-                        label="Amount (SATS)"
-                        value={`${formattedSatsString} SATS`}
-                    />
-                    <DetailItem
-                        label="Amount (Fiat)"
-                        value={`${currencySymbol}${fiatValue}`}
-                    />
-                    <DetailItem
-                        label="Estimated Fee"
-                        value="0 SATS (Free)"
-                        valueColor="$green10"
-                    />
-                </YStack>
-            </YStack>
+            </ScrollView>
 
             {/* Action Buttons */}
-            <YStack gap="$3" pb="$2">
+            <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
                 <Button
                     theme="accent"
                     size="$5"

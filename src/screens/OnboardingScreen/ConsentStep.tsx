@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { YStack, XStack, Text, Button, H1, View, ScrollView } from 'tamagui';
-import { Check, ShieldAlert, Coins, Landmark, ChevronRight, AlertTriangle } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Button, H1, View, ScrollView, Separator } from 'tamagui';
+import { Lock, Key, AlertTriangle, FileText, ChevronRight, Check, ArrowLeft, Landmark, Sprout } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Linking } from 'react-native';
 
 interface ConsentStepProps {
     onComplete: () => void;
@@ -11,18 +12,17 @@ interface ConsentStepProps {
 
 export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
     const insets = useSafeAreaInsets();
-
-    const [checkedEcash, setCheckedEcash] = useState(false);
-    const [checkedMints, setCheckedMints] = useState(false);
-    const [checkedBackups, setCheckedBackups] = useState(false);
-    const [checkedLiability, setCheckedLiability] = useState(false);
-
-    const isAllChecked = checkedEcash && checkedMints && checkedBackups && checkedLiability;
+    const [checked, setChecked] = useState(false);
 
     const handleContinue = () => {
-        if (!isAllChecked) return;
+        if (!checked) return;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onComplete();
+    };
+
+    const handleOpenTerms = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Linking.openURL('https://beywallet.com/terms').catch(() => {});
     };
 
     return (
@@ -30,213 +30,178 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
             flex={1}
             bg="$background"
             px="$4"
-            justify="space-between"
             style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
         >
-            {/* Header */}
-            <YStack gap="$2" mt="$2">
-                <H1 fontSize="$8" text="center" letterSpacing={-0.5} fontWeight="800" color="$color">
-                    Risk Acknowledgment
-                </H1>
+            {/* Top Back Button */}
+            <XStack justify="flex-start" py="$2">
+                <Button
+                    circular
+                    chromeless
+                    icon={<ArrowLeft size={24} color="$color" />}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onBack();
+                    }}
+                />
+            </XStack>
 
-            </YStack>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingBottom: 20 }}>
+                <YStack gap="$6" flex={1}>
+                    {/* Header */}
+                    <YStack gap="$2" mt="$2">
+                        <H1 fontSize="$8" textAlign="center" letterSpacing={-0.5} fontWeight="800" color="$color">
+                            Risk Acknowledgment
+                        </H1>
+                    </YStack>
 
-            {/* Checkbox Rows */}
-            <ScrollView showsVerticalScrollIndicator={false} my="$3">
-                <YStack gap="$2.5">
-                    {/* Ecash Checkbox */}
-                    <XStack
-                        gap="$2.5"
-                        p="$2.5"
+                    {/* Single unified list card container */}
+                    <YStack
                         bg="$gray2"
-                        rounded="$4"
-                        borderWidth={1.5}
-                        borderColor={checkedEcash ? "$blue10" : "rgba(128,128,128,0.1)"}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setCheckedEcash(!checkedEcash);
-                        }}
-                        pressStyle={{ opacity: 0.95 }}
+                        rounded="$5"
+                        overflow="hidden"
+                        borderWidth={0}
+                        separator={<Separator borderColor="$borderColor" opacity={0.4} />}
                     >
-                        <View
-                            width={18}
-                            height={18}
-                            rounded="$1"
-                            borderWidth={2}
-                            borderColor={checkedEcash ? "$blue10" : "$gray8"}
-                            bg={checkedEcash ? "$blue10" : "transparent"}
-                            items="center"
-                            justify="center"
-                            mt="$0.5"
-                        >
-                            {checkedEcash && <Check size={11} color="white" strokeWidth={4} />}
-                        </View>
-                        <YStack flex={1} gap="$0.5">
-                            <XStack gap="$2" items="center">
-                                <Coins size={14} color={checkedEcash ? "$blue10" : "$gray10"} />
-                                <Text fontWeight="700" fontSize="$3" color="$color">Ecash is Cash</Text>
-                            </XStack>
-                            <Text fontSize="$2" color="$gray10" lineHeight={15}>
-                                Your funds are stored locally on this phone. If you delete this app or lose your phone without writing down your backup phrase, your funds are gone forever.
-                            </Text>
-                        </YStack>
-                    </XStack>
+                        {/* Row 1: Only you control your funds */}
+                        <XStack gap="$3" p="$3" items="center">
+                            <View width={42} height={42} rounded="$3" bg="$blue3" items="center" justify="center">
+                                <Lock size={20} color="$blue10" />
+                            </View>
+                            <YStack flex={1} gap="$1">
+                                <Text fontWeight="800" fontSize="$4" color="$color">Only you control your funds</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                                    Bey Wallet can't hold, freeze, or touch it.
+                                </Text>
+                            </YStack>
+                        </XStack>
 
-                    {/* Mints Checkbox */}
-                    <XStack
-                        gap="$2.5"
-                        p="$2.5"
-                        bg="$gray2"
-                        rounded="$4"
-                        borderWidth={1.5}
-                        borderColor={checkedMints ? "$orange10" : "rgba(128,128,128,0.1)"}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setCheckedMints(!checkedMints);
-                        }}
-                        pressStyle={{ opacity: 0.95 }}
-                    >
-                        <View
-                            width={18}
-                            height={18}
-                            rounded="$1"
-                            borderWidth={2}
-                            borderColor={checkedMints ? "$orange10" : "$gray8"}
-                            bg={checkedMints ? "$orange10" : "transparent"}
-                            items="center"
-                            justify="center"
-                            mt="$0.5"
-                        >
-                            {checkedMints && <Check size={11} color="white" strokeWidth={4} />}
-                        </View>
-                        <YStack flex={1} gap="$0.5">
-                            <XStack gap="$2" items="center">
-                                <Landmark size={14} color={checkedMints ? "$orange10" : "$gray10"} />
-                                <Text fontWeight="700" fontSize="$3" color="$color">Mints Hold the Bitcoin</Text>
-                            </XStack>
-                            <Text fontSize="$2" color="$gray10" lineHeight={15}>
-                                Mints are custodians holding the real Bitcoin backing your ecash. Mints are separate entities, not run by BeyWallet. Choose trustworthy mints to deposit with.
-                            </Text>
-                        </YStack>
-                    </XStack>
+                        {/* Row 2: Your recovery phrase is the key */}
+                        <XStack gap="$3" p="$3" items="center">
+                            <View width={42} height={42} rounded="$3" bg="$purple3" items="center" justify="center">
+                                <Key size={20} color="$purple10" />
+                            </View>
+                            <YStack flex={1} gap="$1">
+                                <Text fontWeight="800" fontSize="$4" color="$color">Your recovery phrase is the key</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                                    12 words secure your wallet.
+                                </Text>
+                            </YStack>
+                        </XStack>
 
-                    {/* Backups Checkbox */}
-                    <XStack
-                        gap="$2.5"
-                        p="$2.5"
-                        bg="$gray2"
-                        rounded="$4"
-                        borderWidth={1.5}
-                        borderColor={checkedBackups ? "$purple10" : "rgba(128,128,128,0.1)"}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setCheckedBackups(!checkedBackups);
-                        }}
-                        pressStyle={{ opacity: 0.95 }}
-                    >
-                        <View
-                            width={18}
-                            height={18}
-                            rounded="$1"
-                            borderWidth={2}
-                            borderColor={checkedBackups ? "$purple10" : "$gray8"}
-                            bg={checkedBackups ? "$purple10" : "transparent"}
-                            items="center"
-                            justify="center"
-                            mt="$0.5"
-                        >
-                            {checkedBackups && <Check size={11} color="white" strokeWidth={4} />}
-                        </View>
-                        <YStack flex={1} gap="$0.5">
-                            <XStack gap="$2" items="center">
-                                <ShieldAlert size={14} color={checkedBackups ? "$purple10" : "$gray10"} />
-                                <Text fontWeight="700" fontSize="$3" color="$color">Backups Use Relays</Text>
-                            </XStack>
-                            <Text fontSize="$2" color="$gray10" lineHeight={15}>
-                                BeyWallet encrypts and syncs your active balance silently to Nostr relays. You need your 12-word seed phrase to unlock and recover this data on a new device.
-                            </Text>
-                        </YStack>
-                    </XStack>
+                        {/* Row 3: Lose the phrase, lose access */}
+                        <XStack gap="$3" p="$3" items="center">
+                            <View width={42} height={42} rounded="$3" bg="$red3" items="center" justify="center">
+                                <AlertTriangle size={20} color="$red10" />
+                            </View>
+                            <YStack flex={1} gap="$1">
+                                <Text fontWeight="800" fontSize="$4" color="$color">Lose the phrase, lose access</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                                    No one can recover your wallet for you.
+                                </Text>
+                            </YStack>
+                        </XStack>
 
-                    {/* Liability Disclaimer Checkbox */}
-                    <XStack
-                        gap="$2.5"
-                        p="$2.5"
-                        bg="$gray2"
-                        rounded="$4"
-                        borderWidth={1.5}
-                        borderColor={checkedLiability ? "$red10" : "rgba(128,128,128,0.1)"}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setCheckedLiability(!checkedLiability);
-                        }}
-                        pressStyle={{ opacity: 0.95 }}
-                    >
-                        <View
-                            width={18}
-                            height={18}
-                            rounded="$1"
-                            borderWidth={2}
-                            borderColor={checkedLiability ? "$red10" : "$gray8"}
-                            bg={checkedLiability ? "$red10" : "transparent"}
+                        {/* Row 4: Mints hold the backing Bitcoin */}
+                        <XStack gap="$3" p="$3" items="center">
+                            <View width={42} height={42} rounded="$3" bg="$orange3" items="center" justify="center">
+                                <Landmark size={20} color="$orange10" />
+                            </View>
+                            <YStack flex={1} gap="$1">
+                                <Text fontWeight="800" fontSize="$4" color="$color">Mints hold the backing Bitcoin</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                                    If a mint shuts down, its tokens are lost.
+                                </Text>
+                            </YStack>
+                        </XStack>
+
+                        {/* Row 5: Experimental protocol */}
+                        <XStack gap="$3" p="$3" items="center">
+                            <View width={42} height={42} rounded="$3" bg="$green3" items="center" justify="center">
+                                <Sprout size={20} color="$green10" />
+                            </View>
+                            <YStack flex={1} gap="$1">
+                                <Text fontWeight="800" fontSize="$4" color="$color">Experimental protocol</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                                    Avoid storing large balances in ecash.
+                                </Text>
+                            </YStack>
+                        </XStack>
+
+                        {/* Row 6: Read full Terms & Privacy */}
+                        <XStack
+                            gap="$3"
+                            p="$3"
                             items="center"
-                            justify="center"
-                            mt="$0.5"
+                            pressStyle={{ bg: "$gray3" }}
+                            onPress={handleOpenTerms}
                         >
-                            {checkedLiability && <Check size={11} color="white" strokeWidth={4} />}
-                        </View>
-                        <YStack flex={1} gap="$0.5">
-                            <XStack gap="$2" items="center">
-                                <AlertTriangle size={14} color={checkedLiability ? "$red10" : "$gray10"} />
-                                <Text fontWeight="700" fontSize="$3" color="$color">No Liability for Lost Funds</Text>
-                            </XStack>
-                            <Text fontSize="$2" color="$gray10" lineHeight={15}>
-                                BeyWallet is self-custodial software. We do not control your keys, balance, mints, or relays, and are not liable for any funds lost due to device loss, software errors, or mint failure.
+                            <View width={42} height={42} rounded="$3" bg="$gray4" items="center" justify="center">
+                                <FileText size={20} color="$gray10" />
+                            </View>
+                            <Text flex={1} fontWeight="800" fontSize="$4" color="$color">
+                                Read full Terms & Privacy
                             </Text>
-                        </YStack>
-                    </XStack>
+                            <ChevronRight size={18} color="$gray10" />
+                        </XStack>
+                    </YStack>
                 </YStack>
             </ScrollView>
 
-            {/* Direction Prompt */}
-            <Text
-                fontSize="$2"
-                fontWeight="700"
-                text="center"
-                color={isAllChecked ? "$green10" : "$orange10"}
-                mb="$4"
-                letterSpacing={0.5}
-            >
-                {isAllChecked ? "✓ All acknowledgments checked" : "Check all boxes to proceed"}
-            </Text>
-
-            {/* CTAs */}
-            <YStack gap="$3" mb="$4">
-                <Button
-                    size="$5"
-                    bg={isAllChecked ? "$accent10" : "$gray4"}
-                    color={isAllChecked ? "white" : "$gray8"}
-                    width="100%"
-                    onPress={handleContinue}
-                    disabled={!isAllChecked}
-                    iconAfter={<ChevronRight size={18} color={isAllChecked ? "white" : "$gray8"} />}
-                    fontSize="$5"
-                    fontWeight="700"
-                    rounded="$5"
-                    pressStyle={isAllChecked ? { scale: 0.98, opacity: 0.9 } : undefined}
-                >
-                    I Acknowledge & Continue
-                </Button>
-
-                <Button
-                    size="$4"
-                    chromeless
+            {/* Footer with Checkbox & CTA */}
+            <YStack gap="$4" py="$3" bg="$background">
+                {/* Checkbox row */}
+                <XStack
+                    gap="$3"
+                    p="$3.5"
+                    items="flex-start"
                     onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                        onBack();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setChecked(!checked);
                     }}
                 >
-                    <Text color="$gray10" fontSize="$3" fontWeight="600">Back</Text>
+                    <View
+                        width={22}
+                        height={22}
+                        rounded="$2"
+                        borderWidth={2}
+                        borderColor={checked ? "$accent9" : "$gray8"}
+                        bg={checked ? "$accent9" : "transparent"}
+                        items="center"
+                        justify="center"
+                        mt="$0.5"
+                    >
+                        {checked && <Check size={14} color="white" strokeWidth={4} />}
+                    </View>
+                    <Text fontSize="$3" color={checked ? "$accent5" : "$gray10"} flex={1} lineHeight={18}>
+                        I understand I'm solely responsible for my recovery phrase, and I agree to the{' '}
+                        <Text
+                            color="$accent9"
+                            fontWeight="700"
+                            style={{ textDecorationLine: 'underline' }}
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                handleOpenTerms();
+                            }}
+                        >
+                            Terms
+                        </Text>
+                        .
+                    </Text>
+                </XStack>
+
+                <Button
+                    size="$5"
+                    theme={checked ? "accent" : "gray"}
+                    width="100%"
+                    onPress={handleContinue}
+                    disabled={!checked}
+                    fontSize="$5"
+                    fontWeight="800"
+                    rounded="$4"
+                    height={55}
+                    pressStyle={checked ? { scale: 0.98, opacity: 0.9 } : undefined}
+                >
+                    Agree & Continue
                 </Button>
             </YStack>
         </YStack>

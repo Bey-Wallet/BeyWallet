@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { YStack, XStack, Text, H1, Input, Button, Separator, ScrollView, View, Spinner, Avatar } from "tamagui";
+import { YStack, XStack, Text, H1, Input, Button, Separator, ScrollView, View, Spinner, Avatar, YGroup } from "tamagui";
 import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, Landmark, Check, Zap, ArrowUpDown, Coins, Info, ShieldCheck, CheckCircle2, XCircle, Bitcoin, ChevronDown, Sprout } from "@tamagui/lucide-icons";
 import * as Clipboard from "expo-clipboard";
 import { networkService } from "~/services/networkService";
@@ -436,7 +436,7 @@ export function OnchainMeltFlow() {
 
         return (
             <YStack flex={1} justify="space-between" bg="$background">
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any} px="$4">
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any} >
                     <YStack gap="$4" width="100%">
                         {/* Oswald Typography Amount Display */}
                         <YStack gap="$3" py="$6" items="center" justify="center">
@@ -496,7 +496,7 @@ export function OnchainMeltFlow() {
                         </YStack>
                     </YStack>
                 </ScrollView>
-                <YStack py="$4" px="$4" bg="$background">
+                <YStack py="$4" bg="$background">
                     <Button theme="accent" size="$5" height={55} rounded="$4" fontWeight="800" onPress={() => router.back()}>
                         Awesome
                     </Button>
@@ -529,41 +529,43 @@ export function OnchainMeltFlow() {
         const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 32 : 40;
 
         return (
-            <YStack flex={1} justify="space-between" bg="$background" >
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
-                    <YStack gap="$5" pt="$2">
-                        {/* Hero Card Box Container */}
-                        <YStack
-                            width="100%"
-                            bg="$gray2"
-                            rounded="$5"
-                            p="$4"
-                            items="center"
-                            gap="$2"
-                        >
-                            <Text color="$gray10" fontSize="$3" fontWeight="600">
-                                Send On-Chain Amount
-                            </Text>
-                            <H1
-                                fontSize={dynamicFontSize}
-                                fontVariant={['tabular-nums']}
-                                fontWeight="700"
-                                letterSpacing={-1}
-                                py="$1"
-                                color="$color"
-                                text="center"
-                            >
+            <YStack flex={1} bg="$background">
+                <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
+                    <YStack gap="$4" pt="$2">
+                        {/* Middle Amount Display */}
+                        <YStack gap="$3" py="$6" items="center" justify="center">
+                            <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
                                 -{currencyService.formatSats(meltQuote.amount)}
-                            </H1>
-                            <Text fontSize="$3" fontWeight="600" color="$accent10">
-                                ≈ {currencySymbol}{formattedFiat} {secondaryCurrency}
+                            </Text>
+                            <Text color="$accent5" fontWeight="600" fontSize={16}>
+                                ≈ {formattedFiat} {secondaryCurrency}
                             </Text>
                         </YStack>
 
+                        {/* Send Method Badge */}
+                        <XStack
+                            self="center"
+                            items="center"
+                            gap="$2"
+                            bg="$orange9"
+                            px="$4"
+                            py="$3"
+                            rounded="$10"
+                        >
+                            <Landmark size={16} color="white" />
+                            <Text
+                                fontSize="$3"
+                                fontWeight="700"
+                                color="white"
+                            >
+                                On-Chain Bitcoin Send
+                            </Text>
+                        </XStack>
+
                         {/* Fee Option Selection Selector */}
                         {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
-                            <YStack gap="$2">
-                                <Text fontSize="$3" color="$gray11" fontWeight="700" px="$1">Choose confirmation speed</Text>
+                            <YStack gap="$2" >
+                                <Text fontSize="$3" color="$gray10" fontWeight="700" px="$1">Choose confirmation speed</Text>
                                 <YStack gap="$2">
                                     {meltQuote.fee_options.map((option: any) => {
                                         const isSelected = option.fee_index === selectedFeeIndex;
@@ -613,18 +615,49 @@ export function OnchainMeltFlow() {
                             </YStack>
                         )}
 
-                        {/* Detailed Breakdown Card */}
-                        <ListTable>
-                            <ListTableRow label="Mint" value={mintDisplayName} />
-                            <ListTableRow label="Destination" value={shortAddress} />
-                            <ListTableRow label="Network Fee" value={`${selectedFeeReserve} sats`} valueColor="$orange10" />
-                            <ListTableRow label="Total Cost" value={`${total.toLocaleString()} sats (≈ ${currencySymbol}${formattedTotalFiat})`} valueColor="$accent10" />
-                        </ListTable>
+                        {/* Details List */}
+                        <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3" >
+                            <View p="$3" px="$4">
+                                <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                            </View>
+                            <Separator borderColor="$borderColor" opacity={0.3} />
+                            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                                <DetailItem
+                                    label="Mint"
+                                    value={mintDisplayName}
+                                    icon={
+                                        <Avatar rounded="$3" size="$1.5">
+                                            <Avatar.Image src={activeMint?.icon} />
+                                            <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                                <Sprout size={12} color="$green10" />
+                                            </Avatar.Fallback>
+                                        </Avatar>
+                                    }
+                                />
+                                <DetailItem
+                                    label="Destination"
+                                    value={shortAddress}
+                                    icon={<Landmark size={16} color="$yellow10" />}
+                                />
+                                <DetailItem
+                                    label="Network Fee"
+                                    value={`${selectedFeeReserve} sats`}
+                                    valueColor="$orange10"
+                                    icon={<ShieldCheck size={16} color="$orange10" />}
+                                />
+                                <DetailItem
+                                    label="Total Cost"
+                                    value={`${total.toLocaleString()} sats (≈ ${formattedTotalFiat})`}
+                                    valueColor="$accent10"
+                                    icon={<ShieldCheck size={16} color="$accent10" />}
+                                />
+                            </YGroup>
+                        </YStack>
                     </YStack>
                 </ScrollView>
 
                 {/* Confirm and Pay Actions */}
-                <YStack gap="$2" pt="$3" pb="$2">
+                <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
                     <Button theme="accent" size="$5" height={55} rounded="$4" fontWeight="800" onPress={handlePayMelt}>
                         Confirm & Send
                     </Button>
@@ -837,5 +870,19 @@ export function OnchainMeltFlow() {
 
             <MintSelectorSheet ref={sheetRef} />
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+                    {value}
+                </Text>
+            </XStack>
+        </XStack>
     );
 }

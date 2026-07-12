@@ -1,15 +1,3 @@
-/**
- * PaymentRequestStage
- *
- * Shown when the user scans a NUT-18 `creqA...` payment request QR code.
- * Displays a review card with the requested amount, memo, and mint, then
- * on confirm:
- *   1. Creates P2PK-locked ecash locked to the requester's Nostr pubkey
- *   2. Publishes the token via Nostr DM to the requester
- *   3. Saves a history entry (type: 'send', metadata.transport: 'nostr')
- *   4. Transitions the parent to the 'success' stage
- */
-
 import React, { useMemo, useState } from 'react';
 import {
   YStack,
@@ -21,6 +9,7 @@ import {
   Spinner as TamaguiSpinner,
   Avatar,
   H1,
+  ScrollView,
 } from 'tamagui';
 import {
   AlertCircle,
@@ -30,6 +19,7 @@ import {
   ShieldCheck,
   FileText,
   Sprout,
+  Landmark,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
@@ -142,15 +132,6 @@ export function PaymentRequestStage({
     return amountSats.toLocaleString('en-US');
   }, [amountSats]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedSatsString.length + 1;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedSatsString]);
-
   // ── Send handler ─────────────────────────────────────────────────────────
   const handlePay = async () => {
     if (!isCompatible || !isEnough || !request.nostrTarget) return;
@@ -223,144 +204,150 @@ export function PaymentRequestStage({
   };
 
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack gap="$4" width="100%">
-        {/* Hero Card Box Container matching ConfirmStage */}
-        <YStack
-          width="100%"
-          bg="$gray2"
-          rounded="$5"
-          p="$4"
-          items="center"
-          gap="$3"
-          borderWidth={0}
-        >
-          {/* Amount Display Section */}
-          <YStack items="center" justify="center" py="$4" gap="$1" width="100%">
-            <Text color="$gray10" fontSize="$3" fontWeight="500">
-              Payment Request Amount
-            </Text>
-
-            <H1
-              fontSize={dynamicFontSize}
-              fontVariant={['tabular-nums']}
-              fontWeight="700"
-              letterSpacing={-1}
-              py="$2"
-              color="$color"
-              text="center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={{ maxWidth: '100%', overflow: 'hidden' }}
-            >
+    <YStack flex={1} bg="$background">
+      <ScrollView contentContainerStyle={{ paddingBottom: 150 } as any} showsVerticalScrollIndicator={false}>
+        <YStack gap="$4">
+          {/* Middle Amount Display */}
+          <YStack gap="$3" py="$6" items="center" justify="center">
+            <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
               {showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
-            </H1>
-
-            <Text fontSize="$3" fontWeight="600" color="$accent10">
+            </Text>
+            <Text color="$accent5" fontWeight="600" fontSize={16}>
               ≈ {currencySymbol}{fiatValue} {secondaryCurrency}
             </Text>
           </YStack>
-        </YStack>
 
-        {/* Detailed Breakdown Card matching ConfirmStage */}
-        <YStack bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
-          <DetailItem
-            label="Mint"
-            value={mintDisplayName}
-            icon={
-              isCompatible ? (
-                <Avatar rounded="$3" size="$1.5">
-                  <Avatar.Image src={activeMintInfo?.icon} />
-                  <Avatar.Fallback bg="$green3" items="center" justify="center">
-                    <Sprout size={12} color="$green10" />
-                  </Avatar.Fallback>
-                </Avatar>
-              ) : (
-                <AlertCircle size={16} color="$red10" />
-              )
-            }
-            valueColor={isCompatible ? "$color" : "$red10"}
-          />
-          <DetailItem
-            label="Method"
-            value="Payment Request via Nostr"
-            icon={<Zap size={16} color="$yellow10" />}
-          />
-          {request.nostrTarget && (
-            <XStack justify="space-between" items="center" py="$3" px="$4">
-              <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
+          {/* Status Badge */}
+          <XStack
+            self="center"
+            items="center"
+            gap="$2"
+            bg="$purple9"
+            px="$4"
+            py="$3"
+            rounded="$10"
+          >
+            <FileText size={16} color="white" />
+            <Text
+              fontSize="$3"
+              fontWeight="700"
+              color="white"
+            >
+              {request.description || "Requested"}
+            </Text>
+          </XStack>
+
+          {/* Compatibility Alert */}
+          {!isCompatible && (
+            <YStack bg="$red3" p="$3" px="$4" rounded="$4" gap="$1.5">
               <XStack gap="$2" items="center">
-                <Blockies seed={request.nostrTarget} size={6} scale={2} style={{ borderRadius: 2 }} />
-                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
-                  {truncateTarget(request.nostrTarget)}
+                <AlertCircle size={18} color="$red10" />
+                <Text color="$red10" fontSize="$3" fontWeight="700">
+                  Mint Not Compatible
                 </Text>
               </XStack>
-            </XStack>
-          )}
-          {!!request.description && (
-            <DetailItem
-              label="Memo"
-              value={request.description}
-            />
-          )}
-          <DetailItem
-            label="Your Balance"
-            value={currencyService.formatSats(balance)}
-            valueColor={isEnough ? "$green11" : "$red10"}
-            icon={<ShieldCheck size={16} color={isEnough ? "$green11" : "$red10"} />}
-          />
-        </YStack>
-
-        {/* Compatibility Alert */}
-        {!isCompatible && (
-          <XStack bg="$red3" p="$3" rounded="$4" gap="$2" items="flex-start" width="100%">
-            <AlertCircle size={18} color="$red10" style={{ marginTop: 2 }} />
-            <YStack flex={1}>
-              <Text color="$red10" fontWeight="700">Mint Not Compatible</Text>
-              <Text color="$red10" fontSize="$3" mt="$1">
-                This request requires one of these mints:
-                {'\n'}{request.mints.map(m => m.replace(/^https?:\/\//, '')).join(', ')}
+              <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={18}>
+                Requires one of: {request.mints.map(m => m.replace(/^https?:\/\//, '')).join(', ')}
               </Text>
             </YStack>
-          </XStack>
-        )}
+          )}
 
-        {/* Local Error */}
-        {localError && (
-          <XStack bg="$red3" p="$3" rounded="$4" gap="$2" items="center" width="100%">
-            <AlertCircle size={18} color="$red10" />
-            <Text color="$red10" fontSize="$3" flex={1}>{localError}</Text>
-          </XStack>
-        )}
-      </YStack>
+          {/* Local Error */}
+          {localError && (
+            <YStack bg="$red3" p="$3" px="$4" rounded="$4" gap="$1.5">
+              <XStack gap="$2" items="center">
+                <AlertCircle size={18} color="$red10" />
+                <Text color="$red10" fontSize="$3" fontWeight="700">
+                  Error
+                </Text>
+              </XStack>
+              <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={18}>
+                {localError}
+              </Text>
+            </YStack>
+          )}
 
-      {/* Action Buttons matching ConfirmStage */}
-      <YStack gap="$3" pb="$2">
-        <Button
+          {/* Details List */}
+          <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
+            <View p="$3" px="$4">
+              <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+            </View>
+            <Separator borderColor="$borderColor" opacity={0.3} />
+            <YStack separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+              <DetailItem
+                label="Mint"
+                value={mintDisplayName}
+                icon={
+                  isCompatible ? (
+                    <Avatar rounded="$3" size="$1.5">
+                      <Avatar.Image src={activeMintInfo?.icon} />
+                      <Avatar.Fallback bg="$green3" items="center" justify="center">
+                        <Sprout size={12} color="$green10" />
+                      </Avatar.Fallback>
+                    </Avatar>
+                  ) : (
+                    <AlertCircle size={16} color="$red10" />
+                  )
+                }
+                valueColor={isCompatible ? "$color" : "$red10"}
+              />
+              <DetailItem
+                label="Method"
+                value="Payment Request via Nostr"
+                icon={<Zap size={16} color="$yellow10" />}
+              />
+              {request.nostrTarget && (
+                <XStack justify="space-between" items="center" py="$3" px="$4">
+                  <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
+                  <XStack gap="$2" items="center">
+                    <Blockies seed={request.nostrTarget} size={6} scale={2} style={{ borderRadius: 2 }} />
+                    <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
+                      {truncateTarget(request.nostrTarget)}
+                    </Text>
+                  </XStack>
+                </XStack>
+              )}
+              <DetailItem
+                label="Your Balance"
+                value={currencyService.formatSats(balance)}
+                valueColor={isEnough ? "$green11" : "$red10"}
+                icon={<ShieldCheck size={16} color={isEnough ? "$green11" : "$red10"} />}
+              />
+            </YStack>
+          </YStack>
+        </YStack>
+      </ScrollView>
+
+      {/* Bottom Fixed Action Buttons (Cancel on Left, Pay on Right) */}
+      <YStack position="absolute" b="$4" l="$1" r="$1" bg="$background" gap="$2">
+        <XStack gap="$3">
+          <Button
+            flex={1}
+            bg="$gray3"
+            color="$color"
+            height={50}
+            rounded="$4"
+            disabled={isSending}
+            fontWeight="700"
+            fontSize="$5"
+            onPress={onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            flex={1}
           theme="accent"
-          size="$5"
-          height={55}
-          rounded="$4"
-          fontWeight="800"
-          disabled={!isCompatible || !isEnough || isSending || !request.nostrTarget}
-          onPress={handlePay}
-          icon={isSending ? <TamaguiSpinner size="small" color="$color" /> : undefined}
-          opacity={(!isCompatible || !isEnough) ? 0.5 : 1}
-        >
-          {isSending ? 'Sending…' : `Pay ${currencyService.formatSats(amountSats)} via Nostr`}
-        </Button>
-        <Button
-          bg="$gray3"
-          color="$color"
-          size="$5"
-          height={55}
-          rounded="$4"
-          fontWeight="800"
-          disabled={isSending}
-          onPress={onCancel}
-        >
-          Cancel
-        </Button>
+            height={50}
+            rounded="$4"
+            disabled={!isCompatible || !isEnough || isSending || !request.nostrTarget}
+            icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
+            fontWeight="700"
+            fontSize="$5"
+            onPress={handlePay}
+          >
+            {isSending ? 'Sending…' : 'Pay'}
+          </Button>
+        </XStack>
       </YStack>
 
       <PaymentStatusOverlay
@@ -384,6 +371,7 @@ export function PaymentRequestStage({
           setLocalError(null);
         }}
       />
+
     </YStack>
   );
 }

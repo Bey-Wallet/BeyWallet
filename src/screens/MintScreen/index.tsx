@@ -29,7 +29,7 @@ export default function MintScreen() {
     if (mode === 'onchain') {
         return (
             <YStack flex={1} bg="$background" p="$4">
-                <Stack.Screen options={{ headerTitle: 'Top Up via On-Chain' }} />
+                <Stack.Screen options={{ headerTitle: 'On-Chain Recieve' }} />
                 <OnchainMintFlow />
             </YStack>
         );

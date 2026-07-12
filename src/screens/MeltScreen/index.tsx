@@ -11,17 +11,16 @@ import { detectLightningInputType, requestInvoiceFromLnurl, getLnurlPayParams } 
 import { biometricService } from '~/services/biometricService';
 import { networkService } from '~/services/networkService';
 import * as Haptics from 'expo-haptics';
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import { Text, YStack, XStack, Button, Separator, View, H1, Image } from 'tamagui';
+import { Text, YStack, XStack, Button, Separator, View, H1, Image, YGroup, ScrollView, Avatar } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/currencyService';
-import { Landmark, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
+import { Landmark, Zap, ShieldCheck, ArrowDownCircle, AlertCircle, Sprout } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 
-type MeltStep = 'invoice' | 'amount' | 'result';
+type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
     const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -29,7 +28,7 @@ export default function MeltScreen() {
     if (mode === 'onchain') {
         return (
             <YStack flex={1} bg="$background" p="$4">
-                <Stack.Screen options={{ headerTitle: 'Pay to On-Chain Address' }} />
+                <Stack.Screen options={{ headerTitle: 'On-Chain Send' }} />
                 <OnchainMeltFlow />
             </YStack>
         );
@@ -54,7 +53,7 @@ export default function MeltScreen() {
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
     const mints = useWalletStore(s => s.mints);
-    const { secondaryCurrency } = useSettingsStore();
+    const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     // Auto-fetch quote for bolt11 invoice to display its amount immediately
     useEffect(() => {
@@ -86,8 +85,6 @@ export default function MeltScreen() {
         }
     }, [invoice, activeMintUrl]);
 
-    const confirmSheetRef = React.useRef<AppBottomSheetRef>(null);
-
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -110,6 +107,14 @@ export default function MeltScreen() {
         const val = currencyService.convertSatsToCurrency(quoteAmount, btcData.price);
         return `${symbol}${val.toFixed(2)}`;
     }, [quoteAmount, btcData?.price, secondaryCurrency]);
+
+    const totalFiatValue = useMemo(() => {
+        if (!btcData?.price) return '...';
+        const cur = SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency);
+        const symbol = cur?.symbol || '$';
+        const val = currencyService.convertSatsToCurrency(totalCost, btcData.price);
+        return `${symbol}${val.toFixed(2)}`;
+    }, [totalCost, btcData?.price, secondaryCurrency]);
 
     // ─── Invoice Stage: Continue Handler ──────────────────────
     const handleInvoiceContinue = useCallback(async () => {
@@ -239,9 +244,9 @@ export default function MeltScreen() {
                 return;
             }
 
-            // Show confirmation sheet
+            // Go to confirm step
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            confirmSheetRef.current?.present();
+            setStep('confirm');
         } catch (err: any) {
             console.error('[MeltScreen] Quote failed:', err);
             setError(err.message || 'Failed to get melt quote');
@@ -259,7 +264,6 @@ export default function MeltScreen() {
         const offline = await networkService.isOffline();
         if (offline) {
             setError('You are offline. Please check your internet connection.');
-            confirmSheetRef.current?.dismiss();
             return;
         }
 
@@ -288,7 +292,6 @@ export default function MeltScreen() {
     // ─── Auth Handler ─────────────────────────────────────────
     const handleAuthenticate = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        confirmSheetRef.current?.dismiss();
 
         try {
             const success = await biometricService.authenticateAsync(
@@ -313,135 +316,156 @@ export default function MeltScreen() {
         InteractionManager.runAfterInteractions(() => refreshBalance());
     };
 
-    // ─── Amount Stage for LN Address ──────────────────────────
     return (
-        <YStack flex={1} bg="$background" p="$4">
+        <YStack flex={1} bg="$background">
             {/* Step 1: Input Invoice and Amount Stage */}
             {step === 'invoice' && (
-                <InvoiceStage
-                    amount={lnAddressAmount}
-                    setAmount={setLnAddressAmount}
-                    invoice={invoice}
-                    setInvoice={setInvoice}
-                    onContinue={handleInvoiceContinue}
-                    balance={balance}
-                    isLoading={isGettingQuote || isResolvingAddress}
-                    error={error}
-                />
+                <YStack flex={1} p="$4">
+                    <InvoiceStage
+                        amount={lnAddressAmount}
+                        setAmount={setLnAddressAmount}
+                        invoice={invoice}
+                        setInvoice={setInvoice}
+                        onContinue={handleInvoiceContinue}
+                        balance={balance}
+                        isLoading={isGettingQuote || isResolvingAddress}
+                        error={error}
+                    />
+                </YStack>
             )}
 
-            {/* Step 3: Result */}
-            {step === 'result' && (
-                <MeltResultStage
-                    status={status}
-                    amount={quoteAmount}
-                    feeReserve={feeReserve}
-                    error={error}
-                    onClose={handleClose}
-                />
-            )}
-
-            {/* Confirmation Sheet */}
-            <AppBottomSheet ref={confirmSheetRef}>
-                <YStack p="$4" pt="$2" gap="$5">
-                    <YStack items="center" gap="$2" pt="$2">
-                        <Text fontSize="$6" fontWeight="800">Review Payment</Text>
-                    </YStack>
-
-                    <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                        {/* Invoice Amount */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <Zap size={16} color="$orange10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Invoice Amount</Text>
-                            </XStack>
-                            <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$5" color="$color">{currencyService.formatSats(quoteAmount)}</Text>
-                                <Text color="$gray10" fontSize="$3">{fiatValue}</Text>
+            {/* Step 2: Confirm */}
+            {step === 'confirm' && (
+                <YStack flex={1}>
+                    <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
+                        <YStack gap="$4">
+                            {/* Middle Amount Display */}
+                            <YStack gap="$3" py="$6" items="center" justify="center">
+                                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                                    -{showBitcoinSymbol ? `₿${quoteAmount.toLocaleString()}` : `${quoteAmount.toLocaleString()} SATS`}
+                                </Text>
+                                <Text color="$accent5" fontWeight="600" fontSize={16}>
+                                    ≈ {fiatValue} {secondaryCurrency}
+                                </Text>
                             </YStack>
-                        </XStack>
 
-                        {/* Fee Reserve */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <ShieldCheck size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Fee Reserve</Text>
-                            </XStack>
-                            <Text fontSize="$5" fontWeight="800" color={feeReserve > 0 ? "$orange10" : "$green10"}>
-                                {feeReserve > 0 ? `~${feeReserve} sats` : '0 sats'}
-                            </Text>
-                        </XStack>
-
-                        {/* Total Deduction */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4" bg="$color3">
-                            <XStack gap="$2" items="center">
-                                <ArrowDownCircle size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Total Deduction</Text>
-                            </XStack>
-                            <Text fontWeight="800" fontSize="$5" color="$red10">
-                                -{totalCost} sats
-                            </Text>
-                        </XStack>
-
-                        {/* Mint */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <Landmark size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Mint</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                {activeMint?.icon && (
-                                    <View rounded="$10" overflow="hidden" width={20} height={20}>
-                                        <Image source={{ uri: activeMint.icon }} width={20} height={20} />
-                                    </View>
-                                )}
-                                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>{mintName}</Text>
-                            </XStack>
-                        </XStack>
-
-                        {/* LN Address (if applicable) */}
-                        {lnAddress && (
-                            <XStack justify="space-between" items="center" py="$3" px="$4">
-                                <XStack gap="$2" items="center">
-                                    <Zap size={16} color="$gray10" />
-                                    <Text fontSize="$4" color="$gray10" fontWeight="600">Recipient</Text>
-                                </XStack>
-                                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
-                                    {lnAddress}
+                            {/* Badge */}
+                            <XStack
+                                self="center"
+                                items="center"
+                                gap="$2"
+                                bg="$yellow9"
+                                px="$4"
+                                py="$3"
+                                rounded="$10"
+                            >
+                                <Zap size={16} color="black" />
+                                <Text
+                                    fontSize="$3"
+                                    fontWeight="700"
+                                    color="black"
+                                >
+                                    Lightning Payment Send
                                 </Text>
                             </XStack>
-                        )}
-                    </YStack>
 
-                    {/* Balance Warning */}
-                    {totalCost > balance && (
-                        <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center">
-                            <AlertCircle size={18} color="$red10" />
-                            <Text color="$red10" fontSize="$3">Insufficient balance ({balance} sats available)</Text>
-                        </XStack>
-                    )}
+                            {/* Details List */}
+                            <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3" mx="$4">
+                                <View p="$3" px="$4">
+                                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                                </View>
+                                <Separator borderColor="$borderColor" opacity={0.3} />
+                                <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                                    <DetailItem
+                                        label="Mint"
+                                        value={mintName}
+                                        icon={
+                                            <Avatar rounded="$3" size="$1.5">
+                                                <Avatar.Image src={activeMint?.icon} />
+                                                <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                                    <Sprout size={12} color="$green10" />
+                                                </Avatar.Fallback>
+                                            </Avatar>
+                                        }
+                                    />
+                                    <DetailItem
+                                        label="Method"
+                                        value="Lightning Send"
+                                        icon={<Zap size={16} color="$yellow10" />}
+                                    />
+                                    <DetailItem
+                                        label="Fee Reserve"
+                                        value={feeReserve > 0 ? `~${feeReserve} sats` : '0 sats'}
+                                        valueColor={feeReserve > 0 ? "$orange10" : "$green11"}
+                                        icon={<ShieldCheck size={16} color={feeReserve > 0 ? "$orange10" : "$green11"} />}
+                                    />
+                                    <DetailItem
+                                        label="Total Cost"
+                                        value={`${totalCost.toLocaleString()} sats (≈ ${totalFiatValue})`}
+                                        valueColor="$accent10"
+                                        icon={<ShieldCheck size={16} color="$accent10" />}
+                                    />
+                                    {lnAddress && (
+                                        <DetailItem
+                                            label="Recipient"
+                                            value={lnAddress}
+                                        />
+                                    )}
+                                </YGroup>
+                            </YStack>
 
-                    <YStack gap="$3" pt="$2">
+                            {/* Balance Warning */}
+                            {totalCost > balance && (
+                                <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mx="$4">
+                                    <AlertCircle size={18} color="$red10" />
+                                    <Text color="$red10" fontSize="$3">Insufficient balance ({balance} sats available)</Text>
+                                </XStack>
+                            )}
+                        </YStack>
+                    </ScrollView>
+
+                    {/* Fixed Action Buttons */}
+                    <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
                         <Button
                             theme="accent"
                             size="$5"
+                            height={55}
+                            rounded="$4"
                             fontWeight="800"
                             onPress={handleAuthenticate}
                             disabled={isPaying || totalCost > balance}
-                            icon={isPaying ? <Spinner size="small" /> : <Zap size={20} />}
+                            icon={isPaying ? <Spinner size="small" color="white" /> : undefined}
                         >
                             {isPaying ? 'Paying...' : 'Confirm & Pay'}
                         </Button>
                         <Button
-                            chromeless
-                            size="$4"
-                            onPress={() => confirmSheetRef.current?.dismiss()}
+                            bg="$gray3"
+                            color="$color"
+                            size="$5"
+                            height={55}
+                            rounded="$4"
+                            fontWeight="800"
+                            disabled={isPaying}
+                            onPress={() => setStep('invoice')}
                         >
-                            Cancel
+                            Go Back
                         </Button>
                     </YStack>
                 </YStack>
-            </AppBottomSheet>
+            )}
+
+            {/* Step 3: Result */}
+            {step === 'result' && (
+                <YStack flex={1} p="$4">
+                    <MeltResultStage
+                        status={status}
+                        amount={quoteAmount}
+                        feeReserve={feeReserve}
+                        error={error}
+                        onClose={handleClose}
+                    />
+                </YStack>
+            )}
 
             <ProcessingSheet
                 visible={isPaying}
@@ -451,5 +475,19 @@ export default function MeltScreen() {
                 direction="send"
             />
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+                    {value}
+                </Text>
+            </XStack>
+        </XStack>
     );
 }

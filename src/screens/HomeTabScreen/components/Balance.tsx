@@ -43,87 +43,89 @@ export default function Balance() {
   }, [currentBalance, btcData?.price]);
 
   return (
-    <YStack py="$2" height={230} gap="$3" justify="center" items="center">
+    <YStack py="$2" gap="$3" height={230} justify="center" items="center" position="relative">
+      
+      {/* Syncing Indicator at the top (absolute) */}
+      {isRestoring && (
+        <XStack position="absolute" top={15} items="center" gap="$2" self="center">
+          <View
+            width={8}
+            height={8}
+            rounded="$10"
+            bg="$accent10"
+            animation="lazy"
+            opacity={0.8}
+          />
+          <Text fontSize="$2" color="$gray10" fontWeight="600">
+            Syncing...
+          </Text>
+        </XStack>
+      )}
 
-      <XStack justify="center" py="$3" items="flex-end">
-        <YStack
-          onPress={handlePrimaryCurrencyToggle}
-          onLongPress={handleHideBalanceToggle}
-          delayLongPress={300}
-          pressStyle={{ opacity: 0.7 }}
-        >
-      <View justify="center" items="center">
-        {isRestoring && (
-          <XStack items="center" gap="$2">
-            <View
-              width={8}
-              height={8}
-              rounded="$10"
-              bg="$accent10"
-              animation="lazy"
-              opacity={0.8}
-            />
-            <Text fontSize="$2" color="$gray10" fontWeight="600">
-              Syncing...
-            </Text>
-          </XStack>
+      {/* Main Balance */}
+      <YStack
+        onPress={handlePrimaryCurrencyToggle}
+        onLongPress={handleHideBalanceToggle}
+        delayLongPress={200}
+        pressStyle={{ opacity: 0.7 }}
+        items="center"
+        justify="center"
+      >
+        {primaryCurrency === 'SATS' ? (
+          <RollingNumber
+            value={hideBalance ? "****" : currentBalance}
+            prefix={hideBalance ? "" : (showBitcoinSymbol ? "₿" : "")}
+            suffix={hideBalance ? "" : (showBitcoinSymbol ? "" : " SATS")}
+            trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats") + `_${showBitcoinSymbol}`}
+            letterSpacing={-1}
+            fontSize={36}
+            fontWeight="800"
+            color="$accent3"
+            fontFamily="$oswald"
+            decimalOpacity={0.4}
+            showDecimals={false}
+            style={hideBalance ? {
+              backgroundColor: 'rgba(150, 150, 150, 0.15)',
+              borderRadius: 120,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+            } : undefined}
+          />
+        ) : (
+          <RollingNumber
+            value={hideBalance ? "****" : secondaryBalance}
+            trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_fiat")}
+            letterSpacing={-1}
+            fontSize={36}
+            fontWeight="800"
+            color="$accent3"
+            fontFamily="$oswald"
+            decimalOpacity={0.4}
+            showDecimals={true}
+            style={hideBalance ? {
+              backgroundColor: 'rgba(150, 150, 150, 0.15)',
+              borderRadius: 120,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+            } : undefined}
+          >
+            {hideBalance
+              ? undefined
+              : currencyService.formatValue(
+                secondaryBalance,
+                secondaryCurrency as CurrencyCode,
+              )}
+          </RollingNumber>
         )}
-      </View>
-          {primaryCurrency === 'SATS' ? (
-            <RollingNumber
-              value={hideBalance ? "****" : currentBalance}
-              prefix={hideBalance ? "" : (showBitcoinSymbol ? "₿" : "")}
-              suffix={hideBalance ? "" : (showBitcoinSymbol ? "" : " SATS")}
-              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_sats") + `_${showBitcoinSymbol}`}
-              letterSpacing={-1}
-              fontSize={36}
-              fontWeight="800"
-              color="$accent3"
-              fontFamily="$oswald"
-              decimalOpacity={0.4}
-              showDecimals={false}
-              style={hideBalance ? {
-                backgroundColor: 'rgba(150, 150, 150, 0.15)',
-                borderRadius: 120,
-                paddingHorizontal: 16,
-                paddingTop: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'center',
-              } : undefined}
-            />
-          ) : (
-            <RollingNumber
-              value={hideBalance ? "****" : secondaryBalance}
-              trigger={refreshCounter + localTrigger + (hideBalance ? "_hidden" : "_visible_fiat")}
-              letterSpacing={-1}
-              fontSize={36}
-              fontWeight="800"
-              color="$accent3"
-              fontFamily="$oswald"
-              decimalOpacity={0.4}
-              showDecimals={true}
-              style={hideBalance ? {
-                backgroundColor: 'rgba(150, 150, 150, 0.15)',
-                borderRadius: 120,
-                paddingHorizontal: 16,
-                paddingTop: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'center',
-              } : undefined}
-            >
-              {hideBalance
-                ? undefined
-                : currencyService.formatValue(
-                  secondaryBalance,
-                  secondaryCurrency as CurrencyCode,
-                )}
-            </RollingNumber>
-          )}
-        </YStack>
-      </XStack>
+      </YStack>
 
+      {/* Secondary Balance */}
       <RollingNumber
         value={hideBalance ? "****" : (primaryCurrency === 'SATS' ? secondaryBalance : currentBalance)}
         prefix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : (showBitcoinSymbol ? "₿" : ""))}
@@ -136,6 +138,7 @@ export default function Balance() {
         fontFamily="$oswald"
         decimalOpacity={0.4}
         showDecimals={primaryCurrency === 'SATS'}
+        mt="$1"
       >
         {!hideBalance && primaryCurrency === 'SATS'
           ? currencyService.formatValue(

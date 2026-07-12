@@ -179,8 +179,8 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
             <AppBottomSheet ref={sheetRef}>
                 <YStack p="$4" gap="$5" alignItems="center" pb="$8">
                     {/* Shield Icon Graphic */}
-                    <View bg="$accent2" p="$4" borderRadius={100} mb="$1">
-                        <ShieldCheck size={50} color="$accent10" />
+                    <View bg="$gray5" p="$4" borderRadius={100} mb="$1">
+                        <ShieldCheck size={50} color="$accent5" />
                     </View>
 
                     {/* Text Content */}
@@ -197,8 +197,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                     <YStack gap="$3" width="100%">
                         <Button
                             size="$5"
-                            bg="$accent10"
-                            color="white"
+                           theme="accent"
                             fontWeight="700"
                             borderRadius="$4"
                             onPress={handleEnableFromSheet}
@@ -206,11 +205,11 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                             Enable Biometrics
                         </Button>
                         <Button
-                            size="$4"
-                            chromeless
+                            size="$5"
+                            
                             onPress={handleSkipFromSheet}
                         >
-                            <Text color="$gray10" fontWeight="600">Skip & Finish</Text>
+                            <Text  fontWeight="600">Skip & Finish</Text>
                         </Button>
                     </YStack>
                 </YStack>
