@@ -45,7 +45,6 @@ export function SettingsScreen() {
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
     const [seedWords, setSeedWords] = useState<string[]>([]);
-    const [isSeedVisible, setIsSeedVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isVerifyingDleq, setIsVerifyingDleq] = useState(false);
@@ -254,7 +253,6 @@ export function SettingsScreen() {
             } else {
                 setSeedWords([]);
             }
-            setIsSeedVisible(false);
             deleteSheetRef.current?.present();
         } catch (err) {
             console.error('[Settings] Failed to fetch seed:', err);
@@ -486,11 +484,6 @@ export function SettingsScreen() {
                     innerRef={deleteSheetRef}
                     isDeleting={isDeleting}
                     seedWords={seedWords}
-                    isSeedVisible={isSeedVisible}
-                    onToggleSeedVisibility={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setIsSeedVisible(!isSeedVisible);
-                    }}
                     onDelete={executeWalletDeletion}
                     onCancel={() => deleteSheetRef.current?.dismiss()}
                 />

@@ -10,7 +10,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "../../../services/bitcoinService";
 import * as Haptics from "expo-haptics";
-import { ProcessingSheet } from "../../../components/UI/ProcessingSheet";
 
 export default function Balance() {
   const balance = useWalletStore((s) => s.balance);
@@ -147,13 +146,6 @@ export default function Balance() {
           )
           : undefined}
       </RollingNumber>
-
-      <ProcessingSheet
-        visible={isRestoring}
-        status="processing"
-        title="Syncing Wallet..."
-        detail="Restoring balances and syncing with Cashu mints. Please wait..."
-      />
     </YStack>
   );
 }

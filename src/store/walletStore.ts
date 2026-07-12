@@ -39,6 +39,12 @@ interface WalletState {
     isRefreshing: boolean;
     isCheckingPendingOnchain: boolean;
     mintRestoreStatuses: MintRestoreEntry[];
+    restoringMintKeysetProgress: {
+        current: number;
+        total: number;
+        keysetId: string;
+        statusText: string;
+    } | null;
 
     // Actions
     initialize: () => Promise<void>;
@@ -77,6 +83,7 @@ export const useWalletStore = create<WalletState>()(
             isRefreshing: false,
             isCheckingPendingOnchain: false,
             mintRestoreStatuses: [],
+            restoringMintKeysetProgress: null,
 
 
             initialize: async () => {
@@ -360,62 +367,60 @@ export const useWalletStore = create<WalletState>()(
                 }
             },
 
-            /**
-             * Restore all mints: DEFAULT_MINT + all trusted mints already in DB
-             * + any extra mint URLs passed in (e.g. from a backup file).
-             * Populates mintRestoreStatuses for progress UI.
-             */
-            restoreAllMints: async (extraMintUrls: string[] = []) => {
-                // Feature/Popular mints to check by default to aid discovery
-                const FEATURED_MINTS = [
-                    "https://mint.minibits.cash/Bitcoin",
-                    "https://testnut.cashu.space",
-                    "https://nofee.testnut.cashu.space"
-                ];
+             /**
+              * Restore all mints: DEFAULT_MINT + all trusted mints already in DB
+              * + any extra mint URLs passed in (e.g. from a backup file).
+              * Populates mintRestoreStatuses for progress UI.
+              */
+             restoreAllMints: async (extraMintUrls: string[] = []) => {
+                 // Feature/Popular mints to check by default to aid discovery
+                 const FEATURED_MINTS = [
+                     "https://mint.minibits.cash/Bitcoin"
+                 ];
 
-                // Build deduplicated list of mints to restore
-                const urlSet = new Set<string>([DEFAULT_MINT, ...FEATURED_MINTS, ...extraMintUrls]);
-                try {
-                    const trustedMints = await mintManager.getAllTrustedMints();
-                    for (const m of trustedMints) urlSet.add(m.mintUrl);
-                } catch (e) {
-                    console.warn('[WalletStore] Could not fetch trusted mints for restore:', e);
-                }
+                 // Build deduplicated list of mints to restore
+                 const urlSet = new Set<string>([DEFAULT_MINT, ...FEATURED_MINTS, ...extraMintUrls]);
+                 try {
+                     const trustedMints = await mintManager.getAllTrustedMints();
+                     for (const m of trustedMints) urlSet.add(m.mintUrl);
+                 } catch (e) {
+                     console.warn('[WalletStore] Could not fetch trusted mints for restore:', e);
+                 }
 
-                const mintUrls = Array.from(urlSet);
+                 const mintUrls = Array.from(urlSet);
 
-                // Initialise status entries
-                set({
-                    mintRestoreStatuses: mintUrls.map(url => ({
-                        mintUrl: url,
-                        status: 'pending',
-                        restoredBalance: 0,
-                    })),
-                    isRestoring: true,
-                });
+                 // Initialise status entries
+                 set({
+                     mintRestoreStatuses: mintUrls.map(url => ({
+                         mintUrl: url,
+                         status: 'pending',
+                         restoredBalance: 0,
+                     })),
+                     isRestoring: true,
+                 });
 
-                // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
-                for (const mintUrl of mintUrls) {
-                    // Mark as scanning
-                    set(s => ({
-                        mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
-                            e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
-                        ),
-                        restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
-                    }));
+                 // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
+                 for (const mintUrl of mintUrls) {
+                     // Mark as scanning
+                     set(s => ({
+                         mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
+                             e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
+                         ),
+                         restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
+                     }));
 
-                    try {
-                        // Ensure mint is added and trusted before restoring
-                        await mintManager.addMint(mintUrl, { trusted: true });
-                        
-                        // Restore with a strict 25-second timeout to prevent unresponsive or slow mints from blocking onboarding forever
-                        const restorePromise = walletService.restore(mintUrl);
-                        await Promise.race([
-                            restorePromise,
-                            new Promise((_, reject) =>
-                                setTimeout(() => reject(new Error('Restore timeout')), 25000)
-                            ),
-                        ]);
+                     try {
+                         // Ensure mint is added and trusted before restoring
+                         await mintManager.addMint(mintUrl, { trusted: true });
+                         
+                         // Restore with a strict 12-second timeout to prevent unresponsive or slow mints from blocking onboarding forever
+                         const restorePromise = walletService.restore(mintUrl);
+                         await Promise.race([
+                             restorePromise,
+                             new Promise((_, reject) =>
+                                 setTimeout(() => reject(new Error('Restore timeout')), 12000)
+                             ),
+                         ]);
 
                         // Get restored balance for this mint
                         const allBalances = await walletService.getBalances();

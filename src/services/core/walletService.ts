@@ -717,6 +717,78 @@ export const walletService = {
         const unsafeManager = m as any;
         console.log(`[WalletService] 🔄 Starting SDK restore for: ${mintUrl}`);
 
+        if (unsafeManager.walletRestoreService) {
+            // Set batch size and gap limit to 200 to check exactly 1 batch of 200 per keyset.
+            // Helps avoid slow multiple sequential network checks and point derivation on mobile.
+            unsafeManager.walletRestoreService.restoreBatchSize = 200; // gapLimit
+            unsafeManager.walletRestoreService.restoreGapLimit = 200;  // batchSize
+        }
+
+        // Dynamically override m.wallet.restore if not already overridden to filter by sat-only units.
+        // BeyWallet is a SAT-only wallet; scanning USD or EUR keysets wastes database, network and CPU resources.
+        if (m.wallet && !(m.wallet as any)._restoreOverridden) {
+            (m.wallet as any)._restoreOverridden = true;
+            m.wallet.restore = async function (targetMintUrl: string) {
+                this.logger?.info(`[WalletService] Starting optimized restore for ${targetMintUrl}`);
+                const mint = await this.mintService.addMintByUrl(targetMintUrl, { trusted: true });
+                
+                // Filter keysets to ONLY include BTC / satoshi units
+                const satKeysets = mint.keysets.filter((ks: any) => {
+                    const unit = (ks.unit || '').toLowerCase();
+                    return unit === 'sat' || unit === 'sats' || unit === '';
+                });
+
+                this.logger?.debug(`[WalletService] Filtered keysets for ${targetMintUrl}: ${satKeysets.length} of ${mint.keysets.length} are sat/BTC`);
+
+                const { wallet } = await this.walletService.getWalletWithActiveKeysetId(targetMintUrl);
+                const failedKeysetIds: Record<string, any> = {};
+                
+                let current = 0;
+                for (const keyset of satKeysets) {
+                    current++;
+                    try {
+                        const { useWalletStore } = require('../../store/walletStore');
+                        useWalletStore.setState({
+                            restoringMintKeysetProgress: {
+                                current,
+                                total: satKeysets.length,
+                                keysetId: keyset.id,
+                                statusText: `Keyset: ${keyset.id.substring(0, 12)}… (${current}/${satKeysets.length})`
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('[WalletService] Failed to set keyset progress:', e);
+                    }
+
+                    try {
+                        await this.walletRestoreService.restoreKeyset(targetMintUrl, wallet, keyset.id);
+                    } catch (error) {
+                        this.logger?.error("Keyset restore failed", {
+                            targetMintUrl,
+                            keysetId: keyset.id,
+                            error
+                        });
+                        failedKeysetIds[keyset.id] = error;
+                    }
+                }
+
+                // Clear the progress state after complete
+                try {
+                    const { useWalletStore } = require('../../store/walletStore');
+                    useWalletStore.setState({ restoringMintKeysetProgress: null });
+                } catch (e) {}
+
+                if (Object.keys(failedKeysetIds).length > 0) {
+                    this.logger?.error("Restore completed with failures", {
+                        targetMintUrl,
+                        failedKeysetIds: Object.keys(failedKeysetIds)
+                    });
+                    throw new Error("Failed to restore some keysets");
+                }
+                this.logger?.info("Restore completed successfully", { targetMintUrl });
+            };
+        }
+
         try {
             // Step 1: Pre-warm all keyset keys so SDK's internal WalletRestoreService
             // doesn't throw "Keyset has no keys loaded" for old inactive keysets.

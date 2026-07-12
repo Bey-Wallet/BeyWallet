@@ -5,6 +5,7 @@ import { useToastController } from "@tamagui/toast";
 import WalletCard from "./components/WalletCard";
 import ActionButtons from "./components/ActionButtons";
 import BackupWarningCard from "./components/BackupWarningCard";
+import RestoreProgressCard from "./components/RestoreProgressCard";
 import { useWalletStore } from "../../store/walletStore";
 import React from "react";
 import StatusScreen from "../../components/StatusScreen";
@@ -65,44 +66,9 @@ function HomeSkeleton() {
   );
 }
 
-function SpinnerIcon() {
-  const rotation = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, [rotation]);
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <View
-        width={18}
-        height={18}
-        borderRadius={999}
-        borderWidth={2}
-        borderColor="$blue9"
-        borderTopColor="transparent"
-      />
-    </Animated.View>
-  );
-}
-
 export function HomeTabScreen() {
   const router = useRouter();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
-  const isRestoring = useWalletStore((s) => s.isRestoring);
-  const mintRestoreStatuses = useWalletStore((s) => s.mintRestoreStatuses);
   const error = useWalletStore((s) => s.error);
   const [refreshing, setRefreshing] = React.useState(false);
   const [showStatus, setShowStatus] = React.useState<StatusType>(null);
@@ -177,30 +143,7 @@ export function HomeTabScreen() {
         <WalletCard />
         <ActionButtons />
 
-        {isRestoring && (
-          <XStack
-            width="100%"
-            bg="$blue2"
-            borderWidth={1}
-            borderColor="$blue6"
-            p="$3.5"
-            rounded="$4"
-            alignItems="center"
-            gap="$3"
-          >
-            <View width={24} height={24} items="center" justify="center">
-              <SpinnerIcon />
-            </View>
-            <YStack flex={1} gap="$0.5">
-              <Text fontWeight="800" fontSize="$4" color="$blue11">
-                Restoring Wallet Balances
-              </Text>
-              <Text fontSize="$2" color="$blue10" lineHeight={16}>
-                Scanning mint backups... ({mintRestoreStatuses.filter(e => e.status === 'done').length} of {mintRestoreStatuses.length} mints)
-              </Text>
-            </YStack>
-          </XStack>
-        )}
+        <RestoreProgressCard />
 
         <BackupWarningCard />
 
