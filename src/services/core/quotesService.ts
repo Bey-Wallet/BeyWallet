@@ -9,6 +9,7 @@ import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
 import { Wallet, Mint as CashuMint, type MintQuoteResponse, type MeltQuoteResponse } from '@cashu/cashu-ts';
 import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha2';
 import { Buffer } from 'buffer';
 
 function mgr() {
@@ -293,6 +294,10 @@ export const quotesService = {
 
     /**
      * Create a signature-authenticated mint quote for restricted or enterprise mints (NUT-20).
+     *
+     * Signs `mint_quote:<amount>:<timestamp>` with the provided private key and
+     * sends the payload + signature in the request body so the mint can verify
+     * the caller is authorized.
      */
     createSignedMintQuote: async (mintUrl: string, amount: number, privkeyHex: string): Promise<MintQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`);
@@ -300,9 +305,19 @@ export const quotesService = {
             // Generate request payload and cryptographic signature
             const timestamp = Math.floor(Date.now() / 1000);
             const payload = `mint_quote:${amount}:${timestamp}`;
-            
+            const payloadHash = sha256(new TextEncoder().encode(payload));
+            const privkeyBytes = Buffer.from(privkeyHex, 'hex');
+            const sig = secp256k1.sign(payloadHash, privkeyBytes);
+            const signature = Buffer.from(sig.toCompactRawBytes()).toString('hex');
+            const pubkey = Buffer.from(secp256k1.getPublicKey(privkeyBytes, true)).toString('hex');
+
             // Standard Cashu mint quote with signature headers/payload
-            const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
+            const mint = new CashuMint(mintUrl);
+            const quote = await mint.createMintQuote(amount, {
+                pubkey,
+                signature,
+                payload,
+            });
             console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote}`);
             return quote;
         });
@@ -310,11 +325,30 @@ export const quotesService = {
 
     /**
      * Create a signature-authenticated melt quote for restricted or enterprise mints (NUT-20).
+     *
+     * Signs `melt_quote:<invoice_hash>:<timestamp>` with the provided private key and
+     * sends the payload + signature in the request body so the mint can verify
+     * the caller is authorized.
      */
     createSignedMeltQuote: async (mintUrl: string, invoice: string, privkeyHex: string): Promise<MeltQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Melt quote on ${mintUrl}`);
         return withKeysetRecovery(mintUrl, async () => {
-            const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
+            // Generate request payload and cryptographic signature
+            const timestamp = Math.floor(Date.now() / 1000);
+            const invoiceHash = Buffer.from(sha256(new TextEncoder().encode(invoice))).toString('hex');
+            const payload = `melt_quote:${invoiceHash}:${timestamp}`;
+            const payloadHash = sha256(new TextEncoder().encode(payload));
+            const privkeyBytes = Buffer.from(privkeyHex, 'hex');
+            const sig = secp256k1.sign(payloadHash, privkeyBytes);
+            const signature = Buffer.from(sig.toCompactRawBytes()).toString('hex');
+            const pubkey = Buffer.from(secp256k1.getPublicKey(privkeyBytes, true)).toString('hex');
+
+            const mint = new CashuMint(mintUrl);
+            const quote = await mint.createMeltQuote(invoice, {
+                pubkey,
+                signature,
+                payload,
+            });
             console.log(`[QuotesService] ✅ NUT-20 Signed Melt Quote created: ${quote.quote}`);
             return quote;
         });

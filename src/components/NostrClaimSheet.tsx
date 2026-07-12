@@ -290,7 +290,7 @@ export function NostrClaimSheet() {
         );
 
         return () => subscription.remove();
-    }, [addIncoming, settingsNsec, markClaiming, markClaimed, markFailed, refreshBalance, router]);
+    }, [addIncoming, settingsNsec, markClaiming, markClaimed, markFailed, refreshBalance, router, pathname]);
 
     // Also allow opening from NostrActivity
     useEffect(() => {
@@ -380,6 +380,8 @@ export function NostrClaimSheet() {
 
                 refreshBalance();
 
+                // Try to match pending nostr requests
+                let matchedRequestId: string | undefined;
                 try {
                     const pending = nostrRequestStore.getPending();
                     const match = pending.find(
@@ -389,6 +391,7 @@ export function NostrClaimSheet() {
                     );
                     if (match) {
                         await nostrRequestStore.markReceived(match.id);
+                        matchedRequestId = match.id;
                     }
                 } catch { /* non-fatal */ }
 
@@ -397,7 +400,7 @@ export function NostrClaimSheet() {
                     mintUrl: activeItem.mintUrl,
                     eventId: activeItem.id,
                     senderPubkey: activeItem.senderPubkey,
-                    requestId: activeItem.requestId,
+                    requestId: activeItem.requestId || matchedRequestId,
                 });
 
                 try {
