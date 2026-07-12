@@ -569,7 +569,11 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     if (step === 'amount') {
         return (
             <YStack flex={1} px="$4" justify="space-between" bg="$background">
-                <YStack items="center" gap="$3" width="100%" >
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    style={{ flex: 1, width: '100%' }}
+                    contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+                >
                     {/* Mint Selector Row */}
                     <XStack
                         justify="space-between"
@@ -766,7 +770,7 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                             </XStack>
                         </XStack>
                     )}
-                </YStack>
+                </ScrollView>
 
                 {/* ── Keypad ───────────────────────────────────────────────── */}
 

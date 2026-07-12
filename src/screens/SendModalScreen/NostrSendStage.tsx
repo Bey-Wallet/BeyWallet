@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Button, Input, View, Avatar, Square } from 'tamagui';
+import { YStack, XStack, Text, H1, Button, Input, View, Avatar, Square, ScrollView } from 'tamagui';
 import {
     Search, ClipboardPaste, ChevronDown, Sprout, User, X, Wallet, ArrowUpDown
 } from '@tamagui/lucide-icons';
@@ -292,7 +292,11 @@ export function NostrSendStage({
 
     return (
         <YStack flex={1} justify="space-between">
-            <YStack items="center" gap="$3" width="100%">
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1, width: '100%' }}
+                contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+            >
                 {/* Mint Selector & Balance Row */}
                 <XStack
                     justify="space-between"
@@ -440,7 +444,7 @@ export function NostrSendStage({
                         <ChevronDown size={16} color="$gray10" />
                     )}
                 </XStack>
-            </YStack>
+            </ScrollView>
 
             <NumericKeypad
                 showAmountDisplay={false}
