@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, H1, View, Switch, Separator } from 'tamagui';
-import { ShieldCheck, ChevronRight, Sprout } from '@tamagui/lucide-icons';
+import {  ChevronRight, Fingerprint, Sprout } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { biometricService } from '../../services/biometricService';
@@ -87,7 +87,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
             flex={1}
             bg="$background"
             px="$4"
-            justifyContent="space-between"
+            justify="space-between"
             style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
         >
             {/* Header */}
@@ -98,19 +98,19 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
             </YStack>
 
             {/* Username / Profile Card (centered in screen) */}
-            <YStack flex={1} alignItems="center" justifyContent="center" gap="$2">
-                <XStack justifyContent="center" mb="$3">
+            <YStack flex={1} items="center" justify="center" gap="$2">
+                <XStack justify="center" mb="$3">
                     <Blockies
                         seed={npub || 'anon'}
                         size={10}
                         scale={7}
-                        style={{ borderRadius: 10 }}
+                        style={{ borderRadius : 10 }}
                     />
                 </XStack>
-                <Text fontSize="$6" px="$2" borderRadius="$3" py="$1" fontWeight="800" textAlign="center" color="$black" backgroundColor="yellow">
+                <Text fontSize="$6" px="$2" rounded="$3" py="$1" fontWeight="800" text="center" color="$black" bg="yellow">
                     {initialUsername}@bey.cash
                 </Text>
-                <Text fontSize="$2" color="$gray10" textAlign="center" mt="$1">
+                <Text fontSize="$2" color="$gray10" text="center" mt="$1">
                     Deterministic nickname (changeable in settings)
                 </Text>
             </YStack>
@@ -127,11 +127,11 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                     {/* Biometrics Toggle */}
                     <XStack
                         p="$3.5"
-                        justifyContent="space-between"
-                        alignItems="center"
+                        justify="space-between"
+                        items="center"
                     >
-                        <XStack gap="$3" alignItems="center" flex={1}>
-                            <ShieldCheck size={24} color={biometricEnabled ? "$accent10" : "$gray10"} />
+                        <XStack gap="$3" items="center" flex={1}>
+                            <Fingerprint size={24} color={biometricEnabled ? "$accent10" : "$gray10"} />
                             <YStack flex={1}>
                                 <Text fontWeight="700" fontSize="$5">Biometric Security</Text>
                             </YStack>
@@ -150,7 +150,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                     <Separator borderColor="$borderColor" />
 
                     {/* Default Mint Acknowledgment */}
-                    <XStack p="$3.5" alignItems="center" gap="$3">
+                    <XStack p="$3.5" items="center" gap="$3">
                         <Sprout size={24} color="$green10" />
                         <YStack flex={1}>
                             <Text fontWeight="700" fontSize="$5">Standard Default Mint</Text>
@@ -177,18 +177,18 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
 
             {/* Premium Biometrics Bottom Sheet */}
             <AppBottomSheet ref={sheetRef}>
-                <YStack p="$4" gap="$5" alignItems="center" pb="$8">
+                <YStack p="$4" gap="$5" items="center" pb="$8">
                     {/* Shield Icon Graphic */}
-                    <View bg="$gray5" p="$4" borderRadius={100} mb="$1">
-                        <ShieldCheck size={50} color="$accent5" />
+                    <View bg="$gray5" p="$4" rounded={100} mb="$1">
+                        <Fingerprint size={50} color="$accent5" />
                     </View>
 
                     {/* Text Content */}
-                    <YStack gap="$2" alignItems="center">
-                        <Text fontWeight="800" fontSize="$6" textAlign="center" color="$color">
+                    <YStack gap="$2" items="center">
+                        <Text fontWeight="800" fontSize="$6" text="center" color="$color">
                             Enable Biometric Security?
                         </Text>
-                        <Text fontSize="$3" color="$gray10" textAlign="center" px="$3" lineHeight={20}>
+                        <Text fontSize="$3" color="$gray10" text="center" px="$3" lineHeight={20}>
                             We highly recommend protecting your wallet with Face ID / Touch ID to prevent unauthorized payments and secure your funds.
                         </Text>
                     </YStack>
@@ -199,7 +199,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                             size="$5"
                            theme="accent"
                             fontWeight="700"
-                            borderRadius="$4"
+                            rounded="$4"
                             onPress={handleEnableFromSheet}
                         >
                             Enable Biometrics

@@ -188,9 +188,9 @@ export function PaymentRequestStage({
     } catch (err: any) {
       console.error('[PaymentRequestStage] Payment failed:', err);
       const msg = err?.message || 'Payment failed';
-      setLocalError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setOverlayState('error');
+      setOverlayState(null);
+      onError(msg);
     } finally {
       setIsSending(false);
     }

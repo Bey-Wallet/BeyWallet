@@ -160,13 +160,7 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
-            <Stack.Screen
-                name="about"
-                options={{
-                    title: 'About',
-                    presentation: "fullScreenModal",
-                }}
-            />
+
             <Stack.Screen
                 name="proofs"
                 options={{

@@ -140,7 +140,7 @@ export default function NostrActivityModal() {
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const queryClient = useQueryClient();
 
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -360,7 +360,7 @@ export default function NostrActivityModal() {
                                                 color={detailItem.type === 'sent' ? '$red10' : '$color1'}
                                                 letterSpacing={-1}
                                             >
-                                                {detailItem.type === 'sent' ? '−' : '+'}₿{detailItem.amount.toLocaleString()}
+                                                {detailItem.type === 'sent' ? '−' : '+'}{showBitcoinSymbol ? '₿' : ''}{detailItem.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                             {fiatValue && (
                                                 <Text fontSize="$3" color="$gray10">{detailItem.type === 'sent' ? '−' : '+'}{fiatValue}</Text>
@@ -377,7 +377,7 @@ export default function NostrActivityModal() {
                                                 {detailItem.type === 'sent' ? '−' : '+'}{fiatValue || '—'}
                                             </Text>
                                             <Text fontSize="$3" color="$gray10">
-                                                {detailItem.type === 'sent' ? '−' : '+'}₿{detailItem.amount.toLocaleString()}
+                                                {detailItem.type === 'sent' ? '−' : '+'}{showBitcoinSymbol ? '₿' : ''}{detailItem.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                         </>
                                     )}
@@ -463,6 +463,7 @@ function DetailSheetRow({ pubkey, storedUsername, type }: { pubkey: string; stor
 // ─── Pending Tab ──────────────────────────────────────────────────────────
 
 function PendingTab({ items, onClaim, onDetail, btcData, primaryCurrency, secondaryCurrency }: { items: NostrInboxItem[]; onClaim: (item: NostrInboxItem) => void; onDetail: (item: NostrInboxItem) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (items.length === 0) {
         return (
             <EmptyState
@@ -529,7 +530,7 @@ function PendingTab({ items, onClaim, onDetail, btcData, primaryCurrency, second
                                     {primaryCurrency === 'SATS' ? (
                                         <>
                                             <Text fontSize={14} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
-                                                +₿{item.amount.toLocaleString()}
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                             <Text fontSize={10} fontWeight="700" color="$accent10">
                                                 +{formattedFiat}
@@ -541,7 +542,7 @@ function PendingTab({ items, onClaim, onDetail, btcData, primaryCurrency, second
                                                 +{formattedFiat}
                                             </Text>
                                             <Text fontSize={10} fontWeight="700" color="$accent10">
-                                                +₿{item.amount.toLocaleString()}
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                         </>
                                     )}
@@ -568,6 +569,7 @@ function PendingRowName({ pubkey, storedUsername }: { pubkey: string; storedUser
 // ─── Received Tab ─────────────────────────────────────────────────────────
 
 function ReceivedTab({ items, onDetail, btcData, primaryCurrency, secondaryCurrency }: { items: NostrInboxItem[]; onDetail: (item: NostrInboxItem) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (items.length === 0) {
         return (
             <EmptyState
@@ -612,7 +614,7 @@ function ReceivedTab({ items, onDetail, btcData, primaryCurrency, secondaryCurre
                                     {primaryCurrency === 'SATS' ? (
                                         <>
                                             <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
-                                                +₿{item.amount.toLocaleString()}
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                             <Text fontSize={11} fontWeight="600" color="$gray10">
                                                 +{formattedFiat}
@@ -624,7 +626,7 @@ function ReceivedTab({ items, onDetail, btcData, primaryCurrency, secondaryCurre
                                                 +{formattedFiat}
                                             </Text>
                                             <Text fontSize={11} fontWeight="600" color="$gray10">
-                                                +₿{item.amount.toLocaleString()}
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                             </Text>
                                         </>
                                     )}
@@ -651,6 +653,7 @@ function ReceivedRowName({ pubkey, storedUsername }: { pubkey: string; storedUse
 // ─── Sent Tab ─────────────────────────────────────────────────────────────
 
 function SentTab({ entries, onDetail, btcData, primaryCurrency, secondaryCurrency }: { entries: any[]; onDetail: (entry: any) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (entries.length === 0) {
         return (
             <EmptyState
@@ -699,7 +702,7 @@ function SentTab({ entries, onDetail, btcData, primaryCurrency, secondaryCurrenc
                                 {primaryCurrency === 'SATS' ? (
                                     <>
                                         <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
-                                            -₿{(entry.amount ?? 0).toLocaleString()}
+                                            -{showBitcoinSymbol ? '₿' : ''}{(entry.amount ?? 0).toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                         </Text>
                                         <Text fontSize={11} fontWeight="600" color="$gray10">
                                             -{formattedFiat}
@@ -711,7 +714,7 @@ function SentTab({ entries, onDetail, btcData, primaryCurrency, secondaryCurrenc
                                             -{formattedFiat}
                                         </Text>
                                         <Text fontSize={11} fontWeight="600" color="$gray10">
-                                            -₿{(entry.amount ?? 0).toLocaleString()}
+                                            -{showBitcoinSymbol ? '₿' : ''}{(entry.amount ?? 0).toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
                                         </Text>
                                     </>
                                 )}

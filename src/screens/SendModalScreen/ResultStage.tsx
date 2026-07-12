@@ -12,6 +12,7 @@ import { StatusBadge } from '~/components/UI/StatusBadge';
 import * as Haptics from 'expo-haptics';
 import * as ExpoClipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ResultStageProps {
     status: 'success' | 'error';
@@ -48,6 +49,17 @@ export function ResultStage({
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const toast = useToastController();
     const [isReclaiming, setIsReclaiming] = useState(false);
+    const insets = useSafeAreaInsets();
+
+    const sendTime = useMemo(() => {
+        return new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    }, []);
+
+    const handleCopyText = async (text: string, label: string) => {
+        await ExpoClipboard.setStringAsync(text);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        toast.show('Copied!', { message: `${label} copied to clipboard` });
+    };
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -145,8 +157,8 @@ export function ResultStage({
             <Stack.Screen options={token ? headerOptions : successHeaderOptions} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
-                px="$4"
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 150 } as any}
+                
             >
                 {token ? (
                     <PendingTokenLayout
@@ -207,18 +219,22 @@ export function ResultStage({
                             </View>
                             <Separator borderColor="$borderColor" opacity={0.3} />
                             <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                                {mintUrl && (
-                                    <DetailItem
-                                        label="Mint"
-                                        value={mintUrl.replace(/^https?:\/\//, '').split('/')[0]}
-                                    />
-                                )}
+                                <DetailItem
+                                    label="Mint"
+                                    value={mintUrl ? (mintUrl.replace(/^https?:\/\//, '').split('/')[0]) : 'Unknown'}
+                                    isCopyable={!!mintUrl}
+                                    onCopy={mintUrl ? () => handleCopyText(mintUrl, 'Mint URL') : undefined}
+                                />
                                 {fee > 0 && (
                                     <DetailItem
                                         label="Fee"
                                         value={`${fee} sats`}
                                     />
                                 )}
+                                <DetailItem
+                                    label="Time"
+                                    value={sendTime}
+                                />
                             </YGroup>
                         </YStack>
                     </YStack>
@@ -227,7 +243,7 @@ export function ResultStage({
 
             {/* Final Done Button (Only if not pending token link) */}
             {!token && (
-                <YStack position="absolute" b="$4" l="$1" r="$1">
+                <YStack position="absolute" b={0} l={0} r={0} px="$4" pt="$4" pb={insets.bottom + 16} bg="$background" borderTopWidth={1} borderColor="$gray3">
                     <Button
                         bg="$green10"
                         color="white"

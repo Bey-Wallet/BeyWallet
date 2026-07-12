@@ -21,14 +21,21 @@ import { consolidationService } from '~/services/core';
 import { proofService } from '~/services/core';
 import { useOnboardingStore } from '~/store/onboardingStore';
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import { ActivityIndicator, Alert, DevSettings } from 'react-native';
+import { ActivityIndicator, Alert, DevSettings, Linking } from 'react-native';
 import { walletFileService } from '~/services/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 import * as Updates from 'expo-updates';
 import { useWalletStore } from '~/store/walletStore';
+import { InfoSheet, InfoSheetRef } from '~/components/UI/InfoSheet';
+import * as Application from 'expo-application';
+import BeyIcon from '~/components/icons/BeyIcon';
 
-const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
+const appVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '0.1.0';
+const buildVersion = Application.nativeBuildVersion ?? 
+    Constants.expoConfig?.ios?.buildNumber ??
+    Constants.expoConfig?.android?.versionCode?.toString() ??
+    '1';
 
 export function SettingsScreen() {
     const router = useRouter();
@@ -38,6 +45,7 @@ export function SettingsScreen() {
     const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
     const biometricSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
+    const infoSheetRef = useRef<InfoSheetRef>(null);
 
     const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled, showBitcoinSymbol, setShowBitcoinSymbol } = useSettingsStore();
     const { activeMintUrl, refreshBalance } = useWalletStore();
@@ -101,32 +109,46 @@ export function SettingsScreen() {
 
     const handleVerifyDleq = async () => {
         if (!activeMintUrl) {
-            Alert.alert('No Active Mint', 'Select a mint to verify proofs for.');
+            infoSheetRef.current?.present({
+                title: 'No Active Mint',
+                description: 'Select a mint to verify proofs for.',
+                type: 'warning',
+            });
             return;
         }
         setIsVerifyingDleq(true);
         try {
             const results = await proofService.verifyDleqProofs(activeMintUrl);
             if (results.length === 0) {
-                Alert.alert('No DLEQ Data', 'None of your stored proofs have DLEQ data. This is normal for older proofs or mints that do not provide DLEQ.');
+                infoSheetRef.current?.present({
+                    title: 'No DLEQ Data',
+                    description: 'None of your stored proofs have DLEQ data. This is normal for older proofs or mints that do not provide DLEQ.',
+                    type: 'info',
+                });
                 return;
             }
             const validCount = results.filter(r => r.valid).length;
             const invalidResults = results.filter(r => !r.valid);
             if (invalidResults.length === 0) {
-                Alert.alert(
-                    '\u2705 All Proofs Valid',
-                    `${validCount}/${results.length} proofs verified offline.\nThe mint signed all proofs honestly.`,
-                );
+                infoSheetRef.current?.present({
+                    title: 'All Proofs Valid',
+                    description: `${validCount}/${results.length} proofs verified offline.\nThe mint signed all proofs honestly.`,
+                    type: 'success',
+                });
             } else {
                 const failedAmounts = invalidResults.map(r => `${r.amount} sats`).join(', ');
-                Alert.alert(
-                    '\u26a0\ufe0f DLEQ Verification Failed',
-                    `${validCount}/${results.length} proofs valid.\n\nFailed amounts: ${failedAmounts}\n\nConsider consolidating your wallet or contacting the mint operator.`,
-                );
+                infoSheetRef.current?.present({
+                    title: 'DLEQ Verification Failed',
+                    description: `${validCount}/${results.length} proofs valid.\n\nFailed amounts: ${failedAmounts}\n\nConsider consolidating your wallet or contacting the mint operator.`,
+                    type: 'error',
+                });
             }
         } catch (err: any) {
-            Alert.alert('Verification Failed', err.message || 'Could not verify proofs.');
+            infoSheetRef.current?.present({
+                title: 'Verification Failed',
+                description: err.message || 'Could not verify proofs.',
+                type: 'error',
+            });
         } finally {
             setIsVerifyingDleq(false);
         }
@@ -149,7 +171,7 @@ export function SettingsScreen() {
             const state = await backupService.exportState();
             const { theme } = useSettingsStore.getState();
 
-            await walletFileService.exportWallet(mnemonic, {
+            const fileName = await walletFileService.exportWallet(mnemonic, {
                 mints: state.mints,
                 keysets: state.keysets,
                 proofs: state.proofs,
@@ -160,9 +182,20 @@ export function SettingsScreen() {
                 secondaryCurrency,
                 theme,
             });
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            infoSheetRef.current?.present({
+                title: 'Backup Exported',
+                description: `Your wallet data has been exported successfully.\n\nFilename: ${fileName}`,
+                type: 'success',
+            });
         } catch (err: any) {
             console.error('[Settings] Export failed:', err);
-            Alert.alert('Export Failed', err?.message ?? 'Could not export wallet.');
+            infoSheetRef.current?.present({
+                title: 'Export Failed',
+                description: err?.message ?? 'Could not export wallet.',
+                type: 'error',
+            });
         } finally {
             setIsExporting(false);
         }
@@ -355,13 +388,13 @@ export function SettingsScreen() {
                     title: 'Default Mint',
                     value: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None',
                     icon: Server,
-                 
+                  
                 },
                 {
                     id: 'notifications',
                     title: 'Notifications',
                     icon: Bell,
-                 
+                  
                 },
                 {
                     id: 'consolidate',
@@ -377,6 +410,41 @@ export function SettingsScreen() {
                     icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
                     disabled: isVerifyingDleq,
                   
+                },
+                {
+                    id: 'update',
+                    title: 'Check for Updates',
+                    icon: RefreshCw,
+            
+                    onPress: async () => {
+                        try {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            if (__DEV__) {
+                                infoSheetRef.current?.present({
+                                    title: 'Development Mode',
+                                    description: 'Updates are not supported in development mode.',
+                                    type: 'info',
+                                });
+                                return;
+                            }
+                            const { isAvailable } = await Updates.checkForUpdateAsync();
+                            if (isAvailable) {
+                                router.push('/(modals)/ota-update');
+                            } else {
+                                infoSheetRef.current?.present({
+                                    title: 'Up to Date',
+                                    description: 'You are already on the latest version of Bey Wallet.',
+                                    type: 'success',
+                                });
+                            }
+                        } catch (error: any) {
+                            infoSheetRef.current?.present({
+                                title: 'Error',
+                                description: error.message || 'Failed to check for updates.',
+                                type: 'error',
+                            });
+                        }
+                    }
                 },
                 {
                     id: 'language',
@@ -402,46 +470,6 @@ export function SettingsScreen() {
                     title: 'Nostr Username',
                     value: liveNip05 ? liveNip05.split('@')[0] : (nip05Loading ? 'Looking up…' : 'Claim Free'),
                     icon: AtSign,
-                },
-            ],
-        },
-        {
-            title: 'About',
-            items: [
-                {
-                    id: 'update',
-                    title: 'Check for Updates',
-                    icon: RefreshCw,
-            
-                    onPress: async () => {
-                        try {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (__DEV__) {
-                                Alert.alert('Development Mode', 'Updates are not supported in development mode.');
-                                return;
-                            }
-                            const { isAvailable } = await Updates.checkForUpdateAsync();
-                            if (isAvailable) {
-                                router.push('/(modals)/ota-update');
-                            } else {
-                                Alert.alert('Up to Date', 'You are already on the latest version of Bey Wallet.');
-                            }
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to check for updates.');
-                        }
-                    }
-                },
-                {
-                    id: 'about',
-                    title: 'Version',
-                    value: APP_VERSION,
-                    icon: Info,
-              
-                    pressStyle: { bg: '$gray3' },
-                    onPress: () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push('/(modals)/about');
-                    }
                 },
             ],
         },
@@ -487,6 +515,42 @@ export function SettingsScreen() {
                     onDelete={executeWalletDeletion}
                     onCancel={() => deleteSheetRef.current?.dismiss()}
                 />
+
+                <InfoSheet ref={infoSheetRef} />
+
+                {/* About App Info Footer (Tonkeeper-style) */}
+                <YStack items="center" justify="center" gap="$2.5" mt="$8" mb="$4">
+                    <YStack
+                        width={64}
+                        height={64}
+                        rounded="$4"
+                        bg="transparent"
+                        items="center"
+                        justify="center"
+                    >
+                        <BeyIcon size={64} color="$color" />
+                    </YStack>
+                    <YStack items="center" gap="$1">
+                        <Text fontWeight="700" fontSize="$5" color="$color">
+                            Bey Wallet
+                        </Text>
+                        <Text fontSize="$3" color="$gray10" fontWeight="500">
+                            Version {appVersion}{buildVersion ? ` (${buildVersion})` : ''}
+                        </Text>
+                        <Text
+                            fontSize="$3"
+                            color="$blue10"
+                            fontWeight="600"
+                            pressStyle={{ opacity: 0.7 }}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                Linking.openURL('https://github.com/Bey-Wallet/BeyWallet');
+                            }}
+                        >
+                            GitHub
+                        </Text>
+                    </YStack>
+                </YStack>
             </YStack>
         </ScrollView>
     );

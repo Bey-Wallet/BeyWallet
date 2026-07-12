@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme } from "tamagui";
+import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme, YGroup } from "tamagui";
 import { Copy, Share2, Check, RotateCcw, Gauge, ArrowDownLeft, Nfc, Globe, ChevronRight, UsersRound, Clock, AlertCircle } from "@tamagui/lucide-icons";
-import { ListTable, ListTableRow } from './ListTable';
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
@@ -20,8 +19,6 @@ import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/services/core';
 import { nip19 } from 'nostr-tools';
-import NFCFillIcon from '~/components/icons/NFC-fill';
-import NostrIcon from '~/components/icons/NostrIcon';
 import { nfcService } from '~/services/nfcService';
 import { ProcessingSheet, ProcessingStatus } from './ProcessingSheet';
 import { useAuthStore } from '~/store/authStore';
@@ -113,7 +110,6 @@ export function PendingTokenLayout({
         return () => clearInterval(interval);
     }, [expiresAt]);
 
-    // Optional internal parsing for p2pk if lockedToNpub not passed
     const [parsedNpub, setParsedNpub] = useState<string | null>(lockedToNpub || null);
 
     const MAX_STATIC_QR_LENGTH = 1000;
@@ -199,16 +195,12 @@ export function PendingTokenLayout({
         );
     }, [amount, btcData?.price, secondaryCurrency]);
 
-    // Sync currentToken when prop token changes
     useEffect(() => {
         if (token && token !== currentToken) {
             setCurrentToken(token);
         }
     }, [token]);
 
-    // Effect 1: Detect proof count + p2pk from token — only runs when token changes.
-    // Sets showAnimatedQR if >2 proofs (matches cashu.me behaviour) but does NOT
-    // depend on showAnimatedQR itself, avoiding an infinite loop.
     useEffect(() => {
         if (!currentToken || currentToken.startsWith('http')) return;
 
@@ -216,12 +208,10 @@ export function PendingTokenLayout({
             const clean = cleanToken(currentToken);
             const decoded = decodeToken(clean) as any;
 
-            // Handle both V3 array / V4 object format
             let proofs: any[] = [];
             if (decoded.token && decoded.token.length > 0) proofs = decoded.token[0].proofs;
             else if (decoded.proofs) proofs = decoded.proofs;
 
-            // Extract p2pk if not explicitly provided
             if (!lockedToNpub && proofs.length > 0) {
                 const firstSecret = proofs[0]?.secret;
                 if (typeof firstSecret === 'string' && firstSecret.startsWith('["P2PK"')) {
@@ -232,15 +222,11 @@ export function PendingTokenLayout({
                     } catch (e) { }
                 }
             }
-
-            // Always use animated QR as requested by user
         } catch (e) {
             console.error('[PendingTokenLayout] Failed to decode token:', e);
         }
     }, [currentToken, lockedToNpub]);
 
-    // Effect 2: Build QR / UR encoder whenever token, mode, or fragment params change.
-    // Does NOT set showAnimatedQR — reads it as a stable value from Effect 1.
     useEffect(() => {
         if (!currentToken) return;
 
@@ -253,13 +239,10 @@ export function PendingTokenLayout({
             const clean = cleanToken(currentToken);
 
             if (showAnimatedQR) {
-                // Match cashu.me exactly: UR.fromBuffer(Buffer.from(tokenString))
-                // Raw token string bytes — no CBOR wrapping — compatible with all UR scanners
                 const ur = UR.fromBuffer(Buffer.from(clean));
                 encoderRef.current = new UREncoder(ur, fragmentLength, 0);
                 setQrCodeFragment(encoderRef.current.nextPart());
             } else {
-                // Static mode: plain token string — readable by all wallets
                 setQrCodeFragment(clean);
             }
         } catch (e) {
@@ -315,22 +298,18 @@ export function PendingTokenLayout({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setIsPublishing(true);
         try {
-            // 1. Generate 32 bytes random secret_key
             const secretKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
             const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
             
-            // 2. Build Nostr event containing the Cashu token
             const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
             const { event } = buildEcashNostrEvent(cleanToken(currentToken), secretKeyHex);
             
-            // 3. Publish to relays
             const { SimplePool } = require('nostr-tools');
             const { RELAYS } = require('~/services/core/nostrService');
             const pool = new SimplePool();
             await Promise.any(pool.publish(RELAYS, event));
             pool.close(RELAYS);
             
-            // 4. Construct share link
             const websiteUrl = 'https://bey.cash/c/';
             const shareLink = `${websiteUrl}#${secretKeyHex}`;
             
@@ -346,19 +325,31 @@ export function PendingTokenLayout({
         }
     };
 
-    const displayNpub = lockedToNpub || parsedNpub;
+    const handleToggleVersion = () => {
+        if (!currentToken) return;
+        try {
+            const decoded = decodeToken(currentToken);
+            if (tokenVersion === 'V3') {
+                const encodedV4 = encodeTokenV4(decoded);
+                setCurrentToken(encodedV4);
+                setTokenVersion('V4');
+                toast.show('Switched to V4', { message: 'Compact CBOR encoding enabled' });
+            } else {
+                const encodedV3 = encodeTokenV3(decoded);
+                setCurrentToken(encodedV3);
+                setTokenVersion('V3');
+                toast.show('Switched to V3', { message: 'Standard JSON encoding enabled' });
+            }
+        } catch (e) {
+            console.error('[PendingTokenLayout] Failed to toggle version:', e);
+            toast.show('Error', { message: 'Cannot convert this token format' });
+        }
+    };
 
-    // Header amount display values
-    const primaryAmountLabel = primaryCurrency === 'SATS'
-        ? `₿${Number(amount || 0).toLocaleString()}`
-        : fiatValue;
-    const secondaryAmountLabel = primaryCurrency === 'SATS'
-        ? fiatValue
-        : `₿${Number(amount || 0).toLocaleString()} sats`;
+    const displayNpub = lockedToNpub || parsedNpub;
 
     return (
         <YStack flex={1} bg="$background" gap="$4" pb="$5" width="100%">
-            {/* Header Title */}
             <Stack.Screen
                 options={{
                     title: 'Pending Ecash',
@@ -368,16 +359,16 @@ export function PendingTokenLayout({
             />
 
             {/* Middle Amount Display */}
-            <YStack gap="$3" py="$6" items="center" justify="center">
-                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+            <YStack gap="$2" py="$5" items="center" justify="center">
+                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$color" lineHeight={54}>
                     {currencyService.formatSats(Number(amount || 0))}
                 </Text>
-                <Text color="$accent5" fontWeight="600" fontSize={16}>
+                <Text color="$accent9" fontWeight="600" fontSize={16}>
                     {fiatValue}
                 </Text>
             </YStack>
 
-            {/* Proof verification status badge */}
+            {/* Verification status badge */}
             <XStack
                 self="center"
                 items="center"
@@ -398,11 +389,7 @@ export function PendingTokenLayout({
                         /> : headerStatus === 'failed' ? <AlertCircle size={16} color="white" />
                             : <Clock size={16} color="white" />
                 )}
-                <Text
-                    fontSize="$3"
-                    fontWeight="700"
-                    color="white"
-                >
+                <Text fontSize="$3" fontWeight="700" color="white">
                     {isCheckingStatus ? 'Checking Status...'
                         : headerStatus === 'success' ? 'Claimed'
                             : headerStatus === 'failed' ? 'Failed'
@@ -410,9 +397,16 @@ export function PendingTokenLayout({
                 </Text>
             </XStack>
 
-            {/* QR Code */}
-            <YStack items="center" gap="$3" >
-                <View bg="white" p="$2" borderWidth={1} borderColor="$borderColor" rounded="$5">
+            {/* QR Code Container */}
+            <YStack items="center" gap="$3">
+                <View
+                    bg="white"
+                    p="$3"
+                    rounded="$5"
+                    borderWidth={1}
+                    borderColor="$borderColor"
+                    elevation={2}
+                >
                     {qrCodeFragment ? (
                         qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
                             <YStack width={330} height={330} items="center" justify="center" px="$4">
@@ -427,7 +421,7 @@ export function PendingTokenLayout({
                         ) : (
                             <QRCode
                                 value={qrCodeFragment}
-                                size={330}
+                                size={320}
                                 backgroundColor="white"
                                 color="black"
                                 quietZone={10}
@@ -440,154 +434,186 @@ export function PendingTokenLayout({
                     )}
                 </View>
 
-                {/* Quick Share Actions */}
-                <XStack gap="$3" width="100%" justify="center" py="$2">
-                    {/* NFC Share */}
-                    <YStack items="center" gap="$1" flex={1}>
+                {/* QR Interactive Settings Controls */}
+                
+
+                {/* Big 2x2 Action Button Grid */}
+                <YStack gap="$3" width="100%" >
+                    {/* Row 1 */}
+                    <XStack gap="$3" width="100%">
+                        {/* NFC Button */}
                         <Button
-                            bg="$gray3"
-                            
-                            size="$5"
-                            width="$8"
-                            
-                            items="center"
-                            justify="center"
+                            flex={1}
+                            bg="$gray2"
+                          
+                            height={80}
+                            rounded="$5"
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 if (onNfcPress) onNfcPress();
                                 else handleNfcShare();
                             }}
-                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={<Nfc size={20} color="$color" />}
-                        />
-                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>NFC</Text>
-                    </YStack>
+                            pressStyle={{ scale: 0.97, bg: "$gray3" }}
+                        >
+                            <YStack items="center" justify="center" gap="$1.5">
+                                <Nfc size={22} color="$accent10" />
+                                <Text fontSize="$2" fontWeight="700" color="$color">NFC Send</Text>
+                            </YStack>
+                        </Button>
 
-                    {/* Nostr Send */}
-                    <YStack items="center" gap="$1" flex={1}>
+                        {/* Contact Button */}
                         <Button
-                            bg="$gray3"
-                            
-                            size="$5"
-                            width="$8"
-                            
-                            items="center"
-                            justify="center"
+                            flex={1}
+                            bg="$gray2"
+                          
+                            height={80}
+                            rounded="$5"
                             disabled={!!displayNpub}
-                            opacity={displayNpub ? 0.3 : 1}
+                            opacity={displayNpub ? 0.4 : 1}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
                             }}
-                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={<UsersRound size={22} color="$color" />}
-                        />
-                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Contact</Text>
-                    </YStack>
+                            pressStyle={{ scale: 0.97, bg: "$gray3" }}
+                        >
+                            <YStack items="center" justify="center" gap="$1.5">
+                                <UsersRound size={22} color="$accent10" />
+                                <Text fontSize="$2" fontWeight="700" color="$color">Nostr Send</Text>
+                            </YStack>
+                        </Button>
+                    </XStack>
 
-                    {/* Share Link */}
-                    <YStack items="center" gap="$1" flex={1}>
+                    {/* Row 2 */}
+                    <XStack gap="$3" width="100%">
+                        {/* Publish/Web Link Button */}
                         <Button
-                            bg="$gray3"
-                            
-                            size="$5"
-                            width="$8"
-                            
-                            items="center"
-                            justify="center"
-                            onPress={handleShare}
-                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={<Share2 size={20} color="$color" />}
-                        />
-                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Share</Text>
-                    </YStack>
+                            flex={1}
+                            bg={currentToken.startsWith('http') ? "$green3" : "$gray2"}
+                         
+                            height={80}
+                            rounded="$5"
+                            disabled={isPublishing}
+                            onPress={() => {
+                                if (currentToken.startsWith('http')) {
+                                    Clipboard.setStringAsync(currentToken);
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    toast.show('Copied!', { message: 'Web share link copied' });
+                                } else {
+                                    handlePublishToWeb();
+                                }
+                            }}
+                            pressStyle={{ scale: 0.97, bg: currentToken.startsWith('http') ? "$green4" : "$gray3" }}
+                        >
+                            <YStack items="center" justify="center" gap="$1.5">
+                                {isPublishing ? (
+                                    <Spinner size="small" />
+                                ) : (
+                                    <Globe size={22} color={currentToken.startsWith('http') ? "$green10" : "$accent10"} />
+                                )}
+                                <Text fontSize="$2" fontWeight="700" color={currentToken.startsWith('http') ? "$green10" : "$color"}>
+                                    {currentToken.startsWith('http') ? "Published" : "Publish Web"}
+                                </Text>
+                            </YStack>
+                        </Button>
 
-                    {/* Copy Token */}
-                    <YStack items="center" gap="$1" flex={1}>
+                        {/* Copy Button */}
                         <Button
-                            bg="$gray3"
-                            
-                            size="$5"
-                            width="$8"
-                            
-                            items="center"
-                            justify="center"
+                            flex={1}
+                            bg={copied ? "$green3" : "$gray2"}
+                           
+                            height={80}
+                            rounded="$5"
                             onPress={handleCopy}
-                            pressStyle={{ scale: 0.95, bg: "$gray4" }}
-                            icon={copied ? <Check size={20} color="$color" /> : <Copy size={20} color="$color" />}
-                        />
-                        <Text fontSize={10} fontWeight="700" color="$gray10" textTransform="uppercase" letterSpacing={0.5}>Copy</Text>
-                    </YStack>
-                </XStack>
+                            pressStyle={{ scale: 0.97, bg: copied ? "$green4" : "$gray3" }}
+                        >
+                            <YStack items="center" justify="center" gap="$1.5">
+                                {copied ? <Check size={22} color="$green10" /> : <Copy size={22} color="$accent10" />}
+                                <Text fontSize="$2" fontWeight="700" color={copied ? "$green10" : "$color"}>
+                                    {copied ? "Copied!" : "Copy Token"}
+                                </Text>
+                            </YStack>
+                        </Button>
+                    </XStack>
+                </YStack>
             </YStack>
 
-            {/* Unified Actions & Details Table */}
-            <ListTable mb="$4">
-                <View p="$3" px="$4">
-                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
-                </View>
-                <Separator borderColor="$borderColor" opacity={0.3} />
-
-                {/* Submit to Web Button (if raw Cashu token) */}
-                {!currentToken.startsWith('http') && (
-                    <ListTableRow
-                        label="Publish on bey.cash"
-                        icon={Globe}
-                        iconColor="$purple10"
-                        rightContent={isPublishing ? <Spinner size="small" /> : <ChevronRight size={16} color="$gray10" />}
-                        onPress={handlePublishToWeb}
-                    />
-                )}
-
-                {/* Link Text Display / Copy Web Link */}
-                {currentToken.startsWith('http') && (
-                    <ListTableRow
-                        label="Web Link"
-                        value={`${currentToken.slice(0, 18)}…${currentToken.slice(-6)}`}
-                        isCopyable
-                        onCopy={async () => {
-                            await Clipboard.setStringAsync(currentToken);
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            toast.show('Copied!', { message: 'Web share link copied to clipboard' });
-                        }}
-                    />
-                )}
-
-                {!hideDetails && (
-                    <>
-                        {fee > 0 && <ListTableRow label="Fee" value={`₿${fee} sats`} />}
-                        <ListTableRow label="Expiry" value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'} />
-                        {displayNpub && (
-                            <ListTableRow
-                                label="Locked To"
-                                value={displayNpub === npub ? "You (Safe)" : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`}
-                                isCopyable={displayNpub !== npub}
+            {/* Unified Details Card (flat table layout consistent with ResultStage) */}
+            {(!hideDetails || currentToken.startsWith('http')) && (
+                <YStack bg="$gray2" rounded="$5" overflow="hidden"  >
+                    <View p="$3" px="$4">
+                        <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                    </View>
+                    <Separator borderColor="$borderColor" opacity={0.3} />
+                    <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                        {currentToken.startsWith('http') && (
+                            <DetailRowItem
+                                label="Web Link"
+                                value={`${currentToken.slice(0, 20)}…${currentToken.slice(-8)}`}
+                                isCopyable
                                 onCopy={async () => {
-                                    await Clipboard.setStringAsync(displayNpub);
-                                    Haptics.selectionAsync();
-                                    toast.show('Copied!', { message: 'NPUB copied to clipboard' });
+                                    await Clipboard.setStringAsync(currentToken);
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    toast.show('Copied!', { message: 'Web share link copied' });
                                 }}
                             />
                         )}
-                        <ListTableRow label="Mint" value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'} />
-                    </>
-                )}
+                        {!hideDetails && (
+                            <>
+                                {fee > 0 && (
+                                    <DetailRowItem
+                                        label="Mint Fee"
+                                        value={`${fee} sats`}
+                                    />
+                                )}
+                                <DetailRowItem
+                                    label="Expiry"
+                                    value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'}
+                                />
+                                {displayNpub && (
+                                    <DetailRowItem
+                                        label="Locked To"
+                                        value={displayNpub === npub ? "You (Safe)" : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`}
+                                        isCopyable={displayNpub !== npub}
+                                        onCopy={async () => {
+                                            await Clipboard.setStringAsync(displayNpub);
+                                            Haptics.selectionAsync();
+                                            toast.show('Copied!', { message: 'NPUB copied' });
+                                        }}
+                                    />
+                                )}
+                                <DetailRowItem
+                                    label="Mint"
+                                    value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'}
+                                />
+                            </>
+                        )}
+                    </YGroup>
+                </YStack>
+            )}
 
-                {/* Reclaim Action Row */}
-                {onReclaim && !onClaim && (
-                    <ListTableRow
-                        label="Reclaim Token"
-                        icon={RotateCcw}
-                        iconColor="$red10"
-                        rightContent={isReclaiming ? <Spinner size="small" /> : <ChevronRight size={16} color="$gray10" />}
+            {/* Reclaim Button (separated for visibility outside details list) */}
+            {onReclaim && !onClaim && (
+                <YStack >
+                    <Button
+                        bg="$red3"
+                        color="$red10"
+                        hoverStyle={{ bg: "$red4" }}
+                        size="$4"
+                        height={50}
+                        rounded="$4"
                         onPress={onReclaim}
-                    />
-                )}
-            </ListTable>
+                        disabled={isReclaiming}
+                        icon={isReclaiming ? <Spinner size="small" color="$red10" /> : <RotateCcw size={18} color="$red10" />}
+                        fontWeight="700"
+                    >
+                        RECLAIM TOKEN
+                    </Button>
+                </YStack>
+            )}
 
-            {/* Main Action Button (Claim Now) */}
+            {/* Primary Action Button (Claim Now) */}
             {!hideActions && onClaim && (
-                <YStack mt="auto" pb="$8" gap="$4">
+                <YStack mt="auto" pb="$8" px="$4">
                     <Button
                         bg="$accent10"
                         hoverStyle={{ bg: "$accent11" }}
@@ -604,6 +630,7 @@ export function PendingTokenLayout({
                     </Button>
                 </YStack>
             )}
+
             <ProcessingSheet
                 visible={showNfcSheet}
                 status={nfcStatus}
@@ -620,5 +647,21 @@ export function PendingTokenLayout({
                 }
             />
         </YStack>
+    );
+}
+
+function DetailRowItem({ label, value, isCopyable, onCopy }: { label: string, value: string, isCopyable?: boolean, onCopy?: () => void }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                    {value}
+                </Text>
+                {isCopyable && (
+                    <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+                )}
+            </XStack>
+        </XStack>
     );
 }

@@ -32,6 +32,10 @@ interface SettingsState {
     setHideBalance: (hide: boolean) => Promise<void>;
     showBitcoinSymbol: boolean;
     setShowBitcoinSymbol: (val: boolean) => Promise<void>;
+    backupDirectoryUri: string | null;
+    setBackupDirectoryUri: (uri: string | null) => Promise<void>;
+    usernameClaimDismissedAt: number;
+    setUsernameClaimDismissedAt: (val: number) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -49,6 +53,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     seedBackedUp: false,
     backupDismissedAt: 0,
     showBitcoinSymbol: false,
+    backupDirectoryUri: null,
+    usernameClaimDismissedAt: 0,
 
     initialize: async (force = false) => {
         if (get().initialized && !force) return;
@@ -68,7 +74,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 const repo = initService.getRepo();
 
                 // Load all settings in parallel for speed
-                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp, storedBackupDismissedAt, storedShowBitcoinSymbol] = await Promise.all([
+                const [storedTheme, storedCurrency, storedMintUrl, storedNotifications, storedBiometric, storedNpub, storedNsec, storedNip05, storedHideBalance, storedPrimary, storedSeedBackedUp, storedBackupDismissedAt, storedShowBitcoinSymbol, storedBackupDirectoryUri, storedUsernameClaimDismissedAt] = await Promise.all([
                     repo.settingsRepository.getSetting('theme'),
                     repo.settingsRepository.getSetting('secondaryCurrency'),
                     repo.settingsRepository.getSetting('defaultMintUrl'),
@@ -82,6 +88,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                     repo.settingsRepository.getSetting('seedBackedUp'),
                     repo.settingsRepository.getSetting('backupDismissedAt'),
                     repo.settingsRepository.getSetting('showBitcoinSymbol'),
+                    repo.settingsRepository.getSetting('backupDirectoryUri'),
+                    repo.settingsRepository.getSetting('usernameClaimDismissedAt'),
                 ]);
 
                 if (storedTheme) set({ theme: storedTheme as ThemePreference });
@@ -99,6 +107,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
                 }
                 if (storedShowBitcoinSymbol !== undefined && storedShowBitcoinSymbol !== null) {
                     set({ showBitcoinSymbol: storedShowBitcoinSymbol === 'true' });
+                }
+
+                if (storedBackupDirectoryUri) {
+                    set({ backupDirectoryUri: storedBackupDirectoryUri });
+                }
+
+                if (storedUsernameClaimDismissedAt !== undefined && storedUsernameClaimDismissedAt !== null) {
+                    set({ usernameClaimDismissedAt: parseInt(storedUsernameClaimDismissedAt, 10) || 0 });
                 }
                 
                 // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
@@ -290,6 +306,34 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch (error) {
             console.error('[SettingsStore] Failed to set showBitcoinSymbol:', error);
             set({ showBitcoinSymbol: val });
+        }
+    },
+
+    setBackupDirectoryUri: async (uri: string | null) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('backupDirectoryUri', uri ?? '');
+            }
+            set({ backupDirectoryUri: uri });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set backupDirectoryUri:', error);
+            set({ backupDirectoryUri: uri });
+        }
+    },
+
+    setUsernameClaimDismissedAt: async (val: number) => {
+        try {
+            const exists = await initService.walletExists();
+            if (exists) {
+                const repo = initService.getRepo();
+                await repo.settingsRepository.setSetting('usernameClaimDismissedAt', val.toString());
+            }
+            set({ usernameClaimDismissedAt: val });
+        } catch (error) {
+            console.error('[SettingsStore] Failed to set usernameClaimDismissedAt:', error);
+            set({ usernameClaimDismissedAt: val });
         }
     },
 }));

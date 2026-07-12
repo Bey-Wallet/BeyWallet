@@ -28,7 +28,7 @@ export default function MintDetailsModal() {
     const insets = useSafeAreaInsets();
     const { mintUrl } = useLocalSearchParams<{ mintUrl: string }>();
     const { mints, balances, setActiveMint, activeMintUrl, removeMint, restoreFromSeed, isRestoring, restoringMintUrl } = useWalletStore();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [isAboutExpanded, setIsAboutExpanded] = useState(false);
     const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
 
@@ -369,7 +369,7 @@ export default function MintDetailsModal() {
                             <XStack items="baseline" gap="$1">
                                 {primaryCurrency === 'SATS' ? (
                                     <Text fontSize={36} fontWeight="900" color="$color">
-                                        ₿{balance.toLocaleString()}
+                                        {showBitcoinSymbol ? '₿' : ''}{balance.toLocaleString()}{showBitcoinSymbol ? '' : ' SATS'}
                                     </Text>
                                 ) : (
                                     <Text fontSize={36} fontWeight="900" color="$color">
@@ -380,7 +380,7 @@ export default function MintDetailsModal() {
                             <Text fontSize="$6" color="$gray12" fontWeight="600">
                                 {primaryCurrency === 'SATS'
                                     ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
-                                    : `₿${balance.toLocaleString()}`}
+                                    : (showBitcoinSymbol ? `₿${balance.toLocaleString()}` : `${balance.toLocaleString()} sats`)}
                             </Text>
 
                             {/* Trust badges */}
@@ -513,13 +513,13 @@ export default function MintDetailsModal() {
                                     {auditorMint && auditorMint.balance !== undefined && (
                                         <ListTableRow
                                             label="Auditor Balance"
-                                            value={`${auditorMint.balance} sats`}
+                                            value={showBitcoinSymbol ? `₿${auditorMint.balance.toLocaleString()}` : `${auditorMint.balance.toLocaleString()} sats`}
                                         />
                                     )}
                                     {auditorMint && auditorMint.sum_donations !== undefined && (
                                         <ListTableRow
                                             label="Auditor Donations"
-                                            value={`${auditorMint.sum_donations} sats`}
+                                            value={showBitcoinSymbol ? `₿${auditorMint.sum_donations.toLocaleString()}` : `${auditorMint.sum_donations.toLocaleString()} sats`}
                                         />
                                     )}
                                 </ListTable>
@@ -640,7 +640,7 @@ export default function MintDetailsModal() {
                                         Active Balance Warning
                                     </Text>
                                     <Text color="$orange10" fontSize="$3" mt="$1">
-                                        You currently have a balance of <Text fontWeight="800">{balance.toLocaleString()} sats</Text> in this mint. If you remove it, you will lose access to these funds!
+                                        You currently have a balance of <Text fontWeight="800">{showBitcoinSymbol ? `₿${balance.toLocaleString()}` : `${balance.toLocaleString()} sats`}</Text> in this mint. If you remove it, you will lose access to these funds!
                                     </Text>
                                 </YStack>
                             </XStack>

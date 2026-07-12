@@ -70,7 +70,7 @@ export default function EcashModal() {
   const router = useRouter();
   const { mints } = useWalletStore();
   const insets = useSafeAreaInsets();
-  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [selectedMint, setSelectedMint] = useState('all');
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const queryClient = useQueryClient();
@@ -298,7 +298,8 @@ export default function EcashModal() {
               {primaryCurrency === 'SATS' ? (
                 <RollingNumber
                   value={totalPending}
-                  prefix="₿"
+                  prefix={showBitcoinSymbol ? "₿" : ""}
+                  suffix={showBitcoinSymbol ? "" : " SATS"}
                   fontSize={30}
                   fontWeight="900"
                   color="$accent3"
@@ -318,11 +319,12 @@ export default function EcashModal() {
                 </RollingNumber>
               )}
             </YStack>
-            <Text color="$accent9" fontWeight="700">{primaryCurrency === 'SATS' ? 'SATS' : secondaryCurrency}</Text>
+            <Text color="$accent9" fontWeight="700">{primaryCurrency === 'SATS' ? (showBitcoinSymbol ? '' : 'SATS') : secondaryCurrency}</Text>
           </XStack>
           <RollingNumber
             value={primaryCurrency === 'SATS' ? fiatPending : totalPending}
-            prefix={primaryCurrency === 'SATS' ? '' : '₿'}
+            prefix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '₿' : '')}
+            suffix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '' : ' SATS')}
             fontSize={18}
             fontWeight="900"
             color="$accent8"
@@ -379,7 +381,10 @@ export default function EcashModal() {
                             color="$accent3"
                           >
                             {primaryCurrency === 'SATS'
-                              ? `${style.sign}₿${entry.amount.toLocaleString()}`
+                              ? (showBitcoinSymbol
+                                  ? `${style.sign}₿${entry.amount.toLocaleString()}`
+                                  : `${style.sign}${entry.amount.toLocaleString()} sats`
+                                )
                               : `${style.sign}${currencyService.formatValue(
                                 btcData?.price ? currencyService.convertSatsToCurrency(entry.amount, btcData.price) : 0,
                                 secondaryCurrency as CurrencyCode

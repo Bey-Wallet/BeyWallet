@@ -22,7 +22,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
 
     const handleOpenTerms = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        Linking.openURL('https://beywallet.com/terms').catch(() => {});
+        Linking.openURL('http://bey.cash/privacy-policy').catch(() => {});
     };
 
     return (

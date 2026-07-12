@@ -1,5 +1,6 @@
 import React from 'react';
 import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +18,7 @@ interface ScanAndPayStageProps {
 }
 
 export function ScanAndPayStage({ input, setInput, isLoading, error, onContinue }: ScanAndPayStageProps) {
+    const insets = useSafeAreaInsets();
     const router = useRouter();
     const scannerResult = useWalletStore(state => state.scannerResult);
     const setScannerResult = useWalletStore(state => state.setScannerResult);

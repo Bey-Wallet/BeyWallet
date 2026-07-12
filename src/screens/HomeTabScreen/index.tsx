@@ -5,6 +5,7 @@ import { useToastController } from "@tamagui/toast";
 import WalletCard from "./components/WalletCard";
 import ActionButtons from "./components/ActionButtons";
 import BackupWarningCard from "./components/BackupWarningCard";
+import ClaimUsernameCard from "./components/ClaimUsernameCard";
 import RestoreProgressCard from "./components/RestoreProgressCard";
 import { useWalletStore } from "../../store/walletStore";
 import React from "react";
@@ -146,6 +147,8 @@ export function HomeTabScreen() {
         <RestoreProgressCard />
 
         <BackupWarningCard />
+
+        <ClaimUsernameCard />
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

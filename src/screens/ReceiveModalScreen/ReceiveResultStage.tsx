@@ -10,6 +10,7 @@ import { bitcoinService } from '../../services/bitcoinService';
 import { currencyService, CurrencyCode } from '../../services/currencyService';
 import { Buffer } from 'buffer';
 import { useToastController } from '@tamagui/toast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -46,6 +47,7 @@ export function ReceiveResultStage({
     const router = useRouter();
     const toast = useToastController();
     const [copied, setCopied] = useState(false);
+    const insets = useSafeAreaInsets();
 
     // Filtered states
     const [currentToken] = useState<string>(token || '');
@@ -259,7 +261,7 @@ export function ReceiveResultStage({
             </ScrollView>
 
             {/* Final Done Button (Only if not receive later OR if not busy claiming) */}
-            <YStack position="absolute" b={0} l={0} r={0} p="$4" bg="$background" borderTopWidth={1} borderColor="$gray3">
+            <YStack position="absolute" b={0} l={0} r={0} px="$4" pt="$4" pb={insets.bottom + 16} bg="$background" borderTopWidth={1} borderColor="$gray3">
                 <Button
                     bg={isReceiveLater ? "$gray3" : "$green10"}
                     size="$5"

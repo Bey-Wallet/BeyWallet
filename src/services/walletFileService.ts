@@ -34,9 +34,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as bip39 from 'bip39';
+import { Platform } from 'react-native';
+import { useSettingsStore } from '../store/settingsStore';
 
-const BACKUP_FILENAME = 'bey-wallet-backup.bey';
-const BACKUP_VERSION = 2;
+const BACKUP_VERSION = 3;
 
 export interface MintEntry {
     url: string;
@@ -58,10 +59,22 @@ export interface WalletBackup {
     exportedAt: string;
 }
 
+function getFormattedDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+}
+
 export const walletFileService = {
     /**
-     * Export the full wallet backup as a shareable .bey file.
-     * Requires the wallet to be initialized (repos must be accessible).
+     * Export the full wallet backup as a stamped .json file.
+     * On Android, saves directly to the user's selected Downloads/Backups directory.
+     * On iOS, uses standard Share Sheet.
      */
     exportWallet: async (
         mnemonic: string,
@@ -76,7 +89,7 @@ export const walletFileService = {
             secondaryCurrency: string;
             theme: 'system' | 'light' | 'dark';
         }
-    ): Promise<void> => {
+    ): Promise<string> => {
         console.log('[WalletFileService] Exporting wallet backup...');
 
         if (!bip39.validateMnemonic(mnemonic)) {
@@ -98,32 +111,78 @@ export const walletFileService = {
             exportedAt: new Date().toISOString(),
         };
 
-        const filePath =
-            (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') +
-            BACKUP_FILENAME;
+        const fileName = `bey_wallet_backup_${getFormattedDate()}.json`;
+        const serialized = JSON.stringify(backup, null, 2);
 
-        await FileSystem.writeAsStringAsync(filePath, JSON.stringify(backup, null, 2), {
-            encoding: 'utf8',
-        });
+        if (Platform.OS === 'android') {
+            const settingsStore = useSettingsStore.getState();
+            let uri = settingsStore.backupDirectoryUri;
 
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (!isAvailable) {
-            throw new Error('Sharing is not available on this device.');
+            if (!uri) {
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (!permissions.granted) {
+                    throw new Error('Permission to choose backup directory was denied.');
+                }
+                uri = permissions.directoryUri;
+                await settingsStore.setBackupDirectoryUri(uri);
+            }
+
+            let fileUri: string;
+            try {
+                fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                    uri,
+                    fileName,
+                    'application/json'
+                );
+            } catch {
+                // If it fails (e.g. permission revoked), prompt directory selection again
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (!permissions.granted) {
+                    throw new Error('Permission to choose backup directory was denied.');
+                }
+                uri = permissions.directoryUri;
+                await settingsStore.setBackupDirectoryUri(uri);
+                fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                    uri,
+                    fileName,
+                    'application/json'
+                );
+            }
+
+            await FileSystem.writeAsStringAsync(fileUri, serialized, {
+                encoding: 'utf8',
+            });
+            console.log(`[WalletFileService] ✅ Saved directly to: ${fileUri}`);
+            return fileName;
+        } else {
+            // iOS: Write to temporary directory and show share sheet
+            const filePath =
+                (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') +
+                fileName;
+
+            await FileSystem.writeAsStringAsync(filePath, serialized, {
+                encoding: 'utf8',
+            });
+
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (!isAvailable) {
+                throw new Error('Sharing is not available on this device.');
+            }
+
+            await Sharing.shareAsync(filePath, {
+                mimeType: 'application/json',
+                dialogTitle: 'Save your Bey Wallet backup',
+                UTI: 'public.json',
+            });
+
+            console.log('[WalletFileService] ✅ Shared backup file.');
+            return fileName;
         }
-
-        await Sharing.shareAsync(filePath, {
-            mimeType: 'application/json',
-            dialogTitle: 'Save your Bey Wallet backup',
-            UTI: 'public.json',
-        });
-
-        console.log('[WalletFileService] ✅ Wallet backup shared successfully.');
     },
 
     /**
-     * Open the document picker and parse a .bey backup file.
+     * Open the document picker and parse a backup file (.json or .bey).
      * Returns the full WalletBackup payload so the caller can restore everything.
-     * Throws a user-friendly error on cancellation or bad file.
      */
     importWalletFromFile: async (): Promise<WalletBackup> => {
         console.log('[WalletFileService] Opening document picker...');
@@ -208,7 +267,7 @@ export const walletFileService = {
     /**
      * Export active proofs as a .json file containing the proofs array.
      */
-    exportProofsToFile: async (proofs: any[]): Promise<void> => {
+    exportProofsToFile: async (proofs: any[]): Promise<string> => {
         console.log('[WalletFileService] Exporting proofs to file...');
         const payload = {
             type: 'bey-cashu-proofs',
@@ -216,24 +275,70 @@ export const walletFileService = {
             exportedAt: new Date().toISOString(),
         };
 
-        const filePath =
-            (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') +
-            'bey-cashu-proofs.json';
+        const fileName = `bey_cashu_proofs_${getFormattedDate()}.json`;
+        const serialized = JSON.stringify(payload, null, 2);
 
-        await FileSystem.writeAsStringAsync(filePath, JSON.stringify(payload, null, 2), {
-            encoding: 'utf8',
-        });
+        if (Platform.OS === 'android') {
+            const settingsStore = useSettingsStore.getState();
+            let uri = settingsStore.backupDirectoryUri;
 
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (!isAvailable) {
-            throw new Error('Sharing is not available on this device.');
+            if (!uri) {
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (!permissions.granted) {
+                    throw new Error('Permission to choose backup directory was denied.');
+                }
+                uri = permissions.directoryUri;
+                await settingsStore.setBackupDirectoryUri(uri);
+            }
+
+            let fileUri: string;
+            try {
+                fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                    uri,
+                    fileName,
+                    'application/json'
+                );
+            } catch {
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (!permissions.granted) {
+                    throw new Error('Permission to choose backup directory was denied.');
+                }
+                uri = permissions.directoryUri;
+                await settingsStore.setBackupDirectoryUri(uri);
+                fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                    uri,
+                    fileName,
+                    'application/json'
+                );
+            }
+
+            await FileSystem.writeAsStringAsync(fileUri, serialized, {
+                encoding: 'utf8',
+            });
+            console.log(`[WalletFileService] ✅ Proofs saved directly to: ${fileUri}`);
+            return fileName;
+        } else {
+            const filePath =
+                (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') +
+                fileName;
+
+            await FileSystem.writeAsStringAsync(filePath, serialized, {
+                encoding: 'utf8',
+            });
+
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (!isAvailable) {
+                throw new Error('Sharing is not available on this device.');
+            }
+
+            await Sharing.shareAsync(filePath, {
+                mimeType: 'application/json',
+                dialogTitle: 'Export Cashu Proofs File',
+                UTI: 'public.json',
+            });
+
+            return fileName;
         }
-
-        await Sharing.shareAsync(filePath, {
-            mimeType: 'application/json',
-            dialogTitle: 'Export Cashu Proofs File',
-            UTI: 'public.json',
-        });
     },
 
     /**

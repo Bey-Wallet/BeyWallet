@@ -3,12 +3,17 @@ import { YStack, Text, Button, Spinner, H2, View } from 'tamagui'
 import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
-import { AppState, AppStateStatus, StyleSheet } from 'react-native'
-import BeyIcon from '~/components/icons/BeyIcon'
+import { AppState, AppStateStatus, StyleSheet, Image } from 'react-native'
+import { useAppTheme } from '../context/ThemeContext'
 
 export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
     const [isAuthenticating, setIsAuthenticating] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const { resolvedTheme } = useAppTheme()
+
+    const logoSource = resolvedTheme === 'dark'
+        ? require('../assets/icons/bey-logo-white-transparent.png')
+        : require('../assets/icons/bey-logo-black-transparent.png')
 
     // Track active authentication request to prevent overlapping promise races
     const activeAuthId = useRef(0)
@@ -86,7 +91,11 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         >
             {/* Middle Section - App Logo */}
             <YStack flex={1} justify="center" items="center">
-                <BeyIcon size={120} color="$color" />
+                <Image
+                    source={logoSource}
+                    style={{ width: 90, height: 90 }}
+                    resizeMode="contain"
+                />
             </YStack>
 
             {/* Bottom Section - Unlock Button */}

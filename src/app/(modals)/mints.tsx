@@ -21,7 +21,7 @@ export default function MintsModal() {
     const router = useRouter();
     const { mints, balances, refreshBalance, isInitializing, activeMintUrl, setActiveMint, untrustMint, removeMint, refreshMintList, trustMint } = useWalletStore();
     const insets = useSafeAreaInsets();
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -210,7 +210,8 @@ export default function MintsModal() {
                             {primaryCurrency === 'SATS' ? (
                                 <RollingNumber
                                     fontSize={30}
-                                    prefix='₿'
+                                    prefix={showBitcoinSymbol ? '₿' : ''}
+                                    suffix={showBitcoinSymbol ? '' : ' SATS'}
                                     fontWeight="900"
                                     color="$accent4"
                                     showDecimals={false}
@@ -232,7 +233,8 @@ export default function MintsModal() {
                         </XStack>
                         <RollingNumber
                             value={primaryCurrency === 'SATS' ? fiatBalance : totalBalance}
-                            prefix={primaryCurrency === 'SATS' ? '' : '₿'}
+                            prefix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '₿' : '')}
+                            suffix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '' : ' SATS')}
                             fontSize={16}
                             fontWeight="900"
                             color="$accent8"
@@ -306,7 +308,10 @@ export default function MintsModal() {
                                                         color="$accent3"
                                                     >
                                                         {primaryCurrency === 'SATS'
-                                                            ? `₿${balance.toLocaleString()}`
+                                                            ? (showBitcoinSymbol 
+                                                                ? `₿${balance.toLocaleString()}`
+                                                                : `${balance.toLocaleString()} sats`
+                                                              )
                                                             : currencyService.formatValue(
                                                                 btcData?.price
                                                                     ? currencyService.convertSatsToCurrency(balance, btcData.price)
@@ -407,7 +412,8 @@ export default function MintsModal() {
                                 {primaryCurrency === 'SATS' ? (
                                     <RollingNumber
                                         letterSpacing={-1}
-                                        prefix='₿'
+                                        prefix={showBitcoinSymbol ? '₿' : ''}
+                                        suffix={showBitcoinSymbol ? '' : ' SATS'}
                                         fontSize={32}
                                         fontWeight="900"
                                         color="$accent4"

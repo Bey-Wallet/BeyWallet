@@ -24,7 +24,7 @@ import {
     Sparkles,
     Sprout,
 } from '@tamagui/lucide-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
@@ -36,6 +36,8 @@ import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { consolidationService } from '~/services/core/consolidationService';
 import { proofService } from '~/services/core/proofService';
 import { biometricService } from '~/services/biometricService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSettingsStore } from '~/store/settingsStore';
 
 export default function OptimizeWalletScreen() {
     const router = useRouter();
@@ -48,6 +50,8 @@ export default function OptimizeWalletScreen() {
     const [selectedMintUrl, setSelectedMintUrl] = useState(activeMintUrl || '');
     const [isOptimizing, setIsOptimizing] = useState(false);
     const isLoadingMint = isInitializing || isRefreshing;
+    const insets = useSafeAreaInsets();
+    const { showBitcoinSymbol } = useSettingsStore();
 
     // Get selected mint metadata
     const selectedMint = useMemo(() => {
@@ -150,8 +154,19 @@ export default function OptimizeWalletScreen() {
 
     return (
         <YStack flex={1} bg="$background" justify="space-between">
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+            <Stack.Screen options={{ title: 'Optimize Wallet' }} />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 120 }}>
                 <YStack p="$4" gap="$4" flex={1}>
+                    {/* Header Info Card */}
+                    <YStack gap="$2" items="center" py="$2" px="$3">
+                        <Sparkles size={32} color="$accent10" />
+                        <Text fontSize="$6" fontWeight="800" textAlign="center" color="$color">
+                            Optimize Proof Structure
+                        </Text>
+                        <Text fontSize="$3" color="$gray10" textAlign="center" px="$4" lineHeight={18}>
+                            Consolidate many small ecash tokens into fewer, larger denominations. This makes payment transactions faster and reduces keyset overhead.
+                        </Text>
+                    </YStack>
                     {/* Mint Selector Pill */}
                     <XStack justify="center" items="center" width="100%">
                         <Button
@@ -171,7 +186,7 @@ export default function OptimizeWalletScreen() {
                             pressStyle={{ scale: 0.97, opacity: 0.95, bg: "$blue11" }}
                             icon={
                                 isLoadingMint ? (
-                                    <Spinner size={14} color="white" />
+                                    <Spinner size="small" color="white" />
                                 ) : (
                                     <Avatar rounded="$3" size="$2">
                                         <Avatar.Image src={selectedMint?.icon} />
@@ -214,31 +229,42 @@ export default function OptimizeWalletScreen() {
                     {/* Fragmentation Summary Cards */}
                     {analysis && (
                         <XStack gap="$3" width="100%">
-                            <YStack items="center" gap="$1" px="$3" py="$3" bg="$gray2" rounded="$5" flex={1}>
+                            <YStack items="center" gap="$1.5" px="$3" py="$4" bg="$gray2" borderWidth={1} borderColor="$borderColor" rounded="$5" flex={1}>
                                 <Text fontSize="$6" fontWeight="800" color="$color">
                                     {analysis.proofCount}
                                 </Text>
-                                <Text fontSize="$1" color="$gray10" fontWeight="700">
+                                <Text fontSize="$1" color="$gray10" fontWeight="700" textTransform="uppercase" letterSpacing={0.5}>
                                     Total Proofs
                                 </Text>
                             </YStack>
 
-                            <YStack items="center" gap="$1" px="$3" py="$3" bg="$gray2" rounded="$5" flex={1}>
+                            <YStack items="center" gap="$1.5" px="$3" py="$4" bg="$gray2" borderWidth={1} borderColor="$borderColor" rounded="$5" flex={1}>
                                 <Text fontSize="$6" fontWeight="800" color={fragColor}>
                                     {fragStatus}
                                 </Text>
-                                <Text fontSize="$1" color="$gray10" fontWeight="700">
+                                <Text fontSize="$1" color="$gray10" fontWeight="700" textTransform="uppercase" letterSpacing={0.5}>
                                     Fragmentation
                                 </Text>
                             </YStack>
 
-                            <YStack items="center" gap="$1" px="$3" py="$3" bg="$gray2" rounded="$5" flex={1}>
+                            <YStack items="center" gap="$1.5" px="$3" py="$4" bg="$gray2" borderWidth={1} borderColor="$borderColor" rounded="$5" flex={1}>
                                 <Text fontSize="$6" fontWeight="800" color="$accent1">
                                     {analysis.estimatedAfterCount}
                                 </Text>
-                                <Text fontSize="$1" color="$gray10" fontWeight="700">
-                                    Optimal Target
+                                <Text fontSize="$1" color="$gray10" fontWeight="700" textTransform="uppercase" letterSpacing={0.5}>
+                                    Target Proofs
                                 </Text>
+                            </YStack>
+                        </XStack>
+                    )}
+
+                    {/* Fully Optimized Check Banner */}
+                    {!canOptimize && proofs.length > 0 && (
+                        <XStack bg="$green2" borderW={1} borderColor="$green6" p="$3.5" rounded="$4" gap="$3" items="center" mx="$2">
+                            <CheckCircle2 size={20} color="$green10" />
+                            <YStack flex={1}>
+                                <Text fontWeight="700" fontSize="$4" color="$green10">Fully Optimized</Text>
+                                <Text fontSize="$2" color="$gray10" lineHeight={16}>Your token structure is already optimal. No actions are required at this time.</Text>
                             </YStack>
                         </XStack>
                     )}
@@ -262,7 +288,7 @@ export default function OptimizeWalletScreen() {
                             {denominationCounts.map(({ amount, count }) => (
                                 <ListTableRow
                                     key={amount}
-                                    label={`₿ ${amount.toLocaleString()} sats`}
+                                    label={showBitcoinSymbol ? `₿${amount.toLocaleString()}` : `${amount.toLocaleString()} sats`}
                                     value={`${count} proof${count === 1 ? '' : 's'}`}
                                     icon={Zap}
                                     iconColor={amount >= 64 ? '$accent9' : '$gray10'}
@@ -274,7 +300,7 @@ export default function OptimizeWalletScreen() {
             </ScrollView>
 
             {/* Bottom Actions Area */}
-            <YStack p="$4" bg="$background" gap="$3" borderTopWidth={1} borderTopColor="$borderColor" opacity={isOptimizing ? 0.8 : 1}>
+            <YStack px="$4" pt="$4" pb={insets.bottom + 16} bg="$background" gap="$3" borderTopWidth={1} borderTopColor="$borderColor" opacity={isOptimizing ? 0.8 : 1}>
                 {isOptimizing ? (
                     <Button size="$5" bg="$gray4" rounded="$5" disabled>
                         <XStack gap="$2" items="center">

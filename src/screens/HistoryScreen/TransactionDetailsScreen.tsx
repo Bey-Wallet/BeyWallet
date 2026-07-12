@@ -760,7 +760,7 @@ export function TransactionDetailsScreen() {
         return (
             <>
                 <Stack.Screen options={makeHeaderOptions()} />
-                <ScrollView p="$4" pb="$8" bg="$background" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
+                <ScrollView bg="$background" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120, paddingHorizontal: 16, paddingTop: 16 } as any}>
                     <PendingTokenLayout
                         token={token}
                         amount={entry.amount}
@@ -785,7 +785,7 @@ export function TransactionDetailsScreen() {
         return (
             <>
                 <Stack.Screen options={headerOptions} />
-                <ScrollView gap="$3" pb="$8" p="$4" bg="$background" showsVerticalScrollIndicator={false}>
+                <ScrollView bg="$background" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 16, paddingTop: 16 } as any}>
                     <YStack bg="$background" gap="$4">
                         {/* Big Amount */}
                         <YStack gap="$2" items="center" justify="center" py="$5">

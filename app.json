@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bey Wallet",
     "slug": "bey-wallet",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
     "scheme": "bey-wallet",

@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     Clock,
     Bitcoin,
+    RefreshCw,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
