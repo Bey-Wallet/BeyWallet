@@ -37,8 +37,9 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 
 ### 💰 Cashu (Ecash) & Bitcoin
 *   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
-*   **Mint Management**: Professional dashboard to add, trust, and monitor multiple community mints.
-*   **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, even completely offline.
+*   **On-Chain Bitcoin**: Fund your wallet via Bitcoin addresses and melt ecash to pay any on-chain transaction directly.
+*   **Mint Management**: Add, trust, and monitor multiple community mints from a central dashboard.
+*   **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, optimized automatically for various coin/proof subsets.
 *   **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
 
 ### 🆔 Nostr Integration
@@ -51,9 +52,12 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 *   **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.
 *   **Secure Enclave**: Your recovery phrase and private keys are protected by hardware-level security.
 *   **Biometric Guard**: Face ID, Touch ID, or Passcode protection for every sensitive operation.
+*   **Privacy Mode**: Long-press balance to mask/unmask your funds in public.
+*   **Custom display unit**: Configurable options to show SATS, local FIAT, or enable the ₿ symbol mode.
 
-### 💾 Reliability
+### 💾 Reliability & Optimization
 *   **Deterministic Recovery**: Restore your entire wallet balance across all mints with just 12 words.
+*   **Optimize Wallet**: Consolidate fragmented ecash proofs to optimize wallet speed and transaction compilation.
 *   **Smart Backups**: Export and import complete wallet state via encrypted `.bey` files.
 
 ---
@@ -78,8 +82,8 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 ### Quick Start
 1.  **Clone the repo**:
     ```bash
-    git clone https://github.com/arshfx01/bey-wallet.git
-    cd bey-wallet
+    git clone https://github.com/Bey-Wallet/BeyWallet.git
+    cd BeyWallet
     ```
 2.  **Install dependencies**:
     ```bash
