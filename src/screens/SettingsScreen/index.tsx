@@ -218,7 +218,11 @@ export function SettingsScreen() {
                 {
                     id: 'mint',
                     title: 'Default Mint',
+<<<<<<< Updated upstream
                     subTitle: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None selected',
+=======
+                    value: defaultMintUrl ? (() => { try { return new URL(defaultMintUrl).hostname; } catch { return defaultMintUrl; } })() : 'None',
+>>>>>>> Stashed changes
                     icon: Server,
                 },
                 {

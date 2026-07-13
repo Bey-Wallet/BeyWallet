@@ -75,6 +75,39 @@ export function SendModalScreen() {
     const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
     const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
     const [nostrSending, setNostrSending] = useState(false)
+<<<<<<< Updated upstream
+=======
+    const [expiryEnabled, setExpiryEnabled] = useState(true)
+    const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
+    const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
+    const [isHardwareOffline, setIsHardwareOffline] = useState(false)
+    const [forceOffline, setForceOffline] = useState(false)
+    const [selectedOfflineProofs, setSelectedOfflineProofs] = useState<any[] | null>(null)
+    const isOffline = isHardwareOffline || forceOffline
+    const optimizationSheetRef = React.useRef<OfflineOptimizationSheetRef>(null)
+
+    const handleOfflineOptimizationConfirm = useCallback((optimizedAmount: number, proofs: any[]) => {
+        console.log('[SendModalScreen] Offline optimization confirmed amount:', optimizedAmount, 'proofs:', proofs.length);
+        setAmount(String(optimizedAmount));
+        setSelectedOfflineProofs(proofs);
+        setStep('confirm');
+    }, []);
+
+    React.useEffect(() => {
+        const checkNetwork = async () => {
+            try {
+                const state = await Network.getNetworkStateAsync();
+                setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
+            } catch (e) {
+                setIsHardwareOffline(false);
+            }
+        };
+        checkNetwork();
+        const interval = setInterval(checkNetwork, 4000);
+        return () => clearInterval(interval);
+    }, []);
+
+>>>>>>> Stashed changes
     const router = useRouter()
     const queryClient = useQueryClient();
 
@@ -269,6 +302,25 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             console.log('[SendModalScreen] Send successful. OpId:', result.id, 'Token length:', (result.encoded || result.token || '').length);
+<<<<<<< Updated upstream
+=======
+
+            const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+            setExpiresAt(computedExpiry);
+
+            // Tag this as a locally-created ecash token (not sent via Nostr)
+            historyService.tagHistoryVia(
+                activeMintUrl,
+                'send',
+                'ecash_create',
+                computedExpiry ? {
+                    expiresAt: computedExpiry,
+                    expiryHours: expiryHours,
+                } : undefined,
+                result.id,
+            ).catch(() => { });
+
+>>>>>>> Stashed changes
             setStep('result');
         } catch (err: any) {
             console.error('[SendModal] Failed to send:', err);
@@ -447,6 +499,13 @@ export function SendModalScreen() {
 
             {step === 'amount' && (
                 <YStack flex={1}>
+<<<<<<< Updated upstream
+=======
+                    {(() => {
+                        console.log('[SendModalScreen] Rendering step: amount, sendMode:', sendMode, 'isOffline:', isOffline);
+                        return null;
+                    })()}
+>>>>>>> Stashed changes
                     {sendMode === 'standard' && (
                         <AmountStage
                             amount={amount}
