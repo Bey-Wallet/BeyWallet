@@ -12,21 +12,71 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View } from 'tamagui';
-import { ChevronRight } from '@tamagui/lucide-icons';
+import { YStack, XStack, H6, Text, View, styled, Button } from 'tamagui';
+import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService } from '~/services/currencyService';
+import { useContactsStore } from '~/store/contactsStore';
+
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function safeNpubEncode(pubkey: string): string {
+    if (!pubkey) return '';
+    if (pubkey.startsWith('npub1')) return pubkey;
+    if (pubkey.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(pubkey);
+            if (decoded.type === 'nprofile') {
+                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+            }
+        } catch {}
+        return pubkey;
+    }
+    // Assume hex
+    try {
+        return nip19.npubEncode(hexToBytes(pubkey));
+    } catch {
+        return pubkey;
+    }
+}
 
 function formatNpub(hex: string): string {
     try {
-        const npub = nip19.npubEncode(hex);
+        const npub = safeNpubEncode(hex);
         return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
     } catch {
         return `${hex.slice(0, 6)}…`;
     }
+}
+
+function useResolveUsername(pubkey: string): string | undefined {
+    const favorites = useContactsStore(s => s.favorites);
+    const contacts = useContactsStore(s => s.contacts || {});
+
+    return useMemo(() => {
+        const npub = safeNpubEncode(pubkey);
+        const candidates = [pubkey, npub];
+
+        for (const key of candidates) {
+            if (favorites[key]?.username) return favorites[key].username!;
+            if (contacts[key]?.username) return contacts[key].username!;
+        }
+        return undefined;
+    }, [pubkey, favorites, contacts]);
 }
 
 function timeAgo(ts: number): string {
@@ -39,10 +89,28 @@ function timeAgo(ts: number): string {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+const RowContainer = styled(XStack, {
+    items: "center",
+    justify: "space-between",
+    gap: "$2",
+    pressStyle: { opacity: 0.7 },
+});
+
 export default function NostrActivity() {
     const items = useNostrInboxStore(s => s.items);
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const router = useRouter();
+
+    const favorites = useContactsStore(s => s.favorites);
+    const contacts = useContactsStore(s => s.contacts || {});
+
+    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+
+    const { data: btcData } = useQuery({
+        queryKey: ['bitcoinPrice', secondaryCurrency],
+        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+        staleTime: 30000,
+    });
 
     // On mount, check if any "pending" items are actually already spent
     useEffect(() => {
@@ -58,20 +126,54 @@ export default function NostrActivity() {
         [items]
     );
 
+    const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
+    const sheetRef = React.useRef<AppBottomSheetRef>(null);
+
+    const resolvedRequestUsername = useResolveUsername(selectedRequest?.senderPubkey || '');
+    const requestDisplayName = selectedRequest?.senderUsername || resolvedRequestUsername || (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
+
     const handleOpenClaim = (item: NostrInboxItem) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        DeviceEventEmitter.emit('nostr:openClaim', item);
+        if (item.type === 'request') {
+            setSelectedRequest(item);
+            sheetRef.current?.present();
+        } else {
+            DeviceEventEmitter.emit('nostr:openClaim', item);
+        }
+    };
+
+    const handlePayRequest = () => {
+        if (!selectedRequest) return;
+        sheetRef.current?.dismiss();
+        router.push({
+            pathname: '/(modals)/send',
+            params: { paymentRequest: selectedRequest.tokenString, inboxItemId: selectedRequest.id }
+        });
+    };
+
+    const handleDeclineRequest = () => {
+        if (!selectedRequest) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        useNostrInboxStore.getState().dismiss(selectedRequest.id);
+        sheetRef.current?.dismiss();
     };
 
     // Nothing to show — hide entirely
     if (unclaimed.length === 0) return null;
 
     return (
-        <YStack width="100%" gap="$4" px="$1">
+        <YStack
+            width="100%"
+            gap="$4"
+            p="$2.5"
+            pr="$4"
+            rounded="$5"
+            bg={"$color2"}
+        >
             {/* Section header */}
             <XStack items="center" justify="space-between">
                 <XStack items="center" gap="$2">
-                    <H6 color="$gray10" borderBottomWidth={1} borderBottomColor="$gray10" borderStyle="dashed">
+                    <H6 color="$gray10">
                         Incoming
                     </H6>
                     <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
@@ -90,53 +192,119 @@ export default function NostrActivity() {
             </XStack>
 
             <YStack gap="$3">
-                {unclaimed.map((item) => (
-                    <XStack
-                        key={item.id}
-                        items="center"
-                        justify="space-between"
-                        pressStyle={{ opacity: 0.7 }}
-                    >
-                        {/* Left — blockie + info */}
-                        <XStack items="center" gap="$3" flex={1}>
-                            <View position="relative">
-                                <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
-                                {!item.seen && (
-                                    <View
-                                        position="absolute" top={-2} right={-2}
-                                        bg="$red10" w={8} h={8} rounded="$10"
-                                        borderWidth={1.5} borderColor="$background"
-                                    />
-                                )}
-                            </View>
-                            <YStack flex={1}>
-                                <Text fontSize="$5" fontWeight="700" numberOfLines={1}>
-                                    {item.senderUsername || formatNpub(item.senderPubkey)}
-                                </Text>
-                                <Text fontSize="$1" color="$gray10">{timeAgo(item.receivedAt)}</Text>
-                            </YStack>
-                        </XStack>
+                {unclaimed.map((item) => {
+                    const fiatAmount = btcData?.price
+                        ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+                        : 0;
+                    const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+                    const sign = item.type === 'request' ? '?' : '+';
 
-                        {/* Right — rounded amount button */}
-                        <XStack
-                            bg="$gray5"
-                            px="$3"
-                            py="$2"
-                            rounded="$10"
-                            items="center"
-                            gap="$1"
+                    const npub = safeNpubEncode(item.senderPubkey);
+                    const resolvedUsername = favorites[item.senderPubkey]?.username || 
+                                             contacts[item.senderPubkey]?.username ||
+                                             favorites[npub]?.username || 
+                                             contacts[npub]?.username;
+                    const displayName = item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
+
+                    return (
+                        <RowContainer
+                            key={item.id}
                             onPress={() => handleOpenClaim(item)}
-                            pressStyle={{ scale: 0.96, opacity: 0.85 }}
-                            cursor="pointer"
                         >
-                            <Text fontSize={15} fontWeight="900" color="$accent4" letterSpacing={-0.3}>
-                                +₿{item.amount.toLocaleString()}
-                            </Text>
-                            <ChevronRight size={14} strokeWidth={3} color="$accent4" />
-                        </XStack>
-                    </XStack>
-                ))}
+                            <XStack items="center" gap="$2">
+                                <View position="relative">
+                                    <Blockies seed={item.senderPubkey} size={10} scale={4.5} style={{ borderRadius: 5 }} />
+                                    {!item.seen && (
+                                        <View
+                                            position="absolute" top={-2} right={-2}
+                                            bg="$red10" w={8} h={8} rounded="$10"
+                                            borderWidth={1.5} borderColor="$color2"
+                                        />
+                                    )}
+                                </View>
+                                <YStack gap="$0.5" mr="$2">
+                                    <H6 color="$accent4" textTransform="uppercase" numberOfLines={1} style={{ maxWidth: 180 }}>
+                                        {displayName.replace('@bey.cash', '')}
+                                    </H6>
+                                    <Text fontSize="$2" color="$gray9">
+                                        {timeAgo(item.receivedAt)}
+                                    </Text>
+                                </YStack>
+                            </XStack>
+
+                            <YStack items="flex-end" justify="center">
+                                {primaryCurrency === 'SATS' ? (
+                                    <>
+                                        <Text
+                                            fontWeight="900"
+                                            fontSize={20}
+                                            color="$accent4"
+                                        >
+                                            {sign}{currencyService.formatSats(item.amount)}
+                                        </Text>
+                                        <Text
+                                            fontSize="$2"
+                                            color="$gray10"
+                                            fontWeight="600"
+                                        >
+                                            {sign}{formattedFiat}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text
+                                            fontWeight="900"
+                                            fontSize={20}
+                                            color="$accent4"
+                                        >
+                                            {sign}{formattedFiat}
+                                        </Text>
+                                        <Text
+                                            fontSize="$2"
+                                            color="$gray10"
+                                            fontWeight="600"
+                                        >
+                                            {sign}{currencyService.formatSats(item.amount)}
+                                        </Text>
+                                    </>
+                                )}
+                            </YStack>
+                        </RowContainer>
+                    );
+                })}
             </YStack>
+
+            <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
+                <YStack p="$4" gap="$4" flex={1}>
+                    <YStack items="center" gap="$2" mb="$2">
+                        <Text fontSize="$5" fontWeight="800" color="$color">Payment Request</Text>
+                        <Text fontSize="$3" color="$gray10" textAlign="center">
+                            {requestDisplayName} is requesting {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.
+                        </Text>
+                    </YStack>
+                    <YStack gap="$3">
+                        <Button
+                            size="$5"
+                            theme="accent"
+                            fontWeight="800"
+                            icon={<ArrowUpRight size={20} />}
+                            onPress={handlePayRequest}
+                        >
+                            Pay Request
+                        </Button>
+                        <Button
+                            size="$5"
+                            bg="$red4"
+                            color="$red10"
+                            fontWeight="800"
+                            icon={<X size={20} />}
+                            onPress={handleDeclineRequest}
+                        >
+                            Decline
+                        </Button>
+                    </YStack>
+                </YStack>
+            </AppBottomSheet>
         </YStack>
     );
 }

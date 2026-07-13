@@ -1,4 +1,4 @@
-import { Check, Loader, AlertCircle } from '@tamagui/lucide-icons'
+import { Check, Loader, AlertCircle, Info } from '@tamagui/lucide-icons'
 import { Toast, useToastController, useToastState } from '@tamagui/toast'
 import { Button, H4, View, XStack, YStack, Spinner } from 'tamagui'
 import * as Haptics from 'expo-haptics'
@@ -47,8 +47,13 @@ export function CurrentToast() {
 
   if (!currentToast || currentToast.isHandledNatively) return null
 
+  const toastType = (currentToast as any).type || (currentToast as any).theme
   const isLoading = currentToast.title?.includes('Loading')
   const isError = currentToast.title && ['Error', 'Failed', 'Not Paid Yet', 'Invalid', 'Warning'].some(keyword => currentToast.title.includes(keyword))
+  
+  // Determine if it is a success action or general info
+  const isSuccess = toastType === 'success' || (currentToast.title && ['success', 'save', 'paid', 'claim', 'add', 'updat', 'received', 'loaded'].some(keyword => currentToast.title.toLowerCase().includes(keyword)))
+  const isInfo = toastType === 'info' || toastType === 'blue' || !isSuccess
 
   return (
     <Toast
@@ -58,7 +63,7 @@ export function CurrentToast() {
       enterStyle={{ opacity: 0, scale: 0.5, y: -25 }}
       exitStyle={{ opacity: 0, scale: 1, y: -20 }}
       width={350}
-      theme={isLoading ? "gray" : isError ? "red" : "green"}
+      theme={isLoading ? "gray" : isError ? "red" : isInfo ? "gray" : "green"}
       rounded="$5"
       transition="quick"
       p="$3"
@@ -71,6 +76,8 @@ export function CurrentToast() {
           <SpinningLoader size={18} color="$color" />
         ) : isError ? (
           <AlertCircle size={18} strokeWidth={3} color="$red11" />
+        ) : isInfo ? (
+          <Info size={18} strokeWidth={3} color="$color" opacity={0.8} />
         ) : (
           <Check size={18} strokeWidth={3} color="$green12" />
         )}

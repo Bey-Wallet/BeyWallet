@@ -58,7 +58,10 @@ function getDb(): SQLite.SQLiteDatabase {
   } catch {
     // initService not yet loaded — fall through to own connection
   }
-  return SQLite.openDatabaseSync('coco_wallet.db');
+  // Use the shared getDb from sqliteStorage to avoid multi-connection deadlocks
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getDb: getSqliteDb } = require('./sqliteStorage') as { getDb: () => SQLite.SQLiteDatabase };
+  return getSqliteDb();
 }
 
 

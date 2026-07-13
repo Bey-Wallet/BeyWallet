@@ -1,37 +1,34 @@
 import { useThemeToggle } from "@/components/Providers/theme-provider";
 import React from "react";
-import { Image } from "tamagui";
+import { View } from "tamagui";
+import BeyIcon from "./BeyIcon";
 
 interface GhostIconProps {
   size?: number;
   op?: number;
   black?: boolean;
   white?: boolean;
-  color?: string; // Ignored for now, but kept for compatibility if passed
+  color?: string;
 }
 
-const GhostIcon = ({ size = 120, op = 1, black = false, white = false }: GhostIconProps) => {
+const GhostIcon = ({ size = 120, op = 1, black = false, white = false, color }: GhostIconProps) => {
   const { currentTheme } = useThemeToggle();
 
-  let src;
-  if (white) {
-    src = require("../../../assets/images/Bey-dark-logo.png");
+  let resolvedColor: string;
+  if (color) {
+    resolvedColor = color;
+  } else if (white) {
+    resolvedColor = "white";
   } else if (black) {
-    src = require("../../../assets/images/Bey-light-logo.png");
+    resolvedColor = "black";
   } else {
-    src = currentTheme === "light"
-      ? require("../../../assets/images/Bey-light-logo.png")
-      : require("../../../assets/images/Bey-dark-logo.png");
+    resolvedColor = "$color";
   }
 
   return (
-    <Image
-      source={src}
-      opacity={op}
-      width={size}
-      height={size}
-      resizeMode="contain"
-    />
+    <View opacity={op} width={size} height={size} items="center" justify="center">
+      <BeyIcon size={size} color={resolvedColor} />
+    </View>
   );
 };
 

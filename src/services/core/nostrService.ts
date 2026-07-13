@@ -6,6 +6,7 @@ import {
   nip44,
   finalizeEvent,
 } from 'nostr-tools';
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { unwrapEvent } from 'nostr-tools/nip59';
 import { hexToBytes } from '@noble/hashes/utils';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
@@ -303,6 +304,34 @@ class NostrService {
    * accepting the payment.
    */
   private async _handleDecrypted(text: string, sourceEvent: Event): Promise<void> {
+    // ── 1. Check for incoming Payment Request (creqA / creqB) ──
+    const creqMatch = text.match(/(creq[AB][A-Za-z0-9_=-]+)/i);
+    if (creqMatch) {
+      const creqString = creqMatch[1];
+      console.log(`[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`);
+      try {
+        const { PaymentRequest } = await import('@cashu/cashu-ts');
+        const pr = PaymentRequest.fromEncodedRequest(creqString);
+        if (pr.amount && pr.mints && pr.mints.length > 0) {
+          const { useNostrInboxStore } = await import('../../store/nostrInboxStore');
+          const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
+
+          useNostrInboxStore.getState().addIncoming({
+            id: sourceEvent.id,
+            type: 'request',
+            tokenString: creqString,
+            amount: pr.amount,
+            mintUrl: pr.mints[0],
+            senderPubkey: sourceEvent.pubkey,
+            senderUsername,
+          });
+        }
+      } catch (e) {
+        console.warn(`[NostrService] Failed to parse creq string:`, e);
+      }
+      return; // Skip token parsing since it's a request
+    }
+
     let tokenString = '';
     let amount = 0;
     let mintUrl = '';
@@ -426,13 +455,8 @@ class NostrService {
 
     console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
-    // Resolve sender username from bey.cash directory
-    let senderUsername: string | undefined;
-    try {
-      senderUsername = await this.resolveUsername(sourceEvent.pubkey);
-    } catch {
-      // Non-fatal — display npub instead
-    }
+    // Resolve sender username from local contacts or directory
+    const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
 
     // ── Queue for manual claim via NostrClaimSheet ──────────────────────
     // Emit 'nostr:incoming' so the UI can present a claim sheet where the
@@ -447,6 +471,28 @@ class NostrService {
       requestId: requestIdFromPayload,
     });
     console.log(`[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`);
+  }
+
+  private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
+    try {
+      const { useContactsStore } = await import('../../store/contactsStore');
+      const { nip19 } = await import('nostr-tools');
+      
+      const bytes = new Uint8Array(pubkeyHex.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(pubkeyHex.substring(i * 2, i * 2 + 2), 16);
+      }
+      const npub = nip19.npubEncode(bytes);
+      
+      const store = useContactsStore.getState();
+      const contact = store.contacts[npub] || store.favorites[npub];
+      if (contact?.username) {
+        return contact.username;
+      }
+    } catch (e) {
+      console.warn('[NostrService] Failed local contact username lookup:', e);
+    }
+    return this.resolveUsername(pubkeyHex);
   }
 
   // ── Username Resolution ──────────────────────────────────────────────────
@@ -476,13 +522,66 @@ class NostrService {
   // ── Sending via Nostr ──────────────────────────────────────────────────────
 
   /**
-   * Send a cashu token to a recipient via Nostr DM (NIP-04 Kind 4).
+   * Helper to build a NIP-17 Gift Wrap event (Kind 1059 wrapping Kind 13 Seal wrapping Kind 14 Rumor).
+   * Used by cashu.me and modern Nostr wallets for direct message subscriptions.
+   */
+  private async createNip17GiftWrap(
+    message: string,
+    recipientPubkeyHex: string,
+    senderPrivkeyHex: string
+  ): Promise<Event> {
+    const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
+    const senderPubkeyHex = getPublicKey(senderPrivkeyBytes);
+
+    // 1. Rumor (Kind 14) - Unsigned inner DM
+    const rumor = {
+      kind: 14,
+      created_at: Math.floor(Date.now() / 1000),
+      pubkey: senderPubkeyHex,
+      tags: [['p', recipientPubkeyHex]],
+      content: message,
+    };
+    const rumorString = JSON.stringify(rumor);
+
+    // 2. Seal (Kind 13) - Encrypted with sender <-> recipient key & signed by sender
+    const sealConvKey = nip44.v2.utils.getConversationKey(senderPrivkeyBytes, recipientPubkeyHex);
+    const encryptedRumor = nip44.v2.encrypt(rumorString, sealConvKey);
+
+    const sealTemplate = {
+      kind: 13,
+      created_at: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 10),
+      pubkey: senderPubkeyHex,
+      tags: [],
+      content: encryptedRumor,
+    };
+    const signedSeal = finalizeEvent(sealTemplate, senderPrivkeyBytes);
+    const sealString = JSON.stringify(signedSeal);
+
+    // 3. Gift Wrap (Kind 1059) - Encrypted with ephemeral random key & signed by ephemeral key
+    const ephemeralPrivkeyBytes = generateSecretKey();
+    const ephemeralPubkeyHex = getPublicKey(ephemeralPrivkeyBytes);
+    const wrapConvKey = nip44.v2.utils.getConversationKey(ephemeralPrivkeyBytes, recipientPubkeyHex);
+    const encryptedSeal = nip44.v2.encrypt(sealString, wrapConvKey);
+
+    const randomPastTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400);
+
+    const wrapTemplate = {
+      kind: 1059,
+      created_at: randomPastTime,
+      pubkey: ephemeralPubkeyHex,
+      tags: [['p', recipientPubkeyHex]],
+      content: encryptedSeal,
+    };
+
+    return finalizeEvent(wrapTemplate, ephemeralPrivkeyBytes);
+  }
+
+  /**
+   * Send a cashu token / payment payload to a recipient via Nostr DM.
+   * Dual-publishes using both NIP-04 (Kind 4) and NIP-17 (Kind 1059 Gift Wrap)
+   * so all Nostr wallets (cashu.me, minibits, nutsack, etc.) receive the payment.
    *
-   * This is used to fulfil a NUT-18 payment request that uses Nostr transport.
-   * The token is encrypted to the recipient's pubkey and published across all
-   * 12 relays so wallets like cashu.me and minibits can pick it up.
-   *
-   * @param tokenString   Encoded cashu token (cashuA... or cashuB...)
+   * @param tokenString   Encoded cashu token or JSON payment payload string
    * @param recipientPubkeyHexOrNpub  Recipient's hex pubkey or npub
    * @param senderPrivkeyHex  Sender's Nostr private key (hex)
    * @returns true if published to at least one relay
@@ -511,35 +610,48 @@ class NostrService {
 
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
 
-    // Encrypt with NIP-04 (standard for ecash DMs — compatible with cashu.me / minibits)
+    // Build NIP-04 Event
     const encryptedContent = await nip04.encrypt(
       senderPrivkeyHex,
       recipientPubkeyHex,
       tokenString,
     );
-
-    const eventTemplate = {
+    const nip04Event = finalizeEvent({
       kind: 4,
       created_at: Math.floor(Date.now() / 1000),
       tags: [['p', recipientPubkeyHex]],
       content: encryptedContent,
-    };
+    }, senderPrivkeyBytes);
 
-    const signedEvent = finalizeEvent(eventTemplate, senderPrivkeyBytes);
+    // Build NIP-17 Gift Wrap Event
+    let nip17Event: Event | null = null;
+    try {
+      nip17Event = await this.createNip17GiftWrap(
+        tokenString,
+        recipientPubkeyHex,
+        senderPrivkeyHex,
+      );
+    } catch (e) {
+      console.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e);
+    }
 
     const pool = this.pool ?? new SimplePool();
 
     console.log(
-      `[NostrService] 📤 Sending token via Nostr DM to ${recipientPubkeyHex.slice(0, 8)}… on ${RELAYS.length} relays`,
+      `[NostrService] 📤 Sending token via Nostr DM (NIP-04 & NIP-17) to ${recipientPubkeyHex.slice(0, 8)}… on ${RELAYS.length} relays`,
     );
 
     try {
-      await Promise.any(pool.publish(RELAYS, signedEvent));
-      console.log(`[NostrService] ✅ Token published via Nostr. Event: ${signedEvent.id}`);
+      const promises = [Promise.any(pool.publish(RELAYS, nip04Event))];
+      if (nip17Event) {
+        promises.push(Promise.any(pool.publish(RELAYS, nip17Event)));
+      }
+      await Promise.allSettled(promises);
+      console.log(`[NostrService] ✅ Token published via Nostr.`);
 
       // Emit event for UI
       DeviceEventEmitter.emit('nostr:sent', {
-        eventId: signedEvent.id,
+        eventId: nip04Event.id,
         recipientPubkeyHex,
       });
 
@@ -625,6 +737,85 @@ class NostrService {
     } catch (err: any) {
       console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
       return [];
+    } finally {
+      pool.close(RELAYS);
+    }
+  }
+
+  // ── NIP-60 Wallet Encrypted Proof Backup (Kind 37375) ──────────────────────
+
+  /**
+   * Publish NIP-60 compliant kind 37375 event.
+   * Encrypts active tokens/proofs with NIP-44 to self and backs up to Nostr relays.
+   */
+  public async backupWalletStateToNostr(
+    walletData: any,
+    privkeyHex: string,
+    pubkeyHex: string
+  ): Promise<boolean> {
+    try {
+      const privkeyBytes = hexToBytes(privkeyHex);
+      const conversationKey = nip44.v2.utils.getConversationKey(privkeyBytes, pubkeyHex);
+      const plaintext = JSON.stringify(walletData);
+      const ciphertext = nip44.v2.encrypt(plaintext, conversationKey);
+
+      const eventTemplate = {
+        kind: 37375,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['d', 'cashu-wallet-backup']],
+        content: ciphertext,
+      };
+
+      const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
+      const pool = this.pool ?? new SimplePool();
+
+      console.log(`[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`);
+      await Promise.any(pool.publish(RELAYS, signedEvent));
+      console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
+      return true;
+    } catch (err: any) {
+      console.error('[NostrService] Failed NIP-60 wallet state backup:', err?.message || err);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch and decrypt NIP-60 kind 37375 event to recover backed-up wallet state.
+   */
+  public async fetchWalletStateFromNostr(
+    privkeyHex: string,
+    pubkeyHex: string
+  ): Promise<any | null> {
+    console.log(`[NostrService] 📥 Fetching NIP-60 wallet state from Nostr…`);
+    const pool = new SimplePool();
+
+    try {
+      const filter: Filter = {
+        authors: [pubkeyHex],
+        kinds: [37375],
+        '#d': ['cashu-wallet-backup'],
+        limit: 1,
+      };
+
+      const events = await pool.querySync(RELAYS, filter);
+      if (!events || events.length === 0) {
+        console.log('[NostrService] No NIP-60 wallet backup found on Nostr.');
+        return null;
+      }
+
+      events.sort((a, b) => b.created_at - a.created_at);
+      const latestEvent = events[0];
+
+      const privkeyBytes = hexToBytes(privkeyHex);
+      const conversationKey = nip44.v2.utils.getConversationKey(privkeyBytes, pubkeyHex);
+      const decryptedText = nip44.v2.decrypt(latestEvent.content, conversationKey);
+      const walletData = JSON.parse(decryptedText);
+
+      console.log('[NostrService] ✅ Successfully recovered and decrypted NIP-60 wallet state.');
+      return walletData;
+    } catch (err: any) {
+      console.error('[NostrService] Failed NIP-60 wallet state recovery:', err?.message || err);
+      return null;
     } finally {
       pool.close(RELAYS);
     }

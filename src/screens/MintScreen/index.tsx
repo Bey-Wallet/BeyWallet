@@ -1,13 +1,15 @@
 import { YStack } from "tamagui";
-import { useRouter, Stack } from "expo-router";
+import { useRouter, Stack, useLocalSearchParams } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
 import { InteractionManager } from "react-native";
 import { AmountStage } from "./AmountStage";
 import { ConfirmStage } from "./ConfirmStage";
 import { PaymentStage } from "./PaymentStage";
 import { ResultStage } from "./ResultStage";
+import { OnchainMintFlow } from "./OnchainMintFlow";
 import { useWalletStore } from "../../store/walletStore";
-import { eventService, quotesService } from "../../services/core";
+import { eventService, quotesService, initService } from "../../services/core";
+import { networkService } from "../../services/networkService";
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -20,8 +22,18 @@ interface MintQuoteData {
 
 export default function MintScreen() {
     const router = useRouter();
+    const { mode } = useLocalSearchParams<{ mode?: string }>();
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
+
+    if (mode === 'onchain') {
+        return (
+            <YStack flex={1} bg="$background" p="$4">
+                <Stack.Screen options={{ headerTitle: 'On-Chain Recieve' }} />
+                <OnchainMintFlow />
+            </YStack>
+        );
+    }
 
     const [step, setStep] = useState<MintStep>('amount');
     const [amount, setAmount] = useState("0");
@@ -52,6 +64,14 @@ export default function MintScreen() {
     const handleCreateQuote = useCallback(async () => {
         if (!activeMintUrl) {
             setError('No active mint selected');
+            return;
+        }
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            setStatus('error');
+            setStep('result');
             return;
         }
 
@@ -94,9 +114,20 @@ export default function MintScreen() {
         else router.back();
     };
 
-    const handleCancel = () => {
+    const handleCancel = async () => {
         setStatus('cancelled');
         setStep('result');
+        if (quoteData && activeMintUrl) {
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository) {
+                    await (repo.historyRepository as any).updateHistoryMintEntry(activeMintUrl, quoteData.quoteId, 'failed');
+                    console.log('[MintScreen] Marked cancelled mint quote in history as failed:', quoteData.quoteId);
+                }
+            } catch (e) {
+                console.warn('[MintScreen] Failed to mark cancelled mint quote in history:', e);
+            }
+        }
     };
 
     const handlePaid = async () => {

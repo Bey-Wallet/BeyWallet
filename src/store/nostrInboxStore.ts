@@ -13,11 +13,12 @@ import { DeviceEventEmitter } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed';
+export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed' | 'dismissed';
 
 export interface NostrInboxItem {
     id: string;               // Nostr event ID
-    tokenString: string;      // Raw cashuA/cashuB token
+    type?: 'token' | 'request'; // 'token' = incoming P2PK ecash, 'request' = incoming payment request
+    tokenString: string;      // Raw cashuA/cashuB token OR creqA/creqB request string
     amount: number;
     mintUrl: string;
     senderPubkey: string;
@@ -110,7 +111,9 @@ export const useNostrInboxStore = create<NostrInboxState>()(
 
     dismiss: (id) => {
         set(s => ({
-            items: s.items.filter(i => i.id !== id),
+            items: s.items.map(i =>
+                i.id === id ? { ...i, status: 'dismissed' as NostrInboxStatus } : i
+            ),
             activeClaimId: s.activeClaimId === id ? null : s.activeClaimId,
         }));
     },

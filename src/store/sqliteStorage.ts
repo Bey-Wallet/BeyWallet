@@ -1,17 +1,48 @@
 import * as SQLite from 'expo-sqlite';
 import type { StateStorage } from 'zustand/middleware';
 
-// Open or create the main database synchronously.
-// This is non-blocking on the React thread because it's synchronous native bridge access.
-const db = SQLite.openDatabaseSync('coco_wallet.db');
+let dbInstance: SQLite.SQLiteDatabase | null = null;
 
-// Ensure the settings table exists so we don't crash on completely fresh installs
-db.execSync(`
-  CREATE TABLE IF NOT EXISTS coco_cashu_settings (
-    key   TEXT PRIMARY KEY NOT NULL,
-    value TEXT NOT NULL
-  );
-`);
+/**
+ * Lazy initializer for the shared SQLite database connection.
+ * Sets standard performance pragmas and ensures the settings table is present.
+ */
+export function getDb(): SQLite.SQLiteDatabase {
+    if (!dbInstance) {
+        dbInstance = SQLite.openDatabaseSync('coco_wallet.db');
+        
+        // WAL mode permits concurrent reads and writes, avoiding database locks.
+        dbInstance.execSync('PRAGMA journal_mode = WAL;');
+        dbInstance.execSync('PRAGMA synchronous = NORMAL;');
+        // 8 MB page cache in memory
+        dbInstance.execSync('PRAGMA cache_size = -8000;');
+        // Wait up to 3s before raising SQLITE_BUSY to prevent write contention
+        dbInstance.execSync('PRAGMA busy_timeout = 3000;');
+        dbInstance.execSync('PRAGMA temp_store = MEMORY;');
+
+        dbInstance.execSync(`
+          CREATE TABLE IF NOT EXISTS coco_cashu_settings (
+            key   TEXT PRIMARY KEY NOT NULL,
+            value TEXT NOT NULL
+          );
+        `);
+    }
+    return dbInstance;
+}
+
+/**
+ * Safely closes the shared SQLite database connection.
+ */
+export function closeDb(): void {
+    if (dbInstance) {
+        try {
+            dbInstance.closeSync();
+        } catch (error) {
+            console.warn('[SqliteStorage] Failed to close database connection:', error);
+        }
+        dbInstance = null;
+    }
+}
 
 /**
  * A fast, synchronous storage driver for Zustand using expo-sqlite.
@@ -20,6 +51,7 @@ db.execSync(`
 export const sqliteStorage: StateStorage = {
     getItem: (name: string): string | null => {
         try {
+            const db = getDb();
             const row = db.getFirstSync<{ value: string }>(
                 'SELECT value FROM coco_cashu_settings WHERE key = ?',
                 [name]
@@ -32,6 +64,7 @@ export const sqliteStorage: StateStorage = {
     },
     setItem: (name: string, value: string): void => {
         try {
+            const db = getDb();
             db.runSync(
                 'INSERT OR REPLACE INTO coco_cashu_settings (key, value) VALUES (?, ?)',
                 [name, value]
@@ -42,6 +75,7 @@ export const sqliteStorage: StateStorage = {
     },
     removeItem: (name: string): void => {
         try {
+            const db = getDb();
             db.runSync('DELETE FROM coco_cashu_settings WHERE key = ?', [name]);
         } catch (error) {
             console.warn(`[SqliteStorage] Failed to remove item ${name}:`, error);

@@ -1,17 +1,22 @@
-import React, { useState, useCallback } from 'react'
-import { InteractionManager } from 'react-native'
+import React, { useState, useCallback, useEffect } from 'react'
+import { InteractionManager, BackHandler } from 'react-native'
 import { YStack } from 'tamagui'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { InputStage } from './InputStage'
 import { ConfirmStage } from './ConfirmStage'
 import { ReceiveResultStage } from './ReceiveResultStage'
 import { RequestEcashStage } from './RequestEcashStage'
-import { walletService, mintManager, initService } from '../../services/core';
+import { walletService, mintManager, initService, historyService } from '../../services/core';
 import { decodeToken } from '../../services/core/tokenUtils';
 import { useWalletStore } from '../../store/walletStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import { nip19 } from 'nostr-tools'
+import { networkService } from '../../services/networkService'
+import { nip19, SimplePool } from 'nostr-tools'
+import { RELAYS } from '../../services/core/nostrService'
+import { deriveSharingKeys, decryptToken } from '../../utils/ecashSharing'
 import ReceiveModeSelector, { ReceiveMode } from '../../components/ReceiveModeSelector'
+import { ProcessingSheet } from '../../components/UI/ProcessingSheet'
+import * as ClipboardAPI from 'expo-clipboard';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -36,13 +41,13 @@ export function ReceiveModalScreen() {
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
-    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string }>()
+    const params = useLocalSearchParams<{ scannedToken?: string, requestId?: string, from?: string, username?: string, mode?: string, paste?: string }>()
     const refreshBalance = useWalletStore(s => s.refreshBalance)
     const addMint = useWalletStore(s => s.addMint)
     const fetchMintInfo = useWalletStore(s => s.fetchMintInfo)
     const mints = useWalletStore(s => s.mints)
-
     const [isReceiveLater, setIsReceiveLater] = useState(false)
+    console.log('[ReceiveModalScreen] State - step:', step, 'isReceiving:', isReceiving);
 
     // Keep a stable ref to mints so handleDecodeToken never needs mints in its deps
     // (avoids infinite re-render when background fetchMintInfo updates the store)
@@ -50,28 +55,6 @@ export function ReceiveModalScreen() {
     React.useEffect(() => { mintsRef.current = mints; }, [mints]);
     const fetchMintInfoRef = React.useRef(fetchMintInfo);
     React.useEffect(() => { fetchMintInfoRef.current = fetchMintInfo; }, [fetchMintInfo]);
-
-    React.useEffect(() => {
-        if (params.scannedToken) {
-            const raw = params.scannedToken.trim();
-            const lower = raw.toLowerCase();
-
-            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
-            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
-                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
-                router.replace({
-                    pathname: '/(modals)/send',
-                    params: { paymentRequest: raw },
-                });
-                return;
-            }
-
-            setToken(raw);
-            handleDecodeToken(raw);
-        } else if (params.requestId) {
-            setReceiveMode('request');
-        }
-    }, [params.scannedToken, params.requestId]);
 
     const handleDecodeToken = useCallback(async (tokenToDecode?: string) => {
         const targetToken = tokenToDecode || token;
@@ -82,9 +65,37 @@ export function ReceiveModalScreen() {
         setIsReceiveLater(false);
 
         try {
+            let tokenToParse = targetToken.trim();
+            const isShareLink = tokenToParse.includes('/c/#') || tokenToParse.includes('/c#');
+            if (isShareLink) {
+                const hashIndex = tokenToParse.indexOf('#');
+                const secretKeyHex = tokenToParse.slice(hashIndex + 1).trim();
+                if (secretKeyHex.length !== 64) {
+                    throw new Error('Invalid shared eCash link format');
+                }
+
+                console.log('[ReceiveModal] Fetching encrypted token from Nostr...');
+                const keys = deriveSharingKeys(secretKeyHex);
+                const pool = new SimplePool();
+                const event = await pool.get(RELAYS, {
+                    authors: [keys.ephemeralPk],
+                    kinds: [30078],
+                    '#d': [keys.dTag]
+                });
+                pool.close(RELAYS);
+
+                if (!event) {
+                    throw new Error('eCash token link not found or expired on Nostr.');
+                }
+
+                tokenToParse = decryptToken(event.content, keys.encryptionKey);
+                setToken(tokenToParse);
+                console.log('[ReceiveModal] Decrypted eCash token successfully.');
+            }
+
             // Decode using tokenUtils.decodeToken which supports V3, V4 (cashuB/CBOR),
             // and has a manual CBOR fallback that works WITHOUT pre-synced keysets.
-            const rawDecoded = decodeToken(targetToken.trim());
+            const rawDecoded = decodeToken(tokenToParse);
             console.log('[ReceiveModal] decoded — mint:', rawDecoded.mint, 'proofs:', rawDecoded.proofs?.length);
 
             const mintUrl = rawDecoded.mint || '';
@@ -140,10 +151,58 @@ export function ReceiveModalScreen() {
         }
     }, [token]); // stable — only depends on token state, reads mints via ref
 
+    React.useEffect(() => {
+        console.log('[ReceiveModal] Params updated:', params);
+        if (params.scannedToken) {
+            const raw = params.scannedToken.trim();
+            const lower = raw.toLowerCase();
+
+            // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
+                router.replace({
+                    pathname: '/(modals)/send',
+                    params: { paymentRequest: raw },
+                });
+                return;
+            }
+
+            setToken(raw);
+            handleDecodeToken(raw);
+        } else if (params.requestId || params.from) {
+            setReceiveMode('request');
+        } else if (params.mode) {
+            setReceiveMode(params.mode as ReceiveMode);
+        }
+
+        if (params.paste === 'true') {
+            console.log('[ReceiveModal] Auto-paste check triggered');
+            ClipboardAPI.getStringAsync().then((text) => {
+                console.log('[ReceiveModal] Retrieved clipboard text:', text ? `${text.slice(0, 20)}...` : 'empty');
+                if (text && text.trim()) {
+                    const trimmed = text.trim();
+                    // NUT-18 Payment Request — redirect to Send modal, don't decode as token
+                    const lower = trimmed.toLowerCase();
+                    if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                        console.log('[ReceiveModal] Clipboard auto-paste detected NUT-18 payment request, redirecting to send...');
+                        router.replace({
+                            pathname: '/(modals)/send',
+                            params: { paymentRequest: trimmed },
+                        });
+                        return;
+                    }
+
+                    setToken(trimmed);
+                }
+            }).catch(err => {
+                console.warn('[ReceiveModal] Failed to auto-paste from clipboard:', err);
+            });
+        }
+    }, [params.scannedToken, params.requestId, params.from, params.mode, params.paste]);
+
     const handleReceiveLater = useCallback(async () => {
         if (!tokenInfo) return;
 
-        setIsReceiving(true);
         setError(null);
 
         try {
@@ -151,13 +210,11 @@ export function ReceiveModalScreen() {
             console.log('[ReceiveModal] Saving for later:', mintUrl);
 
             // 1. Ensure mint is added/known (optional but good for UI consistency)
-            try {
-                const knownMints = mints.map(m => m.mintUrl.toLowerCase());
-                if (!knownMints.includes(mintUrl.toLowerCase())) {
-                    await addMint(mintUrl, { trusted: true });
-                }
-            } catch (e) {
-                console.warn('[ReceiveModal] Failed to add mint during save later:', e);
+            const knownMints = mints.map(m => m.mintUrl.toLowerCase());
+            if (!knownMints.includes(mintUrl.toLowerCase())) {
+                addMint(mintUrl, { trusted: true }).catch(e => {
+                    console.warn('[ReceiveModal] Failed to add mint in background during save later:', e);
+                });
             }
 
             // 2. Decode to get the full token object for storage
@@ -187,13 +244,19 @@ export function ReceiveModalScreen() {
             setError(err.message || 'Failed to save for later');
             setStatus('error');
             setStep('result');
-        } finally {
-            setIsReceiving(false);
         }
     }, [token, tokenInfo, mints, addMint]);
 
     const handleReceive = useCallback(async () => {
         if (!tokenInfo) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            setStatus('error');
+            setStep('result');
+            return;
+        }
 
         setIsReceiving(true);
         setError(null);
@@ -257,6 +320,12 @@ export function ReceiveModalScreen() {
             setIsReceiveLater(false);
             setStep('result');
             refreshBalance(); // fire-and-forget, balance banner will update async
+
+            // 5. Tag history with how the token was received (fire-and-forget)
+            const via = params.from === 'nfc' ? 'nfc'
+                      : params.scannedToken   ? 'qr'
+                      : 'paste';
+            historyService.tagHistoryVia(tokenInfo.mint, 'receive', via).catch(() => {});
         } catch (err: any) {
             console.error('[ReceiveModal] ❌ Failed to receive token:', {
                 message: err?.message,
@@ -276,40 +345,46 @@ export function ReceiveModalScreen() {
         else if (step === 'confirm') handleReceive();
     }
 
-    const handleBack = () => {
-        if (step === 'confirm') {
+    const handleClose = useCallback(() => {
+        if (!params.scannedToken && router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
+        InteractionManager.runAfterInteractions(() => refreshBalance());
+    }, [params.scannedToken, router, refreshBalance]);
+
+    const handleBack = useCallback(() => {
+        if (step === 'confirm' && !params.scannedToken) {
             setStep('input');
             setTokenInfo(null);
             setError(null);
+        } else {
+            handleClose();
         }
-        else router.back();
-    }
+    }, [step, params.scannedToken, handleClose]);
 
-    const handleClose = () => {
-        router.back();
-        InteractionManager.runAfterInteractions(() => refreshBalance());
-    }
+    // Handle OS hardware back button (Android) safely for deep links
+    useEffect(() => {
+        const onBackPress = () => {
+            handleBack();
+            return true; // prevent default exit/crash
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [handleBack]);
+
+    const headerTitle = React.useMemo(() => {
+        if (step === 'result') return status === 'success' ? 'Success' : 'Error';
+        if (receiveMode === 'request') return 'Request Payment';
+        return 'Receive Ecash';
+    }, [step, status, receiveMode]);
 
     return (
         <YStack flex={1} bg="$background" >
             <Stack.Screen
                 options={{
-                    headerTitle: step === 'result'
-                        ? (status === 'success' ? 'Success' : 'Error')
-                        : () => (
-                            <ReceiveModeSelector
-                                mode={receiveMode}
-                                onSelect={(m) => {
-                                    setReceiveMode(m);
-                                    // Reset any pending state when switching
-                                    setError(null);
-                                    setToken('');
-                                    setTokenInfo(null);
-                                    setStep('input');
-                                }}
-                                isLoading={isDecoding || isReceiving}
-                            />
-                        ),
+                    headerTitle: headerTitle,
                     headerBackTitle: 'Back',
                 }}
             />
@@ -333,7 +408,12 @@ export function ReceiveModalScreen() {
 
             {/* ── Request Ecash: self-contained amount + result flow ─────── */}
             {receiveMode === 'request' && (
-                <RequestEcashStage onClose={handleClose} initialRequestId={params.requestId} />
+                <RequestEcashStage 
+                    onClose={handleClose} 
+                    initialRequestId={params.requestId} 
+                    targetNpub={params.from}
+                    targetUsername={params.username}
+                />
             )}
 
 
@@ -362,6 +442,14 @@ export function ReceiveModalScreen() {
                     title={status === 'success' ? (isReceiveLater ? 'Token Saved' : 'Ecash Received') : 'Receive Failed'}
                 />
             )}
+
+            {/* Global ProcessingSheet to prevent unmounting bugs during step transitions */}
+            <ProcessingSheet
+                visible={isReceiving}
+                title="Receiving"
+                amount={tokenInfo?.amount || 0}
+                detail={tokenInfo ? `Receiving from ${tokenInfo.preview?.name || tokenInfo.mint.replace(/^https?:\/\//, '').split('/')[0]}` : 'Receiving...'}
+            />
         </YStack>
     )
 }

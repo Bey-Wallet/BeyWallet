@@ -12,7 +12,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, Text, View, Separator, H6, Theme, Button, Spinner } from 'tamagui';
-import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight, Building2, Clock, Lock, User, Copy, Zap } from '@tamagui/lucide-icons';
+import { CheckCircle2, AlertCircle, ChevronRight, Inbox, ArrowUpRight, Landmark, Clock, Lock, User, Copy, Zap } from '@tamagui/lucide-icons';
 import Blockies from '~/components/UI/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/store/nostrInboxStore';
@@ -28,9 +28,37 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyServic
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function safeNpubEncode(pubkey: string): string {
+    if (!pubkey) return '';
+    if (pubkey.startsWith('npub1')) return pubkey;
+    if (pubkey.startsWith('nprofile1')) {
+        try {
+            const decoded = nip19.decode(pubkey);
+            if (decoded.type === 'nprofile') {
+                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+            }
+        } catch {}
+        return pubkey;
+    }
+    // Assume hex
+    try {
+        return nip19.npubEncode(hexToBytes(pubkey));
+    } catch {
+        return pubkey;
+    }
+}
+
 function formatNpub(hex: string): string {
     try {
-        const npub = nip19.npubEncode(hex);
+        const npub = safeNpubEncode(hex);
         return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
     } catch {
         return `${hex.slice(0, 6)}…`;
@@ -41,7 +69,7 @@ function hexToNpub(hex: string): string {
     try {
         // Strip 02 prefix if present (SEC1 compressed key)
         const clean = hex.startsWith('02') && hex.length === 66 ? hex.slice(2) : hex;
-        return nip19.npubEncode(clean);
+        return safeNpubEncode(clean);
     } catch {
         return hex;
     }
@@ -87,16 +115,8 @@ function useResolveUsername(pubkey: string): string | undefined {
     const contacts = useContactsStore(s => s.contacts || {});
 
     return useMemo(() => {
-        // pubkey can be hex, npub, or 02-prefixed hex
-        // Try all possible keys
-        const candidates = [pubkey];
-        // Try npub conversion
-        try {
-            const clean = pubkey.startsWith('02') && pubkey.length === 66 ? pubkey.slice(2) : pubkey;
-            if (!clean.startsWith('npub')) {
-                candidates.push(nip19.npubEncode(clean));
-            }
-        } catch {}
+        const npub = safeNpubEncode(pubkey);
+        const candidates = [pubkey, npub];
 
         for (const key of candidates) {
             if (favorites[key]?.username) return favorites[key].username!;
@@ -120,7 +140,7 @@ export default function NostrActivityModal() {
     const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
     const queryClient = useQueryClient();
 
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
         queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -211,10 +231,8 @@ export default function NostrActivityModal() {
 
     const fiatValue = useMemo(() => {
         if (!btcData?.price || !detailItem?.amount) return null;
-        const cur = SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency);
-        const symbol = cur?.symbol ?? '$';
         const val = currencyService.convertSatsToCurrency(detailItem.amount, btcData.price);
-        return `${symbol}${val.toFixed(2)}`;
+        return currencyService.formatValue(val, secondaryCurrency as any);
     }, [btcData?.price, detailItem?.amount, secondaryCurrency]);
 
     const mintDomain = detailItem?.mintUrl
@@ -291,13 +309,32 @@ export default function NostrActivityModal() {
             >
                 <YStack px="$4" gap="$1">
                     {activeTab === 'pending' && (
-                        <PendingTab items={unclaimed} onClaim={handleOpenClaim} onDetail={openInboxDetail} />
+                        <PendingTab
+                            items={unclaimed}
+                            onClaim={handleOpenClaim}
+                            onDetail={openInboxDetail}
+                            btcData={btcData}
+                            primaryCurrency={primaryCurrency}
+                            secondaryCurrency={secondaryCurrency}
+                        />
                     )}
                     {activeTab === 'received' && (
-                        <ReceivedTab items={claimed} onDetail={openInboxDetail} />
+                        <ReceivedTab
+                            items={claimed}
+                            onDetail={openInboxDetail}
+                            btcData={btcData}
+                            primaryCurrency={primaryCurrency}
+                            secondaryCurrency={secondaryCurrency}
+                        />
                     )}
                     {activeTab === 'sent' && (
-                        <SentTab entries={nostrHistory} onDetail={openHistoryDetail} />
+                        <SentTab
+                            entries={nostrHistory}
+                            onDetail={openHistoryDetail}
+                            btcData={btcData}
+                            primaryCurrency={primaryCurrency}
+                            secondaryCurrency={secondaryCurrency}
+                        />
                     )}
                 </YStack>
             </ScrollView>
@@ -315,16 +352,34 @@ export default function NostrActivityModal() {
                             <>
                                 {/* Amount */}
                                 <YStack items="center" gap="$1">
-                                    <Text
-                                        fontSize={32}
-                                        fontWeight="900"
-                                        color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                                        letterSpacing={-1}
-                                    >
-                                        {detailItem.type === 'sent' ? '-' : '+'}₿{detailItem.amount.toLocaleString()}
-                                    </Text>
-                                    {fiatValue && (
-                                        <Text fontSize="$3" color="$gray10">{fiatValue}</Text>
+                                    {primaryCurrency === 'SATS' ? (
+                                        <>
+                                            <Text
+                                                fontSize={32}
+                                                fontWeight="900"
+                                                color={detailItem.type === 'sent' ? '$red10' : '$color1'}
+                                                letterSpacing={-1}
+                                            >
+                                                {detailItem.type === 'sent' ? '−' : '+'}{showBitcoinSymbol ? '₿' : ''}{detailItem.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                            {fiatValue && (
+                                                <Text fontSize="$3" color="$gray10">{detailItem.type === 'sent' ? '−' : '+'}{fiatValue}</Text>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text
+                                                fontSize={32}
+                                                fontWeight="900"
+                                                color={detailItem.type === 'sent' ? '$red10' : '$color1'}
+                                                letterSpacing={-1}
+                                            >
+                                                {detailItem.type === 'sent' ? '−' : '+'}{fiatValue || '—'}
+                                            </Text>
+                                            <Text fontSize="$3" color="$gray10">
+                                                {detailItem.type === 'sent' ? '−' : '+'}{showBitcoinSymbol ? '₿' : ''}{detailItem.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                        </>
                                     )}
                                 </YStack>
 
@@ -334,7 +389,7 @@ export default function NostrActivityModal() {
                                         <DetailSheetRow pubkey={detailItem.pubkey} storedUsername={detailItem.username} type={detailItem.type} />
                                         <Separator borderColor="$borderColor" opacity={0.3} />
                                         <DetailRow
-                                            icon={<Building2 size={16} color="$gray9" />}
+                                            icon={<Landmark size={16} color="$gray9" />}
                                             label="Mint"
                                             value={mintDomain}
                                         />
@@ -407,7 +462,8 @@ function DetailSheetRow({ pubkey, storedUsername, type }: { pubkey: string; stor
 
 // ─── Pending Tab ──────────────────────────────────────────────────────────
 
-function PendingTab({ items, onClaim, onDetail }: { items: NostrInboxItem[]; onClaim: (item: NostrInboxItem) => void; onDetail: (item: NostrInboxItem) => void }) {
+function PendingTab({ items, onClaim, onDetail, btcData, primaryCurrency, secondaryCurrency }: { items: NostrInboxItem[]; onClaim: (item: NostrInboxItem) => void; onDetail: (item: NostrInboxItem) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (items.length === 0) {
         return (
             <EmptyState
@@ -420,58 +476,83 @@ function PendingTab({ items, onClaim, onDetail }: { items: NostrInboxItem[]; onC
 
     return (
         <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
-            {items.map((item, idx) => (
-                <React.Fragment key={item.id}>
-                    {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
-                    <XStack
-                        items="center"
-                        justify="space-between"
-                        px="$3"
-                        py="$3"
-                        onPress={() => onDetail(item)}
-                        pressStyle={{ opacity: 0.7 }}
-                    >
-                        <XStack items="center" gap="$3" flex={1}>
-                            <View position="relative">
-                                <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
-                                {item.status === 'failed' && (
-                                    <View
-                                        position="absolute" bottom={-2} right={-2}
-                                        bg="$red10" w={12} h={12} rounded="$10"
-                                        items="center" justify="center"
-                                    >
-                                        <AlertCircle size={8} color="white" />
-                                    </View>
-                                )}
-                            </View>
-                            <YStack flex={1}>
-                                <PendingRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
-                                <Text fontSize="$1" color="$gray10">
-                                    {timeAgo(item.receivedAt)}
-                                    {item.status === 'failed' ? ' · Failed — tap to retry' : ''}
-                                </Text>
-                            </YStack>
-                        </XStack>
+            {items.map((item, idx) => {
+                const fiatAmount = btcData?.price
+                    ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+                    : 0;
+                const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
 
+                return (
+                    <React.Fragment key={item.id}>
+                        {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
                         <XStack
-                            bg="$accent3"
-                            px="$3"
-                            py="$2"
-                            rounded="$10"
                             items="center"
-                            gap="$1"
-                            onPress={(e: any) => { e.stopPropagation?.(); onClaim(item); }}
-                            pressStyle={{ scale: 0.96, opacity: 0.85 }}
-                            cursor="pointer"
+                            justify="space-between"
+                            px="$3"
+                            py="$3"
+                            onPress={() => onDetail(item)}
+                            pressStyle={{ opacity: 0.7 }}
                         >
-                            <Text fontSize={15} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
-                                +₿{item.amount.toLocaleString()}
-                            </Text>
-                            <ChevronRight size={14} strokeWidth={3} color="$accent11" />
+                            <XStack items="center" gap="$3" flex={1}>
+                                <View position="relative">
+                                    <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
+                                    {item.status === 'failed' && (
+                                        <View
+                                            position="absolute" bottom={-2} right={-2}
+                                            bg="$red10" w={12} h={12} rounded="$10"
+                                            items="center" justify="center"
+                                        >
+                                            <AlertCircle size={8} color="white" />
+                                        </View>
+                                    )}
+                                </View>
+                                <YStack flex={1}>
+                                    <PendingRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
+                                    <Text fontSize="$1" color="$gray10">
+                                        {timeAgo(item.receivedAt)}
+                                        {item.status === 'failed' ? ' · Failed — tap to retry' : ''}
+                                    </Text>
+                                </YStack>
+                            </XStack>
+
+                            <XStack
+                                bg="$accent3"
+                                px="$3"
+                                py="$2"
+                                rounded="$10"
+                                items="center"
+                                gap="$2"
+                                onPress={(e: any) => { e.stopPropagation?.(); onClaim(item); }}
+                                pressStyle={{ scale: 0.96, opacity: 0.85 }}
+                                cursor="pointer"
+                            >
+                                <YStack items="flex-end" justify="center">
+                                    {primaryCurrency === 'SATS' ? (
+                                        <>
+                                            <Text fontSize={14} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                            <Text fontSize={10} fontWeight="700" color="$accent10">
+                                                +{formattedFiat}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text fontSize={14} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
+                                                +{formattedFiat}
+                                            </Text>
+                                            <Text fontSize={10} fontWeight="700" color="$accent10">
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                        </>
+                                    )}
+                                </YStack>
+                                <ChevronRight size={14} strokeWidth={3} color="$accent11" />
+                            </XStack>
                         </XStack>
-                    </XStack>
-                </React.Fragment>
-            ))}
+                    </React.Fragment>
+                );
+            })}
         </YStack>
     );
 }
@@ -487,7 +568,8 @@ function PendingRowName({ pubkey, storedUsername }: { pubkey: string; storedUser
 
 // ─── Received Tab ─────────────────────────────────────────────────────────
 
-function ReceivedTab({ items, onDetail }: { items: NostrInboxItem[]; onDetail: (item: NostrInboxItem) => void }) {
+function ReceivedTab({ items, onDetail, btcData, primaryCurrency, secondaryCurrency }: { items: NostrInboxItem[]; onDetail: (item: NostrInboxItem) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (items.length === 0) {
         return (
             <EmptyState
@@ -500,36 +582,61 @@ function ReceivedTab({ items, onDetail }: { items: NostrInboxItem[]; onDetail: (
 
     return (
         <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
-            {items.map((item, idx) => (
-                <React.Fragment key={item.id}>
-                    {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
-                    <XStack
-                        items="center"
-                        justify="space-between"
-                        px="$3"
-                        py="$3"
-                        onPress={() => onDetail(item)}
-                        pressStyle={{ opacity: 0.7 }}
-                    >
-                        <XStack items="center" gap="$3" flex={1}>
-                            <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
-                            <YStack flex={1}>
-                                <ReceivedRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
-                                <Text fontSize="$1" color="$gray10">
-                                    {timeAgo(item.receivedAt)} · Claimed
-                                </Text>
-                            </YStack>
-                        </XStack>
+            {items.map((item, idx) => {
+                const fiatAmount = btcData?.price
+                    ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+                    : 0;
+                const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
 
-                        <XStack items="center" gap="$1">
-                            <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
-                                +₿{item.amount.toLocaleString()}
-                            </Text>
-                            <CheckCircle2 size={14} color="$green10" />
+                return (
+                    <React.Fragment key={item.id}>
+                        {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
+                        <XStack
+                            items="center"
+                            justify="space-between"
+                            px="$3"
+                            py="$3"
+                            onPress={() => onDetail(item)}
+                            pressStyle={{ opacity: 0.7 }}
+                        >
+                            <XStack items="center" gap="$3" flex={1}>
+                                <Blockies seed={item.senderPubkey} size={10} scale={4} style={{ borderRadius: 5 }} />
+                                <YStack flex={1}>
+                                    <ReceivedRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
+                                    <Text fontSize="$1" color="$gray10">
+                                        {timeAgo(item.receivedAt)} · Claimed
+                                    </Text>
+                                </YStack>
+                            </XStack>
+
+                            <XStack items="center" gap="$2.5">
+                                <YStack items="flex-end" justify="center">
+                                    {primaryCurrency === 'SATS' ? (
+                                        <>
+                                            <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                            <Text fontSize={11} fontWeight="600" color="$gray10">
+                                                +{formattedFiat}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                                                +{formattedFiat}
+                                            </Text>
+                                            <Text fontSize={11} fontWeight="600" color="$gray10">
+                                                +{showBitcoinSymbol ? '₿' : ''}{item.amount.toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                            </Text>
+                                        </>
+                                    )}
+                                </YStack>
+                                <CheckCircle2 size={14} color="$green10" />
+                            </XStack>
                         </XStack>
-                    </XStack>
-                </React.Fragment>
-            ))}
+                    </React.Fragment>
+                );
+            })}
         </YStack>
     );
 }
@@ -545,7 +652,8 @@ function ReceivedRowName({ pubkey, storedUsername }: { pubkey: string; storedUse
 
 // ─── Sent Tab ─────────────────────────────────────────────────────────────
 
-function SentTab({ entries, onDetail }: { entries: any[]; onDetail: (entry: any) => void }) {
+function SentTab({ entries, onDetail, btcData, primaryCurrency, secondaryCurrency }: { entries: any[]; onDetail: (entry: any) => void; btcData: any; primaryCurrency: string; secondaryCurrency: string }) {
+    const { showBitcoinSymbol } = useSettingsStore();
     if (entries.length === 0) {
         return (
             <EmptyState
@@ -558,38 +666,63 @@ function SentTab({ entries, onDetail }: { entries: any[]; onDetail: (entry: any)
 
     return (
         <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
-            {entries.map((entry: any, idx: number) => (
-                <React.Fragment key={`hist-${idx}`}>
-                    {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
-                    <XStack
-                        items="center"
-                        justify="space-between"
-                        px="$3"
-                        py="$3"
-                        onPress={() => onDetail(entry)}
-                        pressStyle={{ opacity: 0.7 }}
-                    >
-                        <XStack items="center" gap="$3" flex={1}>
-                            <Blockies
-                                seed={entry.metadata?.p2pkPubkey || 'unknown'}
-                                size={10}
-                                scale={4}
-                                style={{ borderRadius: 5 }}
-                            />
-                            <YStack flex={1}>
-                                <SentRowName pubkey={entry.metadata?.p2pkPubkey || ''} />
-                                <Text fontSize="$1" color="$gray10">
-                                    {entry.createdAt ? timeAgo(entry.createdAt) : 'Unknown time'}
-                                </Text>
+            {entries.map((entry: any, idx: number) => {
+                const fiatAmount = btcData?.price
+                    ? currencyService.convertSatsToCurrency(entry.amount ?? 0, btcData.price)
+                    : 0;
+                const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+
+                return (
+                    <React.Fragment key={`hist-${idx}`}>
+                        {idx > 0 && <Separator borderColor="$borderColor" opacity={0.4} />}
+                        <XStack
+                            items="center"
+                            justify="space-between"
+                            px="$3"
+                            py="$3"
+                            onPress={() => onDetail(entry)}
+                            pressStyle={{ opacity: 0.7 }}
+                        >
+                            <XStack items="center" gap="$3" flex={1}>
+                                <Blockies
+                                    seed={entry.metadata?.p2pkPubkey || 'unknown'}
+                                    size={10}
+                                    scale={4}
+                                    style={{ borderRadius: 5 }}
+                                />
+                                <YStack flex={1}>
+                                    <SentRowName pubkey={entry.metadata?.p2pkPubkey || ''} />
+                                    <Text fontSize="$1" color="$gray10">
+                                        {entry.createdAt ? timeAgo(entry.createdAt) : 'Unknown time'}
+                                    </Text>
+                                </YStack>
+                            </XStack>
+
+                            <YStack items="flex-end" justify="center">
+                                {primaryCurrency === 'SATS' ? (
+                                    <>
+                                        <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                                            -{showBitcoinSymbol ? '₿' : ''}{(entry.amount ?? 0).toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                        </Text>
+                                        <Text fontSize={11} fontWeight="600" color="$gray10">
+                                            -{formattedFiat}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                                            -{formattedFiat}
+                                        </Text>
+                                        <Text fontSize={11} fontWeight="600" color="$gray10">
+                                            -{showBitcoinSymbol ? '₿' : ''}{(entry.amount ?? 0).toLocaleString()}{showBitcoinSymbol ? '' : ' sats'}
+                                        </Text>
+                                    </>
+                                )}
                             </YStack>
                         </XStack>
-
-                        <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
-                            -₿{entry.amount?.toLocaleString() ?? 0}
-                        </Text>
-                    </XStack>
-                </React.Fragment>
-            ))}
+                    </React.Fragment>
+                );
+            })}
         </YStack>
     );
 }

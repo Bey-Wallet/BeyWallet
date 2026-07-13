@@ -15,6 +15,7 @@ import {
     Zap,
     ScanLine,
     Check,
+    Link,
 } from '@tamagui/lucide-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -94,7 +95,7 @@ export default function SendMethodSelector({
             {/* Pill button shown in the nav header */}
             <Button
                 size="$3"
-                theme={({ standard: 'white', p2pk: 'orange', nostr: 'pink', scan: 'green' } as const)[mode]}
+                theme={({ standard: 'white', link: 'yellow', p2pk: 'orange', nostr: 'pink', scan: 'green' } as const)[mode]}
                 px={isLoading ? '$3' : '$3'}
                 borderWidth={1}
                 disabled={isLoading}

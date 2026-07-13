@@ -4,6 +4,7 @@ export interface SettingItemConfig {
     id: string;
     title: string | ReactNode;
     subTitle?: string;
+    value?: string;
     icon: any;
     iconAfter?: any;
     onPress?: () => void;
@@ -13,6 +14,9 @@ export interface SettingItemConfig {
     bg?: string;
     hoverStyle?: any;
     pressStyle?: any;
+    isSwitch?: boolean;
+    checked?: boolean;
+    onCheckedChange?: (val: boolean) => void;
 }
 
 export interface SettingSectionConfig {

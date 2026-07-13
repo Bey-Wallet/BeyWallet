@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, Check, Building2, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square, Input, YGroup } from 'tamagui';
+import { ChevronLeft, ChevronDown, RefreshCw, Check, Landmark, Globe, ShieldCheck, ShieldAlert, Plus, Trash2, Copy, ExternalLink, ArrowRight, ChevronRight, AlertCircle, Sprout } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -15,12 +15,13 @@ import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bitcoinService } from '~/services/bitcoinService';
+import { Image } from 'tamagui';
 
 export default function MintsModal() {
     const router = useRouter();
     const { mints, balances, refreshBalance, isInitializing, activeMintUrl, setActiveMint, untrustMint, removeMint, refreshMintList, trustMint } = useWalletStore();
     const insets = useSafeAreaInsets();
-    const { secondaryCurrency } = useSettingsStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -53,9 +54,10 @@ export default function MintsModal() {
 
     const handleMintPress = (mint: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSelectedMintForSheet(mint);
-        setQuote(null);
-        sheetRef.current?.present();
+        router.push({
+            pathname: '/(modals)/mint-details',
+            params: { mintUrl: mint.mintUrl }
+        });
     };
 
     const handleRequestMint = async () => {
@@ -205,28 +207,43 @@ export default function MintsModal() {
                     <YStack py="$2" gap="$2">
 
                         <XStack items="baseline" gap="$0" py="$2">
+                            {primaryCurrency === 'SATS' ? (
+                                <RollingNumber
+                                    fontSize={30}
+                                    prefix={showBitcoinSymbol ? '₿' : ''}
+                                    suffix={showBitcoinSymbol ? '' : ' SATS'}
+                                    fontWeight="900"
+                                    color="$accent4"
+                                    showDecimals={false}
 
-                            <RollingNumber
-                                fontSize={30}
-                                prefix='₿'
-                                fontWeight="900"
-                                color="$accent4"
-                                showDecimals={false}
-                                letterSpacing={-2}
+                                >
+                                    {totalBalance}
+                                </RollingNumber>
+                            ) : (
+                                <RollingNumber
+                                    fontSize={30}
+                                    fontWeight="900"
+                                    color="$accent4"
+                                    showDecimals={true}
 
-                            >
-                                {totalBalance}
-                            </RollingNumber>
+                                >
+                                    {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
+                                </RollingNumber>
+                            )}
                         </XStack>
                         <RollingNumber
-                            value={fiatBalance}
+                            value={primaryCurrency === 'SATS' ? fiatBalance : totalBalance}
+                            prefix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '₿' : '')}
+                            suffix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '' : ' SATS')}
                             fontSize={16}
                             fontWeight="900"
                             color="$accent8"
                             decimalOpacity={0.4}
-                            showDecimals={false}
+                            showDecimals={primaryCurrency === 'SATS'}
                         >
-                            {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
+                            {primaryCurrency === 'SATS'
+                                ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
+                                : undefined}
                         </RollingNumber>
                     </YStack>
 
@@ -238,8 +255,7 @@ export default function MintsModal() {
                             </View>
                         </XStack>
 
-                        <YStack rounded="$5" theme="gray" bg="$gray2"
-                            overflow="hidden">
+                        <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                             {mints.length === 0 ? (
                                 <YStack py="$10" items="center" justify="center" gap="$3" opacity={0.5} p="$3">
                                     <View p="$4" bg="$gray2" rounded="$10">
@@ -253,50 +269,77 @@ export default function MintsModal() {
                                     </YStack>
                                 </YStack>
                             ) : (
-                                mints.map((mint, index) => {
+                                mints.map((mint) => {
                                     const balance = balances[mint.mintUrl] || 0;
                                     const isActive = mint.mintUrl === activeMintUrl;
 
                                     return (
-                                        <React.Fragment key={mint.mintUrl}>
-                                            <YStack
-                                                onPress={() => handleMintPress(mint)}
-                                                pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                                                py="$2"
-                                                px="$2"
+                                        <YGroup.Item key={mint.mintUrl}>
+                                            <ListItem
+                                                hoverStyle={{ bg: '$backgroundHover' }}
+                                                pressStyle={{ bg: '$backgroundPress' }}
+                                                bg="transparent"
+                                                py="$3"
                                                 pr="$3"
+                                                pl='$2.5'
+                                                onPress={() => handleMintPress(mint)}
+                                                icon={
+                                                    !mint.icon ? (
+                                                        <View width={35} height={35} justify="center" bg="$gray6" rounded={5} items="center">
 
+                                                            <Sprout size={20} color={isActive ? '$blue10' : '$color'} />
+                                                        </View>
+                                                    ) : (
+                                                        <Image
+                                                            src={mint.icon}
+                                                            width={35}
+                                                            height={35}
+                                                            alt={mint.nickname || mint.name}
+                                                            borderRadius={5}
+                                                            borderColor={isActive ? '$blue10' : '$borderColor'}
+                                                            borderWidth={isActive ? 2 : 1}
+                                                        />
+                                                    )
+                                                }
+                                                iconAfter={
+                                                    <Text
+                                                        fontWeight="800"
+                                                        fontSize="$5"
+                                                        color="$accent3"
+                                                    >
+                                                        {primaryCurrency === 'SATS'
+                                                            ? (showBitcoinSymbol 
+                                                                ? `₿${balance.toLocaleString()}`
+                                                                : `${balance.toLocaleString()} sats`
+                                                              )
+                                                            : currencyService.formatValue(
+                                                                btcData?.price
+                                                                    ? currencyService.convertSatsToCurrency(balance, btcData.price)
+                                                                    : 0,
+                                                                secondaryCurrency as CurrencyCode
+                                                            )
+                                                        }
+                                                    </Text>
+                                                }
                                             >
-                                                <XStack justify="space-between" items="center">
-                                                    <XStack gap="$3" items="center">
-                                                        <Avatar rounded="$4" size="$3" borderWidth={1} borderColor={isActive ? "$blue10" : "$borderColor"}>
-                                                            <Avatar.Image src={mint.icon} />
-                                                            <Avatar.Fallback backgroundColor="$gray2" alignItems="center" justifyContent="center">
-                                                                <Building2 size={24} color="$gray10" />
-                                                            </Avatar.Fallback>
-                                                        </Avatar>
-                                                        <YStack>
-                                                            <XStack gap="$2" items="center" >
-                                                                <Text fontWeight="800" fontSize="$3" numberOfLines={1} ellipsizeMode="tail" maxW={150} color={isActive ? "$blue10" : "$color"} >
-                                                                    {mint.nickname || mint.name || 'Unnamed Mint'}
-                                                                </Text>
-                                                            </XStack>
-                                                        </YStack>
-                                                    </XStack>
-
-                                                    <YStack items="flex-end">
-                                                        <Text fontWeight="900" fontSize="$4" color={isActive ? "$blue10" : "$color"}>
-                                                            ₿{balance.toLocaleString()}
-                                                        </Text>
-                                                    </YStack>
+                                                <XStack flex={1} flexWrap="wrap" items="center" gap="$2" mr="$2">
+                                                    <Text fontSize="$5" fontWeight="600" color="$accent5">
+                                                        {mint.nickname || mint.name || 'Unnamed Mint'}
+                                                    </Text>
+                                                    {isActive && (
+                                                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '$blue2' }}>
+                                                            <Text fontSize={9} fontWeight="800" color="$blue10" style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                                                Active
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </XStack>
-                                            </YStack>
-                                            {index < mints.length - 1 && <Separator borderColor="$color8" opacity={0.5} />}
-                                        </React.Fragment>
+                                            </ListItem>
+                                        </YGroup.Item>
                                     );
                                 })
                             )}
-                        </YStack>
+                        </YGroup>
                     </YStack>
                 </YStack>
             </ScrollView>
@@ -312,7 +355,7 @@ export default function MintsModal() {
                             <Avatar rounded="$6" size="$6" borderWidth={2} borderColor="$borderColor">
                                 <Avatar.Image src={selectedMintForSheet?.icon} />
                                 <Avatar.Fallback bg="$gray2" items="center" justify="center">
-                                    <Building2 size={48} color="$gray10" />
+                                    <Landmark size={48} color="$gray10" />
                                 </Avatar.Fallback>
                             </Avatar>
                             <YStack flex={1}>
@@ -366,17 +409,34 @@ export default function MintsModal() {
                         <YStack gap="$2" items="center" bg="$gray2" p="$4" rounded="$6">
                             <Text fontSize="$4" color="$gray10" fontWeight="700">Spendable Balance</Text>
                             <XStack items="baseline" gap="$0">
-
-                                <RollingNumber
-                                    letterSpacing={-1}
-                                    prefix='₿'
-                                    fontSize={32}
-                                    fontWeight="900"
-                                    color="$accent4"
-                                    showDecimals={false}
-                                >
-                                    {selectedMintForSheet ? (balances[selectedMintForSheet.mintUrl] || 0) : 0}
-                                </RollingNumber>
+                                {primaryCurrency === 'SATS' ? (
+                                    <RollingNumber
+                                        letterSpacing={-1}
+                                        prefix={showBitcoinSymbol ? '₿' : ''}
+                                        suffix={showBitcoinSymbol ? '' : ' SATS'}
+                                        fontSize={32}
+                                        fontWeight="900"
+                                        color="$accent4"
+                                        showDecimals={false}
+                                    >
+                                        {selectedMintForSheet ? (balances[selectedMintForSheet.mintUrl] || 0) : 0}
+                                    </RollingNumber>
+                                ) : (
+                                    <RollingNumber
+                                        letterSpacing={-1}
+                                        fontSize={32}
+                                        fontWeight="900"
+                                        color="$accent4"
+                                        showDecimals={true}
+                                    >
+                                        {selectedMintForSheet && btcData?.price
+                                            ? currencyService.formatValue(
+                                                currencyService.convertSatsToCurrency(balances[selectedMintForSheet.mintUrl] || 0, btcData.price),
+                                                secondaryCurrency as CurrencyCode
+                                            )
+                                            : '...'}
+                                    </RollingNumber>
+                                )}
                             </XStack>
                         </YStack>
 

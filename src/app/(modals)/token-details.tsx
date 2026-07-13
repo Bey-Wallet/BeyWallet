@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, H2, Separator, View, Popover, ListItem, Adapt, Sheet } from "tamagui";
-import { Copy, Share, Zap, ArrowUpDown, Building2, DollarSign, Layout, MoreHorizontal, Link, Contact2, Trash2, Scan, Share2, Check, RotateCcw, XCircle, Gauge, ZoomIn, Hexagon, ChevronDown, Repeat } from "@tamagui/lucide-icons";
+import { Copy, Share, Zap, ArrowUpDown, Landmark, DollarSign, Layout, MoreHorizontal, Link, Contact2, Trash2, Scan, Share2, Check, RotateCcw, XCircle, Gauge, ZoomIn, Hexagon, ChevronDown, Repeat } from "@tamagui/lucide-icons";
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -422,7 +422,7 @@ export default function TokenDetailsModal() {
 
                 <XStack justify="space-between" items="center">
                     <XStack gap="$3" items="center">
-                        <Building2 size={18} opacity={0.7} />
+                        <Landmark size={18} opacity={0.7} />
                         <Text color="$gray10" fontSize="$4" fontWeight="500">Mint</Text>
                     </XStack>
                     <Text fontWeight="700" fontSize="$4" opacity={0.9} numberOfLines={1} style={{ maxWidth: 200, textAlign: 'right' }}>

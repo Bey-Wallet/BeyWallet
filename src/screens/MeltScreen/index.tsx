@@ -1,27 +1,39 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { InteractionManager } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '~/store/walletStore';
 import { useSettingsStore } from '~/store/settingsStore';
 import { InvoiceStage } from './InvoiceStage';
 import { MeltResultStage } from './ResultStage';
+import { OnchainMeltFlow } from './OnchainMeltFlow';
 import { quotesService, mintManager } from '~/services/core';
 import { detectLightningInputType, requestInvoiceFromLnurl, getLnurlPayParams } from '~/services/lnurlService';
 import { biometricService } from '~/services/biometricService';
+import { networkService } from '~/services/networkService';
 import * as Haptics from 'expo-haptics';
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import { Text, YStack, XStack, Button, Separator, View, H1, Image } from 'tamagui';
+import { Text, YStack, XStack, Button, Separator, View, H1, Image, YGroup, ScrollView, Avatar } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
-import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService';
-import { Building2, Zap, ShieldCheck, ArrowDownCircle, AlertCircle } from '@tamagui/lucide-icons';
+import { currencyService, SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/currencyService';
+import { Landmark, Zap, ShieldCheck, ArrowDownCircle, AlertCircle, Sprout } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 
-type MeltStep = 'invoice' | 'amount' | 'result';
+type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
+    const { mode } = useLocalSearchParams<{ mode?: string }>();
+
+    if (mode === 'onchain') {
+        return (
+            <YStack flex={1} bg="$background" p="$4">
+                <Stack.Screen options={{ headerTitle: 'On-Chain Send' }} />
+                <OnchainMeltFlow />
+            </YStack>
+        );
+    }
+
     const [step, setStep] = useState<MeltStep>('invoice');
     const [invoice, setInvoice] = useState('');
     const [resolvedInvoice, setResolvedInvoice] = useState<string | null>(null);
@@ -35,16 +47,43 @@ export default function MeltScreen() {
     const [quoteAmount, setQuoteAmount] = useState(0);
     const [feeReserve, setFeeReserve] = useState(0);
     const [quoteId, setQuoteId] = useState<string | null>(null);
-    const [lnMinSats, setLnMinSats] = useState(1);
-    const [lnMaxSats, setLnMaxSats] = useState(Infinity);
     const router = useRouter();
 
     const balance = useWalletStore(s => s.balance);
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const refreshBalance = useWalletStore(s => s.refreshBalance);
     const mints = useWalletStore(s => s.mints);
-    const { secondaryCurrency } = useSettingsStore();
-    const confirmSheetRef = React.useRef<AppBottomSheetRef>(null);
+    const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+
+    // Auto-fetch quote for bolt11 invoice to display its amount immediately
+    useEffect(() => {
+        const cleaned = invoice.trim();
+        if (!cleaned) {
+            setLnAddressAmount('0');
+            return;
+        }
+
+        const inputType = detectLightningInputType(cleaned);
+        if (inputType === 'bolt11' && activeMintUrl) {
+            setIsGettingQuote(true);
+            setError(null);
+            quotesService.createMeltQuote(activeMintUrl, cleaned)
+                .then(quote => {
+                    console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
+                    setQuoteAmount(quote.amount);
+                    setFeeReserve(quote.fee_reserve);
+                    setQuoteId(quote.quote);
+                    setLnAddressAmount(quote.amount.toString());
+                })
+                .catch(err => {
+                    console.error('[MeltScreen] Auto-quote failed:', err);
+                    setError(err.message || 'Failed to parse invoice amount');
+                })
+                .finally(() => {
+                    setIsGettingQuote(false);
+                });
+        }
+    }, [invoice, activeMintUrl]);
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -69,10 +108,24 @@ export default function MeltScreen() {
         return `${symbol}${val.toFixed(2)}`;
     }, [quoteAmount, btcData?.price, secondaryCurrency]);
 
+    const totalFiatValue = useMemo(() => {
+        if (!btcData?.price) return '...';
+        const cur = SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency);
+        const symbol = cur?.symbol || '$';
+        const val = currencyService.convertSatsToCurrency(totalCost, btcData.price);
+        return `${symbol}${val.toFixed(2)}`;
+    }, [totalCost, btcData?.price, secondaryCurrency]);
+
     // ─── Invoice Stage: Continue Handler ──────────────────────
     const handleInvoiceContinue = useCallback(async () => {
         if (!activeMintUrl) {
             setError('No active mint selected');
+            return;
+        }
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
             return;
         }
 
@@ -105,18 +158,34 @@ export default function MeltScreen() {
 
                 const minSats = Math.ceil(params.minSendable / 1000);
                 const maxSats = Math.floor(params.maxSendable / 1000);
-                setLnMinSats(minSats);
-                setLnMaxSats(maxSats);
-                setLnAddressAmount(minSats.toString());
 
-                console.log(`[MeltScreen] LN address resolved: min=${minSats}, max=${maxSats} sats`);
-
-                // If min === max, skip amount input
-                if (minSats === maxSats) {
-                    await resolveAndGetQuote(cleaned, minSats);
-                } else {
-                    setStep('amount');
+                const amountSats = parseInt(lnAddressAmount, 10);
+                if (isNaN(amountSats) || amountSats <= 0) {
+                    setError('Enter a valid amount');
+                    setIsResolvingAddress(false);
+                    return;
                 }
+
+                if (amountSats < minSats) {
+                    setError(`Minimum amount is ${minSats} sats`);
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                if (amountSats > maxSats) {
+                    setError(`Maximum amount is ${maxSats} sats`);
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                if (amountSats > balance) {
+                    setError('Insufficient balance');
+                    setIsResolvingAddress(false);
+                    return;
+                }
+
+                console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sats`);
+                await resolveAndGetQuote(cleaned, amountSats);
             } catch (err: any) {
                 console.error('[MeltScreen] LN address resolution failed:', err);
                 setError(err.message || 'Failed to resolve Lightning address');
@@ -126,7 +195,7 @@ export default function MeltScreen() {
         } else {
             setError('Invalid input. Enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)');
         }
-    }, [activeMintUrl, invoice]);
+    }, [activeMintUrl, invoice, lnAddressAmount, balance, resolveAndGetQuote]);
 
     // ─── Resolve LN address to invoice and get quote ──────────
     const resolveAndGetQuote = useCallback(async (address: string, amountSats: number) => {
@@ -150,6 +219,12 @@ export default function MeltScreen() {
     const getQuoteForInvoice = useCallback(async (bolt11: string) => {
         if (!activeMintUrl) return;
 
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            return;
+        }
+
         setIsGettingQuote(true);
         setError(null);
 
@@ -169,9 +244,9 @@ export default function MeltScreen() {
                 return;
             }
 
-            // Show confirmation sheet
+            // Go to confirm step
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            confirmSheetRef.current?.present();
+            setStep('confirm');
         } catch (err: any) {
             console.error('[MeltScreen] Quote failed:', err);
             setError(err.message || 'Failed to get melt quote');
@@ -180,37 +255,17 @@ export default function MeltScreen() {
         }
     }, [activeMintUrl, balance]);
 
-    // ─── Amount Stage: Continue Handler ───────────────────────
-    const handleAmountContinue = useCallback(async () => {
-        if (!lnAddress) return;
 
-        const amountSats = parseInt(lnAddressAmount, 10);
-        if (isNaN(amountSats) || amountSats <= 0) {
-            setError('Enter a valid amount');
-            return;
-        }
-
-        if (amountSats < lnMinSats) {
-            setError(`Minimum amount is ${lnMinSats} sats`);
-            return;
-        }
-
-        if (amountSats > lnMaxSats) {
-            setError(`Maximum amount is ${lnMaxSats} sats`);
-            return;
-        }
-
-        if (amountSats > balance) {
-            setError('Insufficient balance');
-            return;
-        }
-
-        await resolveAndGetQuote(lnAddress, amountSats);
-    }, [lnAddress, lnAddressAmount, lnMinSats, lnMaxSats, balance, resolveAndGetQuote]);
 
     // ─── Pay Handler ──────────────────────────────────────────
     const handlePay = useCallback(async () => {
         if (!activeMintUrl || !quoteId) return;
+
+        const offline = await networkService.isOffline();
+        if (offline) {
+            setError('You are offline. Please check your internet connection.');
+            return;
+        }
 
         setIsPaying(true);
         setError(null);
@@ -237,11 +292,10 @@ export default function MeltScreen() {
     // ─── Auth Handler ─────────────────────────────────────────
     const handleAuthenticate = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        confirmSheetRef.current?.dismiss();
 
         try {
             const success = await biometricService.authenticateAsync(
-                `Pay Lightning ₿${quoteAmount} sats`
+                `Pay Lightning ${currencyService.formatSats(quoteAmount)}`
             );
 
             if (success) {
@@ -262,221 +316,156 @@ export default function MeltScreen() {
         InteractionManager.runAfterInteractions(() => refreshBalance());
     };
 
-    // ─── Amount Stage for LN Address ──────────────────────────
-    const parsedAmountSats = parseInt(lnAddressAmount, 10) || 0;
-    const isOverBalance = parsedAmountSats > balance;
-    const isOverMax = parsedAmountSats > lnMaxSats;
-    const isUnderMin = parsedAmountSats > 0 && parsedAmountSats < lnMinSats;
-    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && !isOverMax && !isUnderMin;
-
     return (
-        <YStack flex={1} bg="$background" p="$4">
-            {/* Step 1: Invoice Input */}
+        <YStack flex={1} bg="$background">
+            {/* Step 1: Input Invoice and Amount Stage */}
             {step === 'invoice' && (
-                <InvoiceStage
-                    invoice={invoice}
-                    setInvoice={setInvoice}
-                    onContinue={handleInvoiceContinue}
-                    isLoading={isGettingQuote || isResolvingAddress}
-                    error={error}
-                />
+                <YStack flex={1} p="$4">
+                    <InvoiceStage
+                        amount={lnAddressAmount}
+                        setAmount={setLnAddressAmount}
+                        invoice={invoice}
+                        setInvoice={setInvoice}
+                        onContinue={handleInvoiceContinue}
+                        balance={balance}
+                        isLoading={isGettingQuote || isResolvingAddress}
+                        error={error}
+                    />
+                </YStack>
             )}
 
-            {/* Step 2: Amount Input (for Lightning addresses) */}
-            {step === 'amount' && (
-                <YStack flex={1} justify="space-between">
-                    <YStack
-                        width="100%"
-                        height={280}
-                        rounded="$4"
-                        borderWidth={0.5}
-                        borderColor="$borderColor"
-                        justify="space-between"
-                        bg="$color2"
-                        items="center"
-                    >
-                        <XStack
-                            width="100%"
-                            p="$3"
-                            items="center"
-                            borderBottomWidth={1}
-                            borderBottomColor="$color3"
-                            justify="center"
-                        >
-                            <YStack items="center" gap="$0.5">
-                                <Text fontWeight="600" fontSize="$3" color="$orange10">Paying to</Text>
-                                <Text fontWeight="800" fontSize="$4">{lnAddress}</Text>
+            {/* Step 2: Confirm */}
+            {step === 'confirm' && (
+                <YStack flex={1}>
+                    <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
+                        <YStack gap="$4">
+                            {/* Middle Amount Display */}
+                            <YStack gap="$3" py="$6" items="center" justify="center">
+                                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                                    -{showBitcoinSymbol ? `₿${quoteAmount.toLocaleString()}` : `${quoteAmount.toLocaleString()} SATS`}
+                                </Text>
+                                <Text color="$accent5" fontWeight="600" fontSize={16}>
+                                    ≈ {fiatValue} {secondaryCurrency}
+                                </Text>
                             </YStack>
-                        </XStack>
 
-                        <YStack items="center" gap="$1">
-                            <Text color="$gray10" fontSize="$3">How much to send?</Text>
-                            <H1
-                                fontWeight="400"
-                                letterSpacing={-2}
-                                py="$4"
-                                color={isOverBalance || isOverMax ? "$red10" : isUnderMin ? "$orange10" : "$color"}
+                            {/* Badge */}
+                            <XStack
+                                self="center"
+                                items="center"
+                                gap="$2"
+                                bg="$yellow9"
+                                px="$4"
+                                py="$3"
+                                rounded="$10"
                             >
-                                ₿{lnAddressAmount || '0'}
-                            </H1>
+                                <Zap size={16} color="black" />
+                                <Text
+                                    fontSize="$3"
+                                    fontWeight="700"
+                                    color="black"
+                                >
+                                    Lightning Payment Send
+                                </Text>
+                            </XStack>
 
-                            {isOverBalance && (
-                                <Text color="$red10" fontSize="$2">Exceeds available balance</Text>
-                            )}
-                            {isOverMax && !isOverBalance && (
-                                <Text color="$red10" fontSize="$2">Maximum: {lnMaxSats} sats</Text>
-                            )}
-                            {isUnderMin && !isOverMax && (
-                                <Text color="$orange10" fontSize="$2">Minimum: {lnMinSats} sats</Text>
+                            {/* Details List */}
+                            <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3" mx="$4">
+                                <View p="$3" px="$4">
+                                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                                </View>
+                                <Separator borderColor="$borderColor" opacity={0.3} />
+                                <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                                    <DetailItem
+                                        label="Mint"
+                                        value={mintName}
+                                        icon={
+                                            <Avatar rounded="$3" size="$1.5">
+                                                <Avatar.Image src={activeMint?.icon} />
+                                                <Avatar.Fallback bg="$green3" items="center" justify="center">
+                                                    <Sprout size={12} color="$green10" />
+                                                </Avatar.Fallback>
+                                            </Avatar>
+                                        }
+                                    />
+                                    <DetailItem
+                                        label="Method"
+                                        value="Lightning Send"
+                                        icon={<Zap size={16} color="$yellow10" />}
+                                    />
+                                    <DetailItem
+                                        label="Fee Reserve"
+                                        value={feeReserve > 0 ? `~${feeReserve} sats` : '0 sats'}
+                                        valueColor={feeReserve > 0 ? "$orange10" : "$green11"}
+                                        icon={<ShieldCheck size={16} color={feeReserve > 0 ? "$orange10" : "$green11"} />}
+                                    />
+                                    <DetailItem
+                                        label="Total Cost"
+                                        value={`${totalCost.toLocaleString()} sats (≈ ${totalFiatValue})`}
+                                        valueColor="$accent10"
+                                        icon={<ShieldCheck size={16} color="$accent10" />}
+                                    />
+                                    {lnAddress && (
+                                        <DetailItem
+                                            label="Recipient"
+                                            value={lnAddress}
+                                        />
+                                    )}
+                                </YGroup>
+                            </YStack>
+
+                            {/* Balance Warning */}
+                            {totalCost > balance && (
+                                <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mx="$4">
+                                    <AlertCircle size={18} color="$red10" />
+                                    <Text color="$red10" fontSize="$3">Insufficient balance ({balance} sats available)</Text>
+                                </XStack>
                             )}
                         </YStack>
+                    </ScrollView>
 
-                        <XStack
-                            width="100%"
-                            p="$3"
-                            borderTopWidth={1}
-                            borderTopColor="$color3"
-                            justify="space-between"
-                            items="center"
+                    {/* Fixed Action Buttons */}
+                    <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
+                        <Button
+                            theme="accent"
+                            size="$5"
+                            height={55}
+                            rounded="$4"
+                            fontWeight="800"
+                            onPress={handleAuthenticate}
+                            disabled={isPaying || totalCost > balance}
+                            icon={isPaying ? <Spinner size="small" color="white" /> : undefined}
                         >
-                            <Text color="$gray10" fontWeight="400" fontSize="$3">
-                                Range: {lnMinSats} – {lnMaxSats >= 1_000_000_000 ? '∞' : lnMaxSats.toLocaleString()} sats
-                            </Text>
-                            <Text color="$gray10" fontWeight="600" fontSize="$3">₿{balance}</Text>
-                        </XStack>
+                            {isPaying ? 'Paying...' : 'Confirm & Pay'}
+                        </Button>
+                        <Button
+                            bg="$gray3"
+                            color="$color"
+                            size="$5"
+                            height={55}
+                            rounded="$4"
+                            fontWeight="800"
+                            disabled={isPaying}
+                            onPress={() => setStep('invoice')}
+                        >
+                            Go Back
+                        </Button>
                     </YStack>
-
-                    {error && (
-                        <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mt="$4">
-                            <AlertCircle size={18} color="$red10" />
-                            <Text color="$red10" fontSize="$3" flex={1}>{error}</Text>
-                        </XStack>
-                    )}
-
-                    <NumericKeypad
-                        showAmountDisplay={false}
-                        value={lnAddressAmount}
-                        onValueChange={setLnAddressAmount}
-                        onConfirm={handleAmountContinue}
-                        confirmLabel={isGettingQuote ? "Getting Quote..." : "Continue"}
-                        confirmDisabled={!isValidAmount || isGettingQuote}
-                        confirmIcon={isGettingQuote ? <Spinner size="small" /> : undefined}
-                    />
                 </YStack>
             )}
 
             {/* Step 3: Result */}
             {step === 'result' && (
-                <MeltResultStage
-                    status={status}
-                    amount={quoteAmount}
-                    feeReserve={feeReserve}
-                    error={error}
-                    onClose={handleClose}
-                />
-            )}
-
-            {/* Confirmation Sheet */}
-            <AppBottomSheet ref={confirmSheetRef}>
-                <YStack p="$4" pt="$2" gap="$5">
-                    <YStack items="center" gap="$2" pt="$2">
-                        <Text fontSize="$6" fontWeight="800">Review Payment</Text>
-                    </YStack>
-
-                    <YStack gap="$0" bg="$gray2" rounded="$5" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                        {/* Invoice Amount */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <Zap size={16} color="$orange10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Invoice Amount</Text>
-                            </XStack>
-                            <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$5" color="$color">₿{quoteAmount} sats</Text>
-                                <Text color="$gray10" fontSize="$3">{fiatValue}</Text>
-                            </YStack>
-                        </XStack>
-
-                        {/* Fee Reserve */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <ShieldCheck size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Fee Reserve</Text>
-                            </XStack>
-                            <Text fontSize="$5" fontWeight="800" color={feeReserve > 0 ? "$orange10" : "$green10"}>
-                                {feeReserve > 0 ? `~${feeReserve} sats` : '0 sats'}
-                            </Text>
-                        </XStack>
-
-                        {/* Total Deduction */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4" bg="$color3">
-                            <XStack gap="$2" items="center">
-                                <ArrowDownCircle size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Total Deduction</Text>
-                            </XStack>
-                            <Text fontWeight="800" fontSize="$5" color="$red10">
-                                -{totalCost} sats
-                            </Text>
-                        </XStack>
-
-                        {/* Mint */}
-                        <XStack justify="space-between" items="center" py="$3" px="$4">
-                            <XStack gap="$2" items="center">
-                                <Building2 size={16} color="$gray10" />
-                                <Text fontSize="$4" color="$gray10" fontWeight="600">Mint</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                {activeMint?.icon && (
-                                    <View rounded="$10" overflow="hidden" width={20} height={20}>
-                                        <Image source={{ uri: activeMint.icon }} width={20} height={20} />
-                                    </View>
-                                )}
-                                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>{mintName}</Text>
-                            </XStack>
-                        </XStack>
-
-                        {/* LN Address (if applicable) */}
-                        {lnAddress && (
-                            <XStack justify="space-between" items="center" py="$3" px="$4">
-                                <XStack gap="$2" items="center">
-                                    <Zap size={16} color="$gray10" />
-                                    <Text fontSize="$4" color="$gray10" fontWeight="600">Recipient</Text>
-                                </XStack>
-                                <Text fontSize="$5" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
-                                    {lnAddress}
-                                </Text>
-                            </XStack>
-                        )}
-                    </YStack>
-
-                    {/* Balance Warning */}
-                    {totalCost > balance && (
-                        <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center">
-                            <AlertCircle size={18} color="$red10" />
-                            <Text color="$red10" fontSize="$3">Insufficient balance ({balance} sats available)</Text>
-                        </XStack>
-                    )}
-
-                    <YStack gap="$3" pt="$2">
-                        <Button
-                            theme="accent"
-                            size="$5"
-                            fontWeight="800"
-                            onPress={handleAuthenticate}
-                            disabled={isPaying || totalCost > balance}
-                            icon={isPaying ? <Spinner size="small" /> : <Zap size={20} />}
-                        >
-                            {isPaying ? 'Paying...' : 'Confirm & Pay'}
-                        </Button>
-                        <Button
-                            chromeless
-                            size="$4"
-                            onPress={() => confirmSheetRef.current?.dismiss()}
-                        >
-                            Cancel
-                        </Button>
-                    </YStack>
+                <YStack flex={1} p="$4">
+                    <MeltResultStage
+                        status={status}
+                        amount={quoteAmount}
+                        feeReserve={feeReserve}
+                        error={error}
+                        onClose={handleClose}
+                    />
                 </YStack>
-            </AppBottomSheet>
+            )}
 
             <ProcessingSheet
                 visible={isPaying}
@@ -486,5 +475,19 @@ export default function MeltScreen() {
                 direction="send"
             />
         </YStack>
+    );
+}
+
+function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+    return (
+        <XStack justify="space-between" items="center" py="$3" px="$4">
+            <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+            <XStack gap="$2" items="center">
+                {icon}
+                <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+                    {value}
+                </Text>
+            </XStack>
+        </XStack>
     );
 }

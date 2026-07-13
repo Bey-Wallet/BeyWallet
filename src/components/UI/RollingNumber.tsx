@@ -180,7 +180,7 @@ export const RollingNumber = ({
                             key={`char-${index}`}
                             style={{
                                 height: itemHeight,
-                                justifyContent: "center",
+                                justifycontent: "center",
                                 alignItems: "center",
                                 marginRight: letterSpacing,
                                 opacity: currentOpacity

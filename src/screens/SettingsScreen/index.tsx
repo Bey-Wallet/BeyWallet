@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
-import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw } from '@tamagui/lucide-icons';
+import { ShieldCheck, Fingerprint, Palette, Bell, Globe, Info, Trash2, Download, Server, AtSign, RefreshCw, Zap, ArrowUpFromLine, Sparkles } from '@tamagui/lucide-icons';
 import { ThemeModal } from './components/ThemeModal';
 import { CurrencyModal } from './components/CurrencyModal';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -17,15 +17,25 @@ import { currencyService } from '~/services/currencyService';
 import { biometricService } from '~/services/biometricService';
 import { seedService } from '~/services/seedService';
 import { initService } from '~/services/core';
+import { consolidationService } from '~/services/core';
+import { proofService } from '~/services/core';
 import { useOnboardingStore } from '~/store/onboardingStore';
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
-import { ActivityIndicator, Alert, DevSettings } from 'react-native';
+import { ActivityIndicator, Alert, DevSettings, Linking } from 'react-native';
 import { walletFileService } from '~/services/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 import * as Updates from 'expo-updates';
+import { useWalletStore } from '~/store/walletStore';
+import { InfoSheet, InfoSheetRef } from '~/components/UI/InfoSheet';
+import * as Application from 'expo-application';
+import BeyIcon from '~/components/icons/BeyIcon';
 
-const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
+const appVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '0.1.0';
+const buildVersion = Application.nativeBuildVersion ?? 
+    Constants.expoConfig?.ios?.buildNumber ??
+    Constants.expoConfig?.android?.versionCode?.toString() ??
+    '1';
 
 export function SettingsScreen() {
     const router = useRouter();
@@ -35,15 +45,17 @@ export function SettingsScreen() {
     const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
     const biometricSheetRef = useRef<AppBottomSheetRef>(null);
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
+    const infoSheetRef = useRef<InfoSheetRef>(null);
 
-    const { secondaryCurrency, defaultMintUrl, biometricEnabled } = useSettingsStore();
+    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled, showBitcoinSymbol, setShowBitcoinSymbol } = useSettingsStore();
+    const { activeMintUrl, refreshBalance } = useWalletStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
 
     const [seedWords, setSeedWords] = useState<string[]>([]);
-    const [isSeedVisible, setIsSeedVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [isVerifyingDleq, setIsVerifyingDleq] = useState(false);
 
     const handleSettingPress = async (id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -59,6 +71,15 @@ export function SettingsScreen() {
                 break;
             case 'export':
                 handleExportWallet();
+                break;
+            case 'import':
+                handleImportWalletBackup();
+                break;
+            case 'consolidate':
+                router.push('/(modals)/optimize-wallet');
+                break;
+            case 'verify-dleq':
+                handleVerifyDleq();
                 break;
             case 'biometric':
                 biometricSheetRef.current?.present();
@@ -86,6 +107,55 @@ export function SettingsScreen() {
         }
     };
 
+    const handleVerifyDleq = async () => {
+        if (!activeMintUrl) {
+            infoSheetRef.current?.present({
+                title: 'No Active Mint',
+                description: 'Select a mint to verify proofs for.',
+                type: 'warning',
+            });
+            return;
+        }
+        setIsVerifyingDleq(true);
+        try {
+            const results = await proofService.verifyDleqProofs(activeMintUrl);
+            if (results.length === 0) {
+                infoSheetRef.current?.present({
+                    title: 'No DLEQ Data',
+                    description: 'None of your stored proofs have DLEQ data. This is normal for older proofs or mints that do not provide DLEQ.',
+                    type: 'info',
+                });
+                return;
+            }
+            const validCount = results.filter(r => r.valid).length;
+            const invalidResults = results.filter(r => !r.valid);
+            if (invalidResults.length === 0) {
+                infoSheetRef.current?.present({
+                    title: 'All Proofs Valid',
+                    description: `${validCount}/${results.length} proofs verified offline.\nThe mint signed all proofs honestly.`,
+                    type: 'success',
+                });
+            } else {
+                const failedAmounts = invalidResults.map(r => `${r.amount} sats`).join(', ');
+                infoSheetRef.current?.present({
+                    title: 'DLEQ Verification Failed',
+                    description: `${validCount}/${results.length} proofs valid.\n\nFailed amounts: ${failedAmounts}\n\nConsider consolidating your wallet or contacting the mint operator.`,
+                    type: 'error',
+                });
+            }
+        } catch (err: any) {
+            infoSheetRef.current?.present({
+                title: 'Verification Failed',
+                description: err.message || 'Could not verify proofs.',
+                type: 'error',
+            });
+        } finally {
+            setIsVerifyingDleq(false);
+        }
+    };
+
+
+
     const handleExportWallet = async () => {
         const authed = await biometricService.authenticateAsync('Authenticate to export your wallet backup');
         if (!authed) {
@@ -101,7 +171,7 @@ export function SettingsScreen() {
             const state = await backupService.exportState();
             const { theme } = useSettingsStore.getState();
 
-            await walletFileService.exportWallet(mnemonic, {
+            const fileName = await walletFileService.exportWallet(mnemonic, {
                 mints: state.mints,
                 keysets: state.keysets,
                 proofs: state.proofs,
@@ -112,13 +182,95 @@ export function SettingsScreen() {
                 secondaryCurrency,
                 theme,
             });
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            infoSheetRef.current?.present({
+                title: 'Backup Exported',
+                description: `Your wallet data has been exported successfully.\n\nFilename: ${fileName}`,
+                type: 'success',
+            });
         } catch (err: any) {
             console.error('[Settings] Export failed:', err);
-            Alert.alert('Export Failed', err?.message ?? 'Could not export wallet.');
+            infoSheetRef.current?.present({
+                title: 'Export Failed',
+                description: err?.message ?? 'Could not export wallet.',
+                type: 'error',
+            });
         } finally {
             setIsExporting(false);
         }
-    };
+     };
+
+     const handleImportWalletBackup = async () => {
+         const authed = await biometricService.authenticateAsync('Authenticate to import wallet backup');
+         if (!authed) {
+             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+             return;
+         }
+
+         Alert.alert(
+             'Confirm Restore',
+             'This will replace your current wallet data with the backup. This cannot be undone. Are you sure you want to proceed?',
+             [
+                 { text: 'Cancel', style: 'cancel' },
+                 {
+                     text: 'Restore',
+                     style: 'destructive',
+                     onPress: async () => {
+                         setIsDeleting(true);
+                         try {
+                             const backup = await walletFileService.importWalletFromFile();
+                             
+                             // 1. Destroy current database
+                             await initService.destroyWallet();
+
+                             // 2. Re-create wallet seed
+                             await initService.restoreWallet(backup.mnemonic, { quiet: true });
+
+                             // 3. Import full DB state
+                             const backupState = {
+                                 mints: backup.mints,
+                                 keysets: backup.keysets,
+                                 proofs: backup.proofs,
+                                 counters: backup.counters,
+                                 history: backup.history,
+                                 mintQuotes: backup.mintQuotes,
+                             };
+                             const { backupService } = require('~/services/backupService');
+                             await backupService.importState(backupState);
+
+                             // 4. Re-init fast
+                             await initService.reinitFast();
+
+                             // 5. Restore settings
+                             const settingsStore = useSettingsStore.getState();
+                             if (backup.secondaryCurrency) await settingsStore.setSecondaryCurrency(backup.secondaryCurrency);
+                             if (backup.theme) await settingsStore.setTheme(backup.theme);
+                             if (backup.defaultMintUrl) await settingsStore.setDefaultMintUrl(backup.defaultMintUrl);
+
+                             Alert.alert('Restore Completed', 'Your wallet has been restored successfully. Please restart the app.', [
+                                 {
+                                     text: 'OK',
+                                     onPress: () => {
+                                         if (__DEV__ && DevSettings?.reload) {
+                                             DevSettings.reload();
+                                         }
+                                     }
+                                 }
+                             ]);
+                         } catch (err: any) {
+                             if (err?.message !== 'File selection was cancelled.') {
+                                 console.error('[Settings] Restore failed:', err);
+                                 Alert.alert('Restore Failed', err?.message ?? 'Could not import backup.');
+                             }
+                         } finally {
+                             setIsDeleting(false);
+                         }
+                     }
+                 }
+             ]
+         );
+     };
 
     const handleDeleteWallet = async () => {
         const authed = await biometricService.authenticateAsync('Authenticate to delete your wallet');
@@ -134,7 +286,6 @@ export function SettingsScreen() {
             } else {
                 setSeedWords([]);
             }
-            setIsSeedVisible(false);
             deleteSheetRef.current?.present();
         } catch (err) {
             console.error('[Settings] Failed to fetch seed:', err);
@@ -171,21 +322,30 @@ export function SettingsScreen() {
                 {
                     id: 'biometric',
                     title: 'Biometric Lock',
-                    subTitle: biometricEnabled ? 'Enabled' : 'Disabled',
+                    value: biometricEnabled ? 'Enabled' : 'Disabled',
                     icon: Fingerprint,
+                 
                 },
                 {
                     id: 'backup',
                     title: 'Backup Recovery Phrase',
-                    subTitle: 'View your secret 12 words',
                     icon: ShieldCheck,
+                 
                 },
                 {
                     id: 'export',
-                    title: 'Export Wallet File',
-                    subTitle: isExporting ? 'Preparing backup...' : 'Save a .bey backup to your device',
-                    icon: isExporting ? ActivityIndicator : Download,
+                    title: 'Export wallet data',
+                    subTitle: 'Download a dump of your wallet. You can restore your wallet from this file in the welcome screen of a new wallet. This file will be out of sync if you keep using your wallet after exporting it.',
+                    icon: isExporting ? ActivityIndicator : ArrowUpFromLine,
                     disabled: isExporting,
+                 
+                },
+                {
+                    id: 'import',
+                    title: 'Import wallet backup',
+                    subTitle: 'Restore your wallet from a previously exported backup file. This will replace your current wallet data with the backup.',
+                    icon: Download,
+                 
                 },
             ],
         },
@@ -195,20 +355,28 @@ export function SettingsScreen() {
                 {
                     id: 'theme',
                     title: 'Theme',
-                    subTitle: 'Light, Dark or System',
+                    value: theme.charAt(0).toUpperCase() + theme.slice(1),
                     icon: Palette,
+                 
                 },
                 {
                     id: 'currency',
                     title: 'Currency',
-                    subTitle: `Secondary: ${secondaryCurrency}`,
-                    icon: () => (
-                        <YStack width={24} height={24} items="center" justify="center" bg="$gray4" rounded="$12">
-                            <Text fontSize={12} fontWeight="800" color="$color">
-                                {currencyService.getSymbol(secondaryCurrency)}
-                            </Text>
-                        </YStack>
-                    ),
+                    value: secondaryCurrency,
+                    icon: undefined,
+                 
+                },
+                {
+                    id: 'showBitcoinSymbol',
+                    title: 'Use ₿ Symbol as Sats',
+                    icon: undefined,
+                 
+                    isSwitch: true,
+                    checked: showBitcoinSymbol,
+                    onCheckedChange: (val) => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShowBitcoinSymbol(val);
+                    }
                 },
             ],
         },
@@ -218,24 +386,80 @@ export function SettingsScreen() {
                 {
                     id: 'mint',
                     title: 'Default Mint',
+<<<<<<< HEAD
 <<<<<<< Updated upstream
                     subTitle: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None selected',
 =======
                     value: defaultMintUrl ? (() => { try { return new URL(defaultMintUrl).hostname; } catch { return defaultMintUrl; } })() : 'None',
 >>>>>>> Stashed changes
+=======
+                    value: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None',
+>>>>>>> main
                     icon: Server,
+                  
                 },
                 {
                     id: 'notifications',
                     title: 'Notifications',
-                    subTitle: 'Manage alerts and updates',
                     icon: Bell,
+                  
+                },
+                {
+                    id: 'consolidate',
+                    title: 'Optimize Wallet',
+              
+                    icon: Sparkles,
+                
+                },
+                {
+                    id: 'verify-dleq',
+                    title: 'Verify Proofs (Offline)',
+                    subtitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
+                    icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
+                    disabled: isVerifyingDleq,
+                  
+                },
+                {
+                    id: 'update',
+                    title: 'Check for Updates',
+                    icon: RefreshCw,
+            
+                    onPress: async () => {
+                        try {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            if (__DEV__) {
+                                infoSheetRef.current?.present({
+                                    title: 'Development Mode',
+                                    description: 'Updates are not supported in development mode.',
+                                    type: 'info',
+                                });
+                                return;
+                            }
+                            const { isAvailable } = await Updates.checkForUpdateAsync();
+                            if (isAvailable) {
+                                router.push('/(modals)/ota-update');
+                            } else {
+                                infoSheetRef.current?.present({
+                                    title: 'Up to Date',
+                                    description: 'You are already on the latest version of Bey Wallet.',
+                                    type: 'success',
+                                });
+                            }
+                        } catch (error: any) {
+                            infoSheetRef.current?.present({
+                                title: 'Error',
+                                description: error.message || 'Failed to check for updates.',
+                                type: 'error',
+                            });
+                        }
+                    }
                 },
                 {
                     id: 'language',
                     title: 'Language',
-                    subTitle: 'English (US)',
+                    value: 'System',
                     icon: Globe,
+                    
                     opacity: 0.5,
                 },
             ],
@@ -246,53 +470,14 @@ export function SettingsScreen() {
                 {
                     id: 'nostr',
                     title: 'Nostr Settings',
-                    subTitle: 'Manage your npub, nsec, and relays',
                     icon: NostrIcon,
+                    color: '$purple10',
                 },
                 {
                     id: 'nostr-username',
                     title: 'Nostr Username',
-                    subTitle: liveNip05 ? liveNip05 : (nip05Loading ? 'Looking up…' : 'Claim a free NIP-05 address'),
+                    value: liveNip05 ? liveNip05.split('@')[0] : (nip05Loading ? 'Looking up…' : 'Claim Free'),
                     icon: AtSign,
-                },
-            ],
-        },
-        {
-            title: 'About',
-            items: [
-                {
-                    id: 'update',
-                    title: 'Check for Updates',
-                    subTitle: 'Verify if a new version is available',
-                    icon: RefreshCw,
-                    onPress: async () => {
-                        try {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (__DEV__) {
-                                Alert.alert('Development Mode', 'Updates are not supported in development mode.');
-                                return;
-                            }
-                            const { isAvailable } = await Updates.checkForUpdateAsync();
-                            if (isAvailable) {
-                                router.push('/(modals)/ota-update');
-                            } else {
-                                Alert.alert('Up to Date', 'You are already on the latest version of Bey Wallet.');
-                            }
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to check for updates.');
-                        }
-                    }
-                },
-                {
-                    id: 'about',
-                    title: 'Version',
-                    subTitle: `${APP_VERSION}`,
-                    icon: Info,
-                    pressStyle: { bg: '$gray3' },
-                    onPress: () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push('/(modals)/about');
-                    }
                 },
             ],
         },
@@ -304,7 +489,6 @@ export function SettingsScreen() {
                 {
                     id: 'delete',
                     title: 'Delete Wallet',
-                    subTitle: 'Permanently erase all wallet data',
                     icon: Trash2,
                     color: '$red10',
                     hoverStyle: { bg: '$red4' },
@@ -317,12 +501,12 @@ export function SettingsScreen() {
 
     return (
         <ScrollView bg="$background" showsVerticalScrollIndicator={false}>
-            <YStack flex={1} p="$4" gap="$6" pb="$20">
+            <YStack flex={1} p="$4" gap="$3" pb="$20">
                 {SETTINGS_CONFIG.map((section) => (
-                    <SettingSection 
-                        key={section.title} 
-                        {...section} 
-                        onItemPress={handleSettingPress} 
+                    <SettingSection
+                        key={section.title}
+                        {...section}
+                        onItemPress={handleSettingPress}
                     />
                 ))}
 
@@ -332,18 +516,49 @@ export function SettingsScreen() {
                 <NotificationsModal ref={notificationsSheetRef} />
                 <BiometricModal ref={biometricSheetRef} />
 
-                <DeleteWalletSheet 
+                <DeleteWalletSheet
                     innerRef={deleteSheetRef}
                     isDeleting={isDeleting}
                     seedWords={seedWords}
-                    isSeedVisible={isSeedVisible}
-                    onToggleSeedVisibility={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setIsSeedVisible(!isSeedVisible);
-                    }}
                     onDelete={executeWalletDeletion}
                     onCancel={() => deleteSheetRef.current?.dismiss()}
                 />
+
+                <InfoSheet ref={infoSheetRef} />
+
+                {/* About App Info Footer (Tonkeeper-style) */}
+                <YStack items="center" justify="center" gap="$2.5" mt="$8" mb="$4">
+                    <YStack
+                        width={64}
+                        height={64}
+                        rounded="$4"
+                        bg="transparent"
+                        items="center"
+                        justify="center"
+                    >
+                        <BeyIcon size={64} color="$color" />
+                    </YStack>
+                    <YStack items="center" gap="$1">
+                        <Text fontWeight="700" fontSize="$5" color="$color">
+                            Bey Wallet
+                        </Text>
+                        <Text fontSize="$3" color="$gray10" fontWeight="500">
+                            Version {appVersion}{buildVersion ? ` (${buildVersion})` : ''}
+                        </Text>
+                        <Text
+                            fontSize="$3"
+                            color="$blue10"
+                            fontWeight="600"
+                            pressStyle={{ opacity: 0.7 }}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                Linking.openURL('https://github.com/Bey-Wallet/BeyWallet');
+                            }}
+                        >
+                            GitHub
+                        </Text>
+                    </YStack>
+                </YStack>
             </YStack>
         </ScrollView>
     );

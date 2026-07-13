@@ -20,7 +20,7 @@ export function ThemeSelector() {
 
     return (
         <YStack gap="$4" width="100%">
-            <Text fontSize="$3" fontWeight="500" color="$gray11">Choose Mode</Text>
+            <Text fontSize="$3" fontWeight="500" color="$gray12">Choose Mode</Text>
             <XStack gap="$2">
                 {modes.map((mode) => {
                     const isActive = themeMode === mode.id

@@ -13,14 +13,20 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 
 ## 📸 Preview
 
-<div align="center">
+<div align="center" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/fddb0208-c9bb-4474-9837-99cbdf1331e2" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/b69f8b0f-0094-4768-87e1-f253a70ae7af" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/792bd336-f21a-4605-9137-fe037d33ea6f" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/be0c332e-e311-4d2f-9b11-c4a9e74c14f2" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/3d1a1d52-5cf9-4861-ae48-055f3901e8d0" />
+<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/c0c4be99-24c1-4aa7-91b6-fae384ab6ac3" />
+
+
+
+
+
   
-  <!-- <img src="./assets/banner.png" width="800" alt="Bey Wallet Banner" /> -->
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/3e2d78d1-8728-4b16-b218-4141f28ed6ff" />
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/cf34a709-03b0-4b3f-8d28-5f01fb9782ba" />
-  <img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/ebcc4044-cc31-4388-a6b5-3433befa9ac9" />
-<img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/faa37928-0d9f-4210-bad7-c488c7edcb9d" />
-<img width="100" height="220" alt="image" src="https://github.com/user-attachments/assets/d92709b2-b5a7-4215-8043-f2a9625d776e" />
+ 
 
 
 </div>
@@ -30,23 +36,28 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 ## ✨ Features
 
 ### 💰 Cashu (Ecash) & Bitcoin
-*   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens for maximum compatibility.
-*   **Mint Management**: Professional mint dashboard to add, trust, and monitor multiple community mints.
-*   **One-Tap Setup**: Simplified onboarding that gets you started with reliable default mints in seconds.
-*   **Total Control**: Manage balances across different mints with real-time audit logs.
+*   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
+*   **On-Chain Bitcoin**: Fund your wallet via Bitcoin addresses and melt ecash to pay any on-chain transaction directly.
+*   **Mint Management**: Add, trust, and monitor multiple community mints from a central dashboard.
+*   **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, optimized automatically for various coin/proof subsets.
+*   **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
 
 ### 🆔 Nostr Integration
-*   **Built-in Identity**: Transparently generate your Nostr `npub` directly from your wallet seed.
-*   **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK).
-*   **Cloud Sync**: Securely sync your mint preferences and history via your preferred Nostr relays.
+*   **Built-in Identity**: Generate your `npub` directly from your wallet seed and claim your free `@bey.cash` NIP-05 identifier.
+*   **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK) for ultimate security.
+*   **Direct Messages (DMs)**: Send, receive, and **request** Ecash instantly via encrypted Nostr Direct Messages (NIP-04/NIP-17). Payments arrive and are detected automatically in the background.
+*   **Contact Management**: Built-in address book to save and resolve your friends' Npubs and aliases.
 
 ### 🛡️ Privacy & Security
 *   **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.
 *   **Secure Enclave**: Your recovery phrase and private keys are protected by hardware-level security.
 *   **Biometric Guard**: Face ID, Touch ID, or Passcode protection for every sensitive operation.
+*   **Privacy Mode**: Long-press balance to mask/unmask your funds in public.
+*   **Custom display unit**: Configurable options to show SATS, local FIAT, or enable the ₿ symbol mode.
 
-### 💾 Reliability
+### 💾 Reliability & Optimization
 *   **Deterministic Recovery**: Restore your entire wallet balance across all mints with just 12 words.
+*   **Optimize Wallet**: Consolidate fragmented ecash proofs to optimize wallet speed and transaction compilation.
 *   **Smart Backups**: Export and import complete wallet state via encrypted `.bey` files.
 
 ---
@@ -71,8 +82,8 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 ### Quick Start
 1.  **Clone the repo**:
     ```bash
-    git clone https://github.com/arshfx01/bey-wallet.git
-    cd bey-wallet
+    git clone https://github.com/Bey-Wallet/BeyWallet.git
+    cd BeyWallet
     ```
 2.  **Install dependencies**:
     ```bash

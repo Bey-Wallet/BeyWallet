@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store'
 
 const ONBOARDING_KEY = 'bey_wallet_onboarded'
 
-type OnboardingStep = 'welcome' | 'creating' | 'seed' | 'biometric' | 'notifications' | 'nostr' | 'mintpicker' | 'import' | 'restoring' | 'complete'
+type OnboardingStep = 'welcome' | 'creating' | 'seed' | 'biometric' | 'notifications' | 'nostr' | 'mintpicker' | 'import' | 'restoring' | 'complete' | 'consent' | 'permissions'
 
 interface OnboardingState {
     isOnboarded: boolean

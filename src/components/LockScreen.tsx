@@ -1,23 +1,25 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { YStack, Text, Button, Spinner, H2, Image, View } from 'tamagui'
+import { YStack, Text, Button, Spinner, H2, View } from 'tamagui'
 import { Fingerprint } from '@tamagui/lucide-icons'
 import { biometricService } from '../services/biometricService'
 import * as Haptics from 'expo-haptics'
 import { AppState, AppStateStatus } from 'react-native'
 import { useAppTheme } from '../context/ThemeContext'
+import BeyIcon from '~/components/icons/BeyIcon'
 
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     const [isAuthenticating, setIsAuthenticating] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const { resolvedTheme } = useAppTheme()
 
-    // Track whether we've auto-triggered so we only do it ONCE per mount
-    const hasAutoTriggered = useRef(false)
+    // Track active authentication request to prevent overlapping promise races
+    const activeAuthId = useRef(0)
     const isAuthRef = useRef(false) // mirror isAuthenticating for stable closure
 
     const handleAuthenticate = useCallback(async () => {
-        // Guard: prevent concurrent auth attempts
         if (isAuthRef.current) return
+        
+        const currentId = ++activeAuthId.current
         isAuthRef.current = true
         setIsAuthenticating(true)
         setError(null)
@@ -25,42 +27,48 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
         try {
             const success = await biometricService.authenticateAsync('Unlock Bey Wallet to continue')
-            if (success) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-                onUnlock()
-            } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-                setError('Authentication failed. Please try again.')
+            if (currentId === activeAuthId.current) {
+                if (success) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                    onUnlock()
+                } else {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                    setError('Authentication failed. Please try again.')
+                }
             }
         } catch (e) {
-            setError('An error occurred during authentication.')
+            if (currentId === activeAuthId.current) {
+                setError('An error occurred during authentication.')
+            }
         } finally {
-            isAuthRef.current = false
-            setIsAuthenticating(false)
+            if (currentId === activeAuthId.current) {
+                isAuthRef.current = false
+                setIsAuthenticating(false)
+            }
         }
     }, [onUnlock])
 
-    // Auto-trigger biometric ONCE on mount — fast (300ms delay)
     useEffect(() => {
-        if (hasAutoTriggered.current) return
-        hasAutoTriggered.current = true
-
-        const timer = setTimeout(() => {
-            handleAuthenticate()
-        }, 300)
-
-        return () => clearTimeout(timer)
-    }, [handleAuthenticate])
-
-    // On foreground: only re-trigger if not already authenticating
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-            if (nextAppState === 'active' && !isAuthRef.current) {
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // Cancel active prompt and clean up spinner states immediately
+                await biometricService.cancelAuthenticate()
+                isAuthRef.current = false
+                setIsAuthenticating(false)
+            } else if (nextAppState === 'active') {
+                // Re-trigger biometrics automatically on resume
                 handleAuthenticate()
             }
-        })
+        }
 
-        return () => subscription.remove()
+        const subscription = AppState.addEventListener('change', handleAppStateChange)
+
+        // Initial trigger on mount
+        handleAuthenticate()
+
+        return () => {
+            subscription.remove()
+        }
     }, [handleAuthenticate])
 
     return (
@@ -88,13 +96,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                     borderWidth={1}
                     borderColor="$borderColor"
                 >
-                    <Image
-                        source={resolvedTheme === 'dark'
-                            ? require('../assets/icons/Bey-light-logo.png')
-                            : require('../assets/icons/Bey-dark-logo.png')}
-                        style={{ width: 100, height: 100 }}
-                        resizeMode="contain"
-                    />
+                    <BeyIcon size={100} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
                 </View>
             </YStack>
 

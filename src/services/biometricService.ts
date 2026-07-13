@@ -37,6 +37,17 @@ export const biometricService = {
     },
 
     /**
+     * Programmatically cancel active biometric authentication prompt
+     */
+    async cancelAuthenticate() {
+        try {
+            await LocalAuthentication.cancelAuthenticate();
+        } catch (error) {
+            console.error('Biometric cancel authentication error:', error);
+        }
+    },
+
+    /**
      * Get biometrics status description
      */
     async getStatusMessage() {

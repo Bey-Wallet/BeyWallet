@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, ListItem, Avatar, Square } from 'tamagui';
-import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Building2, BanknoteArrowUp, BanknoteArrowDown, Landmark, Clock, Trash2, ChevronRight, Database, Zap } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, ScrollView, Button, View, Separator, Circle, Avatar, Square, ListItem, YGroup } from 'tamagui';
+import { ChevronLeft, ChevronDown, RefreshCw, ArrowUpRight, ArrowDownLeft, Check, History as HistoryIcon, Landmark, BanknoteArrowUp, BanknoteArrowDown, Clock, Trash2, ChevronRight, Database, Zap, Bitcoin } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,8 @@ import { useWalletStore } from '~/store/walletStore';
 import { useNostrRequestStore, type NostrReceiveRequest } from '~/store/nostrRequestStore';
 import { formatLocalTime } from '~/utils/time';
 import { RollingNumber } from '~/components/UI/RollingNumber';
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import { PendingTokenLayout } from '~/components/UI/PendingTokenLayout';
 import { useSettingsStore } from '~/store/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
@@ -69,7 +70,7 @@ export default function EcashModal() {
   const router = useRouter();
   const { mints } = useWalletStore();
   const insets = useSafeAreaInsets();
-  const { secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [selectedMint, setSelectedMint] = useState('all');
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const queryClient = useQueryClient();
@@ -185,8 +186,30 @@ export default function EcashModal() {
       };
     }
     const isOutgoing = entry.type === 'send' || entry.type === 'melt';
+    const metadata = entry.historyEntry?.metadata;
+    const via = (() => {
+      if (!metadata) return undefined;
+      if (typeof metadata === 'string') {
+        try {
+          return JSON.parse(metadata).via;
+        } catch {
+          return undefined;
+        }
+      }
+      return metadata.via;
+    })();
+
+    let icon = isOutgoing ? BanknoteArrowUp : BanknoteArrowDown;
+    if (entry.type === 'mint') {
+      icon = via === 'onchain' ? Bitcoin : Landmark;
+    } else if (entry.type === 'melt') {
+      icon = via === 'onchain' ? Bitcoin : Zap;
+    } else if (entry.type === 'swap') {
+      icon = RefreshCw;
+    }
+
     return {
-      icon: entry.type === 'mint' ? Landmark : (isOutgoing ? BanknoteArrowUp : BanknoteArrowDown),
+      icon,
       iconColor: isOutgoing ? '$red10' : '$green11',
       bgColor: isOutgoing ? '$red2' : '$green2',
       sign: isOutgoing ? '-' : '+',
@@ -256,7 +279,7 @@ export default function EcashModal() {
                 <Avatar rounded="$3" size="$1.5">
                   <Avatar.Image src={activeMint?.icon} />
                   <Avatar.Fallback backgroundColor="$color5" alignItems="center" justifyContent="center">
-                    <Building2 size={12} color="$color10" />
+                    <Landmark size={12} color="$color10" />
                   </Avatar.Fallback>
                 </Avatar>
               }
@@ -272,29 +295,45 @@ export default function EcashModal() {
           </XStack>
           <XStack justify="space-between" py="$2" items="flex-end">
             <YStack>
-              <RollingNumber
-                value={totalPending}
-                prefix="₿"
-                letterSpacing={-1}
-                fontSize={30}
-                fontWeight="900"
-                color="$accent3"
-                decimalOpacity={0.4}
-                showDecimals={false}
-              />
+              {primaryCurrency === 'SATS' ? (
+                <RollingNumber
+                  value={totalPending}
+                  prefix={showBitcoinSymbol ? "₿" : ""}
+                  suffix={showBitcoinSymbol ? "" : " SATS"}
+                  fontSize={30}
+                  fontWeight="900"
+                  color="$accent3"
+                  decimalOpacity={0.4}
+                  showDecimals={false}
+                />
+              ) : (
+                <RollingNumber
+                  value={fiatPending}
+                  fontSize={30}
+                  fontWeight="900"
+                  color="$accent3"
+                  decimalOpacity={0.4}
+                  showDecimals={true}
+                >
+                  {currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)}
+                </RollingNumber>
+              )}
             </YStack>
-            <Text color="$accent9" fontWeight="700">SATS</Text>
+            <Text color="$accent9" fontWeight="700">{primaryCurrency === 'SATS' ? (showBitcoinSymbol ? '' : 'SATS') : secondaryCurrency}</Text>
           </XStack>
           <RollingNumber
-            value={fiatPending}
-            letterSpacing={-1}
-            fontSize={16}
+            value={primaryCurrency === 'SATS' ? fiatPending : totalPending}
+            prefix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '₿' : '')}
+            suffix={primaryCurrency === 'SATS' ? '' : (showBitcoinSymbol ? '' : ' SATS')}
+            fontSize={18}
             fontWeight="900"
             color="$accent8"
             decimalOpacity={0.4}
-            showDecimals={false}
+            showDecimals={primaryCurrency === 'SATS'}
           >
-            {currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)}
+            {primaryCurrency === 'SATS'
+              ? currencyService.formatValue(fiatPending, secondaryCurrency as CurrencyCode)
+              : undefined}
           </RollingNumber>
 
           <YStack pt="$4">
@@ -305,7 +344,7 @@ export default function EcashModal() {
               </View>
             </XStack>
 
-            <YStack rounded="$5" bg="$gray2" overflow="hidden">
+            <YGroup rounded="$5" bg="$gray3" overflow="hidden" separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
               {filteredEntries.length === 0 ? (
                 <YStack py="$10" items="center" justify="center" gap="$3" opacity={0.5} p="$3">
                   <View p="$4" bg="$gray2" rounded="$4">
@@ -319,135 +358,76 @@ export default function EcashModal() {
                   </YStack>
                 </YStack>
               ) : (
-                filteredEntries.map((entry, index) => {
+                filteredEntries.map((entry) => {
                   const style = getTransactionStyle(entry);
                   const statusLabel = entry.kind === 'nostr_request'
                     ? (entry.state === 'received' ? 'received' : 'awaiting')
                     : (entry.state || 'pending');
 
                   return (
-                    <React.Fragment key={entry.id}>
-                      <YStack
+                    <YGroup.Item key={entry.id}>
+                      <ListItem
+                        hoverStyle={{ bg: '$backgroundHover' }}
+                        pressStyle={{ bg: '$backgroundPress' }}
+                        bg="transparent"
+                        py="$3.5"
+                        px="$4"
                         onPress={() => handleItemPress(entry)}
-                        pressStyle={{ opacity: 0.7, scale: 0.98 }}
-                        py="$2"
-                        px="$2"
+                        icon={<style.icon size={22} color={style.iconColor as any} strokeWidth={2.2} />}
+                        iconAfter={
+                          <Text
+                            fontWeight="800"
+                            fontSize="$5"
+                            color="$accent3"
+                          >
+                            {primaryCurrency === 'SATS'
+                              ? (showBitcoinSymbol
+                                  ? `${style.sign}₿${entry.amount.toLocaleString()}`
+                                  : `${style.sign}${entry.amount.toLocaleString()} sats`
+                                )
+                              : `${style.sign}${currencyService.formatValue(
+                                btcData?.price ? currencyService.convertSatsToCurrency(entry.amount, btcData.price) : 0,
+                                secondaryCurrency as CurrencyCode
+                              )}`
+                            }
+                          </Text>
+                        }
                       >
-                        <XStack justify="space-between" items="center">
-                          <XStack gap="$3" items="center">
-                            <View
-                              p="$2.5"
-                              rounded="$4"
-                              bg="$color6"
-                              theme="gray"
-                            >
-                              <style.icon size={22} strokeWidth={2.5} color={style.iconColor as any} />
-                            </View>
-                            <YStack>
-                              <XStack gap="$2" items="center">
-                                <Text fontWeight="700" fontSize="$4" textTransform="capitalize">
-                                  {getEntryLabel(entry)}
-                                </Text>
-                                <XStack px="$1.5" py="$0.5" bg="$gray5" rounded="$2">
-                                  <Text fontSize="$1" fontWeight="800" textTransform="uppercase" color="$gray10">
-                                    {statusLabel}
-                                  </Text>
-                                </XStack>
-                              </XStack>
-                              {entry.kind === 'nostr_request' && entry.nostrRequest?.description ? (
-                                <Text fontSize="$2" color="$gray9" numberOfLines={1}>
-                                  {entry.nostrRequest.description}
-                                </Text>
-                              ) : null}
-                            </YStack>
-                          </XStack>
-
-                          <YStack items="flex-end">
-                            <Text
-                              fontWeight="900"
-                              fontSize="$5"
-                              color={style.iconColor as any}
-                            >
-                              {style.sign}{entry.amount.toLocaleString()}
+                        <YStack flex={1} gap="$0.5" mr="$2">
+                          <XStack flexWrap="wrap" items="center" gap="$2">
+                            <Text fontSize="$5" fontWeight="600" color="$accent5" textTransform="capitalize">
+                              {getEntryLabel(entry)}
                             </Text>
-                            <Text fontSize="$1" color="$gray10" fontWeight="600">{entry.unit?.toUpperCase() || 'SATS'}</Text>
-                          </YStack>
-                        </XStack>
-                      </YStack>
-                      {index < filteredEntries.length - 1 && <Separator borderColor="$borderColor" opacity={0.5} />}
-                    </React.Fragment>
+                            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '$gray5' }}>
+                              <Text fontSize={9} fontWeight="800" textTransform="uppercase" color="$gray10">
+                                {statusLabel}
+                              </Text>
+                            </View>
+                          </XStack>
+                          {entry.kind === 'nostr_request' && entry.nostrRequest?.description ? (
+                            <Text fontSize="$3" color="$gray9" numberOfLines={2} mt="$1">
+                              {entry.nostrRequest.description}
+                            </Text>
+                          ) : null}
+                        </YStack>
+                      </ListItem>
+                    </YGroup.Item>
                   );
                 })
               )}
-            </YStack>
+            </YGroup>
           </YStack>
         </YStack>
       </ScrollView>
 
-      {/* Proof Manager link */}
-      <YStack
-        px="$4"
-        pb={insets.bottom + 16}
-        pt="$2"
-        borderTopWidth={1}
-        borderColor="$borderColor"
-        bg="$background"
-      >
-        <Button
-          size="$4"
-          theme="gray"
-          chromeless
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(modals)/proofs');
-          }}
-          icon={<Database size={16} color="$color10" />}
-          iconAfter={<ChevronRight size={16} color="$color10" />}
-          pressStyle={{ scale: 0.98, opacity: 0.85 }}
-          animation="quick"
-          bg="$gray2"
-          rounded="$4"
-        >
-          <Text fontWeight="700" fontSize="$3" flex={1}>Proof Manager</Text>
-        </Button>
-      </YStack>
 
-      <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
-        <YStack p="$4" gap="$4" pb={insets.bottom + 40}>
-          <Text fontSize="$6" fontWeight="700">Filter by Mint</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <YStack gap="$2" pb="$4">
-              <ListItem
-                title="All Mints"
-                icon={<Building2 size={20} color="$gray10" />}
-                iconAfter={selectedMint === 'all' ? <Check size={18} color="$green10" /> : null}
-                onPress={() => handleSelectMint('all')}
-                bg={selectedMint === 'all' ? "$gray3" : "transparent"}
-                rounded="$4"
-              />
-              {mints.map((mint) => (
-                <ListItem
-                  key={mint.mintUrl}
-                  title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '')}
-                  subTitle={mint.mintUrl}
-                  icon={
-                    <Avatar rounded="$3" size="$2">
-                      <Avatar.Image src={mint.icon} />
-                      <Avatar.Fallback backgroundColor="$gray5" alignItems="center" justifyContent="center">
-                        <Building2 size={16} color="$gray10" />
-                      </Avatar.Fallback>
-                    </Avatar>
-                  }
-                  iconAfter={selectedMint === mint.mintUrl ? <Check size={18} color="$green10" /> : null}
-                  onPress={() => handleSelectMint(mint.mintUrl)}
-                  bg={selectedMint === mint.mintUrl ? "$gray3" : "transparent"}
-                  rounded="$4"
-                />
-              ))}
-            </YStack>
-          </ScrollView>
-        </YStack>
-      </AppBottomSheet>
+
+      <MintSelectorSheet
+        ref={sheetRef}
+        activeMintUrl={selectedMint}
+        onSelect={setSelectedMint}
+        showAllOption={true}
+      />
     </YStack>
   );
 }

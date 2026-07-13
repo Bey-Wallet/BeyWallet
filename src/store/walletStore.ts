@@ -6,12 +6,14 @@ import {
     walletService,
     mintManager,
     nostrService,
+    quotesService,
 } from '../services/core';
 import type { MintInfo } from '../services/core';
 import { useSettingsStore } from './settingsStore';
 import { DEFAULT_MINT } from './constants';
 import { InteractionManager, DeviceEventEmitter } from 'react-native';
 import { seedService } from '../services/seedService';
+import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
 
@@ -35,7 +37,14 @@ interface WalletState {
     restoreQueue: string[];
     scannerResult: string | null;
     isRefreshing: boolean;
+    isCheckingPendingOnchain: boolean;
     mintRestoreStatuses: MintRestoreEntry[];
+    restoringMintKeysetProgress: {
+        current: number;
+        total: number;
+        keysetId: string;
+        statusText: string;
+    } | null;
 
     // Actions
     initialize: () => Promise<void>;
@@ -52,6 +61,7 @@ interface WalletState {
     restoreAllMints: (extraMintUrls?: string[]) => Promise<void>;
     setScannerResult: (result: string | null) => void;
     syncMintsToNostr: () => Promise<void>;
+    autoCheckPendingOnchainQuotes: () => Promise<void>;
 }
 
 
@@ -71,7 +81,9 @@ export const useWalletStore = create<WalletState>()(
             restoreQueue: [],
             scannerResult: null,
             isRefreshing: false,
+            isCheckingPendingOnchain: false,
             mintRestoreStatuses: [],
+            restoringMintKeysetProgress: null,
 
 
             initialize: async () => {
@@ -166,9 +178,8 @@ export const useWalletStore = create<WalletState>()(
                     // Defer heavy background work AFTER all sheet animations settle
                     // This matches Sovran — addMint never blocks the UI thread
                     InteractionManager.runAfterInteractions(() => {
-                        console.log(`[WalletStore] 🔄 Background: repair keysets + restore for: ${url}`);
+                        console.log(`[WalletStore] 🔄 Background: repair keysets for: ${url}`);
                         mintManager.repairMintKeysets(url, 'sat').catch(console.warn);
-                        get().restoreFromSeed(url);
                         get().syncMintsToNostr();
                     });
                 } catch (err: any) {
@@ -210,6 +221,16 @@ export const useWalletStore = create<WalletState>()(
                     const balance = balances[activeUrl] ?? 0;
 
                     set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
+
+                    // Auto-check and redeem pending on-chain quotes in the background
+                    InteractionManager.runAfterInteractions(() => {
+                        get().autoCheckPendingOnchainQuotes().catch(err => {
+                            console.warn('[WalletStore] Background pending on-chain quote check failed:', err);
+                        });
+                        get().cleanSpentProofs().catch(err => {
+                            console.warn('[WalletStore] Background spent proofs clean failed:', err);
+                        });
+                    });
                 } catch (err: any) {
                     console.error('[WalletStore] Error refreshing balance:', err);
                     set({ error: err.message, isRefreshing: false });
@@ -306,6 +327,7 @@ export const useWalletStore = create<WalletState>()(
                             set({ activeMintUrl: nextActive || null });
                         }
                     }
+                    await get().refreshBalance();
                     InteractionManager.runAfterInteractions(() => {
                         get().syncMintsToNostr();
                     });
@@ -345,54 +367,60 @@ export const useWalletStore = create<WalletState>()(
                 }
             },
 
-            /**
-             * Restore all mints: DEFAULT_MINT + all trusted mints already in DB
-             * + any extra mint URLs passed in (e.g. from a backup file).
-             * Populates mintRestoreStatuses for progress UI.
-             */
-            restoreAllMints: async (extraMintUrls: string[] = []) => {
-                // Feature/Popular mints to check by default to aid discovery
-                const FEATURED_MINTS = [
-                    "https://mint.minibits.cash/Bitcoin",
-                    "https://testnut.cashu.space",
-                    "https://nofee.testnut.cashu.space"
-                ];
+             /**
+              * Restore all mints: DEFAULT_MINT + all trusted mints already in DB
+              * + any extra mint URLs passed in (e.g. from a backup file).
+              * Populates mintRestoreStatuses for progress UI.
+              */
+             restoreAllMints: async (extraMintUrls: string[] = []) => {
+                 // Feature/Popular mints to check by default to aid discovery
+                 const FEATURED_MINTS = [
+                     "https://mint.minibits.cash/Bitcoin"
+                 ];
 
-                // Build deduplicated list of mints to restore
-                const urlSet = new Set<string>([DEFAULT_MINT, ...FEATURED_MINTS, ...extraMintUrls]);
-                try {
-                    const trustedMints = await mintManager.getAllTrustedMints();
-                    for (const m of trustedMints) urlSet.add(m.mintUrl);
-                } catch (e) {
-                    console.warn('[WalletStore] Could not fetch trusted mints for restore:', e);
-                }
+                 // Build deduplicated list of mints to restore
+                 const urlSet = new Set<string>([DEFAULT_MINT, ...FEATURED_MINTS, ...extraMintUrls]);
+                 try {
+                     const trustedMints = await mintManager.getAllTrustedMints();
+                     for (const m of trustedMints) urlSet.add(m.mintUrl);
+                 } catch (e) {
+                     console.warn('[WalletStore] Could not fetch trusted mints for restore:', e);
+                 }
 
-                const mintUrls = Array.from(urlSet);
+                 const mintUrls = Array.from(urlSet);
 
-                // Initialise status entries
-                set({
-                    mintRestoreStatuses: mintUrls.map(url => ({
-                        mintUrl: url,
-                        status: 'pending',
-                        restoredBalance: 0,
-                    })),
-                    isRestoring: true,
-                });
+                 // Initialise status entries
+                 set({
+                     mintRestoreStatuses: mintUrls.map(url => ({
+                         mintUrl: url,
+                         status: 'pending',
+                         restoredBalance: 0,
+                     })),
+                     isRestoring: true,
+                 });
 
-                // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
-                for (const mintUrl of mintUrls) {
-                    // Mark as scanning
-                    set(s => ({
-                        mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
-                            e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
-                        ),
-                        restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
-                    }));
+                 // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
+                 for (const mintUrl of mintUrls) {
+                     // Mark as scanning
+                     set(s => ({
+                         mintRestoreStatuses: s.mintRestoreStatuses.map(e =>
+                             e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e
+                         ),
+                         restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
+                     }));
 
-                    try {
-                        // Ensure mint is added and trusted before restoring
-                        await mintManager.addMint(mintUrl, { trusted: true });
-                        await walletService.restore(mintUrl);
+                     try {
+                         // Ensure mint is added and trusted before restoring
+                         await mintManager.addMint(mintUrl, { trusted: true });
+                         
+                         // Restore with a strict 12-second timeout to prevent unresponsive or slow mints from blocking onboarding forever
+                         const restorePromise = walletService.restore(mintUrl);
+                         await Promise.race([
+                             restorePromise,
+                             new Promise((_, reject) =>
+                                 setTimeout(() => reject(new Error('Restore timeout')), 12000)
+                             ),
+                         ]);
 
                         // Get restored balance for this mint
                         const allBalances = await walletService.getBalances();
@@ -470,6 +498,146 @@ export const useWalletStore = create<WalletState>()(
                     }
                 } catch (err: any) {
                     console.error('[WalletStore] Failed to sync mints to Nostr:', err?.message || err);
+                }
+            },
+
+            autoCheckPendingOnchainQuotes: async () => {
+                const activeUrl = get().activeMintUrl;
+                if (!activeUrl || !initService.isInitialized() || get().isCheckingPendingOnchain) return;
+
+                set({ isCheckingPendingOnchain: true });
+                try {
+                    const repo = initService.getRepo();
+                    const history = await repo.historyRepository.getPaginatedHistoryEntries(100, 0);
+                    
+                    // 1. Process Pending Deposits (Mints)
+                    const pendingOnchainMints = history.filter(
+                        h => h.type === 'mint' && h.state === 'pending' && h.metadata?.via === 'onchain'
+                    );
+
+                    for (const entry of pendingOnchainMints) {
+                        try {
+                            console.log(`[WalletStore] Auto-checking pending on-chain deposit quote ${entry.quoteId} for mint ${entry.mintUrl}`);
+                            const status = await quotesService.checkOnchainMintQuote(entry.mintUrl, entry.quoteId);
+                            const delta = status.amount_paid - status.amount_issued;
+                            if (delta > 0 && entry.metadata?.privKey) {
+                                console.log(`[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sats...`);
+                                await quotesService.redeemOnchainMintQuote(entry.mintUrl, entry.quoteId, entry.metadata.privKey);
+                                get().refreshBalance();
+                            }
+                        } catch (err) {
+                            console.warn(`[WalletStore] Failed checking pending quote ${entry.quoteId}:`, err);
+                        }
+                    }
+
+                    // 2. Process Pending Withdrawals (Melts)
+                    const pendingOnchainMelts = history.filter(
+                        h => h.type === 'melt' && h.state === 'pending' && h.metadata?.via === 'onchain'
+                    );
+
+                    for (const entry of pendingOnchainMelts) {
+                        try {
+                            console.log(`[WalletStore] Auto-checking pending on-chain melt quote ${entry.quoteId} for mint ${entry.mintUrl}`);
+                            const status = await quotesService.checkOnchainMeltQuote(entry.mintUrl, entry.quoteId);
+                            
+                            if (status.state === 'PAID') {
+                                console.log(`[WalletStore] Pending on-chain melt ${entry.quoteId} was paid! Finalizing...`);
+                                const m = initService.getManager() as any;
+
+                                // Claim change proofs if any
+                                if (status.change && status.change.length > 0 && entry.metadata?.changeOutputs) {
+                                    const wallet = new Wallet(new CashuMint(entry.mintUrl));
+                                    await wallet.loadMint();
+                                    const keyset = wallet.getKeyset(status.change[0].id);
+                                    
+                                    const outputData = entry.metadata.changeOutputs.map((h: any) => {
+                                        // Deserialize Uint8Array from hex string
+                                        const secretBytes = new Uint8Array(h.secret.match(/.{1,2}/g).map((byte: string) => parseInt(byte, 16)));
+                                        return new OutputData(
+                                            h.blindedMessage,
+                                            BigInt(h.blindingFactor),
+                                            secretBytes
+                                        );
+                                    });
+
+                                    const changeProofs = status.change.map((sig: any, idx: number) => {
+                                        return outputData[idx].toProof(sig, keyset);
+                                    });
+
+                                    const changeCoreProofs = changeProofs.map((p: any) => ({
+                                        ...p,
+                                        mintUrl: entry.mintUrl,
+                                        state: 'ready' as const
+                                    }));
+                                    await repo.proofRepository.saveProofs(entry.mintUrl, changeCoreProofs);
+                                    console.log(`[WalletStore] Claimed ${changeProofs.length} change proofs`);
+                                }
+
+                                // Mark inputs as spent
+                                if (entry.metadata?.inputs) {
+                                    const secrets = entry.metadata.inputs.map((p: any) => p.secret);
+                                    await m.proofService.setProofState(entry.mintUrl, secrets, 'spent');
+                                }
+
+                                // Update history
+                                await repo.historyRepository.updateHistoryMeltEntry(entry.mintUrl, entry.quoteId, 'paid');
+                                get().refreshBalance();
+                                
+                            } else if (status.state === 'UNPAID') {
+                                console.log(`[WalletStore] Pending on-chain melt ${entry.quoteId} failed/unpaid. Reclaiming inputs...`);
+                                const m = initService.getManager() as any;
+
+                                // Restore inputs back to ready
+                                if (entry.metadata?.inputs) {
+                                    const secrets = entry.metadata.inputs.map((p: any) => p.secret);
+                                    await m.proofService.setProofState(entry.mintUrl, secrets, 'ready');
+                                }
+
+                                // Update history to failed
+                                await repo.historyRepository.updateHistoryMeltEntry(entry.mintUrl, entry.quoteId, 'failed');
+                                get().refreshBalance();
+                            }
+                        } catch (err) {
+                            console.warn(`[WalletStore] Failed checking pending melt quote ${entry.quoteId}:`, err);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[WalletStore] Failed to auto-check pending on-chain quotes:', e);
+                } finally {
+                    set({ isCheckingPendingOnchain: false });
+                }
+            },
+
+            cleanSpentProofs: async () => {
+                const activeUrl = get().activeMintUrl;
+                if (!activeUrl || !initService.isInitialized()) return;
+                
+                try {
+                    const repo = initService.getRepo();
+                    const m = initService.getManager() as any;
+                    const readyProofs = await repo.proofRepository.getReadyProofs(activeUrl);
+                    if (readyProofs.length === 0) return;
+
+                    console.log(`[WalletStore] Checking spendable state for ${readyProofs.length} ready proofs on ${activeUrl}...`);
+                    const wallet = new Wallet(new CashuMint(activeUrl));
+                    const states = await wallet.checkProofsStates(readyProofs.map(p => ({ secret: p.secret, amount: p.amount, C: p.C, id: p.id })));
+                    
+                    const spentSecrets: string[] = [];
+                    states.forEach((s, idx) => {
+                        if (s.state === 'SPENT') {
+                            spentSecrets.push(readyProofs[idx].secret);
+                        }
+                    });
+
+                    if (spentSecrets.length > 0) {
+                        console.log(`[WalletStore] Found ${spentSecrets.length} spent proofs locally. Setting them to spent...`);
+                        await m.proofService.setProofState(activeUrl, spentSecrets, 'spent');
+                        await get().refreshBalance();
+                    } else {
+                        console.log('[WalletStore] All local proofs are fresh and unspent!');
+                    }
+                } catch (e) {
+                    console.warn('[WalletStore] Failed to clean spent proofs:', e);
                 }
             },
 

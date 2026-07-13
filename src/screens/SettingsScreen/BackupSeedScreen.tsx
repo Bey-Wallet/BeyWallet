@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { seedService } from '~/services/seedService';
 import { initService } from '~/services/core';
+import { useSettingsStore } from '~/store/settingsStore';
 
 export function BackupSeedScreen() {
     const router = useRouter();
@@ -55,6 +56,7 @@ export function BackupSeedScreen() {
 
     const handleConfirmBackup = async () => {
         await SecureStore.setItemAsync('wallet_backed_up', 'true');
+        await useSettingsStore.getState().setSeedBackedUp(true);
         setHasBackedUp(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         console.log('[BackupSeedScreen] ✅ Wallet marked as backed up');

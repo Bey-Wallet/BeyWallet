@@ -11,7 +11,7 @@
 
 import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
-import { cleanToken, encodeToken } from './tokenUtils';
+import { cleanToken, encodeToken, decodeToken } from './tokenUtils';
 import type { Token } from '@cashu/cashu-ts';
 import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
@@ -133,6 +133,88 @@ async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retr
     }
 }
 
+function isNetworkError(err: any): boolean {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+        msg.includes('fetch') ||
+        msg.includes('network') ||
+        msg.includes('connect') ||
+        msg.includes('unreachable') ||
+        msg.includes('timeout') ||
+        msg.includes('abort') ||
+        msg.includes('status code 5') ||
+        msg.includes('failed to fetch') ||
+        err?.name === 'AbortError' ||
+        err?.name === 'TypeError'
+    );
+}
+
+async function handleOfflineReceive(token: string, mintUrl: string | null, error: any) {
+    try {
+        console.log('[WalletService] 🔌 Network error during receive. Saving token to history...');
+        const decoded = decodeToken(token);
+        const finalMintUrl = mintUrl || decoded.mint;
+        if (!finalMintUrl) {
+            console.warn('[WalletService] Cannot save offline token: no mint URL found');
+            return;
+        }
+
+        const repo = initService.getRepo();
+        if (!repo?.historyRepository) {
+            console.warn('[WalletService] Cannot save offline token: historyRepository not initialized');
+            return;
+        }
+
+        // 1. Ensure mint is added/known so it appears in the mint list and filters
+        const mintsList = await repo.mintRepository.getAllMints();
+        const knownMints = mintsList.map((m: any) => m.mintUrl.toLowerCase());
+        if (!knownMints.includes(finalMintUrl.toLowerCase())) {
+            try {
+                const { mintManager } = require('./mintManager');
+                await mintManager.addMint(finalMintUrl, { trusted: true });
+                console.log('[WalletService] Offline Receive: added/trusted unknown mint:', finalMintUrl);
+            } catch (addErr) {
+                console.warn('[WalletService] Offline Receive: failed to auto-add mint in background:', addErr);
+            }
+        }
+
+        // 2. Check if this token is already in history to prevent duplicates
+        const historyList = await repo.historyRepository.getPaginatedHistoryEntries(100, 0);
+        const exists = historyList.find((item: any) => {
+            const itemToken = typeof item.tokenJson === 'string' ? item.tokenJson : JSON.stringify(item.token);
+            return itemToken && (itemToken.includes(token) || token.includes(itemToken));
+        });
+
+        if (exists) {
+            console.log('[WalletService] Offline Receive: Token already exists in history as ID:', exists.id);
+            throw new Error(`Could not connect to mint. This token is already saved in your history (ID: ${exists.id}) to claim later.`);
+        }
+
+        // 3. Add to history as 'unclaimed' receive
+        const newEntry = await (repo.historyRepository as any).addHistoryEntry({
+            mintUrl: finalMintUrl,
+            type: 'receive',
+            unit: decoded.unit || 'sat',
+            amount: decoded.amount || 0,
+            createdAt: Date.now(),
+            state: 'unclaimed',
+            token: decoded,
+            metadata: {
+                offline: true,
+                memo: decoded.memo || 'Offline Receive',
+                originalError: error?.message || 'Network request failed'
+            }
+        });
+
+        console.log('[WalletService] Offline token saved as transaction ID:', newEntry.id);
+        throw new Error("Could not connect to mint. The token has been saved to your transaction history so you can claim it later when you are online.");
+    } catch (saveErr: any) {
+        if (saveErr.message.includes('Could not connect to mint')) {
+            throw saveErr;
+        }
+        console.error('[WalletService] Failed to save offline token:', saveErr);
+    }
+}
 
 export const walletService = {
     // ─── Sending ──────────────────────────────────────────────
@@ -369,6 +451,65 @@ export const walletService = {
         return { encoded, token, id: operationId };
     },
 
+    /**
+     * Create an ecash token offline using a selected subset of proofs.
+     * Marks selected proofs as spent in the local repository and saves a history log.
+     */
+    sendOffline: async (
+        mintUrl: string,
+        amount: number,
+        selectedProofs: CoreProof[]
+    ): Promise<{ encoded: string; token: Token; id: string }> => {
+        console.log(`[WalletService] Creating offline send of ${amount} sats from ${mintUrl} using ${selectedProofs.length} proofs`);
+
+        const m = mgr();
+        const unsafeManager = m as any;
+        const operationId = generateSubId();
+
+        // 1. Mark selected proofs as spent in the local database
+        const secrets = selectedProofs.map(p => p.secret);
+        await unsafeManager.proofService.setProofState(mintUrl, secrets, 'spent');
+
+        // 2. Clean proofs to standard Cashu format (strip db-specific metadata)
+        const cleanProofs = selectedProofs.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            secret: p.secret,
+            C: p.C
+        }));
+
+        // 3. Build and Encode Token
+        const token: Token = {
+            mint: mintUrl,
+            proofs: cleanProofs,
+            unit: 'sat'
+        };
+        const encoded = encodeToken(token);
+
+        // 4. Add history entry
+        try {
+            await initService.getRepo().historyRepository.addHistoryEntry({
+                mintUrl,
+                unit: 'sat',
+                createdAt: Date.now(),
+                type: 'send',
+                amount: amount,
+                operationId: operationId,
+                state: 'pending',
+                token: token,
+                metadata: {
+                    via: 'ecash_create',
+                    offline: true,
+                }
+            });
+            console.log(`[WalletService] History tracking injected for offline send.`);
+        } catch (histErr) {
+            console.warn('[WalletService] Failed to inject history entry for offline send:', histErr);
+        }
+
+        return { encoded, token, id: operationId };
+    },
+
     // ─── Receiving ────────────────────────────────────────────
 
     /**
@@ -456,6 +597,9 @@ export const walletService = {
                     console.log('[WalletService] ✅ Token received (after cache clear)');
                     return;
                 } catch (retryErr: any) {
+                    if (isNetworkError(retryErr)) {
+                        await handleOfflineReceive(cleaned, mintUrl, retryErr);
+                    }
                     throw retryErr;
                 }
             }
@@ -466,6 +610,10 @@ export const walletService = {
 
             if (msg.includes('could not be verified') || msg.includes('outputs')) {
                 throw new Error('Token proofs could not be verified. The token may have already been redeemed.');
+            }
+
+            if (isNetworkError(err)) {
+                await handleOfflineReceive(cleaned, mintUrl, err);
             }
 
             throw err;
@@ -568,6 +716,78 @@ export const walletService = {
         const m = mgr();
         const unsafeManager = m as any;
         console.log(`[WalletService] 🔄 Starting SDK restore for: ${mintUrl}`);
+
+        if (unsafeManager.walletRestoreService) {
+            // Set batch size and gap limit to 200 to check exactly 1 batch of 200 per keyset.
+            // Helps avoid slow multiple sequential network checks and point derivation on mobile.
+            unsafeManager.walletRestoreService.restoreBatchSize = 200; // gapLimit
+            unsafeManager.walletRestoreService.restoreGapLimit = 200;  // batchSize
+        }
+
+        // Dynamically override m.wallet.restore if not already overridden to filter by sat-only units.
+        // BeyWallet is a SAT-only wallet; scanning USD or EUR keysets wastes database, network and CPU resources.
+        if (m.wallet && !(m.wallet as any)._restoreOverridden) {
+            (m.wallet as any)._restoreOverridden = true;
+            m.wallet.restore = async function (targetMintUrl: string) {
+                this.logger?.info(`[WalletService] Starting optimized restore for ${targetMintUrl}`);
+                const mint = await this.mintService.addMintByUrl(targetMintUrl, { trusted: true });
+                
+                // Filter keysets to ONLY include BTC / satoshi units
+                const satKeysets = mint.keysets.filter((ks: any) => {
+                    const unit = (ks.unit || '').toLowerCase();
+                    return unit === 'sat' || unit === 'sats' || unit === '';
+                });
+
+                this.logger?.debug(`[WalletService] Filtered keysets for ${targetMintUrl}: ${satKeysets.length} of ${mint.keysets.length} are sat/BTC`);
+
+                const { wallet } = await this.walletService.getWalletWithActiveKeysetId(targetMintUrl);
+                const failedKeysetIds: Record<string, any> = {};
+                
+                let current = 0;
+                for (const keyset of satKeysets) {
+                    current++;
+                    try {
+                        const { useWalletStore } = require('../../store/walletStore');
+                        useWalletStore.setState({
+                            restoringMintKeysetProgress: {
+                                current,
+                                total: satKeysets.length,
+                                keysetId: keyset.id,
+                                statusText: `Keyset: ${keyset.id.substring(0, 12)}… (${current}/${satKeysets.length})`
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('[WalletService] Failed to set keyset progress:', e);
+                    }
+
+                    try {
+                        await this.walletRestoreService.restoreKeyset(targetMintUrl, wallet, keyset.id);
+                    } catch (error) {
+                        this.logger?.error("Keyset restore failed", {
+                            targetMintUrl,
+                            keysetId: keyset.id,
+                            error
+                        });
+                        failedKeysetIds[keyset.id] = error;
+                    }
+                }
+
+                // Clear the progress state after complete
+                try {
+                    const { useWalletStore } = require('../../store/walletStore');
+                    useWalletStore.setState({ restoringMintKeysetProgress: null });
+                } catch (e) {}
+
+                if (Object.keys(failedKeysetIds).length > 0) {
+                    this.logger?.error("Restore completed with failures", {
+                        targetMintUrl,
+                        failedKeysetIds: Object.keys(failedKeysetIds)
+                    });
+                    throw new Error("Failed to restore some keysets");
+                }
+                this.logger?.info("Restore completed successfully", { targetMintUrl });
+            };
+        }
 
         try {
             // Step 1: Pre-warm all keyset keys so SDK's internal WalletRestoreService

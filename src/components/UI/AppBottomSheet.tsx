@@ -14,6 +14,7 @@ interface AppBottomSheetProps {
     snapPoints?: (string | number)[];
     onClose?: () => void;
     enablePanDownToClose?: boolean;
+    backgroundColor?: string;
 }
 
 export interface AppBottomSheetRef {
@@ -22,7 +23,7 @@ export interface AppBottomSheetRef {
 }
 
 const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
-    ({ children, snapPoints, onClose, enablePanDownToClose = true }, ref) => {
+    ({ children, snapPoints, onClose, enablePanDownToClose = true, backgroundColor }, ref) => {
         const bottomSheetRef = useRef<BottomSheetModal>(null);
         const theme = useTheme();
         const [isOpen, setIsOpen] = useState(false);
@@ -90,9 +91,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
                     height: 4,
                 }}
                 backgroundStyle={{
-                    backgroundColor: theme.color2.val,
+                    backgroundColor: backgroundColor 
+                        ? (theme[backgroundColor.replace('$', '') as keyof typeof theme]?.val || backgroundColor) 
+                        : theme.color2.val,
                     borderRadius: 20,
-
                 }}
                 onChange={handleSheetChanges}
                 animationConfigs={{

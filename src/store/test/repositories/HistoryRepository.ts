@@ -157,11 +157,19 @@ export class ExpoHistoryRepository {
         mintUrl: string,
         quoteId: string,
         state: MintQuoteState,
+        amount?: number,
     ): Promise<HistoryEntry> {
-        await this.db.run(
-            `UPDATE coco_cashu_history SET state = ? WHERE mintUrl = ? AND quoteId = ? AND type = 'mint'`,
-            [state, mintUrl, quoteId],
-        );
+        if (amount !== undefined) {
+            await this.db.run(
+                `UPDATE coco_cashu_history SET state = ?, amount = ? WHERE mintUrl = ? AND quoteId = ? AND type = 'mint'`,
+                [state, amount, mintUrl, quoteId],
+            );
+        } else {
+            await this.db.run(
+                `UPDATE coco_cashu_history SET state = ? WHERE mintUrl = ? AND quoteId = ? AND type = 'mint'`,
+                [state, mintUrl, quoteId],
+            );
+        }
         const row = await this.db.get<Row>(
             `SELECT id, mintUrl, type, unit, amount, createdAt, quoteId, state, paymentRequest, tokenJson, metadata
        FROM coco_cashu_history WHERE mintUrl = ? AND quoteId = ? AND type = 'mint'

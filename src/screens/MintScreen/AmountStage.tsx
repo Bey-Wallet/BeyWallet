@@ -1,17 +1,16 @@
-import React from 'react';
-import { YStack, XStack, Text, H1, ListItem, View, Button, Avatar, Square } from "tamagui";
-import { RollingNumber } from "~/components/UI/RollingNumber";
+import React, { useMemo, useRef } from 'react';
+import { YStack, XStack, Text, H1, Button, Avatar, Square } from "tamagui";
+import { ChevronDown, Sprout, ArrowUpDown } from "@tamagui/lucide-icons";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
 import { bitcoinService } from "~/services/bitcoinService";
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
-import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
-import { useRef, useMemo } from "react";
-import * as Haptics from "expo-haptics";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { ChevronDown, Sprout, Plus, ShieldCheck, ShieldOff } from "@tamagui/lucide-icons";
+import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
+import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
+import { Spinner } from "~/components/UI/Spinner";
+import * as Haptics from "expo-haptics";
 
 interface AmountStageProps {
     amount: string;
@@ -20,10 +19,12 @@ interface AmountStageProps {
 }
 
 export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps) {
-    const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
-    const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>('SATS');
+    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, balance } = useWalletStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+    const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
     const sheetRef = useRef<AppBottomSheetRef>(null);
+
+    const isLoadingMint = isInitializing || isRefreshing;
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -37,10 +38,16 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
 
     const activeMint = useMemo(() => {
         if (!activeMintUrl) return null;
-        return mints.find(m => m.mintUrl.replace(/\/$/, '') === activeMintUrl.replace(/\/$/, ''));
+        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+        return mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
     }, [mints, activeMintUrl]);
 
-    const mintName = activeMint?.nickname || activeMint?.name || activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') || "Select Mint";
+    const displayName = useMemo(() => {
+        if (!activeMintUrl) return "Select Mint";
+        if (activeMint?.nickname) return activeMint.nickname;
+        if (activeMint?.name) return activeMint.name;
+        return activeMintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    }, [activeMint, activeMintUrl]);
 
     // Value derived for the non-active mode
     const conversionValue = useMemo(() => {
@@ -53,38 +60,56 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
             );
         } else {
             const sats = Number(amount) || 0;
-            return `₿${sats}`;
+            return currencyService.formatSats(sats);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
-
-    const handleValueChange = (newVal: string) => {
-        if (inputMode === 'SATS') {
-            setAmount(newVal);
-        } else {
-            // Processing fiat input
-            if (!btcData?.price) return;
-            const fiatNum = Number(newVal) || 0;
-            const sats = currencyService.convertCurrencyToSats(fiatNum, btcData.price);
-            // We still need to store the fiat string somewhere to avoid conversion jitter
-            // but the parent needs Sats. 
-            // Let's use a local state for the keypad value to keep it clean.
-            setAmount(String(sats));
-        }
-    };
 
     // To prevent numeric jitter when typing fiat, we keep a local string for the keypad
     const [localInputValue, setLocalInputValue] = React.useState(amount);
 
-    // Synchronize local input when amount changes from outside (e.g. toggling or initial)
-    // but only if we are in SATS mode. In FIAT mode, the keypad drives the local value.
     React.useEffect(() => {
         if (inputMode === 'SATS') {
             setLocalInputValue(amount);
         }
     }, [amount, inputMode]);
 
-    const onKeypadChange = (val: string) => {
+    const onKeypadChange = (rawVal: string) => {
+        let val = rawVal;
+
+        // 1. If starting with a decimal point, prepend '0'
+        if (val === '.') {
+            val = '0.';
+        }
+
+        // 2. In SATS mode, satoshis are whole integers — do not allow decimal points
+        if (inputMode === 'SATS') {
+            val = val.replace(/\./g, '');
+        } else {
+            // FIAT mode: prevent multiple decimals (e.g., "12.3.4" -> "12.34")
+            const parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
+            }
+            // Limit to max 2 decimal places in FIAT mode (e.g., "12.345" -> "12.34")
+            if (parts.length === 2 && parts[1].length > 2) {
+                val = parts[0] + '.' + parts[1].slice(0, 2);
+            }
+        }
+
+        // 3. Prevent multiple leading zeros (e.g. "00" -> "0", but keep "0.")
+        if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
+            val = val.replace(/^0+/, '');
+            if (val === '') val = '0';
+        }
+
+        // 4. Limit total input character length so it stays clean
+        const maxLen = 11;
+        if (val.length > maxLen) {
+            val = val.slice(0, maxLen);
+        }
+
         setLocalInputValue(val);
+
         if (inputMode === 'SATS') {
             setAmount(val);
         } else {
@@ -98,7 +123,6 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
     const toggleMode = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (inputMode === 'SATS') {
-            // Switching to FIAT
             if (btcData?.price) {
                 const sats = Number(amount) || 0;
                 const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
@@ -106,16 +130,9 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
             }
             setInputMode('FIAT');
         } else {
-            // Switching to SATS
             setLocalInputValue(amount);
             setInputMode('SATS');
         }
-    };
-
-    const handleSelectMint = (mintUrl: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setActiveMint(mintUrl);
-        sheetRef.current?.dismiss();
     };
 
     const handlePreset = (presetSats: string) => {
@@ -129,118 +146,152 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
         }
     };
 
+    const formattedDisplayValue = useMemo(() => {
+        if (!localInputValue || localInputValue === '0') return '0';
+        if (inputMode === 'SATS') {
+            const num = Number(localInputValue);
+            if (!isNaN(num)) {
+                return num.toLocaleString('en-US');
+            }
+        } else {
+            const parts = localInputValue.split('.');
+            const integerPart = Number(parts[0]);
+            if (!isNaN(integerPart)) {
+                const formattedInt = integerPart.toLocaleString('en-US');
+                return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+            }
+        }
+        return localInputValue;
+    }, [localInputValue, inputMode]);
+
+    // Dynamic font size based on string length to scale seamlessly
+    const dynamicFontSize = useMemo(() => {
+        const len = formattedDisplayValue.length;
+        if (len <= 6) return 44;
+        if (len <= 8) return 38;
+        if (len <= 10) return 32;
+        if (len <= 13) return 26;
+        return 20;
+    }, [formattedDisplayValue]);
+
     return (
         <YStack flex={1} justify="space-between">
-            <YStack width="100%" height={300} rounded="$4" borderWidth={0.5} borderColor="$borderColor" justify="space-between" bg="$color2" items="center">
+            <YStack items="center" gap="$3" width="100%">
+                {/* Mint Selector Row */}
                 <XStack
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                        sheetRef.current?.present();
-                    }}
-                    width="100%"
-                    p="$3"
-                    items="center"
-                    borderBottomWidth={1}
-                    borderBottomColor="$color3"
                     justify="space-between"
-                    hoverStyle={{ bg: "$color3" }}
-                    pressStyle={{ bg: "$color5", opacity: 0.8, rounded: "$4" }}
+                    items="center"
+                    width="100%"
+                    bg="$gray2"
+                    px="$3"
+                    py="$3"
+                    rounded="$5"
+                    mb="$1"
                 >
-                    <XStack gap="$2" items="center">
-                        <Sprout size={18} strokeWidth={2.5} color="$color" />
-                    </XStack>
-                    <Text fontWeight="800" fontSize="$4" numberOfLines={1} style={{ maxWidth: 200 }}>{mintName}</Text>
-                    <ChevronDown size={18} strokeWidth={2.5} color="$color" />
-                </XStack>
-
-                <YStack items="center" gap="$1">
-                    <Text color="$gray10" fontSize="$3">How much to deposit?</Text>
-
-                    <H1 fontWeight="400" letterSpacing={-2} py="$4" color="$color">
-                        {inputMode === 'SATS' ? `₿${localInputValue || '0'}` : `${currencySymbol}${localInputValue || '0'}`}
-                    </H1>
-
-                    <Button
-                        size="$2.5"
-                        theme="gray"
-                        fontWeight="400"
-                        color="$accent9"
-                        mt="$-2"
-                        onPress={toggleMode}
-                        pressStyle={{ scale: 0.95 }}
+                    <XStack
+                        gap="$2"
+                        items="center"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                            refreshMintList();
+                            sheetRef.current?.present();
+                        }}
+                        pressStyle={{ opacity: 0.7 }}
+                        flex={1}
                     >
-                        {conversionValue}
-                    </Button>
-                </YStack>
-
-                <XStack width="100%" p="$3" borderTopWidth={1} borderTopColor="$color3" justify="space-between" items="center">
-                    <Text color="$gray10" fontWeight="400" fontSize="$3">Presets</Text>
-                    <XStack gap="$2" items="center">
-                        <Button size="$2" onPress={() => handlePreset('1000')}>1k</Button>
-                        <Button size="$2" onPress={() => handlePreset('5000')}>5k</Button>
-                        <Button size="$2" onPress={() => handlePreset('20000')}>20k</Button>
+                        {isLoadingMint ? (
+                            <Spinner size={14} color="$accent10" />
+                        ) : (
+                            <Avatar rounded="$3" size="$2">
+                                <Avatar.Image src={activeMint?.icon} />
+                                <Avatar.Fallback
+                                    backgroundColor="$gray4"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                >
+                                    <Sprout size={14} color="$accent10" />
+                                </Avatar.Fallback>
+                            </Avatar>
+                        )}
+                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
+                            {isLoadingMint ? "Loading..." : displayName}
+                        </Text>
+                        <ChevronDown size={16} color="$gray10" />
                     </XStack>
+
+                    <Text fontSize="$3" color="$gray10" fontWeight="500">
+                        {currencyService.formatSats(balance)}
+                    </Text>
                 </XStack>
-            </YStack>
 
-            <NumericKeypad
-                showAmountDisplay={false}
-                value={localInputValue}
-                onValueChange={onKeypadChange}
-                onConfirm={onContinue}
-                confirmLabel="Continue"
-            />
+                {/* Card Box Container */}
+                <YStack
+                    width="100%"
+                    bg="$gray2"
+                    rounded="$5"
+                    p="$4"
+                    items="center"
+                    gap="$3"
+                    borderWidth={0}
+                    borderColor="$borderColor"
+                >
 
-            <AppBottomSheet ref={sheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <XStack justify="space-between" items="center" mb="$2">
-                        <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
+                    {/* Amount Display Section */}
+                    <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+                        <Text color="$gray10" fontSize="$3" fontWeight="500">
+                            Enter Amount
+                        </Text>
+
+                        <H1
+                            fontSize={dynamicFontSize}
+                            fontVariant={['tabular-nums']}
+                            fontWeight="700"
+                            letterSpacing={-1}
+                            py="$2"
+                            color="$color"
+                            text="center"
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            style={{ maxWidth: '100%', overflow: 'hidden' }}
+                        >
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
+                        </H1>
+
+                        <Button
+                            size="$3"
+                            rounded="$10"
+                            bg="$gray4"
+                            pressStyle={{ scale: 0.96, bg: "$gray5" }}
+                            onPress={toggleMode}
+                            iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                        >
+                            <Text fontSize="$3" fontWeight="600" color="$accent10">
+                                {conversionValue}
+                            </Text>
+                        </Button>
+                    </YStack>
+                </YStack>
+
+                {/* Presets and Numeric Keypad */}
+                <YStack width="100%" gap="$4">
+                    {/* 3 Preset buttons above numpad */}
+                    <XStack width="100%" justify="center" gap="$3" px="$2">
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('1000')}>1k</Button>
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('5000')}>5k</Button>
+                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('20000')}>20k</Button>
                     </XStack>
 
-                    <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
-                            {mints.length === 0 ? (
-                                <YStack items="center" py="$6" gap="$2">
-                                    <Sprout size={40} color="$gray8" />
-                                    <Text color="$gray10">No mints added yet</Text>
-                                </YStack>
-                            ) : (
-                                mints.map((mint) => (
-                                    <ListItem
-                                        key={mint.mintUrl}
-                                        size="$4"
-                                        px="$2"
-                                        hoverTheme
-                                        pressTheme
-                                        theme="gray"
-                                        rounded="$4"
-                                        borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0}
-                                        borderColor="$borderColor"
-                                        bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
-                                        onPress={() => handleSelectMint(mint.mintUrl)}
-                                        icon={
-                                            <View
-                                                bg={mint.trusted ? "$green4" : "$gray4"}
-                                                p="$2"
-                                                rounded="$10"
-                                            >
-                                                {mint.trusted ? (
-                                                    <ShieldCheck size={20} color="$green10" />
-                                                ) : (
-                                                    <ShieldOff size={20} color="$gray10" />
-                                                )}
-                                            </View>
-                                        }
-                                        title={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                        subTitle={mint.mintUrl.replace('https://', '')}
-                                    />
-                                ))
-                            )}
-                        </YStack>
-                    </BottomSheetScrollView>
+                    <NumericKeypad
+                        showAmountDisplay={false}
+                        value={localInputValue}
+                        onValueChange={onKeypadChange}
+                        onConfirm={onContinue}
+                        confirmLabel="Continue"
+                    />
                 </YStack>
-            </AppBottomSheet>
+
+                <MintSelectorSheet ref={sheetRef} />
+            </YStack>
         </YStack>
     );
 }
-

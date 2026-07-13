@@ -7,9 +7,9 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Button, Input, View, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, H1, Button, Input, View, Avatar, Square, ScrollView } from 'tamagui';
 import {
-    Search, ClipboardPaste, ScanQrCode, ChevronDown, Sprout, AlertCircle, User, X
+    Search, ClipboardPaste, ChevronDown, Sprout, User, X, Wallet, ArrowUpDown
 } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
 import { Spinner } from '~/components/UI/Spinner';
@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
 import { nip19 } from 'nostr-tools';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Buffer } from 'buffer';
@@ -45,14 +46,15 @@ export function NostrSendStage({
     setRecipientNpub, setRecipientUsername,
     onContinue, balance, isLoading, error
 }: NostrSendStageProps) {
-    const { activeMintUrl, mints, setActiveMint } = useWalletStore();
-    const { secondaryCurrency } = useSettingsStore();
+    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const favorites = useContactsStore(s => s.favorites);
     const favoriteContacts = Object.values(favorites);
-    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>('SATS');
+    const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const contactSheetRef = useRef<AppBottomSheetRef>(null);
 
+    const isLoadingMint = isInitializing || isRefreshing;
     const [search, setSearch] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [directory, setDirectory] = useState<Record<string, string>>({});
@@ -79,7 +81,7 @@ export function NostrSendStage({
         } else {
             setHasRecipient(true);
         }
-    }, []);
+    }, [recipientNpub]);
 
     const doSearch = (query: string, dict: Record<string, string> = directory) => {
         if (!query) { setResults([]); return; }
@@ -164,11 +166,16 @@ export function NostrSendStage({
 
     const activeMint = useMemo(() => {
         if (!activeMintUrl) return null;
-        return mints.find(m => m.mintUrl.replace(/\/$/, '') === activeMintUrl.replace(/\/$/, ''));
+        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+        return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
     }, [mints, activeMintUrl]);
 
-    const mintName = activeMint?.nickname || activeMint?.name ||
-        activeMintUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') || "Select Mint";
+    const displayName = useMemo(() => {
+        if (!activeMintUrl) return "Select Mint";
+        if (activeMint?.nickname) return activeMint.nickname;
+        if (activeMint?.name) return activeMint.name;
+        return activeMintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    }, [activeMint, activeMintUrl]);
 
     const parsedAmountSats = parseInt(amount, 10) || 0;
     const isOverBalance = parsedAmountSats > balance;
@@ -183,7 +190,7 @@ export function NostrSendStage({
                 secondaryCurrency as CurrencyCode
             );
         } else {
-            return `₿${Number(amount) || 0}`;
+            return currencyService.formatSats(Number(amount) || 0);
         }
     }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
@@ -193,8 +200,37 @@ export function NostrSendStage({
         if (inputMode === 'SATS') setLocalInputValue(amount);
     }, [amount, inputMode]);
 
-    const onKeypadChange = (val: string) => {
+    const onKeypadChange = (rawVal: string) => {
+        let val = rawVal;
+
+        if (val === '.') {
+            val = '0.';
+        }
+
+        if (inputMode === 'SATS') {
+            val = val.replace(/\./g, '');
+        } else {
+            const parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
+            }
+            if (parts.length === 2 && parts[1].length > 2) {
+                val = parts[0] + '.' + parts[1].slice(0, 2);
+            }
+        }
+
+        if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
+            val = val.replace(/^0+/, '');
+            if (val === '') val = '0';
+        }
+
+        const maxLen = 11;
+        if (val.length > maxLen) {
+            val = val.slice(0, maxLen);
+        }
+
         setLocalInputValue(val);
+
         if (inputMode === 'SATS') {
             setAmount(val);
         } else if (btcData?.price) {
@@ -227,30 +263,172 @@ export function NostrSendStage({
         }
     };
 
+    const formattedDisplayValue = useMemo(() => {
+        if (!localInputValue || localInputValue === '0') return '0';
+        if (inputMode === 'SATS') {
+            const num = Number(localInputValue);
+            if (!isNaN(num)) {
+                return num.toLocaleString('en-US');
+            }
+        } else {
+            const parts = localInputValue.split('.');
+            const integerPart = Number(parts[0]);
+            if (!isNaN(integerPart)) {
+                const formattedInt = integerPart.toLocaleString('en-US');
+                return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+            }
+        }
+        return localInputValue;
+    }, [localInputValue, inputMode]);
+
+    const dynamicFontSize = useMemo(() => {
+        const len = formattedDisplayValue.length;
+        if (len <= 6) return 44;
+        if (len <= 8) return 38;
+        if (len <= 10) return 32;
+        if (len <= 13) return 26;
+        return 20;
+    }, [formattedDisplayValue]);
+
     return (
         <YStack flex={1} justify="space-between">
-            <YStack width="100%" rounded="$4" borderWidth={0.5} borderColor="$borderColor" bg="$color2" mb="$4">
-                {/* Recipient display / change */}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1, width: '100%' }}
+                contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+            >
+                {/* Mint Selector & Balance Row */}
+                <XStack
+                    justify="space-between"
+                    items="center"
+                    width="100%"
+                    bg="$gray2"
+                    px="$3"
+                    py="$3"
+                    rounded="$5"
+                >
+                    <XStack
+                        gap="$2"
+                        items="center"
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                            refreshMintList();
+                            mintSheetRef.current?.present();
+                        }}
+                        pressStyle={{ opacity: 0.7 }}
+                        flex={1}
+                        mr="$2"
+                    >
+                        {isLoadingMint ? (
+                            <Spinner size={14} color="$accent10" />
+                        ) : (
+                            <Avatar rounded="$3" size="$2">
+                                <Avatar.Image src={activeMint?.icon} />
+                                <Avatar.Fallback
+                                    backgroundColor="$gray4"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                >
+                                    <Sprout size={14} color="$accent10" />
+                                </Avatar.Fallback>
+                            </Avatar>
+                        )}
+                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
+                            {isLoadingMint ? "Loading..." : displayName}
+                        </Text>
+                        <ChevronDown size={18} color="$gray10" />
+                    </XStack>
+                    <XStack gap="$2" items="center">
+                        <Text fontSize="$3" color="$accent6" fontWeight="500">
+                            {currencyService.formatSats(balance)}
+                        </Text>
+                        <Button
+                            size="$2"
+                            rounded="$3"
+                            borderWidth={0}
+                            color="$color"
+                            fontWeight="600"
+                            onPress={handleMax}
+                            disabled={balance === 0}
+                            pressStyle={{ scale: 0.96, bg: "$gray4" }}
+                        >
+                            Max
+                        </Button>
+                    </XStack>
+                </XStack>
+
+                {/* Card Box Container matching AmountStage & P2PKAmountStage */}
+                <YStack
+                    width="100%"
+                    bg="$gray2"
+                    rounded="$5"
+                    p="$4"
+                    items="center"
+                    gap="$3"
+                    borderWidth={0}
+                >
+                    {/* Amount Display Section */}
+                    <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
+                        {error || isOverBalance ? (
+                            <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
+                                {error || "Exceeds available balance"}
+                            </Text>
+                        ) : (
+                            <Text color="$gray10" fontSize="$3" fontWeight="500">
+                                How much to send?
+                            </Text>
+                        )}
+
+                        <H1
+                            fontSize={dynamicFontSize}
+                            fontVariant={['tabular-nums']}
+                            fontWeight="700"
+                            letterSpacing={-1}
+                            py="$2"
+                            color={isOverBalance ? "$red10" : "$color"}
+                            text="center"
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            style={{ maxWidth: '100%', overflow: 'hidden' }}
+                        >
+                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
+                        </H1>
+
+                        <Button
+                            size="$3"
+                            rounded="$10"
+                            bg="$gray5"
+                            pressStyle={{ scale: 0.96, bg: "$gray5" }}
+                            onPress={toggleMode}
+                            iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                        >
+                            {conversionValue}
+                        </Button>
+                    </YStack>
+                </YStack>
+
+                {/* Recipient display / selector bar */}
                 <XStack
                     width="100%"
-                    p="$3"
+                    bg="$gray2"
+                    rounded="$5"
+                    px="$3"
+                    py="$3"
                     items="center"
-                    borderBottomWidth={1}
-                    borderBottomColor="$color3"
                     justify="space-between"
                     onPress={hasRecipient ? clearRecipient : () => contactSheetRef.current?.present()}
-                    pressStyle={{ bg: "$color5" }}
+                    pressStyle={{ opacity: 0.8 }}
                 >
                     <XStack gap="$3" items="center" flex={1}>
                         {hasRecipient ? (
                             <Blockies seed={recipientNpub} size={8} scale={3} style={{ borderRadius: 3 }} />
                         ) : (
-                            <View bg="$purple4" p="$2" rounded="$10">
-                                <User size={18} color="$purple10" />
+                            <View bg="$accent4" p="$2" rounded="$10">
+                                <User size={16} color="$accent10" />
                             </View>
                         )}
                         <YStack flex={1}>
-                            <Text fontWeight="800" fontSize="$4" numberOfLines={1}>
+                            <Text fontWeight="800" fontSize="$3" numberOfLines={1}>
                                 {hasRecipient
                                     ? (recipientUsername || formatNpub(recipientNpub))
                                     : 'Select Recipient'}
@@ -261,59 +439,12 @@ export function NostrSendStage({
                         </YStack>
                     </XStack>
                     {hasRecipient ? (
-                        <Button size="$2" circular bg="$gray4" icon={<X size={14} />} onPress={clearRecipient} />
+                        <Button size="$2" circular icon={<X size={14} color="$color" />} onPress={clearRecipient} />
                     ) : (
-                        <ChevronDown size={18} color="$gray10" />
+                        <ChevronDown size={16} color="$gray10" />
                     )}
                 </XStack>
-
-                {/* Mint Selector */}
-                <XStack
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft); mintSheetRef.current?.present(); }}
-                    width="100%" p="$3" items="center" borderBottomWidth={1} borderBottomColor="$color3"
-                    justify="space-between" pressStyle={{ bg: "$color5" }}
-                >
-                    <XStack gap="$2" items="center">
-                        <Sprout size={18} strokeWidth={2.5} color="$color" />
-                        <Text color="$gray10" fontWeight="600">From Mint</Text>
-                    </XStack>
-                    <XStack gap="$2" items="center">
-                        <Text fontWeight="800" fontSize="$4" numberOfLines={1} style={{ maxWidth: 120 }}>{mintName}</Text>
-                        <ChevronDown size={18} strokeWidth={2.5} color="$color" />
-                    </XStack>
-                </XStack>
-
-                {/* Amount Display */}
-                <YStack items="center" gap="$1" py="$4">
-                    <Text color="$gray10" fontSize="$3">How much to send?</Text>
-                    <H1 fontWeight="400" letterSpacing={-2} py="$2" color={isOverBalance ? "$red10" : "$color"}>
-                        {inputMode === 'SATS' ? `₿${localInputValue || '0'}` : `${currencySymbol}${localInputValue || '0'}`}
-                    </H1>
-                    <Button size="$2.5" theme="gray" fontWeight="400" color="$accent9" onPress={toggleMode} pressStyle={{ scale: 0.95 }}>
-                        {conversionValue}
-                    </Button>
-                    {isOverBalance && (
-                        <Text color="$red10" fontSize="$2" mt="$2">Exceeds available balance</Text>
-                    )}
-                </YStack>
-
-                {/* Available Balance */}
-                <XStack width="100%" p="$3" borderTopWidth={1} borderTopColor="$color3" justify="space-between" items="center">
-                    <Text color="$gray10" fontWeight="400" fontSize="$3">Available Balance</Text>
-                    <XStack gap="$2" items="center">
-                        <Text color="$gray10" fontWeight="600" fontSize="$3">₿{balance}</Text>
-                        <Button size="$2" onPress={handleMax} disabled={balance === 0}>Max</Button>
-                    </XStack>
-                </XStack>
-            </YStack>
-
-            {/* Error */}
-            {error && (
-                <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mb="$4">
-                    <AlertCircle size={18} color="$red10" />
-                    <Text color="$red10" fontSize="$3" flex={1}>{error}</Text>
-                </XStack>
-            )}
+            </ScrollView>
 
             <NumericKeypad
                 showAmountDisplay={false}
@@ -392,29 +523,7 @@ export function NostrSendStage({
             </AppBottomSheet>
 
             {/* ── Mint Selector Sheet ──────────────────────────────────── */}
-            <AppBottomSheet ref={mintSheetRef} snapPoints={["50%", "85%"]}>
-                <YStack p="$4" gap="$3" flex={1}>
-                    <Text fontSize="$6" color="$accent5" fontWeight="bold">Select Mint</Text>
-                    <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-                        <YStack gap="$2" pb="$4">
-                            {mints.map((mint) => (
-                                <XStack
-                                    key={mint.mintUrl} bg={mint.mintUrl === activeMintUrl ? "$color2" : "transparent"}
-                                    p="$3" rounded="$4" items="center" gap="$3"
-                                    borderWidth={mint.mintUrl === activeMintUrl ? 1 : 0} borderColor="$borderColor"
-                                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setActiveMint(mint.mintUrl); mintSheetRef.current?.dismiss(); }}
-                                >
-                                    <Sprout size={18} color={mint.trusted ? "$green10" : "$gray10"} />
-                                    <YStack flex={1}>
-                                        <Text fontWeight="700">{mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>
-                                        <Text fontSize="$2" color="$gray10">{mint.mintUrl.replace('https://', '')}</Text>
-                                    </YStack>
-                                </XStack>
-                            ))}
-                        </YStack>
-                    </BottomSheetScrollView>
-                </YStack>
-            </AppBottomSheet>
+            <MintSelectorSheet ref={mintSheetRef} />
         </YStack>
     );
 }

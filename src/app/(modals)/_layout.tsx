@@ -6,7 +6,7 @@ import HomeHeaderMintSelector from '~/components/HomeMintSelector'
 
 // Extracted to module scope — never recreated on re-render
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
-    <Text fontWeight="700" fontSize={20} color="$color">
+    <Text fontWeight="bold" fontSize={20} color="$color">
         {children}
     </Text>
 ))
@@ -20,55 +20,53 @@ export default function ModalLayout() {
             screenOptions={{
                 headerShown: true,
                 presentation: 'formSheet',
+                animation: "slide_from_right",
                 headerStyle: {
-                    backgroundColor: theme.background.val,
+                    backgroundColor: theme.background?.val,
                 },
                 headerTitleStyle: {
-                    color: theme.color.val,
+                    color: theme.color?.val,
                     fontWeight: '500',
 
                 },
                 headerTitleAlign: 'center',
-                headerTintColor: theme.color.val,
+                headerTintColor: theme.color?.val,
                 headerShadowVisible: false,
                 headerTitle: ({ children }) => <DefaultHeaderTitle>{children}</DefaultHeaderTitle>,
                 headerLeft: () => (
                     <Button
                         circular
                         size="$3"
-                        chromeless
                         rounded="$10"
                         icon={<X size={24} color="$color" />}
                         onPress={() => router.back()}
                     />
                 ),
                 contentStyle: {
-                    backgroundColor: theme.background.val,
+                    backgroundColor: theme.background?.val,
                 },
             }}
         >
+            <Stack.Screen
+                name="mint-details"
+                options={{
+                    presentation: "fullScreenModal",
+                }}
+            />
             <Stack.Screen
                 name="receive"
                 options={{
                     title: 'Receive Ecash',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
                 name="nfc-receive"
                 options={{
-                    headerRight: () => (
-                        <Button
-                            theme="orange"
-                            fontWeight="700"
-                            size="$3"
-                            rounded="$10"
-                            iconAfter={<Nfc size={16} strokeWidth={2.5} color="$color" />}
-                            onPress={() => router.back()}
-                        >Send</Button>
-                    ),
                     headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -83,6 +81,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Send',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -98,6 +97,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Mint Cash',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -105,6 +105,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Pay Lightning',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -112,6 +113,7 @@ export default function ModalLayout() {
                 options={{
                     title: 'Swap',
                     presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -119,6 +121,7 @@ export default function ModalLayout() {
                 options={{
                     headerShown: false,
                     presentation: "modal",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen
@@ -145,8 +148,9 @@ export default function ModalLayout() {
             <Stack.Screen
                 name="nostr-profile"
                 options={{
-                    title: 'Nostr Identity',
                     presentation: "fullScreenModal",
+                    headerShown: true,
+                    headerTitle: '',
                 }}
             />
             <Stack.Screen
@@ -156,18 +160,19 @@ export default function ModalLayout() {
                     presentation: "fullScreenModal",
                 }}
             />
-            <Stack.Screen
-                name="about"
-                options={{
-                    title: 'About',
-                    presentation: "fullScreenModal",
-                }}
-            />
+
             <Stack.Screen
                 name="proofs"
                 options={{
                     presentation: "modal",
                     title: 'Proof Manager',
+                }}
+            />
+            <Stack.Screen
+                name="optimize-wallet"
+                options={{
+                    presentation: "modal",
+                    title: 'Optimize Wallet',
                 }}
             />
             <Stack.Screen
@@ -195,7 +200,8 @@ export default function ModalLayout() {
                 name="search"
                 options={{
                     title: 'Search',
-                    presentation: "fullScreenModal",
+                    presentation: "formSheet",
+                    animation: "slide_from_bottom",
                 }}
             />
             <Stack.Screen

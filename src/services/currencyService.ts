@@ -1,7 +1,9 @@
+import { useSettingsStore } from "../store/settingsStore";
+
 export type CurrencyCode = 
     | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'CHF' 
     | 'CNY' | 'INR' | 'BRL' | 'RUB' | 'ZAR' | 'MXN' | 'SGD' 
-    | 'HKD' | 'NZD' | 'SEK' | 'KRW' | 'TRY' | 'AED';
+    | 'HKD' | 'NZD' | 'SEK' | 'KRW' | 'TRY' | 'AED' | 'KWD';
 
 export interface Currency {
     code: CurrencyCode;
@@ -31,16 +33,98 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
     { code: 'KRW', symbol: '₩', name: 'South Korean Won', locale: 'ko-KR' },
     { code: 'TRY', symbol: '₺', name: 'Turkish Lira', locale: 'tr-TR' },
     { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', locale: 'ar-AE' },
+    { code: 'KWD', symbol: 'د.ك', name: 'Kuwaiti Dinar', locale: 'ar-KW' },
 ];
 
+// Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.
+const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
+const decimalFormatterCache = new Map<string, Intl.NumberFormat>();
+
 export const currencyService = {
+    formatSats(sats: number, options?: { explicitSign?: boolean }): string {
+        const showBitcoinSymbol = useSettingsStore.getState().showBitcoinSymbol;
+        const isNegative = sats < 0;
+        const absSats = Math.abs(sats);
+        const formatted = absSats.toLocaleString();
+        let sign = '';
+        if (isNegative) {
+            sign = '-';
+        } else if (options?.explicitSign && sats > 0) {
+            sign = '+';
+        }
+        if (showBitcoinSymbol) {
+            return `${sign}₿${formatted}`;
+        }
+        return `${sign}${formatted} SATS`;
+    },
+
     formatValue(value: number, currencyCode: CurrencyCode): string {
         const currency = SUPPORTED_CURRENCIES.find(c => c.code === currencyCode) || SUPPORTED_CURRENCIES[0];
-        return new Intl.NumberFormat(currency.locale, {
-            style: 'currency',
-            currency: currency.code,
-            maximumFractionDigits: 2
-        }).format(value);
+        try {
+            const cacheKey = `${currency.locale}_${currency.code}`;
+            let formatter = currencyFormatterCache.get(cacheKey);
+            if (!formatter) {
+                formatter = new Intl.NumberFormat(currency.locale, {
+                    style: 'currency',
+                    currency: currency.code,
+                    maximumFractionDigits: 2
+                });
+                currencyFormatterCache.set(cacheKey, formatter);
+            }
+            const formatted = formatter.format(value);
+
+            // React Native / Hermes has a bug on some platforms where Intl.NumberFormat 
+            // falls back to USD formatting, printing '$' or 'USD' instead of the requested currency symbol.
+            // If the requested currency code is NOT USD, but the formatted output contains '$', 'USD', or 'US$',
+            // or if the requested currency symbol is different from '$' but '$' was used, we trigger our fallback.
+            if (currencyCode !== 'USD' && (
+                formatted.includes('$') || 
+                formatted.includes('USD') || 
+                formatted.includes('US$') ||
+                (currency.symbol !== '$' && formatted.includes('$'))
+            )) {
+                throw new Error('Platform Intl fallback detected');
+            }
+            return formatted;
+        } catch (error) {
+            // Fallback formatting: format the number as a decimal under the requested locale,
+            // then manually prepend/append the correct currency symbol.
+            let decimalPart = '';
+            try {
+                let decimalFormatter = decimalFormatterCache.get(currency.locale);
+                if (!decimalFormatter) {
+                    decimalFormatter = new Intl.NumberFormat(currency.locale, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    decimalFormatterCache.set(currency.locale, decimalFormatter);
+                }
+                decimalPart = decimalFormatter.format(value);
+            } catch (e1) {
+                try {
+                    // Fallback to standard en-US format for the decimal digits
+                    let enUsDecimalFormatter = decimalFormatterCache.get('en-US');
+                    if (!enUsDecimalFormatter) {
+                        enUsDecimalFormatter = new Intl.NumberFormat('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        decimalFormatterCache.set('en-US', enUsDecimalFormatter);
+                    }
+                    decimalPart = enUsDecimalFormatter.format(value);
+                } catch (e2) {
+                    decimalPart = value.toFixed(2);
+                }
+            }
+
+            // Determine symbol position based on currency convention
+            const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR'];
+            if (suffixCurrencies.includes(currency.code)) {
+                return `${decimalPart} ${currency.symbol}`;
+            } else {
+                return `${currency.symbol}${decimalPart}`;
+            }
+        }
     },
 
     getSymbol(currencyCode: CurrencyCode): string {

@@ -17,10 +17,12 @@ export function UsernamePromptChecker() {
     const storedNip05 = useSettingsStore(state => state.nip05);
     const { nip05, loading } = useNip05Lookup();
     const [hasPrompted, setHasPrompted] = useState(false);
+    const usernameClaimDismissedAt = useSettingsStore(state => state.usernameClaimDismissedAt);
+    const setUsernameClaimDismissedAt = useSettingsStore(state => state.setUsernameClaimDismissedAt);
 
     useEffect(() => {
-        // Wait for fully onboarded, settings loaded, and lookup finished
-        if (!isOnboarded || !isSettingsInitialized || loading || hasPrompted) return;
+        // Wait for fully onboarded, settings loaded, lookup finished, or already dismissed
+        if (!isOnboarded || !isSettingsInitialized || loading || hasPrompted || usernameClaimDismissedAt) return;
 
         // Give it a brief delay before checking
         const timeout = setTimeout(() => {
@@ -34,7 +36,7 @@ export function UsernamePromptChecker() {
         }, 3000);
 
         return () => clearTimeout(timeout);
-    }, [isOnboarded, isSettingsInitialized, loading, nip05, storedNip05, hasPrompted]);
+    }, [isOnboarded, isSettingsInitialized, loading, nip05, storedNip05, hasPrompted, usernameClaimDismissedAt]);
 
     return (
         <AppBottomSheet ref={sheetRef} snapPoints={['43%']}>
@@ -49,7 +51,14 @@ export function UsernamePromptChecker() {
                     It looks like you haven't claimed a bey.cash username yet. Claim one now to make it easier for friends to send you money!
                 </Text>
                 <XStack space="$3" width="100%" justifyContent="center" marginTop="auto">
-                    <Button flex={1} size="$4" onPress={() => sheetRef.current?.dismiss()}>
+                    <Button
+                        flex={1}
+                        size="$4"
+                        onPress={() => {
+                            setUsernameClaimDismissedAt(Date.now());
+                            sheetRef.current?.dismiss();
+                        }}
+                    >
                         Maybe Later
                     </Button>
                     <Button

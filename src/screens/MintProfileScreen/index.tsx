@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, Text, Button, H2, H3, H4, Separator, ScrollView, View, Image, Card } from 'tamagui';
 import { Spinner } from '../../components/UI/Spinner';
 import { Link, Mail, Globe, Info, Copy, Check, ChevronLeft, Sprout, Share2, MessageSquare, ShieldCheck, Cpu, Plus, ShieldOff } from '@tamagui/lucide-icons';
@@ -82,6 +82,138 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         retry: 2,
     });
 
+    // Auditor queries
+    const { data: auditorMint } = useQuery({
+        queryKey: ['auditor-mint', url],
+        queryFn: async () => {
+            try {
+                const response = await fetch(`https://api.audit.8333.space/mints/url?url=${encodeURIComponent(url || '')}`);
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (e) {
+                console.error('Error fetching auditor mint info:', e);
+            }
+            return null;
+        },
+        enabled: !!url,
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    });
+
+    const { data: auditorSwaps = [] } = useQuery({
+        queryKey: ['auditor-swaps', auditorMint?.id],
+        queryFn: async () => {
+            if (!auditorMint?.id) return [];
+            try {
+                const response = await fetch(`https://api.audit.8333.space/swaps/mint/${auditorMint.id}?skip=0&limit=30`);
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (e) {
+                console.error('Error fetching auditor swaps:', e);
+            }
+            return [];
+        },
+        enabled: !!auditorMint?.id,
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    });
+
+    const { successRate, averageTime, riskLabel, uptimeColor, sortedSwaps } = useMemo(() => {
+        if (!auditorMint || !auditorSwaps || auditorSwaps.length === 0) {
+            return {
+                successRate: null,
+                averageTime: null,
+                riskLabel: 'Not Audited',
+                uptimeColor: '$gray10',
+                sortedSwaps: [],
+            };
+        }
+
+        const successfulSwaps = auditorSwaps.filter((s: any) => s.state === 'OK');
+        const rate = Math.round((successfulSwaps.length / auditorSwaps.length) * 100);
+
+        const successfulSwapsWithTime = successfulSwaps.filter((s: any) => s.time_taken);
+        const avgTime = successfulSwapsWithTime.length > 0
+            ? successfulSwapsWithTime.reduce((sum: number, s: any) => sum + s.time_taken, 0) / successfulSwapsWithTime.length
+            : null;
+
+        let risk = 'Low Risk';
+        let color = '$green10';
+        if (rate >= 99.0) {
+            risk = 'Low Risk';
+            color = '$green10';
+        } else if (rate >= 95.0) {
+            risk = 'Medium Risk';
+            color = '$orange10';
+        } else {
+            risk = 'High Risk';
+            color = '$red10';
+        }
+
+        const sorted = [...auditorSwaps].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        return {
+            successRate: rate,
+            averageTime: avgTime,
+            riskLabel: risk,
+            uptimeColor: color,
+            sortedSwaps: sorted,
+        };
+    }, [auditorMint, auditorSwaps]);
+
+    const uptimeBars = useMemo(() => {
+        const totalBars = 30;
+        const bars: React.ReactNode[] = [];
+
+        // If not audited, show all neutral gray bars
+        if (!auditorMint || sortedSwaps.length === 0) {
+            return Array.from({ length: totalBars }).map((_, idx) => (
+                <View
+                    key={idx}
+                    flex={1}
+                    height={12}
+                    bg="$gray5"
+                    rounded={2}
+                    opacity={0.4}
+                />
+            ));
+        }
+
+        // Pad with placeholders on the left if we have fewer than 30 swaps
+        const paddingCount = Math.max(0, totalBars - sortedSwaps.length);
+        for (let i = 0; i < paddingCount; i++) {
+            bars.push(
+                <View
+                    key={`pad-${i}`}
+                    flex={1}
+                    height={12}
+                    bg="$gray5"
+                    rounded={2}
+                    opacity={0.4}
+                />
+            );
+        }
+
+        // Add real swap bars (Green for OK, Red for any error status)
+        sortedSwaps.forEach((swap: any) => {
+            const isOk = swap.state === 'OK';
+            const barColor = isOk ? '$green9' : '$red9';
+
+            bars.push(
+                <View
+                    key={`swap-${swap.id}`}
+                    flex={1}
+                    height={12}
+                    bg={barColor}
+                    rounded={2}
+                    opacity={0.85}
+                />
+            );
+        });
+
+        return bars;
+    }, [auditorMint, sortedSwaps]);
+
     const handleCopy = async (text: string, label: string) => {
         await Clipboard.setStringAsync(text);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -116,7 +248,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     const motd = info.motd;
     const version = info.version;
     const nuts = info.nuts || {};
-    const auditInfo = info.audit || null; // Will be null if mint doesn't provide it
     
     // Safely extract icon from store or the fetched v1/info metadata
     const iconToUse = walletMint?.icon || info.icon_url || info.picture || info.icon;
@@ -229,16 +360,45 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                         </ListTable>
                     </YStack>
 
-                    {/* Audit Info Placeholder (Will show N/A since it's not commonly returned yet, but structurally ready) */}
-                    {(auditInfo || true) && (
-                        <YStack gap="$3">
-                            <H4 color="$gray10" fontSize="$4">Audit Information</H4>
-                            <ListTable>
-                                <ListTableRow label="Success Rate" value={auditInfo?.successRate ? `${auditInfo.successRate}%` : 'N/A'} />
-                                <ListTableRow label="Avg Uptime" value={auditInfo?.uptime ? `${auditInfo.uptime}%` : 'N/A'} />
-                            </ListTable>
-                        </YStack>
-                    )}
+                    {/* Audit Info Section */}
+                    <YStack gap="$3">
+                        <H4 color="$gray10" fontSize="$4">Audit Information</H4>
+                        <ListTable>
+                            <YStack py="$3" px="$4" gap="$2">
+                                <XStack justify="space-between" items="center">
+                                    <Text fontSize="$4" color="$gray10" fontWeight="600">Uptime</Text>
+                                    <Text fontSize="$4" fontWeight="700" color={uptimeColor}>
+                                        {successRate !== null ? `${successRate}% (${riskLabel})` : 'Not Audited'}
+                                    </Text>
+                                </XStack>
+                                <XStack gap="$1" items="center" width="100%" pt="$1">
+                                    {uptimeBars}
+                                </XStack>
+                            </YStack>
+                            <ListTableRow
+                                label="Success Rate"
+                                value={successRate !== null ? `${successRate}%` : 'Not Audited'}
+                            />
+                            {averageTime !== null && (
+                                <ListTableRow
+                                    label="Avg Response Time"
+                                    value={`${(averageTime / 1000).toFixed(2)}s`}
+                                />
+                            )}
+                            {auditorMint && auditorMint.balance !== undefined && (
+                                <ListTableRow
+                                    label="Auditor Balance"
+                                    value={`${auditorMint.balance} sats`}
+                                />
+                            )}
+                            {auditorMint && auditorMint.sum_donations !== undefined && (
+                                <ListTableRow
+                                    label="Auditor Donations"
+                                    value={`${auditorMint.sum_donations} sats`}
+                                />
+                            )}
+                        </ListTable>
+                    </YStack>
 
                     {/* Actions List */}
                     <YStack gap="$3">

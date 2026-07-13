@@ -1,4 +1,5 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
@@ -31,9 +32,28 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
         token.trim().toLowerCase().includes('creq') ||
         token.trim().toLowerCase().startsWith('lnbc') ||
         token.trim().toLowerCase().startsWith('lnurl') ||
+        token.trim().toLowerCase().includes('/c#') ||
+        token.trim().toLowerCase().includes('/c/#') ||
         // Check for variation selectors (Peanut format)
         /[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(token)
     );
+
+    const [lastAttemptedToken, setLastAttemptedToken] = React.useState('');
+
+    // Reset last attempted token when token is cleared
+    React.useEffect(() => {
+        if (!token.trim()) {
+            setLastAttemptedToken('');
+        }
+    }, [token]);
+
+    React.useEffect(() => {
+        const trimmed = token.trim();
+        if (isValidToken && !isLoading && !error && trimmed !== lastAttemptedToken) {
+            setLastAttemptedToken(trimmed);
+            onContinue();
+        }
+    }, [token, isValidToken, isLoading, error, lastAttemptedToken, onContinue]);
 
     const handleScanPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -45,17 +65,17 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
             <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                 <YStack gap="$4">
                     {/* Token Input Card */}
-                    <YStack bg="$gray2" rounded="$4" p="$4" minHeight={180}>
+                    <YStack bg="$gray2" rounded="$4" p="$4" minH={250}>
                         <XStack justify="space-between" items="center" mb="$2">
                             <Text color="$gray10" fontSize="$4" fontWeight="600">Enter Token</Text>
                             <Button
                                 size="$2.5"
-                                bg="$gray4"
+                                theme="gray"
                                 onPress={handlePaste}
-                                icon={<ClipboardPaste size={14} color="$gray10" />}
+                                icon={<ClipboardPaste size={14} />}
                                 scaleIcon={1.2}
                             >
-                                <Text color="$gray10" fontWeight="600">Paste</Text>
+                                Paste
                             </Button>
                         </XStack>
                         <TextArea
@@ -82,7 +102,7 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
                         </XStack>
                     )}
 
-                    <Text fontSize="$4" fontWeight="600" color="$gray10" ml="$1" mt="$2">
+                    <Text fontSize="$4" fontWeight="600" text="center" color="$gray10" ml="$1" mt="$2">
                         Or scan code
                     </Text>
 
@@ -109,23 +129,26 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
                             height={100}
                             bg="$gray2"
                             rounded="$4"
-                            disabled
-                            opacity={0.5}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push('/(modals)/nfc-receive');
+                            }}
+                            pressStyle={{ bg: '$gray3' }}
                         >
                             <YStack items="center" gap="$2">
                                 <View bg="$gray4" p="$3" rounded="$10">
-                                    <Nfc size={24} color="$gray10" />
+                                    <Nfc size={24} color="$color" />
                                 </View>
-                                <Text fontSize="$4" fontWeight="600" color="$gray10">NFC</Text>
+                                <Text fontSize="$4" fontWeight="600" color="$color">NFC</Text>
                             </YStack>
                         </Button>
                     </XStack>
                 </YStack>
             </ScrollView>
 
-            {/* Continue Button */}
-            {isValidToken && (
-                <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
+            {/* Action Button at the Bottom */}
+            <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
+                {isValidToken ? (
                     <Button
                         theme="active"
                         bg="$green9"
@@ -140,8 +163,22 @@ export function InputStage({ token, setToken, isLoading, error, onContinue, onSc
                     >
                         {isLoading ? 'Decoding...' : 'Preview Token'}
                     </Button>
-                </View>
-            )}
+                ) : (
+                    <Button
+                        theme="gray"
+                        
+                        color="$color"
+                        size="$5"
+                        fontWeight="700"
+                        rounded="$4"
+                        icon={<ClipboardPaste size={18} />}
+                        onPress={handlePaste}
+                        pressStyle={{ opacity: 0.9, scale: 0.98 }}
+                    >
+                        Paste from Clipboard
+                    </Button>
+                )}
+            </View>
         </YStack>
     );
 }

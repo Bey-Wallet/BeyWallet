@@ -1,16 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { YStack, Text, View, XStack, Button } from 'tamagui';
-import { AlertTriangle, EyeOff, Eye, Trash2 } from '@tamagui/lucide-icons';
+import { AlertTriangle, Copy, Check, Trash2 } from '@tamagui/lucide-icons';
 import { ActivityIndicator } from 'react-native';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 
 interface DeleteWalletSheetProps {
     innerRef: React.RefObject<AppBottomSheetRef>;
     isDeleting: boolean;
     seedWords: string[];
-    isSeedVisible: boolean;
-    onToggleSeedVisibility: () => void;
     onDelete: () => void;
     onCancel: () => void;
 }
@@ -19,11 +18,21 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
     innerRef,
     isDeleting,
     seedWords,
-    isSeedVisible,
-    onToggleSeedVisibility,
     onDelete,
     onCancel
 }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        const text = seedWords.join(' ');
+        if (text) {
+            await Clipboard.setStringAsync(text);
+            setCopied(true);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
     return (
         <AppBottomSheet ref={innerRef} snapPoints={['85%']}>
             <YStack p="$4" gap="$4">
@@ -49,10 +58,10 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
                         <Button
                             size="$3"
                             chromeless
-                            icon={isSeedVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                            onPress={onToggleSeedVisibility}
+                            icon={copied ? <Check size={18} color="$green9" /> : <Copy size={18} />}
+                            onPress={handleCopy}
                         >
-                            {isSeedVisible ? 'Hide' : 'Show'}
+                            {copied ? 'Copied' : 'Copy'}
                         </Button>
                     </XStack>
 
@@ -82,7 +91,6 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
                                     <Text
                                         fontSize="$4"
                                         fontWeight="600"
-                                        filter={isSeedVisible ? undefined : 'blur(5px)'}
                                     >
                                         {word}
                                     </Text>

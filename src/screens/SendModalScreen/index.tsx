@@ -1,34 +1,36 @@
 import React, { useState, useCallback } from 'react'
-import { InteractionManager, Switch } from 'react-native'
+import { InteractionManager, Switch, Alert } from 'react-native'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { useWalletStore } from '~/store/walletStore'
 import { AmountStage } from './AmountStage'
+import { ConfirmStage } from './ConfirmStage'
 import { P2PKAmountStage } from './P2PKAmountStage'
 import { NostrSendStage } from './NostrSendStage'
 import { ResultStage } from './ResultStage'
 import { SuccessStage } from './SuccessStage'
 import { PaymentRequestStage, type ParsedPaymentRequest } from './PaymentRequestStage'
 import { ScanAndPayStage } from './ScanAndPayStage'
-import { biometricService } from '~/services/biometricService'
-import { walletService, mintManager, nostrService } from '~/services/core'
+import { walletService, mintManager, nostrService, historyService, initService } from '~/services/core'
 import { seedService } from '~/services/seedService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import * as Haptics from 'expo-haptics'
-import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet'
-import { Text, YStack, XStack, Button, Separator, View } from 'tamagui'
+import { Text, YStack, XStack, Button, Separator, View, H2, H4 } from 'tamagui'
 import { useSettingsStore } from '~/store/settingsStore'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bitcoinService } from '~/services/bitcoinService'
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyService'
-import { Building2, ShieldCheck, Zap, ScanLine, Lock } from '@tamagui/lucide-icons'
+import { Building2, ShieldCheck, Zap, ScanLine, Lock, Clock, CloudOff, Cloud } from '@tamagui/lucide-icons'
+import * as Network from 'expo-network'
+import { useToastController } from '@tamagui/toast'
 import { Image } from 'tamagui'
 import { nip19 } from 'nostr-tools'
 import { eventService, proofService } from '~/services/core'
 import SendMethodSelector, { SendMode } from '~/components/SendMethodSelector'
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts'
 import Blockies from '~/components/UI/Blockies'
+import { OfflineOptimizationSheet, type OfflineOptimizationSheetRef } from '~/components/OfflineOptimizationSheet'
 
-type SendStep = 'amount' | 'result' | 'success' | 'payment_request';
+type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
 /** Parse a NUT-18 creqA/creqB string into our UI model */
 function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
@@ -39,13 +41,14 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
         if (pr.transport) {
             const nostrTr = pr.transport.find(
                 (t: any) => t.type === PaymentRequestTransportType.NOSTR ||
-                             t.type === 'nostr' ||
-                             String(t.type) === '1'
+                    t.type === 'nostr' ||
+                    String(t.type) === '1'
             );
             if (nostrTr) nostrTarget = nostrTr.target;
         }
         return {
             raw,
+            id: pr.id ?? undefined,
             amount: pr.amount ?? undefined,
             unit: pr.unit ?? 'sat',
             description: pr.description ?? undefined,
@@ -59,11 +62,13 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
 }
 
 export function SendModalScreen() {
+    const toast = useToastController()
     const [step, setStep] = useState<SendStep>('amount')
     const [amount, setAmount] = useState('0')
     const [status, setStatus] = useState<'success' | 'error'>('success')
     const [error, setError] = useState<string | null>(null)
     const [encodedToken, setEncodedToken] = useState<string | null>(null)
+    const rawTokenRef = React.useRef<string | null>(null)
     const [operationId, setOperationId] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [sendMode, setSendMode] = useState<SendMode>('standard')
@@ -75,8 +80,11 @@ export function SendModalScreen() {
     const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
     const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
     const [nostrSending, setNostrSending] = useState(false)
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> main
     const [expiryEnabled, setExpiryEnabled] = useState(true)
     const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
     const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
@@ -97,7 +105,11 @@ export function SendModalScreen() {
         const checkNetwork = async () => {
             try {
                 const state = await Network.getNetworkStateAsync();
+<<<<<<< HEAD
                 setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
+=======
+                setIsHardwareOffline(!state.isConnected || !state.isInternetReachable);
+>>>>>>> main
             } catch (e) {
                 setIsHardwareOffline(false);
             }
@@ -107,21 +119,41 @@ export function SendModalScreen() {
         return () => clearInterval(interval);
     }, []);
 
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> main
     const router = useRouter()
     const queryClient = useQueryClient();
 
     // ── Read params from contact-details or deep link ─────────────────────
-    const params = useLocalSearchParams<{ paymentRequest?: string; to?: string; username?: string; mode?: string }>();
+    const params = useLocalSearchParams<{ paymentRequest?: string; to?: string; username?: string; mode?: string; inboxItemId?: string }>();
 
     // Auto-select Nostr mode + pre-fill recipient when coming from contact-details
     React.useEffect(() => {
-        if (params.mode === 'nostr' && params.to) {
-            setSendMode('nostr');
-            setNostrRecipientNpub(params.to as string);
-            setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
-        }
-    }, [params.mode, params.to, params.username]);
+        const checkOfflineMode = async () => {
+            try {
+                const state = await Network.getNetworkStateAsync();
+                const offline = !state.isConnected || !state.isInternetReachable;
+                if (offline && (params.mode === 'nostr' || params.mode === 'scan')) {
+                    Alert.alert('You are offline', `${params.mode === 'nostr' ? 'Nostr Send' : 'Scan & Pay'} is not available offline. Switched to Standard Mode.`);
+                    setSendMode('standard');
+                    return;
+                }
+            } catch (e) {
+                console.warn('[SendModalScreen] Network check error:', e);
+            }
+
+            if (params.mode === 'nostr' && params.to) {
+                setSendMode('nostr');
+                setNostrRecipientNpub(params.to as string);
+                setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
+            } else if (params.mode) {
+                setSendMode(params.mode as SendMode);
+            }
+        };
+        checkOfflineMode();
+    }, [params.mode, params.to, params.username, isHardwareOffline]);
 
     const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
         if (!params.paymentRequest) return null;
@@ -143,7 +175,6 @@ export function SendModalScreen() {
     const refreshBalance = useWalletStore(s => s.refreshBalance)
     const mints = useWalletStore(s => s.mints)
     const { secondaryCurrency } = useSettingsStore()
-    const confirmSheetRef = React.useRef<AppBottomSheetRef>(null)
     const [estimatedFee, setEstimatedFee] = React.useState(0)
 
     // Fetch fee when active mint changes
@@ -172,7 +203,9 @@ export function SendModalScreen() {
             if (source === 'event') {
                 try {
                     console.log(`[SendModalScreen] 🛡️ Verifying event success for:`, operationId);
-                    const states = await proofService.checkProofStates(encodedToken);
+                    const tokenToPoll = rawTokenRef.current;
+                    if (!tokenToPoll) return;
+                    const states = await proofService.checkProofStates(tokenToPoll);
                     const allSpent = states.length > 0 && states.every((s: any) => s.state === 'SPENT');
                     if (!allSpent) {
                         console.warn('[SendModalScreen] ⚠️ Event claimed but proofs still UNSPENT. Ignoring premature event.');
@@ -204,7 +237,9 @@ export function SendModalScreen() {
         const pollOnce = async () => {
             if (isDetected) return;
             try {
-                const states = await proofService.checkProofStates(encodedToken);
+                const tokenToPoll = rawTokenRef.current;
+                if (!tokenToPoll) return;
+                const states = await proofService.checkProofStates(tokenToPoll);
                 const spentCount = states.filter((s: any) => s.state === 'SPENT').length;
                 console.log(`[SendModalScreen] 🔍 Poll [${operationId}]: ${spentCount}/${states.length} SPENT`);
                 if (states.length > 0 && spentCount === states.length) {
@@ -271,7 +306,22 @@ export function SendModalScreen() {
             // Send and get encoded token for sharing
             let result;
 
-            if (sendMode === 'p2pk') {
+            if (isOffline) {
+                let selected = selectedOfflineProofs;
+                if (!selected || selected.length === 0) {
+                    const repo = initService.getRepo();
+                    const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
+                    const { findExactSubset } = require('~/utils/offlineSendUtils');
+                    selected = findExactSubset(amountSats, availableProofs);
+                }
+                if (!selected || selected.length === 0) {
+                    throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
+                }
+                result = await walletService.sendOffline(activeMintUrl, amountSats, selected);
+                rawTokenRef.current = result.encoded;
+                setEncodedToken(result.encoded);
+                setOperationId(result.id);
+            } else if (sendMode === 'p2pk') {
                 let targetPubkey = receiverPubkey.trim();
 
                 // Decode npub/nprofile to hex if necessary
@@ -291,10 +341,38 @@ export function SendModalScreen() {
                 }
 
                 result = await walletService.sendP2PK(activeMintUrl, amountSats, targetPubkey);
+                rawTokenRef.current = result.encoded;
                 setEncodedToken(result.encoded);
+                setOperationId(result.id);
+            } else if (sendMode === 'link') {
+                result = await walletService.send(activeMintUrl, amountSats);
+                rawTokenRef.current = result.token;
+                const cashuToken = result.token;
+
+                // 1. Generate 32 bytes random secret_key
+                const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+                const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
+
+                // 2. Build Nostr event
+                const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
+                const { event } = buildEcashNostrEvent(cashuToken, secretKeyHex);
+
+                // 3. Publish to relays
+                const { SimplePool } = require('nostr-tools');
+                const { RELAYS } = require('~/services/core/nostrService');
+                const pool = new SimplePool();
+                await Promise.any(pool.publish(RELAYS, event));
+                pool.close(RELAYS);
+
+                // 4. Construct share link
+                const websiteUrl = 'https://bey.cash/c/';
+                const shareLink = `${websiteUrl}#${secretKeyHex}`;
+
+                setEncodedToken(shareLink);
                 setOperationId(result.id);
             } else {
                 result = await walletService.send(activeMintUrl, amountSats);
+                rawTokenRef.current = result.token;
                 setEncodedToken(result.token);
                 setOperationId(result.id);
             }
@@ -302,8 +380,11 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             console.log('[SendModalScreen] Send successful. OpId:', result.id, 'Token length:', (result.encoded || result.token || '').length);
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> main
 
             const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
             setExpiresAt(computedExpiry);
@@ -312,7 +393,11 @@ export function SendModalScreen() {
             historyService.tagHistoryVia(
                 activeMintUrl,
                 'send',
+<<<<<<< HEAD
                 'ecash_create',
+=======
+                sendMode === 'link' ? 'ecash_link' : 'ecash_create',
+>>>>>>> main
                 computedExpiry ? {
                     expiresAt: computedExpiry,
                     expiryHours: expiryHours,
@@ -320,7 +405,10 @@ export function SendModalScreen() {
                 result.id,
             ).catch(() => { });
 
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> main
             setStep('result');
         } catch (err: any) {
             console.error('[SendModal] Failed to send:', err);
@@ -330,7 +418,7 @@ export function SendModalScreen() {
         } finally {
             setIsProcessing(false);
         }
-    }, [activeMintUrl, amount, balance, refreshBalance]);
+    }, [activeMintUrl, amount, balance, refreshBalance, expiryEnabled, expiryHours, sendMode, receiverPubkey, isOffline, selectedOfflineProofs]);
 
     // ── Nostr Send Handler ───────────────────────────────────────────────
     const handleNostrSend = useCallback(async () => {
@@ -357,12 +445,13 @@ export function SendModalScreen() {
                 const stdResult = await walletService.send(activeMintUrl, amountSats);
                 result = { encoded: stdResult.token, token: null as any, id: stdResult.id };
             }
+            rawTokenRef.current = result.encoded;
 
             // Step 2: Send via Nostr DM
             const mnemonic = await seedService.getMnemonic();
             if (!mnemonic) throw new Error('No mnemonic found');
             const keys = await seedService.getNostrKeys(mnemonic);
-            
+
             const sent = await nostrService.sendViaNostr(
                 result.encoded,
                 nostrRecipientNpub,
@@ -386,6 +475,26 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             queryClient.invalidateQueries({ queryKey: ['history'] });
+
+            const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+            setExpiresAt(computedExpiry);
+
+            // Tag as Nostr send with recipient username
+            historyService.tagHistoryVia(
+                activeMintUrl,
+                'send',
+                'nostr',
+                {
+                    nostrPubkey: nostrRecipientNpub,
+                    ...(nostrRecipientUsername ? { nostrUsername: nostrRecipientUsername.replace('@bey.cash', '') } : {}),
+                    ...(computedExpiry ? {
+                        expiresAt: computedExpiry,
+                        expiryHours: expiryHours,
+                    } : {}),
+                },
+                result.id,
+            ).catch(() => { });
+
             setStep('success');
 
             console.log(`[SendModal] ✅ Nostr send complete: ${amountSats} sats to ${nostrRecipientNpub.slice(0, 10)}…`);
@@ -397,44 +506,51 @@ export function SendModalScreen() {
         } finally {
             setNostrSending(false);
         }
-    }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance]);
+    }, [activeMintUrl, amount, balance, nostrRecipientNpub, useP2PK, refreshBalance, expiryEnabled, expiryHours, nostrRecipientUsername]);
 
-    const handleAuthenticate = async () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-        confirmSheetRef.current?.dismiss();
-
+    const handleExecuteSend = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
-            const success = await biometricService.authenticateAsync(`Authorize creating ₿${amount} ecash`)
-
-            if (success) {
-                if (sendMode === 'nostr') {
-                    await handleNostrSend();
-                } else {
-                    await handleSend();
+            if (sendMode === 'nostr') {
+                if (isOffline) {
+                    setError('You are offline. Cannot send via Nostr.');
+                    setStatus('error');
+                    setStep('result');
+                    return;
                 }
+                await handleNostrSend();
             } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                await handleSend();
             }
         } catch (error: any) {
-            console.error('[SendModal] Authentication error:', error);
-            setError(error.message || 'Authentication failed');
+            console.error('[SendModal] Execution error:', error);
+            setError(error.message || 'Send failed');
             setStatus('error');
             setStep('result');
         }
-    }
+    };
 
     const handleNext = () => {
         if (step === 'amount') {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            confirmSheetRef.current?.present();
+            if (isOffline) {
+                optimizationSheetRef.current?.present();
+            } else {
+                setSelectedOfflineProofs(null);
+                setStep('confirm');
+            }
         }
-    }
+    };
 
     const handleClose = () => {
-        router.back();
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
         // Refresh balance AFTER navigation animation settles — prevents freeze
         InteractionManager.runAfterInteractions(() => refreshBalance());
-    }
+    };
 
     const handleScanContinue = (forcedInput?: string) => {
         const input = (typeof forcedInput === 'string' ? forcedInput : scanInput).trim();
@@ -443,7 +559,7 @@ export function SendModalScreen() {
 
         // Auto-redirect to receive if it looks like a token
         const isPaymentRequest = input.toLowerCase().startsWith('creqa') || input.toLowerCase().startsWith('creqb');
-        
+
         if (!isPaymentRequest) {
             // Treat as token and redirect to receive
             router.replace({
@@ -462,24 +578,72 @@ export function SendModalScreen() {
             setStatus('error');
             setStep('result');
         }
-    }
+    };
+
+    const headerTitle = React.useMemo(() => {
+        if (step === 'confirm') return 'Confirm Send';
+        if (step === 'result') return status === 'success' ? 'Success' : 'Error';
+        if (step === 'success') return 'Success';
+        if (sendMode === 'p2pk') return 'P2PK Send';
+        if (sendMode === 'nostr') return 'Nostr Send';
+        if (sendMode === 'scan') return 'Scan & Pay';
+        return 'Send Ecash';
+    }, [step, status, sendMode]);
 
     return (
         <YStack flex={1} bg="$background" p="$4">
             <Stack.Screen
                 options={{
                     headerTitle: () => (
-                        <SendMethodSelector
-                            mode={sendMode}
-                            onSelect={setSendMode}
-                            isLoading={isProcessing}
-                        />
-                    ),
+                        <H4 fontWeight="bold">{headerTitle}</H4>
+                    )
+
+                    ,
+                    headerRight: () => (
+                        <Button
+                            size="$4"
+                            circular
+                            chromeless
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                const nextForceOffline = !forceOffline;
+                                setForceOffline(nextForceOffline);
+                                if (nextForceOffline) {
+                                    toast.show('Offline Mode Enabled', {
+                                        message: 'Using local ecash proofs for sends.',
+                                    });
+                                } else {
+                                    toast.show('Online Mode Enabled', {
+                                        message: 'Reconnected for standard online payments.',
+                                    });
+                                }
+                            }}
+                            disabled={isHardwareOffline}
+                            disabledStyle={{ opacity: 0.8 }}
+                            pressStyle={{ scale: 0.95 }}
+
+                        >
+                            <XStack items="center">
+                                {isOffline ? (
+                                    <>
+                                        <CloudOff color="$red10" />
+
+                                    </>
+                                ) : (
+                                    <>
+                                        <Cloud color="$color" />
+
+                                    </>
+                                )}
+                            </XStack>
+                        </Button>
+                    )
                 }}
             />
             {step === 'payment_request' && activeParsedRequest && (
                 <PaymentRequestStage
                     request={activeParsedRequest}
+                    inboxItemId={params.inboxItemId}
                     onSuccess={(paidAmount, opId) => {
                         setAmount(String(paidAmount));
                         setOperationId(opId);
@@ -499,14 +663,21 @@ export function SendModalScreen() {
 
             {step === 'amount' && (
                 <YStack flex={1}>
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> main
                     {(() => {
                         console.log('[SendModalScreen] Rendering step: amount, sendMode:', sendMode, 'isOffline:', isOffline);
                         return null;
                     })()}
+<<<<<<< HEAD
 >>>>>>> Stashed changes
                     {sendMode === 'standard' && (
+=======
+                    {(sendMode === 'standard' || sendMode === 'link') && (
+>>>>>>> main
                         <AmountStage
                             amount={amount}
                             setAmount={setAmount}
@@ -514,6 +685,8 @@ export function SendModalScreen() {
                             balance={balance}
                             isLoading={isProcessing}
                             error={error}
+                            isOffline={isOffline}
+                            onSelectedProofsChange={setSelectedOfflineProofs}
                         />
                     )}
                     {sendMode === 'p2pk' && (
@@ -526,6 +699,8 @@ export function SendModalScreen() {
                             balance={balance}
                             isLoading={isProcessing}
                             error={error}
+                            isOffline={isOffline}
+                            onSelectedProofsChange={setSelectedOfflineProofs}
                         />
                     )}
                     {sendMode === 'scan' && (
@@ -564,6 +739,7 @@ export function SendModalScreen() {
                     fee={estimatedFee}
                     error={error}
                     onClose={handleClose}
+                    expiresAt={expiresAt}
                 />
             )}
 
@@ -576,119 +752,24 @@ export function SendModalScreen() {
                 />
             )}
 
-            <AppBottomSheet ref={confirmSheetRef}>
-                <YStack p="$4" pt="$2" gap="$5">
-                    <YStack items="center" gap="$2" pt="$2">
-                        <Text fontSize="$6" fontWeight="800">Review Transaction</Text>
-                    </YStack>
-
-                    <YStack rounded="$5" bg="$gray2" overflow="hidden">
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <Text color="$gray10" fontWeight="600">Amount</Text>
-                            <YStack items="flex-end">
-                                <Text fontWeight="800" fontSize="$6">₿{amount} sats</Text>
-                                <Text color="$gray10" fontSize="$3">{fiatValue}</Text>
-                            </YStack>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <ShieldCheck size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Fee</Text>
-                            </XStack>
-                            <Text fontWeight="800" fontSize="$5" color={estimatedFee > 0 ? "$orange10" : "$green10"}>
-                                {estimatedFee > 0 ? `~${estimatedFee} sats` : '0 sats'}
-                            </Text>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        <XStack justify="space-between" items="center" px="$4" py="$3">
-                            <XStack gap="$2" items="center">
-                                <Building2 size={18} color="$gray10" />
-                                <Text color="$gray10" fontWeight="600">Mint</Text>
-                            </XStack>
-                            <XStack gap="$2" items="center">
-                                {activeMint?.icon && (
-                                    <View rounded="$10" overflow="hidden" width={20} height={20}>
-                                        <Image source={{ uri: activeMint.icon }} width={20} height={20} />
-                                    </View>
-                                )}
-                                <Text fontWeight="800" fontSize="$5" numberOfLines={1} style={{ maxWidth: 180 }}>{mintName}</Text>
-                            </XStack>
-                        </XStack>
-
-                        <Separator borderColor="$borderColor" opacity={0.5} />
-
-                        {sendMode === 'nostr' ? (
-                            <>
-                                <XStack justify="space-between" items="center" px="$4" py="$3">
-                                    <XStack gap="$2" items="center">
-                                        <Lock size={18} color="$gray10" />
-                                        <Text color="$gray10" fontWeight="600">P2PK Lock</Text>
-                                    </XStack>
-                                    <XStack gap="$2" items="center">
-                                        <Text fontSize="$2" color={useP2PK ? '$green10' : '$gray10'} fontWeight="700">
-                                            {useP2PK ? 'Secured' : 'Off'}
-                                        </Text>
-                                        <Switch
-                                            value={useP2PK}
-                                            onValueChange={setUseP2PK}
-                                            trackColor={{ false: '#444', true: '#34C759' }}
-                                            thumbColor="white"
-                                        />
-                                    </XStack>
-                                </XStack>
-                                <Separator borderColor="$borderColor" opacity={0.5} />
-                                {nostrRecipientNpub ? (
-                                    <XStack justify="space-between" items="center" px="$4" py="$3">
-                                        <XStack gap="$2" items="center">
-                                            <Zap size={18} color="$purple10" />
-                                            <Text color="$gray10" fontWeight="600">To</Text>
-                                        </XStack>
-                                        <XStack gap="$2" items="center">
-                                            <Blockies seed={nostrRecipientNpub} size={6} scale={2} style={{ borderRadius: 2 }} />
-                                            <Text fontWeight="800" fontSize="$4" numberOfLines={1} style={{ maxWidth: 150 }}>
-                                                {nostrRecipientUsername || `${nostrRecipientNpub.slice(0, 8)}...`}
-                                            </Text>
-                                        </XStack>
-                                    </XStack>
-                                ) : null}
-                            </>
-                        ) : (
-                            <XStack justify="space-between" items="center" px="$4" py="$3">
-                                <XStack gap="$2" items="center">
-                                    <Zap size={18} color="$gray10" />
-                                    <Text color="$gray10" fontWeight="600">Version</Text>
-                                </XStack>
-                                <XStack bg="$gray5" px="$2" py="$1" rounded="$2">
-                                    <Text color="$gray10" fontSize="$2" fontWeight="800">V4 (Default)</Text>
-                                </XStack>
-                            </XStack>
-                        )}
-                    </YStack>
-
-                    <YStack gap="$3" pt="$2">
-                        <Button
-                            theme="accent"
-                            size="$5"
-                            fontWeight="800"
-                            onPress={handleAuthenticate}
-                        >
-                            Confirm & Send
-                        </Button>
-                        <Button
-                            chromeless
-                            size="$4"
-                            onPress={() => confirmSheetRef.current?.dismiss()}
-                        >
-                            Cancel
-                        </Button>
-                    </YStack>
-                </YStack>
-            </AppBottomSheet>
+            {step === 'confirm' && (
+                <ConfirmStage
+                    amount={amount}
+                    mintUrl={activeMintUrl || ''}
+                    estimatedFee={estimatedFee}
+                    sendMode={sendMode}
+                    useP2PK={useP2PK}
+                    setUseP2PK={setUseP2PK}
+                    expiryEnabled={expiryEnabled}
+                    setExpiryEnabled={setExpiryEnabled}
+                    nostrRecipientNpub={nostrRecipientNpub}
+                    nostrRecipientUsername={nostrRecipientUsername}
+                    receiverPubkey={receiverPubkey}
+                    isLoading={isProcessing || nostrSending}
+                    onConfirm={handleExecuteSend}
+                    onBack={() => setStep('amount')}
+                />
+            )}
 
             {/* ProcessingSheet for Nostr sending */}
             <ProcessingSheet
@@ -698,6 +779,22 @@ export function SendModalScreen() {
                 title="Sending via Nostr"
                 amount={parseInt(amount, 10) || 0}
                 detail={`Sending to ${nostrRecipientUsername || nostrRecipientNpub.slice(0, 10) + '…'}`}
+            />
+
+            {/* ProcessingSheet for standard send */}
+            <ProcessingSheet
+                visible={isProcessing && !isOffline && !nostrSending}
+                title="Processing"
+                amount={parseInt(amount, 10) || 0}
+                detail="Creating ecash tokens..."
+            />
+
+            {/* Offline Optimization Selector */}
+            <OfflineOptimizationSheet
+                ref={optimizationSheetRef}
+                targetAmount={parseInt(amount, 10) || 0}
+                activeMintUrl={activeMintUrl}
+                onConfirm={handleOfflineOptimizationConfirm}
             />
         </YStack>
     )

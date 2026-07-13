@@ -16,6 +16,7 @@
 import { Manager, ConsoleLogger } from 'coco-cashu-core';
 import { ExpoSqliteRepositories } from '../../store/test';
 import * as SQLite from 'expo-sqlite';
+import { getDb, closeDb } from '../../store/sqliteStorage';
 import { seedService } from '../seedService';
 import { AppState, type AppStateStatus } from 'react-native';
 import { HistoryWatcherPlugin } from './plugins/HistoryWatcherPlugin';
@@ -24,6 +25,7 @@ import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
 import { nostrService } from './nostrService';
 import { Keyset } from '@cashu/cashu-ts';
+import { expiryService } from './expiryService';
 
 // ─── Runtime Compatibility Patches ───────────────────────────
 
@@ -218,6 +220,42 @@ async function disableWatchers(mgr: Manager): Promise<void> {
     }
 }
 
+// Custom logger to suppress expected keyset/WS/polling errors that are handled gracefully by the SDK/wallet wrappers
+const customLogger = {
+    error: (msg: string, ...meta: any[]) => {
+        if (
+            msg.includes('Keyset restore failed') ||
+            msg.includes('Restore completed with failures') ||
+            msg.includes('WS request error') ||
+            msg.includes('Polling task error') ||
+            msg.includes('Failed to process mint quote') ||
+            msg.includes('Failed to redeem mint quote') ||
+            msg.includes('had undefined amount') ||
+            msg.includes('Quote amount undefined')
+        ) {
+            // Suppress noisy expected background/network errors
+            return;
+        }
+        console.error(`[Coco] ${msg}`, ...meta);
+    },
+    warn: (msg: string, ...meta: any[]) => {
+        if (
+            msg.includes('WS request error') ||
+            msg.includes('Polling task error') ||
+            msg.includes('had undefined amount') ||
+            msg.includes('Quote amount undefined') ||
+            msg.includes('Failed to process mint quote') ||
+            msg.includes('Failed to redeem mint quote')
+        ) {
+            // Suppress noisy expected background/network warnings
+            return;
+        }
+        console.warn(`[Coco] ${msg}`, ...meta);
+    },
+    info: () => { },
+    debug: () => { },
+};
+
 /**
  * Core initialization with a mnemonic. Opens DB, creates repos,
  * creates Manager with explicit watcher enabling.
@@ -225,8 +263,9 @@ async function disableWatchers(mgr: Manager): Promise<void> {
 async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> {
     const seed = await seedService.deriveSeed(mnemonic);
 
-    // Open Expo SQLite database
-    const db = SQLite.openDatabaseSync('coco_wallet.db');
+    // Retrieve the shared SQLite database connection
+    const db = getDb();
+
     dbInstance = db;
     const repositories = new ExpoSqliteRepositories({ database: db });
     await repositories.init();
@@ -248,19 +287,7 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
         }
     );
 
-    // Custom logger to suppress expected keyset missing errors that our wrapper handles gracefully
-    const customLogger = {
-        error: (msg: string, ...meta: any[]) => {
-            if (msg.includes('Keyset restore failed') || msg.includes('Restore completed with failures')) {
-                // Suppress noisy expected internal restore errors
-                return;
-            }
-            console.error(`[Coco] ${msg}`, ...meta);
-        },
-        warn: (msg: string, ...meta: any[]) => console.warn(`[Coco] ${msg}`, ...meta),
-        info: () => { },
-        debug: () => { },
-    };
+    // Using the shared customLogger declared at module scope
 
     // Initialize Manager using constructor (rc47 pattern)
     manager = new Manager(
@@ -280,6 +307,9 @@ async function initializeWithMnemonic(mnemonic: string, options: { quiet?: boole
         
         // Start listening for Nostr Incoming Payments (Direct Messages)
         nostrService.start(privkey, pubkey);
+
+        // Start pending tokens sweeper
+        expiryService.startSweeper();
 
         console.log('[InitService] Manager ready with watchers and processors');
 
@@ -367,7 +397,7 @@ export const initService = {
         // Expo SQLite: Do not close the database instance forcefully here. Use the existing one to avoid
         // crashing background plugins (like proof watchers) with NullPointerExceptions.
         if (!dbInstance) {
-            dbInstance = SQLite.openDatabaseSync('coco_wallet.db');
+            dbInstance = getDb();
         }
         const db = dbInstance;
         const repositories = new ExpoSqliteRepositories({ database: db });
@@ -381,7 +411,7 @@ export const initService = {
         manager = new Manager(
             repositories,
             async () => new Uint8Array(seed),
-            new ConsoleLogger('Coco', { level: 'warn' }),
+            customLogger as any,
             undefined,
             [HistoryWatcherPlugin, npcPlugin]
         );
@@ -394,14 +424,16 @@ export const initService = {
         
         // Start Nostr background receiver
         nostrService.start(privkey, pubkey);
+
+        // Start pending tokens sweeper
+        expiryService.startSweeper();
         
         return manager;
     },
 
     createWallet: async (mnemonic: string): Promise<Manager> => {
-        if (manager) {
-            await initService.cleanup();
-        }
+        console.log('[InitService] Creating new wallet, destroying existing wallet first...');
+        await initService.destroyWallet();
 
         isInitializing = true;
         try {
@@ -445,6 +477,7 @@ export const initService = {
      */
     cleanup: async (): Promise<void> => {
         nostrService.stop();
+        expiryService.stopSweeper();
         if (manager) {
             await disableWatchers(manager);
         }
@@ -452,10 +485,8 @@ export const initService = {
             appStateSubscription.remove();
             appStateSubscription = null;
         }
-        if (dbInstance) {
-            try { dbInstance.closeSync(); } catch (e) { }
-            dbInstance = null;
-        }
+        closeDb();
+        dbInstance = null;
         manager = null;
         repo = null;
         isInitializing = false;
@@ -466,25 +497,21 @@ export const initService = {
      * Cleans up AppState listener, disables watchers, and nullifies references.
      */
     reset: (): void => {
+        expiryService.stopSweeper();
         if (appStateSubscription) {
             appStateSubscription.remove();
             appStateSubscription = null;
         }
         manager = null;
         repo = null;
-        if (dbInstance) {
-            try { dbInstance.closeSync(); } catch (e) { }
-            dbInstance = null;
-        }
+        closeDb();
+        dbInstance = null;
         isInitializing = false;
     },
 
     restoreWallet: async (mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> => {
-        console.log('[InitService] Starting deterministic wallet restore from seed...');
-
-        if (manager) {
-            await initService.cleanup();
-        }
+        console.log('[InitService] Restoring wallet, destroying existing wallet first...');
+        await initService.destroyWallet();
 
         await seedService.saveMnemonic(mnemonic);
 

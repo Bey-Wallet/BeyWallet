@@ -1,10 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { YStack, XStack, Text, View, Button, Theme, useTheme } from 'tamagui';
-import { CheckCircle2, XCircle, Clock, Building2, Zap, User, Smartphone, Wifi } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, View, Button, Theme, useTheme, Separator, YGroup } from 'tamagui';
+import { Check, CheckCircle2, XCircle, Clock, Landmark, Zap, User, Smartphone, Wifi, Copy } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
 import { Spinner } from './Spinner';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { Image } from 'tamagui';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService, CurrencyCode } from '~/services/currencyService';
 
 const nostrIconWhite = require('../../assets/images/nostr-icon-white-transparent.png');
 
@@ -141,10 +145,9 @@ export function ProcessingSheet({
   recipient,
   direction = 'send',
   variant = 'standard',
-  currentUserNpub = 'npub1test123',
-  targetUserNpub = 'npub1target456'
 }: ProcessingSheetProps) {
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const { secondaryCurrency } = useSettingsStore();
 
   useEffect(() => {
     if (visible) {
@@ -152,11 +155,32 @@ export function ProcessingSheet({
     } else {
       sheetRef.current?.dismiss();
     }
+
+    return () => {
+      sheetRef.current?.dismiss();
+    };
   }, [visible]);
+
+  const { data: btcData } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30000,
+    enabled: visible && !!amount,
+  });
+
+  const fiatValue = React.useMemo(() => {
+    if (!amount) return '';
+    if (!btcData?.price) return '...';
+    return currencyService.formatValue(
+      currencyService.convertSatsToCurrency(amount, btcData.price),
+      secondaryCurrency as CurrencyCode
+    );
+  }, [amount, btcData?.price, secondaryCurrency]);
 
   const isProcessing = status === 'processing';
   const isSuccess = status === 'success';
   const isError = status === 'error';
+  const isOfflineSaved = isError && errorMessage && (errorMessage.includes('Could not connect to mint') || errorMessage.includes('saved to your transaction history') || errorMessage.includes('saved in your history'));
 
   const mintDomain = mintUrl
     ? mintUrl.replace(/^https?:\/\//, '').split('/')[0]
@@ -170,123 +194,196 @@ export function ProcessingSheet({
   };
 
   return (
-    <Theme inverse>
+    <Theme inverse >
       <AppBottomSheet ref={sheetRef} onClose={onClose} enablePanDownToClose={!isProcessing}>
-        <YStack items="center" py="$2" px="$2" gap="$2">
+        <YStack items="center" py="$2" px="$3" gap="$3">
 
-          {amount !== undefined && amount > 0 && (
-            <Text fontSize={32} fontWeight="800" color="$color1" letterSpacing={-1}>
-              ₿{amount.toLocaleString()}
-            </Text>
-          )}
+          {/* ── Processing State UI ────────────────────────────────────── */}
+          {isProcessing && (
+            <YStack items="center" gap="$4" py="$6" width="100%">
+              {variant === 'standard' && <Spinner size="large" color="$color1" />}
+              {variant === 'nostr' && (
+                <XStack items="center" gap="$3">
+                  <View w={48} h={48} borderRadius={5} bg="$purple10" items="center" justify="center">
+                    <Image source={nostrIconWhite} width={40} height={40} resizeMode="contain" />
+                  </View>
+                  <AnimatedBeam />
+                  <View w={40} h={40} borderRadius={5} bg="$gray3" items="center" justify="center" bw={1} bc="$gray6">
+                    <User size={24} color="$color" />
+                  </View>
+                </XStack>
+              )}
+              {variant === 'nfc' && <RadarLoader />}
 
-
-          {/* ── Status Icon & Title ────────────────────────────────────── */}
-          <YStack items="center" gap="$4" py="$2">
-            {isProcessing && variant === 'standard' && (
-              <XStack>
-                <Spinner size="large" color="$color1" />
-              </XStack>
-            )}
-
-            {isProcessing && variant === 'nostr' && (
-              <XStack items="center" gap="$3">
-                <View w={48} h={48} borderRadius={5} bg="$purple10" items="center" justify="center">
-                  <Image source={nostrIconWhite} width={40} height={40} resizeMode="contain" />
-                </View>
-                <AnimatedBeam />
-                <View w={40} h={40} borderRadius={5} bg="$gray3" items="center" justify="center" bw={1} bc="$gray6">
-                  <User size={36} color="$color" />
-                </View>
-              </XStack>
-            )}
-
-            {isProcessing && variant === 'nfc' && (
-              <RadarLoader />
-            )}
-
-            {isSuccess && (
-              <CheckCircle2 size={48} color="$green10" strokeWidth={2.5} />
-            )}
-
-            {isError && (
-              <XCircle size={48} color="$red10" strokeWidth={2.5} />
-            )}
-
-            <Text
-              fontSize="$5"
-              fontWeight="700"
-              color={isError ? "$red10" : isSuccess ? "$green10" : "$color1"}
-            >
-              {isError ? "Payment Failed" : isSuccess ? "Success" : title}
-            </Text>
-          </YStack>
-
-          {/* ── Amount & Main Detail ──────────────────────────────────── */}
-          {(amount !== undefined && amount > 0 || detail) && (
-            <YStack items="center" gap="$1" py="$0">
-
-              {/* Show detail only during processing or if success and no full details available */}
-              {(isProcessing || (isSuccess && !mintUrl)) && detail && (
-                typeof detail === 'string' ? (
-                  <Text fontSize="$4" color="$gray10" fontWeight="500" textAlign="center" px="$4">
-                    {detail}
-                  </Text>
-                ) : (
-                  <View>{detail}</View>
-                )
+              <Text fontSize="$6" fontWeight="700" color="$color1">
+                {title || 'Processing...'}
+              </Text>
+              
+              {detail && (
+                <Text fontSize="$4" color="$gray10" fontWeight="500" textAlign="center" px="$4">
+                  {detail}
+                </Text>
               )}
             </YStack>
           )}
 
-          {/* ── Details / Error Message ────────────────────────────────── */}
-          <View width="100%" items="center" justify="center">
-            {isError && errorMessage && (
-              <YStack items="center" gap="$3" width="100%" bg="$red3" p="$4" rounded="$4">
-                <Text fontSize="$3" color="$red11" textAlign="center" fontWeight="500">
-                  {errorMessage}
+          {/* ── Success State UI ───────────────────────────────────────── */}
+          {isSuccess && (
+            <YStack width="100%" gap="$3">
+              {/* Amount Display */}
+              {amount !== undefined && amount > 0 && (
+                <YStack gap="$2" py="$4" items="center" justify="center">
+                  <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                    {currencyService.formatSats(amount)}
+                  </Text>
+                  <Text color="$accent5" fontWeight="600" fontSize={16}>
+                    {fiatValue}
+                  </Text>
+                </YStack>
+              )}
+
+              {/* Status Badge */}
+              <XStack
+                self="center"
+                items="center"
+                gap="$2"
+                bg="$green9"
+                px="$4"
+                py="$3"
+                rounded="$10"
+                mb="$1"
+              >
+                <Check size={16} color="white" />
+                <Text fontSize="$3" fontWeight="700" color="white">
+                  {direction === 'send' ? 'Sent Successfully' : 'Received Successfully'}
                 </Text>
-              </YStack>
-            )}
+              </XStack>
 
-            {isSuccess && mintUrl && (
-              <YStack width="100%" gap="$4" py="$2">
-                <DetailRow icon={<User size={16} color="$gray9" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
-                <DetailRow icon={<Building2 size={16} color="$gray9" />} label="Mint" value={mintDomain} />
-                <DetailRow icon={<Clock size={16} color="$gray9" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                <DetailRow icon={<Zap size={16} color="$gray9" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
-              </YStack>
-            )}
-          </View>
+              {/* Description */}
+              {detail && (
+                <Text color="$gray10" fontSize="$4" textAlign="center" px="$4" py="$1" lineHeight={20}>
+                  {detail}
+                </Text>
+              )}
 
-          {/* ── Actions ────────────────────────────────────────────────── */}
-          <XStack width="100%" gap="$3" pt="$4">
-            {isSuccess && (
-              <>
-                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$6" pressStyle={{ scale: 0.97 }}>
-                  Done
+              {/* Details Box */}
+              {mintUrl && (
+                <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$4">
+                  <View p="$3" px="$4">
+                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                  </View>
+                  <Separator borderColor="$borderColor" opacity={0.3} />
+                  <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                    <DetailRow icon={<User size={14} color="$gray10" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
+                    <DetailRow icon={<Landmark size={14} color="$gray10" />} label="Mint" value={mintDomain} />
+                    <DetailRow icon={<Clock size={14} color="$gray10" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                    <DetailRow icon={<Zap size={14} color="$gray10" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
+                  </YGroup>
+                </YStack>
+              )}
+
+              {/* Action Button */}
+              <YStack width="100%" gap="$2" pt="$2">
+                <Button
+                  bg="$green10"
+                  color="white"
+                  size="$5"
+                  height={50}
+                  onPress={onClose}
+                  fontWeight="800"
+                  rounded="$4"
+                >
+                  DONE
                 </Button>
                 {onViewDetails && (
-                  <Button flex={1} theme="accent" size="$5" fontWeight="700" onPress={onViewDetails} rounded="$6" pressStyle={{ scale: 0.97 }}>
-                    Details
+                  <Button
+                    theme="accent"
+                    size="$5"
+                    height={50}
+                    onPress={onViewDetails}
+                    fontWeight="800"
+                    rounded="$4"
+                  >
+                    DETAILS
                   </Button>
                 )}
-              </>
-            )}
+              </YStack>
+            </YStack>
+          )}
 
-            {isError && (
-              <>
-                <Button flex={1} bg="$gray4" color="$color" size="$5" fontWeight="700" onPress={onClose} rounded="$6" pressStyle={{ scale: 0.97 }}>
-                  Dismiss
-                </Button>
-                {onRetry && (
-                  <Button flex={1} bg="$red9" color="white" size="$5" fontWeight="700" onPress={onRetry} rounded="$6" pressStyle={{ scale: 0.97 }}>
-                    Try Again
+          {/* ── Error / Offline State UI ───────────────────────────────── */}
+          {isError && (
+            <YStack width="100%" gap="$4" py="$2">
+              <YStack justify="center" items="center" gap="$3" py="$4">
+                <YStack
+                  width={80}
+                  height={80}
+                  rounded="$10"
+                  bg={isOfflineSaved ? "$orange4" : "$red4"}
+                  items="center"
+                  justify="center"
+                >
+                  {isOfflineSaved ? (
+                    <Clock size={40} color="$orange10" strokeWidth={2.5} />
+                  ) : (
+                    <XCircle size={40} color="$red10" strokeWidth={2.5} />
+                  )}
+                </YStack>
+                <YStack items="center" gap="$1" py="$2">
+                  <Text fontSize="$6" fontWeight="900" color="$color">
+                    {isOfflineSaved ? "Received Offline" : "Payment Failed"}
+                  </Text>
+                  <Text color="$gray10" fontSize="$4" textAlign="center" px="$4" lineHeight={20}>
+                    {errorMessage || 'An error occurred during transaction processing.'}
+                  </Text>
+                </YStack>
+              </YStack>
+
+              {/* Actions */}
+              <YStack width="100%" gap="$2">
+                {isOfflineSaved ? (
+                  <Button
+                    bg="$orange10"
+                    color="white"
+                    size="$5"
+                    height={50}
+                    onPress={onClose}
+                    fontWeight="800"
+                    rounded="$4"
+                  >
+                    GOT IT
                   </Button>
+                ) : (
+                  <>
+                    {onRetry && (
+                      <Button
+                        bg="$red10"
+                        color="white"
+                        size="$5"
+                        height={50}
+                        onPress={onRetry}
+                        fontWeight="800"
+                        rounded="$4"
+                      >
+                        TRY AGAIN
+                      </Button>
+                    )}
+                    <Button
+                      bg="$gray3"
+                      color="$color"
+                      size="$5"
+                      height={50}
+                      onPress={onClose}
+                      fontWeight="800"
+                      rounded="$4"
+                    >
+                      CLOSE
+                    </Button>
+                  </>
                 )}
-              </>
-            )}
-          </XStack>
+              </YStack>
+            </YStack>
+          )}
 
         </YStack>
       </AppBottomSheet>
@@ -296,12 +393,12 @@ export function ProcessingSheet({
 
 function DetailRow({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
   return (
-    <XStack justify="space-between" items="center" px="$2">
-      <XStack gap="$3" items="center">
+    <XStack justify="space-between" items="center" py="$3" px="$4">
+      <XStack gap="$2" items="center">
         {icon}
-        <Text color="$gray10" fontSize="$4" fontWeight="500">{label}</Text>
+        <Text color="$gray10" fontSize="$3" fontWeight="600">{label}</Text>
       </XStack>
-      <Text color="$color" fontSize="$4" fontWeight="700" numberOfLines={1} style={{ maxWidth: 180 }}>
+      <Text color="$color" fontSize="$3" fontWeight="800" numberOfLines={1} style={{ maxWidth: 180 }}>
         {value}
       </Text>
     </XStack>

@@ -1,0 +1,12 @@
+diff --git a/node_modules/@shopify/flash-list/android/src/main/kotlin/com/shopify/reactnative/flash_list/BlankAreaEvent.kt b/node_modules/@shopify/flash-list/android/src/main/kotlin/com/shopify/reactnative/flash_list/BlankAreaEvent.kt
+--- a/node_modules/@shopify/flash-list/android/src/main/kotlin/com/shopify/reactnative/flash_list/BlankAreaEvent.kt
++++ b/node_modules/@shopify/flash-list/android/src/main/kotlin/com/shopify/reactnative/flash_list/BlankAreaEvent.kt
+@@ -20,7 +20,7 @@
+     }
+ 
+     override fun dispatch(rctEventEmitter: RCTEventEmitter) {
+-        rctEventEmitter.receiveEvent(viewTag, eventName, eventData)
++        rctEventEmitter.receiveEvent(viewTag, EVENT_NAME, getEventData())
+     }
+ 
+     companion object {
