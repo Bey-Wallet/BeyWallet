@@ -80,11 +80,6 @@ export function SendModalScreen() {
     const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
     const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
     const [nostrSending, setNostrSending] = useState(false)
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> main
     const [expiryEnabled, setExpiryEnabled] = useState(true)
     const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
     const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
@@ -105,11 +100,7 @@ export function SendModalScreen() {
         const checkNetwork = async () => {
             try {
                 const state = await Network.getNetworkStateAsync();
-<<<<<<< HEAD
                 setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
-=======
-                setIsHardwareOffline(!state.isConnected || !state.isInternetReachable);
->>>>>>> main
             } catch (e) {
                 setIsHardwareOffline(false);
             }
@@ -119,10 +110,6 @@ export function SendModalScreen() {
         return () => clearInterval(interval);
     }, []);
 
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> main
     const router = useRouter()
     const queryClient = useQueryClient();
 
