@@ -646,7 +646,18 @@ class NostrService {
       if (nip17Event) {
         promises.push(Promise.any(pool.publish(RELAYS, nip17Event)));
       }
-      await Promise.allSettled(promises);
+      const results = await Promise.allSettled(promises);
+
+      // Check if at least one publish succeeded
+      const anyFulfilled = results.some(r => r.status === 'fulfilled');
+      if (!anyFulfilled) {
+        const reasons = results
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .map(r => r.reason?.message || r.reason)
+          .join('; ');
+        throw new Error(`All relay publishes failed: ${reasons}`);
+      }
+
       console.log(`[NostrService] ✅ Token published via Nostr.`);
 
       // Emit event for UI
