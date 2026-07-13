@@ -386,7 +386,7 @@ export function SettingsScreen() {
                 {
                     id: 'mint',
                     title: 'Default Mint',
-                    value: defaultMintUrl ? new URL(defaultMintUrl).hostname : 'None',
+                    value: defaultMintUrl ? (() => { try { return new URL(defaultMintUrl).hostname; } catch { return defaultMintUrl; } })() : 'None',
                     icon: Server,
                   
                 },

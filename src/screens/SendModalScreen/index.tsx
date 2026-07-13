@@ -100,7 +100,7 @@ export function SendModalScreen() {
         const checkNetwork = async () => {
             try {
                 const state = await Network.getNetworkStateAsync();
-                setIsHardwareOffline(!state.isConnected || !state.isInternetReachable);
+                setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
             } catch (e) {
                 setIsHardwareOffline(false);
             }
@@ -344,12 +344,18 @@ export function SendModalScreen() {
                 const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
                 const { event } = buildEcashNostrEvent(cashuToken, secretKeyHex);
 
-                // 3. Publish to relays
-                const { SimplePool } = require('nostr-tools');
-                const { RELAYS } = require('~/services/core/nostrService');
-                const pool = new SimplePool();
-                await Promise.any(pool.publish(RELAYS, event));
-                pool.close(RELAYS);
+                // 3. Publish to relays (best-effort — link works regardless of relay success)
+                try {
+                    const { SimplePool } = require('nostr-tools');
+                    const { RELAYS } = require('~/services/core/nostrService');
+                    const pool = new SimplePool();
+                    await Promise.any(pool.publish(RELAYS, event));
+                    pool.close(RELAYS);
+                } catch (publishErr) {
+                    // Relay publish failed but the ecash token and link are still valid.
+                    // The recipient can redeem via the share link directly.
+                    console.warn('[SendModalScreen] Relay publish failed (non-fatal):', publishErr);
+                }
 
                 // 4. Construct share link
                 const websiteUrl = 'https://bey.cash/c/';
