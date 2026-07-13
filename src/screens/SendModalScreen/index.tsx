@@ -331,32 +331,6 @@ export function SendModalScreen() {
                 rawTokenRef.current = result.encoded;
                 setEncodedToken(result.encoded);
                 setOperationId(result.id);
-            } else if (sendMode === 'link') {
-                result = await walletService.send(activeMintUrl, amountSats);
-                rawTokenRef.current = result.token;
-                const cashuToken = result.token;
-
-                // 1. Generate 32 bytes random secret_key
-                const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
-                const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
-
-                // 2. Build Nostr event
-                const { buildEcashNostrEvent } = require('~/utils/ecashSharing');
-                const { event } = buildEcashNostrEvent(cashuToken, secretKeyHex);
-
-                // 3. Publish to relays
-                const { SimplePool } = require('nostr-tools');
-                const { RELAYS } = require('~/services/core/nostrService');
-                const pool = new SimplePool();
-                await Promise.any(pool.publish(RELAYS, event));
-                pool.close(RELAYS);
-
-                // 4. Construct share link
-                const websiteUrl = 'https://bey.cash/c/';
-                const shareLink = `${websiteUrl}#${secretKeyHex}`;
-
-                setEncodedToken(shareLink);
-                setOperationId(result.id);
             } else {
                 result = await walletService.send(activeMintUrl, amountSats);
                 rawTokenRef.current = result.token;
@@ -367,11 +341,6 @@ export function SendModalScreen() {
             setStatus('success');
             refreshBalance();
             console.log('[SendModalScreen] Send successful. OpId:', result.id, 'Token length:', (result.encoded || result.token || '').length);
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> main
 
             const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
             setExpiresAt(computedExpiry);
@@ -380,11 +349,7 @@ export function SendModalScreen() {
             historyService.tagHistoryVia(
                 activeMintUrl,
                 'send',
-<<<<<<< HEAD
                 'ecash_create',
-=======
-                sendMode === 'link' ? 'ecash_link' : 'ecash_create',
->>>>>>> main
                 computedExpiry ? {
                     expiresAt: computedExpiry,
                     expiryHours: expiryHours,
@@ -392,10 +357,6 @@ export function SendModalScreen() {
                 result.id,
             ).catch(() => { });
 
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> main
             setStep('result');
         } catch (err: any) {
             console.error('[SendModal] Failed to send:', err);
@@ -650,21 +611,11 @@ export function SendModalScreen() {
 
             {step === 'amount' && (
                 <YStack flex={1}>
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> main
                     {(() => {
                         console.log('[SendModalScreen] Rendering step: amount, sendMode:', sendMode, 'isOffline:', isOffline);
                         return null;
                     })()}
-<<<<<<< HEAD
->>>>>>> Stashed changes
                     {sendMode === 'standard' && (
-=======
-                    {(sendMode === 'standard' || sendMode === 'link') && (
->>>>>>> main
                         <AmountStage
                             amount={amount}
                             setAmount={setAmount}

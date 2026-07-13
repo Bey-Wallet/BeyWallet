@@ -96,10 +96,6 @@ export function ConfirmStage({
     }, [sendMode, nostrRecipientNpub, nostrRecipientUsername, receiverPubkey]);
 
     const methodTitle = useMemo(() => {
-<<<<<<< HEAD
-=======
-        if (sendMode === 'link') return 'Create eCash Link';
->>>>>>> main
         if (sendMode === 'p2pk') return 'P2PK Send';
         if (sendMode === 'nostr') return 'Nostr Direct Send';
         return 'Standard Ecash Send';
