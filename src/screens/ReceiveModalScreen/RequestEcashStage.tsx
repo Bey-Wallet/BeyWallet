@@ -29,6 +29,8 @@ import {
     Sprout,
     ArrowUpDown,
     Globe,
+    PenLine,
+    X as XIcon,
 } from '@tamagui/lucide-icons';
 import { Spinner } from '../../components/UI/Spinner';
 import { NumericKeypad } from '../../components/UI/NumericKeypad';
@@ -53,6 +55,8 @@ import { ResultStage } from '../SendModalScreen/ResultStage';
 import { sendNostrToken } from '../../services/core/nostrService';
 import { seedService } from '../../services/seedService';
 import { ProcessingSheet } from '../../components/UI/ProcessingSheet';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
+import { BouncyAmount } from '~/components/UI/BouncyAmount';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -111,7 +115,6 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     const [localInputValue, setLocalInputValue] = useState('0');
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(() => useSettingsStore.getState().primaryCurrency);
     const [note, setNote] = useState('');
-    const [showNote, setShowNote] = useState(false);
 
 
 
@@ -149,7 +152,6 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                     }
                     if (req.description) {
                         setNote(req.description);
-                        setShowNote(true);
                     }
                     setStep('result');
                 }
@@ -569,80 +571,31 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
     if (step === 'amount') {
         return (
             <YStack flex={1} px="$4" justify="space-between" bg="$background">
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    style={{ flex: 1, width: '100%' }}
-                    contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
-                >
+                <YStack gap="$1.5">
                     {/* Mint Selector Row */}
-                    <XStack
-                        justify="space-between"
-                        items="center"
-                        width="100%"
-                        bg="$gray2"
-                        px="$3"
-                        py="$3"
-                        rounded="$5"
-                        mb="$1"
-                    >
-                        <XStack
-                            gap="$2"
-                            items="center"
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                                refreshMintList();
-                                sheetRef.current?.present();
-                            }}
-                            pressStyle={{ opacity: 0.7 }}
-                            flex={1}
-                        >
-                            {isLoadingMint ? (
-                                <Spinner size={14} color="$accent10" />
-                            ) : (
-                                <Avatar rounded="$3" size="$2">
-                                    <Avatar.Image src={activeMint?.icon} />
-                                    <Avatar.Fallback
-                                        backgroundColor="$gray4"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                    >
-                                        <Sprout size={14} color="$accent10" />
-                                    </Avatar.Fallback>
-                                </Avatar>
-                            )}
-                            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                                {isLoadingMint ? "Loading..." : displayName}
-                            </Text>
-                            <ChevronDown size={16} color="$gray10" />
-                        </XStack>
-
-                        <XStack gap="$2" items="center">
-                            <Text fontSize="$3" color="$accent6" fontWeight="500">
-                                {currencyService.formatSats(balance)}
-                            </Text>
-                            <Button
-                                size="$2"
-                                rounded="$3"
-
-                                borderWidth={0}
-                                color="$color"
-                                fontWeight="600"
-                                onPress={handleMax}
-                                disabled={balance === 0}
-                                pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                            >
-                                Max
-                            </Button>
-
-                        </XStack>
-                    </XStack>
+                 <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={displayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        sheetRef.current?.present();
+                    }}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={balance === 0}
+                />
 
                     {/* Card Box Container matching Send stages */}
                     <YStack
                         width="100%"
-                        bg="$gray2"
-                        rounded="$5"
+                        bg="$gray3"
+                        rounded="$6"
                         p="$4"
+                        py="$5"
                         items="center"
                         gap="$3"
                         borderWidth={0}
@@ -672,25 +625,38 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                                 </YStack>
                             ) : (
                                 <>
-                                    <Text color="$gray10" fontSize="$3" fontWeight="500">
-                                        How much to request?
-                                    </Text>
+                                    {targetNpub ? (
+                                        <XStack items="center" gap="$2" justify="center" flexWrap="wrap">
+                                            <Text color="$gray10" fontSize="$3" fontWeight="500">
+                                                Requesting from
+                                            </Text>
+                                            <XStack
+                                                bg="$gray4"
+                                                px="$2.5"
+                                                py="$1"
+                                                rounded="$10"
+                                                items="center"
+                                                gap="$1.5"
+                                            >
+                                                <Blockies seed={targetNpub} size={4} scale={2} style={{ borderRadius: 10 }} />
+                                                <Text fontSize="$2" fontWeight="700" color="$gray12">
+                                                    {targetUsername || formatNpub(targetNpub)}
+                                                </Text>
+                                            </XStack>
+                                        </XStack>
+                                    ) : (
+                                        <Text color="$gray10" fontSize="$3" fontWeight="500">
+                                            How much to request?
+                                        </Text>
+                                    )}
 
-                                    <H1
-                                        fontSize={dynamicFontSize}
-                                        fontVariant={['tabular-nums']}
-                                        fontWeight="700"
-                                        letterSpacing={-1}
-                                        py="$2"
-                                        color={localInputValue === '0' ? '$gray8' : '$color'}
-                                        textAlign="center"
-                                        numberOfLines={1}
-                                        adjustsFontSizeToFit
-                                        style={{ maxWidth: '100%', overflow: 'hidden' }}
-                                    >
-                                        {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                                    </H1>
-
+                                   
+                        <BouncyAmount
+                            value={formattedDisplayValue}
+                            fontSize={dynamicFontSize}
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
                                     <Button
                                         size="$3"
                                         rounded="$10"
@@ -703,74 +669,61 @@ export function RequestEcashStage({ onClose, initialRequestId, targetNpub, targe
                                     </Button>
                                 </>
                             )}
-                        </YStack>
-
-                        {/* Optional Note Divider & Row */}
-                        <YStack width="100%" mt="$2" pt="$3" borderTopWidth={1} borderTopColor="$gray3">
-                            <XStack
-                                width="100%"
-                                items="center"
-                                justify="space-between"
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    setShowNote((v) => !v);
-                                }}
-                                pressStyle={{ opacity: 0.7 }}
-                            >
-                                <Text fontSize="$3" color="$gray10" fontWeight="600">
-                                    {note ? `Note: ${note}` : 'Add a note (optional)'}
-                                </Text>
-                                {showNote ? <ChevronUp size={16} color="$gray10" /> : <ChevronDown size={16} color="$gray10" />}
-                            </XStack>
-
-                            {showNote && (
-                                <XStack width="100%" mt="$2" pt="$2">
-                                    <Input
-                                        value={note}
-                                        onChangeText={setNote}
-                                        placeholder="What's this request for?"
-                                        bg="$gray3"
-                                        borderWidth={0}
-                                        rounded="$3"
-                                        flex={1}
-                                        fontSize="$3"
-                                        px="$3"
-                                        py="$2"
-                                        placeholderTextColor="$gray8"
-                                        autoFocus
-                                        maxLength={80}
-                                    />
-                                </XStack>
-                            )}
-                        </YStack>
                     </YStack>
 
-                    {/* Recipient display bar (if targetNpub is provided) */}
-                    {targetNpub && (
-                        <XStack
-                            width="100%"
-                            bg="$gray2"
-                            rounded="$5"
-                            px="$3"
-                            py="$4"
-                            items="center"
-                            justify="space-between"
-                        >
-                            <XStack gap="$3" items="center" flex={1}>
-                                <Blockies seed={targetNpub} size={8} scale={3} style={{ borderRadius: 3 }} />
-                                <YStack flex={1}>
-                                    <Text fontSize="$2" color="$gray10">Requesting from</Text>
-                                    <Text fontWeight="800" fontSize="$3" numberOfLines={1}>
-                                        {targetUsername || formatNpub(targetNpub)}
-                                    </Text>
-                                    {targetUsername && (
-                                        <Text fontSize="$2" color="$gray10" numberOfLines={1}>{formatNpub(targetNpub)}</Text>
-                                    )}
-                                </YStack>
-                            </XStack>
+                    {/* Standalone Note Card outside the amount card */}
+                    </YStack>
+                    <XStack
+                        justify="space-between"
+                        items="center"
+                        width="100%"
+                        bg="$gray3"
+                        p="$4"
+                        rounded="$6"
+                        minH={70}
+                    >
+                        <XStack gap="$3" items="center" flex={1} mr="$2">
+                            <View items="center" justify="center">
+                                <PenLine size="$1.5" color="$accent5" strokeWidth={2.5} />
+                            </View>
+                            
+                            <YStack flex={1} justify="center">
+                                <Input
+                                    value={note}
+                                    onChangeText={setNote}
+                                    placeholder="Add a note (optional)"
+                                    size="$3"
+                                    borderWidth={0}
+                                    bg="transparent"
+                                    autoCapitalize="sentences"
+                                    autoCorrect={true}
+                                    color="$color"
+                                    fontSize="$5"
+                                    fontWeight={800}
+                                    p={0}
+                                    height={30}
+                                    style={{ outlineStyle: 'none' }}
+                                    maxLength={80}
+                                />
+                            </YStack>
                         </XStack>
-                    )}
-                </ScrollView>
+
+                        {note.length > 0 && (
+                            <Button
+                                size="$3"
+                                circular
+                                chromeless
+                                icon={<XIcon size="$1.5" color="$accent5" strokeWidth={2.5} />}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setNote('');
+                                }}
+                            />
+                        )}
+                    </XStack>
+
+
+                </YStack>
 
                 {/* ── Keypad ───────────────────────────────────────────────── */}
 

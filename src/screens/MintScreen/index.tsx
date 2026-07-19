@@ -28,7 +28,7 @@ export default function MintScreen() {
 
     if (mode === 'onchain') {
         return (
-            <YStack flex={1} bg="$background" p="$4">
+            <YStack flex={1} bg="$background" px="$4">
                 <Stack.Screen options={{ headerTitle: 'On-Chain Recieve' }} />
                 <OnchainMintFlow />
             </YStack>
@@ -150,7 +150,7 @@ export default function MintScreen() {
     };
 
     return (
-        <YStack flex={1} bg="$background" p="$4">
+        <YStack flex={1} bg="$background" px="$4">
             <Stack.Screen options={{ headerTitle: 'Mint Cash' }} />
             {step === 'amount' && (
                 <AmountStage

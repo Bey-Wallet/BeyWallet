@@ -20,6 +20,7 @@ import { RollingNumber } from '~/components/UI/RollingNumber';
 import { useToastController } from '@tamagui/toast';
 import { Image } from 'tamagui';
 import * as WebBrowser from 'expo-web-browser';
+import { SafeFlex } from '~/components/UI/Flex';
 
 export default function MintDetailsModal() {
     const router = useRouter();
@@ -356,13 +357,13 @@ export default function MintDetailsModal() {
                     ),
                 }}
             />
-
+<SafeFlex fill>
             <ScrollView
                 flex={1}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
             >
-                <YStack px="$4" pt="$4" gap="$5">
+                <YStack px="$4" gap="$5">
                     {/* Balance and Avatar Row */}
                     <XStack justify="space-between" items="center" py="$4">
                         <YStack gap="$2">
@@ -577,10 +578,11 @@ export default function MintDetailsModal() {
                 </YStack>
             </ScrollView>
 
+
             {/* Floating Action Buttons */}
             <XStack
                 px="$4"
-                pb={"$4"}
+                pb={"$2"}
                 pt="$3"
                 bg="$background"
                 borderTopWidth={1}
@@ -588,7 +590,7 @@ export default function MintDetailsModal() {
                 gap="$2.5"
             >
                 <Button
-                    flex={1.2}
+                    flex={1}
                     size="$5"
                   variant='outlined'
                     onPress={handleRestoreProofs}
@@ -613,7 +615,6 @@ export default function MintDetailsModal() {
                     Remove
                 </Button>
             </XStack>
-
             {/* Remove Mint Confirmation Bottom Sheet */}
             <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
                 <YStack p="$4" gap="$4">
@@ -671,6 +672,7 @@ export default function MintDetailsModal() {
                     </YStack>
                 </YStack>
             </AppBottomSheet>
+                            </SafeFlex>
         </YStack>
     );
 }

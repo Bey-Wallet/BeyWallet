@@ -44,6 +44,7 @@ export interface PendingTokenLayoutProps {
     onCheckStatus?: () => void | Promise<void>;
     /** Shows spinner on the badge while a status check is in-flight. */
     isCheckingStatus?: boolean;
+    customHeaderRight?: () => React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -63,6 +64,7 @@ export function PendingTokenLayout({
     headerStatus = 'pending',
     onCheckStatus,
     isCheckingStatus = false,
+    customHeaderRight,
 }: PendingTokenLayoutProps) {
     const toast = useToastController();
     const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
@@ -354,7 +356,7 @@ export function PendingTokenLayout({
                 options={{
                     title: 'Pending Ecash',
                     headerTitleAlign: 'center',
-                    headerRight: () => null,
+                    headerRight: customHeaderRight || (() => null),
                 }}
             />
 

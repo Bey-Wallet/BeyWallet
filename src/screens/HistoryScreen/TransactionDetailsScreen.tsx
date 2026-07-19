@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, ScrollView, View, Separator, Circle, Popover, ListItem, Adapt, Sheet, Square } from 'tamagui';
-import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { ChevronLeft, RefreshCw, Copy, Share2, ArrowUpRight, ArrowDownLeft, Calendar, Coins, Zap, ShieldCheck, ExternalLink, AlertCircle, CheckCircle2, Check, RotateCcw, Link, Contact2, Scan, Gauge, ZoomIn, Hexagon, History, X, Ban, CheckCircle, ChevronDown, ChevronUp, Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -25,6 +25,7 @@ import { Spinner } from '~/components/UI/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/notificationService';
 import { StatusBadge, BadgeStatus } from '~/components/UI/StatusBadge';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -51,6 +52,42 @@ export function TransactionDetailsScreen() {
     const params = useLocalSearchParams<{ id: string }>();
     const id = params.id?.toString();
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+    const deleteSheetRef = useRef<AppBottomSheetRef>(null);
+
+    const handleDeleteTransaction = async () => {
+        if (!entry) return;
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        try {
+            // Delete history entry
+            await historyService.deleteHistoryEntries([String(entry.id)]);
+            
+            // If it has proofs (tokens), delete them too if it's pending/expired
+            if (token) {
+                try {
+                    const repo = initService.getRepo();
+                    const clean = cleanToken(token);
+                    const decoded = decodeToken(clean);
+                    const secrets = decoded.proofs.map((p: any) => p.secret);
+                    if (secrets.length > 0) {
+                        console.log('[TransactionDetails] Deleting associated proofs from DB:', secrets.length);
+                        await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
+                    }
+                } catch (e) {
+                    console.warn('[TransactionDetails] Failed to delete proofs during delete txn:', e);
+                }
+            }
+
+            toast.show('Deleted', { message: 'Transaction details erased from device' });
+            deleteSheetRef.current?.dismiss();
+            
+            // Go back
+            router.back();
+            queryClient.invalidateQueries({ queryKey: ['history'] });
+        } catch (err: any) {
+            console.error('[TransactionDetails] Failed to delete transaction:', err);
+            toast.show('Error', { message: 'Failed to delete transaction' });
+        }
+    };
 
     const { data: entry, refetch, isRefetching } = useQuery({
         queryKey: ['transaction', id],
@@ -689,12 +726,61 @@ export function TransactionDetailsScreen() {
     const headerOptions = {
         title: title || 'Transaction',
         headerTitleAlign: 'center' as const,
-        headerRight: () => null,
+        headerRight: () => (
+            <Button
+                size="$3"
+                circular
+                
+                icon={<Trash2 size={22}  />}
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    deleteSheetRef.current?.present();
+                }}
+            />
+        ),
     };
 
     const makeHeaderOptions = () => headerOptions;
     const makeFinalizedHeaderOptions = () => headerOptions;
 
+    const renderDeleteBottomSheet = () => (
+        <AppBottomSheet ref={deleteSheetRef} snapPoints={['35%']}>
+            <YStack p="$4" gap="$4" flex={1} items="center" justify="center">
+                <Trash2 size={40} color="$red10" />
+                <YStack items="center" gap="$1">
+                    <Text fontSize="$6" fontWeight="800" color="$color" textAlign="center">
+                        Delete Transaction?
+                    </Text>
+                    <Text color="$gray10" fontSize="$3" textAlign="center" px="$4">
+                        This will erase the transaction history and all its details from this device.
+                    </Text>
+                </YStack>
+                
+                <XStack gap="$3" width="100%" mt="$2">
+                    <Button
+                        flex={1}
+                        size="$4"
+                        bg="$gray4"
+                        fontWeight="700"
+                        onPress={() => deleteSheetRef.current?.dismiss()}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        flex={1}
+                        size="$4"
+                        theme="red"
+                        bg="$red10"
+                        color="white"
+                        fontWeight="700"
+                        onPress={handleDeleteTransaction}
+                    >
+                        Delete
+                    </Button>
+                </XStack>
+            </YStack>
+        </AppBottomSheet>
+    );
 
     if (!entry) {
         return (
@@ -752,6 +838,7 @@ export function TransactionDetailsScreen() {
                         }
                     }}
                 />
+                {renderDeleteBottomSheet()}
             </>
         );
     }
@@ -774,9 +861,11 @@ export function TransactionDetailsScreen() {
                         expiresAt={expiresAt}
                         onCheckStatus={handleRefresh}
                         isCheckingStatus={isRefetching}
+                        customHeaderRight={headerOptions.headerRight}
                     />
 
                 </ScrollView>
+                {renderDeleteBottomSheet()}
             </>
         );
     }
@@ -1011,6 +1100,7 @@ export function TransactionDetailsScreen() {
                     </YStack>
 
                 </ScrollView>
+                {renderDeleteBottomSheet()}
             </>
         );
     } catch (e: any) {

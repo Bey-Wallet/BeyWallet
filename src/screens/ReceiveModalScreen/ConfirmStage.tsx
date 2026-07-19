@@ -268,12 +268,14 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                 </YStack>
             </ScrollView>
 
-            <YStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
+            <XStack position="absolute" b="$2" l="$4" r="$4" gap="$2">
                 <Button
                     bg="$gray3"
                     color="$color"
-                    height={50}
-                    rounded="$4"
+            
+                    flex={1}
+                    rounded="$5"
+                    size="$5"
                     disabled={isLoading}
                     icon={isSavingLater ? <Spinner size="small" color="$color" /> : <Clock size={18} color="$gray10" />}
                     fontWeight="700" fontSize="$5"
@@ -288,14 +290,16 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                     }}
                     pressStyle={{ opacity: 0.9, scale: 0.98 }}
                 >
-                    {isSavingLater ? 'Saving...' : 'Receive Later'}
+                    {isSavingLater ? 'Saving...' : 'Only Save'}
                 </Button>
 
                 <Button
                     bg={proofStatus === 'spent' ? '$red9' : isMintTrusted ? "$green9" : "$orange9"}
                     color="white"
-                    height={50}
-                    rounded="$4"
+            
+                    flex={1}
+                    rounded="$5"
+                    size="$5"
                     disabled={isLoading || proofStatus === 'spent'}
                     icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
                     fontWeight="700" fontSize="$5"
@@ -311,7 +315,7 @@ export function ConfirmStage({ token, tokenInfo, isLoading, onConfirm, onReceive
                             ? 'Token Already Spent'
                             : (isMintTrusted ? 'Receive' : 'Trust & Receive')}
                 </Button>
-            </YStack>
+            </XStack>
         </YStack >
     );
 }

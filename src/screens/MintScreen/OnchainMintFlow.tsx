@@ -343,21 +343,10 @@ export function OnchainMintFlow() {
                 </ListTable>
             </ScrollView>
 
-            <YStack  bg="$background" gap="$2">
-                <Button
-                    theme="accent"
-                    size="$5"
-                    height={55}
-                    rounded="$4"
-                    fontWeight="800"
-                    icon={isChecking ? <Spinner size="small" /> : <RefreshCw size={20} />}
-                    onPress={() => handleCheckPayment(true)}
-                    disabled={isChecking}
-                >
-                    Check Deposit Status
-                </Button>
+            <XStack  bg="$background" gap="$2">
                 <Button
                     size="$5"
+                    flex={1}
                     bg="$gray3"
                     color="$color"
                     height={55}
@@ -367,7 +356,20 @@ export function OnchainMintFlow() {
                 >
                     Close
                 </Button>
-            </YStack>
+                <Button
+                    theme="accent"
+                    size="$5"
+                    flex={1}
+                    height={55}
+                    rounded="$4"
+                    fontWeight="800"
+                    icon={isChecking ? <Spinner size="small" /> : <RefreshCw size={20} />}
+                    onPress={() => handleCheckPayment(true)}
+                    disabled={isChecking}
+                >
+                    Check
+                </Button>
+            </XStack>
         </YStack>
     );
 }

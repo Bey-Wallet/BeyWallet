@@ -154,11 +154,34 @@ export function ReceiveModalScreen() {
     React.useEffect(() => {
         console.log('[ReceiveModal] Params updated:', params);
         if (params.scannedToken) {
-            const raw = params.scannedToken.trim();
-            const lower = raw.toLowerCase();
+            let raw = params.scannedToken.trim();
+            let lower = raw.toLowerCase();
+
+            // Extract token or request if it's a URL
+            if (lower.includes('/c#') || lower.includes('/c/#') || lower.includes('/c/')) {
+                const markers = ['/c/#', '/c#', '/c/'];
+                for (const marker of markers) {
+                    const idx = lower.indexOf(marker);
+                    if (idx !== -1) {
+                        raw = raw.slice(idx + marker.length);
+                        lower = raw.toLowerCase();
+                        break;
+                    }
+                }
+            } else if (lower.includes('/r#') || lower.includes('/r/#') || lower.includes('/r/')) {
+                const markers = ['/r/#', '/r#', '/r/'];
+                for (const marker of markers) {
+                    const idx = lower.indexOf(marker);
+                    if (idx !== -1) {
+                        raw = raw.slice(idx + marker.length);
+                        lower = raw.toLowerCase();
+                        break;
+                    }
+                }
+            }
 
             // NUT-18 Payment Request — redirect to Send modal, don't decode as token
-            if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+            if (lower.startsWith('creqa') || lower.startsWith('creqb') || lower.startsWith('creq')) {
                 console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
                 router.replace({
                     pathname: '/(modals)/send',
@@ -180,10 +203,34 @@ export function ReceiveModalScreen() {
             ClipboardAPI.getStringAsync().then((text) => {
                 console.log('[ReceiveModal] Retrieved clipboard text:', text ? `${text.slice(0, 20)}...` : 'empty');
                 if (text && text.trim()) {
-                    const trimmed = text.trim();
+                    let trimmed = text.trim();
+                    let lower = trimmed.toLowerCase();
+
+                    // Extract token or request if it's a URL
+                    if (lower.includes('/c#') || lower.includes('/c/#') || lower.includes('/c/')) {
+                        const markers = ['/c/#', '/c#', '/c/'];
+                        for (const marker of markers) {
+                            const idx = lower.indexOf(marker);
+                            if (idx !== -1) {
+                                trimmed = trimmed.slice(idx + marker.length);
+                                lower = trimmed.toLowerCase();
+                                break;
+                            }
+                        }
+                    } else if (lower.includes('/r#') || lower.includes('/r/#') || lower.includes('/r/')) {
+                        const markers = ['/r/#', '/r#', '/r/'];
+                        for (const marker of markers) {
+                            const idx = lower.indexOf(marker);
+                            if (idx !== -1) {
+                                trimmed = trimmed.slice(idx + marker.length);
+                                lower = trimmed.toLowerCase();
+                                break;
+                            }
+                        }
+                    }
+
                     // NUT-18 Payment Request — redirect to Send modal, don't decode as token
-                    const lower = trimmed.toLowerCase();
-                    if (lower.startsWith('creqa') || lower.startsWith('creqb')) {
+                    if (lower.startsWith('creqa') || lower.startsWith('creqb') || lower.startsWith('creq')) {
                         console.log('[ReceiveModal] Clipboard auto-paste detected NUT-18 payment request, redirecting to send...');
                         router.replace({
                             pathname: '/(modals)/send',

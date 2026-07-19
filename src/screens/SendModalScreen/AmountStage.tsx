@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { YStack, XStack, Text, H1, Button, Avatar, Square } from "tamagui";
-import { ChevronDown, Sprout, ArrowUpDown, AlertCircle, Wallet } from "@tamagui/lucide-icons";
+import { ArrowUpDown, AlertCircle, Wallet } from "@tamagui/lucide-icons";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 import { Spinner } from '~/components/UI/Spinner';
 import { useWalletStore } from '~/store/walletStore';
@@ -11,6 +11,9 @@ import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
+import { Flex } from '~/components/UI/Flex';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
+import { BouncyAmount } from '~/components/UI/BouncyAmount';
 
 interface AmountStageProps {
     amount: string;
@@ -177,79 +180,31 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
     }, [formattedDisplayValue]);
 
     return (
-        <YStack flex={1} justify="space-between">
-            <YStack items="center" gap="$3" width="100%">
-                {/* Mint Selector & Balance Row */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            refreshMintList();
-                            sheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                        mr="$2"
-                    >
-                        {isLoadingMint ? (
-                            <Spinner size={14} color="$accent10" />
-                        ) : (
-                            <Avatar rounded="$3" size="$2">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback
-                                    backgroundColor="$gray4"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                >
-                                    <Sprout size={14} color="$accent10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        )}
-                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                            {isLoadingMint ? "Loading..." : displayName}
-                        </Text>
-                        <ChevronDown size={18} color="$gray10" />
-
-
-                    </XStack>
-                    <XStack gap="$2" items="center">
-                        <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            {currencyService.formatSats(balance)}
-                        </Text>
-                        <Button
-                            size="$2"
-                            rounded="$3"
-
-                            borderWidth={0}
-                            color="$color"
-                            fontWeight="600"
-                            onPress={handleMax}
-                            disabled={balance === 0}
-                            pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                        >
-                            Max
-                        </Button>
-
-                    </XStack>
-                </XStack>
+        <Flex fill justify="space-between">
+            <YStack items="center" gap="$1.5" width="100%">
+                <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={displayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        sheetRef.current?.present();
+                    }}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={balance === 0}
+                />
 
                 {/* Card Box Container */}
                 <YStack
                     width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    p="$4"
+                 bg="$gray3"
+                    rounded="$6"
+                    p="$3"
+                    py="$8"
                     items="center"
                     gap="$3"
                     borderWidth={0}
@@ -266,20 +221,13 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
                             </Text>
                         )}
 
-                        <H1
-                            fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color={isOverBalance ? "$red10" : "$color"}
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                        </H1>
+                       
+                                               <BouncyAmount
+                                                   value={formattedDisplayValue}
+                                                   fontSize={dynamicFontSize}
+                                                   prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                                                   suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                                               />
 
                         <Button
                             size="$3"
@@ -308,6 +256,6 @@ export function AmountStage({ amount, setAmount, onContinue, balance, isLoading,
             />
 
             <MintSelectorSheet ref={sheetRef} />
-        </YStack>
+        </Flex>
     );
 }

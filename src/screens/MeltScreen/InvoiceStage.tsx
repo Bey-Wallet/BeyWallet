@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { YStack, XStack, Text, H1, Input, Button, Avatar } from "tamagui";
-import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, ChevronDown, Sprout, ArrowUpDown, X } from "@tamagui/lucide-icons";
+import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, ChevronDown, Sprout, ArrowUpDown, X, Zap } from "@tamagui/lucide-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { Spinner } from "~/components/UI/Spinner";
@@ -14,6 +14,9 @@ import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 import { useRouter } from "expo-router";
 import { detectLightningInputType } from "~/services/lnurlService";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
+import { DestinationInputRow } from "~/components/UI/DestinationInputRow";
+import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
+import { BouncyAmount } from "~/components/UI/BouncyAmount";
 
 interface InvoiceStageProps {
   amount: string;
@@ -259,73 +262,31 @@ export function InvoiceStage({
 
   return (
     <YStack flex={1} justify="space-between">
-      <YStack items="center" gap="$3" width="100%">
+      <YStack items="center" gap="$1.5" width="100%">
         {/* Mint Selector & Balance Row */}
-        <XStack
-          justify="space-between"
-          items="center"
-          width="100%"
-          bg="$gray2"
-          px="$3"
-          py="$3"
-          rounded="$5"
-        >
-          <XStack
-            gap="$2"
-            items="center"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-              refreshMintList();
-              sheetRef.current?.present();
-            }}
-            pressStyle={{ opacity: 0.7 }}
-            flex={1}
-            mr="$2"
-          >
-            {isLoadingMint ? (
-              <Spinner size={14} color="$accent10" />
-            ) : (
-              <Avatar rounded="$3" size="$2">
-                <Avatar.Image src={activeMint?.icon} />
-                <Avatar.Fallback
-                  backgroundColor="$gray4"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Sprout size={14} color="$accent10" />
-                </Avatar.Fallback>
-              </Avatar>
-            )}
-            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-              {isLoadingMint ? "Loading..." : displayName}
-            </Text>
-            <ChevronDown size={18} color="$gray10" />
-          </XStack>
-          <XStack gap="$2" items="center">
-            <Text fontSize="$3" color="$accent6" fontWeight="500">
-              {currencyService.formatSats(balance)}
-            </Text>
-            <Button
-              size="$2"
-              rounded="$3"
-              borderWidth={0}
-              color="$color"
-              fontWeight="600"
-              onPress={handleMax}
-              disabled={balance === 0 || isBolt11}
-              pressStyle={{ scale: 0.96, bg: "$gray4" }}
-            >
-              Max
-            </Button>
-          </XStack>
-        </XStack>
+          <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={displayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        sheetRef.current?.present();
+                    }}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={balance === 0}
+                />
 
         {/* Card Box Container */}
         <YStack
           width="100%"
-          bg="$gray2"
-          rounded="$5"
+          bg="$gray3"
+          rounded="$6"
           p="$4"
+          py="$6"
           items="center"
           gap="$3"
           borderWidth={0}
@@ -342,20 +303,12 @@ export function InvoiceStage({
               </Text>
             )}
 
-            <H1
-              fontSize={dynamicFontSize}
-              fontVariant={['tabular-nums']}
-              fontWeight="700"
-              letterSpacing={-1}
-              py="$2"
-              color={isOverBalance ? "$red10" : "$color"}
-              textAlign="center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={{ maxWidth: '100%', overflow: 'hidden' }}
-            >
-              {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-            </H1>
+                        <BouncyAmount
+                            value={formattedDisplayValue}
+                            fontSize={dynamicFontSize}
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
 
             <Button
               size="$3"
@@ -371,67 +324,18 @@ export function InvoiceStage({
             </Button>
           </YStack>
         </YStack>
-
         {/* Invoice / LN Address Input Row */}
-        <XStack
-          width="100%"
-          bg="$gray2"
-          rounded="$4"
-          px="$3"
-          minH={90}
-          items="center"
-          justify="space-between"
-          borderWidth={invoice ? (isValidInvoice ? 1 : 1) : 0}
-          borderColor={
-            invoice ? (isValidInvoice ? "$green8" : "$orange8") : "transparent"
-          }
-        >
-          <XStack gap="$2" items="center" flex={1}>
-            <Input
-              flex={1}
-              size="$3"
-              borderWidth={0}
-              bg="transparent"
-              multiline
-              numberOfLines={3}
-              placeholder="lnbc... or lightning address"
-              value={invoice}
-              onChangeText={setInvoice}
-              autoCapitalize="none"
-              autoCorrect={false}
-              color="$color"
-              fontSize="$3"
-              outlineColor={"transparent"}
-              style={{ textAlignVertical: "top" }}
-            />
-          </XStack>
-          <XStack gap="$1" items="center">
-            {invoice.length > 0 && (
-              <Button
-                size="$3"
-                circular
-
-                icon={<X size={20} color="$color" />}
-                onPress={handleClear}
-              />
-            )}
-            <Button
-              size="$3"
-              circular
-
-              icon={isPasting ? <Spinner size="small" /> : <ClipboardIcon size={20} color="$color" />}
-              onPress={handlePaste}
-              disabled={isPasting}
-            />
-            <Button
-              size="$3"
-              circular
-
-              icon={<ScanLine size={20} color="$color" />}
-              onPress={handleOpenScanner}
-            />
-          </XStack>
-        </XStack>
+        <DestinationInputRow
+            value={invoice}
+            onChangeText={setInvoice}
+            placeholder="lnbc... or lightning address"
+            onPaste={handlePaste}
+            onScan={handleOpenScanner}
+            defaultIcon={<Zap size="$1.5" color="$accent10" />}
+            isPasting={isPasting}
+            isError={invoice.trim().length > 0 && !isValidInvoice}
+            multiline={true}
+        />
       </YStack>
 
       <NumericKeypad

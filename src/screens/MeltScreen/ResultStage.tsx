@@ -42,7 +42,7 @@ export function MeltResultStage({ status, amount, feeReserve, error, onClose }: 
 
     if (!isSuccess) {
         return (
-            <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
+            <YStack flex={1} justify="center" items="center" gap="$4" px="$4" bg="$background">
                 <YStack
                     width={100}
                     height={100}

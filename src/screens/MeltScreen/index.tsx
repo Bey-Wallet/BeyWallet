@@ -27,7 +27,7 @@ export default function MeltScreen() {
 
     if (mode === 'onchain') {
         return (
-            <YStack flex={1} bg="$background" p="$4">
+            <YStack flex={1} bg="$background" px="$4">
                 <Stack.Screen options={{ headerTitle: 'On-Chain Send' }} />
                 <OnchainMeltFlow />
             </YStack>
@@ -320,7 +320,7 @@ export default function MeltScreen() {
         <YStack flex={1} bg="$background">
             {/* Step 1: Input Invoice and Amount Stage */}
             {step === 'invoice' && (
-                <YStack flex={1} p="$4">
+                <YStack flex={1} px="$4">
                     <InvoiceStage
                         amount={lnAddressAmount}
                         setAmount={setLnAddressAmount}
@@ -338,7 +338,7 @@ export default function MeltScreen() {
             {step === 'confirm' && (
                 <YStack flex={1}>
                     <ScrollView contentContainerStyle={{ paddingBottom: 180 } as any} showsVerticalScrollIndicator={false}>
-                        <YStack gap="$4">
+                        <YStack gap="$4" >
                             {/* Middle Amount Display */}
                             <YStack gap="$3" py="$6" items="center" justify="center">
                                 <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
@@ -425,32 +425,35 @@ export default function MeltScreen() {
                     </ScrollView>
 
                     {/* Fixed Action Buttons */}
-                    <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-                        <Button
-                            theme="accent"
-                            size="$5"
-                            height={55}
-                            rounded="$4"
-                            fontWeight="800"
-                            onPress={handleAuthenticate}
-                            disabled={isPaying || totalCost > balance}
-                            icon={isPaying ? <Spinner size="small" color="white" /> : undefined}
-                        >
-                            {isPaying ? 'Paying...' : 'Confirm & Pay'}
-                        </Button>
+                    <XStack position="absolute"  b="$4" l="$4" r="$4" gap="$2">
+                       
                         <Button
                             bg="$gray3"
                             color="$color"
                             size="$5"
+                            flex={1}
                             height={55}
-                            rounded="$4"
+                            rounded="$5"
                             fontWeight="800"
                             disabled={isPaying}
                             onPress={() => setStep('invoice')}
                         >
                             Go Back
                         </Button>
-                    </YStack>
+                         <Button
+                            theme="accent"
+                            size="$5"
+                            flex={1}
+                            height={55}
+                            rounded="$5"
+                            fontWeight="800"
+                            onPress={handleAuthenticate}
+                            disabled={isPaying || totalCost > balance}
+                            icon={isPaying ? <Spinner size="small" color="white" /> : undefined}
+                        >
+                            {isPaying ? 'Paying...' : 'Pay'}
+                        </Button>
+                    </XStack>
                 </YStack>
             )}
 

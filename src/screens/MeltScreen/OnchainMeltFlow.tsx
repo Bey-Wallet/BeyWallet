@@ -17,6 +17,9 @@ import { useSettingsStore } from "~/store/settingsStore";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
+import { DestinationInputRow } from "~/components/UI/DestinationInputRow";
+import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
+import { BouncyAmount } from "~/components/UI/BouncyAmount";
 
 export function OnchainMeltFlow() {
     const router = useRouter();
@@ -672,75 +675,33 @@ export function OnchainMeltFlow() {
     // Render input form state (AmountStage look-alike with address field)
     return (
         <YStack flex={1} justify="space-between" bg="$background">
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 } as any}>
-                <YStack items="center" gap="$3" width="100%">
+           
+                <YStack items="center" gap="$1.5" width="100%">
                     
                     {/* Mint Selector & Balance Row */}
-                    <XStack
-                        justify="space-between"
-                        items="center"
-                        width="100%"
-                        bg="$gray2"
-                        px="$3"
-                        py="$3"
-                        rounded="$5"
-                    >
-                        <XStack
-                            gap="$2"
-                            items="center"
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                                refreshMintList();
-                                sheetRef.current?.present();
-                            }}
-                            pressStyle={{ opacity: 0.7 }}
-                            flex={1}
-                            mr="$2"
-                        >
-                            {isLoadingMint || isCheckingSupport ? (
-                                <Spinner size={14} color="$accent10" />
-                            ) : (
-                                <Avatar rounded="$3" size="$2">
-                                    <Avatar.Image src={activeMint?.icon} />
-                                    <Avatar.Fallback
-                                        backgroundColor="$gray4"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                    >
-                                        <Sprout size={14} color="$accent10" />
-                                    </Avatar.Fallback>
-                                </Avatar>
-                            )}
-                            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                                {isLoadingMint ? "Loading..." : mintDisplayName}
-                            </Text>
-                            <ChevronDown size={18} color="$gray10" />
-                        </XStack>
-                        <XStack gap="$2" items="center">
-                            <Text fontSize="$3" color="$accent6" fontWeight="500">
-                                {currencyService.formatSats(balance)}
-                            </Text>
-                            <Button
-                                size="$2"
-                                rounded="$3"
-                                borderWidth={0}
-                                color="$color"
-                                fontWeight="600"
-                                onPress={handleMax}
-                                disabled={balance === 0}
-                                pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                            >
-                                Max
-                            </Button>
-                        </XStack>
-                    </XStack>
+                     <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={mintDisplayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        sheetRef.current?.present();
+                    }}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={balance === 0}
+                />
 
                     {/* Card Box Container (Amount Display) */}
                     <YStack
                         width="100%"
-                        bg="$gray2"
-                        rounded="$5"
+                        bg="$gray3"
+                        rounded="$6"
                         p="$4"
+                        py="$5"
                         items="center"
                         gap="$3"
                     >
@@ -749,20 +710,12 @@ export function OnchainMeltFlow() {
                                 Enter Amount
                             </Text>
 
-                            <H1
-                                fontSize={dynamicFontSize}
-                                fontVariant={['tabular-nums']}
-                                fontWeight="700"
-                                letterSpacing={-1}
-                                py="$2"
-                                color="$color"
-                                text="center"
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
-                                style={{ maxWidth: '100%', overflow: 'hidden' }}
-                            >
-                                {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                            </H1>
+                        <BouncyAmount
+                            value={formattedDisplayValue}
+                            fontSize={dynamicFontSize}
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
 
                             <Button
                                 size="$3"
@@ -780,48 +733,21 @@ export function OnchainMeltFlow() {
                     </YStack>
 
                     {/* Destination Address Row (moved below Amount Card) */}
-                    <XStack
-                        justify="space-between"
-                        items="center"
-                        width="100%"
-                        bg="$gray2"
-                        px="$3"
-                        py="$2"
-                        rounded="$5"
-                    >
-                        <Input
-                            flex={1}
-                            size="$3"
-                            bg="transparent"
-                            borderWidth={0}
-                            placeholder="Enter target BTC address..."
-                            value={address}
-                            onChangeText={handleAddressChange}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            style={{ paddingLeft: 0 }}
-                        />
-                        <XStack gap="$1">
-                            <Button
-                                size="$3"
-                                bg="$gray3"
-                                icon={<ClipboardIcon size={16} />}
-                                onPress={handlePaste}
-                                disabled={isPasting}
-                            />
-                            <Button
-                                size="$3"
-                                bg="$gray3"
-                                icon={<ScanLine size={16} />}
-                                onPress={() => {
-                                    router.push({
-                                        pathname: "/(modals)/scanner",
-                                        params: { returnTo: "/(modals)/melt" }
-                                    });
-                                }}
-                            />
-                        </XStack>
-                    </XStack>
+                    <DestinationInputRow
+                        value={address}
+                        onChangeText={handleAddressChange}
+                        placeholder="Enter target BTC address..."
+                        onPaste={handlePaste}
+                        onScan={() => {
+                            router.push({
+                                pathname: "/(modals)/scanner",
+                                params: { returnTo: "/(modals)/melt" }
+                            });
+                        }}
+                        defaultIcon={<Bitcoin size="$1.5" strokeWidth={2.5} color="$accent5" />}
+                        isPasting={isPasting}
+                        isError={address.trim().length > 0 && !isValidAddress}
+                    />
 
                     {/* Warnings and Alerts */}
                     <YStack width="100%" gap="$2" mt="$1">
@@ -851,10 +777,10 @@ export function OnchainMeltFlow() {
                         )}
                     </YStack>
 
-                    {/* Preset amounts & Numpad */}
-                    <YStack width="100%" gap="$4" mt="$2">
-                     
+                  
+                
 
+                </YStack>
                         <NumericKeypad
                             showAmountDisplay={false}
                             value={localInputValue}
@@ -863,10 +789,7 @@ export function OnchainMeltFlow() {
                             confirmLabel="Continue"
                             disabled={!canContinue}
                         />
-                    </YStack>
-
-                </YStack>
-            </ScrollView>
+           
 
             <MintSelectorSheet ref={sheetRef} />
         </YStack>

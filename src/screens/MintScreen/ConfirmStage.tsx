@@ -127,24 +127,10 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
             </ScrollView>
 
             {/* Action Buttons */}
-            <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-                <Button
-                    theme="accent"
-                    size="$5"
-                    height={55}
-                    rounded="$4"
-                    fontWeight="800"
-                    disabled={isLoading}
-                    icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        onConfirm();
-                    }}
-                >
-                    {isLoading ? 'Creating Invoice...' : 'Confirm Deposit'}
-                </Button>
+            <XStack position="absolute" justify="space-between" b="$4" l="$1" r="$1" gap="$2" >
                 <Button
                     bg="$gray3"
+                    flex={1}
                     color="$color"
                     size="$5"
                     height={55}
@@ -158,7 +144,23 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
                 >
                     Go Back
                 </Button>
-            </YStack>
+                <Button
+                    theme="accent"
+                    flex={1}
+                    size="$5"
+                    height={55}
+                    rounded="$4"
+                    fontWeight="800"
+                    disabled={isLoading}
+                    icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        onConfirm();
+                    }}
+                >
+                    {isLoading ? 'Creating...' : 'Confirm'}
+                </Button>
+            </XStack>
 
             <ProcessingSheet
                 visible={!!isLoading}

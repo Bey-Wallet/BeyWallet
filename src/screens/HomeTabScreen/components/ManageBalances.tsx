@@ -54,40 +54,44 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
   const { id, title, value, imageSource, icon, onPress, isComingSoon } = item;
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
+  const isFiatEnabled = secondaryCurrency !== 'NONE';
+  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
+
   const { data: btcData } = useQuery({
     queryKey: ["bitcoinPrice", secondaryCurrency],
-    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    queryFn: () => isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
     staleTime: 30000,
+    enabled: isFiatEnabled,
   });
 
   const displayValue = React.useMemo(() => {
     if (isComingSoon) return "NA";
     if (hideBalance) return "****";
 
-    if (primaryCurrency === 'FIAT' && typeof value === 'number') {
+    if (!displayAsSats && typeof value === 'number') {
       if (!btcData?.price) return '...';
       const fiat = currencyService.convertSatsToCurrency(value, btcData.price);
       return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
     }
 
     return value;
-  }, [isComingSoon, hideBalance, value, primaryCurrency, secondaryCurrency, btcData?.price]);
+  }, [isComingSoon, hideBalance, value, displayAsSats, secondaryCurrency, btcData?.price]);
 
   const currentTrigger = React.useMemo(() => {
-    return `${trigger}_${hideBalance ? "hidden" : "visible"}_${primaryCurrency}`;
-  }, [trigger, hideBalance, primaryCurrency]);
+    return `${trigger}_${hideBalance ? "hidden" : "visible"}_${displayAsSats ? "SATS" : "FIAT"}`;
+  }, [trigger, hideBalance, displayAsSats]);
 
   const prefix = React.useMemo(() => {
     if (isComingSoon || hideBalance) return "";
-    if (primaryCurrency === 'FIAT') return ""; // formatted currency already includes symbol
+    if (!displayAsSats) return ""; // formatted currency already includes symbol
     return showBitcoinSymbol ? "₿" : "";
-  }, [isComingSoon, hideBalance, primaryCurrency, showBitcoinSymbol]);
+  }, [isComingSoon, hideBalance, displayAsSats, showBitcoinSymbol]);
 
   const suffix = React.useMemo(() => {
     if (isComingSoon || hideBalance) return "";
-    if (primaryCurrency === 'FIAT') return "";
+    if (!displayAsSats) return "";
     return showBitcoinSymbol ? "" : " SATS";
-  }, [isComingSoon, hideBalance, primaryCurrency, showBitcoinSymbol]);
+  }, [isComingSoon, hideBalance, displayAsSats, showBitcoinSymbol]);
 
   return (
     <RowContainer
@@ -146,7 +150,7 @@ const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
             fontWeight="900"
             color="$accent4"
             decimalOpacity={0.4}
-            showDecimals={primaryCurrency === 'FIAT'}
+            showDecimals={!displayAsSats}
             prefix={prefix}
             suffix={suffix}
             trigger={currentTrigger + `_${showBitcoinSymbol}`}

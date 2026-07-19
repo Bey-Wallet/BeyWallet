@@ -8,8 +8,9 @@ import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/
 import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
 import { ProcessingSheet } from "~/components/UI/ProcessingSheet";
 import * as Haptics from "expo-haptics";
-import { ChevronDown, Sprout, ArrowUpDown } from "@tamagui/lucide-icons";
+import { ArrowUpDown } from "@tamagui/lucide-icons";
 import { MintSelectorSheet } from "~/components/HomeMintSelector";
+import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 
 interface AmountStageProps {
@@ -207,62 +208,18 @@ export function AmountStage({
         <YStack flex={1} justify="space-between">
             <YStack items="center" gap="$3" width="100%" position="relative">
                 {/* From Mint Selector & Balance Card */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            sourceSheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                        mr="$2"
-                    >
-                        <Avatar rounded="$3" size="$3">
-                            <Avatar.Image src={sourceMint?.icon} />
-                            <Avatar.Fallback
-                                backgroundColor="$gray4"
-                                alignItems="center"
-                                justifyContent="center"
-                            >
-                                <Sprout size={14} color="$accent10" />
-                            </Avatar.Fallback>
-                        </Avatar>
-                        <YStack flex={1}>
-                            <Text fontSize="$1" fontWeight="800" color="$gray10" textTransform="uppercase">From Mint</Text>
-                            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                                {sourceDisplayName}
-                            </Text>
-                        </YStack>
-                        <ChevronDown size={18} color="$gray10" />
-                    </XStack>
-                    <XStack gap="$2" items="center">
-                        <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            {currencyService.formatSats(sourceBalance)}
-                        </Text>
-                        <Button
-                            size="$2"
-                            rounded="$3"
-                            borderWidth={0}
-                            color="$color"
-                            fontWeight="600"
-                            onPress={handleMax}
-                            disabled={sourceBalance === 0}
-                            pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                        >
-                            Max
-                        </Button>
-                    </XStack>
-                </XStack>
+                <MintBalanceRow
+                    activeMint={sourceMint}
+                    activeMintUrl={sourceMintUrl}
+                    displayName={sourceDisplayName}
+                    label="From Mint"
+                    balance={sourceBalance}
+                    isSelector={true}
+                    onPress={() => sourceSheetRef.current?.present()}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={sourceBalance === 0}
+                />
 
                 {/* Flip Direction Button */}
                 <View position="absolute" top={52} zIndex={10} left={0} right={0} alignItems="center">
@@ -280,50 +237,16 @@ export function AmountStage({
                 </View>
 
                 {/* To Mint Selector Card */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            targetSheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                        mr="$2"
-                    >
-                        <Avatar rounded="$3" size="$3">
-                            <Avatar.Image src={targetMint?.icon} />
-                            <Avatar.Fallback
-                                backgroundColor="$gray4"
-                                alignItems="center"
-                                justifyContent="center"
-                            >
-                                <Sprout size={14} color="$accent10" />
-                            </Avatar.Fallback>
-                        </Avatar>
-                        <YStack flex={1}>
-                            <Text fontSize="$1" fontWeight="800" color="$gray10" textTransform="uppercase">To Mint</Text>
-                            <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                                {targetDisplayName}
-                            </Text>
-                        </YStack>
-                        <ChevronDown size={18} color="$gray10" />
-                    </XStack>
-                    <XStack gap="$2" items="center" pr="$2">
-                        <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            {currencyService.formatSats(targetBalance)}
-                        </Text>
-                    </XStack>
-                </XStack>
+                <MintBalanceRow
+                    activeMint={targetMint}
+                    activeMintUrl={targetMintUrl}
+                    displayName={targetDisplayName}
+                    label="To Mint"
+                    balance={targetBalance}
+                    isSelector={true}
+                    onPress={() => targetSheetRef.current?.present()}
+                    showMax={false}
+                />
 
                 {/* Amount Display Section Card */}
                 <YStack

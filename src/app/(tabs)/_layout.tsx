@@ -132,7 +132,7 @@ export default function TabLayout() {
           headerShown: false,
           title: "Explore",
           tabBarIcon: ({ color }) => (
-            <Compass size={24} strokeWidth={2.5} color={color as any} />
+            <Search size={24} strokeWidth={2.5} color={color as any} />
           ),
           headerRight: () => (
             <XStack pr="$4">

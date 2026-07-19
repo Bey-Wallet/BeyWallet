@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { YStack, XStack, Text, H1, Button, Avatar, Square, Input } from "tamagui";
-import { ChevronDown, Sprout, ArrowUpDown, Wallet, User, ScanLine } from "@tamagui/lucide-icons";
+import { ArrowUpDown, Key, KeyRound, User } from "@tamagui/lucide-icons";
 import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 import { Spinner } from '~/components/UI/Spinner';
@@ -14,6 +14,9 @@ import { MintSelectorSheet } from '~/components/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
+import { BouncyAmount } from '~/components/UI/BouncyAmount';
+import { DestinationInputRow } from '~/components/UI/DestinationInputRow';
 
 interface P2PKAmountStageProps {
     amount: string;
@@ -80,7 +83,17 @@ export function P2PKAmountStage({
 
     const parsedAmountSats = parseInt(amount, 10) || 0;
     const isOverBalance = parsedAmountSats > balance;
-    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && receiverPubkey.trim().length > 10;
+
+    const isInvalidPubkey = useMemo(() => {
+        const val = receiverPubkey.trim();
+        if (!val) return false;
+        const lower = val.toLowerCase();
+        const isNpub = lower.startsWith('npub1') && lower.length >= 50;
+        const isHex = /^[a-fA-F0-9]{64}$/.test(lower);
+        return !isNpub && !isHex;
+    }, [receiverPubkey]);
+
+    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && receiverPubkey.trim().length > 0 && !isInvalidPubkey;
 
     const conversionValue = useMemo(() => {
         if (!btcData?.price) return '0';
@@ -221,73 +234,31 @@ export function P2PKAmountStage({
 
     return (
         <YStack flex={1} justify="space-between">
-            <YStack items="center" gap="$3" width="100%">
+            <YStack items="center" gap="$1.5" width="100%">
                 {/* Mint Selector & Balance Row */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            refreshMintList();
-                            sheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                        mr="$2"
-                    >
-                        {isLoadingMint ? (
-                            <Spinner size={14} color="$accent10" />
-                        ) : (
-                            <Avatar rounded="$3" size="$2">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback
-                                    backgroundColor="$gray4"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                >
-                                    <Sprout size={14} color="$accent10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        )}
-                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                            {isLoadingMint ? "Loading..." : displayName}
-                        </Text>
-                        <ChevronDown size={18} color="$gray10" />
-                    </XStack>
-                    <XStack gap="$2" items="center">
-                        <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            {currencyService.formatSats(balance)}
-                        </Text>
-                        <Button
-                            size="$2"
-                            rounded="$3"
-                            borderWidth={0}
-                            color="$color"
-                            fontWeight="600"
-                            onPress={handleMax}
-                            disabled={balance === 0}
-                            pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                        >
-                            Max
-                        </Button>
-                    </XStack>
-                </XStack>
+                 <MintBalanceRow
+                                   activeMint={activeMint}
+                                   activeMintUrl={activeMintUrl || undefined}
+                                   displayName={displayName}
+                                   balance={balance}
+                                   isLoadingMint={isLoadingMint}
+                                   isSelector={true}
+                                   onPress={() => {
+                                       refreshMintList();
+                                       sheetRef.current?.present();
+                                   }}
+                                   showMax={true}
+                                   onMaxPress={handleMax}
+                                   maxDisabled={balance === 0}
+                               />
 
                 {/* Card Box Container */}
                 <YStack
                     width="100%"
-                    bg="$gray2"
-                    rounded="$5"
+                    bg="$gray3"
+                    rounded="$6"
                     p="$4"
+                    py="$5"
                     items="center"
                     gap="$3"
                     borderWidth={0}
@@ -304,21 +275,12 @@ export function P2PKAmountStage({
                             </Text>
                         )}
 
-                        <H1
+                        <BouncyAmount
+                            value={formattedDisplayValue}
                             fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color={isOverBalance ? "$red10" : "$color"}
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                        </H1>
-
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
                         <Button
                             size="$3"
                             rounded="$10"
@@ -333,43 +295,15 @@ export function P2PKAmountStage({
                 </YStack>
 
                 {/* NPUB / Pubkey Input Row */}
-                <XStack width="100%" bg="$gray2" rounded="$4" px="$3" minH={90} items="center" justify="space-between">
-                    <XStack gap="$2" items="center" flex={1}>
-
-                        <Input
-                            flex={1}
-                            size="$3"
-                            borderWidth={0}
-                            bg="transparent"
-                            multiline
-                            numberOfLines={3}
-                            placeholder="npub... or hex pubkey"
-                            value={receiverPubkey}
-                            onChangeText={setReceiverPubkey}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            color="$color"
-                            fontSize="$3"
-
-                        />
-                    </XStack>
-                    <XStack gap="$1" items="center">
-                        <Button
-                            size="$2.5"
-                            circular
-                            chromeless
-                            icon={<ClipboardIcon size={20} color="$color" />}
-                            onPress={handlePaste}
-                        />
-                        <Button
-                            size="$2.5"
-                            circular
-                            chromeless
-                            icon={<ScanLine size={20} color="$color" />}
-                            onPress={handleOpenScanner}
-                        />
-                    </XStack>
-                </XStack>
+                <DestinationInputRow
+                    value={receiverPubkey}
+                    onChangeText={setReceiverPubkey}
+                    placeholder="npub... or hex pubkey"
+                    onPaste={handlePaste}
+                    onScan={handleOpenScanner}
+                    defaultIcon={<KeyRound size="$1.5" color="$accent5" strokeWidth={2.5} />}
+                    isError={isInvalidPubkey}
+                />
 
             </YStack>
 

@@ -35,7 +35,22 @@ type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 /** Parse a NUT-18 creqA/creqB string into our UI model */
 function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
     try {
-        const pr = PaymentRequest.fromEncodedRequest(raw);
+        let cleaned = raw.trim();
+        const lower = cleaned.toLowerCase();
+
+        // Extract payment request if it's a URL
+        if (lower.includes('/r#') || lower.includes('/r/#') || lower.includes('/r/')) {
+            const markers = ['/r/#', '/r#', '/r/'];
+            for (const marker of markers) {
+                const idx = lower.indexOf(marker);
+                if (idx !== -1) {
+                    cleaned = cleaned.slice(idx + marker.length);
+                    break;
+                }
+            }
+        }
+
+        const pr = PaymentRequest.fromEncodedRequest(cleaned);
         // Extract Nostr transport target (npub)
         let nostrTarget: string | undefined;
         if (pr.transport) {
@@ -47,7 +62,7 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
             if (nostrTr) nostrTarget = nostrTr.target;
         }
         return {
-            raw,
+            raw: cleaned,
             id: pr.id ?? undefined,
             amount: pr.amount ?? undefined,
             unit: pr.unit ?? 'sat',
@@ -539,7 +554,7 @@ export function SendModalScreen() {
     }, [step, status, sendMode]);
 
     return (
-        <YStack flex={1} bg="$background" p="$4">
+        <YStack flex={1} bg="$background" px="$4">
             <Stack.Screen
                 options={{
                     headerTitle: () => (
@@ -549,9 +564,9 @@ export function SendModalScreen() {
                     ,
                     headerRight: () => (
                         <Button
-                            size="$4"
+                            size="$3"
                             circular
-                            chromeless
+                            
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 const nextForceOffline = !forceOffline;

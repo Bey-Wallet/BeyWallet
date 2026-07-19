@@ -25,6 +25,77 @@ export const CurrencyModal = forwardRef<AppBottomSheetRef>((_, ref) => {
 
                 <BottomSheetScrollView showsVerticalScrollIndicator={false}>
                     <YStack gap="$2" pb="$4">
+                        {/* None Option */}
+                        <XStack
+                            justify="space-between"
+                            items="center"
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                setSecondaryCurrency('NONE');
+                                (ref as React.RefObject<AppBottomSheetRef>).current?.dismiss();
+                            }}
+                            pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                            p="$3"
+                            borderWidth={1}
+                            borderColor={secondaryCurrency === 'NONE' ? "$accentColor" : "$borderColor"}
+                            rounded="$7"
+                        >
+                            <XStack gap="$3" items="center">
+                                <View
+                                    bg={secondaryCurrency === 'NONE' ? "$accent3" : "$background"}
+                                    rounded="$5"
+                                    width={48}
+                                    height={48}
+                                    items="center"
+                                    justify="center"
+                                >
+                                    <Text
+                                        fontWeight="900"
+                                        fontSize="$5"
+                                        color={secondaryCurrency === 'NONE' ? "$accent11" : "$gray12"}
+                                    >
+                                        Ø
+                                    </Text>
+                                </View>
+                                <YStack gap="$0.5">
+                                    <Text fontWeight="600" fontSize="$4">
+                                        None (Hide conversion)
+                                    </Text>
+                                    <Text fontSize="$3" color="$gray10">
+                                        Do not convert or show secondary balances
+                                    </Text>
+                                </YStack>
+                            </XStack>
+                            <XStack items="center" justify="center" pl="$2">
+                                {secondaryCurrency === 'NONE' ? (
+                                    <View
+                                        width={22}
+                                        height={22}
+                                        rounded={11}
+                                        borderWidth={2}
+                                        borderColor="$color"
+                                        items="center"
+                                        justify="center"
+                                    >
+                                        <View
+                                            width={12}
+                                            height={12}
+                                            rounded={6}
+                                            bg="$color"
+                                        />
+                                    </View>
+                                ) : (
+                                    <View
+                                        width={22}
+                                        height={22}
+                                        rounded={11}
+                                        borderWidth={1.5}
+                                        borderColor="$gray8"
+                                    />
+                                )}
+                            </XStack>
+                        </XStack>
+
                         {SUPPORTED_CURRENCIES.map((currency) => {
                             const isSelected = secondaryCurrency === currency.code;
 

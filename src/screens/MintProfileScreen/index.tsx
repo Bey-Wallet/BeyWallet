@@ -16,12 +16,14 @@ import EditNicknameModal, { EditNicknameModalRef } from '../../components/EditNi
 import { ListTable, ListTableRow } from '../../components/UI/ListTable';
 import * as Sharing from 'expo-sharing';
 import { Share as RNShare, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface MintProfileScreenProps {
     url: string;
 }
 
 export function MintProfileScreen({ url }: MintProfileScreenProps) {
+    const insets = useSafeAreaInsets();
     const [showQr, setShowQr] = useState(false);
     const router = useRouter();
     const toast = useToastController();
@@ -459,7 +461,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 </YStack>
             </ScrollView>
 
-            <YStack p="$4" bg="$background" borderTopWidth={1} borderTopColor="$gray4">
+            <YStack p="$4" pb={insets.bottom || '$4'} bg="$background" borderTopWidth={1} borderTopColor="$gray4">
                 <Button
                     size="$4"
                     fontWeight="bold"

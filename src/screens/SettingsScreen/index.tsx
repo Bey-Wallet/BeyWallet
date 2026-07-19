@@ -47,7 +47,7 @@ export function SettingsScreen() {
     const deleteSheetRef = useRef<AppBottomSheetRef>(null);
     const infoSheetRef = useRef<InfoSheetRef>(null);
 
-    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled, showBitcoinSymbol, setShowBitcoinSymbol } = useSettingsStore();
+    const { theme, secondaryCurrency, defaultMintUrl, biometricEnabled, showBitcoinSymbol, setShowBitcoinSymbol, primaryCurrency, setPrimaryCurrency } = useSettingsStore();
     const { activeMintUrl, refreshBalance } = useWalletStore();
     const { nip05: liveNip05, username: liveUsername, loading: nip05Loading } = useNip05Lookup();
     const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
@@ -56,6 +56,20 @@ export function SettingsScreen() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isVerifyingDleq, setIsVerifyingDleq] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState<'checking' | 'available' | 'none'>('checking');
+
+    React.useEffect(() => {
+        if (__DEV__) {
+            setUpdateStatus('none');
+            return;
+        }
+        Updates.checkForUpdateAsync().then(({ isAvailable }) => {
+            setUpdateStatus(isAvailable ? 'available' : 'none');
+        }).catch((err) => {
+            console.warn('[SettingsScreen] Failed to check for updates on mount:', err);
+            setUpdateStatus('none');
+        });
+    }, []);
 
     const handleSettingPress = async (id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -360,11 +374,20 @@ export function SettingsScreen() {
                  
                 },
                 {
-                    id: 'currency',
-                    title: 'Currency',
-                    value: secondaryCurrency,
+                    id: 'primary-currency',
+                    title: 'Primary Display Unit',
+                    value: primaryCurrency,
                     icon: undefined,
-                 
+                    onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setPrimaryCurrency(primaryCurrency === 'SATS' ? 'FIAT' : 'SATS');
+                    }
+                },
+                {
+                    id: 'currency',
+                    title: 'Secondary Currency',
+                    value: secondaryCurrency === 'NONE' ? 'None' : secondaryCurrency,
+                    icon: undefined,
                 },
                 {
                     id: 'showBitcoinSymbol',
@@ -385,7 +408,7 @@ export function SettingsScreen() {
             items: [
                 {
                     id: 'mint',
-                    title: 'Default Mint',
+                    title: 'Fallback Mint',
                     value: defaultMintUrl ? (() => { try { return new URL(defaultMintUrl).hostname; } catch { return defaultMintUrl; } })() : 'None',
                     icon: Server,
                   
@@ -413,37 +436,11 @@ export function SettingsScreen() {
                 },
                 {
                     id: 'update',
-                    title: 'Check for Updates',
+                    title: 'Update Manager',
+                    value: updateStatus === 'available' ? '1 update' : undefined,
                     icon: RefreshCw,
-            
-                    onPress: async () => {
-                        try {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (__DEV__) {
-                                infoSheetRef.current?.present({
-                                    title: 'Development Mode',
-                                    description: 'Updates are not supported in development mode.',
-                                    type: 'info',
-                                });
-                                return;
-                            }
-                            const { isAvailable } = await Updates.checkForUpdateAsync();
-                            if (isAvailable) {
-                                router.push('/(modals)/ota-update');
-                            } else {
-                                infoSheetRef.current?.present({
-                                    title: 'Up to Date',
-                                    description: 'You are already on the latest version of Bey Wallet.',
-                                    type: 'success',
-                                });
-                            }
-                        } catch (error: any) {
-                            infoSheetRef.current?.present({
-                                title: 'Error',
-                                description: error.message || 'Failed to check for updates.',
-                                type: 'error',
-                            });
-                        }
+                    onPress: () => {
+                        router.push('/(modals)/ota-update');
                     }
                 },
                 {

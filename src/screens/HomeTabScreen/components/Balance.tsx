@@ -41,8 +41,11 @@ export default function Balance() {
     return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
   }, [currentBalance, btcData?.price]);
 
+  const isFiatEnabled = secondaryCurrency !== 'NONE';
+  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
+
   return (
-    <YStack py="$2" gap="$3" height={220} justify="center" items="center" position="relative">
+    <YStack py="$2" gap="$5" height={220} justify="center" items="center" position="relative">
       
       {/* Syncing Indicator at the top (absolute) */}
       {isRestoring && (
@@ -63,14 +66,12 @@ export default function Balance() {
 
       {/* Main Balance */}
       <YStack
-        onPress={handlePrimaryCurrencyToggle}
-        onLongPress={handleHideBalanceToggle}
-        delayLongPress={200}
+        onPress={handleHideBalanceToggle}
         pressStyle={{ opacity: 0.7 }}
         items="center"
         justify="center"
       >
-        {primaryCurrency === 'SATS' ? (
+        {displayAsSats ? (
           <RollingNumber
             value={hideBalance ? "****" : currentBalance}
             prefix={hideBalance ? "" : (showBitcoinSymbol ? "₿" : "")}
@@ -125,27 +126,29 @@ export default function Balance() {
       </YStack>
 
       {/* Secondary Balance */}
-      <RollingNumber
-        value={hideBalance ? "****" : (primaryCurrency === 'SATS' ? secondaryBalance : currentBalance)}
-        prefix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : (showBitcoinSymbol ? "₿" : ""))}
-        suffix={hideBalance ? "" : (primaryCurrency === 'SATS' ? "" : (showBitcoinSymbol ? "" : " SATS"))}
-        trigger={refreshCounter + (hideBalance ? "_hidden" : (primaryCurrency === 'SATS' ? "_visible_fiat_sub" : "_visible_sats_sub")) + `_${showBitcoinSymbol}`}
-        letterSpacing={-1}
-        fontSize={20}
-        fontWeight="800"
-        color="$accent7"
-        fontFamily="$oswald"
-        decimalOpacity={0.4}
-        showDecimals={primaryCurrency === 'SATS'}
-        mt="$1"
-      >
-        {!hideBalance && primaryCurrency === 'SATS'
-          ? currencyService.formatValue(
-            secondaryBalance,
-            secondaryCurrency as CurrencyCode,
-          )
-          : undefined}
-      </RollingNumber>
+      {isFiatEnabled && (
+        <RollingNumber
+          value={hideBalance ? "****" : (displayAsSats ? secondaryBalance : currentBalance)}
+          prefix={hideBalance ? "" : (displayAsSats ? "" : (showBitcoinSymbol ? "₿" : ""))}
+          suffix={hideBalance ? "" : (displayAsSats ? "" : (showBitcoinSymbol ? "" : " SATS"))}
+          trigger={refreshCounter + (hideBalance ? "_hidden" : (displayAsSats ? "_visible_fiat_sub" : "_visible_sats_sub")) + `_${showBitcoinSymbol}`}
+          letterSpacing={-1}
+          fontSize={20}
+          fontWeight="800"
+          color="$accent7"
+          fontFamily="$oswald"
+          decimalOpacity={0.4}
+          showDecimals={displayAsSats}
+          mt="$1"
+        >
+          {!hideBalance && displayAsSats
+            ? currencyService.formatValue(
+              secondaryBalance,
+              secondaryCurrency as CurrencyCode,
+            )
+            : undefined}
+        </RollingNumber>
+      )}
     </YStack>
   );
 }

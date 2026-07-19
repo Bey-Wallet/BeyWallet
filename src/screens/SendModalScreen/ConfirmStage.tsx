@@ -218,26 +218,12 @@ export function ConfirmStage({
             </ScrollView>
 
             {/* Action Buttons */}
-            <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-                <Button
-                    theme="accent"
-                    size="$5"
-                    height={55}
-                    rounded="$4"
-                    fontWeight="800"
-                    disabled={isLoading}
-                    icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        onConfirm();
-                    }}
-                >
-                    {isLoading ? 'Creating Ecash...' : 'Confirm & Send'}
-                </Button>
+            <XStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
                 <Button
                     bg="$gray3"
                     color="$color"
                     size="$5"
+                    flex={1}
                     height={55}
                     rounded="$4"
                     fontWeight="800"
@@ -249,7 +235,23 @@ export function ConfirmStage({
                 >
                     Go Back
                 </Button>
-            </YStack>
+                <Button
+                    theme="accent"
+                    size="$5"
+                    flex={1}
+                    height={55}
+                    rounded="$4"
+                    fontWeight="800"
+                    disabled={isLoading}
+                    icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        onConfirm();
+                    }}
+                >
+                    {isLoading ? 'Creating...' : 'Send'}
+                </Button>
+            </XStack>
         </YStack>
     );
 }

@@ -13,7 +13,9 @@ import {
 } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/components/UI/NumericKeypad';
 import { Spinner } from '~/components/UI/Spinner';
+import { useRouter } from 'expo-router';
 import Blockies from '~/components/UI/Blockies';
+import { DestinationInputRow } from '~/components/UI/DestinationInputRow';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useWalletStore } from '~/store/walletStore';
@@ -27,6 +29,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Buffer } from 'buffer';
 import { useContactsStore } from '~/store/contactsStore';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
+import { BouncyAmount } from '~/components/UI/BouncyAmount';
 
 interface NostrSendStageProps {
     amount: string;
@@ -46,19 +50,33 @@ export function NostrSendStage({
     setRecipientNpub, setRecipientUsername,
     onContinue, balance, isLoading, error
 }: NostrSendStageProps) {
-    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+    const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, scannerResult, setScannerResult } = useWalletStore();
     const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const favorites = useContactsStore(s => s.favorites);
     const favoriteContacts = Object.values(favorites);
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
     const mintSheetRef = useRef<AppBottomSheetRef>(null);
     const contactSheetRef = useRef<AppBottomSheetRef>(null);
+    const router = useRouter();
 
     const isLoadingMint = isInitializing || isRefreshing;
     const [search, setSearch] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [directory, setDirectory] = useState<Record<string, string>>({});
     const [hasRecipient, setHasRecipient] = useState(!!recipientNpub);
+
+    // Check if we just returned from the scanner
+    useEffect(() => {
+        if (scannerResult) {
+            let cleaned = scannerResult.trim();
+            if (cleaned.toLowerCase().startsWith("nostr:")) {
+                cleaned = cleaned.slice(6);
+            }
+            setRecipientNpub(cleaned);
+            doSearch(cleaned, directory);
+            setScannerResult(null);
+        }
+    }, [scannerResult, setRecipientNpub, setScannerResult, directory]);
 
     // Fetch bey.cash directory
     useEffect(() => {
@@ -127,6 +145,13 @@ export function NostrSendStage({
         if (text) { setSearch(text); doSearch(text, directory); }
     };
 
+    const handleOpenScanner = () => {
+        router.push({
+            pathname: '/(modals)/scanner',
+            params: { returnTo: '/(modals)/send', scannerMode: 'nostr' }
+        });
+    };
+
     const selectContact = (contact: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setRecipientNpub(contact.npub);
@@ -179,7 +204,17 @@ export function NostrSendStage({
 
     const parsedAmountSats = parseInt(amount, 10) || 0;
     const isOverBalance = parsedAmountSats > balance;
-    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && hasRecipient;
+
+    const isInvalidRecipient = useMemo(() => {
+        const val = (recipientUsername || recipientNpub).trim().toLowerCase();
+        if (!val) return false;
+        const isNpub = val.startsWith('npub1') && val.length >= 50;
+        const isUsername = val.endsWith('@bey.cash');
+        if (val.length <= 4) return false;
+        return !isNpub && !isUsername;
+    }, [recipientUsername, recipientNpub]);
+
+    const isValidAmount = parsedAmountSats > 0 && !isOverBalance && hasRecipient && !isInvalidRecipient;
 
     const conversionValue = useMemo(() => {
         if (!btcData?.price) return '0';
@@ -292,77 +327,30 @@ export function NostrSendStage({
 
     return (
         <YStack flex={1} justify="space-between">
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                style={{ flex: 1, width: '100%' }}
-                contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
-            >
-                {/* Mint Selector & Balance Row */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            refreshMintList();
-                            mintSheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                        mr="$2"
-                    >
-                        {isLoadingMint ? (
-                            <Spinner size={14} color="$accent10" />
-                        ) : (
-                            <Avatar rounded="$3" size="$2">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback
-                                    backgroundColor="$gray4"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                >
-                                    <Sprout size={14} color="$accent10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        )}
-                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                            {isLoadingMint ? "Loading..." : displayName}
-                        </Text>
-                        <ChevronDown size={18} color="$gray10" />
-                    </XStack>
-                    <XStack gap="$2" items="center">
-                        <Text fontSize="$3" color="$accent6" fontWeight="500">
-                            {currencyService.formatSats(balance)}
-                        </Text>
-                        <Button
-                            size="$2"
-                            rounded="$3"
-                            borderWidth={0}
-                            color="$color"
-                            fontWeight="600"
-                            onPress={handleMax}
-                            disabled={balance === 0}
-                            pressStyle={{ scale: 0.96, bg: "$gray4" }}
-                        >
-                            Max
-                        </Button>
-                    </XStack>
-                </XStack>
+           <YStack gap="$1.5">
+               <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={displayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        mintSheetRef.current?.present();
+                    }}
+                    showMax={true}
+                    onMaxPress={handleMax}
+                    maxDisabled={balance === 0}
+                />
 
                 {/* Card Box Container matching AmountStage & P2PKAmountStage */}
                 <YStack
                     width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    p="$4"
+                bg="$gray3"
+                    rounded="$6"
+                    p="$3"
+                    py='$5'
                     items="center"
                     gap="$3"
                     borderWidth={0}
@@ -379,20 +367,13 @@ export function NostrSendStage({
                             </Text>
                         )}
 
-                        <H1
+                       
+                        <BouncyAmount
+                            value={formattedDisplayValue}
                             fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color={isOverBalance ? "$red10" : "$color"}
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                        </H1>
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
 
                         <Button
                             size="$3"
@@ -408,43 +389,24 @@ export function NostrSendStage({
                 </YStack>
 
                 {/* Recipient display / selector bar */}
-                <XStack
-                    width="100%"
-                    bg="$gray2"
-                    rounded="$5"
-                    px="$3"
-                    py="$3"
-                    items="center"
-                    justify="space-between"
-                    onPress={hasRecipient ? clearRecipient : () => contactSheetRef.current?.present()}
-                    pressStyle={{ opacity: 0.8 }}
-                >
-                    <XStack gap="$3" items="center" flex={1}>
-                        {hasRecipient ? (
-                            <Blockies seed={recipientNpub} size={8} scale={3} style={{ borderRadius: 3 }} />
-                        ) : (
-                            <View bg="$accent4" p="$2" rounded="$10">
-                                <User size={16} color="$accent10" />
-                            </View>
-                        )}
-                        <YStack flex={1}>
-                            <Text fontWeight="800" fontSize="$3" numberOfLines={1}>
-                                {hasRecipient
-                                    ? (recipientUsername || formatNpub(recipientNpub))
-                                    : 'Select Recipient'}
-                            </Text>
-                            {hasRecipient && recipientUsername && (
-                                <Text fontSize="$2" color="$gray10" numberOfLines={1}>{formatNpub(recipientNpub)}</Text>
-                            )}
-                        </YStack>
-                    </XStack>
-                    {hasRecipient ? (
-                        <Button size="$2" circular icon={<X size={14} color="$color" />} onPress={clearRecipient} />
-                    ) : (
-                        <ChevronDown size={16} color="$gray10" />
-                    )}
-                </XStack>
-            </ScrollView>
+                <DestinationInputRow
+                    value={recipientUsername || recipientNpub}
+                    onChangeText={(val) => {
+                        if (val === '') {
+                            clearRecipient();
+                        } else {
+                            setRecipientNpub(val);
+                            doSearch(val, directory);
+                        }
+                    }}
+                    placeholder="Search bey.cash or npub..."
+                    onPaste={handlePaste}
+                    onScan={handleOpenScanner}
+                    defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
+                    onIconPress={() => contactSheetRef.current?.present()}
+                    isError={isInvalidRecipient}
+                />
+            </YStack>
 
             <NumericKeypad
                 showAmountDisplay={false}

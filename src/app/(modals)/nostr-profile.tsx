@@ -11,6 +11,7 @@ import { useSettingsStore } from '~/store/settingsStore';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 import { useRouter, Stack } from 'expo-router';
 import BeyIcon from '~/components/icons/BeyIcon';
+import { Flex } from '~/components/UI/Flex';
 
 export default function NostrProfileScreen() {
     const router = useRouter();
@@ -108,14 +109,14 @@ export default function NostrProfileScreen() {
                     ),
                 }}
             />
-
+<Flex>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, gap: 16 }}>
                 {/* Main content */}
                 <YStack items="center" gap="$5" flex={1} justify="center">
 
                     {/* QR Code card */}
                     {npub && isQrReady ? (
-                        <View borderWidth={1} borderColor="$borderColor" rounded="$7">
+                        <View borderWidth={1} borderColor="$gray4" rounded="$6">
                             <CustomQRCode
                                 value={npub}
                                 size={350}
@@ -198,7 +199,7 @@ export default function NostrProfileScreen() {
                                 <Text fontSize="$2" color="$gray10" fontWeight="600">
                                     Public Key (npub)
                                 </Text>
-                                <Text fontSize="$3" color="white" fontWeight="600" style={{ wordBreak: 'break-all' } as any}>
+                                <Text fontSize="$3" color="$accent4" fontWeight="600" style={{ wordBreak: 'break-all' } as any}>
                                     {npub}
                                 </Text>
                                 <Text fontSize="$1" color="$gray9">
@@ -229,6 +230,7 @@ export default function NostrProfileScreen() {
                     Share
                 </Button>
             </YStack>
+            </Flex>
         </YStack>
     );
 }

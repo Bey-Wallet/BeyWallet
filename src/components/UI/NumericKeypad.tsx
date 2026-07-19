@@ -33,7 +33,7 @@ const KEYPAD_ROWS = [
 const NumButton = React.memo(({ digit, onPress }: { digit: string; onPress: (d: string) => void }) => (
     <Button
         flex={1}
-        height={70}
+        height={55}
         chromeless
         onPress={() => onPress(digit)}
         pressStyle={{ bg: "$colorTransparent", borderColor: "$colorTransparent", scale: 1.5 }}
@@ -47,7 +47,7 @@ const NumButton = React.memo(({ digit, onPress }: { digit: string; onPress: (d: 
 const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
     <Button
         flex={1}
-        height={70}
+        height={55}
         chromeless
         onPress={onPress}
         pressStyle={{ bg: "transparent", borderColor: "$colorTransparent", scale: 1.5 }}
@@ -141,6 +141,7 @@ export function NumericKeypad({
                     <Button
                         size="$5"
                         fontSize="$6"
+                        fontWeight={800}
                         theme={canContinue && !confirmDisabled ? "accent" : "gray"}
                         onPress={handleConfirm}
                         disabled={!canContinue || confirmDisabled}

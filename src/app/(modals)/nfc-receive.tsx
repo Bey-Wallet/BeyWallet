@@ -16,6 +16,8 @@ import BeyIcon from '~/components/icons/BeyIcon';
 import { nfcService } from '~/services/nfcService';
 import { walletService } from '~/services/core';
 import { useToastController } from '@tamagui/toast';
+import { Flex } from '~/components/UI/Flex';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NFCReceiveScreen() {
     const theme = useTheme();
@@ -197,9 +199,11 @@ export default function NFCReceiveScreen() {
     };
 
     const { resolvedTheme } = useAppTheme();
+    const insets = useSafeAreaInsets()
 
     return (
-        <YStack flex={1} bg="$background" p="$4" justify="space-between">
+             <Flex fill bg="$background" pb={insets.bottom || 16}>
+        <YStack flex={1} bg="$background" px="$4" justify="space-between">
             {/* Card */}
             <Theme inverse >
 
@@ -282,16 +286,17 @@ export default function NFCReceiveScreen() {
                 </Button>
             </YStack>
 
-            <ProcessingSheet
-                visible={processing}
-                status={status}
-                title="NFC Receiving"
-                detail="Hold your phone near the sender"
-                errorMessage={errorMessage}
-                variant="nfc"
-                onClose={() => setProcessing(false)}
-            />
         </YStack>
+        <ProcessingSheet
+            visible={processing}
+            status={status}
+            title="NFC Receiving"
+            detail="Hold your phone near the sender"
+            errorMessage={errorMessage}
+            variant="nfc"
+            onClose={() => setProcessing(false)}
+        />
+        </Flex>
     );
 }
 

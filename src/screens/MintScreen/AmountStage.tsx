@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { YStack, XStack, Text, H1, Button, Avatar, Square } from "tamagui";
-import { ChevronDown, Sprout, ArrowUpDown } from "@tamagui/lucide-icons";
+import { ArrowUpDown } from "@tamagui/lucide-icons";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,8 @@ import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
 import { Spinner } from "~/components/UI/Spinner";
 import * as Haptics from "expo-haptics";
+import { BouncyAmount } from "~/components/UI/BouncyAmount";
+import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
 
 interface AmountStageProps {
     amount: string;
@@ -176,59 +178,26 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
 
     return (
         <YStack flex={1} justify="space-between">
-            <YStack items="center" gap="$3" width="100%">
+            <YStack items="center" gap="$1.5" width="100%">
                 {/* Mint Selector Row */}
-                <XStack
-                    justify="space-between"
-                    items="center"
-                    width="100%"
-                    bg="$gray2"
-                    px="$3"
-                    py="$3"
-                    rounded="$5"
-                    mb="$1"
-                >
-                    <XStack
-                        gap="$2"
-                        items="center"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-                            refreshMintList();
-                            sheetRef.current?.present();
-                        }}
-                        pressStyle={{ opacity: 0.7 }}
-                        flex={1}
-                    >
-                        {isLoadingMint ? (
-                            <Spinner size={14} color="$accent10" />
-                        ) : (
-                            <Avatar rounded="$3" size="$2">
-                                <Avatar.Image src={activeMint?.icon} />
-                                <Avatar.Fallback
-                                    backgroundColor="$gray4"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                >
-                                    <Sprout size={14} color="$accent10" />
-                                </Avatar.Fallback>
-                            </Avatar>
-                        )}
-                        <Text fontSize="$3" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 140 }}>
-                            {isLoadingMint ? "Loading..." : displayName}
-                        </Text>
-                        <ChevronDown size={16} color="$gray10" />
-                    </XStack>
-
-                    <Text fontSize="$3" color="$gray10" fontWeight="500">
-                        {currencyService.formatSats(balance)}
-                    </Text>
-                </XStack>
+                <MintBalanceRow
+                    activeMint={activeMint}
+                    activeMintUrl={activeMintUrl || undefined}
+                    displayName={displayName}
+                    balance={balance}
+                    isLoadingMint={isLoadingMint}
+                    isSelector={true}
+                    onPress={() => {
+                        refreshMintList();
+                        sheetRef.current?.present();
+                    }}
+                />
 
                 {/* Card Box Container */}
                 <YStack
                     width="100%"
-                    bg="$gray2"
-                    rounded="$5"
+                    bg="$gray3"
+                    rounded="$6"
                     p="$4"
                     items="center"
                     gap="$3"
@@ -242,56 +211,51 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
                             Enter Amount
                         </Text>
 
-                        <H1
+                        <BouncyAmount
+                            value={formattedDisplayValue}
                             fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
-                            color="$color"
-                            text="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                        </H1>
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+                        />
 
                         <Button
                             size="$3"
                             rounded="$10"
-                            bg="$gray4"
+                            bg="$gray3"
                             pressStyle={{ scale: 0.96, bg: "$gray5" }}
                             onPress={toggleMode}
                             iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
                         >
-                            <Text fontSize="$3" fontWeight="600" color="$accent10">
+                            <Text fontSize="$5" fontWeight="600" color="$accent10">
                                 {conversionValue}
                             </Text>
                         </Button>
                     </YStack>
-                </YStack>
-
-                {/* Presets and Numeric Keypad */}
-                <YStack width="100%" gap="$4">
-                    {/* 3 Preset buttons above numpad */}
-                    <XStack width="100%" justify="center" gap="$3" px="$2">
-                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('1000')}>1k</Button>
-                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('5000')}>5k</Button>
-                        <Button flex={1} size="$3" bg="$gray4" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('20000')}>20k</Button>
-                    </XStack>
-
-                    <NumericKeypad
-                        showAmountDisplay={false}
-                        value={localInputValue}
-                        onValueChange={onKeypadChange}
-                        onConfirm={onContinue}
-                        confirmLabel="Continue"
-                    />
-                </YStack>
-
-                <MintSelectorSheet ref={sheetRef} />
             </YStack>
+                 {/* 3 Preset buttons above numpad */}
+                <XStack width="100%" justify="center" gap="$1.5" >
+                    <Button flex={1} size="$6" rounded="$6" bg="$gray3" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('1000')}>1k</Button>
+                    <Button flex={1} size="$6" rounded="$6" bg="$gray3" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('5000')}>5k</Button>
+                    <Button flex={1} size="$6" rounded="$6" bg="$gray3" pressStyle={{ scale: 0.95 }} onPress={() => handlePreset('20000')}>20k</Button>
+                </XStack>
+            </YStack>
+            
+
+            {/* Presets and Numeric Keypad */}
+            <YStack width="100%" gap="$4">
+           
+
+                <NumericKeypad
+                    showAmountDisplay={false}
+                    value={localInputValue}
+                    onValueChange={onKeypadChange}
+                    onConfirm={onContinue}
+                    confirmLabel="Continue"
+                />
+            </YStack>
+
+            <MintSelectorSheet ref={sheetRef} />
         </YStack>
+       
     );
 }

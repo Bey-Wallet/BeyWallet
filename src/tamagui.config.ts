@@ -137,6 +137,62 @@ const superblueColors = {
   superblue12: "hsl(215, 100%, 15.0%)",
 };
 
+const beyblueColors = {
+  // 1-12 scale
+  beyblue1: "#eaf0ff",
+  beyblue2: "#bdd1ff",
+  beyblue3: "#9dbaff",
+  beyblue4: "#709bff",
+  beyblue5: "#5588ff",
+  beyblue6: "#2a6aff",
+  beyblue7: "#2660e8",
+  beyblue8: "#1e4bb5",
+  beyblue9: "#173a8c",
+  beyblue10: "#122d6b",
+  beyblue11: "#0f2354",
+  beyblue12: "#0a183b",
+
+  // 50-900 scale
+  beyblue50: "#eaf0ff",
+  beyblue100: "#bdd1ff",
+  beyblue200: "#9dbaff",
+  beyblue300: "#709bff",
+  beyblue400: "#5588ff",
+  beyblue500: "#2a6aff",
+  beyblue600: "#2660e8",
+  beyblue700: "#1e4bb5",
+  beyblue800: "#173a8c",
+  beyblue900: "#122d6b",
+};
+
+const surfaceColors = {
+  // 1-12 scale
+  surface1: "#ebebeb",
+  surface2: "#c1c1c1",
+  surface3: "#a3a3a3",
+  surface4: "#7a7a7a",
+  surface5: "#606060",
+  surface6: "#383838",
+  surface7: "#333333",
+  surface8: "#282828",
+  surface9: "#1f1f1f",
+  surface10: "#181818",
+  surface11: "#121212",
+  surface12: "#0a0a0a",
+
+  // 50-900 scale
+  surface50: "#ebebeb",
+  surface100: "#c1c1c1",
+  surface200: "#a3a3a3",
+  surface300: "#7a7a7a",
+  surface400: "#606060",
+  surface500: "#383838",
+  surface600: "#333333",
+  surface700: "#282828",
+  surface800: "#1f1f1f",
+  surface900: "#181818",
+};
+
 export const config = createTamagui({
   ...defaultConfig,
   animations,
@@ -152,6 +208,8 @@ export const config = createTamagui({
     color: {
       ...defaultConfig.tokens.color,
       ...superblueColors,
+      ...beyblueColors,
+      ...surfaceColors,
     },
   },
   themes: {
@@ -160,11 +218,15 @@ export const config = createTamagui({
       ...defaultConfig.themes.light,
       background: "#fff",
       ...superblueColors,
+      ...beyblueColors,
+      ...surfaceColors,
     },
     dark: {
       ...defaultConfig.themes.dark,
       background: "#000",
       ...superblueColors,
+      ...beyblueColors,
+      ...surfaceColors,
     },
   },
 });

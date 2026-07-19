@@ -9,6 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import Blockies from '~/components/UI/Blockies';
 import { useContactsStore } from '~/store/contactsStore';
+import { Flex, SafeFlex } from '~/components/UI/Flex';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ContactDetailsScreen() {
     const { npub, username } = useLocalSearchParams<{ npub: string; username?: string }>();
@@ -79,11 +81,14 @@ export default function ContactDetailsScreen() {
             console.error("Error sharing contact:", error.message);
         }
     };
+      const insets = useSafeAreaInsets()
 
     const displayUsername = username ? `${username}@bey.cash` : '';
 
     return (
-        <YStack f={1} bg="$background">
+      <Flex fill bg="$background" pb={insets.bottom || 16}>
+
+          
             <ScrollView f={1} contentContainerStyle={{ p: '$4', gap: '$6', paddingBottom: 100, height: '100%' }}>
                 {/* Header / Identity */}
                 <YStack items="center" gap="$4" pt="$4">
@@ -159,10 +164,9 @@ export default function ContactDetailsScreen() {
             {/* Floating Send Button */}
             <YStack
                 position="absolute"
-                bottom={20}
-                left={20}
-                right={20}
-                zIndex={100}
+                bottom={insets.bottom + 16}
+                left="$4"
+                right="$4"
             >
                 <Button
                     size="$5"
@@ -176,6 +180,7 @@ export default function ContactDetailsScreen() {
                     Send Ecash
                 </Button>
             </YStack>
-        </YStack>
+              </Flex>
+    
     );
 }
