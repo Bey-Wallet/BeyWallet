@@ -34,29 +34,47 @@ if (typeof global.Buffer === 'undefined') {
 }
 
 // 2. Patch Crypto
-// We purposefully obscure the check to avoid confusion. We just overwrite it or extend it.
 const existingCrypto = global.crypto || {};
 
 // Create a robust crypto object backed by expo-crypto
 const cryptoShim = {
     ...existingCrypto,
     getRandomValues: (array: TypedArray) => {
-        // console.log('[Polyfills] crypto.getRandomValues called with length:', array.length);
+        if (existingCrypto.getRandomValues) {
+            return existingCrypto.getRandomValues(array);
+        }
         return Crypto.getRandomValues(array);
     },
-    randomUUID: () => Crypto.randomUUID(),
+    randomUUID: () => {
+        if (existingCrypto.randomUUID) {
+            return existingCrypto.randomUUID();
+        }
+        return Crypto.randomUUID();
+    },
 };
 
-// @ts-ignore
-global.crypto = cryptoShim;
-
-// Patch other namespaces
-// @ts-ignore
-if (typeof window !== 'undefined') window.crypto = cryptoShim;
-// @ts-ignore
-if (typeof self !== 'undefined') self.crypto = cryptoShim;
-
-console.log('[Polyfills] Patched global.crypto with expo-crypto');
+// Safely define global.crypto using Object.defineProperty to avoid read-only assignment crashes
+try {
+    if (!global.crypto || !global.crypto.getRandomValues) {
+        Object.defineProperty(global, 'crypto', {
+            value: cryptoShim,
+            writable: true,
+            configurable: true,
+            enumerable: true
+        });
+        console.log('[Polyfills] Patched global.crypto with expo-crypto');
+    } else {
+        console.log('[Polyfills] Native global.crypto and getRandomValues already present');
+    }
+} catch (e) {
+    console.warn('[Polyfills] Failed to define global.crypto via Object.defineProperty, trying direct assignment:', e);
+    try {
+        // @ts-ignore
+        global.crypto = cryptoShim;
+    } catch (e2) {
+        console.error('[Polyfills] Direct assignment of global.crypto also failed:', e2);
+    }
+}
 
 type TypedArray =
     | Int8Array
