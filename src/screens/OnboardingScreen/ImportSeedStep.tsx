@@ -321,7 +321,7 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
                         pressStyle={(isValid && checkedConsent) ? { scale: 0.98, opacity: 0.9 } : undefined}
                         opacity={(isValid && checkedConsent) ? 1 : 0.5}
 
-                        color={(isValid && checkedConsent) ? "white" : "$gray8"}
+                
                     >
                         Confirm
                     </Button>

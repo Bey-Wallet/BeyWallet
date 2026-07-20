@@ -155,7 +155,7 @@ export default function SwapScreen() {
     return (
         <YStack flex={1} bg="$background">
             {step === 'amount' && (
-                <YStack flex={1} p="$4">
+                <YStack flex={1} px="$4">
                     <AmountStage
                         amount={amount}
                         setAmount={setAmount}
@@ -252,10 +252,24 @@ export default function SwapScreen() {
                     </ScrollView>
 
                     {/* Fixed Action Buttons */}
-                    <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
+                    <XStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
+                        <Button
+                            bg="$gray3"
+                            color="$color"
+                            size="$5"
+                            flex={1}
+                            height={55}
+                            rounded="$4"
+                            fontWeight="800"
+                            disabled={isProcessing}
+                            onPress={() => setStep('amount')}
+                        >
+                            Go Back
+                        </Button>
                         <Button
                             theme="accent"
                             size="$5"
+                            flex={1}
                             height={55}
                             rounded="$4"
                             fontWeight="800"
@@ -265,19 +279,7 @@ export default function SwapScreen() {
                         >
                             {isProcessing ? 'Swapping...' : 'Confirm Swap'}
                         </Button>
-                        <Button
-                            bg="$gray3"
-                            color="$color"
-                            size="$5"
-                            height={55}
-                            rounded="$4"
-                            fontWeight="800"
-                            disabled={isProcessing}
-                            onPress={() => setStep('amount')}
-                        >
-                            Go Back
-                        </Button>
-                    </YStack>
+                    </XStack>
                 </YStack>
             )}
 

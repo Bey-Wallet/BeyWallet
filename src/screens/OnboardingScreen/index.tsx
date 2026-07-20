@@ -23,6 +23,8 @@ import { YStack, Text } from 'tamagui'
 import { DEFAULT_MINT } from '../../store/constants'
 import { generateDeterministicUsername, registerNip05Username } from '../../utils/username'
 import { Buffer } from 'buffer'
+import { Flex } from '~/components/UI/Flex'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export function OnboardingScreen() {
     const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding, resetOnboarding } = useOnboardingStore()
@@ -347,13 +349,19 @@ export function OnboardingScreen() {
     
     // ── Step router ─────────────────────────────────────────────
     
+    const insets = useSafeAreaInsets()
     const renderStep = () => {
         switch (currentStep) {
         case 'creating':
         case 'welcome':
         default:
             return (
-                <>
+    
+   
+        <Flex fill bg="$background" pb={insets.bottom || 16}>
+           
+        
+    
                     <WelcomeStep
                         onCreateWallet={handleCreateWallet}
                         onImportWallet={handleImportWallet}
@@ -367,7 +375,7 @@ export function OnboardingScreen() {
                         onComplete={handleCreatingComplete}
                         generateMnemonic={seedService.generateMnemonic}
                     />
-                </>
+               </Flex>
             )
 
         case 'consent':

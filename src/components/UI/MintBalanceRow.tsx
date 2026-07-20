@@ -1,5 +1,5 @@
 import React from 'react';
-import { XStack, Text, Avatar, Button } from 'tamagui';
+import { XStack, YStack, Text, Avatar, Button } from 'tamagui';
 import { ChevronDown, Sprout } from '@tamagui/lucide-icons';
 import { Spinner } from '~/components/UI/Spinner';
 import { currencyService } from '~/services/currencyService';

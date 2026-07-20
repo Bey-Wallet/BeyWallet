@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { YStack, XStack, Text, H1, View, Button, Avatar } from "tamagui";
+import { YStack, XStack, Text, Button, View } from "tamagui";
 import { useWalletStore } from "~/store/walletStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { ArrowUpDown } from "@tamagui/lucide-icons";
 import { MintSelectorSheet } from "~/components/HomeMintSelector";
 import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
 import { NumericKeypad } from "~/components/UI/NumericKeypad";
+import { BouncyAmount } from "~/components/UI/BouncyAmount";
 
 interface AmountStageProps {
     amount: string;
@@ -35,7 +36,6 @@ export function AmountStage({
     const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
 
-    // Bottom sheets for picking source/target mints
     const sourceSheetRef = useRef<AppBottomSheetRef>(null);
     const targetSheetRef = useRef<AppBottomSheetRef>(null);
 
@@ -49,15 +49,15 @@ export function AmountStage({
         return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
     }, [secondaryCurrency]);
 
+    const normalizeUrl = (url: string) => url.replace(/\/$/, "");
+
     const sourceMint = useMemo(() => {
         if (!sourceMintUrl) return null;
-        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
         return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(sourceMintUrl));
     }, [mints, sourceMintUrl]);
 
     const targetMint = useMemo(() => {
         if (!targetMintUrl) return null;
-        const normalizeUrl = (url: string) => url.replace(/\/$/, "");
         return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(targetMintUrl));
     }, [mints, targetMintUrl]);
 
@@ -78,7 +78,6 @@ export function AmountStage({
     const sourceBalance = sourceMintUrl ? (balances[sourceMintUrl] || 0) : 0;
     const targetBalance = targetMintUrl ? (balances[targetMintUrl] || 0) : 0;
     const isOverBalance = Number(amount) > sourceBalance;
-    const isValidAmount = Number(amount) > 0 && !isOverBalance;
 
     const handleFlipMints = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -112,20 +111,14 @@ export function AmountStage({
     const onKeypadChange = (rawVal: string) => {
         let val = rawVal;
 
-        if (val === '.') {
-            val = '0.';
-        }
+        if (val === '.') val = '0.';
 
         if (inputMode === 'SATS') {
             val = val.replace(/\./g, '');
         } else {
             const parts = val.split('.');
-            if (parts.length > 2) {
-                val = parts[0] + '.' + parts.slice(1).join('');
-            }
-            if (parts.length === 2 && parts[1].length > 2) {
-                val = parts[0] + '.' + parts[1].slice(0, 2);
-            }
+            if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+            if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
         }
 
         if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
@@ -134,9 +127,7 @@ export function AmountStage({
         }
 
         const maxLen = 11;
-        if (val.length > maxLen) {
-            val = val.slice(0, maxLen);
-        }
+        if (val.length > maxLen) val = val.slice(0, maxLen);
 
         setLocalInputValue(val);
 
@@ -165,25 +156,11 @@ export function AmountStage({
         }
     };
 
-    const handleMax = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        const maxSats = sourceBalance.toString();
-        setAmount(maxSats);
-        if (inputMode === 'SATS') {
-            setLocalInputValue(maxSats);
-        } else if (btcData?.price) {
-            const fiat = currencyService.convertSatsToCurrency(sourceBalance, btcData.price);
-            setLocalInputValue(fiat.toFixed(2));
-        }
-    };
-
     const formattedDisplayValue = useMemo(() => {
         if (!localInputValue || localInputValue === '0') return '0';
         if (inputMode === 'SATS') {
             const num = Number(localInputValue);
-            if (!isNaN(num)) {
-                return num.toLocaleString('en-US');
-            }
+            if (!isNaN(num)) return num.toLocaleString('en-US');
         } else {
             const parts = localInputValue.split('.');
             const integerPart = Number(parts[0]);
@@ -206,8 +183,8 @@ export function AmountStage({
 
     return (
         <YStack flex={1} justify="space-between">
-            <YStack items="center" gap="$3" width="100%" position="relative">
-                {/* From Mint Selector & Balance Card */}
+            <YStack gap="$1.5" width="100%">
+                {/* Source Mint Selector */}
                 <MintBalanceRow
                     activeMint={sourceMint}
                     activeMintUrl={sourceMintUrl}
@@ -216,49 +193,19 @@ export function AmountStage({
                     balance={sourceBalance}
                     isSelector={true}
                     onPress={() => sourceSheetRef.current?.present()}
-                    showMax={true}
-                    onMaxPress={handleMax}
-                    maxDisabled={sourceBalance === 0}
-                />
-
-                {/* Flip Direction Button */}
-                <View position="absolute" top={52} zIndex={10} left={0} right={0} alignItems="center">
-                    <Button
-                        circular
-                        size="$2.5"
-                        bg="$background"
-                        borderColor="$borderColor"
-                        borderWidth={1}
-                        elevation={2}
-                        icon={<ArrowUpDown size={14} color="$color" />}
-                        onPress={handleFlipMints}
-                        pressStyle={{ scale: 0.9 }}
-                    />
-                </View>
-
-                {/* To Mint Selector Card */}
-                <MintBalanceRow
-                    activeMint={targetMint}
-                    activeMintUrl={targetMintUrl}
-                    displayName={targetDisplayName}
-                    label="To Mint"
-                    balance={targetBalance}
-                    isSelector={true}
-                    onPress={() => targetSheetRef.current?.present()}
                     showMax={false}
                 />
 
-                {/* Amount Display Section Card */}
+                {/* Amount Display Card */}
                 <YStack
                     width="100%"
-                    bg="$gray2"
-                    rounded="$5"
+                    bg="$gray3"
+                    rounded="$6"
                     p="$4"
                     items="center"
-                    gap="$3"
-                    borderWidth={0}
+                    gap="$2"
                 >
-                    <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+                    <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
                         {error || isOverBalance ? (
                             <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
                                 {error || "Exceeds available balance"}
@@ -269,35 +216,43 @@ export function AmountStage({
                             </Text>
                         )}
 
-                        <H1
+                        <BouncyAmount
+                            value={formattedDisplayValue}
                             fontSize={dynamicFontSize}
-                            fontVariant={['tabular-nums']}
-                            fontWeight="700"
-                            letterSpacing={-1}
-                            py="$2"
+                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
                             color={isOverBalance ? "$red10" : "$color"}
-                            textAlign="center"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            style={{ maxWidth: '100%', overflow: 'hidden' }}
-                        >
-                            {inputMode === 'SATS' ? (showBitcoinSymbol ? `₿${formattedDisplayValue}` : `${formattedDisplayValue} SATS`) : `${currencySymbol}${formattedDisplayValue}`}
-                        </H1>
+                        />
 
                         <Button
                             size="$3"
                             rounded="$10"
-                            bg="$gray5"
+                            bg="$gray3"
                             pressStyle={{ scale: 0.96, bg: "$gray5" }}
                             onPress={toggleMode}
                             iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
                         >
-                            {conversionValue}
+                            <Text fontSize="$5" fontWeight="600" color="$accent10">
+                                {conversionValue}
+                            </Text>
                         </Button>
                     </YStack>
                 </YStack>
+
+                {/* Target Mint Selector */}
+                <MintBalanceRow
+                    activeMint={targetMint}
+                    activeMintUrl={targetMintUrl}
+                    displayName={targetDisplayName}
+                    label="To Mint"
+                    balance={targetBalance}
+                    isSelector={true}
+                    onPress={() => targetSheetRef.current?.present()}
+                    showMax={false}
+                />
             </YStack>
 
+            {/* Numeric Keypad */}
             <NumericKeypad
                 showAmountDisplay={false}
                 value={localInputValue}
@@ -305,7 +260,12 @@ export function AmountStage({
                 onConfirm={onContinue}
                 confirmLabel="Review Swap"
                 maxAmount={sourceBalance}
-                confirmDisabled={!sourceMintUrl || !targetMintUrl || sourceMintUrl === targetMintUrl || !amount || Number(amount) <= 0 || Number(amount) > sourceBalance}
+                confirmDisabled={
+                    !sourceMintUrl || !targetMintUrl ||
+                    sourceMintUrl === targetMintUrl ||
+                    !amount || Number(amount) <= 0 ||
+                    Number(amount) > sourceBalance
+                }
             />
 
             <MintSelectorSheet ref={sourceSheetRef} activeMintUrl={sourceMintUrl} changeGlobalActiveMint={false} onSelect={setSourceMintUrl} />
@@ -314,7 +274,7 @@ export function AmountStage({
                 visible={!!isLoading}
                 title="Swapping"
                 amount={Number(amount)}
-                detail={`Swapping from ${sourceDisplayName} to ${targetDisplayName}`}
+                detail={`From ${sourceDisplayName} to ${targetDisplayName}`}
             />
         </YStack>
     );
