@@ -106,6 +106,10 @@ export async function getLnurlPayParams(lnUrlOrAddress: string): Promise<LnUrlPa
     if (!url) return null;
 
     const response = await fetch(url);
+    if (!response.ok) {
+        console.warn(`[LNURL] HTTP ${response.status} fetching ${url}`);
+        return null;
+    }
     const data = await response.json();
     return data as LnUrlPayParams;
 }
