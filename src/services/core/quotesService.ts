@@ -259,7 +259,7 @@ export const quotesService = {
             meltOp = await mgr().quotes.prepareMeltBolt11(sourceMintUrl, mintQuote.invoice);
         } catch (err: any) {
             console.error(`[QuotesService] Prepare melt failed on ${sourceMintUrl}:`, err);
-            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${err?.message || 'Lightning path error'}. Your 70 sats remain 100% untouched.`);
+            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${err?.message || 'Lightning path error'}. Your ${amount} sats remain 100% untouched.`);
         }
 
         try {
@@ -269,10 +269,37 @@ export const quotesService = {
             throw new Error(`Lightning route between mints failed: ${err?.message || 'Payment path not found'}. Your funds remain safe in your source mint.`);
         }
 
-        try {
-            await mgr().quotes.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
-        } catch (e: any) {
-            console.log('[QuotesService] Background redemption queued for quote:', mintQuote.quoteId, e?.message);
+        // Retry redemption with exponential backoff — the Lightning payment
+        // succeeded, so the funds are held at the target mint. A transient
+        // network error during redeemMintQuote should not lose them.
+        let redemptionError: any;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await mgr().quotes.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
+                redemptionError = null;
+                break;
+            } catch (e: any) {
+                redemptionError = e;
+                if (attempt < 3) {
+                    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+                    console.warn(
+                        `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
+                        `retrying in ${delay}ms:`, e?.message
+                    );
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        if (redemptionError) {
+            // Melt succeeded but we couldn't claim the ecash. The quote ID is
+            // still valid — callers can retry redeemMintQuote with it manually.
+            throw new Error(
+                `Mint quote redemption failed after successful Lightning payment. ` +
+                `Your funds are held at ${targetMintUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
+                `You can retry using quote ID: ${mintQuote.quoteId}. ` +
+                `Error: ${redemptionError?.message || 'Unknown error'}`
+            );
         }
 
         return { type: 'lightning', quoteId: mintQuote.quoteId };
