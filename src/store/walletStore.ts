@@ -62,6 +62,7 @@ interface WalletState {
     setScannerResult: (result: string | null) => void;
     syncMintsToNostr: () => Promise<void>;
     autoCheckPendingOnchainQuotes: () => Promise<void>;
+    cleanSpentProofs: () => Promise<void>;
 }
 
 
