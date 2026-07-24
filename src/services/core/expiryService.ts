@@ -144,16 +144,28 @@ export const expiryService = {
 
     /**
      * Start the periodic background sweeper.
+     * Uses recursive setTimeout so sweeps never overlap — the next run is
+     * scheduled only after the current one finishes.
      */
     startSweeper: (intervalMs = 60000): void => {
-        if (sweepInterval) clearInterval(sweepInterval);
-        
-        // Run once on start
-        expiryService.checkAndSweepExpiredTokens();
-        
-        sweepInterval = setInterval(() => {
-            expiryService.checkAndSweepExpiredTokens();
-        }, intervalMs);
+        if (sweepInterval) clearTimeout(sweepInterval);
+
+        const scheduleNext = () => {
+            sweepInterval = setTimeout(async () => {
+                try {
+                    await expiryService.checkAndSweepExpiredTokens();
+                } catch (e) {
+                    console.error('[ExpiryService] Sweep error (scheduling next):', e);
+                }
+                scheduleNext();
+            }, intervalMs);
+        };
+
+        // Initial run — fire immediately, then schedule periodic checks
+        expiryService.checkAndSweepExpiredTokens().catch(e =>
+            console.error('[ExpiryService] Initial sweep error:', e)
+        );
+        scheduleNext();
         console.log(`[ExpiryService] Expiry sweeper started with interval ${intervalMs}ms`);
     },
     
@@ -162,7 +174,7 @@ export const expiryService = {
      */
     stopSweeper: (): void => {
         if (sweepInterval) {
-            clearInterval(sweepInterval);
+            clearTimeout(sweepInterval);
             sweepInterval = null;
             console.log('[ExpiryService] Expiry sweeper stopped');
         }
