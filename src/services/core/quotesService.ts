@@ -323,26 +323,33 @@ export const quotesService = {
      */
     createSignedMintQuote: async (mintUrl: string, amount: number, privkeyHex: string): Promise<MintQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`);
+        // Derive the public key from the private key — the mint locks the quote
+        // to this pubkey so only the key owner can mint the tokens (NUT-20).
+        const privkeyBytes = Uint8Array.from(Buffer.from(privkeyHex, 'hex'));
+        const pubkeyBytes = secp256k1.getPublicKey(privkeyBytes, true); // compressed
+        const pubkeyHex = Buffer.from(pubkeyBytes).toString('hex');
+
         return withKeysetRecovery(mintUrl, async () => {
-            // Generate request payload and cryptographic signature
-            const timestamp = Math.floor(Date.now() / 1000);
-            const payload = `mint_quote:${amount}:${timestamp}`;
-            
-            // Standard Cashu mint quote with signature headers/payload
-            const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
-            console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote}`);
+            const wallet = await mgr().getWallet(mintUrl);
+            const quote = await wallet.createLockedMintQuote(amount, pubkeyHex);
+            console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote} (locked to ${pubkeyHex.slice(0, 8)}…)`);
             return quote;
         });
     },
 
     /**
      * Create a signature-authenticated melt quote for restricted or enterprise mints (NUT-20).
+     *
+     * NUT-20 melt quotes are not yet widely supported by mints or the underlying SDK.
+     * This function falls back to the standard (unsigned) melt endpoint.
+     * The private key parameter is accepted for API compatibility but is not currently used
+     * by the mint's melt endpoint.
      */
-    createSignedMeltQuote: async (mintUrl: string, invoice: string, privkeyHex: string): Promise<MeltQuoteResponse> => {
+    createSignedMeltQuote: async (mintUrl: string, invoice: string, _privkeyHex: string): Promise<MeltQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Melt quote on ${mintUrl}`);
         return withKeysetRecovery(mintUrl, async () => {
             const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
-            console.log(`[QuotesService] ✅ NUT-20 Signed Melt Quote created: ${quote.quote}`);
+            console.log(`[QuotesService] ✅ NUT-20 Melt Quote created: ${quote.quote}`);
             return quote;
         });
     },
