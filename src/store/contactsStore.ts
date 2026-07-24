@@ -39,6 +39,11 @@ function normalizeNpub(pub: string): string {
         return trimmed;
     }
     // Assume hex
+    const hexRegex = /^[0-9a-fA-F]+$/;
+    if (!hexRegex.test(trimmed) || trimmed.length % 2 !== 0) {
+        console.warn('[ContactsStore] Invalid pubkey format (not npub, nprofile, or hex):', pub);
+        return trimmed;
+    }
     try {
         const bytes = new Uint8Array(trimmed.length / 2);
         for (let i = 0; i < bytes.length; i++) {
