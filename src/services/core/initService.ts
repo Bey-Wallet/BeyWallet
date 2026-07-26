@@ -496,11 +496,14 @@ export const initService = {
      * Reset the Manager (for logout or dev purposes).
      * Cleans up AppState listener, disables watchers, and nullifies references.
      */
-    reset: (): void => {
+    reset: async (): Promise<void> => {
         expiryService.stopSweeper();
         if (appStateSubscription) {
             appStateSubscription.remove();
             appStateSubscription = null;
+        }
+        if (manager) {
+            await disableWatchers(manager);
         }
         manager = null;
         repo = null;

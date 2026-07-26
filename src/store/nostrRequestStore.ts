@@ -113,7 +113,14 @@ export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) =>
         updatedAt: now,
       };
 
-      set(s => ({ pendingRequests: [newRequest, ...s.pendingRequests] }));
+      set(s => {
+          // Deduplicate in-memory — DB handles it via INSERT OR REPLACE,
+          // but the Zustand state also needs to avoid duplicates.
+          if (s.pendingRequests.some(existing => existing.id === req.id)) {
+              return s;
+          }
+          return { pendingRequests: [newRequest, ...s.pendingRequests] };
+      });
       console.log(`[NostrRequestStore] Request saved: ${req.id} (${req.amount} sats)`);
     } catch (err) {
       console.error('[NostrRequestStore] Failed to save request:', err);

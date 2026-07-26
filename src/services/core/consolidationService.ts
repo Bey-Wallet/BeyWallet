@@ -14,6 +14,8 @@
 
 import { walletService } from './walletService';
 import { proofService } from './proofService';
+import { initService } from './initService';
+import { decodeToken } from './tokenUtils';
 
 export interface FragmentationAnalysis {
     /** 0–100. Higher = more fragmented. >60 is worth consolidating. */
@@ -84,8 +86,43 @@ export const consolidationService = {
         // Step 1: Send — this locks the proofs into an inflight token
         const sendResult = await walletService.send(mintUrl, totalAmount);
 
-        // Step 2: Receive — mint re-issues optimally-denominated proofs
-        await walletService.receive(sendResult.token);
+        // Step 2: Receive — mint re-issues optimally-denominated proofs.
+        // If receive fails for any reason (not just network errors), persist
+        // the token as "unclaimed" history so the user can retry later.
+        try {
+            await walletService.receive(sendResult.token);
+        } catch (receiveErr: any) {
+            console.error(`[Consolidation] ❌ Receive failed after send succeeded:`, receiveErr?.message);
+            try {
+                const repo = initService.getRepo();
+                if (repo?.historyRepository) {
+                    const decoded = decodeToken(sendResult.token);
+                    await repo.historyRepository.addHistoryEntry({
+                        mintUrl,
+                        type: 'send',
+                        unit: 'sat',
+                        amount: decoded.amount || totalAmount,
+                        createdAt: Date.now(),
+                        state: 'unclaimed',
+                        token: decoded.raw || sendResult.token,
+                        metadata: {
+                            via: 'consolidation',
+                            consolidationFailed: true,
+                            originalReceiveError: receiveErr?.message,
+                        },
+                    });
+                    console.log(`[Consolidation] Token saved as "unclaimed" in history. User can retry.`);
+                }
+            } catch (saveErr) {
+                console.warn(`[Consolidation] Failed to save unclaimed token:`, saveErr);
+            }
+            throw new Error(
+                `Consolidation failed — send succeeded but receive did not. ` +
+                `Your funds are safe in the intermediate token. ` +
+                `Go to your transaction history to claim the unlisted token. ` +
+                `Error: ${receiveErr?.message || 'Unknown error'}`
+            );
+        }
 
         const afterProofs = await proofService.getReadyProofs(mintUrl);
         const afterAmount = afterProofs.reduce((s, p) => s + p.amount, 0);

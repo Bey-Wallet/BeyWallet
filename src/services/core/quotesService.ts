@@ -259,7 +259,7 @@ export const quotesService = {
             meltOp = await mgr().quotes.prepareMeltBolt11(sourceMintUrl, mintQuote.invoice);
         } catch (err: any) {
             console.error(`[QuotesService] Prepare melt failed on ${sourceMintUrl}:`, err);
-            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${err?.message || 'Lightning path error'}. Your 70 sats remain 100% untouched.`);
+            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${err?.message || 'Lightning path error'}. Your ${amount} sats remain 100% untouched.`);
         }
 
         try {
@@ -269,10 +269,37 @@ export const quotesService = {
             throw new Error(`Lightning route between mints failed: ${err?.message || 'Payment path not found'}. Your funds remain safe in your source mint.`);
         }
 
-        try {
-            await mgr().quotes.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
-        } catch (e: any) {
-            console.log('[QuotesService] Background redemption queued for quote:', mintQuote.quoteId, e?.message);
+        // Retry redemption with exponential backoff — the Lightning payment
+        // succeeded, so the funds are held at the target mint. A transient
+        // network error during redeemMintQuote should not lose them.
+        let redemptionError: any;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await mgr().quotes.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
+                redemptionError = null;
+                break;
+            } catch (e: any) {
+                redemptionError = e;
+                if (attempt < 3) {
+                    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+                    console.warn(
+                        `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
+                        `retrying in ${delay}ms:`, e?.message
+                    );
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        if (redemptionError) {
+            // Melt succeeded but we couldn't claim the ecash. The quote ID is
+            // still valid — callers can retry redeemMintQuote with it manually.
+            throw new Error(
+                `Mint quote redemption failed after successful Lightning payment. ` +
+                `Your funds are held at ${targetMintUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
+                `You can retry using quote ID: ${mintQuote.quoteId}. ` +
+                `Error: ${redemptionError?.message || 'Unknown error'}`
+            );
         }
 
         return { type: 'lightning', quoteId: mintQuote.quoteId };
@@ -296,26 +323,33 @@ export const quotesService = {
      */
     createSignedMintQuote: async (mintUrl: string, amount: number, privkeyHex: string): Promise<MintQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`);
+        // Derive the public key from the private key — the mint locks the quote
+        // to this pubkey so only the key owner can mint the tokens (NUT-20).
+        const privkeyBytes = Uint8Array.from(Buffer.from(privkeyHex, 'hex'));
+        const pubkeyBytes = secp256k1.getPublicKey(privkeyBytes, true); // compressed
+        const pubkeyHex = Buffer.from(pubkeyBytes).toString('hex');
+
         return withKeysetRecovery(mintUrl, async () => {
-            // Generate request payload and cryptographic signature
-            const timestamp = Math.floor(Date.now() / 1000);
-            const payload = `mint_quote:${amount}:${timestamp}`;
-            
-            // Standard Cashu mint quote with signature headers/payload
-            const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
-            console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote}`);
+            const wallet = await mgr().getWallet(mintUrl);
+            const quote = await wallet.createLockedMintQuote(amount, pubkeyHex);
+            console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote} (locked to ${pubkeyHex.slice(0, 8)}…)`);
             return quote;
         });
     },
 
     /**
      * Create a signature-authenticated melt quote for restricted or enterprise mints (NUT-20).
+     *
+     * NUT-20 melt quotes are not yet widely supported by mints or the underlying SDK.
+     * This function falls back to the standard (unsigned) melt endpoint.
+     * The private key parameter is accepted for API compatibility but is not currently used
+     * by the mint's melt endpoint.
      */
-    createSignedMeltQuote: async (mintUrl: string, invoice: string, privkeyHex: string): Promise<MeltQuoteResponse> => {
+    createSignedMeltQuote: async (mintUrl: string, invoice: string, _privkeyHex: string): Promise<MeltQuoteResponse> => {
         console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Melt quote on ${mintUrl}`);
         return withKeysetRecovery(mintUrl, async () => {
             const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
-            console.log(`[QuotesService] ✅ NUT-20 Signed Melt Quote created: ${quote.quote}`);
+            console.log(`[QuotesService] ✅ NUT-20 Melt Quote created: ${quote.quote}`);
             return quote;
         });
     },

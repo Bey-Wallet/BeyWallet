@@ -28,7 +28,7 @@ export function BackupSeedScreen() {
 
                 // Re-initialize coco with new seed
                 try {
-                    initService.reset();
+                    await initService.reset();
                     await initService.init();
                     console.log('[BackupSeedScreen] ✅ Coco re-initialized with new seed');
                 } catch (e) {
