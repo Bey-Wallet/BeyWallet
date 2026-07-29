@@ -13,6 +13,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
 import { nip19 } from 'nostr-tools';
 import { Buffer } from 'buffer';
+import { resolveUniversalInput } from '~/utils/universalInputResolver';
+import { handleUniversalRedirect } from '~/utils/universalRedirect';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
@@ -253,37 +255,18 @@ export default function ScannerScreen() {
 
     const onSuccess = async (data: string) => {
         setScanned(true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         const trimmed = data.trim();
-        const lower = trimmed.toLowerCase();
-
-        // ── Check Nostr Contact (npub or username) first ─────────────────
-        const contact = await tryResolveContact(trimmed);
-        if (contact) {
-            console.log('[Scanner] Nostr contact detected, redirecting to contact-details...', contact);
-            router.replace({
-                pathname: '/(modals)/contact-details',
-                params: {
-                    npub: contact.npub,
-                    ...(contact.username ? { username: contact.username } : {})
-                }
-            });
-            return;
-        }
-
-        // Strip cashu: URI prefix so both cashu:cashuA... and cashuA... are handled uniformly
-        const normalized = lower.startsWith('cashu:') ? trimmed.substring(6) : trimmed;
-        const normalizedLower = normalized.toLowerCase();
-
-        const isCashuToken = normalizedLower.startsWith('cashub') || normalizedLower.startsWith('cashua');
-        const isPaymentRequest = lower.startsWith('creqa') || lower.startsWith('creqb');
+        if (!trimmed) return;
 
         // If explicitly asked to return to a path (e.g. from P2PK Send flow)
         if (params.returnTo) {
             console.log('[Scanner] returnTo detected:', params.returnTo);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
             if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
+                const lower = trimmed.toLowerCase();
+                const normalized = lower.startsWith('cashu:') ? trimmed.substring(6) : trimmed;
                 router.replace({
                     pathname: '/(modals)/receive',
                     params: { scannedToken: normalized }
@@ -292,46 +275,27 @@ export default function ScannerScreen() {
             }
 
             console.log('[Scanner] Returning result to store for:', params.returnTo);
-            useWalletStore.getState().setScannerResult(normalized);
+            useWalletStore.getState().setScannerResult(trimmed);
             router.back();
             return;
         }
 
-        // ── eCash Share Link (bey.cash/c#<hex>) ───────────────────────────
-        const isShareLink = lower.includes('/c#') || lower.includes('/c/#');
-        if (isShareLink) {
-            console.log('[Scanner] eCash share link detected, redirecting to receive...');
-            router.replace({
-                pathname: '/(modals)/receive',
-                params: { scannedToken: trimmed }
-            });
-            return;
-        }
+        // Use Universal Resolver for robust format detection & redirection
+        const result = await resolveUniversalInput(trimmed);
+        console.log('[Scanner] Resolved universal input:', result.type, result.cleaned);
 
-        // ── NUT-18 Payment Request ────────────────────────────────────────
-        if (isPaymentRequest) {
-            console.log('[Scanner] NUT-18 payment request detected, routing to send...');
-            router.replace({
-                pathname: '/(modals)/send',
-                params: { paymentRequest: trimmed }
-            });
-            return;
-        }
+        const redirected = handleUniversalRedirect(result, {
+            router,
+            replace: true
+        });
 
-        // ── Cashu Token (cashuA... / cashuB... with or without cashu: prefix)
-        if (isCashuToken) {
-            console.log('[Scanner] Cashu token detected, redirecting to receive...');
-            router.replace({
-                pathname: '/(modals)/receive',
-                params: { scannedToken: normalized }  // always pass without cashu: prefix
-            });
-            return;
+        if (!redirected) {
+            // Fallback: Set result in store and go back
+            console.log('[Scanner] Fallback: returning data to previous screen...');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            useWalletStore.getState().setScannerResult(trimmed);
+            router.back();
         }
-
-        // Fallback: Set result in store and go back
-        console.log('[Scanner] Non-cashu data, returning to previous screen...');
-        useWalletStore.getState().setScannerResult(trimmed);
-        router.back();
     };
 
 
