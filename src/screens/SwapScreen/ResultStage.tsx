@@ -75,7 +75,7 @@ export function ResultStage({ status, amount, sourceMintUrl, targetMintUrl, erro
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
-                px="$4"
+               px="$4"
             >
                 <YStack gap="$4">
                     {/* Oswald Typography Amount Display */}
@@ -109,7 +109,7 @@ export function ResultStage({ status, amount, sourceMintUrl, targetMintUrl, erro
                     </XStack>
 
                     {/* Description Text */}
-                    <YStack px="$4" py="$2">
+                    <YStack py="$2">
                         <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
                             Your swap has been processed successfully.
                         </Text>
@@ -144,6 +144,7 @@ export function ResultStage({ status, amount, sourceMintUrl, targetMintUrl, erro
                     size="$5"
                     height={55}
                     rounded="$4"
+
                     fontWeight="800"
                     onPress={onClose}
                 >

@@ -6,7 +6,7 @@ import { RefreshCw, ShieldCheck, Landmark, Zap, ArrowUpDown, Sprout } from '@tam
 import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
-import { walletService, mintManager, quotesService } from '~/services/core';
+import { walletService, mintManager, quotesService, initService } from '~/services/core';
 import { currencyService } from '~/services/currencyService';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -284,7 +284,7 @@ export default function SwapScreen() {
             )}
 
             {step === 'result' && (
-                <YStack flex={1} p="$4">
+                <YStack flex={1} >
                     <ResultStage
                         status={status}
                         amount={amount}

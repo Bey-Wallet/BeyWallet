@@ -221,14 +221,13 @@ export const quotesService = {
     swapMintToMint: async (sourceMintUrl: string, targetMintUrl: string, amount: number) => {
         console.log(`[QuotesService] 🔄 Executing NUT-19 Mint-to-Mint swap: ${amount} sats from ${sourceMintUrl} -> ${targetMintUrl}`);
         
+        // 1. Check for direct NUT-19 atomic swap capability on target mint
         try {
-            // Check for direct NUT-19 atomic swap capability on target mint
-            const targetInfo = await mgr().mints.getMintInfo(targetMintUrl).catch(() => null);
+            const targetInfo = await mgr().mint.getMintInfo(targetMintUrl).catch(() => null);
             const supportsDirectSwap = (targetInfo as any)?.nuts?.['19']?.supported === true;
 
             if (supportsDirectSwap) {
                 console.log(`[QuotesService] ⚡ Direct NUT-19 atomic swap supported by ${targetMintUrl}`);
-                // Execute direct atomic swap request
                 const res = await fetch(`${targetMintUrl.replace(/\/$/, '')}/v1/swap/mint`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -244,65 +243,125 @@ export const quotesService = {
             console.warn(`[QuotesService] NUT-19 direct atomic swap attempt info check:`, e?.message);
         }
 
-        // Fallback: Two-step atomic Lightning routing swap (Mint -> Melt -> Redeem)
-        console.log(`[QuotesService] ℹ️ Using optimized multi-step swap route for ${sourceMintUrl} -> ${targetMintUrl}`);
-        
-        let mintQuote;
-        try {
-            mintQuote = await mgr().quotes.createMintQuote(targetMintUrl, amount);
-        } catch (err: any) {
-            throw new Error(`Target mint (${targetMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) failed to create deposit invoice: ${err?.message || 'Network error'}`);
-        }
-
-        let meltOp;
-        try {
-            meltOp = await mgr().quotes.prepareMeltBolt11(sourceMintUrl, mintQuote.invoice);
-        } catch (err: any) {
-            console.error(`[QuotesService] Prepare melt failed on ${sourceMintUrl}:`, err);
-            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${err?.message || 'Lightning path error'}. Your ${amount} sats remain 100% untouched.`);
-        }
-
-        try {
-            await mgr().quotes.executeMelt(meltOp.id);
-        } catch (err: any) {
-            console.error(`[QuotesService] Melt execution failed on source mint:`, err);
-            throw new Error(`Lightning route between mints failed: ${err?.message || 'Payment path not found'}. Your funds remain safe in your source mint.`);
-        }
-
-        // Retry redemption with exponential backoff — the Lightning payment
-        // succeeded, so the funds are held at the target mint. A transient
-        // network error during redeemMintQuote should not lose them.
-        let redemptionError: any;
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        // Helper: execute two-step Lightning swap between two mints (src -> dst)
+        const executeTwoStepSwap = async (srcUrl: string, dstUrl: string, swapAmount: number) => {
+            console.log(`[QuotesService] ℹ️ Executing two-step Lightning swap route for ${srcUrl} -> ${dstUrl} (${swapAmount} sats)`);
+            
+            let mintQuote: MintQuoteResponse;
             try {
-                await mgr().quotes.redeemMintQuote(targetMintUrl, mintQuote.quoteId);
-                redemptionError = null;
-                break;
-            } catch (e: any) {
-                redemptionError = e;
-                if (attempt < 3) {
-                    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-                    console.warn(
-                        `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
-                        `retrying in ${delay}ms:`, e?.message
-                    );
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                mintQuote = await mgr().quotes.createMintQuote(dstUrl, swapAmount);
+            } catch (err: any) {
+                throw new Error(`Destination mint (${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}) failed to create deposit invoice: ${err?.message || 'Network error'}`);
+            }
+
+            const invoice = mintQuote.request;
+            const quoteId = (mintQuote as any).quoteId || mintQuote.quote;
+
+            let meltOp;
+            try {
+                meltOp = await mgr().quotes.prepareMeltBolt11(srcUrl, invoice);
+            } catch (err: any) {
+                console.error(`[QuotesService] Prepare melt failed on ${srcUrl}:`, err);
+                throw err;
+            }
+
+            let meltResult: any;
+            try {
+                meltResult = await mgr().quotes.executeMelt(meltOp.id);
+            } catch (err: any) {
+                console.error(`[QuotesService] Melt execution failed on ${srcUrl}:`, err);
+                throw err;
+            }
+
+            // Handle pending melt payment state
+            if (meltResult?.state === 'pending') {
+                const opId = meltResult.id || meltOp.id;
+                console.log(`[QuotesService] Melt payment pending (${opId}), waiting for settlement...`);
+                const maxWaitMs = 20000;
+                const pollIntervalMs = 2000;
+                const start = Date.now();
+                while (Date.now() - start < maxWaitMs) {
+                    const decision = await (mgr().quotes as any).checkPendingMelt?.(opId).catch(() => null);
+                    if (decision === 'finalize') break;
+                    if (decision === 'rollback') {
+                        throw new Error('Melt payment rolled back by mint');
+                    }
+                    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
                 }
             }
-        }
 
-        if (redemptionError) {
-            // Melt succeeded but we couldn't claim the ecash. The quote ID is
-            // still valid — callers can retry redeemMintQuote with it manually.
-            throw new Error(
-                `Mint quote redemption failed after successful Lightning payment. ` +
-                `Your funds are held at ${targetMintUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
-                `You can retry using quote ID: ${mintQuote.quoteId}. ` +
-                `Error: ${redemptionError?.message || 'Unknown error'}`
-            );
-        }
+            // Retry redemption with exponential backoff — the Lightning payment
+            // succeeded, so the funds are held at the target mint.
+            let redemptionError: any;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await mgr().quotes.redeemMintQuote(dstUrl, quoteId);
+                    redemptionError = null;
+                    break;
+                } catch (e: any) {
+                    redemptionError = e;
+                    if (attempt < 3) {
+                        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+                        console.warn(
+                            `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
+                            `retrying in ${delay}ms:`, e?.message
+                        );
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
 
-        return { type: 'lightning', quoteId: mintQuote.quoteId };
+            if (redemptionError) {
+                throw new Error(
+                    `Mint quote redemption failed after successful Lightning payment. ` +
+                    `Your funds are held at ${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
+                    `You can retry using quote ID: ${quoteId}. ` +
+                    `Error: ${redemptionError?.message || 'Unknown error'}`
+                );
+            }
+
+            return quoteId;
+        };
+
+        // Attempt direct 2-step Lightning swap
+        try {
+            const quoteId = await executeTwoStepSwap(sourceMintUrl, targetMintUrl, amount);
+            return { type: 'lightning', quoteId };
+        } catch (directErr: any) {
+            const msg = directErr?.message || '';
+            const lower = msg.toLowerCase();
+            const isRouteError = lower.includes('http request failed') || lower.includes('no_route') || lower.includes('path error') || lower.includes('payment path not found') || lower.includes('could not route') || lower.includes('failed');
+
+            // If direct route failed, try middleman routing via other trusted mints!
+            if (isRouteError) {
+                console.warn(`[QuotesService] ⚠️ Direct route ${sourceMintUrl} -> ${targetMintUrl} failed. Attempting middleman routing...`);
+                try {
+                    const trustedMints = await mgr().mint.getAllTrustedMints();
+                    const intermediaries = trustedMints
+                        .map(m => m.mintUrl)
+                        .filter(url => url !== sourceMintUrl && url !== targetMintUrl);
+
+                    for (const intermediaryUrl of intermediaries) {
+                        try {
+                            console.log(`[QuotesService] 🔀 Attempting middleman route via: ${intermediaryUrl}`);
+                            // Hop 1: source -> intermediary
+                            await executeTwoStepSwap(sourceMintUrl, intermediaryUrl, amount);
+                            // Hop 2: intermediary -> target
+                            const quoteId = await executeTwoStepSwap(intermediaryUrl, targetMintUrl, amount);
+                            console.log(`[QuotesService] ✅ Middleman swap successful via ${intermediaryUrl}`);
+                            return { type: 'middleman', quoteId, via: intermediaryUrl };
+                        } catch (midErr: any) {
+                            console.warn(`[QuotesService] Middleman route via ${intermediaryUrl} failed:`, midErr?.message);
+                        }
+                    }
+                } catch (mErr) {
+                    console.warn(`[QuotesService] Failed to query trusted mints for middleman routing:`, mErr);
+                }
+            }
+
+            // If middleman routing was not possible or failed, rethrow the original error
+            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${msg || 'Lightning path error'}. Your ${amount} sats remain safe.`);
+        }
     },
 
     /**
