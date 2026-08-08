@@ -7,6 +7,7 @@ import {
     Zap,
     ScanLine,
     X,
+    Clipboard,
     HandCoins,
     Users,
     KeyRound,
@@ -15,6 +16,8 @@ import {
     Banknote,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
+import * as ClipboardAPI from 'expo-clipboard';
+import { useToastController } from '@tamagui/toast';
 import { LayoutAnimation } from 'react-native';
 import AppBottomSheet, { AppBottomSheetRef } from './UI/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -42,6 +45,7 @@ interface OptionConfig {
 
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorSheetProps>((props, ref) => {
     const router = useRouter();
+    const toast = useToastController();
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const universalInputRef = useRef<UniversalInputCardRef>(null);
     const [type, setType] = useState<ActionSheetType | null>(null);
@@ -259,7 +263,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
         }
 
         return [];
-    }, [type, stage, router]);
+    }, [type, stage, router, toast]);
 
     const handleOptionPress = (option: OptionConfig) => {
         if (option.disabled) {
