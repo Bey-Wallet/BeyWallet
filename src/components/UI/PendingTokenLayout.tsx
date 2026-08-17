@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Separator, View, ScrollView, useTheme, YGroup } from "tamagui";
-import { Copy, Share2, Check, RotateCcw, Gauge, ArrowDownLeft, Nfc, Globe, ChevronRight, UsersRound, Clock, AlertCircle } from "@tamagui/lucide-icons";
+import { Copy, Share2, Check, RotateCcw, Gauge, ArrowDownLeft, Nfc, Globe, ChevronRight, UsersRound, Clock, AlertCircle, X, Send } from "@tamagui/lucide-icons";
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
@@ -17,12 +17,13 @@ import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
-import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/services/core';
+import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3, mintManager } from '~/services/core';
 import { nip19 } from 'nostr-tools';
 import { nfcService } from '~/services/nfcService';
 import { ProcessingSheet, ProcessingStatus } from './ProcessingSheet';
 import { useAuthStore } from '~/store/authStore';
 import { StatusBadge, BadgeStatus } from './StatusBadge';
+import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
 
 export interface PendingTokenLayoutProps {
     token: string;
@@ -78,6 +79,7 @@ export function PendingTokenLayout({
     const [fragmentLength, setFragmentLength] = useState(150);
     const [intervalMs, setIntervalMs] = useState(150);
     const encoderRef = useRef<UREncoder | null>(null);
+    const shareSheetRef = useRef<AppBottomSheetRef>(null);
     const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>(token?.startsWith('cashuB') ? 'V4' : 'V3');
 
     const [timeLeftStr, setTimeLeftStr] = useState<string | null>(null);
@@ -348,30 +350,72 @@ export function PendingTokenLayout({
         }
     };
 
+    const [computedFee, setComputedFee] = useState<number | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function fetchRealFee() {
+            try {
+                let proofsCount = 0;
+                let targetMint = mintUrl;
+
+                if (currentToken) {
+                    try {
+                        const clean = cleanToken(currentToken);
+                        const decoded = decodeToken(clean) as any;
+                        let proofs: any[] = [];
+                        if (decoded.token && decoded.token.length > 0) proofs = decoded.token[0].proofs || [];
+                        else if (decoded.proofs) proofs = decoded.proofs || [];
+
+                        proofsCount = proofs.length;
+                        if (!targetMint) {
+                            targetMint = (decoded.token && decoded.token[0]?.mint) || decoded.mint;
+                        }
+                    } catch (e) {
+                        console.warn('[PendingTokenLayout] Error decoding token for fee:', e);
+                    }
+                }
+
+                if (targetMint) {
+                    const feePpk = await mintManager.getFeePpk(targetMint);
+                    if (feePpk > 0) {
+                        const inputsCount = proofsCount > 0 ? proofsCount : 1;
+                        const feeInSats = Math.ceil((inputsCount * feePpk) / 1000);
+                        if (isMounted) setComputedFee(feeInSats);
+                        return;
+                    }
+                }
+
+                if (fee > 0 && fee < 100) {
+                    if (isMounted) setComputedFee(fee);
+                } else {
+                    if (isMounted) setComputedFee(0);
+                }
+            } catch (err) {
+                console.warn('[PendingTokenLayout] Failed to calculate real mint fee:', err);
+                if (isMounted) setComputedFee(0);
+            }
+        }
+
+        fetchRealFee();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentToken, mintUrl, fee]);
+
+    const displayFee = computedFee !== null ? computedFee : (fee > 0 && fee < 100 ? fee : 0);
+
     const displayNpub = lockedToNpub || parsedNpub;
 
     return (
         <YStack flex={1} bg="$background" gap="$4" pb="$5" width="100%">
             <Stack.Screen
                 options={{
-                    title: 'Pending Ecash',
-                    headerTitleAlign: 'center',
-                    headerRight: customHeaderRight || (() => null),
-                }}
-            />
-
-            {/* Middle Amount Display */}
-            <YStack gap="$2" py="$5" items="center" justify="center">
-                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$color" lineHeight={54}>
-                    {currencyService.formatSats(Number(amount || 0))}
-                </Text>
-                <Text color="$accent9" fontWeight="600" fontSize={16}>
-                    {fiatValue}
-                </Text>
-            </YStack>
-
-            {/* Verification status badge */}
-            <XStack
+                    headerTitle(props) {
+                       return <>
+                   <XStack
                 self="center"
                 items="center"
                 gap="$2"
@@ -397,8 +441,25 @@ export function PendingTokenLayout({
                             : headerStatus === 'failed' ? 'Failed'
                                 : 'Pending Claim'}
                 </Text>
-            </XStack>
+            </XStack>  
+                    </>
+                    },
+                    headerTitleAlign: 'center',
+                    headerRight: customHeaderRight || (() => null),
+                }}
+            />
 
+            {/* Middle Amount Display */}
+            {/* <YStack gap="$2" py="$5" items="center" justify="center">
+                <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$color" lineHeight={54}>
+                    {currencyService.formatSats(Number(amount || 0))}
+                </Text>
+                <Text color="$accent9" fontWeight="600" fontSize={16}>
+                    {fiatValue}
+                </Text>
+            </YStack> */}
+
+           
             {/* QR Code Container */}
             <YStack items="center" gap="$3">
                 <View
@@ -439,114 +500,20 @@ export function PendingTokenLayout({
                 {/* QR Interactive Settings Controls */}
                 
 
-                {/* Big 2x2 Action Button Grid */}
-                <YStack gap="$3" width="100%" >
-                    {/* Row 1 */}
-                    <XStack gap="$3" width="100%">
-                        {/* NFC Button */}
-                        <Button
-                            flex={1}
-                            bg="$gray2"
-                          
-                            height={80}
-                            rounded="$5"
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                if (onNfcPress) onNfcPress();
-                                else handleNfcShare();
-                            }}
-                            pressStyle={{ scale: 0.97, bg: "$gray3" }}
-                        >
-                            <YStack items="center" justify="center" gap="$1.5">
-                                <Nfc size={22} color="$accent10" />
-                                <Text fontSize="$2" fontWeight="700" color="$color">NFC Send</Text>
-                            </YStack>
-                        </Button>
-
-                        {/* Contact Button */}
-                        <Button
-                            flex={1}
-                            bg="$gray2"
-                          
-                            height={80}
-                            rounded="$5"
-                            disabled={!!displayNpub}
-                            opacity={displayNpub ? 0.4 : 1}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
-                            }}
-                            pressStyle={{ scale: 0.97, bg: "$gray3" }}
-                        >
-                            <YStack items="center" justify="center" gap="$1.5">
-                                <UsersRound size={22} color="$accent10" />
-                                <Text fontSize="$2" fontWeight="700" color="$color">Nostr Send</Text>
-                            </YStack>
-                        </Button>
-                    </XStack>
-
-                    {/* Row 2 */}
-                    <XStack gap="$3" width="100%">
-                        {/* Publish/Web Link Button */}
-                        <Button
-                            flex={1}
-                            bg={currentToken.startsWith('http') ? "$green3" : "$gray2"}
-                         
-                            height={80}
-                            rounded="$5"
-                            disabled={isPublishing}
-                            onPress={() => {
-                                if (currentToken.startsWith('http')) {
-                                    Clipboard.setStringAsync(currentToken);
-                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                    toast.show('Copied!', { message: 'Web share link copied' });
-                                } else {
-                                    handlePublishToWeb();
-                                }
-                            }}
-                            pressStyle={{ scale: 0.97, bg: currentToken.startsWith('http') ? "$green4" : "$gray3" }}
-                        >
-                            <YStack items="center" justify="center" gap="$1.5">
-                                {isPublishing ? (
-                                    <Spinner size="small" />
-                                ) : (
-                                    <Globe size={22} color={currentToken.startsWith('http') ? "$green10" : "$accent10"} />
-                                )}
-                                <Text fontSize="$2" fontWeight="700" color={currentToken.startsWith('http') ? "$green10" : "$color"}>
-                                    {currentToken.startsWith('http') ? "Published" : "Publish Web"}
-                                </Text>
-                            </YStack>
-                        </Button>
-
-                        {/* Copy Button */}
-                        <Button
-                            flex={1}
-                            bg={copied ? "$green3" : "$gray2"}
-                           
-                            height={80}
-                            rounded="$5"
-                            onPress={handleCopy}
-                            pressStyle={{ scale: 0.97, bg: copied ? "$green4" : "$gray3" }}
-                        >
-                            <YStack items="center" justify="center" gap="$1.5">
-                                {copied ? <Check size={22} color="$green10" /> : <Copy size={22} color="$accent10" />}
-                                <Text fontSize="$2" fontWeight="700" color={copied ? "$green10" : "$color"}>
-                                    {copied ? "Copied!" : "Copy Token"}
-                                </Text>
-                            </YStack>
-                        </Button>
-                    </XStack>
-                </YStack>
+              
             </YStack>
+             {/* Verification status badge */}
+           
+            
 
             {/* Unified Details Card (flat table layout consistent with ResultStage) */}
             {(!hideDetails || currentToken.startsWith('http')) && (
                 <YStack bg="$gray2" rounded="$5" overflow="hidden"  >
-                    <View p="$3" px="$4">
-                        <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
-                    </View>
-                    <Separator borderColor="$borderColor" opacity={0.3} />
                     <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                        <DetailRowItem
+                            label="Amount"
+                            value={`${currencyService.formatSats(Number(amount || 0))} (${fiatValue})`}
+                        />
                         {currentToken.startsWith('http') && (
                             <DetailRowItem
                                 label="Web Link"
@@ -561,16 +528,18 @@ export function PendingTokenLayout({
                         )}
                         {!hideDetails && (
                             <>
-                                {fee > 0 && (
+                                {displayFee > 0 && (
                                     <DetailRowItem
                                         label="Mint Fee"
-                                        value={`${fee} sats`}
+                                        value={`${displayFee} sats`}
                                     />
                                 )}
-                                <DetailRowItem
-                                    label="Expiry"
-                                    value={expiresAt ? (timeLeftStr || 'Checking...') : 'Never'}
-                                />
+                                {!!expiresAt && (
+                                    <DetailRowItem
+                                        label="Expiry"
+                                        value={timeLeftStr || 'Checking...'}
+                                    />
+                                )}
                                 {displayNpub && (
                                     <DetailRowItem
                                         label="Locked To"
@@ -593,42 +562,81 @@ export function PendingTokenLayout({
                 </YStack>
             )}
 
+{/* Action Buttons: Share / Send & Copy */}
+            <XStack gap="$3" width="100%">
+                <Button
+                    flex={1}
+                  theme="gray"
+                    size="$5"
+                    bg="$gray2"
+                   height={65}
+                    rounded="$10"
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        shareSheetRef.current?.present();
+                    }}
+                    pressStyle={{ scale: 0.97 }}
+                    icon={<Send size={20}  />}
+                    fontWeight="800"
+                >
+                    Send
+                </Button>
+
+                <Button
+                    flex={1}
+                    theme="gray"
+                    bg={copied ? "$green3" : "$gray2"}
+                    hoverStyle={{ bg: copied ? "$green4" : "$gray3" }}
+                    color={copied ? "$green11" : "$color"}
+                    size="$5"
+                   height={65}
+                    rounded="$10"
+                    onPress={handleCopy}
+                    pressStyle={{ scale: 0.97 }}
+                    icon={copied ? <Check size={20} color="$green11" /> : <Copy size={20} color="$accent5" />}
+                    fontWeight="800"
+                >
+                    {copied ? "Copied!" : "Copy"}
+                </Button>
+            </XStack>
+
             {/* Reclaim Button (separated for visibility outside details list) */}
             {onReclaim && !onClaim && (
                 <YStack >
                     <Button
-                        bg="$red3"
-                        color="$red10"
-                        hoverStyle={{ bg: "$red4" }}
-                        size="$4"
-                        height={50}
+                       
+                        chromeless
+                        color="$orange10"
+                        hoverStyle={{ bg: "$orange4" }}
+                        size="$5"
+                        height={55}
                         rounded="$4"
                         onPress={onReclaim}
                         disabled={isReclaiming}
-                        icon={isReclaiming ? <Spinner size="small" color="$red10" /> : <RotateCcw size={18} color="$red10" />}
+                        icon={isReclaiming ? <Spinner size="small" color="$orange10" /> : <RotateCcw size={18} color="$orange10" />}
                         fontWeight="700"
                     >
-                        RECLAIM TOKEN
+                        Reclaim Token
                     </Button>
                 </YStack>
             )}
 
             {/* Primary Action Button (Claim Now) */}
             {!hideActions && onClaim && (
-                <YStack mt="auto" pb="$8" px="$4">
+                <YStack mt="auto" pb="$8" >
                     <Button
-                        bg="$accent10"
+              chromeless
                         hoverStyle={{ bg: "$accent11" }}
-                        color="white"
+                        color="$accent3"
                         size="$5"
                         height={55}
                         rounded="$5"
                         onPress={onClaim}
                         disabled={isClaiming}
-                        icon={isClaiming ? <Spinner size="small" color="white" /> : <ArrowDownLeft size={20} color="white" />}
+                        icon={isClaiming ? <Spinner size="small" color="$accent3" /> : <ArrowDownLeft size={20} color="$accent3" />}
                         fontWeight="800"
                     >
-                        CLAIM NOW
+                        Claim Now
                     </Button>
                 </YStack>
             )}
@@ -648,6 +656,131 @@ export function PendingTokenLayout({
                     ) : null
                 }
             />
+
+            <AppBottomSheet ref={shareSheetRef} backgroundColor="$gray4">
+                <YStack flex={1} px="$4" gap="$4">
+                    <XStack items="center" justify="space-between" width="100%" pt="$2">
+                        <Text fontSize="$6" fontWeight="800" color="$color">
+                            Share / Send
+                        </Text>
+                        <Button
+                            circular
+                            size="$3"
+                            bg="$gray4"
+                            pressStyle={{ scale: 0.95, bg: '$gray5' }}
+                            icon={<X size={20} color="$color11" strokeWidth={3} />}
+                            onPress={() => shareSheetRef.current?.dismiss()}
+                        />
+                    </XStack>
+
+                    <YStack gap="$1" pb="$4">
+                        {/* System Share */}
+                        <XStack
+                            py="$3.5"
+                            px="$2"
+                            items="center"
+                            gap="$4"
+                            pressStyle={{ opacity: 0.6 }}
+                            onPress={() => {
+                                shareSheetRef.current?.dismiss();
+                                handleShare();
+                            }}
+                        >
+                            <Share2 size={24} color="$color" />
+                            <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
+                                Share via App
+                            </Text>
+                        </XStack>
+
+                        {/* NFC Send */}
+                        <XStack
+                            py="$3.5"
+                            px="$2"
+                            items="center"
+                            gap="$4"
+                            pressStyle={{ opacity: 0.6 }}
+                            onPress={() => {
+                                shareSheetRef.current?.dismiss();
+                                if (onNfcPress) onNfcPress();
+                                else handleNfcShare();
+                            }}
+                        >
+                            <Nfc size={24} color="$color" />
+                            <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
+                                NFC Send
+                            </Text>
+                        </XStack>
+
+                        {/* Nostr Send */}
+                        <XStack
+                            py="$3.5"
+                            px="$2"
+                            items="center"
+                            gap="$4"
+                            pressStyle={{ opacity: 0.6 }}
+                            disabled={!!displayNpub}
+                            opacity={displayNpub ? 0.4 : 1}
+                            onPress={() => {
+                                shareSheetRef.current?.dismiss();
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
+                            }}
+                        >
+                            <UsersRound size={24} color="$color" />
+                            <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
+                                Nostr Send
+                            </Text>
+                        </XStack>
+
+                        {/* Publish Web */}
+                        <XStack
+                            py="$3.5"
+                            px="$2"
+                            items="center"
+                            gap="$4"
+                            pressStyle={{ opacity: 0.6 }}
+                            disabled={isPublishing}
+                            onPress={() => {
+                                shareSheetRef.current?.dismiss();
+                                if (currentToken.startsWith('http')) {
+                                    Clipboard.setStringAsync(currentToken);
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    toast.show('Copied!', { message: 'Web share link copied' });
+                                } else {
+                                    handlePublishToWeb();
+                                }
+                            }}
+                        >
+                            {isPublishing ? (
+                                <Spinner size="small" />
+                            ) : (
+                                <Globe size={24} color={currentToken.startsWith('http') ? "$green10" : "$color"} />
+                            )}
+                            <Text fontWeight="800" fontSize={17} color={currentToken.startsWith('http') ? "$green10" : "$color"} flex={1}>
+                                {currentToken.startsWith('http') ? "Copy Web Link" : "Publish Web"}
+                            </Text>
+                        </XStack>
+
+                        {/* Copy Token */}
+                        <XStack
+                            py="$3.5"
+                            px="$2"
+                            items="center"
+                            gap="$4"
+                            pressStyle={{ opacity: 0.6 }}
+                            onPress={() => {
+                                shareSheetRef.current?.dismiss();
+                                handleCopy();
+                            }}
+                        >
+                            {copied ? <Check size={24} color="$green10" /> : <Copy size={24} color="$color" />}
+                            <Text fontWeight="800" fontSize={17} color={copied ? "$green10" : "$color"} flex={1}>
+                                {copied ? "Copied!" : "Copy Token"}
+                            </Text>
+                        </XStack>
+                    </YStack>
+                </YStack>
+            </AppBottomSheet>
         </YStack>
     );
 }
@@ -657,7 +790,7 @@ function DetailRowItem({ label, value, isCopyable, onCopy }: { label: string, va
         <XStack justify="space-between" items="center" py="$3" px="$4">
             <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
             <XStack gap="$2" items="center">
-                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
+                <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 260 }}>
                     {value}
                 </Text>
                 {isCopyable && (

@@ -95,7 +95,7 @@ export function SendModalScreen() {
     const [nostrRecipientUsername, setNostrRecipientUsername] = useState('')
     const [useP2PK, setUseP2PK] = useState(true) // Default ON for Nostr sends
     const [nostrSending, setNostrSending] = useState(false)
-    const [expiryEnabled, setExpiryEnabled] = useState(true)
+    const [expiryEnabled, setExpiryEnabled] = useState(false)
     const [expiryHours, setExpiryHours] = useState(168) // Default to 7 days (168 hours)
     const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined)
     const [isHardwareOffline, setIsHardwareOffline] = useState(false)
