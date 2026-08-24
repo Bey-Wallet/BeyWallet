@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { YStack, XStack, Text, Button, View, useTheme, Theme } from 'tamagui';
+import { YStack, XStack, Text, Button, View, useTheme, Theme, Spinner } from 'tamagui';
 import Blockies from '~/components/UI/Blockies';
 import { useWalletStore } from '~/store/walletStore';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 import { useSettingsStore } from '~/store/settingsStore';
 import NFCFill2 from '~/components/icons/NFC-fill-2';
-import { ProcessingSheet } from '~/components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
-import { DarkTheme } from '@react-navigation/native';
 import { useAppTheme } from '~/context/ThemeContext';
-import { Scan } from '@tamagui/lucide-icons';
+import { Scan, CheckCircle2, AlertCircle, RefreshCw } from '@tamagui/lucide-icons';
 import NFCFillIcon from '~/components/icons/NFC-fill';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Stack } from 'expo-router';
 import BeyIcon from '~/components/icons/BeyIcon';
 import { nfcService } from '~/services/nfcService';
 import { walletService } from '~/services/core';
+import { decodeToken } from '~/services/core/tokenUtils';
 import { useToastController } from '@tamagui/toast';
 import { Flex } from '~/components/UI/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
+import { currencyService } from '~/services/currencyService';
+
+type ReceiveState = 'idle' | 'reading' | 'claiming' | 'success' | 'error';
 
 export default function NFCReceiveScreen() {
     const theme = useTheme();
@@ -26,9 +29,12 @@ export default function NFCReceiveScreen() {
     const activeMintUrl = useWalletStore(s => s.activeMintUrl);
     const balances = useWalletStore(s => s.balances);
     const mints = useWalletStore(s => s.mints);
+    const refreshBalance = useWalletStore(s => s.refreshBalance);
+    const queryClient = useQueryClient();
 
-    const [processing, setProcessing] = useState(false);
-    const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+    const [receiveState, setReceiveState] = useState<ReceiveState>('idle');
+    const [receivedAmount, setReceivedAmount] = useState<number | null>(null);
+    const [receivedMint, setReceivedMint] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState('');
     const [isNfcEnabled, setIsNfcEnabled] = useState(false);
     const [isNfcSupported, setIsNfcSupported] = useState(true);
@@ -40,6 +46,7 @@ export default function NFCReceiveScreen() {
 
     const processTagRef = useRef<any>();
     const handleReceiveRef = useRef<any>();
+    const isProcessingRef = useRef(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -60,7 +67,7 @@ export default function NFCReceiveScreen() {
 
                         // Auto-start active reading session immediately on focus
                         setTimeout(() => {
-                            if (handleReceiveRef.current) {
+                            if (handleReceiveRef.current && !isProcessingRef.current) {
                                 handleReceiveRef.current();
                             }
                         }, 500);
@@ -77,6 +84,9 @@ export default function NFCReceiveScreen() {
     );
 
     const processTag = async (tag: any) => {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+
         try {
             const ndefMessage = tag.ndefMessage;
             if (!ndefMessage || ndefMessage.length === 0) {
@@ -90,7 +100,6 @@ export default function NFCReceiveScreen() {
             }
 
             // Detect record type (tnf + type bytes)
-            // TNF 1 = Well-Known; type 0x54 = 'T' (Text), type 0x55 = 'U' (URI)
             const tnf = record.tnf;
             const typeArr: number[] = record.type ?? [];
             const isUriRecord = tnf === 1 && typeArr[0] === 0x55;
@@ -98,25 +107,19 @@ export default function NFCReceiveScreen() {
             let decoded: string;
 
             if (isUriRecord) {
-                // NDEF URI payload: first byte is URI identifier code
-                // 0x00 = no prefix, 0x01 = 'http://www.', etc.
-                // For 'cashu:' we use 0x00 (no prefix), so skip first byte
                 const payloadBytes = new Uint8Array(payload);
                 const uriPrefix = payloadBytes[0];
                 let uriBody = new TextDecoder().decode(payloadBytes.slice(1));
-                // Map standard URI prefix codes
                 const prefixes: Record<number, string> = {
                     0x00: '', 0x01: 'http://www.', 0x02: 'https://www.',
                     0x03: 'http://', 0x04: 'https://'
                 };
                 decoded = (prefixes[uriPrefix] ?? '') + uriBody;
                 console.log('[NFCReceive] Decoded URI record:', decoded);
-                // Strip cashu: scheme prefix so token matching works below
                 if (decoded.startsWith('cashu:')) {
                     decoded = decoded.slice(6);
                 }
             } else {
-                // Text record — strip language code prefix
                 decoded = new TextDecoder().decode(new Uint8Array(payload));
                 decoded = decoded.replace(/^[\u0000-\u001F]+(?:en|es|fr|de|it)?/i, '').trim();
                 console.log('[NFCReceive] Decoded text record:', decoded);
@@ -126,19 +129,39 @@ export default function NFCReceiveScreen() {
             const tokenMatch = decoded.match(/(cashu[A-Za-z0-9_-]+)/);
             if (tokenMatch) {
                 const token = tokenMatch[1];
-                console.log('[NFCReceive] Found Cashu token, receiving...');
-                
-                setProcessing(true);
-                setStatus('processing');
+                console.log('[NFCReceive] Found Cashu token, claiming on-screen...');
+
+                setReceiveState('claiming');
                 setErrorMessage('');
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+                // Decode token for amount & mint display
+                try {
+                    const parsed = decodeToken(token);
+                    const amount = parsed.amount ?? parsed.proofs?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) ?? 0;
+                    setReceivedAmount(amount);
+                    setReceivedMint(parsed.mint || null);
+                } catch {
+                    // Non-fatal
+                }
 
                 await walletService.receive(token);
-                setStatus('success');
-                toast.show('Success', { message: 'Token received and claimed!' });
 
+                setReceiveState('success');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                // Refresh balance and history
+                queryClient.invalidateQueries({ queryKey: ['history'] });
+                queryClient.invalidateQueries({ queryKey: ['balance'] });
+                refreshBalance();
+
+                // Seamlessly redirect to the receive details screen after showing the success state
                 setTimeout(() => {
-                    setProcessing(false);
-                }, 3000);
+                    router.replace({
+                        pathname: '/(modals)/receive',
+                        params: { scannedToken: token }
+                    });
+                }, 1400);
                 return;
             }
 
@@ -147,6 +170,7 @@ export default function NFCReceiveScreen() {
             if (reqMatch) {
                 const paymentRequest = reqMatch[1];
                 console.log('[NFCReceive] Found NUT-18 payment request, redirecting to send...');
+                setReceiveState('success');
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 router.replace({
                     pathname: '/(modals)/send',
@@ -160,6 +184,7 @@ export default function NFCReceiveScreen() {
             if (lnMatch) {
                 const invoice = lnMatch[1];
                 console.log('[NFCReceive] Found Lightning invoice, redirecting to send...');
+                setReceiveState('success');
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 router.replace({
                     pathname: '/(modals)/send',
@@ -171,9 +196,11 @@ export default function NFCReceiveScreen() {
             throw new Error('No valid Cashu token, Payment Request, or Lightning invoice found');
         } catch (err: any) {
             console.error('[NFCReceive] Error processing tag:', err);
-            setStatus('error');
+            setReceiveState('error');
             setErrorMessage(err.message || 'Failed to process NFC tag');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            isProcessingRef.current = false;
         }
     };
 
@@ -183,9 +210,9 @@ export default function NFCReceiveScreen() {
     }, [processTag, handleReceive]);
 
     const handleReceive = async () => {
+        if (isProcessingRef.current) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setProcessing(true);
-        setStatus('processing');
+        setReceiveState('reading');
         setErrorMessage('');
 
         try {
@@ -193,109 +220,160 @@ export default function NFCReceiveScreen() {
             processTag(tag);
         } catch (err: any) {
             console.error('[NFCReceive] Active read failed:', err);
-            setStatus('error');
+            setReceiveState('error');
             setErrorMessage(err.message || 'Failed to read NFC tag');
         }
     };
 
     const { resolvedTheme } = useAppTheme();
-    const insets = useSafeAreaInsets()
+    const insets = useSafeAreaInsets();
 
     return (
-             <Flex fill bg="$background" pb={insets.bottom || 16}>
-        <YStack flex={1} bg="$background" px="$4" justify="space-between">
-            {/* Card */}
-            <Theme inverse >
+        <Flex fill bg="$background" pb={insets.bottom || 16}>
+            <Stack.Screen
+                options={{
+                    title: 'NFC Receive',
+                    headerTitleAlign: 'center',
+                }}
+            />
 
-                <YStack
-                    bg="$accent12"
-                    p="$3"
-                    rounded="$5"
-                    borderWidth={1}
-                    borderColor="$borderColor"
-                    gap="$6"
-                    width="100%"
-                    justify="space-between"
-                    minH={230}
-                >
-                    {/* Top Row */}
-                    <XStack justify="space-between" items="center">
-                        <XStack gap="$3" items="center">
-                            <Blockies seed={npub || 'default'} size={10} scale={4} style={{ borderRadius: 5 }} />
-                            <Text fontSize="$5" fontWeight="700" color="$color">
-                                {username || 'Bey Wallet User'}
-                            </Text>
+            <YStack flex={1} bg="$background" px="$4" justify="space-between">
+                {/* Top Card */}
+                <Theme inverse>
+                    <YStack
+                        bg="$accent12"
+                        p="$3"
+                        rounded="$5"
+                        borderWidth={1}
+                        borderColor="$borderColor"
+                        gap="$6"
+                        width="100%"
+                        justify="space-between"
+                        minH={230}
+                    >
+                        {/* Top Row */}
+                        <XStack justify="space-between" items="center">
+                            <XStack gap="$3" items="center">
+                                <Blockies seed={npub || 'default'} size={10} scale={4} style={{ borderRadius: 5 }} />
+                                <Text fontSize="$5" fontWeight="700" color="$color">
+                                    {username || 'Bey Wallet User'}
+                                </Text>
+                            </XStack>
+                            <NFCFill2 size={40} color={theme.color1.val} />
                         </XStack>
-                        <NFCFill2 size={40} color={theme.color1.val} />
-                    </XStack>
-                    <View width="100%" justify="center" items="center">
-                        <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
-                    </View>
-                    {/* Bottom Row */}
-                    <XStack justify="space-between" items="flex-end">
-                        <YStack gap="$1">
-                            <Text fontSize="$2" color="$gray10" fontWeight="600">Selected Mint</Text>
-                            <Text fontSize="$4" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 150 }}>
-                                {mintName}
+
+                        <View width="100%" justify="center" items="center">
+                            <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
+                        </View>
+
+                        {/* Bottom Row */}
+                        <XStack justify="space-between" items="flex-end">
+                            <YStack gap="$1">
+                                <Text fontSize="$2" color="$gray10" fontWeight="600">Selected Mint</Text>
+                                <Text fontSize="$4" fontWeight="700" color="$color" numberOfLines={1} style={{ maxWidth: 150 }}>
+                                    {mintName}
+                                </Text>
+                            </YStack>
+                            <YStack items="flex-end" gap="$1">
+                                <Text fontSize="$2" color="$gray10" fontWeight="600">Balance (sats)</Text>
+                                <Text fontSize="$6" fontWeight="900" color="$color">
+                                    ₿{balance.toLocaleString()}
+                                </Text>
+                            </YStack>
+                        </XStack>
+                    </YStack>
+                </Theme>
+
+                {/* Inline NFC Receiving Status Section */}
+                <YStack flex={1} justify="center" items="center" px="$2">
+                    {!isNfcSupported ? (
+                        <EmptyState
+                            icon={<AlertCircle size={48} color="$red9" />}
+                            title="NFC Not Supported"
+                            subtitle="Your device does not support NFC features."
+                        />
+                    ) : !isNfcEnabled ? (
+                        <EmptyState
+                            icon={<NFCFillIcon size={48} color={theme.color4.val} />}
+                            title="NFC is Disabled"
+                            subtitle="Please enable NFC in your device settings to receive tokens."
+                        />
+                    ) : receiveState === 'success' ? (
+                        <YStack items="center" gap="$3">
+                            <CheckCircle2 size={56} color="$green10" />
+                            <Text color="$green10" fontSize="$6" fontWeight="800">
+                                {receivedAmount !== null ? `+${currencyService.formatSats(receivedAmount)}` : 'Token Received!'}
+                            </Text>
+                            <Text color="$gray9" fontSize="$3" textAlign="center">
+                                Claimed and added to your wallet. Opening details...
                             </Text>
                         </YStack>
-                        <YStack items="flex-end" gap="$1">
-                            <Text fontSize="$2" color="$gray10" fontWeight="600">Balance (sats)</Text>
-                            <Text fontSize="$6" fontWeight="900" color="$color">
-                                ₿{balance.toLocaleString()}
+                    ) : receiveState === 'claiming' ? (
+                        <YStack items="center" gap="$3">
+                            <Spinner size="large" color="$green10" />
+                            <Text color="$color" fontSize="$5" fontWeight="700">
+                                Claiming Ecash...
+                            </Text>
+                            <Text color="$gray9" fontSize="$3" textAlign="center">
+                                Verifying proofs with mint and depositing to wallet...
                             </Text>
                         </YStack>
-                    </XStack>
+                    ) : receiveState === 'reading' ? (
+                        <YStack items="center" gap="$3">
+                            <Spinner size="large" color="$blue10" />
+                            <Text color="$color" fontSize="$5" fontWeight="700">
+                                Reading NFC Tag...
+                            </Text>
+                            <Text color="$gray9" fontSize="$3" textAlign="center">
+                                Hold phones steady back-to-back
+                            </Text>
+                        </YStack>
+                    ) : receiveState === 'error' ? (
+                        <YStack items="center" gap="$3">
+                            <AlertCircle size={52} color="$red10" />
+                            <Text color="$red10" fontSize="$5" fontWeight="700" textAlign="center">
+                                Receive Failed
+                            </Text>
+                            <Text color="$gray9" fontSize="$3" textAlign="center" maxWidth={280}>
+                                {errorMessage || 'Could not read or claim token. Tap below to retry.'}
+                            </Text>
+                        </YStack>
+                    ) : (
+                        <EmptyState
+                            icon={<NFCFillIcon size={48} color="#2196F3" />}
+                            title="Ready to Receive"
+                            subtitle="Hold your phone back-to-back with the sender device"
+                            isBlue
+                        />
+                    )}
                 </YStack>
 
-            </Theme>
-
-            {/* NFC History Section */}
-            <YStack flex={1} justify="center">
-                <EmptyState
-                    icon={<NFCFillIcon size={48} color={isNfcEnabled ? "#2196F3" : theme.color4.val} />}
-                    title={isNfcEnabled ? "Ready to Receive" : "NFC is Disabled"}
-                    subtitle={isNfcEnabled ? "Keep your device close to receive" : "Please enable NFC in your settings to receive tokens"}
-                    isBlue={isNfcEnabled}
-                />
+                {/* Bottom Buttons */}
+                <YStack gap="$2">
+                    <Button
+                        variant="outlined"
+                        size="$5"
+                        chromeless
+                        theme="gray"
+                        fontWeight="700"
+                        icon={<Scan size={24} color={theme.color.val} />}
+                        onPress={() => router.replace('/(modals)/scanner')}
+                        rounded="$5"
+                    >
+                        Scan QR Instead
+                    </Button>
+                    <Button
+                        size="$5"
+                        fontWeight="700"
+                        icon={receiveState === 'error' ? <RefreshCw size={22} color={theme.color.val} /> : <NFCFill2 size={24} color={theme.color.val} />}
+                        onPress={isNfcEnabled ? handleReceive : () => nfcService.goToNfcSetting()}
+                        rounded="$5"
+                        theme={!isNfcEnabled ? "gray" : receiveState === 'error' ? "orange" : undefined}
+                    >
+                        {!isNfcEnabled ? "Turn on NFC" : receiveState === 'error' ? "Retry Receive" : "Tap to Receive"}
+                    </Button>
+                </YStack>
             </YStack>
-
-            {/* Bottom Button */}
-            <YStack gap="$2">
-                <Button
-                    variant="outlined"
-                    size="$5"
-                    chromeless
-                    theme="gray"
-                    fontWeight="700"
-                    icon={<Scan size={24} color={theme.color.val} />}
-                    onPress={() => router.replace('/(modals)/scanner')}
-                    rounded="$5"
-                >
-                    Scan QR Instead
-                </Button>
-                <Button
-                    size="$5"
-                    fontWeight="700"
-                    icon={<NFCFill2 size={24} color={theme.color.val} />}
-                    onPress={isNfcEnabled ? handleReceive : () => nfcService.goToNfcSetting()}
-                    rounded="$5"
-                    theme={isNfcEnabled ? undefined : "gray"}
-                >
-                    {isNfcEnabled ? "Tap to Receive" : "Turn on NFC"}
-                </Button>
-            </YStack>
-
-        </YStack>
-        <ProcessingSheet
-            visible={processing}
-            status={status}
-            title="NFC Receiving"
-            detail="Hold your phone near the sender"
-            errorMessage={errorMessage}
-            variant="nfc"
-            onClose={() => setProcessing(false)}
-        />
         </Flex>
     );
 }

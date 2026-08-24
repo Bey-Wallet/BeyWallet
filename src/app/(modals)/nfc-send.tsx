@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Button, View, useTheme, Theme } from 'tamagui';
+import { YStack, XStack, Text, Button, View, useTheme, Theme, Spinner } from 'tamagui';
 import Blockies from '~/components/UI/Blockies';
 import { useWalletStore } from '~/store/walletStore';
 import { useNip05Lookup } from '~/hooks/useNip05Lookup';
@@ -8,17 +8,21 @@ import NFCFill2 from '~/components/icons/NFC-fill-2';
 import { ProcessingSheet, ProcessingStatus } from '~/components/UI/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '~/context/ThemeContext';
-import { Radio, RadioReceiver, Tag, AlertCircle } from '@tamagui/lucide-icons';
+import { Radio, RadioReceiver, Tag, AlertCircle, CheckCircle2 } from '@tamagui/lucide-icons';
 import NFCFillIcon from '~/components/icons/NFC-fill';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import BeyIcon from '~/components/icons/BeyIcon';
 import { nfcService } from '~/services/nfcService';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/bitcoinService';
 import { Flex } from '~/components/UI/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
+import { HCESession } from 'react-native-hce';
+import { proofService } from '~/services/core/proofService';
+
+type TransferState = 'idle' | 'broadcasting' | 'transferring' | 'transferred' | 'claimed';
 
 export default function NFCSendScreen() {
     const theme = useTheme();
@@ -29,6 +33,7 @@ export default function NFCSendScreen() {
     const mints = useWalletStore(s => s.mints);
     const insets = useSafeAreaInsets();
     const { resolvedTheme } = useAppTheme();
+    const queryClient = useQueryClient();
 
     const params = useLocalSearchParams<{ token?: string; amount?: string; mintUrl?: string }>();
     const token = params.token || '';
@@ -43,6 +48,8 @@ export default function NFCSendScreen() {
     const [isNfcSupported, setIsNfcSupported] = useState(true);
     const [hceActive, setHceActive] = useState(false);
     const [hceError, setHceError] = useState<string | null>(null);
+    const [transferState, setTransferState] = useState<TransferState>('broadcasting');
+    const [progress, setProgress] = useState(0);
 
     const [showSheet, setShowSheet] = useState(false);
     const [sheetStatus, setSheetStatus] = useState<ProcessingStatus>('processing');
@@ -50,6 +57,9 @@ export default function NFCSendScreen() {
     const [sheetError, setSheetError] = useState<string | undefined>(undefined);
 
     const simulationRef = useRef<any>(null);
+    const unlistenersRef = useRef<(() => void)[]>([]);
+    const pollIntervalRef = useRef<any>(null);
+    const isClaimedRef = useRef(false);
 
     const { data: btcData } = useQuery({
         queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -90,6 +100,7 @@ export default function NFCSendScreen() {
         return () => {
             isSubscribed = false;
             stopHceBroadcast();
+            stopClaimPolling();
         };
     }, [token]);
 
@@ -98,23 +109,103 @@ export default function NFCSendScreen() {
 
         try {
             setHceError(null);
+            setTransferState('broadcasting');
+            setProgress(15);
+
+            // Clean up prior listeners
+            unlistenersRef.current.forEach(u => u());
+            unlistenersRef.current = [];
+
             const session = await nfcService.startHceSimulation(token);
             simulationRef.current = session;
             setHceActive(true);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+            // Listen for HCE session reader connection and transfer events
+            if (session && typeof session.on === 'function') {
+                const unlistenConnect = session.on(HCESession.Events.HCE_STATE_CONNECTED, () => {
+                    console.log('[NFCSend] Receiver device connected in proximity');
+                    setTransferState('transferring');
+                    setProgress(65);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                });
+
+                const unlistenRead = session.on(HCESession.Events.HCE_STATE_READ, () => {
+                    console.log('[NFCSend] Token NDEF payload successfully read by receiver');
+                    setTransferState('transferred');
+                    setProgress(100);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    startClaimPolling();
+                });
+
+                const unlistenDisconnect = session.on(HCESession.Events.HCE_STATE_DISCONNECTED, () => {
+                    console.log('[NFCSend] Receiver device disconnected');
+                    if (!isClaimedRef.current) {
+                        startClaimPolling();
+                    }
+                });
+
+                unlistenersRef.current.push(unlistenConnect, unlistenRead, unlistenDisconnect);
+            }
         } catch (err: any) {
             console.error('[NFCSend] HCE broadcast error:', err);
             setHceActive(false);
+            setTransferState('idle');
             setHceError(err.message || 'Failed to start phone broadcast');
         }
     };
 
     const stopHceBroadcast = async () => {
+        unlistenersRef.current.forEach(u => u());
+        unlistenersRef.current = [];
         if (simulationRef.current) {
             await nfcService.stopHceSimulation(simulationRef.current);
             simulationRef.current = null;
         }
         setHceActive(false);
+    };
+
+    // Poll the mint to check if the receiver has claimed (spent) the token
+    const startClaimPolling = () => {
+        if (pollIntervalRef.current || !token) return;
+
+        console.log('[NFCSend] Starting mint claim verification polling...');
+        pollIntervalRef.current = setInterval(async () => {
+            try {
+                const states = await proofService.checkProofStates(token);
+                if (states && states.length > 0) {
+                    const isSpent = states.some((s: any) => s.state === 'SPENT' || String(s.state).toUpperCase() === 'SPENT');
+                    if (isSpent && !isClaimedRef.current) {
+                        isClaimedRef.current = true;
+                        stopClaimPolling();
+                        stopHceBroadcast();
+
+                        console.log('[NFCSend] 🎉 Token confirmed CLAIMED by receiver!');
+                        setTransferState('claimed');
+                        setProgress(100);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                        // Invalidate balance and history caches
+                        queryClient.invalidateQueries({ queryKey: ['history'] });
+                        queryClient.invalidateQueries({ queryKey: ['balance'] });
+
+                        // Automatically navigate back to details after showing success
+                        setTimeout(() => {
+                            router.back();
+                        }, 1800);
+                    }
+                }
+            } catch (err) {
+                console.warn('[NFCSend] Claim poll check error:', err);
+            }
+        }, 1500);
+    };
+
+    const stopClaimPolling = () => {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
     };
 
     const handleWriteToTag = async () => {
@@ -132,6 +223,10 @@ export default function NFCSendScreen() {
             setSheetStatus('success');
             setSheetMessage('Token written to tag!');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setTimeout(() => {
+                setShowSheet(false);
+                router.back();
+            }, 1500);
         } catch (e: any) {
             console.error('[NFCSend] Write tag error:', e);
             setSheetStatus('error');
@@ -181,11 +276,11 @@ export default function NFCSendScreen() {
                             </XStack>
                             <NFCFill2 size={40} color={theme.color1.val} />
                         </XStack>
-                        
+
                         <View width="100%" justify="center" items="center">
                             <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
                         </View>
-                        
+
                         {/* Bottom Row */}
                         <XStack justify="space-between" items="flex-end">
                             <YStack gap="$1">
@@ -204,8 +299,8 @@ export default function NFCSendScreen() {
                     </YStack>
                 </Theme>
 
-                {/* NFC Active Broadcast Indicator */}
-                <YStack flex={1} justify="center" items="center">
+                {/* NFC Active Broadcast / Transfer Status Section */}
+                <YStack flex={1} justify="center" items="center" px="$2">
                     {!isNfcSupported ? (
                         <EmptyState
                             icon={<AlertCircle size={48} color="$red9" />}
@@ -218,30 +313,83 @@ export default function NFCSendScreen() {
                             title="NFC is Disabled"
                             subtitle="Please enable NFC in your device settings to broadcast or write tokens."
                         />
-                    ) : mode === 'hce' ? (
-                        <EmptyState
-                            icon={<NFCFillIcon size={48} color={hceActive ? "#2196F3" : "$orange9"} />}
-                            title={hceActive ? "Broadcasting Token" : (hceError || "Hold Near Receiver Phone")}
-                            subtitle={
-                                Platform.OS === 'android'
-                                    ? (hceActive ? "Hold phone back-to-back near receiver device" : "Tap retry below to broadcast token")
-                                    : "iOS NFC requires writing to a physical tag or scanning"
-                            }
-                            isBlue={hceActive}
-                        />
-                    ) : (
+                    ) : mode === 'write' ? (
                         <EmptyState
                             icon={<Tag size={48} color="$accent10" />}
                             title="Physical Tag Mode"
                             subtitle="Tap the button below to approach and write to an NFC card or sticker."
                         />
+                    ) : transferState === 'claimed' ? (
+                        <YStack items="center" gap="$3">
+                            <CheckCircle2 size={56} color="$green10" />
+                            <Text color="$green10" fontSize="$6" fontWeight="800">
+                                Token Claimed! 🎉
+                            </Text>
+                            <Text color="$gray9" fontSize="$3" textAlign="center">
+                                Successfully received and claimed by receiver wallet.
+                            </Text>
+                        </YStack>
+                    ) : (
+                        <YStack width="100%" items="center" gap="$4">
+                            <NFCFillIcon
+                                size={52}
+                                color={
+                                    transferState === 'transferred' ? "$green10"
+                                        : transferState === 'transferring' ? "$blue10"
+                                            : hceActive ? "#2196F3" : "$orange9"
+                                }
+                            />
+
+                            <YStack items="center" gap="$1.5" width="100%">
+                                <Text color="$color" fontSize="$5" fontWeight="700" textAlign="center">
+                                    {transferState === 'transferred' ? "Token Transferred!"
+                                        : transferState === 'transferring' ? "Transferring Ecash..."
+                                            : hceActive ? "Ready to Tap" : (hceError || "NFC Broadcast Inactive")}
+                                </Text>
+                                <Text color="$gray9" fontSize="$3" textAlign="center" maxWidth={280}>
+                                    {transferState === 'transferred' ? "Waiting for receiver wallet to claim..."
+                                        : transferState === 'transferring' ? "Hold phones steady back-to-back"
+                                            : hceActive ? "Hold your phone back-to-back near receiver device"
+                                                : "Tap retry below to start broadcasting token"}
+                                </Text>
+                            </YStack>
+
+                            {/* Dynamic Real Progress Bar */}
+                            {hceActive && (
+                                <YStack width="100%" maxW={280} gap="$2" items="center" mt="$1">
+                                    <View
+                                        width="100%"
+                                        height={6}
+                                        bg="$gray4"
+                                        rounded="$10"
+                                        overflow="hidden"
+                                    >
+                                        <View
+                                            height="100%"
+                                            width={`${progress}%`}
+                                            bg={transferState === 'transferred' ? "$green10" : "$blue10"}
+                                            rounded="$10"
+                                        />
+                                    </View>
+
+                                    {transferState === 'transferred' && (
+                                        <XStack gap="$2" items="center" mt="$1">
+                                            <Spinner size="small" color="$green10" />
+                                            <Text fontSize="$2" color="$gray10" fontWeight="600">
+                                                Verifying claim with mint...
+                                            </Text>
+                                        </XStack>
+                                    )}
+                                </YStack>
+                            )}
+                        </YStack>
                     )}
                 </YStack>
 
                 {/* Bottom Mode Select & Trigger Buttons */}
                 <YStack gap="$3">
                     {/* Mode Selector Tabs */}
-                    {Platform.OS === 'android' && isNfcEnabled && (
+                    {Platform.OS === 'android' && isNfcEnabled && transferState !== 'claimed' && (
                         <XStack gap="$2" bg="$gray2" p="$1" rounded="$5">
                             <Button
                                 flex={1}
@@ -268,6 +416,7 @@ export default function NFCSendScreen() {
                                 onPress={() => {
                                     setMode('write');
                                     stopHceBroadcast();
+                                    stopClaimPolling();
                                 }}
                                 icon={<Tag size={18} color={mode === 'write' ? theme.background.val : theme.color.val} />}
                             >
@@ -287,6 +436,17 @@ export default function NFCSendScreen() {
                             theme="gray"
                         >
                             Turn on NFC
+                        </Button>
+                    ) : transferState === 'claimed' ? (
+                        <Button
+                            size="$5"
+                            fontWeight="800"
+                            theme="green"
+                            icon={<CheckCircle2 size={22} color="white" />}
+                            onPress={() => router.back()}
+                            rounded="$5"
+                        >
+                            Done
                         </Button>
                     ) : mode === 'write' || Platform.OS === 'ios' ? (
                         <Button
