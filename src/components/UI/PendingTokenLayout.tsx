@@ -10,7 +10,7 @@ import { useToastController } from '@tamagui/toast';
 import * as Linking from 'expo-linking';
 
 import { Spinner } from './Spinner';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 
 import { UR, UREncoder } from "@gandlaf21/bc-ur";
 import { useSettingsStore } from '~/store/settingsStore';
@@ -124,38 +124,17 @@ export function PendingTokenLayout({
     const [nfcError, setNfcError] = useState<string | undefined>(undefined);
     const simulationRef = useRef<any>(null);
 
-    const handleNfcShare = async () => {
+    const handleNfcShare = () => {
         if (!currentToken) return;
-
-        setShowNfcSheet(true);
-        setNfcStatus('processing');
-        setNfcMessage('Checking NFC status...');
-
-        try {
-            const enabled = await nfcService.isEnabled();
-            if (!enabled) {
-                setNfcStatus('error');
-                setNfcMessage('NFC is disabled');
-                setNfcError('Please enable NFC in your device settings.');
-                return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push({
+            pathname: '/(modals)/nfc-send',
+            params: {
+                token: currentToken,
+                amount: String(amount),
+                mintUrl: mintUrl || ''
             }
-
-            if (Platform.OS === 'android') {
-                setNfcMessage('Broadcasting... Hold near receiver phone.');
-                const session = await nfcService.startHceSimulation(currentToken);
-                simulationRef.current = session;
-            } else {
-                setNfcMessage('Approach physical tag to write...');
-                await nfcService.writeNdefTag(currentToken);
-                setNfcStatus('success');
-                setNfcMessage('Token written to tag!');
-            }
-        } catch (e: any) {
-            console.error('NFC share error:', e);
-            setNfcStatus('error');
-            setNfcMessage('NFC Share Failed');
-            setNfcError(e.message || 'An error occurred during NFC transmission.');
-        }
+        });
     };
 
     const handleWriteToTag = async () => {
@@ -640,22 +619,6 @@ export function PendingTokenLayout({
                     </Button>
                 </YStack>
             )}
-
-            <ProcessingSheet
-                visible={showNfcSheet}
-                status={nfcStatus}
-                title={nfcMessage}
-                errorMessage={nfcError}
-                variant="nfc"
-                onClose={handleCloseNfc}
-                detail={
-                    Platform.OS === 'android' && nfcStatus === 'processing' ? (
-                        <Button size="$3" theme="orange" onPress={handleWriteToTag} mt="$2">
-                            Write to Physical Tag instead
-                        </Button>
-                    ) : null
-                }
-            />
 
             <AppBottomSheet ref={shareSheetRef} backgroundColor="$gray4">
                 <YStack flex={1} px="$4" gap="$4">

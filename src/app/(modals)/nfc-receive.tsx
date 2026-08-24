@@ -143,7 +143,7 @@ export default function NFCReceiveScreen() {
             }
 
             // 2. Check for NUT-18 Payment Request (creq...)
-            const reqMatch = decoded.match(/(creq[a-zA-Z0-9]+)/i);
+            const reqMatch = decoded.match(/(creq[a-zA-Z0-9_-]+)/i);
             if (reqMatch) {
                 const paymentRequest = reqMatch[1];
                 console.log('[NFCReceive] Found NUT-18 payment request, redirecting to send...');

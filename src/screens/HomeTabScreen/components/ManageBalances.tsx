@@ -249,9 +249,7 @@ const ManageBalances = () => {
       rounded="$5"
       bg={"$color2"}
     >
-      <XStack>
-        <H6 color="$gray10">Manage Balances</H6>
-      </XStack>
+      
       <YStack gap="$3">
         {balanceData.map((item) => (
           <BalanceRow key={item.id} item={item} trigger={refreshCounter} />

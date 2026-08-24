@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   YStack,
   XStack,
@@ -36,6 +36,9 @@ import {
 } from '~/components/PaymentStatusOverlay';
 import { seedService } from '~/services/seedService';
 import Blockies from '~/components/UI/Blockies';
+import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,8 +79,10 @@ export function PaymentRequestStage({
   const [isSending, setIsSending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [overlayState, setOverlayState] = useState<PaymentStatusState | null>(null);
+  const [selectedMintUrl, setSelectedMintUrl] = useState<string | null>(null);
+  const sheetRef = useRef<AppBottomSheetRef>(null);
 
-  const { balance, activeMintUrl, mints } = useWalletStore();
+  const { balance: storeBalance, activeMintUrl, mints, balances, refreshMintList } = useWalletStore();
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
   const { data: btcData } = useQuery({
@@ -92,23 +97,35 @@ export function PaymentRequestStage({
 
   // ── Mint compatibility ───────────────────────────────────────────────────
   const matchedMint = useMemo(() => {
-    if (!activeMintUrl) return null;
     const normalize = (u: string) => u.replace(/\/$/, '').toLowerCase();
-    const active = normalize(activeMintUrl);
 
-    if (request.mints.some(m => normalize(m) === active)) {
+    // 1. If user manually selected a mint on this screen
+    if (selectedMintUrl) {
+      return selectedMintUrl;
+    }
+
+    // 2. If request specified NO mints (empty array), any mint works! Default to active or first mint
+    if (!request.mints || request.mints.length === 0) {
+      return activeMintUrl || mints[0]?.mintUrl || null;
+    }
+
+    // 3. If active mint matches one of the requested mints
+    if (activeMintUrl && request.mints.some(m => normalize(m) === normalize(activeMintUrl))) {
       return activeMintUrl;
     }
+
+    // 4. Find any other mint in the wallet that matches the request
     for (const reqMint of request.mints) {
       const found = mints.find(m => normalize(m.mintUrl) === normalize(reqMint));
       if (found) return found.mintUrl;
     }
+
     return null;
-  }, [activeMintUrl, mints, request.mints]);
+  }, [selectedMintUrl, activeMintUrl, mints, request.mints]);
 
   const activeMintInfo = useMemo(() => {
     if (!matchedMint) return null;
-    return mints.find(m => m.mintUrl.replace(/\/$/, '') === matchedMint.replace(/\/$/, ''));
+    return mints.find(m => m.mintUrl.replace(/\/$/, '').toLowerCase() === matchedMint.replace(/\/$/, '').toLowerCase());
   }, [matchedMint, mints]);
 
   const mintDisplayName = useMemo(() => {
@@ -118,9 +135,20 @@ export function PaymentRequestStage({
     return matchedMint.replace(/^https?:\/\//, "").replace(/\/$/, "");
   }, [activeMintInfo, matchedMint]);
 
-  const isCompatible = !!matchedMint;
+  const isCompatible = useMemo(() => {
+    if (!matchedMint) return false;
+    if (!request.mints || request.mints.length === 0) return true;
+    const normalize = (u: string) => u.replace(/\/$/, '').toLowerCase();
+    return request.mints.some(m => normalize(m) === normalize(matchedMint));
+  }, [matchedMint, request.mints]);
+
+  const currentMintBalance = useMemo(() => {
+    if (!matchedMint) return 0;
+    return balances[matchedMint] ?? (matchedMint === activeMintUrl ? storeBalance : 0);
+  }, [matchedMint, balances, activeMintUrl, storeBalance]);
+
   const amountSats = request.amount ?? 0;
-  const isEnough = amountSats > 0 && balance >= amountSats;
+  const isEnough = amountSats > 0 && currentMintBalance >= amountSats;
 
   const fiatValue = useMemo(() => {
     if (!btcData?.price || !amountSats) return '0.00';
@@ -134,7 +162,7 @@ export function PaymentRequestStage({
 
   // ── Send handler ─────────────────────────────────────────────────────────
   const handlePay = async () => {
-    if (!isCompatible || !isEnough || !request.nostrTarget) return;
+    if (!isCompatible || !isEnough) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSending(true);
@@ -142,36 +170,38 @@ export function PaymentRequestStage({
     setOverlayState('sending');
 
     try {
-      const mnemonic = await seedService.getMnemonic();
-      if (!mnemonic) {
-        throw new Error('Wallet seed not found. Please restore or create a wallet first.');
-      }
-      const keys = await seedService.getNostrKeys(mnemonic);
-      const senderPrivkeyHex = keys.privkey;
-
-      console.log(`[PaymentRequestStage] Sending ${amountSats} sats for payment request to ${request.nostrTarget}`);
+      console.log(`[PaymentRequestStage] Sending ${amountSats} sats for payment request via mint ${matchedMint}`);
       const { token: tokenString, id: operationId } = await walletService.send(
         matchedMint!,
         amountSats,
       );
 
-      console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
-      
-      const decodedToken = decodeToken(tokenString);
-      const proofs = decodedToken.proofs || [];
+      if (request.nostrTarget) {
+        const mnemonic = await seedService.getMnemonic();
+        if (!mnemonic) {
+          throw new Error('Wallet seed not found. Please restore or create a wallet first.');
+        }
+        const keys = await seedService.getNostrKeys(mnemonic);
+        const senderPrivkeyHex = keys.privkey;
 
-      const payloadObj = {
-        id: request.id,
-        mint: matchedMint,
-        unit: request.unit || 'sat',
-        proofs: proofs,
-      };
-      const payloadToEncrypt = JSON.stringify(payloadObj);
+        console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
+        
+        const decodedToken = decodeToken(tokenString);
+        const proofs = decodedToken.proofs || [];
 
-      const published = await sendNostrToken(payloadToEncrypt, request.nostrTarget, senderPrivkeyHex);
+        const payloadObj = {
+          id: request.id,
+          mint: matchedMint,
+          unit: request.unit || 'sat',
+          proofs: proofs,
+        };
+        const payloadToEncrypt = JSON.stringify(payloadObj);
 
-      if (!published) {
-        throw new Error('Failed to publish payment to Nostr relays. The recipient may not receive it.');
+        const published = await sendNostrToken(payloadToEncrypt, request.nostrTarget, senderPrivkeyHex);
+
+        if (!published) {
+          throw new Error('Failed to publish payment to Nostr relays. The recipient may not receive it.');
+        }
       }
 
       console.log(`[PaymentRequestStage] ✅ Payment complete. OpId: ${operationId}`);
@@ -207,6 +237,19 @@ export function PaymentRequestStage({
     <YStack flex={1} bg="$background">
       <ScrollView contentContainerStyle={{ paddingBottom: 150 } as any} showsVerticalScrollIndicator={false}>
         <YStack gap="$4">
+          {/* Mint Balance Row Selector */}
+          <MintBalanceRow
+            activeMint={activeMintInfo}
+            activeMintUrl={matchedMint || undefined}
+            displayName={mintDisplayName}
+            balance={currentMintBalance}
+            isSelector={true}
+            onPress={() => {
+              refreshMintList();
+              sheetRef.current?.present();
+            }}
+          />
+
           {/* Middle Amount Display */}
           <YStack gap="$3" py="$6" items="center" justify="center">
             <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
@@ -277,6 +320,11 @@ export function PaymentRequestStage({
               <DetailItem
                 label="Mint"
                 value={mintDisplayName}
+                onPress={() => {
+                  refreshMintList();
+                  sheetRef.current?.present();
+                }}
+                isClickable
                 icon={
                   isCompatible ? (
                     <Avatar rounded="$3" size="$1.5">
@@ -293,7 +341,7 @@ export function PaymentRequestStage({
               />
               <DetailItem
                 label="Method"
-                value="Payment Request via Nostr"
+                value={request.nostrTarget ? "Payment Request via Nostr" : "Direct Cashu Request"}
                 icon={<Zap size={16} color="$yellow10" />}
               />
               {request.nostrTarget && (
@@ -309,7 +357,7 @@ export function PaymentRequestStage({
               )}
               <DetailItem
                 label="Your Balance"
-                value={currencyService.formatSats(balance)}
+                value={currencyService.formatSats(currentMintBalance)}
                 valueColor={isEnough ? "$green11" : "$red10"}
                 icon={<ShieldCheck size={16} color={isEnough ? "$green11" : "$red10"} />}
               />
@@ -336,10 +384,10 @@ export function PaymentRequestStage({
           </Button>
           <Button
             flex={1}
-          theme="accent"
+            theme="accent"
             height={50}
             rounded="$4"
-            disabled={!isCompatible || !isEnough || isSending || !request.nostrTarget}
+            disabled={!isCompatible || !isEnough || isSending}
             icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
             fontWeight="700"
             fontSize="$5"
@@ -372,13 +420,28 @@ export function PaymentRequestStage({
         }}
       />
 
+      <MintSelectorSheet
+        ref={sheetRef}
+        onSelect={(mintUrl) => {
+          setSelectedMintUrl(mintUrl);
+        }}
+        activeMintUrl={matchedMint || undefined}
+        changeGlobalActiveMint={false}
+      />
     </YStack>
   );
 }
 
-function DetailItem({ label, value, icon, valueColor }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string }) {
+function DetailItem({ label, value, icon, valueColor, onPress, isClickable }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string, onPress?: () => void, isClickable?: boolean }) {
   return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
+    <XStack
+      justify="space-between"
+      items="center"
+      py="$3"
+      px="$4"
+      onPress={onPress}
+      pressStyle={isClickable ? { opacity: 0.7 } : undefined}
+    >
       <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
       <XStack gap="$2" items="center">
         {icon}

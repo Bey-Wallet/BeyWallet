@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
 import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce';
 import { useAuthStore } from '~/store/authStore';
+import { cleanToken, decodeToken, encodeTokenV4 } from '~/services/core';
 
 const init = async function () {
     const supported = await NfcManager.isSupported();
@@ -72,13 +73,34 @@ const startHceSimulation = async (text: string) => {
     try {
         useAuthStore.getState().setLockDisabled(true);
 
-        // Use URL record type — more reliably dispatched by Android's NFC reader
-        // mode (used by Minibits and other wallets). Wrap the raw cashu token as
-        // a URL with "cashu:" prefix so receivers can parse it as a URI or plain text.
-        const content = text.startsWith('http') ? text : `cashu:${text}`;
+        // Cancel any active NfcManager reader mode / listeners before enabling HCE session
+        await stopListening();
+        await NfcManager.cancelTechnologyRequest().catch(() => {});
+
+        let content = text;
+        let contentType = NFCTagType4NDEFContentType.URL;
+
+        if (text.startsWith('http')) {
+            content = text;
+            contentType = NFCTagType4NDEFContentType.URL;
+        } else {
+            // Auto-compress V3 tokens (cashuA...) to compact V4 (cashuB...) for NFC
+            try {
+                const clean = cleanToken(text);
+                const decoded = decodeToken(clean);
+                const v4Token = encodeTokenV4(decoded);
+                content = v4Token.startsWith('cashu:') ? v4Token : `cashu:${v4Token}`;
+                console.log('[nfcService] Formatted compact V4 token for HCE broadcast:', content.slice(0, 25) + '…');
+            } catch (err) {
+                console.warn('[nfcService] Could not convert to V4, using raw token:', err);
+                content = text.startsWith('cashu:') ? text : `cashu:${text}`;
+            }
+            // Use Text record type for raw tokens
+            contentType = NFCTagType4NDEFContentType.Text;
+        }
 
         const tag = new NFCTagType4({
-            type: NFCTagType4NDEFContentType.URL,
+            type: contentType,
             content,
             writable: false,
         });

@@ -50,6 +50,10 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
             }
         }
 
+        if (!cleaned.toLowerCase().startsWith('creq')) {
+            return null;
+        }
+
         const pr = PaymentRequest.fromEncodedRequest(cleaned);
         // Extract Nostr transport target (npub)
         let nostrTarget: string | undefined;
