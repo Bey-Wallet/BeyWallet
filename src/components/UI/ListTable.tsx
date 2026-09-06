@@ -29,7 +29,8 @@ export function ListTableRow({
     onPress,
     icon: Icon,
     iconColor,
-    rightContent
+    rightContent,
+    multiline,
 }: {
     label: string;
     value?: React.ReactNode;
@@ -40,6 +41,7 @@ export function ListTableRow({
     icon?: any;
     iconColor?: string;
     rightContent?: React.ReactNode;
+    multiline?: boolean;
 }) {
     const toast = useToastController();
 
@@ -56,14 +58,26 @@ export function ListTableRow({
         }
     };
 
+    const hasTrailing = value != null || rightContent || isCopyable || onPress;
+
     const content = (
-        <XStack justify="space-between" items="center" py="$3" px="$4">
-            <XStack items="center" gap="$2">
+        <XStack justify="space-between" items={multiline ? "flex-start" : "center"} py="$3" px="$4" gap="$2">
+            <XStack items={multiline ? "flex-start" : "center"} gap="$2" flex={1} flexShrink={1} minWidth={0}>
                 {Icon && <Icon size={18} color={iconColor || "$gray10"} />}
-                <Text fontSize="$4" color="$gray10" fontWeight="600">{label}</Text>
+                <Text
+                    fontSize="$4"
+                    color="$gray10"
+                    fontWeight="600"
+                    flex={1}
+                    flexShrink={1}
+                    numberOfLines={multiline ? undefined : 1}
+                >
+                    {label}
+                </Text>
             </XStack>
             
-            <XStack gap="$2" items="center" flex={1} justify="flex-end">
+            {hasTrailing && (
+            <XStack gap="$2" items="center" flexShrink={0} justify="flex-end">
                 {typeof value === 'string' || typeof value === 'number' ? (
                     <Text fontSize="$4" text="right" fontWeight="600" color="$color" numberOfLines={1} style={{ maxWidth: 200 }}>
                         {value}
@@ -81,6 +95,7 @@ export function ListTableRow({
                     <ChevronRight size={16} color="$gray10" />
                 )}
             </XStack>
+            )}
         </XStack>
     );
 

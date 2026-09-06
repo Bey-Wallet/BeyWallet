@@ -134,20 +134,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Search size={24} strokeWidth={2.5} color={color as any} />
           ),
-          headerRight: () => (
-            <XStack pr="$4">
-              <Button
-                circular
-                size="$3"
-                chromeless
-                icon={<HelpCircle size={24} color="$color" />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  console.log("Help");
-                }}
-              />
-            </XStack>
-          ),
+
         }}
       />
 
@@ -180,20 +167,7 @@ export default function TabLayout() {
           title: "Settings",
 
           tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color as any} />,
-          headerRight: () => (
-            <XStack pr="$4">
-              <Button
-                circular
-                size="$3"
-                chromeless
-                icon={<HelpCircle size={24} color="$color" />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  console.log("Help");
-                }}
-              />
-            </XStack>
-          ),
+         
         }}
       />
     </Tabs>
