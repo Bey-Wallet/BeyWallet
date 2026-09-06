@@ -12,7 +12,7 @@ import { bitcoinService } from "../../../services/bitcoinService";
 import * as Haptics from "expo-haptics";
 
 export default function Balance() {
-  const balance = useWalletStore((s) => s.balance);
+  const balances = useWalletStore((s) => s.balances);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const { primaryCurrency, setPrimaryCurrency, secondaryCurrency, hideBalance, setHideBalance, showBitcoinSymbol } = useSettingsStore();
@@ -34,7 +34,9 @@ export default function Balance() {
     staleTime: 30000,
   });
 
-  const currentBalance = balance;
+  const currentBalance = React.useMemo(() => {
+    return Object.values(balances).reduce((sum, val) => sum + (val || 0), 0);
+  }, [balances]);
 
   const secondaryBalance = React.useMemo(() => {
     if (!btcData?.price) return 0;
@@ -45,7 +47,7 @@ export default function Balance() {
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
   return (
-    <YStack py="$2" gap="$5" height={220} justify="center" items="center" position="relative">
+    <YStack py="$2" gap="$5" height={200} justify="center" items="center" position="relative">
       
       {/* Syncing Indicator at the top (absolute) */}
       {isRestoring && (

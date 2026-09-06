@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button, Input, Text, YStack, XStack, Spinner, Paragraph, View, useTheme, ScrollView, Image } from 'tamagui';
-import { Check, AlertCircle, Sprout, ShieldCheck, ShieldOff, Scan } from '@tamagui/lucide-icons';
+import { Check, AlertCircle, Sprout, ShieldCheck, ShieldOff, Scan, ChevronLeft } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/store/walletStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -120,6 +120,14 @@ export default function AddMintScreen() {
         }
     }, [scannerResult, triggerPreview, setScannerResult]);
 
+    const safeGoBack = useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
+    }, [router]);
+
     const handleFetchMintInfo = () => {
         if (!rawUrl.trim()) {
             setError('Please enter a mint URL');
@@ -145,7 +153,7 @@ export default function AddMintScreen() {
             await refreshMintList();
             toast.show('Mint Added', { message: 'Mint added successfully', duration: 2000 });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.back();
+            safeGoBack();
         } catch (err: any) {
             setError(err.message || 'Failed to add mint');
             setStage('input');
@@ -163,7 +171,7 @@ export default function AddMintScreen() {
             await refreshMintList();
             toast.show('Mint Added', { message: `${previewInfo.name} is now trusted`, duration: 3000 });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.back();
+            safeGoBack();
         } catch (err: any) {
             setError(err.message || 'Failed to trust mint');
             setStage('preview');
@@ -315,7 +323,24 @@ export default function AddMintScreen() {
 
     return (
         <YStack flex={1} bg="$background">
-            <Stack.Screen options={{ headerTitle: 'Add New Mint' }} />
+            <Stack.Screen
+                options={{
+                    headerTitle: 'Add New Mint',
+                    headerLeft: () => (
+                        <Button
+                            circular
+                            size="$3"
+                            bg="$gray3"
+                            pressStyle={{ scale: 0.95, bg: '$gray4' }}
+                            icon={<ChevronLeft size={20} color="$color" />}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                safeGoBack();
+                            }}
+                        />
+                    ),
+                }}
+            />
             <ScrollView
                 contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}
                 keyboardShouldPersistTaps="handled"

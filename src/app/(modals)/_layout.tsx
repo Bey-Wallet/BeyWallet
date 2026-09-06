@@ -39,7 +39,13 @@ export default function ModalLayout() {
                         size="$3"
                         rounded="$10"
                         icon={<X size={24} color="$color" />}
-                        onPress={() => router.back()}
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)');
+                            }
+                        }}
                     />
                 ),
                 contentStyle: {

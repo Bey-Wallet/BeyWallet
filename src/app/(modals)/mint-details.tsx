@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView, Button, View, Separator, Avatar, ListItem, YGroup, Spinner } from 'tamagui';
 import { ChevronLeft, ChevronDown, ChevronUp, Landmark, ShieldCheck, ShieldAlert, Sprout, Share2, Building2, Globe, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Trash, Trash2, RefreshCw } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -32,17 +32,29 @@ export default function MintDetailsModal() {
     const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
     const [isAboutExpanded, setIsAboutExpanded] = useState(false);
     const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
+    const isRemovingRef = useRef(false);
+
+    const safeGoBack = useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
+    }, [router]);
 
     const handleRemoveMint = async () => {
+        if (isRemovingRef.current) return;
+        isRemovingRef.current = true;
         try {
             removeMintSheetRef.current?.dismiss();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            safeGoBack();
             await removeMint(mintUrl || '');
             toast.show('Mint Removed', {
                 message: 'The mint has been successfully removed.',
             });
-            router.back();
         } catch (e: any) {
+            isRemovingRef.current = false;
             console.error('Failed to remove mint:', e);
             toast.show('Error', {
                 message: e.message || 'Failed to remove mint.',
@@ -246,7 +258,7 @@ export default function MintDetailsModal() {
         return (
             <YStack flex={1} justify="center" items="center" p="$4" bg="$background">
                 <Text color="$color" fontSize="$5" fontWeight="600">Mint not found</Text>
-                <Button mt="$4" onPress={() => router.back()}>Go Back</Button>
+                <Button mt="$4" onPress={safeGoBack}>Go Back</Button>
             </YStack>
         );
     }
@@ -341,7 +353,7 @@ export default function MintDetailsModal() {
                             icon={<ChevronLeft size={20} color="$color" />}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                router.back();
+                                safeGoBack();
                             }}
                         />
                     ),

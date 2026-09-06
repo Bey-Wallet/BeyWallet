@@ -1,261 +1,265 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   View,
   Text,
   YStack,
   XStack,
-  H4,
   H6,
   Image,
   styled,
-  H5,
-  useThemeName,
   Button,
+  Separator,
 } from "tamagui";
-import { ChevronRight, Landmark } from "@tamagui/lucide-icons";
+import { Plus, Sprout, Globe } from "@tamagui/lucide-icons";
 import { RollingNumber } from "~/components/UI/RollingNumber";
 import { useRouter } from "expo-router";
 import { useWalletStore } from "~/store/walletStore";
-import { useNostrInboxStore } from "~/store/nostrInboxStore";
 import { useSettingsStore } from "~/store/settingsStore";
 import { useQuery } from "@tanstack/react-query";
-import { historyService } from "~/services/core";
 import * as Haptics from "expo-haptics";
-import { useAppTheme } from "~/context/ThemeContext";
 import { currencyService, CurrencyCode } from "~/services/currencyService";
 import { bitcoinService } from "~/services/bitcoinService";
-
-const nostrIconWhite = require("../../../assets/images/nostr-icon-white-transparent.png");
-const nostrIconBlack = require("../../../assets/images/nostr-icon-black-transparent.png");
-
-interface BalanceItem {
-  id: string;
-  title: string;
-  value: number | string;
-  imageSource?: any;
-  icon?: React.ReactNode;
-  onPress?: () => void;
-  isComingSoon?: boolean;
-}
 
 const RowContainer = styled(XStack, {
   items: "center",
   justify: "space-between",
   gap: "$2",
-  pressStyle: { opacity: 0.7 },
+  p: "$2",
+  rounded: "$4",
+  hoverStyle: { bg: "$backgroundHover" },
+  pressStyle: { opacity: 0.7, bg: "$backgroundPress" },
 });
 
-interface BalanceRowProps {
-  item: BalanceItem;
-  trigger?: any;
+interface MintRowItemProps {
+  mint: any;
+  balance: number;
+  isActive: boolean;
+  hideBalance: boolean;
+  displayAsSats: boolean;
+  showBitcoinSymbol: boolean;
+  btcPrice: number | undefined;
+  secondaryCurrency: string;
+  refreshCounter: number;
+  onPress: (mintUrl: string) => void;
 }
 
-const BalanceRow = ({ item, trigger }: BalanceRowProps) => {
-  const { id, title, value, imageSource, icon, onPress, isComingSoon } = item;
-  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
+const MintRowItem = React.memo(({
+  mint,
+  balance,
+  isActive,
+  hideBalance,
+  displayAsSats,
+  showBitcoinSymbol,
+  btcPrice,
+  secondaryCurrency,
+  refreshCounter,
+  onPress,
+}: MintRowItemProps) => {
+  const displayName =
+    mint.nickname ||
+    mint.name ||
+    (() => {
+      try {
+        return new URL(mint.mintUrl).hostname;
+      } catch {
+        return mint.mintUrl;
+      }
+    })();
 
-  const isFiatEnabled = secondaryCurrency !== 'NONE';
-  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
+  const hostname = useMemo(() => {
+    try {
+      return new URL(mint.mintUrl).hostname;
+    } catch {
+      return mint.mintUrl;
+    }
+  }, [mint.mintUrl]);
 
-  const { data: btcData } = useQuery({
-    queryKey: ["bitcoinPrice", secondaryCurrency],
-    queryFn: () => isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
-    staleTime: 30000,
-    enabled: isFiatEnabled,
-  });
-
-  const displayValue = React.useMemo(() => {
-    if (isComingSoon) return "NA";
+  const displayValue = useMemo(() => {
     if (hideBalance) return "****";
-
-    if (!displayAsSats && typeof value === 'number') {
-      if (!btcData?.price) return '...';
-      const fiat = currencyService.convertSatsToCurrency(value, btcData.price);
+    if (!displayAsSats) {
+      if (!btcPrice) return "...";
+      const fiat = currencyService.convertSatsToCurrency(balance, btcPrice);
       return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
     }
+    return balance;
+  }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
 
-    return value;
-  }, [isComingSoon, hideBalance, value, displayAsSats, secondaryCurrency, btcData?.price]);
-
-  const currentTrigger = React.useMemo(() => {
-    return `${trigger}_${hideBalance ? "hidden" : "visible"}_${displayAsSats ? "SATS" : "FIAT"}`;
-  }, [trigger, hideBalance, displayAsSats]);
-
-  const prefix = React.useMemo(() => {
-    if (isComingSoon || hideBalance) return "";
-    if (!displayAsSats) return ""; // formatted currency already includes symbol
+  const prefix = useMemo(() => {
+    if (hideBalance || !displayAsSats) return "";
     return showBitcoinSymbol ? "₿" : "";
-  }, [isComingSoon, hideBalance, displayAsSats, showBitcoinSymbol]);
+  }, [hideBalance, displayAsSats, showBitcoinSymbol]);
 
-  const suffix = React.useMemo(() => {
-    if (isComingSoon || hideBalance) return "";
-    if (!displayAsSats) return "";
+  const suffix = useMemo(() => {
+    if (hideBalance || !displayAsSats) return "";
     return showBitcoinSymbol ? "" : " SATS";
-  }, [isComingSoon, hideBalance, displayAsSats, showBitcoinSymbol]);
+  }, [hideBalance, displayAsSats, showBitcoinSymbol]);
+
+  const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? "hidden" : "visible"}_${displayAsSats ? "SATS" : "FIAT"}_${showBitcoinSymbol}`;
 
   return (
-    <RowContainer
-      onPress={() => {
-        if (onPress) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          onPress();
-        }
-      }}
-      opacity={isComingSoon ? 0.5 : 1}
-      disabled={isComingSoon}
-    >
-      <XStack items="center" gap="$2">
-        {icon ? (
-          icon
+    <RowContainer onPress={() => onPress(mint.mintUrl)}>
+      <XStack items="center" gap="$2.5" flex={1} mr="$2">
+        {!mint.icon ? (
+          <View
+            width={40}
+            height={40}
+            justify="center"
+            bg="$gray5"
+            rounded="$3"
+            items="center"
+          >
+            <Sprout size={20} color={isActive ? "$green10" : "$gray11"} />
+          </View>
         ) : (
           <Image
-            source={imageSource}
-            alt={title}
-            rounded="$2"
-            bg={item.title === "Nostr" ? "$purple10" : "transparent"}
-            width={45}
-            height={45}
+            src={mint.icon}
+            width={40}
+            height={40}
+            alt={displayName}
+            borderRadius={8}
+            borderColor={isActive ? "$green10" : "$borderColor"}
+            borderWidth={isActive ? 2 : 1}
           />
         )}
-        <H6 color="$accent4" textTransform="uppercase">
-          {title}
-        </H6>
-        {!isComingSoon && (
-          <ChevronRight size={20} strokeWidth={3} color="$accent9" />
-        )}
+
+        <YStack gap="$0.5" flex={1}>
+          <XStack items="center" gap="$1.5" flexWrap="wrap">
+            <Text
+              fontSize="$5"
+              fontWeight="400"
+              color="$accent3"
+              numberOfLines={1}
+              style={{ maxWidth: 140 }}
+            >
+              {displayName}
+            </Text>
+          </XStack>
+         
+        </YStack>
       </XStack>
 
-      {id === "nostr" || id === "bitcoin" ? (
-        <Button
-          onPress={() => {
-            if (onPress) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              onPress();
-            }
-          }}
-          size="$3"
-          theme="gray"
-          fontWeight={800}
-          rounded={200}
-          disabled={id === "bitcoin"}
-        >
-
-          {id === "nostr" ? "Open" : "Soon"}
-
-        </Button>
-      ) : (
-        <YStack>
+      <XStack items="center" gap="$1.5" pr="$2">
+        <YStack items="flex-end" justify="center">
           <RollingNumber
             fontSize={16}
             fontWeight="900"
-            color="$accent4"
+            color="$color"
             decimalOpacity={0.4}
             showDecimals={!displayAsSats}
             prefix={prefix}
             suffix={suffix}
-            trigger={currentTrigger + `_${showBitcoinSymbol}`}
+            trigger={currentTrigger}
           >
             {displayValue}
           </RollingNumber>
         </YStack>
-      )
-      }
-    </RowContainer >
+      </XStack>
+    </RowContainer>
   );
-};
+});
 
-const ManageBalances = () => {
+export const ManageBalances = () => {
   const router = useRouter();
+  const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
+  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
-  const themeName = useThemeName();
-  const nostrItems = useNostrInboxStore((s) => s.items);
-  const { resolvedTheme } = useAppTheme();
+  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } =
+    useSettingsStore();
 
-  const { data: history = [] } = useQuery({
-    queryKey: ["history", "pending"],
-    queryFn: async () => {
-      const entries = await historyService.getHistory(50, 0);
-      return entries.filter(
-        (e: any) => e.state === "pending" || e.state === "unclaimed",
-      );
-    },
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
+  const isFiatEnabled = secondaryCurrency !== "NONE";
+  const displayAsSats = primaryCurrency === "SATS" || !isFiatEnabled;
+
+  const { data: btcData } = useQuery({
+    queryKey: ["bitcoinPrice", secondaryCurrency],
+    queryFn: () =>
+      isFiatEnabled
+        ? bitcoinService.fetchPrice(secondaryCurrency)
+        : Promise.resolve({ price: 0 }),
+    staleTime: 30000,
+    enabled: isFiatEnabled,
   });
 
-  const totalSpendable = useMemo(() => {
-    return Object.values(balances).reduce((sum, b) => sum + b, 0);
-  }, [balances]);
+  const handleMintPress = useCallback((mintUrl: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: "/(modals)/mint-details",
+      params: { mintUrl },
+    });
+  }, [router]);
 
-  const totalPending = useMemo(() => {
-    return history.reduce((sum, e) => sum + (e.amount || 0), 0);
-  }, [history]);
+  const handleAddMint = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/(modals)/add-mint");
+  }, [router]);
 
-  const totalNostrUnclaimed = useMemo(() => {
-    return nostrItems
-    .filter((i) => i.status === "pending" || i.status === "failed")
-    .reduce((sum, i) => sum + i.amount, 0);
-  }, [nostrItems]);
-  
-  const balanceData: BalanceItem[] = [
-    {
-      id: "mints",
-      title: "Mints",
-      value: totalSpendable,
-      icon: (
-        <View
-          width={45}
-          height={45}
-          rounded="$2"
-          bg="#C1FF72"
-          items="center"
-          justify="center"
-        >
-          <Landmark size={24} strokeWidth={2.5} color="black" />
-        </View>
-      ),
-      onPress: () => router.push("/(modals)/mints"),
-    },
-    {
-      id: "ecash",
-      title: "E-Cash",
-      value: totalPending,
-      imageSource: require("../../../assets/images/Cashu.jpg"),
-      onPress: () => router.push("/(modals)/ecash"),
-    },
-    {
-      id: "nostr",
-      title: "Nostr",
-      value: totalNostrUnclaimed,
-      imageSource: nostrIconWhite,
-      onPress: () => router.push("/(modals)/nostr-activity"),
-    },
-    {
-      id: "bitcoin",
-      title: "Bitcoin LN",
-      value: 0,
-      imageSource: require("../../../assets/images/Bitcoin.png"),
-      isComingSoon: true,
-    },
-  ];
+  const normalizedActiveUrl = activeMintUrl?.replace(/\/$/, "");
 
   return (
-    <YStack
-      width="100%"
-      gap="$4"
-      p="$2.5"
-      pr="$4"
-      rounded="$5"
-      bg={"$color2"}
-    >
-      
-      <YStack gap="$3">
-        {balanceData.map((item) => (
-          <BalanceRow key={item.id} item={item} trigger={refreshCounter} />
-        ))}
+    <>
+      <YStack
+        width="100%"
+        gap="$3"
+        p="$1.5"
+        rounded="$6"
+        bg="$color2"
+      >
+       
+        {/* Mints List */}
+        {mints.length === 0 ? (
+          <YStack py="$6" items="center" justify="center" gap="$2" opacity={0.6}>
+            <View p="$3" bg="$gray4" rounded="$10">
+              <Globe size={24} color="$gray10" />
+            </View>
+            <Text fontWeight="700" fontSize="$3" color="$color">
+              No mints connected
+            </Text>
+            <Text fontSize="$2" color="$gray10" text="center">
+              Add a Cashu mint to start sending and receiving ecash.
+            </Text>
+          </YStack>
+        ) : (
+          <YStack separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+            {mints.map((mint) => {
+              const normalizedMintUrl = mint.mintUrl.replace(/\/$/, "");
+              const balance = balances[mint.mintUrl] || 0;
+              const isActive = normalizedMintUrl === normalizedActiveUrl;
+
+              return (
+                <MintRowItem
+                  key={mint.mintUrl}
+                  mint={mint}
+                  balance={balance}
+                  isActive={isActive}
+                  hideBalance={hideBalance}
+                  displayAsSats={displayAsSats}
+                  showBitcoinSymbol={showBitcoinSymbol}
+                  btcPrice={btcData?.price}
+                  secondaryCurrency={secondaryCurrency}
+                  refreshCounter={refreshCounter}
+                  onPress={handleMintPress}
+                />
+              );
+            })}
+          </YStack>
+        )}
       </YStack>
-    </YStack>
+
+      {/* Add Mint Button at bottom */}
+      <Button
+        size="$4"
+        theme="gray"
+       
+        rounded="$10"
+        onPress={handleAddMint}
+        icon={<Plus  strokeWidth={2.5} size={16} color="$accent1" />}
+        pressStyle={{ scale: 0.98, opacity: 0.9 }}
+      >
+        <Text fontWeight="800" fontSize="$3" color="$accent1">
+          Add Mint
+        </Text>
+      </Button>
+    </>
   );
 };
 

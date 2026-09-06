@@ -39,7 +39,7 @@ export default React.memo(function ActionButtons() {
   return (
     <>
       <XStack gap="$2" justify="space-between">
-        <Button
+        {/* <Button
           bg="$gray4"
 
           flex={1}
@@ -58,26 +58,34 @@ export default React.memo(function ActionButtons() {
           rounded="$5"
           icon={<RefreshCcw size={28} strokeWidth={2.5} />}
           onPress={handleSwap}
-        />
+        /> */}
         <Button
           bg="$gray4"
 
           flex={1}
           height={60}
           size="$7"
-          rounded="$5"
-          icon={<ArrowDownIcon size={32} />}
+         fontSize="$5"
+          fontWeight="900"
+          rounded="$10"
+          // icon={<ArrowDownIcon size={32} />}
           onPress={handleReceive}
-        />
+        >
+          Receive
+          </Button>
         <Button
           theme="accent"
           flex={1}
           height={60}
           size="$7"
-          rounded="$5"
-          icon={<SendIcon size={28} />}
+         fontSize="$5"
+          fontWeight="900"
+          rounded="$10"
+          // icon={<SendIcon size={28} />}
           onPress={handleSend}
-        />
+        >
+          Send
+          </Button>
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />

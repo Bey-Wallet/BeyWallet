@@ -57,6 +57,14 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         }
     };
 
+    const safeGoBack = React.useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)');
+        }
+    }, [router]);
+
     const handleDelete = () => {
         Alert.alert('Remove Mint', 'Are you sure you want to remove this mint from your wallet?', [
             { text: 'Cancel', style: 'cancel' },
@@ -66,9 +74,9 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 onPress: async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                     try {
+                        safeGoBack();
                         await removeMint(url);
                         toast.show('Mint Removed', { message: 'Mint was removed successfully.' });
-                        router.back();
                     } catch (e: any) {
                         toast.show('Error', { message: e.message || 'Failed to remove mint.' });
                     }
