@@ -101,23 +101,38 @@ export const useWalletStore = create<WalletState>()(
                     const manager = await initService.init();
 
                     // Ensure the user's default mint exists and is trusted
-                    const userDefaultMint = useSettingsStore.getState().defaultMintUrl || DEFAULT_MINT;
+                    // BUT only if defaultMintUrl is explicitly set (not empty — offline wallets start with '')
+                    const userDefaultMint = useSettingsStore.getState().defaultMintUrl;
                     const existingMints = await manager.mint.getAllMints();
-                    const hasDefault = existingMints.some(m => m.mintUrl === userDefaultMint);
 
-                    if (!hasDefault) {
-                        await mintManager.addMint(userDefaultMint, { trusted: true });
-                    } else {
-                        const isTrusted = await manager.mint.isTrustedMint(userDefaultMint);
-                        if (!isTrusted) {
-                            await mintManager.trustMint(userDefaultMint);
+                    if (userDefaultMint && userDefaultMint.length > 0) {
+                        const hasDefault = existingMints.some(m => m.mintUrl === userDefaultMint);
+
+                        if (!hasDefault) {
+                            try {
+                                await mintManager.addMint(userDefaultMint, { trusted: true });
+                            } catch (e) {
+                                console.warn('[WalletStore] Failed to add default mint (possibly offline):', e);
+                            }
+                        } else {
+                            const isTrusted = await manager.mint.isTrustedMint(userDefaultMint);
+                            if (!isTrusted) {
+                                await mintManager.trustMint(userDefaultMint);
+                            }
                         }
                     }
 
                     // Set active mint if not set
+                    // If no mints exist at all, activeMintUrl stays null
                     if (!get().activeMintUrl) {
-                        const userDefaultMint = useSettingsStore.getState().defaultMintUrl || DEFAULT_MINT;
-                        set({ activeMintUrl: userDefaultMint });
+                        const freshMints = await manager.mint.getAllMints();
+                        if (freshMints.length > 0) {
+                            const defaultUrl = userDefaultMint && userDefaultMint.length > 0 ? userDefaultMint : freshMints[0].mintUrl;
+                            set({ activeMintUrl: defaultUrl });
+                        } else {
+                            // Zero-mint wallet — activeMintUrl stays null
+                            set({ activeMintUrl: null });
+                        }
                     }
 
                     // Parallelize balance refresh + mint info fetch for speed
@@ -134,22 +149,24 @@ export const useWalletStore = create<WalletState>()(
                     });
 
                     // Defer keyset repair to background — never blocks startup
-                    // Handles real money safely: repair still runs, just after UI is visible
-                    InteractionManager.runAfterInteractions(async () => {
-                        try {
-                            const repairResults = await Promise.all(
-                                allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
-                            );
-                            if (repairResults.some(r => r === true)) {
-                                console.log('[WalletStore] Keysets repaired in background, refreshing...');
-                                await get().refreshBalance();
-                                const freshMintInfos = await mintManager.getMintInfoList();
-                                set({ mints: freshMintInfos });
+                    // Only run if there are mints to repair
+                    if (allMints.length > 0) {
+                        InteractionManager.runAfterInteractions(async () => {
+                            try {
+                                const repairResults = await Promise.all(
+                                    allMints.map(mint => mintManager.repairMintKeysets(mint.mintUrl, 'sat'))
+                                );
+                                if (repairResults.some(r => r === true)) {
+                                    console.log('[WalletStore] Keysets repaired in background, refreshing...');
+                                    await get().refreshBalance();
+                                    const freshMintInfos = await mintManager.getMintInfoList();
+                                    set({ mints: freshMintInfos });
+                                }
+                            } catch (e) {
+                                console.warn('[WalletStore] Background keyset repair error:', e);
                             }
-                        } catch (e) {
-                            console.warn('[WalletStore] Background keyset repair error:', e);
-                        }
-                    });
+                        });
+                    }
                     console.log('[WalletStore] Initialization complete');
                 } catch (err: any) {
                     console.error('[WalletStore] Initialization failed:', err);
@@ -319,9 +336,9 @@ export const useWalletStore = create<WalletState>()(
                     await mintManager.removeMint(url);
                     await get().refreshMintList();
                     if (get().activeMintUrl === url) {
-                        const userDefaultMint = useSettingsStore.getState().defaultMintUrl || DEFAULT_MINT;
-                        // Don't set active if the newly removed mint WAS the default mint
-                        if (url !== userDefaultMint) {
+                        const userDefaultMint = useSettingsStore.getState().defaultMintUrl;
+                        // If defaultMintUrl is set and isn't the removed one, use it
+                        if (userDefaultMint && userDefaultMint.length > 0 && url !== userDefaultMint) {
                             set({ activeMintUrl: userDefaultMint });
                         } else {
                             const nextActive = get().mints.find(m => m.mintUrl !== url)?.mintUrl;

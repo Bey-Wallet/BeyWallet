@@ -42,7 +42,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     theme: 'system',
     secondaryCurrency: 'USD',
     primaryCurrency: 'SATS',
-    defaultMintUrl: DEFAULT_MINT,
+    defaultMintUrl: '',
     notificationsEnabled: true,
     biometricEnabled: false,
     initialized: false,

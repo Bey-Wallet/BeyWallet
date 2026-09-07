@@ -15,7 +15,7 @@ import BeyIcon from "~/components/icons/BeyIcon";
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
 // sees the critical content instantly.
-import ManageBalances from "./components/ManageBalances";
+import ConnectedMintsCard from "./components/ConnectedMintsCard";
 import NostrActivity from "./components/NostrActivity";
 import { NostrClaimSheet } from "../../components/NostrClaimSheet";
 import { useAuthStore } from "~/store/authStore";
@@ -154,7 +154,7 @@ export function HomeTabScreen() {
         <React.Suspense fallback={<HomeSkeleton />}>
           {/* <LazyBitcoinPriceCard /> */}
           <NostrActivity />
-          <ManageBalances />
+          <ConnectedMintsCard />
 
           {/* <LazySupportView /> */}
         </React.Suspense>

@@ -4,6 +4,7 @@ import { CreatingWalletSheet } from './CreatingWalletSheet'
 import { SeedStep } from './SeedStep'
 import { BiometricStep } from './BiometricStep'
 import { NotificationStep } from './NotificationStep'
+import { networkService } from '../../services/networkService'
 import { ProcessingSheet } from '~/components/UI/ProcessingSheet'
 import { NostrStep } from './NostrStep'
 import { ImportSeedStep } from './ImportSeedStep'
@@ -118,7 +119,7 @@ export function OnboardingScreen() {
         setStep('permissions')
     }
 
-    const handlePermissionsComplete = async (username: string, isBiometricEnabled: boolean) => {
+    const handlePermissionsComplete = async (username: string, isBiometricEnabled: boolean, skipUsername: boolean = false) => {
         if (!generatedMnemonic) {
             setStep('welcome')
             return
@@ -129,6 +130,7 @@ export function OnboardingScreen() {
             const keys = await seedService.getNostrKeys(generatedMnemonic)
             const pubkeyHex = keys.pubkey
             const privkeyHex = keys.privkey
+            const offline = await networkService.isOffline()
 
             if (isImportingFlow) {
                 setFinishingStatus('Initializing wallet…')
@@ -148,25 +150,38 @@ export function OnboardingScreen() {
 
                 await initialize()
 
-                // Try NIP-05 registration just in case they modified or generated a new one
-                try {
-                    setFinishingStatus('Registering profile…')
-                    const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
-                    if (registerResult.ok && registerResult.nip05) {
-                        await useSettingsStore.getState().setNip05(registerResult.nip05)
-                    } else {
+                // NIP-05 registration: only if online and not skipping username
+                if (!offline && !skipUsername) {
+                    try {
+                        setFinishingStatus('Registering profile…')
+                        const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
+                        if (registerResult.ok && registerResult.nip05) {
+                            await useSettingsStore.getState().setNip05(registerResult.nip05)
+                        } else {
+                            await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                        }
+                    } catch (err) {
+                        console.warn('[Onboarding] NIP-05 registration failed, setting fallback:', err)
                         await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
                     }
-                } catch (err) {
-                    await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                } else {
+                    // Offline or user skipped username — nip05 stays null
+                    console.log('[Onboarding] Skipping NIP-05 registration (offline or user chose to skip)')
+                    await useSettingsStore.getState().setNip05(null)
                 }
 
-                await mintManager.addMint(DEFAULT_MINT, { trusted: true })
-                await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+                // Only add default mint if online
+                if (!offline) {
+                    await mintManager.addMint(DEFAULT_MINT, { trusted: true })
+                    await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+                } else {
+                    console.log('[Onboarding] Offline — skipping default mint, wallet starts with 0 mints')
+                    await useSettingsStore.getState().setDefaultMintUrl('')
+                }
 
                 const hasFunds = tempBackupState && tempBackupState.proofs && tempBackupState.proofs.length > 0
 
-                if (!hasFunds) {
+                if (!hasFunds && !offline) {
                     console.log('[Onboarding] Kicking off multi-mint scanning in background...')
                     restoreAllMints(extraRestoreMints)
                 }
@@ -181,20 +196,34 @@ export function OnboardingScreen() {
                 await useSettingsStore.getState().initialize(true)
                 await initialize()
 
-                try {
-                    setFinishingStatus('Registering username…')
-                    const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
-                    if (registerResult.ok && registerResult.nip05) {
-                        await useSettingsStore.getState().setNip05(registerResult.nip05)
-                    } else {
+                // NIP-05 registration: only if online and not skipping username
+                if (!offline && !skipUsername) {
+                    try {
+                        setFinishingStatus('Registering username…')
+                        const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex)
+                        if (registerResult.ok && registerResult.nip05) {
+                            await useSettingsStore.getState().setNip05(registerResult.nip05)
+                        } else {
+                            await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                        }
+                    } catch (err) {
+                        console.warn('[Onboarding] NIP-05 registration failed, setting fallback:', err)
                         await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
                     }
-                } catch (err) {
-                    await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`)
+                } else {
+                    // Offline or user skipped username — nip05 stays null
+                    console.log('[Onboarding] Skipping NIP-05 registration (offline or user chose to skip)')
+                    await useSettingsStore.getState().setNip05(null)
                 }
 
-                await mintManager.addMint(DEFAULT_MINT, { trusted: true })
-                await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+                // Only add default mint if online
+                if (!offline) {
+                    await mintManager.addMint(DEFAULT_MINT, { trusted: true })
+                    await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT)
+                } else {
+                    console.log('[Onboarding] Offline — skipping default mint, wallet starts with 0 mints')
+                    await useSettingsStore.getState().setDefaultMintUrl('')
+                }
 
                 setFinishingStatus('Finalizing setup…')
                 await completeOnboarding()

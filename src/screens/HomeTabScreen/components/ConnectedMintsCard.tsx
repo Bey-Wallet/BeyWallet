@@ -134,7 +134,6 @@ const MintRowItem = React.memo(({
               {displayName}
             </Text>
           </XStack>
-         
         </YStack>
       </XStack>
 
@@ -158,7 +157,7 @@ const MintRowItem = React.memo(({
   );
 });
 
-export const ManageBalances = () => {
+export const ConnectedMintsCard = () => {
   const router = useRouter();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
@@ -204,7 +203,6 @@ export const ManageBalances = () => {
         rounded="$6"
         bg="$color2"
       >
-       
         {/* Mints List */}
         {mints.length === 0 ? (
           <YStack py="$6" items="center" justify="center" gap="$2" opacity={0.6}>
@@ -249,10 +247,9 @@ export const ManageBalances = () => {
       <Button
         size="$4"
         theme="gray"
-       
         rounded="$10"
         onPress={handleAddMint}
-        icon={<Plus  strokeWidth={2.5} size={16} color="$accent1" />}
+        icon={<Plus strokeWidth={2.5} size={16} color="$accent1" />}
         pressStyle={{ scale: 0.98, opacity: 0.9 }}
       >
         <Text fontWeight="800" fontSize="$3" color="$accent1">
@@ -263,4 +260,4 @@ export const ManageBalances = () => {
   );
 };
 
-export default ManageBalances;
+export default ConnectedMintsCard;

@@ -1,24 +1,37 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { YStack, XStack, Text, Button, H1, View, Switch, Separator } from 'tamagui';
-import {  ChevronRight, Fingerprint, Sprout } from '@tamagui/lucide-icons';
+import { ChevronRight, Fingerprint, Sprout, WifiOff, Globe, User } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { biometricService } from '../../services/biometricService';
 import { useSettingsStore } from '../../store/settingsStore';
+import { networkService } from '../../services/networkService';
 import Blockies from '~/components/UI/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
 
 interface PermissionsStepProps {
     initialUsername: string;
     npub: string;
-    onComplete: (username: string, biometricEnabled: boolean) => void;
+    onComplete: (username: string, biometricEnabled: boolean, skipUsername: boolean) => void;
 }
 
 export function PermissionsStep({ initialUsername, npub, onComplete }: PermissionsStepProps) {
     const insets = useSafeAreaInsets();
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [isRequestingBio, setIsRequestingBio] = useState(false);
+    const [isOffline, setIsOffline] = useState(false);
+    const [skipUsername, setSkipUsername] = useState(false);
     const sheetRef = useRef<AppBottomSheetRef>(null);
+
+    // Check network status on mount
+    useEffect(() => {
+        networkService.isOffline().then((offline) => {
+            setIsOffline(offline);
+            if (offline) {
+                setSkipUsername(true); // Force skip when offline
+            }
+        });
+    }, []);
 
     const handleBiometricToggle = async (checked: boolean) => {
         if (!checked) {
@@ -52,7 +65,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
         if (!biometricEnabled) {
             sheetRef.current?.present();
         } else {
-            onComplete(initialUsername, true);
+            onComplete(initialUsername, true, skipUsername);
         }
     };
 
@@ -65,7 +78,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setBiometricEnabled(true);
                 await useSettingsStore.getState().setBiometricEnabled(true);
-                onComplete(initialUsername, true);
+                onComplete(initialUsername, true, skipUsername);
             } else {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setBiometricEnabled(false);
@@ -79,8 +92,13 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
 
     const handleSkipFromSheet = () => {
         sheetRef.current?.dismiss();
-        onComplete(initialUsername, false);
+        onComplete(initialUsername, false, skipUsername);
     };
+
+    // Truncate npub for display
+    const shortNpub = npub
+        ? `${npub.slice(0, 10)}...${npub.slice(-6)}`
+        : 'npub...';
 
     return (
         <YStack
@@ -107,12 +125,27 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
                         style={{ borderRadius : 10 }}
                     />
                 </XStack>
-                <Text fontSize="$6" px="$2" rounded="$3" py="$1" fontWeight="800" text="center" color="$black" bg="yellow">
-                    {initialUsername}@bey.cash
-                </Text>
-                <Text fontSize="$2" color="$gray10" text="center" mt="$1">
-                    Deterministic nickname (changeable in settings)
-                </Text>
+
+                {/* Primary identity: username or npub */}
+                {skipUsername || isOffline ? (
+                    <>
+                        <Text fontSize="$4" px="$2" rounded="$3" py="$1" fontWeight="700" text="center" color="$gray11">
+                            {shortNpub}
+                        </Text>
+                        <Text fontSize="$2" color="$gray10" text="center" mt="$1" px="$4">
+                            Your decentralized identity (npub). You can claim a @bey.cash username anytime.
+                        </Text>
+                    </>
+                ) : (
+                    <>
+                        <Text fontSize="$6" px="$2" rounded="$3" py="$1" fontWeight="800" text="center" color="$black" bg="yellow">
+                            {initialUsername}@bey.cash
+                        </Text>
+                        <Text fontSize="$2" color="$gray10" text="center" mt="$1">
+                            Deterministic nickname (changeable in settings)
+                        </Text>
+                    </>
+                )}
             </YStack>
 
             {/* Bottom Section - Settings & Finish Button */}
@@ -149,15 +182,70 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
 
                     <Separator borderColor="$borderColor" />
 
-                    {/* Default Mint Acknowledgment */}
+                    {/* Username Claim Toggle (only when online) */}
+                    {!isOffline && (
+                        <>
+                            <XStack
+                                p="$3.5"
+                                justify="space-between"
+                                items="center"
+                            >
+                                <XStack gap="$3" items="center" flex={1}>
+                                    <User size={24} color={!skipUsername ? "$accent10" : "$gray10"} />
+                                    <YStack flex={1}>
+                                        <Text fontWeight="700" fontSize="$5">Claim @bey.cash</Text>
+                                        <Text fontSize="$2" color="$gray10">
+                                            {skipUsername ? 'Using npub only' : `${initialUsername}@bey.cash`}
+                                        </Text>
+                                    </YStack>
+                                </XStack>
+                                <Switch
+                                    size="$3"
+                                    checked={!skipUsername}
+                                    onCheckedChange={(checked) => setSkipUsername(!checked)}
+                                    backgroundColor={!skipUsername ? "$green10" : "$gray5"}
+                                >
+                                    <Switch.Thumb animation="quick" />
+                                </Switch>
+                            </XStack>
+
+                            <Separator borderColor="$borderColor" />
+                        </>
+                    )}
+
+                    {/* Mint / Offline Status Row */}
                     <XStack p="$3.5" items="center" gap="$3">
-                        <Sprout size={24} color="$green10" />
-                        <YStack flex={1}>
-                            <Text fontWeight="700" fontSize="$5">Standard Default Mint</Text>
-                            <Text fontSize="$2" color="$gray10">Minibits Mint (sat) will be automatically trusted</Text>
-                        </YStack>
+                        {isOffline ? (
+                            <>
+                                <WifiOff size={24} color="$orange10" />
+                                <YStack flex={1}>
+                                    <Text fontWeight="700" fontSize="$5">Offline Mode</Text>
+                                    <Text fontSize="$2" color="$gray10">
+                                        No mints connected. Add mints on the home screen when online.
+                                    </Text>
+                                </YStack>
+                            </>
+                        ) : (
+                            <>
+                                <Sprout size={24} color="$green10" />
+                                <YStack flex={1}>
+                                    <Text fontWeight="700" fontSize="$5">Standard Default Mint</Text>
+                                    <Text fontSize="$2" color="$gray10">Minibits Mint (sat) will be automatically trusted</Text>
+                                </YStack>
+                            </>
+                        )}
                     </XStack>
                 </YStack>
+
+                {/* Offline Info Badge */}
+                {isOffline && (
+                    <XStack bg="$orange3" rounded="$4" p="$3" gap="$2" items="center">
+                        <WifiOff size={16} color="$orange10" />
+                        <Text fontSize="$2" color="$orange11" flex={1}>
+                            You're offline. Wallet will be created locally. Username and mints can be added once online.
+                        </Text>
+                    </XStack>
+                )}
 
                 {/* Finish Button */}
                 <Button
