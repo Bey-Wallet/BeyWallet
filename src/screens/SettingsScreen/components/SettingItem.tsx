@@ -24,7 +24,7 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
                     size="$3"
                     checked={checked}
                     onCheckedChange={onCheckedChange}
-                    backgroundColor={checked ? "#34C759" : "$gray5"}
+                    backgroundColor={checked ? "$green9" : "$gray5"}
                 >
                     <Switch.Thumb animation="bouncy" />
                 </Switch>

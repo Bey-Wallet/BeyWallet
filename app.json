@@ -22,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/icons/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.thehussein01.Bey",
       "permissions": [
@@ -58,6 +58,12 @@
           "nfcPermission": "Allow $(PRODUCT_NAME) to interact with nearby NFC devices"
         }
       ],
+        [
+    "expo-navigation-bar",
+    {
+      "enforceContrast": false
+    }
+  ],
       [
         "expo-build-properties",
         {

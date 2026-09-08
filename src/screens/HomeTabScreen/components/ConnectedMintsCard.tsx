@@ -10,7 +10,7 @@ import {
   Button,
   Separator,
 } from "tamagui";
-import { Plus, Sprout, Globe } from "@tamagui/lucide-icons";
+import { Plus, Sprout, Globe, ChevronRight, Settings2 } from "@tamagui/lucide-icons";
 import { RollingNumber } from "~/components/UI/RollingNumber";
 import { useRouter } from "expo-router";
 import { useWalletStore } from "~/store/walletStore";
@@ -242,6 +242,7 @@ export const ConnectedMintsCard = () => {
           </YStack>
         )}
       </YStack>
+<XStack gap="$2">
 
       {/* Add Mint Button at bottom */}
       <Button
@@ -249,13 +250,22 @@ export const ConnectedMintsCard = () => {
         theme="gray"
         rounded="$10"
         onPress={handleAddMint}
-        icon={<Plus strokeWidth={2.5} size={16} color="$accent1" />}
+        icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
         pressStyle={{ scale: 0.98, opacity: 0.9 }}
       >
-        <Text fontWeight="800" fontSize="$3" color="$accent1">
+        <Text fontWeight="800" fontSize="$3" color="$accent2">
           Add Mint
         </Text>
       </Button>
+      <Button
+      size="$4"
+      circular
+      theme="gray"
+      icon={<Settings2 strokeWidth={3} size={18} color="$accent2" />}
+      onPress={() => router.push("/(modals)/connected-mints")}
+      />
+
+</XStack>
     </>
   );
 };

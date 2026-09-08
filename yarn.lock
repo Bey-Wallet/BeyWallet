@@ -6695,6 +6695,7 @@ __metadata:
     expo-linking: "npm:~8.0.8"
     expo-local-authentication: "npm:~17.0.8"
     expo-localization: "npm:~17.0.8"
+    expo-navigation-bar: "npm:~5.0.10"
     expo-network: "npm:~8.0.8"
     expo-notifications: "npm:^55.0.10"
     expo-router: "npm:~6.0.14"
@@ -8561,6 +8562,21 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/db23a1c7321db54f40f0bcb9c18e7239d798fb7fb5d8ceedf09879f7ff4d90a85e375851796008006441326ed61c00ba00950b06bc7ea74f6ba648a9dac9d053
+  languageName: node
+  linkType: hard
+
+"expo-navigation-bar@npm:~5.0.10":
+  version: 5.0.10
+  resolution: "expo-navigation-bar@npm:5.0.10"
+  dependencies:
+    "@react-native/normalize-colors": "npm:0.81.5"
+    debug: "npm:^4.3.2"
+    react-native-is-edge-to-edge: "npm:^1.2.1"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10/89b2c8b2a2c8884aefdc8dc4e2b17547de9aa588f1e29bacb5e762f65e294ed21cb810f5453d9e7bc796a6f5ff9075736ec01ab80bde3038ab3aeb66d23b3a31
   languageName: node
   linkType: hard
 

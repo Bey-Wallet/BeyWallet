@@ -36,6 +36,7 @@ export default React.memo(function ActionButtons() {
     actionSheetRef.current?.present('send');
   }, []);
 
+
   return (
     <>
       <XStack gap="$2" justify="space-between">
@@ -75,6 +76,7 @@ export default React.memo(function ActionButtons() {
           </Button>
         <Button
           theme="accent"
+          bg="$color1"
           flex={1}
           height={60}
           size="$7"

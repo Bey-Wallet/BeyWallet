@@ -12,6 +12,9 @@ import { useAuthStore } from '../../store/authStore'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useCocoEvents } from '../../hooks/useCocoEvents'
+
+import { useColorScheme } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { notificationService } from '../../services/notificationService'
 
 // Lazy-load global checkers — they don't need to mount during the critical startup paint
@@ -174,9 +177,15 @@ export function RootLayoutNav() {
         ...resolvedTheme === 'dark' ? DarkTheme : DefaultTheme,
         colors: {
             ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
-            background: theme.background.val,
+            background: theme.background?.val,
         },
     }
+const isDark = resolvedTheme === 'dark';
+const systemBarColor = isDark ? '#000000' : '#FFFFFF';
+
+useEffect(() => {
+  NavigationBar.setStyle(isDark ? 'dark' : 'light');
+}, [isDark]);
 
     // Only show lock overlay if onboarded, not authenticated, and biometric is enabled
     const showLockOverlay = isOnboarded && !isAuthenticated && biometricEnabled
@@ -188,7 +197,7 @@ export function RootLayoutNav() {
                 <Stack
                     screenOptions={{
                         contentStyle: {
-                            backgroundColor: theme.background.val,
+                            backgroundColor: theme.background?.val,
                         },
                     }}
                 >

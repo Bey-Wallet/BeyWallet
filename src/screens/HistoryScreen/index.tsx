@@ -324,7 +324,8 @@ export function HistoryScreen() {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 setTypeFilter(chip.key);
                             }}
-                            size="$2.5"
+                            size="$3"
+                            rounded="$12"
                             chromeless={active ? false : true}
                             color={active ? "$color" : "$gray10"}
 

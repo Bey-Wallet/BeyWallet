@@ -66,6 +66,7 @@
     "expo-linking": "~8.0.8",
     "expo-local-authentication": "~17.0.8",
     "expo-localization": "~17.0.8",
+    "expo-navigation-bar": "~5.0.10",
     "expo-network": "~8.0.8",
     "expo-notifications": "^55.0.10",
     "expo-router": "~6.0.14",
