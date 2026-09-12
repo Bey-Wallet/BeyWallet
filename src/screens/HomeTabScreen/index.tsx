@@ -1,32 +1,30 @@
-import { RefreshControl, Animated, Easing } from "react-native";
-import { YStack, ScrollView, Button, XStack, Text, View } from "tamagui";
-import * as Haptics from "expo-haptics";
-import { useToastController } from "@tamagui/toast";
-import WalletCard from "./components/WalletCard";
-import ActionButtons from "./components/ActionButtons";
-import BackupWarningCard from "./components/BackupWarningCard";
-import ClaimUsernameCard from "./components/ClaimUsernameCard";
-import RestoreProgressCard from "./components/RestoreProgressCard";
-import { useWalletStore } from "../../store/walletStore";
-import React from "react";
-import StatusScreen from "../../components/StatusScreen";
-import BeyIcon from "~/components/icons/BeyIcon";
+import { RefreshControl, Animated, Easing } from 'react-native';
+import { YStack, ScrollView, Button, XStack, Text, View } from 'tamagui';
+import * as Haptics from 'expo-haptics';
+import { useToastController } from '@tamagui/toast';
+import WalletCard from './components/WalletCard';
+import ActionButtons from './components/ActionButtons';
+import BackupWarningCard from './components/BackupWarningCard';
+import ClaimUsernameCard from './components/ClaimUsernameCard';
+import RestoreProgressCard from './components/RestoreProgressCard';
+import { useWalletStore } from '../../store/walletStore';
+import React from 'react';
+import StatusScreen from '../../components/StatusScreen';
+import BeyIcon from '~/components/icons/BeyIcon';
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
 // sees the critical content instantly.
-import ConnectedMintsCard from "./components/ConnectedMintsCard";
-import NostrActivity from "./components/NostrActivity";
-import { NostrClaimSheet } from "../../components/NostrClaimSheet";
-import { useAuthStore } from "~/store/authStore";
-import { useRouter } from "expo-router";
-const LazyBitcoinPriceCard = React.lazy(
-  () => import("./components/BitcoinPriceCard"),
-);
+import ConnectedMintsCard from './components/ConnectedMintsCard';
+import NostrActivity from './components/NostrActivity';
+import { NostrClaimSheet } from '../../components/NostrClaimSheet';
+import { useAuthStore } from '~/store/authStore';
+import { useRouter } from 'expo-router';
+const LazyBitcoinPriceCard = React.lazy(() => import('./components/BitcoinPriceCard'));
 
-const LazySupportView = React.lazy(() => import("./components/SupportView"));
+const LazySupportView = React.lazy(() => import('./components/SupportView'));
 
-type StatusType = "success" | "error" | "pending" | null;
+type StatusType = 'success' | 'error' | 'pending' | null;
 
 /** Skeleton fallback shown while lazy components load */
 function HomeSkeleton() {
@@ -52,14 +50,7 @@ function HomeSkeleton() {
   }, [pulseAnim]);
 
   return (
-    <YStack
-      width="100%"
-      height={300}
-      bg="$gray2"
-      rounded="$5"
-      items="center"
-      justify="center"
-    >
+    <YStack width="100%" height={300} bg="$gray2" rounded="$5" items="center" justify="center">
       <Animated.View style={{ opacity: pulseAnim }}>
         <BeyIcon size={40} />
       </Animated.View>
@@ -78,13 +69,16 @@ export function HomeTabScreen() {
 
   React.useEffect(() => {
     // Load pending Nostr requests on mount so auto-claim matching works instantly
-    const { useNostrRequestStore } = require("../../store/nostrRequestStore");
-    useNostrRequestStore.getState().loadPendingRequests().catch(() => {});
+    const { useNostrRequestStore } = require('../../store/nostrRequestStore');
+    useNostrRequestStore
+      .getState()
+      .loadPendingRequests()
+      .catch(() => {});
   }, []);
 
   React.useEffect(() => {
     if (error) {
-      toast.show("Error", { message: error });
+      toast.show('Error', { message: error });
     }
   }, [error]);
 
@@ -104,25 +98,23 @@ export function HomeTabScreen() {
         visible={true}
         type={showStatus}
         title={
-          showStatus === "success"
-            ? "Payment Sent!"
-            : showStatus === "error"
-              ? "Payment Failed"
-              : "Processing..."
+          showStatus === 'success'
+            ? 'Payment Sent!'
+            : showStatus === 'error'
+              ? 'Payment Failed'
+              : 'Processing...'
         }
         message={
-          showStatus === "success"
-            ? "Your payment was sent successfully"
-            : showStatus === "error"
-              ? "Unable to complete the transaction"
-              : "Please wait while we process your payment"
+          showStatus === 'success'
+            ? 'Your payment was sent successfully'
+            : showStatus === 'error'
+              ? 'Unable to complete the transaction'
+              : 'Please wait while we process your payment'
         }
         amount="1,234"
         onClose={() => setShowStatus(null)}
-        onAction={
-          showStatus === "success" ? () => setShowStatus(null) : undefined
-        }
-        actionLabel={showStatus === "success" ? "View Details" : undefined}
+        onAction={showStatus === 'success' ? () => setShowStatus(null) : undefined}
+        actionLabel={showStatus === 'success' ? 'View Details' : undefined}
       />
     );
   }
@@ -132,11 +124,7 @@ export function HomeTabScreen() {
       bg="$background"
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FFD700"
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
       }
     >
       <YStack flex={1} items="center" gap="$4" px="$4" pt="$2" pb="$20">

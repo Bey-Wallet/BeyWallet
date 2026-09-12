@@ -1,5 +1,5 @@
 export interface IconProps {
-    size?: number;
-    color?: string;
-    strokeWidth?: number;
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
 }

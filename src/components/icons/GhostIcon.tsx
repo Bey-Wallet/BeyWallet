@@ -1,7 +1,7 @@
-import { useThemeToggle } from "@/components/Providers/theme-provider";
-import React from "react";
-import { View } from "tamagui";
-import BeyIcon from "./BeyIcon";
+import { useThemeToggle } from '@/components/Providers/theme-provider';
+import React from 'react';
+import { View } from 'tamagui';
+import BeyIcon from './BeyIcon';
 
 interface GhostIconProps {
   size?: number;
@@ -18,11 +18,11 @@ const GhostIcon = ({ size = 120, op = 1, black = false, white = false, color }: 
   if (color) {
     resolvedColor = color;
   } else if (white) {
-    resolvedColor = "white";
+    resolvedColor = 'white';
   } else if (black) {
-    resolvedColor = "black";
+    resolvedColor = 'black';
   } else {
-    resolvedColor = "$color";
+    resolvedColor = '$color';
   }
 
   return (

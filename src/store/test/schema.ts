@@ -173,7 +173,7 @@ const MIGRATIONS: readonly Migration[] = [
         if (existing && existing !== original) {
           throw new Error(
             `Mint URL normalization conflict: "${existing}" and "${original}" both normalize to "${normalized}". ` +
-            `Please manually resolve this conflict before running the migration.`,
+              `Please manually resolve this conflict before running the migration.`,
           );
         }
         normalizedToOriginal.set(normalized, original);
@@ -380,75 +380,111 @@ export async function seedMockData(db: ExpoSqliteDb): Promise<void> {
 
   await db.transaction(async (tx) => {
     // 1. Mints
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_mints (mintUrl, name, mintInfo, createdAt, updatedAt, trusted)
       VALUES (?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'Mock Mint', '{}', now, now, 1]);
+    `,
+      [mintUrl, 'Mock Mint', '{}', now, now, 1],
+    );
 
     // 2. Keysets
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_keysets (mintUrl, id, keypairs, active, feePpk, updatedAt, unit)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'keyset-v1', '{}', 1, 0, now, 'sat']);
+    `,
+      [mintUrl, 'keyset-v1', '{}', 1, 0, now, 'sat'],
+    );
 
     // 3. Counters
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_counters (mintUrl, keysetId, counter)
       VALUES (?, ?, ?)
-    `, [mintUrl, 'keyset-v1', 10]);
+    `,
+      [mintUrl, 'keyset-v1', 10],
+    );
 
     // 4. Proofs
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_proofs (mintUrl, id, amount, secret, C, state, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'keyset-v1', 21, 'secret1', 'C1', 'ready', now]);
+    `,
+      [mintUrl, 'keyset-v1', 21, 'secret1', 'C1', 'ready', now],
+    );
 
     // 5. Mint Quotes
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_mint_quotes (mintUrl, quote, state, request, amount, unit, expiry)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'quote1', 'PAID', 'lnbc...', 100, 'sat', now + 3600]);
+    `,
+      [mintUrl, 'quote1', 'PAID', 'lnbc...', 100, 'sat', now + 3600],
+    );
 
     // 6. Melt Quotes
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_melt_quotes (mintUrl, quote, state, request, amount, unit, expiry, fee_reserve)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'mquote1', 'UNPAID', 'lnbc...', 50, 'sat', now + 3600, 2]);
+    `,
+      [mintUrl, 'mquote1', 'UNPAID', 'lnbc...', 50, 'sat', now + 3600, 2],
+    );
 
     // 7. History
-    await tx.run(`
+    await tx.run(
+      `
       INSERT INTO coco_cashu_history (mintUrl, type, unit, amount, createdAt, state, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'mint', 'sat', 100, now - 3600, 'success', '{"reason": "Test Mint"}']);
+    `,
+      [mintUrl, 'mint', 'sat', 100, now - 3600, 'success', '{"reason": "Test Mint"}'],
+    );
 
-    await tx.run(`
+    await tx.run(
+      `
       INSERT INTO coco_cashu_history (mintUrl, type, unit, amount, createdAt, state, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [mintUrl, 'send', 'sat', 21, now, 'finalized', '{"to": "Friend"}']);
+    `,
+      [mintUrl, 'send', 'sat', 21, now, 'finalized', '{"to": "Friend"}'],
+    );
 
     // 8. Keypairs
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_keypairs (publicKey, secretKey, createdAt, derivationIndex)
       VALUES (?, ?, ?, ?)
-    `, ['pubkey1', 'privkey1', now, 0]);
+    `,
+      ['pubkey1', 'privkey1', now, 0],
+    );
 
     // 9. Send Operations
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_send_operations (id, mintUrl, amount, state, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
-    `, ['op1', mintUrl, 21, 'finalized', now, now]);
+    `,
+      ['op1', mintUrl, 21, 'finalized', now, now],
+    );
 
     // 10. Melt Operations
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_melt_operations (id, mintUrl, state, createdAt, updatedAt, method, methodDataJson)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, ['mop1', mintUrl, 'init', now, now, 'bolt11', '{}']);
+    `,
+      ['mop1', mintUrl, 'init', now, now, 'bolt11', '{}'],
+    );
 
     // 11. Mint Recommendations
-    await tx.run(`
+    await tx.run(
+      `
       INSERT OR REPLACE INTO coco_cashu_mint_recommendations (url, name, description, reviewsCount, averageRating, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
-    `, ['https://nofee.testnut.cashu.space', 'Testnut', 'A reliable test mint', 100, 4.8, now]);
+    `,
+      ['https://nofee.testnut.cashu.space', 'Testnut', 'A reliable test mint', 100, 4.8, now],
+    );
   });
 
   console.log('[Database] Mock data seeded successfully');

@@ -1,15 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  Spinner,
-  useTheme,
-  View,
-  ScrollView,
-} from "tamagui";
-import * as Updates from "expo-updates";
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { YStack, XStack, Text, Button, Spinner, useTheme, View, ScrollView } from 'tamagui';
+import * as Updates from 'expo-updates';
 import {
   DownloadCloud,
   CheckCircle2,
@@ -18,46 +9,37 @@ import {
   Sparkles,
   ArrowUpCircle,
   Check,
-} from "@tamagui/lucide-icons";
-import { SafeFlex } from "~/components/UI/Flex";
-import { ListTable, ListTableRow } from "~/components/UI/ListTable";
-import * as Application from "expo-application";
-import Constants from "expo-constants";
-import BeyIcon from "~/components/icons/BeyIcon";
-import * as Haptics from "expo-haptics";
-import { useAppTheme } from "~/context/ThemeContext";
-import { Stack } from "expo-router";
-import { sqliteStorage } from "~/store/sqliteStorage";
+} from '@tamagui/lucide-icons';
+import { SafeFlex } from '~/components/UI/Flex';
+import { ListTable, ListTableRow } from '~/components/UI/ListTable';
+import * as Application from 'expo-application';
+import Constants from 'expo-constants';
+import BeyIcon from '~/components/icons/BeyIcon';
+import * as Haptics from 'expo-haptics';
+import { useAppTheme } from '~/context/ThemeContext';
+import { Stack } from 'expo-router';
+import { sqliteStorage } from '~/store/sqliteStorage';
 
-const STORAGE_KEY_LAST_OTA_CHANGELOG = "last_installed_ota_changelog";
-const STORAGE_KEY_LAST_OTA_VERSION = "last_installed_ota_version";
-const STORAGE_KEY_LAST_OTA_DATE = "last_installed_ota_date";
+const STORAGE_KEY_LAST_OTA_CHANGELOG = 'last_installed_ota_changelog';
+const STORAGE_KEY_LAST_OTA_VERSION = 'last_installed_ota_version';
+const STORAGE_KEY_LAST_OTA_DATE = 'last_installed_ota_date';
 
-const appVersion =
-  Application.nativeApplicationVersion ??
-  Constants.expoConfig?.version ??
-  "0.2.0";
+const appVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '0.2.0';
 const buildVersion =
   Application.nativeBuildVersion ??
   Constants.expoConfig?.ios?.buildNumber ??
   Constants.expoConfig?.android?.versionCode?.toString() ??
-  "1";
+  '1';
 
 type UpdateStatus =
-  | "idle"
-  | "checking"
-  | "no-update"
-  | "update-available"
-  | "downloading"
-  | "ready"
-  | "error";
+  'idle' | 'checking' | 'no-update' | 'update-available' | 'downloading' | 'ready' | 'error';
 
 // Default changelog highlights for the base app version
 const DEFAULT_VERSION_HIGHLIGHTS = [
-  "Lightning-fast Cashu e-cash payments & instant mint settlement",
-  "NFC Tap-to-Pay and contactless token exchange",
-  "Multi-mint balance management and proof security",
-  "Encrypted seed phrase backup and instant restore",
+  'Lightning-fast Cashu e-cash payments & instant mint settlement',
+  'NFC Tap-to-Pay and contactless token exchange',
+  'Multi-mint balance management and proof security',
+  'Encrypted seed phrase backup and instant restore',
 ];
 
 /**
@@ -68,10 +50,13 @@ function parseChangelog(raw: any): string[] {
 
   // If already an array
   if (Array.isArray(raw)) {
-    return raw.map(String).map((s) => s.trim()).filter(Boolean);
+    return raw
+      .map(String)
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
-  if (typeof raw === "object") {
+  if (typeof raw === 'object') {
     const candidate =
       raw.message ||
       raw.metadata?.message ||
@@ -80,45 +65,43 @@ function parseChangelog(raw: any): string[] {
       raw.extra?.expoClient?.extra?.message ||
       raw.extra?.expoClient?.updates?.message ||
       raw.extra?.expoClient?.description ||
-      "";
-    if (candidate && typeof candidate === "string") {
+      '';
+    if (candidate && typeof candidate === 'string') {
       return parseChangelog(candidate);
     }
     return [];
   }
 
-  if (typeof raw !== "string") return [];
+  if (typeof raw !== 'string') return [];
   const trimmed = raw.trim();
   if (!trimmed) return [];
 
   // Try parsing JSON format
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-      if (Array.isArray(parsed.whatsNew))
-        return parsed.whatsNew.map(String).filter(Boolean);
-      if (Array.isArray(parsed.changes))
-        return parsed.changes.map(String).filter(Boolean);
-      if (typeof parsed.message === "string") return parseChangelog(parsed.message);
+      if (Array.isArray(parsed.whatsNew)) return parsed.whatsNew.map(String).filter(Boolean);
+      if (Array.isArray(parsed.changes)) return parsed.changes.map(String).filter(Boolean);
+      if (typeof parsed.message === 'string') return parseChangelog(parsed.message);
     } catch {}
   }
 
   // Normalize literal escaped "\n" into actual newlines
-  const normalized = trimmed.replace(/\\n/g, "\n");
+  const normalized = trimmed.replace(/\\n/g, '\n');
 
   // Split by newlines or semicolons, and remove bullet symbols (- / * / • / numbers)
   const lines = normalized
     .split(/\r?\n|;/)
-    .map((line) => line.replace(/^[\s\-*•\d.)]+/, "").trim())
+    .map((line) => line.replace(/^[\s\-*•\d.)]+/, '').trim())
     .filter((line) => line.length > 0);
 
   return lines.length > 0 ? lines : [trimmed];
 }
 
 export default function OtaUpdateScreen() {
-  const [status, setStatus] = useState<UpdateStatus>("checking");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [status, setStatus] = useState<UpdateStatus>('checking');
+  const [errorMsg, setErrorMsg] = useState('');
   const [newManifest, setNewManifest] = useState<any>(null);
   const [lastCheckedTime, setLastCheckedTime] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -131,7 +114,7 @@ export default function OtaUpdateScreen() {
 
   const formatCurrentTime = () => {
     const now = new Date();
-    return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Load previous/current update changelog from storage or running manifest
@@ -159,7 +142,7 @@ export default function OtaUpdateScreen() {
       const dateStr = sqliteStorage.getItem(STORAGE_KEY_LAST_OTA_DATE);
       if (dateStr) setStoredDate(dateStr);
     } catch (e) {
-      console.warn("[OtaUpdate] Error reading stored update notes:", e);
+      console.warn('[OtaUpdate] Error reading stored update notes:', e);
     }
   }, []);
 
@@ -168,13 +151,13 @@ export default function OtaUpdateScreen() {
       if (isManual) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-      setStatus("checking");
-      setErrorMsg("");
+      setStatus('checking');
+      setErrorMsg('');
 
       // In development or when expo-updates is not enabled
       if (!Updates.isEnabled) {
         setLastCheckedTime(formatCurrentTime());
-        setStatus("no-update");
+        setStatus('no-update');
         return;
       }
 
@@ -183,17 +166,16 @@ export default function OtaUpdateScreen() {
 
       if (check.isAvailable && check.manifest) {
         setNewManifest(check.manifest);
-        setStatus("update-available");
+        setStatus('update-available');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        setStatus("no-update");
+        setStatus('no-update');
       }
     } catch (error: any) {
-      console.error("[OtaUpdate] Check failed:", error);
-      setStatus("error");
+      console.error('[OtaUpdate] Check failed:', error);
+      setStatus('error');
       setErrorMsg(
-        error.message ||
-          "Failed to check for updates. Please check your internet connection.",
+        error.message || 'Failed to check for updates. Please check your internet connection.',
       );
       setLastCheckedTime(formatCurrentTime());
     }
@@ -207,7 +189,7 @@ export default function OtaUpdateScreen() {
   const handleDownload = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setStatus("downloading");
+      setStatus('downloading');
       setDownloadProgress(20);
 
       // Smooth progress animation while downloading bundle
@@ -232,34 +214,32 @@ export default function OtaUpdateScreen() {
           newManifest.metadata?.message ||
           newManifest.extra?.message ||
           newManifest.extra?.expoClient?.extra?.updatesMessage ||
-          "";
+          '';
         if (rawMessage) {
           sqliteStorage.setItem(STORAGE_KEY_LAST_OTA_CHANGELOG, rawMessage);
         }
         const version =
-          newManifest.metadata?.version ||
-          newManifest.extra?.expoClient?.version ||
-          appVersion;
+          newManifest.metadata?.version || newManifest.extra?.expoClient?.version || appVersion;
         sqliteStorage.setItem(STORAGE_KEY_LAST_OTA_VERSION, `v${version}`);
 
         if (newManifest.createdAt) {
           sqliteStorage.setItem(
             STORAGE_KEY_LAST_OTA_DATE,
             new Date(newManifest.createdAt).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
             }),
           );
         }
       }
 
-      setStatus("ready");
+      setStatus('ready');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      console.error("[OtaUpdate] Download failed:", error);
-      setStatus("error");
-      setErrorMsg(error.message || "Failed to download update bundle.");
+      console.error('[OtaUpdate] Download failed:', error);
+      setStatus('error');
+      setErrorMsg(error.message || 'Failed to download update bundle.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -269,7 +249,7 @@ export default function OtaUpdateScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await Updates.reloadAsync();
     } catch (e: any) {
-      console.warn("[OtaUpdate] Reload failed:", e);
+      console.warn('[OtaUpdate] Reload failed:', e);
     }
   };
 
@@ -289,12 +269,9 @@ export default function OtaUpdateScreen() {
 
   // Format incoming new version if available
   const newVersionString = useMemo(() => {
-    if (!newManifest) return "";
-    const version =
-      newManifest.metadata?.version ||
-      newManifest.extra?.expoClient?.version ||
-      "";
-    return version ? `v${version}` : "";
+    if (!newManifest) return '';
+    const version = newManifest.metadata?.version || newManifest.extra?.expoClient?.version || '';
+    return version ? `v${version}` : '';
   }, [newManifest]);
 
   const updateCreatedAt = useMemo(() => {
@@ -302,23 +279,23 @@ export default function OtaUpdateScreen() {
     try {
       const d = new Date(newManifest.createdAt);
       return d.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       });
     } catch {
       return null;
     }
   }, [newManifest]);
 
-  const channelName = Updates.channel || (Updates.isEnabled ? "Release" : "Standard");
+  const channelName = Updates.channel || (Updates.isEnabled ? 'Release' : 'Standard');
 
   return (
     <SafeFlex fill bg="$background" px="$4">
       <Stack.Screen
         options={{
-          title: "App Updates",
-          headerTitleAlign: "center",
+          title: 'App Updates',
+          headerTitleAlign: 'center',
         }}
       />
 
@@ -329,17 +306,8 @@ export default function OtaUpdateScreen() {
         >
           {/* Top App Header Card */}
           <XStack items="center" gap="$3.5" rounded="$5">
-            <View
-              p="$3"
-              bg="$gray3"
-              rounded="$5"
-              items="center"
-              justify="center"
-            >
-              <BeyIcon
-                size={34}
-                color={resolvedTheme === "dark" ? "white" : "black"}
-              />
+            <View p="$3" bg="$gray3" rounded="$5" items="center" justify="center">
+              <BeyIcon size={34} color={resolvedTheme === 'dark' ? 'white' : 'black'} />
             </View>
             <YStack flex={1} gap="$1">
               <XStack items="center" justify="space-between">
@@ -347,12 +315,7 @@ export default function OtaUpdateScreen() {
                   Bey Wallet
                 </Text>
                 <XStack bg="$gray4" px="$2.5" py="$1.5" rounded="$10">
-                  <Text
-                    fontSize={10}
-                    fontWeight="800"
-                    color="$gray11"
-                    textTransform="uppercase"
-                  >
+                  <Text fontSize={10} fontWeight="800" color="$gray11" textTransform="uppercase">
                     {channelName}
                   </Text>
                 </XStack>
@@ -364,7 +327,7 @@ export default function OtaUpdateScreen() {
           </XStack>
 
           {/* Status Section */}
-          {status === "idle" && (
+          {status === 'idle' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -393,7 +356,7 @@ export default function OtaUpdateScreen() {
             </YStack>
           )}
 
-          {status === "checking" && (
+          {status === 'checking' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -411,7 +374,7 @@ export default function OtaUpdateScreen() {
             </YStack>
           )}
 
-          {status === "no-update" && (
+          {status === 'no-update' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$3">
               <YStack gap="$3" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -434,7 +397,7 @@ export default function OtaUpdateScreen() {
             </YStack>
           )}
 
-          {status === "update-available" && (
+          {status === 'update-available' && (
             <YStack gap="$4">
               <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
                 <YStack gap="$4" items="center">
@@ -484,7 +447,7 @@ export default function OtaUpdateScreen() {
             </YStack>
           )}
 
-          {status === "downloading" && (
+          {status === 'downloading' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -496,39 +459,23 @@ export default function OtaUpdateScreen() {
                   </Text>
                   <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
                     {downloadProgress < 50
-                      ? "Fetching update bundle from server..."
-                      : "Verifying and preparing update assets..."}
+                      ? 'Fetching update bundle from server...'
+                      : 'Verifying and preparing update assets...'}
                   </Text>
                 </YStack>
               </YStack>
               <YStack width="100%" gap="$2">
-                <View
-                  width="100%"
-                  height={6}
-                  bg="$gray4"
-                  rounded="$10"
-                  overflow="hidden"
-                >
-                  <View
-                    height="100%"
-                    width={`${downloadProgress}%`}
-                    bg="$color"
-                    rounded="$10"
-                  />
+                <View width="100%" height={6} bg="$gray4" rounded="$10" overflow="hidden">
+                  <View height="100%" width={`${downloadProgress}%`} bg="$color" rounded="$10" />
                 </View>
-                <Text
-                  fontSize="$1"
-                  color="$gray10"
-                  fontWeight="700"
-                  textAlign="center"
-                >
+                <Text fontSize="$1" color="$gray10" fontWeight="700" textAlign="center">
                   {downloadProgress}%
                 </Text>
               </YStack>
             </YStack>
           )}
 
-          {status === "ready" && (
+          {status === 'ready' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -557,7 +504,7 @@ export default function OtaUpdateScreen() {
             </YStack>
           )}
 
-          {status === "error" && (
+          {status === 'error' && (
             <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
@@ -587,18 +534,13 @@ export default function OtaUpdateScreen() {
           )}
 
           {/* Current / Previous Version Highlights Section (Shown when Up to Date, Idle, Checking, or Error) */}
-          {(status === "no-update" ||
-            status === "idle" ||
-            status === "checking" ||
-            status === "error") && (
+          {(status === 'no-update' ||
+            status === 'idle' ||
+            status === 'checking' ||
+            status === 'error') && (
             <YStack gap="$2.5">
               <XStack items="center" justify="space-between" px="$1">
-                <Text
-                  fontSize="$2"
-                  fontWeight="800"
-                  color="$gray10"
-                  textTransform="uppercase"
-                >
+                <Text fontSize="$2" fontWeight="800" color="$gray10" textTransform="uppercase">
                   {storedVersion
                     ? `What's New in ${storedVersion}`
                     : `What's New in v${appVersion}`}
@@ -627,9 +569,7 @@ export default function OtaUpdateScreen() {
 
         {/* Bottom Action Buttons */}
         <YStack gap="$2" width="100%">
-          {(status === "idle" ||
-            status === "no-update" ||
-            status === "error") && (
+          {(status === 'idle' || status === 'no-update' || status === 'error') && (
             <Button
               theme="accent"
               size="$5"
@@ -638,13 +578,13 @@ export default function OtaUpdateScreen() {
               fontWeight="800"
               onPress={() => handleCheckUpdates(true)}
               icon={<RefreshCw size={18} color="white" />}
-              disabled={status === "checking"}
+              disabled={status === 'checking'}
             >
               Check for Updates
             </Button>
           )}
 
-          {status === "update-available" && (
+          {status === 'update-available' && (
             <Button
               theme="accent"
               size="$5"
@@ -658,7 +598,7 @@ export default function OtaUpdateScreen() {
             </Button>
           )}
 
-          {status === "ready" && (
+          {status === 'ready' && (
             <Button
               theme="accent"
               size="$5"
@@ -676,4 +616,3 @@ export default function OtaUpdateScreen() {
     </SafeFlex>
   );
 }
-

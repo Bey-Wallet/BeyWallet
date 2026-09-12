@@ -1,22 +1,31 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { YStack, XStack, Text, H1, Input, Button, Avatar } from "tamagui";
-import { Clipboard as ClipboardIcon, ScanLine, AlertCircle, ChevronDown, Sprout, ArrowUpDown, X, Zap } from "@tamagui/lucide-icons";
-import * as Clipboard from "expo-clipboard";
-import * as Haptics from "expo-haptics";
-import { Spinner } from "~/components/UI/Spinner";
-import { useWalletStore } from "~/store/walletStore";
-import { useSettingsStore } from "~/store/settingsStore";
-import { useQuery } from "@tanstack/react-query";
-import { bitcoinService } from "~/services/bitcoinService";
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from "~/services/currencyService";
-import { MintSelectorSheet } from "~/components/HomeMintSelector";
-import { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
-import { useRouter } from "expo-router";
-import { detectLightningInputType } from "~/services/lnurlService";
-import { NumericKeypad } from "~/components/UI/NumericKeypad";
-import { DestinationInputRow } from "~/components/UI/DestinationInputRow";
-import { MintBalanceRow } from "~/components/UI/MintBalanceRow";
-import { BouncyAmount } from "~/components/UI/BouncyAmount";
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { YStack, XStack, Text, H1, Input, Button, Avatar } from 'tamagui';
+import {
+  Clipboard as ClipboardIcon,
+  ScanLine,
+  AlertCircle,
+  ChevronDown,
+  Sprout,
+  ArrowUpDown,
+  X,
+  Zap,
+} from '@tamagui/lucide-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
+import { Spinner } from '~/components/UI/Spinner';
+import { useWalletStore } from '~/store/walletStore';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/bitcoinService';
+import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/currencyService';
+import { MintSelectorSheet } from '~/components/HomeMintSelector';
+import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { useRouter } from 'expo-router';
+import { detectLightningInputType } from '~/services/lnurlService';
+import { NumericKeypad } from '~/components/UI/NumericKeypad';
+import { DestinationInputRow } from '~/components/UI/DestinationInputRow';
+import { MintBalanceRow } from '~/components/UI/MintBalanceRow';
+import { BouncyAmount } from '~/components/UI/BouncyAmount';
 
 interface InvoiceStageProps {
   amount: string;
@@ -40,7 +49,15 @@ export function InvoiceStage({
   error,
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
-  const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, scannerResult, setScannerResult } = useWalletStore();
+  const {
+    activeMintUrl,
+    mints,
+    refreshMintList,
+    isInitializing,
+    isRefreshing,
+    scannerResult,
+    setScannerResult,
+  } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -52,7 +69,7 @@ export function InvoiceStage({
   useEffect(() => {
     if (scannerResult) {
       let cleaned = scannerResult.trim();
-      if (cleaned.toLowerCase().startsWith("lightning:")) {
+      if (cleaned.toLowerCase().startsWith('lightning:')) {
         cleaned = cleaned.slice(10);
       }
       setInvoice(cleaned);
@@ -67,30 +84,30 @@ export function InvoiceStage({
   });
 
   const currencySymbol = useMemo(() => {
-    return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
+    return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
   }, [secondaryCurrency]);
 
   const activeMint = useMemo(() => {
     if (!activeMintUrl) return null;
-    const normalizeUrl = (url: string) => url.replace(/\/$/, "");
-    return mints.find(m => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
+    const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+    return mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(activeMintUrl));
   }, [mints, activeMintUrl]);
 
   const displayName = useMemo(() => {
-    if (!activeMintUrl) return "Select Mint";
+    if (!activeMintUrl) return 'Select Mint';
     if (activeMint?.nickname) return activeMint.nickname;
     if (activeMint?.name) return activeMint.name;
-    return activeMintUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    return activeMintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }, [activeMint, activeMintUrl]);
 
   const isValidInvoice = useMemo(() => {
     if (!invoice.trim()) return false;
     const lower = invoice.trim().toLowerCase();
     return (
-      lower.startsWith("lnbc") ||
-      lower.startsWith("lntb") ||
-      lower.startsWith("lnurl") ||
-      lower.includes("@")
+      lower.startsWith('lnbc') ||
+      lower.startsWith('lntb') ||
+      lower.startsWith('lnurl') ||
+      lower.includes('@')
     );
   }, [invoice]);
 
@@ -108,7 +125,7 @@ export function InvoiceStage({
       const sats = Number(amount) || 0;
       return currencyService.formatValue(
         currencyService.convertSatsToCurrency(sats, btcData.price),
-        secondaryCurrency as CurrencyCode
+        secondaryCurrency as CurrencyCode,
       );
     } else {
       const sats = Number(amount) || 0;
@@ -207,13 +224,13 @@ export function InvoiceStage({
       const text = await Clipboard.getStringAsync();
       if (text) {
         let cleaned = text.trim();
-        if (cleaned.toLowerCase().startsWith("lightning:")) {
+        if (cleaned.toLowerCase().startsWith('lightning:')) {
           cleaned = cleaned.slice(10);
         }
         setInvoice(cleaned);
       }
     } catch (e) {
-      console.warn("[MeltScreen] Clipboard read failed:", e);
+      console.warn('[MeltScreen] Clipboard read failed:', e);
     } finally {
       setIsPasting(false);
     }
@@ -223,14 +240,14 @@ export function InvoiceStage({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/(modals)/scanner',
-      params: { returnTo: '/(modals)/melt' }
+      params: { returnTo: '/(modals)/melt' },
     });
   };
 
   const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setInvoice("");
-    setAmount("0");
+    setInvoice('');
+    setAmount('0');
   };
 
   const formattedDisplayValue = useMemo(() => {
@@ -264,21 +281,21 @@ export function InvoiceStage({
     <YStack flex={1} justify="space-between">
       <YStack items="center" gap="$1.5" width="100%">
         {/* Mint Selector & Balance Row */}
-          <MintBalanceRow
-                    activeMint={activeMint}
-                    activeMintUrl={activeMintUrl || undefined}
-                    displayName={displayName}
-                    balance={balance}
-                    isLoadingMint={isLoadingMint}
-                    isSelector={true}
-                    onPress={() => {
-                        refreshMintList();
-                        sheetRef.current?.present();
-                    }}
-                    showMax={true}
-                    onMaxPress={handleMax}
-                    maxDisabled={balance === 0}
-                />
+        <MintBalanceRow
+          activeMint={activeMint}
+          activeMintUrl={activeMintUrl || undefined}
+          displayName={displayName}
+          balance={balance}
+          isLoadingMint={isLoadingMint}
+          isSelector={true}
+          onPress={() => {
+            refreshMintList();
+            sheetRef.current?.present();
+          }}
+          showMax={true}
+          onMaxPress={handleMax}
+          maxDisabled={balance === 0}
+        />
 
         {/* Card Box Container */}
         <YStack
@@ -295,26 +312,26 @@ export function InvoiceStage({
           <YStack items="center" justify="center" py="$0" gap="$2" width="100%">
             {error || isOverBalance ? (
               <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
-                {error || "Exceeds available balance"}
+                {error || 'Exceeds available balance'}
               </Text>
             ) : (
               <Text color="$gray10" fontSize="$3" fontWeight="500">
-                {isBolt11 ? "Lightning Invoice Amount" : "How much to pay?"}
+                {isBolt11 ? 'Lightning Invoice Amount' : 'How much to pay?'}
               </Text>
             )}
 
-                        <BouncyAmount
-                            value={formattedDisplayValue}
-                            fontSize={dynamicFontSize}
-                            prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-                            suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
-                        />
+            <BouncyAmount
+              value={formattedDisplayValue}
+              fontSize={dynamicFontSize}
+              prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+            />
 
             <Button
               size="$3"
               rounded="$10"
               bg="$gray5"
-              pressStyle={{ scale: 0.96, bg: "$gray5" }}
+              pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
               disabled={isBolt11}
               opacity={isBolt11 ? 0.6 : 1}
@@ -326,15 +343,15 @@ export function InvoiceStage({
         </YStack>
         {/* Invoice / LN Address Input Row */}
         <DestinationInputRow
-            value={invoice}
-            onChangeText={setInvoice}
-            placeholder="lnbc... or lightning address"
-            onPaste={handlePaste}
-            onScan={handleOpenScanner}
-            defaultIcon={<Zap size="$1.5" color="$accent10" />}
-            isPasting={isPasting}
-            isError={invoice.trim().length > 0 && !isValidInvoice}
-            multiline={true}
+          value={invoice}
+          onChangeText={setInvoice}
+          placeholder="lnbc... or lightning address"
+          onPaste={handlePaste}
+          onScan={handleOpenScanner}
+          defaultIcon={<Zap size="$1.5" color="$accent10" />}
+          isPasting={isPasting}
+          isError={invoice.trim().length > 0 && !isValidInvoice}
+          multiline={true}
         />
       </YStack>
 
@@ -343,7 +360,7 @@ export function InvoiceStage({
         value={localInputValue}
         onValueChange={onKeypadChange}
         onConfirm={onContinue}
-        confirmLabel={isLoading ? "Processing..." : "Continue"}
+        confirmLabel={isLoading ? 'Processing...' : 'Continue'}
         confirmDisabled={!isValidAmount || isLoading}
         confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
       />

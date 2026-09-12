@@ -1,13 +1,11 @@
-import React, { useRef, useCallback } from "react";
-import { Button, XStack } from "tamagui";
-import { Scan, ArrowLeftRight, Shuffle, RefreshCcw, ScanLine } from "@tamagui/lucide-icons";
-import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
-import ArrowDownIcon from "~/components/icons/ArrowDown";
-import SendIcon from "~/components/icons/Send";
-import ActionSelectorSheet, {
-  ActionSelectorSheetRef,
-} from "~/components/ActionSelectorSheet";
+import React, { useRef, useCallback } from 'react';
+import { Button, XStack } from 'tamagui';
+import { Scan, ArrowLeftRight, Shuffle, RefreshCcw, ScanLine, Repeat } from '@tamagui/lucide-icons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import ArrowDownIcon from '~/components/icons/ArrowDown';
+import SendIcon from '~/components/icons/Send';
+import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/components/ActionSelectorSheet';
 
 export default React.memo(function ActionButtons() {
   const router = useRouter();
@@ -16,14 +14,14 @@ export default React.memo(function ActionButtons() {
   const handleScan = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
-      pathname: "/(modals)/scanner",
-      params: { returnTo: "/receive" },
+      pathname: '/(modals)/scanner',
+      params: { returnTo: '/receive' },
     });
   }, [router]);
 
   const handleSwap = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/swap");
+    router.push('/swap');
   }, [router]);
 
   const handleReceive = useCallback(() => {
@@ -36,62 +34,45 @@ export default React.memo(function ActionButtons() {
     actionSheetRef.current?.present('send');
   }, []);
 
-
   return (
     <>
-      <XStack gap="$2" justify="space-between">
-        {/* <Button
-          bg="$gray4"
-
+      <XStack gap="$3" items="center" justify="space-between" width="100%">
+        <Button
+          bg="$color2"
           flex={1}
-          height={60}
-          size="$7"
-          rounded="$5"
-          icon={<ScanLine size={28} strokeWidth={3} />}
+          height={58}
+          rounded="$6"
+          icon={<Scan size={28} strokeWidth={3} />}
           onPress={handleScan}
         />
         <Button
-          bg="$gray4"
-
+          bg="$color2"
           flex={1}
-          height={60}
-          size="$7"
-          rounded="$5"
-          icon={<RefreshCcw size={28} strokeWidth={2.5} />}
+          height={58} 
+          rounded="$6"
+          icon={<Repeat size={28} strokeWidth={2.5} />}
           onPress={handleSwap}
-        /> */}
+        />
         <Button
-          bg="$gray4"
-
+          bg="$color2"
           flex={1}
-          height={60}
-          size="$7"
-         fontSize="$5"
-          fontWeight="900"
-          rounded="$10"
-          // icon={<ArrowDownIcon size={32} />}
+          height={58}
+          rounded="$6"
+          icon={<ArrowDownIcon size={32} />}
           onPress={handleReceive}
-        >
-          Receive
-          </Button>
+        />
         <Button
           theme="accent"
           bg="$color1"
           flex={1}
-          height={60}
-          size="$7"
-         fontSize="$5"
-          fontWeight="900"
-          rounded="$10"
-          // icon={<SendIcon size={28} />}
+          height={58}
+          rounded="$6"
+          icon={<SendIcon size={30} />}
           onPress={handleSend}
-        >
-          Send
-          </Button>
+        />
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />
     </>
   );
 });
-

@@ -9,7 +9,7 @@ const pr = new PaymentRequest(
   100,
   'sat',
   ['https://mint.host/'],
-  'test-memo'
+  'test-memo',
 );
 
 const encoded = pr.toEncodedRequest();

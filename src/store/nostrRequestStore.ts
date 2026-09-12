@@ -33,7 +33,9 @@ interface NostrRequestStoreState {
   pendingRequests: NostrReceiveRequest[];
 
   // Actions
-  addRequest: (req: Omit<NostrReceiveRequest, 'state' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addRequest: (
+    req: Omit<NostrReceiveRequest, 'state' | 'createdAt' | 'updatedAt'>,
+  ) => Promise<void>;
   markReceived: (id: string) => Promise<void>;
   markCancelled: (id: string) => Promise<void>;
   loadPendingRequests: () => Promise<void>;
@@ -52,7 +54,9 @@ const TABLE = 'coco_cashu_nostr_receive_requests';
 function getDb(): SQLite.SQLiteDatabase {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getSharedDb } = require('../services/core/initService') as { getSharedDb: () => SQLite.SQLiteDatabase | null };
+    const { getSharedDb } = require('../services/core/initService') as {
+      getSharedDb: () => SQLite.SQLiteDatabase | null;
+    };
     const shared = getSharedDb();
     if (shared) return shared;
   } catch {
@@ -60,10 +64,11 @@ function getDb(): SQLite.SQLiteDatabase {
   }
   // Use the shared getDb from sqliteStorage to avoid multi-connection deadlocks
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { getDb: getSqliteDb } = require('./sqliteStorage') as { getDb: () => SQLite.SQLiteDatabase };
+  const { getDb: getSqliteDb } = require('./sqliteStorage') as {
+    getDb: () => SQLite.SQLiteDatabase;
+  };
   return getSqliteDb();
 }
-
 
 function rowToRequest(row: any): NostrReceiveRequest {
   return {
@@ -113,13 +118,13 @@ export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) =>
         updatedAt: now,
       };
 
-      set(s => {
-          // Deduplicate in-memory — DB handles it via INSERT OR REPLACE,
-          // but the Zustand state also needs to avoid duplicates.
-          if (s.pendingRequests.some(existing => existing.id === req.id)) {
-              return s;
-          }
-          return { pendingRequests: [newRequest, ...s.pendingRequests] };
+      set((s) => {
+        // Deduplicate in-memory — DB handles it via INSERT OR REPLACE,
+        // but the Zustand state also needs to avoid duplicates.
+        if (s.pendingRequests.some((existing) => existing.id === req.id)) {
+          return s;
+        }
+        return { pendingRequests: [newRequest, ...s.pendingRequests] };
       });
       console.log(`[NostrRequestStore] Request saved: ${req.id} (${req.amount} sats)`);
     } catch (err) {
@@ -138,8 +143,8 @@ export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) =>
         id,
       );
 
-      set(s => ({
-        pendingRequests: s.pendingRequests.map(r =>
+      set((s) => ({
+        pendingRequests: s.pendingRequests.map((r) =>
           r.id === id ? { ...r, state: 'received' as NostrRequestState, updatedAt: now } : r,
         ),
       }));
@@ -160,8 +165,8 @@ export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) =>
         id,
       );
 
-      set(s => ({
-        pendingRequests: s.pendingRequests.filter(r => r.id !== id),
+      set((s) => ({
+        pendingRequests: s.pendingRequests.filter((r) => r.id !== id),
       }));
     } catch (err) {
       console.error('[NostrRequestStore] Failed to cancel request:', err);
@@ -179,7 +184,10 @@ export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) =>
       console.log(`[NostrRequestStore] Loaded ${rows.length} pending requests`);
     } catch (err) {
       // Table may not exist yet (first load before migration runs) — safe to ignore
-      console.warn('[NostrRequestStore] Could not load pending requests (table may not exist yet):', err);
+      console.warn(
+        '[NostrRequestStore] Could not load pending requests (table may not exist yet):',
+        err,
+      );
       set({ pendingRequests: [] });
     }
   },

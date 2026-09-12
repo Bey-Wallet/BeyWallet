@@ -1,9 +1,26 @@
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, Button, Theme, useTheme, Separator, YGroup } from 'tamagui';
-import { Check, CheckCircle2, XCircle, Clock, Landmark, Zap, User, Smartphone, Wifi, Copy } from '@tamagui/lucide-icons';
+import {
+  Check,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Landmark,
+  Zap,
+  User,
+  Smartphone,
+  Wifi,
+  Copy,
+} from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
 import { Spinner } from './Spinner';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Image } from 'tamagui';
 import { useSettingsStore } from '~/store/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -45,7 +62,7 @@ function AnimatedBeam() {
     tx.value = withRepeat(
       withTiming(60, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
       -1,
-      false
+      false,
     );
   }, []);
 
@@ -54,10 +71,22 @@ function AnimatedBeam() {
   }));
 
   return (
-    <View width={60} height={4} borderColor="$borderColor" borderWidth={1} borderRadius="$2" overflow="hidden">
+    <View
+      width={60}
+      height={4}
+      borderColor="$borderColor"
+      borderWidth={1}
+      borderRadius="$2"
+      overflow="hidden"
+    >
       <Animated.View
         style={[
-          { width: 20, height: 4, backgroundColor: theme.accent10?.val || '#FFD700', borderRadius: 2 },
+          {
+            width: 20,
+            height: 4,
+            backgroundColor: theme.accent10?.val || '#FFD700',
+            borderRadius: 2,
+          },
           animatedStyle,
         ]}
       />
@@ -75,24 +104,24 @@ function RadarLoader() {
     scale1.value = withRepeat(
       withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
       -1,
-      false
+      false,
     );
     opacity1.value = withRepeat(
       withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
       -1,
-      false
+      false,
     );
 
     const timer = setTimeout(() => {
       scale2.value = withRepeat(
         withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
         -1,
-        false
+        false,
       );
       opacity2.value = withRepeat(
         withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
         -1,
-        false
+        false,
       );
     }, 1000);
 
@@ -113,13 +142,25 @@ function RadarLoader() {
     <View width={100} height={100} items="center" justify="center">
       <Animated.View
         style={[
-          { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFD700', position: 'absolute' },
+          {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: '#FFD700',
+            position: 'absolute',
+          },
           style1,
         ]}
       />
       <Animated.View
         style={[
-          { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFD700', position: 'absolute' },
+          {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: '#FFD700',
+            position: 'absolute',
+          },
           style2,
         ]}
       />
@@ -173,18 +214,21 @@ export function ProcessingSheet({
     if (!btcData?.price) return '...';
     return currencyService.formatValue(
       currencyService.convertSatsToCurrency(amount, btcData.price),
-      secondaryCurrency as CurrencyCode
+      secondaryCurrency as CurrencyCode,
     );
   }, [amount, btcData?.price, secondaryCurrency]);
 
   const isProcessing = status === 'processing';
   const isSuccess = status === 'success';
   const isError = status === 'error';
-  const isOfflineSaved = isError && errorMessage && (errorMessage.includes('Could not connect to mint') || errorMessage.includes('saved to your transaction history') || errorMessage.includes('saved in your history'));
+  const isOfflineSaved =
+    isError &&
+    errorMessage &&
+    (errorMessage.includes('Could not connect to mint') ||
+      errorMessage.includes('saved to your transaction history') ||
+      errorMessage.includes('saved in your history'));
 
-  const mintDomain = mintUrl
-    ? mintUrl.replace(/^https?:\/\//, '').split('/')[0]
-    : 'Unknown';
+  const mintDomain = mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown';
 
   const truncate = (s?: string) => {
     if (!s) return 'Unknown';
@@ -194,21 +238,36 @@ export function ProcessingSheet({
   };
 
   return (
-    <Theme inverse >
+    <Theme inverse>
       <AppBottomSheet ref={sheetRef} onClose={onClose} enablePanDownToClose={!isProcessing}>
         <YStack items="center" py="$2" px="$3" gap="$3">
-
           {/* ── Processing State UI ────────────────────────────────────── */}
           {isProcessing && (
             <YStack items="center" gap="$4" py="$6" width="100%">
               {variant === 'standard' && <Spinner size="large" color="$color1" />}
               {variant === 'nostr' && (
                 <XStack items="center" gap="$3">
-                  <View w={48} h={48} borderRadius={5} bg="$purple10" items="center" justify="center">
+                  <View
+                    w={48}
+                    h={48}
+                    borderRadius={5}
+                    bg="$purple10"
+                    items="center"
+                    justify="center"
+                  >
                     <Image source={nostrIconWhite} width={40} height={40} resizeMode="contain" />
                   </View>
                   <AnimatedBeam />
-                  <View w={40} h={40} borderRadius={5} bg="$gray3" items="center" justify="center" bw={1} bc="$gray6">
+                  <View
+                    w={40}
+                    h={40}
+                    borderRadius={5}
+                    bg="$gray3"
+                    items="center"
+                    justify="center"
+                    bw={1}
+                    bc="$gray6"
+                  >
                     <User size={24} color="$color" />
                   </View>
                 </XStack>
@@ -218,7 +277,7 @@ export function ProcessingSheet({
               <Text fontSize="$6" fontWeight="700" color="$color1">
                 {title || 'Processing...'}
               </Text>
-              
+
               {detail && (
                 <Text fontSize="$4" color="$gray10" fontWeight="500" textAlign="center" px="$4">
                   {detail}
@@ -233,7 +292,7 @@ export function ProcessingSheet({
               {/* Amount Display */}
               {amount !== undefined && amount > 0 && (
                 <YStack gap="$2" py="$4" items="center" justify="center">
-                  <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+                  <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
                     {currencyService.formatSats(amount)}
                   </Text>
                   <Text color="$accent5" fontWeight="600" fontSize={16}>
@@ -261,7 +320,14 @@ export function ProcessingSheet({
 
               {/* Description */}
               {detail && (
-                <Text color="$gray10" fontSize="$4" textAlign="center" px="$4" py="$1" lineHeight={20}>
+                <Text
+                  color="$gray10"
+                  fontSize="$4"
+                  textAlign="center"
+                  px="$4"
+                  py="$1"
+                  lineHeight={20}
+                >
                   {detail}
                 </Text>
               )}
@@ -270,14 +336,35 @@ export function ProcessingSheet({
               {mintUrl && (
                 <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$4">
                   <View p="$3" px="$4">
-                    <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+                    <Text fontSize="$3" fontWeight="700" color="$gray12">
+                      Details
+                    </Text>
                   </View>
                   <Separator borderColor="$borderColor" opacity={0.3} />
                   <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                    <DetailRow icon={<User size={14} color="$gray10" />} label={direction === 'send' ? "To" : "From"} value={truncate(recipient)} />
-                    <DetailRow icon={<Landmark size={14} color="$gray10" />} label="Mint" value={mintDomain} />
-                    <DetailRow icon={<Clock size={14} color="$gray10" />} label="Time" value={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                    <DetailRow icon={<Zap size={14} color="$gray10" />} label="Type" value={type === 'p2pk' ? "P2PK" : "Standard"} />
+                    <DetailRow
+                      icon={<User size={14} color="$gray10" />}
+                      label={direction === 'send' ? 'To' : 'From'}
+                      value={truncate(recipient)}
+                    />
+                    <DetailRow
+                      icon={<Landmark size={14} color="$gray10" />}
+                      label="Mint"
+                      value={mintDomain}
+                    />
+                    <DetailRow
+                      icon={<Clock size={14} color="$gray10" />}
+                      label="Time"
+                      value={new Date().toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    />
+                    <DetailRow
+                      icon={<Zap size={14} color="$gray10" />}
+                      label="Type"
+                      value={type === 'p2pk' ? 'P2PK' : 'Standard'}
+                    />
                   </YGroup>
                 </YStack>
               )}
@@ -319,7 +406,7 @@ export function ProcessingSheet({
                   width={80}
                   height={80}
                   rounded="$10"
-                  bg={isOfflineSaved ? "$orange4" : "$red4"}
+                  bg={isOfflineSaved ? '$orange4' : '$red4'}
                   items="center"
                   justify="center"
                 >
@@ -331,7 +418,7 @@ export function ProcessingSheet({
                 </YStack>
                 <YStack items="center" gap="$1" py="$2">
                   <Text fontSize="$6" fontWeight="900" color="$color">
-                    {isOfflineSaved ? "Received Offline" : "Payment Failed"}
+                    {isOfflineSaved ? 'Received Offline' : 'Payment Failed'}
                   </Text>
                   <Text color="$gray10" fontSize="$4" textAlign="center" px="$4" lineHeight={20}>
                     {errorMessage || 'An error occurred during transaction processing.'}
@@ -384,21 +471,36 @@ export function ProcessingSheet({
               </YStack>
             </YStack>
           )}
-
         </YStack>
       </AppBottomSheet>
     </Theme>
   );
 }
 
-function DetailRow({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
+function DetailRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <XStack justify="space-between" items="center" py="$3" px="$4">
       <XStack gap="$2" items="center">
         {icon}
-        <Text color="$gray10" fontSize="$3" fontWeight="600">{label}</Text>
+        <Text color="$gray10" fontSize="$3" fontWeight="600">
+          {label}
+        </Text>
       </XStack>
-      <Text color="$color" fontSize="$3" fontWeight="800" numberOfLines={1} style={{ maxWidth: 180 }}>
+      <Text
+        color="$color"
+        fontSize="$3"
+        fontWeight="800"
+        numberOfLines={1}
+        style={{ maxWidth: 180 }}
+      >
         {value}
       </Text>
     </XStack>

@@ -1,10 +1,10 @@
-import React from "react";
-import { YStack, XStack, Text, Button, H6, View } from "tamagui";
-import { AtSign, X } from "@tamagui/lucide-icons";
-import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
-import { useSettingsStore } from "~/store/settingsStore";
-import { useNip05Lookup } from "~/hooks/useNip05Lookup";
+import React from 'react';
+import { YStack, XStack, Text, Button, H6, View } from 'tamagui';
+import { AtSign, X } from '@tamagui/lucide-icons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useSettingsStore } from '~/store/settingsStore';
+import { useNip05Lookup } from '~/hooks/useNip05Lookup';
 
 export default function ClaimUsernameCard() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export default function ClaimUsernameCard() {
 
   const handleNavigate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push("/(modals)/nostr-username");
+    router.push('/(modals)/nostr-username');
   };
 
   return (

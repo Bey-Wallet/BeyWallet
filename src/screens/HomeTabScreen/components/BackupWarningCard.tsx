@@ -1,10 +1,10 @@
-import React from "react";
-import { YStack, XStack, Text, Button, H6, View } from "tamagui";
-import { AlertTriangle, X } from "@tamagui/lucide-icons";
-import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
-import { useSettingsStore } from "~/store/settingsStore";
-import { biometricService } from "~/services/biometricService";
+import React from 'react';
+import { YStack, XStack, Text, Button, H6, View } from 'tamagui';
+import { AlertTriangle, X } from '@tamagui/lucide-icons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useSettingsStore } from '~/store/settingsStore';
+import { biometricService } from '~/services/biometricService';
 
 export default function BackupWarningCard() {
   const router = useRouter();
@@ -17,9 +17,7 @@ export default function BackupWarningCard() {
   }
 
   // Check if dismissed in the last 7 days (7 * 24 * 60 * 60 * 1000 ms)
-  const isDismissed =
-    backupDismissedAt &&
-    Date.now() - backupDismissedAt < 7 * 24 * 60 * 60 * 1000;
+  const isDismissed = backupDismissedAt && Date.now() - backupDismissedAt < 7 * 24 * 60 * 60 * 1000;
 
   if (isDismissed) {
     return null;
@@ -37,7 +35,7 @@ export default function BackupWarningCard() {
     const authed = await biometricService.authenticateAsync('Authenticate to backup seed phrase');
     if (authed) {
       await setBackupDismissedAt(Date.now());
-      router.push("/(modals)/backup-seed");
+      router.push('/(modals)/backup-seed');
     }
   };
 

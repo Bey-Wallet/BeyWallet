@@ -21,14 +21,6 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/3d1a1d52-5cf9-4861-ae48-055f3901e8d0" />
 <img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/c0c4be99-24c1-4aa7-91b6-fae384ab6ac3" />
 
-
-
-
-
-  
- 
-
-
 </div>
 
 ---
@@ -36,50 +28,56 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 ## ✨ Features
 
 ### 💰 Cashu (Ecash) & Bitcoin
-*   **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
-*   **On-Chain Bitcoin**: Fund your wallet via Bitcoin addresses and melt ecash to pay any on-chain transaction directly.
-*   **Mint Management**: Add, trust, and monitor multiple community mints from a central dashboard.
-*   **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, optimized automatically for various coin/proof subsets.
-*   **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
+
+- **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
+- **On-Chain Bitcoin**: Fund your wallet via Bitcoin addresses and melt ecash to pay any on-chain transaction directly.
+- **Mint Management**: Add, trust, and monitor multiple community mints from a central dashboard.
+- **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, optimized automatically for various coin/proof subsets.
+- **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
 
 ### 🆔 Nostr Integration
-*   **Built-in Identity**: Generate your `npub` directly from your wallet seed and claim your free `@bey.cash` NIP-05 identifier.
-*   **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK) for ultimate security.
-*   **Direct Messages (DMs)**: Send, receive, and **request** Ecash instantly via encrypted Nostr Direct Messages (NIP-04/NIP-17). Payments arrive and are detected automatically in the background.
-*   **Contact Management**: Built-in address book to save and resolve your friends' Npubs and aliases.
+
+- **Built-in Identity**: Generate your `npub` directly from your wallet seed and claim your free `@bey.cash` NIP-05 identifier.
+- **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK) for ultimate security.
+- **Direct Messages (DMs)**: Send, receive, and **request** Ecash instantly via encrypted Nostr Direct Messages (NIP-04/NIP-17). Payments arrive and are detected automatically in the background.
+- **Contact Management**: Built-in address book to save and resolve your friends' Npubs and aliases.
 
 ### 🛡️ Privacy & Security
-*   **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.
-*   **Secure Enclave**: Your recovery phrase and private keys are protected by hardware-level security.
-*   **Biometric Guard**: Face ID, Touch ID, or Passcode protection for every sensitive operation.
-*   **Privacy Mode**: Long-press balance to mask/unmask your funds in public.
-*   **Custom display unit**: Configurable options to show SATS, local FIAT, or enable the ₿ symbol mode.
+
+- **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.
+- **Secure Enclave**: Your recovery phrase and private keys are protected by hardware-level security.
+- **Biometric Guard**: Face ID, Touch ID, or Passcode protection for every sensitive operation.
+- **Privacy Mode**: Long-press balance to mask/unmask your funds in public.
+- **Custom display unit**: Configurable options to show SATS, local FIAT, or enable the ₿ symbol mode.
 
 ### 💾 Reliability & Optimization
-*   **Deterministic Recovery**: Restore your entire wallet balance across all mints with just 12 words.
-*   **Optimize Wallet**: Consolidate fragmented ecash proofs to optimize wallet speed and transaction compilation.
-*   **Smart Backups**: Export and import complete wallet state via encrypted `.bey` files.
+
+- **Deterministic Recovery**: Restore your entire wallet balance across all mints with just 12 words.
+- **Optimize Wallet**: Consolidate fragmented ecash proofs to optimize wallet speed and transaction compilation.
+- **Smart Backups**: Export and import complete wallet state via encrypted `.bey` files.
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Engineering**: [Expo](https://expo.dev/) & [React Native](https://reactnative.dev/)
-*   **Design System**: [Tamagui](https://tamagui.dev/) (Dynamic, type-safe styles)
-*   **Logic**: [Zustand](https://docs.pmnd.rs/zustand/) & [TanStack Query](https://tanstack.com/query/latest)
-*   **Storage**: [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
-*   **Core Protocols**: `cashu-ts`, `nostr-tools`
+- **Engineering**: [Expo](https://expo.dev/) & [React Native](https://reactnative.dev/)
+- **Design System**: [Tamagui](https://tamagui.dev/) (Dynamic, type-safe styles)
+- **Logic**: [Zustand](https://docs.pmnd.rs/zustand/) & [TanStack Query](https://tanstack.com/query/latest)
+- **Storage**: [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
+- **Core Protocols**: `cashu-ts`, `nostr-tools`
 
 ---
 
 ## 🏗️ Development
 
 ### Prerequisites
-*   Node.js & Yarn
-*   [Expo CLI](https://docs.expo.dev/get-started/installation/)
-*   [EAS CLI](https://docs.expo.dev/eas/) (`npm install -g eas-cli`)
+
+- Node.js & Yarn
+- [Expo CLI](https://docs.expo.dev/get-started/installation/)
+- [EAS CLI](https://docs.expo.dev/eas/) (`npm install -g eas-cli`)
 
 ### Quick Start
+
 1.  **Clone the repo**:
     ```bash
     git clone https://github.com/Bey-Wallet/BeyWallet.git
@@ -95,7 +93,9 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
     ```
 
 ### Building for Production
+
 Bey Wallet uses EAS for builds. To build the production APK:
+
 ```bash
 eas build -p android --profile production
 ```

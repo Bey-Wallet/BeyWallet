@@ -54,7 +54,7 @@ export function PaymentStatusOverlay({
   onViewDetails,
 }: PaymentStatusOverlayProps) {
   useEffect(() => {
-    // We only need basic fade/scale if we still used Modal, 
+    // We only need basic fade/scale if we still used Modal,
     // but now everything is in ProcessingSheet (AppBottomSheet).
     // AppBottomSheet handles its own animations.
   }, [visible, state]);
@@ -66,9 +66,7 @@ export function PaymentStatusOverlay({
     return s;
   };
 
-  const mintDomain = mintUrl
-    ? mintUrl.replace(/^https?:\/\//, '').split('/')[0]
-    : 'Unknown';
+  const mintDomain = mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown';
 
   const isSending = state === 'sending' || state === 'receiving';
   const isSuccess = state === 'success';
@@ -85,16 +83,18 @@ export function PaymentStatusOverlay({
       status={status}
       title={dirLabel}
       amount={amount}
-      detail={recipient ? (
-        <XStack items="center" gap="$1.5">
-          <Text fontSize="$4" color="$color10" fontWeight="600">
-            {toFromLabel}
-          </Text>
-          <Text fontSize="$4" color="$color12" fontWeight="800">
-            {truncate(recipient)}
-          </Text>
-        </XStack>
-      ) : undefined}
+      detail={
+        recipient ? (
+          <XStack items="center" gap="$1.5">
+            <Text fontSize="$4" color="$color10" fontWeight="600">
+              {toFromLabel}
+            </Text>
+            <Text fontSize="$4" color="$color12" fontWeight="800">
+              {truncate(recipient)}
+            </Text>
+          </XStack>
+        ) : undefined
+      }
       errorMessage={errorMessage}
       onClose={onDismiss}
       onRetry={onRetry}

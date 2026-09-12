@@ -1,15 +1,11 @@
-import React, { useState } from "react";
-import { LayoutChangeEvent, Pressable } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { XStack, YStack, useTheme } from "tamagui";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import Animated, {
-  useAnimatedStyle,
-  useDerivedValue,
-  withTiming,
-} from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
-import { useAppTheme } from "~/context/ThemeContext";
+import React, { useState } from 'react';
+import { LayoutChangeEvent, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack, useTheme } from 'tamagui';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import Animated, { useAnimatedStyle, useDerivedValue, withTiming } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { useAppTheme } from '~/context/ThemeContext';
 
 const MARGIN = 6;
 const ANIMATION_DURATION = 200;
@@ -56,18 +52,13 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
       pb={insets.bottom}
     >
-      <XStack
-        height={65}
-        alignItems="center"
-        justifyContent="space-between"
-        onLayout={onLayout}
-      >
+      <XStack height={65} alignItems="center" justifyContent="space-between" onLayout={onLayout}>
         {/* Animated sliding background indicator */}
         {containerWidth > 0 && (
           <Animated.View
             style={[
               {
-                position: "absolute",
+                position: 'absolute',
                 left: 0,
                 top: MARGIN,
                 bottom: MARGIN,
@@ -86,7 +77,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
           const handleTabPress = () => {
             const event = navigation.emit({
-              type: "tabPress",
+              type: 'tabPress',
               target: route.key,
               canPreventDefault: true,
             });
@@ -100,15 +91,15 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             });
           };
 
-          const activeColor = theme.color?.val || "#000000";
-          const inactiveColor = theme.color4?.val || "#888888";
+          const activeColor = theme.color?.val || '#000000';
+          const inactiveColor = theme.color4?.val || '#888888';
 
           const icon = options.tabBarIcon
             ? options.tabBarIcon({
-              focused: isFocused,
-              color: isFocused ? activeColor : inactiveColor,
-              size: 24,
-            })
+                focused: isFocused,
+                color: isFocused ? activeColor : inactiveColor,
+                size: 24,
+              })
             : null;
 
           return (
@@ -117,9 +108,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
               onPress={handleTabPress}
               style={{
                 flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                height: "100%",
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
               }}
             >
               {icon}

@@ -1,5 +1,5 @@
-import { HomeTabScreen } from '~/screens/HomeTabScreen'
+import { HomeTabScreen } from '~/screens/HomeTabScreen';
 
 export default function TabOne() {
-  return <HomeTabScreen />
+  return <HomeTabScreen />;
 }

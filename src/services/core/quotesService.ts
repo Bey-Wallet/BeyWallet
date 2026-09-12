@@ -7,626 +7,728 @@
 
 import { initService } from './initService';
 import { purgeCorruptedKeysets } from './initService';
-import { Wallet, Mint as CashuMint, type MintQuoteResponse, type MeltQuoteResponse } from '@cashu/cashu-ts';
+import {
+  Wallet,
+  Mint as CashuMint,
+  type MintQuoteResponse,
+  type MeltQuoteResponse,
+} from '@cashu/cashu-ts';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Buffer } from 'buffer';
 
 function mgr() {
-    return initService.getManager();
+  return initService.getManager();
 }
 
-async function withKeysetRecovery<T>(mintUrl: string, fn: () => Promise<T>, retryCount: number = 0): Promise<T> {
-    try {
-        return await fn();
-    } catch (err: any) {
-        const msg: string = err?.message ?? '';
-        if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
-            if (retryCount >= 1) {
-                console.error(`[QuotesService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
-                throw err;
-            }
-
-            const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
-            const keysetId = idMatch?.[1];
-            console.warn(`[QuotesService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`);
-            
-            // Purge corrupted keyset from DB
-            await purgeCorruptedKeysets(mintUrl, keysetId);
-            
-            // Re-initialize the Manager to clear in-memory cache and force re-fetch
-            await initService.reinitFast();
-            
-            // Retry the operation
-            return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
-        }
+async function withKeysetRecovery<T>(
+  mintUrl: string,
+  fn: () => Promise<T>,
+  retryCount: number = 0,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: any) {
+    const msg: string = err?.message ?? '';
+    if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
+      if (retryCount >= 1) {
+        console.error(`[QuotesService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
         throw err;
-    }
-}
+      }
 
+      const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
+      const keysetId = idMatch?.[1];
+      console.warn(
+        `[QuotesService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`,
+      );
+
+      // Purge corrupted keyset from DB
+      await purgeCorruptedKeysets(mintUrl, keysetId);
+
+      // Re-initialize the Manager to clear in-memory cache and force re-fetch
+      await initService.reinitFast();
+
+      // Retry the operation
+      return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
+    }
+    throw err;
+  }
+}
 
 export const quotesService = {
-    // ─── Minting (Lightning → Ecash) ─────────────────────────
+  // ─── Minting (Lightning → Ecash) ─────────────────────────
 
-    /**
-     * Create a mint quote — returns a Lightning invoice to pay.
-     *
-     * @param mintUrl - The mint to create quote from
-     * @param amount - Amount in sats to mint
-     * @returns MintQuoteResponse with `quote` (id) and Lightning `request` (invoice)
-     */
-    createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
-        console.log(`[QuotesService] Creating mint quote: ${amount} sats from ${mintUrl}`);
-        return withKeysetRecovery(mintUrl, async () => {
-            const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
-            console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
-            return quote;
-        });
-    },
+  /**
+   * Create a mint quote — returns a Lightning invoice to pay.
+   *
+   * @param mintUrl - The mint to create quote from
+   * @param amount - Amount in sats to mint
+   * @returns MintQuoteResponse with `quote` (id) and Lightning `request` (invoice)
+   */
+  createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
+    console.log(`[QuotesService] Creating mint quote: ${amount} sats from ${mintUrl}`);
+    return withKeysetRecovery(mintUrl, async () => {
+      const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
+      console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
+      return quote;
+    });
+  },
 
+  /**
+   * Manually redeem a paid mint quote to get ecash.
+   * Note: With watchers/processors enabled, this happens automatically.
+   */
+  redeemMintQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
+    console.log(`[QuotesService] Redeeming mint quote: ${quoteId}`);
+    await mgr().quotes.redeemMintQuote(mintUrl, quoteId);
+    console.log('[QuotesService] Mint quote redeemed');
+  },
 
-    /**
-     * Manually redeem a paid mint quote to get ecash.
-     * Note: With watchers/processors enabled, this happens automatically.
-     */
-    redeemMintQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
-        console.log(`[QuotesService] Redeeming mint quote: ${quoteId}`);
-        await mgr().quotes.redeemMintQuote(mintUrl, quoteId);
-        console.log('[QuotesService] Mint quote redeemed');
-    },
+  /**
+   * Add existing mint quotes (e.g. imported from another wallet).
+   */
+  addMintQuotes: async (
+    mintUrl: string,
+    quotes: MintQuoteResponse[],
+  ): Promise<{ added: string[]; skipped: string[] }> => {
+    return mgr().quotes.addMintQuote(mintUrl, quotes);
+  },
 
-    /**
-     * Add existing mint quotes (e.g. imported from another wallet).
-     */
-    addMintQuotes: async (
-        mintUrl: string,
-        quotes: MintQuoteResponse[]
-    ): Promise<{ added: string[]; skipped: string[] }> => {
-        return mgr().quotes.addMintQuote(mintUrl, quotes);
-    },
+  /**
+   * Requeue all PAID (but not yet ISSUED) quotes for processing.
+   */
+  requeuePaidQuotes: async (mintUrl?: string): Promise<{ requeued: string[] }> => {
+    return mgr().quotes.requeuePaidMintQuotes(mintUrl);
+  },
 
-    /**
-     * Requeue all PAID (but not yet ISSUED) quotes for processing.
-     */
-    requeuePaidQuotes: async (mintUrl?: string): Promise<{ requeued: string[] }> => {
-        return mgr().quotes.requeuePaidMintQuotes(mintUrl);
-    },
+  // ─── Melting (Ecash → Lightning) ──────────────────────────
 
-    // ─── Melting (Ecash → Lightning) ──────────────────────────
+  /**
+   * Create a melt quote — estimates cost to pay a Lightning invoice.
+   * For backward compat, uses direct createMeltQuote.
+   *
+   * @param mintUrl - The mint to melt from
+   * @param invoice - Lightning invoice (bolt11) to pay
+   * @returns MeltQuoteResponse with amount, fee_reserve, and quote id
+   */
+  createMeltQuote: async (mintUrl: string, invoice: string): Promise<MeltQuoteResponse> => {
+    console.log(`[QuotesService] Creating melt quote from ${mintUrl}`);
+    return withKeysetRecovery(mintUrl, async () => {
+      const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
+      console.log(`[QuotesService] ✅ Melt quote created: ${quote.quote}`);
+      return quote;
+    });
+  },
 
-    /**
-     * Create a melt quote — estimates cost to pay a Lightning invoice.
-     * For backward compat, uses direct createMeltQuote.
-     *
-     * @param mintUrl - The mint to melt from
-     * @param invoice - Lightning invoice (bolt11) to pay
-     * @returns MeltQuoteResponse with amount, fee_reserve, and quote id
-     */
-    createMeltQuote: async (mintUrl: string, invoice: string): Promise<MeltQuoteResponse> => {
-        console.log(`[QuotesService] Creating melt quote from ${mintUrl}`);
-        return withKeysetRecovery(mintUrl, async () => {
-            const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
-            console.log(`[QuotesService] ✅ Melt quote created: ${quote.quote}`);
-            return quote;
-        });
-    },
+  /**
+   * Prepare a melt operation (two-step flow — step 1).
+   * Reserves proofs and returns an operation that can be executed or rolled back.
+   *
+   * @param mintUrl - The mint to melt from
+   * @param invoice - Lightning invoice to pay
+   * @returns Operation with id, quoteId, amount, fee_reserve
+   */
+  prepareMelt: async (mintUrl: string, invoice: string) => {
+    console.log(`[QuotesService] Preparing melt from ${mintUrl}`);
+    return withKeysetRecovery(mintUrl, async () => {
+      const operation = await mgr().quotes.prepareMeltBolt11(mintUrl, invoice);
+      console.log(`[QuotesService] ✅ Melt prepared: ${operation.id}`);
+      return operation;
+    });
+  },
 
+  /**
+   * Execute a prepared melt operation (two-step flow — step 2).
+   *
+   * @param operationId - The operation ID from prepareMelt
+   */
+  executeMelt: async (operationId: string): Promise<void> => {
+    console.log(`[QuotesService] Executing melt: ${operationId}`);
+    await mgr().quotes.executeMelt(operationId);
+    console.log(`[QuotesService] ✅ Melt executed: ${operationId}`);
+  },
 
-    /**
-     * Prepare a melt operation (two-step flow — step 1).
-     * Reserves proofs and returns an operation that can be executed or rolled back.
-     *
-     * @param mintUrl - The mint to melt from
-     * @param invoice - Lightning invoice to pay
-     * @returns Operation with id, quoteId, amount, fee_reserve
-     */
-    prepareMelt: async (mintUrl: string, invoice: string) => {
-        console.log(`[QuotesService] Preparing melt from ${mintUrl}`);
-        return withKeysetRecovery(mintUrl, async () => {
-            const operation = await mgr().quotes.prepareMeltBolt11(mintUrl, invoice);
-            console.log(`[QuotesService] ✅ Melt prepared: ${operation.id}`);
-            return operation;
-        });
-    },
+  /**
+   * Pay a Lightning invoice using ecash (melt).
+   * Legacy single-step method — wraps prepare + execute.
+   *
+   * @param mintUrl - The mint to melt from
+   * @param quoteId - The quote ID to pay (legacy)
+   */
+  payMeltQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
+    console.log(`[QuotesService] Paying melt quote: ${quoteId}`);
+    await mgr().quotes.payMeltQuote(mintUrl, quoteId);
+    console.log('[QuotesService] Melt quote paid');
+  },
 
+  // ─── NUT-17 WebSocket Subscriptions (wss://) ───────────────
 
-    /**
-     * Execute a prepared melt operation (two-step flow — step 2).
-     *
-     * @param operationId - The operation ID from prepareMelt
-     */
-    executeMelt: async (operationId: string): Promise<void> => {
-        console.log(`[QuotesService] Executing melt: ${operationId}`);
-        await mgr().quotes.executeMelt(operationId);
-        console.log(`[QuotesService] ✅ Melt executed: ${operationId}`);
-    },
+  /**
+   * Subscribe to real-time mint quote status updates via NUT-17 WebSocket.
+   * Replaces HTTP polling for instant payment detection and lower battery consumption.
+   *
+   * @param mintUrl - The mint URL
+   * @param quoteId - The mint quote ID to monitor
+   * @param onPaid - Callback triggered when invoice payment is confirmed
+   * @returns Unsubscribe function to close WebSocket connection
+   */
+  subscribeMintQuoteWss: (mintUrl: string, quoteId: string, onPaid: () => void): (() => void) => {
+    let ws: WebSocket | null = null;
+    let isClosed = false;
 
-    /**
-     * Pay a Lightning invoice using ecash (melt).
-     * Legacy single-step method — wraps prepare + execute.
-     *
-     * @param mintUrl - The mint to melt from
-     * @param quoteId - The quote ID to pay (legacy)
-     */
-    payMeltQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
-        console.log(`[QuotesService] Paying melt quote: ${quoteId}`);
-        await mgr().quotes.payMeltQuote(mintUrl, quoteId);
-        console.log('[QuotesService] Melt quote paid');
-    },
+    try {
+      const wsUrl = mintUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/v1/ws';
+      console.log(
+        `[QuotesService] 📡 Connecting NUT-17 WebSocket for quote ${quoteId} to ${wsUrl}`,
+      );
+      ws = new WebSocket(wsUrl);
 
-    // ─── NUT-17 WebSocket Subscriptions (wss://) ───────────────
+      ws.onopen = () => {
+        if (isClosed) return;
+        ws?.send(
+          JSON.stringify({
+            kind: 'subscribe',
+            subId: `sub_mint_${quoteId.slice(0, 8)}`,
+            params: { kind: 'bolt11_mint_quote', filters: [quoteId] },
+          }),
+        );
+      };
 
-    /**
-     * Subscribe to real-time mint quote status updates via NUT-17 WebSocket.
-     * Replaces HTTP polling for instant payment detection and lower battery consumption.
-     *
-     * @param mintUrl - The mint URL
-     * @param quoteId - The mint quote ID to monitor
-     * @param onPaid - Callback triggered when invoice payment is confirmed
-     * @returns Unsubscribe function to close WebSocket connection
-     */
-    subscribeMintQuoteWss: (mintUrl: string, quoteId: string, onPaid: () => void): (() => void) => {
-        let ws: WebSocket | null = null;
-        let isClosed = false;
-
+      ws.onmessage = (event) => {
+        if (isClosed) return;
         try {
-            const wsUrl = mintUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/v1/ws';
-            console.log(`[QuotesService] 📡 Connecting NUT-17 WebSocket for quote ${quoteId} to ${wsUrl}`);
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                if (isClosed) return;
-                ws?.send(JSON.stringify({
-                    kind: 'subscribe',
-                    subId: `sub_mint_${quoteId.slice(0, 8)}`,
-                    params: { kind: 'bolt11_mint_quote', filters: [quoteId] }
-                }));
-            };
-
-            ws.onmessage = (event) => {
-                if (isClosed) return;
-                try {
-                    const data = JSON.parse(event.data);
-                    const payload = data.params ?? data;
-                    if ((payload.quote === quoteId || payload.id === quoteId) && (payload.state === 'PAID' || payload.state === 'ISSUED')) {
-                        console.log(`[QuotesService] ⚡ NUT-17 WSS: Mint Quote ${quoteId} is PAID!`);
-                        onPaid();
-                    }
-                } catch (e) {
-                    // Ignore JSON parse errors
-                }
-            };
-
-            ws.onerror = (err) => {
-                console.warn('[QuotesService] NUT-17 WSS error:', err);
-            };
+          const data = JSON.parse(event.data);
+          const payload = data.params ?? data;
+          if (
+            (payload.quote === quoteId || payload.id === quoteId) &&
+            (payload.state === 'PAID' || payload.state === 'ISSUED')
+          ) {
+            console.log(`[QuotesService] ⚡ NUT-17 WSS: Mint Quote ${quoteId} is PAID!`);
+            onPaid();
+          }
         } catch (e) {
-            console.warn('[QuotesService] NUT-17 WSS connection failed:', e);
+          // Ignore JSON parse errors
         }
+      };
 
-        return () => {
-            isClosed = true;
-            if (ws) {
-                try { ws.close(); } catch (e) {}
-            }
-        };
-    },
+      ws.onerror = (err) => {
+        console.warn('[QuotesService] NUT-17 WSS error:', err);
+      };
+    } catch (e) {
+      console.warn('[QuotesService] NUT-17 WSS connection failed:', e);
+    }
 
-    // ─── NUT-19 Mint-to-Mint & On-Chain Bitcoin Swaps ───────────
-
-    /**
-     * Perform an atomic direct Mint-to-Mint swap (NUT-19).
-     * Bypasses Lightning routing network fees if direct atomic swap endpoints are supported,
-     * otherwise falls back smoothly to optimized two-step Lightning swap.
-     */
-    swapMintToMint: async (sourceMintUrl: string, targetMintUrl: string, amount: number) => {
-        console.log(`[QuotesService] 🔄 Executing NUT-19 Mint-to-Mint swap: ${amount} sats from ${sourceMintUrl} -> ${targetMintUrl}`);
-        
-        // 1. Check for direct NUT-19 atomic swap capability on target mint
+    return () => {
+      isClosed = true;
+      if (ws) {
         try {
-            const targetInfo = await mgr().mint.getMintInfo(targetMintUrl).catch(() => null);
-            const supportsDirectSwap = (targetInfo as any)?.nuts?.['19']?.supported === true;
+          ws.close();
+        } catch (e) {}
+      }
+    };
+  },
 
-            if (supportsDirectSwap) {
-                console.log(`[QuotesService] ⚡ Direct NUT-19 atomic swap supported by ${targetMintUrl}`);
-                const res = await fetch(`${targetMintUrl.replace(/\/$/, '')}/v1/swap/mint`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_mint: sourceMintUrl, amount, unit: 'sat' })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    console.log(`[QuotesService] ✅ NUT-19 Direct Atomic Swap successful:`, data);
-                    return { type: 'atomic', data };
-                }
-            }
+  // ─── NUT-19 Mint-to-Mint & On-Chain Bitcoin Swaps ───────────
+
+  /**
+   * Perform an atomic direct Mint-to-Mint swap (NUT-19).
+   * Bypasses Lightning routing network fees if direct atomic swap endpoints are supported,
+   * otherwise falls back smoothly to optimized two-step Lightning swap.
+   */
+  swapMintToMint: async (sourceMintUrl: string, targetMintUrl: string, amount: number) => {
+    console.log(
+      `[QuotesService] 🔄 Executing NUT-19 Mint-to-Mint swap: ${amount} sats from ${sourceMintUrl} -> ${targetMintUrl}`,
+    );
+
+    // 1. Check for direct NUT-19 atomic swap capability on target mint
+    try {
+      const targetInfo = await mgr()
+        .mint.getMintInfo(targetMintUrl)
+        .catch(() => null);
+      const supportsDirectSwap = (targetInfo as any)?.nuts?.['19']?.supported === true;
+
+      if (supportsDirectSwap) {
+        console.log(`[QuotesService] ⚡ Direct NUT-19 atomic swap supported by ${targetMintUrl}`);
+        const res = await fetch(`${targetMintUrl.replace(/\/$/, '')}/v1/swap/mint`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_mint: sourceMintUrl, amount, unit: 'sat' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          console.log(`[QuotesService] ✅ NUT-19 Direct Atomic Swap successful:`, data);
+          return { type: 'atomic', data };
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[QuotesService] NUT-19 direct atomic swap attempt info check:`, e?.message);
+    }
+
+    // Helper: execute two-step Lightning swap between two mints (src -> dst)
+    const executeTwoStepSwap = async (srcUrl: string, dstUrl: string, swapAmount: number) => {
+      console.log(
+        `[QuotesService] ℹ️ Executing two-step Lightning swap route for ${srcUrl} -> ${dstUrl} (${swapAmount} sats)`,
+      );
+
+      let mintQuote: MintQuoteResponse;
+      try {
+        mintQuote = await mgr().quotes.createMintQuote(dstUrl, swapAmount);
+      } catch (err: any) {
+        throw new Error(
+          `Destination mint (${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}) failed to create deposit invoice: ${err?.message || 'Network error'}`,
+        );
+      }
+
+      const invoice = mintQuote.request;
+      const quoteId = (mintQuote as any).quoteId || mintQuote.quote;
+
+      let meltOp;
+      try {
+        meltOp = await mgr().quotes.prepareMeltBolt11(srcUrl, invoice);
+      } catch (err: any) {
+        console.error(`[QuotesService] Prepare melt failed on ${srcUrl}:`, err);
+        throw err;
+      }
+
+      let meltResult: any;
+      try {
+        meltResult = await mgr().quotes.executeMelt(meltOp.id);
+      } catch (err: any) {
+        console.error(`[QuotesService] Melt execution failed on ${srcUrl}:`, err);
+        throw err;
+      }
+
+      // Handle pending melt payment state
+      if (meltResult?.state === 'pending') {
+        const opId = meltResult.id || meltOp.id;
+        console.log(`[QuotesService] Melt payment pending (${opId}), waiting for settlement...`);
+        const maxWaitMs = 20000;
+        const pollIntervalMs = 2000;
+        const start = Date.now();
+        while (Date.now() - start < maxWaitMs) {
+          const decision = await (mgr().quotes as any).checkPendingMelt?.(opId).catch(() => null);
+          if (decision === 'finalize') break;
+          if (decision === 'rollback') {
+            throw new Error('Melt payment rolled back by mint');
+          }
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        }
+      }
+
+      // Retry redemption with exponential backoff — the Lightning payment
+      // succeeded, so the funds are held at the target mint.
+      let redemptionError: any;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await mgr().quotes.redeemMintQuote(dstUrl, quoteId);
+          redemptionError = null;
+          break;
         } catch (e: any) {
-            console.warn(`[QuotesService] NUT-19 direct atomic swap attempt info check:`, e?.message);
+          redemptionError = e;
+          if (attempt < 3) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+            console.warn(
+              `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
+                `retrying in ${delay}ms:`,
+              e?.message,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
         }
+      }
 
-        // Helper: execute two-step Lightning swap between two mints (src -> dst)
-        const executeTwoStepSwap = async (srcUrl: string, dstUrl: string, swapAmount: number) => {
-            console.log(`[QuotesService] ℹ️ Executing two-step Lightning swap route for ${srcUrl} -> ${dstUrl} (${swapAmount} sats)`);
-            
-            let mintQuote: MintQuoteResponse;
-            try {
-                mintQuote = await mgr().quotes.createMintQuote(dstUrl, swapAmount);
-            } catch (err: any) {
-                throw new Error(`Destination mint (${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}) failed to create deposit invoice: ${err?.message || 'Network error'}`);
-            }
+      if (redemptionError) {
+        throw new Error(
+          `Mint quote redemption failed after successful Lightning payment. ` +
+            `Your funds are held at ${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
+            `You can retry using quote ID: ${quoteId}. ` +
+            `Error: ${redemptionError?.message || 'Unknown error'}`,
+        );
+      }
 
-            const invoice = mintQuote.request;
-            const quoteId = (mintQuote as any).quoteId || mintQuote.quote;
+      return quoteId;
+    };
 
-            let meltOp;
-            try {
-                meltOp = await mgr().quotes.prepareMeltBolt11(srcUrl, invoice);
-            } catch (err: any) {
-                console.error(`[QuotesService] Prepare melt failed on ${srcUrl}:`, err);
-                throw err;
-            }
+    // Attempt direct 2-step Lightning swap
+    try {
+      const quoteId = await executeTwoStepSwap(sourceMintUrl, targetMintUrl, amount);
+      return { type: 'lightning', quoteId };
+    } catch (directErr: any) {
+      const msg = directErr?.message || '';
+      const lower = msg.toLowerCase();
+      const isRouteError =
+        lower.includes('http request failed') ||
+        lower.includes('no_route') ||
+        lower.includes('path error') ||
+        lower.includes('payment path not found') ||
+        lower.includes('could not route') ||
+        lower.includes('failed');
 
-            let meltResult: any;
-            try {
-                meltResult = await mgr().quotes.executeMelt(meltOp.id);
-            } catch (err: any) {
-                console.error(`[QuotesService] Melt execution failed on ${srcUrl}:`, err);
-                throw err;
-            }
-
-            // Handle pending melt payment state
-            if (meltResult?.state === 'pending') {
-                const opId = meltResult.id || meltOp.id;
-                console.log(`[QuotesService] Melt payment pending (${opId}), waiting for settlement...`);
-                const maxWaitMs = 20000;
-                const pollIntervalMs = 2000;
-                const start = Date.now();
-                while (Date.now() - start < maxWaitMs) {
-                    const decision = await (mgr().quotes as any).checkPendingMelt?.(opId).catch(() => null);
-                    if (decision === 'finalize') break;
-                    if (decision === 'rollback') {
-                        throw new Error('Melt payment rolled back by mint');
-                    }
-                    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-                }
-            }
-
-            // Retry redemption with exponential backoff — the Lightning payment
-            // succeeded, so the funds are held at the target mint.
-            let redemptionError: any;
-            for (let attempt = 1; attempt <= 3; attempt++) {
-                try {
-                    await mgr().quotes.redeemMintQuote(dstUrl, quoteId);
-                    redemptionError = null;
-                    break;
-                } catch (e: any) {
-                    redemptionError = e;
-                    if (attempt < 3) {
-                        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-                        console.warn(
-                            `[QuotesService] Redeem mint quote failed (attempt ${attempt}/3), ` +
-                            `retrying in ${delay}ms:`, e?.message
-                        );
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    }
-                }
-            }
-
-            if (redemptionError) {
-                throw new Error(
-                    `Mint quote redemption failed after successful Lightning payment. ` +
-                    `Your funds are held at ${dstUrl.replace(/^https?:\/\//, '').split('/')[0]}. ` +
-                    `You can retry using quote ID: ${quoteId}. ` +
-                    `Error: ${redemptionError?.message || 'Unknown error'}`
-                );
-            }
-
-            return quoteId;
-        };
-
-        // Attempt direct 2-step Lightning swap
+      // If direct route failed, try middleman routing via other trusted mints!
+      if (isRouteError) {
+        console.warn(
+          `[QuotesService] ⚠️ Direct route ${sourceMintUrl} -> ${targetMintUrl} failed. Attempting middleman routing...`,
+        );
         try {
-            const quoteId = await executeTwoStepSwap(sourceMintUrl, targetMintUrl, amount);
-            return { type: 'lightning', quoteId };
-        } catch (directErr: any) {
-            const msg = directErr?.message || '';
-            const lower = msg.toLowerCase();
-            const isRouteError = lower.includes('http request failed') || lower.includes('no_route') || lower.includes('path error') || lower.includes('payment path not found') || lower.includes('could not route') || lower.includes('failed');
+          const trustedMints = await mgr().mint.getAllTrustedMints();
+          const intermediaries = trustedMints
+            .map((m) => m.mintUrl)
+            .filter((url) => url !== sourceMintUrl && url !== targetMintUrl);
 
-            // If direct route failed, try middleman routing via other trusted mints!
-            if (isRouteError) {
-                console.warn(`[QuotesService] ⚠️ Direct route ${sourceMintUrl} -> ${targetMintUrl} failed. Attempting middleman routing...`);
-                try {
-                    const trustedMints = await mgr().mint.getAllTrustedMints();
-                    const intermediaries = trustedMints
-                        .map(m => m.mintUrl)
-                        .filter(url => url !== sourceMintUrl && url !== targetMintUrl);
-
-                    for (const intermediaryUrl of intermediaries) {
-                        try {
-                            console.log(`[QuotesService] 🔀 Attempting middleman route via: ${intermediaryUrl}`);
-                            // Hop 1: source -> intermediary
-                            await executeTwoStepSwap(sourceMintUrl, intermediaryUrl, amount);
-                            // Hop 2: intermediary -> target
-                            const quoteId = await executeTwoStepSwap(intermediaryUrl, targetMintUrl, amount);
-                            console.log(`[QuotesService] ✅ Middleman swap successful via ${intermediaryUrl}`);
-                            return { type: 'middleman', quoteId, via: intermediaryUrl };
-                        } catch (midErr: any) {
-                            console.warn(`[QuotesService] Middleman route via ${intermediaryUrl} failed:`, midErr?.message);
-                        }
-                    }
-                } catch (mErr) {
-                    console.warn(`[QuotesService] Failed to query trusted mints for middleman routing:`, mErr);
-                }
+          for (const intermediaryUrl of intermediaries) {
+            try {
+              console.log(`[QuotesService] 🔀 Attempting middleman route via: ${intermediaryUrl}`);
+              // Hop 1: source -> intermediary
+              await executeTwoStepSwap(sourceMintUrl, intermediaryUrl, amount);
+              // Hop 2: intermediary -> target
+              const quoteId = await executeTwoStepSwap(intermediaryUrl, targetMintUrl, amount);
+              console.log(`[QuotesService] ✅ Middleman swap successful via ${intermediaryUrl}`);
+              return { type: 'middleman', quoteId, via: intermediaryUrl };
+            } catch (midErr: any) {
+              console.warn(
+                `[QuotesService] Middleman route via ${intermediaryUrl} failed:`,
+                midErr?.message,
+              );
             }
-
-            // If middleman routing was not possible or failed, rethrow the original error
-            throw new Error(`Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${msg || 'Lightning path error'}. Your ${amount} sats remain safe.`);
+          }
+        } catch (mErr) {
+          console.warn(
+            `[QuotesService] Failed to query trusted mints for middleman routing:`,
+            mErr,
+          );
         }
-    },
+      }
 
-    /**
-     * Create an On-Chain Bitcoin Melt quote (NUT-19 eCash -> On-Chain BTC).
-     */
-    createOnChainMeltQuote: async (mintUrl: string, btcAddress: string, amount: number): Promise<MeltQuoteResponse> => {
-        console.log(`[QuotesService] Creating NUT-19 On-Chain Melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`);
-        return withKeysetRecovery(mintUrl, async () => {
-            const quote = await mgr().quotes.createMeltQuote(mintUrl, btcAddress);
-            return quote;
-        });
-    },
+      // If middleman routing was not possible or failed, rethrow the original error
+      throw new Error(
+        `Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${msg || 'Lightning path error'}. Your ${amount} sats remain safe.`,
+      );
+    }
+  },
 
-    // ─── NUT-20 Signature-Locked Mint & Melt Quotes ────────────
+  /**
+   * Create an On-Chain Bitcoin Melt quote (NUT-19 eCash -> On-Chain BTC).
+   */
+  createOnChainMeltQuote: async (
+    mintUrl: string,
+    btcAddress: string,
+    amount: number,
+  ): Promise<MeltQuoteResponse> => {
+    console.log(
+      `[QuotesService] Creating NUT-19 On-Chain Melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`,
+    );
+    return withKeysetRecovery(mintUrl, async () => {
+      const quote = await mgr().quotes.createMeltQuote(mintUrl, btcAddress);
+      return quote;
+    });
+  },
 
-    /**
-     * Create a signature-authenticated mint quote for restricted or enterprise mints (NUT-20).
-     */
-    createSignedMintQuote: async (mintUrl: string, amount: number, privkeyHex: string): Promise<MintQuoteResponse> => {
-        console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`);
-        // Derive the public key from the private key — the mint locks the quote
-        // to this pubkey so only the key owner can mint the tokens (NUT-20).
-        const privkeyBytes = Uint8Array.from(Buffer.from(privkeyHex, 'hex'));
-        const pubkeyBytes = secp256k1.getPublicKey(privkeyBytes, true); // compressed
-        const pubkeyHex = Buffer.from(pubkeyBytes).toString('hex');
+  // ─── NUT-20 Signature-Locked Mint & Melt Quotes ────────────
 
-        return withKeysetRecovery(mintUrl, async () => {
-            const wallet = await mgr().getWallet(mintUrl);
-            const quote = await wallet.createLockedMintQuote(amount, pubkeyHex);
-            console.log(`[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote} (locked to ${pubkeyHex.slice(0, 8)}…)`);
-            return quote;
-        });
-    },
+  /**
+   * Create a signature-authenticated mint quote for restricted or enterprise mints (NUT-20).
+   */
+  createSignedMintQuote: async (
+    mintUrl: string,
+    amount: number,
+    privkeyHex: string,
+  ): Promise<MintQuoteResponse> => {
+    console.log(
+      `[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`,
+    );
+    // Derive the public key from the private key — the mint locks the quote
+    // to this pubkey so only the key owner can mint the tokens (NUT-20).
+    const privkeyBytes = Uint8Array.from(Buffer.from(privkeyHex, 'hex'));
+    const pubkeyBytes = secp256k1.getPublicKey(privkeyBytes, true); // compressed
+    const pubkeyHex = Buffer.from(pubkeyBytes).toString('hex');
 
-    /**
-     * Create a signature-authenticated melt quote for restricted or enterprise mints (NUT-20).
-     *
-     * NUT-20 melt quotes are not yet widely supported by mints or the underlying SDK.
-     * This function falls back to the standard (unsigned) melt endpoint.
-     * The private key parameter is accepted for API compatibility but is not currently used
-     * by the mint's melt endpoint.
-     */
-    createSignedMeltQuote: async (mintUrl: string, invoice: string, _privkeyHex: string): Promise<MeltQuoteResponse> => {
-        console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Melt quote on ${mintUrl}`);
-        return withKeysetRecovery(mintUrl, async () => {
-            const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
-            console.log(`[QuotesService] ✅ NUT-20 Melt Quote created: ${quote.quote}`);
-            return quote;
-        });
-    },
+    return withKeysetRecovery(mintUrl, async () => {
+      const wallet = await mgr().getWallet(mintUrl);
+      const quote = await wallet.createLockedMintQuote(amount, pubkeyHex);
+      console.log(
+        `[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote} (locked to ${pubkeyHex.slice(0, 8)}…)`,
+      );
+      return quote;
+    });
+  },
 
-    // ─── NUT-30 On-Chain Bitcoin Methods ────────────────────────────
+  /**
+   * Create a signature-authenticated melt quote for restricted or enterprise mints (NUT-20).
+   *
+   * NUT-20 melt quotes are not yet widely supported by mints or the underlying SDK.
+   * This function falls back to the standard (unsigned) melt endpoint.
+   * The private key parameter is accepted for API compatibility but is not currently used
+   * by the mint's melt endpoint.
+   */
+  createSignedMeltQuote: async (
+    mintUrl: string,
+    invoice: string,
+    _privkeyHex: string,
+  ): Promise<MeltQuoteResponse> => {
+    console.log(`[QuotesService] 🔐 Creating NUT-20 Signature-Locked Melt quote on ${mintUrl}`);
+    return withKeysetRecovery(mintUrl, async () => {
+      const quote = await mgr().quotes.createMeltQuote(mintUrl, invoice);
+      console.log(`[QuotesService] ✅ NUT-20 Melt Quote created: ${quote.quote}`);
+      return quote;
+    });
+  },
 
-    /**
-     * Create an On-Chain Bitcoin Mint quote (NUT-30 deposit).
-     */
-    createOnchainMintQuote: async (mintUrl: string): Promise<{ quote: string; request: string; privKey: string; pubKey: string }> => {
-        const privKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
-        const privKey = Buffer.from(privKeyBytes).toString('hex');
-        const pubKeyBytes = secp256k1.getPublicKey(privKeyBytes);
-        const pubKey = Buffer.from(pubKeyBytes).toString('hex');
+  // ─── NUT-30 On-Chain Bitcoin Methods ────────────────────────────
 
-        console.log(`[QuotesService] Creating on-chain mint quote at ${mintUrl} for pubkey ${pubKey}`);
-        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ unit: 'sat', pubkey: pubKey })
-        });
-        if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Failed to create on-chain mint quote: ${text}`);
-        }
-        const data = await res.json();
-        return {
-            quote: data.quote,
-            request: data.request,
-            privKey,
-            pubKey
-        };
-    },
+  /**
+   * Create an On-Chain Bitcoin Mint quote (NUT-30 deposit).
+   */
+  createOnchainMintQuote: async (
+    mintUrl: string,
+  ): Promise<{ quote: string; request: string; privKey: string; pubKey: string }> => {
+    const privKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
+    const privKey = Buffer.from(privKeyBytes).toString('hex');
+    const pubKeyBytes = secp256k1.getPublicKey(privKeyBytes);
+    const pubKey = Buffer.from(pubKeyBytes).toString('hex');
 
-    /**
-     * Check the status of an On-Chain Bitcoin Mint quote.
-     */
-    checkOnchainMintQuote: async (mintUrl: string, quoteId: string): Promise<{ quote: string; request: string; state: string; amount_paid: number; amount_issued: number; expiry: number }> => {
-        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain/${quoteId}`, {
-            method: 'GET'
-        });
-        if (!res.ok) {
-            throw new Error(`Failed to check on-chain mint quote: ${await res.text()}`);
-        }
-        return await res.json();
-    },
+    console.log(`[QuotesService] Creating on-chain mint quote at ${mintUrl} for pubkey ${pubKey}`);
+    const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unit: 'sat', pubkey: pubKey }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to create on-chain mint quote: ${text}`);
+    }
+    const data = await res.json();
+    return {
+      quote: data.quote,
+      request: data.request,
+      privKey,
+      pubKey,
+    };
+  },
 
-    /**
-     * Redeem paid On-Chain Bitcoin Mint quote.
-     */
-    redeemOnchainMintQuote: async (mintUrl: string, quoteId: string, privKey: string): Promise<any> => {
-        console.log(`[QuotesService] Redeeming on-chain mint quote ${quoteId} at ${mintUrl}`);
-        const quoteStatus = await quotesService.checkOnchainMintQuote(mintUrl, quoteId);
-        const delta = quoteStatus.amount_paid - quoteStatus.amount_issued;
-        if (delta <= 0) {
-            throw new Error('Address not paid');
-        }
+  /**
+   * Check the status of an On-Chain Bitcoin Mint quote.
+   */
+  checkOnchainMintQuote: async (
+    mintUrl: string,
+    quoteId: string,
+  ): Promise<{
+    quote: string;
+    request: string;
+    state: string;
+    amount_paid: number;
+    amount_issued: number;
+    expiry: number;
+  }> => {
+    const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain/${quoteId}`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to check on-chain mint quote: ${await res.text()}`);
+    }
+    return await res.json();
+  },
 
-        const mint = new CashuMint(mintUrl);
-        const wallet = new Wallet(mint);
-        await wallet.loadMint();
+  /**
+   * Redeem paid On-Chain Bitcoin Mint quote.
+   */
+  redeemOnchainMintQuote: async (
+    mintUrl: string,
+    quoteId: string,
+    privKey: string,
+  ): Promise<any> => {
+    console.log(`[QuotesService] Redeeming on-chain mint quote ${quoteId} at ${mintUrl}`);
+    const quoteStatus = await quotesService.checkOnchainMintQuote(mintUrl, quoteId);
+    const delta = quoteStatus.amount_paid - quoteStatus.amount_issued;
+    if (delta <= 0) {
+      throw new Error('Address not paid');
+    }
 
-        const preview = await wallet.prepareMint('onchain', delta, quoteStatus, {
-            privkey: privKey
-        });
-        const proofs = await wallet.completeMint(preview);
+    const mint = new CashuMint(mintUrl);
+    const wallet = new Wallet(mint);
+    await wallet.loadMint();
 
-        // Map proofs to CoreProof format and save to repository
-        const repo = initService.getRepo();
-        const coreProofs = proofs.map(p => ({
-            ...p,
-            mintUrl,
-            state: 'ready' as const
-        }));
-        await repo.proofRepository.saveProofs(mintUrl, coreProofs);
+    const preview = await wallet.prepareMint('onchain', delta, quoteStatus, {
+      privkey: privKey,
+    });
+    const proofs = await wallet.completeMint(preview);
 
-        // Update history entry state to paid
-        try {
-            await (repo.historyRepository as any).updateHistoryMintEntry(mintUrl, quoteId, 'paid', quoteStatus.amount_paid);
-        } catch (e) {
-            console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
-        }
+    // Map proofs to CoreProof format and save to repository
+    const repo = initService.getRepo();
+    const coreProofs = proofs.map((p) => ({
+      ...p,
+      mintUrl,
+      state: 'ready' as const,
+    }));
+    await repo.proofRepository.saveProofs(mintUrl, coreProofs);
 
-        return proofs;
-    },
+    // Update history entry state to paid
+    try {
+      await (repo.historyRepository as any).updateHistoryMintEntry(
+        mintUrl,
+        quoteId,
+        'paid',
+        quoteStatus.amount_paid,
+      );
+    } catch (e) {
+      console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
+    }
 
-    /**
-     * Create an On-Chain Bitcoin Melt quote (NUT-30 withdrawal).
-     */
-    createOnchainMeltQuote: async (mintUrl: string, btcAddress: string, amount: number): Promise<any> => {
-        console.log(`[QuotesService] Creating on-chain melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`);
-        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ request: btcAddress, amount, unit: 'sat' })
-        });
-        if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Failed to create on-chain melt quote: ${text}`);
-        }
-        return await res.json();
-    },
+    return proofs;
+  },
 
-    /**
-     * Check the status of an On-Chain Bitcoin Melt quote.
-     */
-    checkOnchainMeltQuote: async (mintUrl: string, quoteId: string): Promise<any> => {
-        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain/${quoteId}`, {
-            method: 'GET'
-        });
-        if (!res.ok) {
-            throw new Error(`Failed to check on-chain melt quote: ${await res.text()}`);
-        }
-        return await res.json();
-    },
+  /**
+   * Create an On-Chain Bitcoin Melt quote (NUT-30 withdrawal).
+   */
+  createOnchainMeltQuote: async (
+    mintUrl: string,
+    btcAddress: string,
+    amount: number,
+  ): Promise<any> => {
+    console.log(
+      `[QuotesService] Creating on-chain melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`,
+    );
+    const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request: btcAddress, amount, unit: 'sat' }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to create on-chain melt quote: ${text}`);
+    }
+    return await res.json();
+  },
 
-    /**
-     * Pay an On-Chain Bitcoin Melt quote.
-     */
-    payOnchainMeltQuote: async (mintUrl: string, meltQuote: any, selectedFeeIndex?: number): Promise<any> => {
-        console.log(`[QuotesService] Paying on-chain melt quote ${meltQuote.quote} from ${mintUrl} with fee index ${selectedFeeIndex}`);
-        const repo = initService.getRepo();
-        
-        // Find the selected fee option, or default to the first option
-        const feeOption = meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) || meltQuote.fee_options?.[0];
-        const feeReserve = feeOption ? feeOption.fee_reserve : (meltQuote.fee_reserve ?? 0);
-        const totalCost = meltQuote.amount + feeReserve;
+  /**
+   * Check the status of an On-Chain Bitcoin Melt quote.
+   */
+  checkOnchainMeltQuote: async (mintUrl: string, quoteId: string): Promise<any> => {
+    const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain/${quoteId}`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to check on-chain melt quote: ${await res.text()}`);
+    }
+    return await res.json();
+  },
 
-        // 1. Get ready proofs
-        const availableProofs = await repo.proofRepository.getReadyProofs(mintUrl);
-        
-        // 2. Coin selection
-        const sorted = [...availableProofs].sort((a, b) => b.amount - a.amount);
-        const selected: any[] = [];
-        let currentAmount = 0;
-        for (const proof of sorted) {
-            selected.push(proof);
-            currentAmount += proof.amount;
-            if (currentAmount >= totalCost) {
-                break;
-            }
-        }
-        if (currentAmount < totalCost) {
-            throw new Error(`Insufficient balance: need ${totalCost} sats, have ${currentAmount} sats`);
-        }
+  /**
+   * Pay an On-Chain Bitcoin Melt quote.
+   */
+  payOnchainMeltQuote: async (
+    mintUrl: string,
+    meltQuote: any,
+    selectedFeeIndex?: number,
+  ): Promise<any> => {
+    console.log(
+      `[QuotesService] Paying on-chain melt quote ${meltQuote.quote} from ${mintUrl} with fee index ${selectedFeeIndex}`,
+    );
+    const repo = initService.getRepo();
 
-        const mint = new CashuMint(mintUrl);
-        const wallet = new Wallet(mint);
-        await wallet.loadMint();
+    // Find the selected fee option, or default to the first option
+    const feeOption =
+      meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) ||
+      meltQuote.fee_options?.[0];
+    const feeReserve = feeOption ? feeOption.fee_reserve : (meltQuote.fee_reserve ?? 0);
+    const totalCost = meltQuote.amount + feeReserve;
 
-        // 3. Prepare Melt
-        const preview = await wallet.prepareMelt('onchain', meltQuote, selected.map(p => ({
-            id: p.id,
-            amount: p.amount,
-            secret: p.secret,
-            C: p.C
-        })));
+    // 1. Get ready proofs
+    const availableProofs = await repo.proofRepository.getReadyProofs(mintUrl);
 
-        // Get the selected fee_index
-        const feeIndex = selectedFeeIndex !== undefined ? selectedFeeIndex : (meltQuote.selected_fee_index ?? feeOption?.fee_index ?? 0);
+    // 2. Coin selection
+    const sorted = [...availableProofs].sort((a, b) => b.amount - a.amount);
+    const selected: any[] = [];
+    let currentAmount = 0;
+    for (const proof of sorted) {
+      selected.push(proof);
+      currentAmount += proof.amount;
+      if (currentAmount >= totalCost) {
+        break;
+      }
+    }
+    if (currentAmount < totalCost) {
+      throw new Error(`Insufficient balance: need ${totalCost} sats, have ${currentAmount} sats`);
+    }
 
-        // Clean up inputs (strip DLEQ for privacy/compatibility)
-        const preparedInputs = selected.map(p => {
-            const { dleq, p2pk_e, ...rest } = p;
-            return {
-                ...rest,
-                witness: p.witness && typeof p.witness !== 'string' ? JSON.stringify(p.witness) : p.witness
-            };
-        });
+    const mint = new CashuMint(mintUrl);
+    const wallet = new Wallet(mint);
+    await wallet.loadMint();
 
-        const outputs = preview.outputData.map(h => h.blindedMessage);
+    // 3. Prepare Melt
+    const preview = await wallet.prepareMelt(
+      'onchain',
+      meltQuote,
+      selected.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        secret: p.secret,
+        C: p.C,
+      })),
+    );
 
-        const payload = {
-            quote: meltQuote.quote,
-            inputs: preparedInputs,
-            outputs: outputs,
-            fee_index: feeIndex
-        };
+    // Get the selected fee_index
+    const feeIndex =
+      selectedFeeIndex !== undefined
+        ? selectedFeeIndex
+        : (meltQuote.selected_fee_index ?? feeOption?.fee_index ?? 0);
 
-        console.log('[QuotesService] Executing raw on-chain melt payload:', JSON.stringify(payload));
-        const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/onchain`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+    // Clean up inputs (strip DLEQ for privacy/compatibility)
+    const preparedInputs = selected.map((p) => {
+      const { dleq, p2pk_e, ...rest } = p;
+      return {
+        ...rest,
+        witness: p.witness && typeof p.witness !== 'string' ? JSON.stringify(p.witness) : p.witness,
+      };
+    });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            throw new Error(`On-chain melt failed: ${errBody}`);
-        }
+    const outputs = preview.outputData.map((h) => h.blindedMessage);
 
-        const meltResult = await res.json();
-        console.log('[QuotesService] Melt executed successfully:', JSON.stringify(meltResult));
+    const payload = {
+      quote: meltQuote.quote,
+      inputs: preparedInputs,
+      outputs: outputs,
+      fee_index: feeIndex,
+    };
 
-        // Construct change proofs if change is returned synchronously (usually empty for PENDING)
-        const keyset = wallet.getKeyset(preview.keysetId);
-        const changeProofs = meltResult.change?.map((sig: any, idx: number) => {
-            return preview.outputData[idx].toProof(sig, keyset);
-        }) ?? [];
+    console.log('[QuotesService] Executing raw on-chain melt payload:', JSON.stringify(payload));
+    const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/onchain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-        // 5. Update Database: Set inputs as inflight (not spent yet, since transaction is PENDING)
-        const inputSecrets = selected.map(p => p.secret);
-        const m = initService.getManager() as any;
-        await m.proofService.setProofState(mintUrl, inputSecrets, 'inflight');
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`On-chain melt failed: ${errBody}`);
+    }
 
-        if (changeProofs.length > 0) {
-            const changeCoreProofs = changeProofs.map((p: any) => ({
-                ...p,
-                mintUrl,
-                state: 'ready' as const
-            }));
-            await repo.proofRepository.saveProofs(mintUrl, changeCoreProofs);
-        }
+    const meltResult = await res.json();
+    console.log('[QuotesService] Melt executed successfully:', JSON.stringify(meltResult));
 
-        return {
-            ...meltResult,
-            changeOutputs: preview.outputData,
-            selectedInputs: selected
-        };
-    },
+    // Construct change proofs if change is returned synchronously (usually empty for PENDING)
+    const keyset = wallet.getKeyset(preview.keysetId);
+    const changeProofs =
+      meltResult.change?.map((sig: any, idx: number) => {
+        return preview.outputData[idx].toProof(sig, keyset);
+      }) ?? [];
+
+    // 5. Update Database: Set inputs as inflight (not spent yet, since transaction is PENDING)
+    const inputSecrets = selected.map((p) => p.secret);
+    const m = initService.getManager() as any;
+    await m.proofService.setProofState(mintUrl, inputSecrets, 'inflight');
+
+    if (changeProofs.length > 0) {
+      const changeCoreProofs = changeProofs.map((p: any) => ({
+        ...p,
+        mintUrl,
+        state: 'ready' as const,
+      }));
+      await repo.proofRepository.saveProofs(mintUrl, changeCoreProofs);
+    }
+
+    return {
+      ...meltResult,
+      changeOutputs: preview.outputData,
+      selectedInputs: selected,
+    };
+  },
 };

@@ -1,13 +1,13 @@
-import React, { useEffect, useRef } from "react";
-import { YStack, XStack, Text, View, Button, H6 } from "tamagui";
-import { CheckCircle2, AlertCircle, Clock, ChevronRight, X } from "@tamagui/lucide-icons";
-import { Animated, Easing } from "react-native";
-import * as Haptics from "expo-haptics";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import AppBottomSheet, { AppBottomSheetRef } from "~/components/UI/AppBottomSheet";
-import { useWalletStore, type MintRestoreEntry } from "~/store/walletStore";
+import React, { useEffect, useRef } from 'react';
+import { YStack, XStack, Text, View, Button, H6 } from 'tamagui';
+import { CheckCircle2, AlertCircle, Clock, ChevronRight, X } from '@tamagui/lucide-icons';
+import { Animated, Easing } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
+import { useWalletStore, type MintRestoreEntry } from '~/store/walletStore';
 
-function SpinnerIcon({ size = 18, color = "$blue9" }) {
+function SpinnerIcon({ size = 18, color = '$blue9' }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -17,7 +17,7 @@ function SpinnerIcon({ size = 18, color = "$blue9" }) {
         duration: 1000,
         easing: Easing.linear,
         useNativeDriver: true,
-      })
+      }),
     );
     loop.start();
     return () => loop.stop();
@@ -25,7 +25,7 @@ function SpinnerIcon({ size = 18, color = "$blue9" }) {
 
   const spin = rotation.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+    outputRange: ['0deg', '360deg'],
   });
 
   return (
@@ -42,7 +42,15 @@ function SpinnerIcon({ size = 18, color = "$blue9" }) {
   );
 }
 
-function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRestoreEntry; isActive: boolean; keysetProgress: any }) {
+function MintProgressItem({
+  entry,
+  isActive,
+  keysetProgress,
+}: {
+  entry: MintRestoreEntry;
+  isActive: boolean;
+  keysetProgress: any;
+}) {
   const hostname = (() => {
     try {
       return new URL(entry.mintUrl).hostname;
@@ -51,20 +59,21 @@ function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRest
     }
   })();
 
-  const isDone = entry.status === "done";
-  const isError = entry.status === "error";
-  const isPending = entry.status === "pending";
+  const isDone = entry.status === 'done';
+  const isError = entry.status === 'error';
+  const isPending = entry.status === 'pending';
 
-  const progressPercent = isActive && keysetProgress
-    ? Math.round((keysetProgress.current / keysetProgress.total) * 100)
-    : 0;
+  const progressPercent =
+    isActive && keysetProgress
+      ? Math.round((keysetProgress.current / keysetProgress.total) * 100)
+      : 0;
 
   return (
     <YStack
       p="$3.5"
-      bg={isActive ? "$blue2" : isDone ? "$green2" : isError ? "$red2" : "$gray4"}
+      bg={isActive ? '$blue2' : isDone ? '$green2' : isError ? '$red2' : '$gray4'}
       borderWidth={1}
-      borderColor={isActive ? "$blue6" : isDone ? "$green6" : isError ? "$red6" : "transparent"}
+      borderColor={isActive ? '$blue6' : isDone ? '$green6' : isError ? '$red6' : 'transparent'}
       rounded="$6"
       gap="$2"
     >
@@ -73,7 +82,7 @@ function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRest
         <XStack items="center" gap="$3" flex={1}>
           <View
             p="$2"
-            bg={isActive ? "$blue4" : isDone ? "$green4" : isError ? "$red4" : "$gray5"}
+            bg={isActive ? '$blue4' : isDone ? '$green4' : isError ? '$red4' : '$gray5'}
             rounded="$4"
             items="center"
             justify="center"
@@ -99,7 +108,7 @@ function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRest
             )}
             {isError && (
               <Text fontSize="$2" color="$red10" numberOfLines={1}>
-                {entry.error || "Sync failed"}
+                {entry.error || 'Sync failed'}
               </Text>
             )}
             {isPending && (
@@ -132,12 +141,7 @@ function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRest
             {keysetProgress.statusText}
           </Text>
           <View height={5} bg="$blue4" rounded="$3" overflow="hidden" width="100%">
-            <View
-              width={`${progressPercent}%`}
-              height="100%"
-              bg="$blue9"
-              rounded="$3"
-            />
+            <View width={`${progressPercent}%`} height="100%" bg="$blue9" rounded="$3" />
           </View>
         </YStack>
       )}
@@ -147,7 +151,7 @@ function MintProgressItem({ entry, isActive, keysetProgress }: { entry: MintRest
 
 export default function RestoreProgressCard() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
-  
+
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const mintRestoreStatuses = useWalletStore((s) => s.mintRestoreStatuses || []);
   const restoringMintUrl = useWalletStore((s) => s.restoringMintUrl);
@@ -173,11 +177,13 @@ export default function RestoreProgressCard() {
     return null;
   }
 
-  const doneCount = mintRestoreStatuses.filter((e) => e.status === "done" || e.status === "error").length;
+  const doneCount = mintRestoreStatuses.filter(
+    (e) => e.status === 'done' || e.status === 'error',
+  ).length;
   const totalCount = mintRestoreStatuses.length;
 
   const currentMintHost = (() => {
-    if (!restoringMintUrl) return "mint backups";
+    if (!restoringMintUrl) return 'mint backups';
     try {
       return new URL(restoringMintUrl).hostname;
     } catch {
@@ -223,7 +229,7 @@ export default function RestoreProgressCard() {
       </YStack>
 
       {/* Details Bottom Sheet (Matches ActionSelectorSheet exactly) */}
-      <AppBottomSheet ref={sheetRef} snapPoints={["75%"]} backgroundColor="$gray2">
+      <AppBottomSheet ref={sheetRef} snapPoints={['75%']} backgroundColor="$gray2">
         <YStack p="$4" pt="$2" gap="$4" flex={1}>
           {/* Header */}
           <XStack items="center" justify="space-between" width="100%" pb="$2">

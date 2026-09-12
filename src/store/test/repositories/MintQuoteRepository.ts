@@ -3,43 +3,43 @@ import type { MintQuote } from 'coco-cashu-core';
 import { ExpoSqliteDb } from '../db';
 
 export class ExpoMintQuoteRepository implements MintQuoteRepository {
-    private readonly db: ExpoSqliteDb;
+  private readonly db: ExpoSqliteDb;
 
-    constructor(db: ExpoSqliteDb) {
-        this.db = db;
-    }
+  constructor(db: ExpoSqliteDb) {
+    this.db = db;
+  }
 
-    async getMintQuote(mintUrl: string, quoteId: string): Promise<MintQuote | null> {
-        const row = await this.db.get<{
-            mintUrl: string;
-            quote: string;
-            state: string;
-            request: string;
-            amount: number;
-            unit: string;
-            expiry: number;
-            pubkey?: string | null;
-        }>(
-            `SELECT mintUrl, quote, state, request, amount, unit, expiry, pubkey
+  async getMintQuote(mintUrl: string, quoteId: string): Promise<MintQuote | null> {
+    const row = await this.db.get<{
+      mintUrl: string;
+      quote: string;
+      state: string;
+      request: string;
+      amount: number;
+      unit: string;
+      expiry: number;
+      pubkey?: string | null;
+    }>(
+      `SELECT mintUrl, quote, state, request, amount, unit, expiry, pubkey
        FROM coco_cashu_mint_quotes WHERE mintUrl = ? AND quote = ? LIMIT 1`,
-            [mintUrl, quoteId],
-        );
-        if (!row) return null;
-        return {
-            mintUrl: row.mintUrl,
-            quote: row.quote,
-            state: row.state as MintQuote['state'],
-            request: row.request,
-            amount: row.amount,
-            unit: row.unit,
-            expiry: row.expiry,
-            pubkey: row.pubkey ?? undefined,
-        } satisfies MintQuote;
-    }
+      [mintUrl, quoteId],
+    );
+    if (!row) return null;
+    return {
+      mintUrl: row.mintUrl,
+      quote: row.quote,
+      state: row.state as MintQuote['state'],
+      request: row.request,
+      amount: row.amount,
+      unit: row.unit,
+      expiry: row.expiry,
+      pubkey: row.pubkey ?? undefined,
+    } satisfies MintQuote;
+  }
 
-    async addMintQuote(quote: MintQuote): Promise<void> {
-        await this.db.run(
-            `INSERT INTO coco_cashu_mint_quotes (mintUrl, quote, state, request, amount, unit, expiry, pubkey)
+  async addMintQuote(quote: MintQuote): Promise<void> {
+    await this.db.run(
+      `INSERT INTO coco_cashu_mint_quotes (mintUrl, quote, state, request, amount, unit, expiry, pubkey)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(mintUrl, quote) DO UPDATE SET
          state=excluded.state,
@@ -48,56 +48,56 @@ export class ExpoMintQuoteRepository implements MintQuoteRepository {
          unit=excluded.unit,
          expiry=excluded.expiry,
          pubkey=excluded.pubkey`,
-            [
-                quote.mintUrl,
-                quote.quote,
-                quote.state,
-                quote.request,
-                quote.amount,
-                quote.unit,
-                quote.expiry,
-                quote.pubkey ?? null,
-            ],
-        );
-    }
+      [
+        quote.mintUrl,
+        quote.quote,
+        quote.state,
+        quote.request,
+        quote.amount,
+        quote.unit,
+        quote.expiry,
+        quote.pubkey ?? null,
+      ],
+    );
+  }
 
-    async setMintQuoteState(
-        mintUrl: string,
-        quoteId: string,
-        state: MintQuote['state'],
-    ): Promise<void> {
-        await this.db.run(
-            'UPDATE coco_cashu_mint_quotes SET state = ? WHERE mintUrl = ? AND quote = ?',
-            [state, mintUrl, quoteId],
-        );
-    }
+  async setMintQuoteState(
+    mintUrl: string,
+    quoteId: string,
+    state: MintQuote['state'],
+  ): Promise<void> {
+    await this.db.run(
+      'UPDATE coco_cashu_mint_quotes SET state = ? WHERE mintUrl = ? AND quote = ?',
+      [state, mintUrl, quoteId],
+    );
+  }
 
-    async getPendingMintQuotes(): Promise<MintQuote[]> {
-        const rows = await this.db.all<{
-            mintUrl: string;
-            quote: string;
-            state: string;
-            request: string;
-            amount: number;
-            unit: string;
-            expiry: number;
-            pubkey?: string | null;
-        }>(
-            `SELECT mintUrl, quote, state, request, amount, unit, expiry, pubkey
+  async getPendingMintQuotes(): Promise<MintQuote[]> {
+    const rows = await this.db.all<{
+      mintUrl: string;
+      quote: string;
+      state: string;
+      request: string;
+      amount: number;
+      unit: string;
+      expiry: number;
+      pubkey?: string | null;
+    }>(
+      `SELECT mintUrl, quote, state, request, amount, unit, expiry, pubkey
        FROM coco_cashu_mint_quotes WHERE state != 'ISSUED'`,
-        );
-        return rows.map(
-            (row) =>
-            ({
-                mintUrl: row.mintUrl,
-                quote: row.quote,
-                state: row.state as MintQuote['state'],
-                request: row.request,
-                amount: row.amount,
-                unit: row.unit,
-                expiry: row.expiry,
-                pubkey: row.pubkey ?? undefined,
-            } satisfies MintQuote),
-        );
-    }
+    );
+    return rows.map(
+      (row) =>
+        ({
+          mintUrl: row.mintUrl,
+          quote: row.quote,
+          state: row.state as MintQuote['state'],
+          request: row.request,
+          amount: row.amount,
+          unit: row.unit,
+          expiry: row.expiry,
+          pubkey: row.pubkey ?? undefined,
+        }) satisfies MintQuote,
+    );
+  }
 }

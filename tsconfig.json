@@ -10,24 +10,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "~/*": [
-        "./src/*"
-      ],
-      "components/*": [
-        "./src/components/*"
-      ],
-      "app/*": [
-        "./src/app/*"
-      ],
-      "assets/*": [
-        "./src/assets/*"
-      ]
+      "~/*": ["./src/*"],
+      "components/*": ["./src/components/*"],
+      "app/*": ["./src/app/*"],
+      "assets/*": ["./src/assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

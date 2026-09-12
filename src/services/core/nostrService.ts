@@ -1,11 +1,4 @@
-import {
-  SimplePool,
-  type Filter,
-  type Event,
-  nip04,
-  nip44,
-  finalizeEvent,
-} from 'nostr-tools';
+import { SimplePool, type Filter, type Event, nip04, nip44, finalizeEvent } from 'nostr-tools';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { unwrapEvent } from 'nostr-tools/nip59';
 import { hexToBytes } from '@noble/hashes/utils';
@@ -119,7 +112,11 @@ class NostrService {
     if (!this.isRunning) return;
     console.log('[NostrService] Manual refresh requested.');
     if (this.pool) {
-      try { this.pool.close(RELAYS); } catch { /* ignore */ }
+      try {
+        this.pool.close(RELAYS);
+      } catch {
+        /* ignore */
+      }
       this.pool = null;
     }
     this._subscribe();
@@ -137,7 +134,11 @@ class NostrService {
       this.appStateSub = null;
     }
     if (this.pool) {
-      try { this.pool.close(RELAYS); } catch { /* ignore */ }
+      try {
+        this.pool.close(RELAYS);
+      } catch {
+        /* ignore */
+      }
       this.pool = null;
     }
     this.processedEvents.clear();
@@ -161,14 +162,20 @@ class NostrService {
 
     this.pool.subscribeMany(RELAYS, filter, {
       onevent: (event: Event) => {
-        this._processEvent(event).catch(() => { /* silent */ });
+        this._processEvent(event).catch(() => {
+          /* silent */
+        });
       },
       oneose: () => {
-        console.log('[NostrService] ✅ Initial EOSE — relay sync complete, listening for new events…');
+        console.log(
+          '[NostrService] ✅ Initial EOSE — relay sync complete, listening for new events…',
+        );
       },
     });
 
-    console.log(`[NostrService] Subscribed to kinds [${LISTENED_KINDS.join(', ')}] across ${RELAYS.length} relays`);
+    console.log(
+      `[NostrService] Subscribed to kinds [${LISTENED_KINDS.join(', ')}] across ${RELAYS.length} relays`,
+    );
   }
 
   private _startReconnectLoop(): void {
@@ -181,11 +188,15 @@ class NostrService {
       const statuses = this.pool?.listConnectionStatus?.();
       if (!statuses) return;
 
-      const anyDisconnected = Array.from(statuses.values()).some(v => v === false);
+      const anyDisconnected = Array.from(statuses.values()).some((v) => v === false);
       if (anyDisconnected) {
         console.log('[NostrService] 🔄 Detected disconnected relay(s), refreshing subscription…');
         if (this.pool) {
-          try { this.pool.close(RELAYS); } catch { /* ignore */ }
+          try {
+            this.pool.close(RELAYS);
+          } catch {
+            /* ignore */
+          }
           this.pool = null;
         }
         this._subscribe();
@@ -202,7 +213,11 @@ class NostrService {
       if (state === 'active') {
         console.log('[NostrService] App foregrounded — refreshing relay subscription');
         if (this.pool) {
-          try { this.pool.close(RELAYS); } catch { /* ignore */ }
+          try {
+            this.pool.close(RELAYS);
+          } catch {
+            /* ignore */
+          }
           this.pool = null;
         }
         this._subscribe();
@@ -221,13 +236,15 @@ class NostrService {
     // Skip our own outgoing events UNLESS it's a self-send (sender = recipient).
     // When you send to yourself, the event's author is you AND the #p tag is also you.
     if (event.pubkey === this.pubkeyHex) {
-      const pTags = event.tags.filter(t => t[0] === 'p').map(t => t[1]);
+      const pTags = event.tags.filter((t) => t[0] === 'p').map((t) => t[1]);
       const isSelfSend = pTags.includes(this.pubkeyHex!);
       if (!isSelfSend) {
         return; // Outgoing event to someone else — skip
       }
       // Self-send — continue processing as incoming payment
-      console.log(`[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`);
+      console.log(
+        `[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`,
+      );
     }
 
     console.log(
@@ -270,7 +287,10 @@ class NostrService {
           return inner.content;
         }
         // Fallback: try NIP-44 decrypt on the inner event content
-        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, Buffer.from(inner.pubkey, 'hex'));
+        const convKey = nip44.v2.utils.getConversationKey(
+          this.privkeyBytes,
+          Buffer.from(inner.pubkey, 'hex'),
+        );
         return nip44.v2.decrypt(inner.content, convKey);
       } catch {
         return null;
@@ -308,7 +328,9 @@ class NostrService {
     const creqMatch = text.match(/(creq[AB][A-Za-z0-9_=-]+)/i);
     if (creqMatch) {
       const creqString = creqMatch[1];
-      console.log(`[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`);
+      console.log(
+        `[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`,
+      );
       try {
         const { PaymentRequest } = await import('@cashu/cashu-ts');
         const pr = PaymentRequest.fromEncodedRequest(creqString);
@@ -341,16 +363,18 @@ class NostrService {
     try {
       const payload = JSON.parse(text);
       if (payload && payload.proofs && payload.mint) {
-        console.log(`[NostrService] 🎉 Found JSON PaymentRequestPayload in event ${sourceEvent.id.slice(0, 8)}…`);
-        
+        console.log(
+          `[NostrService] 🎉 Found JSON PaymentRequestPayload in event ${sourceEvent.id.slice(0, 8)}…`,
+        );
+
         // Convert to standard V3/V4 token structure so our existing receive logic works
         const tokenStruct = {
-          token: [{ mint: payload.mint, proofs: payload.proofs }]
+          token: [{ mint: payload.mint, proofs: payload.proofs }],
         };
-        
+
         const b64 = Buffer.from(JSON.stringify(tokenStruct)).toString('base64');
         tokenString = `cashuA${b64}`;
-        
+
         mintUrl = payload.mint;
         amount = payload.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
         requestIdFromPayload = payload.id;
@@ -366,7 +390,9 @@ class NostrService {
         return;
       }
       tokenString = tokenMatch[1];
-      console.log(`[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`);
+      console.log(
+        `[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`,
+      );
 
       const cleaned = cleanToken(tokenString);
       const rawStr = cleaned.startsWith('cashu') ? cleaned.substring(5) : cleaned;
@@ -376,22 +402,31 @@ class NostrService {
         try {
           const b64 = rawStr.substring(1); // strip version byte 'B'
           const b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
-          const pad = (4 - b64std.length % 4) % 4;
+          const pad = (4 - (b64std.length % 4)) % 4;
           const b64padded = b64std + '=='.substring(0, pad);
           const bytes = new Uint8Array(Buffer.from(b64padded, 'base64'));
 
           // Extract mint URL: find CBOR key "m" (0x61 0x6d)
           for (let i = 0; i < bytes.length - 2; i++) {
-            if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) { // "m" key
+            if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) {
+              // "m" key
               const lenByte = bytes[i + 2];
               const major = (lenByte >> 5) & 0x07;
               const info = lenByte & 0x1f;
-              if (major === 3) { // text string
+              if (major === 3) {
+                // text string
                 let urlLen = 0;
                 let urlStart = 0;
-                if (info < 24) { urlLen = info; urlStart = i + 3; }
-                else if (info === 24 && i + 4 < bytes.length) { urlLen = bytes[i + 3]; urlStart = i + 4; }
-                else if (info === 25 && i + 5 < bytes.length) { urlLen = (bytes[i + 3] << 8) | bytes[i + 4]; urlStart = i + 5; }
+                if (info < 24) {
+                  urlLen = info;
+                  urlStart = i + 3;
+                } else if (info === 24 && i + 4 < bytes.length) {
+                  urlLen = bytes[i + 3];
+                  urlStart = i + 4;
+                } else if (info === 25 && i + 5 < bytes.length) {
+                  urlLen = (bytes[i + 3] << 8) | bytes[i + 4];
+                  urlStart = i + 5;
+                }
                 if (urlLen > 0 && urlStart + urlLen <= bytes.length) {
                   const url = new TextDecoder().decode(bytes.slice(urlStart, urlStart + urlLen));
                   if (url.startsWith('http')) mintUrl = url;
@@ -405,11 +440,13 @@ class NostrService {
           // Sum all small unsigned ints that follow 'a' keys
           let totalAmount = 0;
           for (let i = 0; i < bytes.length - 2; i++) {
-            if (bytes[i] === 0x61 && bytes[i + 1] === 0x61) { // "a" key
+            if (bytes[i] === 0x61 && bytes[i + 1] === 0x61) {
+              // "a" key
               const valByte = bytes[i + 2];
               const valMajor = (valByte >> 5) & 0x07;
               const valInfo = valByte & 0x1f;
-              if (valMajor === 0) { // unsigned int
+              if (valMajor === 0) {
+                // unsigned int
                 if (valInfo < 24) {
                   totalAmount += valInfo;
                 } else if (valInfo === 24 && i + 3 < bytes.length) {
@@ -417,7 +454,11 @@ class NostrService {
                 } else if (valInfo === 25 && i + 4 < bytes.length) {
                   totalAmount += (bytes[i + 3] << 8) | bytes[i + 4];
                 } else if (valInfo === 26 && i + 6 < bytes.length) {
-                  totalAmount += (bytes[i + 3] << 24) | (bytes[i + 4] << 16) | (bytes[i + 5] << 8) | bytes[i + 6];
+                  totalAmount +=
+                    (bytes[i + 3] << 24) |
+                    (bytes[i + 4] << 16) |
+                    (bytes[i + 5] << 8) |
+                    bytes[i + 6];
                 }
               }
             }
@@ -470,20 +511,22 @@ class NostrService {
       senderUsername,
       requestId: requestIdFromPayload,
     });
-    console.log(`[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`);
+    console.log(
+      `[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`,
+    );
   }
 
   private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
     try {
       const { useContactsStore } = await import('../../store/contactsStore');
       const { nip19 } = await import('nostr-tools');
-      
+
       const bytes = new Uint8Array(pubkeyHex.length / 2);
       for (let i = 0; i < bytes.length; i++) {
         bytes[i] = parseInt(pubkeyHex.substring(i * 2, i * 2 + 2), 16);
       }
       const npub = nip19.npubEncode(bytes);
-      
+
       const store = useContactsStore.getState();
       const contact = store.contacts[npub] || store.favorites[npub];
       if (contact?.username) {
@@ -528,7 +571,7 @@ class NostrService {
   private async createNip17GiftWrap(
     message: string,
     recipientPubkeyHex: string,
-    senderPrivkeyHex: string
+    senderPrivkeyHex: string,
   ): Promise<Event> {
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
     const senderPubkeyHex = getPublicKey(senderPrivkeyBytes);
@@ -560,7 +603,10 @@ class NostrService {
     // 3. Gift Wrap (Kind 1059) - Encrypted with ephemeral random key & signed by ephemeral key
     const ephemeralPrivkeyBytes = generateSecretKey();
     const ephemeralPubkeyHex = getPublicKey(ephemeralPrivkeyBytes);
-    const wrapConvKey = nip44.v2.utils.getConversationKey(ephemeralPrivkeyBytes, recipientPubkeyHex);
+    const wrapConvKey = nip44.v2.utils.getConversationKey(
+      ephemeralPrivkeyBytes,
+      recipientPubkeyHex,
+    );
     const encryptedSeal = nip44.v2.encrypt(sealString, wrapConvKey);
 
     const randomPastTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400);
@@ -611,17 +657,16 @@ class NostrService {
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
 
     // Build NIP-04 Event
-    const encryptedContent = await nip04.encrypt(
-      senderPrivkeyHex,
-      recipientPubkeyHex,
-      tokenString,
+    const encryptedContent = await nip04.encrypt(senderPrivkeyHex, recipientPubkeyHex, tokenString);
+    const nip04Event = finalizeEvent(
+      {
+        kind: 4,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', recipientPubkeyHex]],
+        content: encryptedContent,
+      },
+      senderPrivkeyBytes,
     );
-    const nip04Event = finalizeEvent({
-      kind: 4,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['p', recipientPubkeyHex]],
-      content: encryptedContent,
-    }, senderPrivkeyBytes);
 
     // Build NIP-17 Gift Wrap Event
     let nip17Event: Event | null = null;
@@ -672,12 +717,12 @@ class NostrService {
   public async backupMintsToNostr(
     mints: string[],
     privkeyHex: string,
-    pubkeyHex: string
+    pubkeyHex: string,
   ): Promise<boolean> {
     const privkeyBytes = hexToBytes(privkeyHex);
-    
+
     // Create ["mint", "<url>"] tags for each mint
-    const tags = mints.map(url => ['mint', url]);
+    const tags = mints.map((url) => ['mint', url]);
 
     const eventTemplate = {
       kind: 10019,
@@ -689,7 +734,9 @@ class NostrService {
     const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
     const pool = this.pool ?? new SimplePool();
 
-    console.log(`[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${RELAYS.length} relays…`);
+    console.log(
+      `[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${RELAYS.length} relays…`,
+    );
 
     try {
       await Promise.any(pool.publish(RELAYS, signedEvent));
@@ -707,7 +754,7 @@ class NostrService {
   public async fetchMintsFromNostr(pubkeyHex: string): Promise<string[]> {
     console.log(`[NostrService] 📥 Fetching mints from Nostr for pubkey ${pubkeyHex.slice(0, 8)}…`);
     const pool = new SimplePool();
-    
+
     try {
       const filter: Filter = {
         authors: [pubkeyHex],
@@ -716,7 +763,7 @@ class NostrService {
       };
 
       const events = await pool.querySync(RELAYS, filter);
-      
+
       if (!events || events.length === 0) {
         console.log('[NostrService] No mint backup found on Nostr.');
         return [];
@@ -728,12 +775,11 @@ class NostrService {
 
       // Extract mint URLs from ["mint", "url"] tags
       const mintUrls = latestEvent.tags
-        .filter(tag => tag[0] === 'mint' && typeof tag[1] === 'string')
-        .map(tag => tag[1]);
+        .filter((tag) => tag[0] === 'mint' && typeof tag[1] === 'string')
+        .map((tag) => tag[1]);
 
       console.log(`[NostrService] ✅ Recovered ${mintUrls.length} mints from Nostr backup.`);
       return mintUrls;
-      
     } catch (err: any) {
       console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
       return [];
@@ -751,7 +797,7 @@ class NostrService {
   public async backupWalletStateToNostr(
     walletData: any,
     privkeyHex: string,
-    pubkeyHex: string
+    pubkeyHex: string,
   ): Promise<boolean> {
     try {
       const privkeyBytes = hexToBytes(privkeyHex);
@@ -769,7 +815,9 @@ class NostrService {
       const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
       const pool = this.pool ?? new SimplePool();
 
-      console.log(`[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`);
+      console.log(
+        `[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`,
+      );
       await Promise.any(pool.publish(RELAYS, signedEvent));
       console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
       return true;
@@ -784,7 +832,7 @@ class NostrService {
    */
   public async fetchWalletStateFromNostr(
     privkeyHex: string,
-    pubkeyHex: string
+    pubkeyHex: string,
   ): Promise<any | null> {
     console.log(`[NostrService] 📥 Fetching NIP-60 wallet state from Nostr…`);
     const pool = new SimplePool();
@@ -835,4 +883,3 @@ export async function sendNostrToken(
 ): Promise<boolean> {
   return nostrService.sendViaNostr(tokenString, recipientPubkeyHexOrNpub, senderPrivkeyHex);
 }
-

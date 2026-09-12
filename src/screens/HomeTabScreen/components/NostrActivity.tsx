@@ -27,284 +27,286 @@ import { currencyService } from '~/services/currencyService';
 import { useContactsStore } from '~/store/contactsStore';
 
 function hexToBytes(hex: string): Uint8Array {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
-    }
-    return bytes;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 function safeNpubEncode(pubkey: string): string {
-    if (!pubkey) return '';
-    if (pubkey.startsWith('npub1')) return pubkey;
-    if (pubkey.startsWith('nprofile1')) {
-        try {
-            const decoded = nip19.decode(pubkey);
-            if (decoded.type === 'nprofile') {
-                return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
-            }
-        } catch {}
-        return pubkey;
-    }
-    // Assume hex
+  if (!pubkey) return '';
+  if (pubkey.startsWith('npub1')) return pubkey;
+  if (pubkey.startsWith('nprofile1')) {
     try {
-        return nip19.npubEncode(hexToBytes(pubkey));
-    } catch {
-        return pubkey;
-    }
+      const decoded = nip19.decode(pubkey);
+      if (decoded.type === 'nprofile') {
+        return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+      }
+    } catch {}
+    return pubkey;
+  }
+  // Assume hex
+  try {
+    return nip19.npubEncode(hexToBytes(pubkey));
+  } catch {
+    return pubkey;
+  }
 }
 
 function formatNpub(hex: string): string {
-    try {
-        const npub = safeNpubEncode(hex);
-        return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
-    } catch {
-        return `${hex.slice(0, 6)}…`;
-    }
+  try {
+    const npub = safeNpubEncode(hex);
+    return `${npub.slice(0, 8)}…${npub.slice(-4)}`;
+  } catch {
+    return `${hex.slice(0, 6)}…`;
+  }
 }
 
 function useResolveUsername(pubkey: string): string | undefined {
-    const favorites = useContactsStore(s => s.favorites);
-    const contacts = useContactsStore(s => s.contacts || {});
+  const favorites = useContactsStore((s) => s.favorites);
+  const contacts = useContactsStore((s) => s.contacts || {});
 
-    return useMemo(() => {
-        const npub = safeNpubEncode(pubkey);
-        const candidates = [pubkey, npub];
+  return useMemo(() => {
+    const npub = safeNpubEncode(pubkey);
+    const candidates = [pubkey, npub];
 
-        for (const key of candidates) {
-            if (favorites[key]?.username) return favorites[key].username!;
-            if (contacts[key]?.username) return contacts[key].username!;
-        }
-        return undefined;
-    }, [pubkey, favorites, contacts]);
+    for (const key of candidates) {
+      if (favorites[key]?.username) return favorites[key].username!;
+      if (contacts[key]?.username) return contacts[key].username!;
+    }
+    return undefined;
+  }, [pubkey, favorites, contacts]);
 }
 
 function timeAgo(ts: number): string {
-    const diff = Date.now() - ts;
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 const RowContainer = styled(XStack, {
-    items: "center",
-    justify: "space-between",
-    gap: "$2",
-    pressStyle: { opacity: 0.7 },
+  items: 'center',
+  justify: 'space-between',
+  gap: '$2',
+  pressStyle: { opacity: 0.7 },
 });
 
 export default function NostrActivity() {
-    const items = useNostrInboxStore(s => s.items);
-    const refreshPendingStates = useNostrInboxStore(s => s.refreshPendingStates);
-    const router = useRouter();
+  const items = useNostrInboxStore((s) => s.items);
+  const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
+  const router = useRouter();
 
-    const favorites = useContactsStore(s => s.favorites);
-    const contacts = useContactsStore(s => s.contacts || {});
+  const favorites = useContactsStore((s) => s.favorites);
+  const contacts = useContactsStore((s) => s.contacts || {});
 
-    const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
-    const { data: btcData } = useQuery({
-        queryKey: ['bitcoinPrice', secondaryCurrency],
-        queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-        staleTime: 30000,
+  const { data: btcData } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30000,
+  });
+
+  // On mount, check if any "pending" items are actually already spent
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refreshPendingStates().catch(() => {});
+    }, 2000); // Delay so it doesn't compete with init
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Only unclaimed (pending / failed) items
+  const unclaimed = useMemo(
+    () => items.filter((i) => i.status === 'pending' || i.status === 'failed'),
+    [items],
+  );
+
+  const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
+  const sheetRef = React.useRef<AppBottomSheetRef>(null);
+
+  const resolvedRequestUsername = useResolveUsername(selectedRequest?.senderPubkey || '');
+  const requestDisplayName =
+    selectedRequest?.senderUsername ||
+    resolvedRequestUsername ||
+    (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
+
+  const handleOpenClaim = (item: NostrInboxItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (item.type === 'request') {
+      setSelectedRequest(item);
+      sheetRef.current?.present();
+    } else {
+      DeviceEventEmitter.emit('nostr:openClaim', item);
+    }
+  };
+
+  const handlePayRequest = () => {
+    if (!selectedRequest) return;
+    sheetRef.current?.dismiss();
+    router.push({
+      pathname: '/(modals)/send',
+      params: { paymentRequest: selectedRequest.tokenString, inboxItemId: selectedRequest.id },
     });
+  };
 
-    // On mount, check if any "pending" items are actually already spent
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            refreshPendingStates().catch(() => { });
-        }, 2000); // Delay so it doesn't compete with init
-        return () => clearTimeout(timer);
-    }, []);
+  const handleDeclineRequest = () => {
+    if (!selectedRequest) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    useNostrInboxStore.getState().dismiss(selectedRequest.id);
+    sheetRef.current?.dismiss();
+  };
 
-    // Only unclaimed (pending / failed) items
-    const unclaimed = useMemo(() =>
-        items.filter(i => i.status === 'pending' || i.status === 'failed'),
-        [items]
-    );
+  // Nothing to show — hide entirely
+  if (unclaimed.length === 0) return null;
 
-    const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
-    const sheetRef = React.useRef<AppBottomSheetRef>(null);
-
-    const resolvedRequestUsername = useResolveUsername(selectedRequest?.senderPubkey || '');
-    const requestDisplayName = selectedRequest?.senderUsername || resolvedRequestUsername || (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
-
-    const handleOpenClaim = (item: NostrInboxItem) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        if (item.type === 'request') {
-            setSelectedRequest(item);
-            sheetRef.current?.present();
-        } else {
-            DeviceEventEmitter.emit('nostr:openClaim', item);
-        }
-    };
-
-    const handlePayRequest = () => {
-        if (!selectedRequest) return;
-        sheetRef.current?.dismiss();
-        router.push({
-            pathname: '/(modals)/send',
-            params: { paymentRequest: selectedRequest.tokenString, inboxItemId: selectedRequest.id }
-        });
-    };
-
-    const handleDeclineRequest = () => {
-        if (!selectedRequest) return;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        useNostrInboxStore.getState().dismiss(selectedRequest.id);
-        sheetRef.current?.dismiss();
-    };
-
-    // Nothing to show — hide entirely
-    if (unclaimed.length === 0) return null;
-
-    return (
-        <YStack
-            width="100%"
-            gap="$4"
-            p="$2.5"
-            pr="$4"
-            rounded="$5"
-            bg={"$color2"}
+  return (
+    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$5" bg={'$color2'}>
+      {/* Section header */}
+      <XStack items="center" justify="space-between">
+        <XStack items="center" gap="$2">
+          <H6 color="$gray10">Incoming</H6>
+          <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
+            <Text color="white" fontSize={10} fontWeight="900">
+              {unclaimed.length}
+            </Text>
+          </View>
+        </XStack>
+        <Text
+          fontSize="$2"
+          color="$gray10"
+          fontWeight="600"
+          onPress={() => router.push('/(modals)/nostr-activity')}
+          pressStyle={{ opacity: 0.6 }}
         >
-            {/* Section header */}
-            <XStack items="center" justify="space-between">
-                <XStack items="center" gap="$2">
-                    <H6 color="$gray10">
-                        Incoming
-                    </H6>
-                    <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
-                        <Text color="white" fontSize={10} fontWeight="900">{unclaimed.length}</Text>
-                    </View>
-                </XStack>
-                <Text
-                    fontSize="$2"
-                    color="$gray10"
-                    fontWeight="600"
-                    onPress={() => router.push('/(modals)/nostr-activity')}
-                    pressStyle={{ opacity: 0.6 }}
-                >
-                    View All
-                </Text>
-            </XStack>
+          View All
+        </Text>
+      </XStack>
 
-            <YStack gap="$3">
-                {unclaimed.map((item) => {
-                    const fiatAmount = btcData?.price
-                        ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
-                        : 0;
-                    const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
-                    const sign = item.type === 'request' ? '?' : '+';
+      <YStack gap="$3">
+        {unclaimed.map((item) => {
+          const fiatAmount = btcData?.price
+            ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+            : 0;
+          const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+          const sign = item.type === 'request' ? '?' : '+';
 
-                    const npub = safeNpubEncode(item.senderPubkey);
-                    const resolvedUsername = favorites[item.senderPubkey]?.username || 
-                                             contacts[item.senderPubkey]?.username ||
-                                             favorites[npub]?.username || 
-                                             contacts[npub]?.username;
-                    const displayName = item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
+          const npub = safeNpubEncode(item.senderPubkey);
+          const resolvedUsername =
+            favorites[item.senderPubkey]?.username ||
+            contacts[item.senderPubkey]?.username ||
+            favorites[npub]?.username ||
+            contacts[npub]?.username;
+          const displayName =
+            item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
 
-                    return (
-                        <RowContainer
-                            key={item.id}
-                            onPress={() => handleOpenClaim(item)}
-                        >
-                            <XStack items="center" gap="$2">
-                                <View position="relative">
-                                    <Blockies seed={item.senderPubkey} size={10} scale={4.5} style={{ borderRadius: 5 }} />
-                                    {!item.seen && (
-                                        <View
-                                            position="absolute" top={-2} right={-2}
-                                            bg="$red10" w={8} h={8} rounded="$10"
-                                            borderWidth={1.5} borderColor="$color2"
-                                        />
-                                    )}
-                                </View>
-                                <YStack gap="$0.5" mr="$2">
-                                    <H6 color="$accent4" textTransform="uppercase" numberOfLines={1} style={{ maxWidth: 180 }}>
-                                        {displayName.replace('@bey.cash', '')}
-                                    </H6>
-                                    <Text fontSize="$2" color="$gray9">
-                                        {timeAgo(item.receivedAt)}
-                                    </Text>
-                                </YStack>
-                            </XStack>
-
-                            <YStack items="flex-end" justify="center">
-                                {primaryCurrency === 'SATS' ? (
-                                    <>
-                                        <Text
-                                            fontWeight="900"
-                                            fontSize={20}
-                                            color="$accent4"
-                                        >
-                                            {sign}{currencyService.formatSats(item.amount)}
-                                        </Text>
-                                        <Text
-                                            fontSize="$2"
-                                            color="$gray10"
-                                            fontWeight="600"
-                                        >
-                                            {sign}{formattedFiat}
-                                        </Text>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Text
-                                            fontWeight="900"
-                                            fontSize={20}
-                                            color="$accent4"
-                                        >
-                                            {sign}{formattedFiat}
-                                        </Text>
-                                        <Text
-                                            fontSize="$2"
-                                            color="$gray10"
-                                            fontWeight="600"
-                                        >
-                                            {sign}{currencyService.formatSats(item.amount)}
-                                        </Text>
-                                    </>
-                                )}
-                            </YStack>
-                        </RowContainer>
-                    );
-                })}
-            </YStack>
-
-            <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
-                <YStack p="$4" gap="$4" flex={1}>
-                    <YStack items="center" gap="$2" mb="$2">
-                        <Text fontSize="$5" fontWeight="800" color="$color">Payment Request</Text>
-                        <Text fontSize="$3" color="$gray10" textAlign="center">
-                            {requestDisplayName} is requesting {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.
-                        </Text>
-                    </YStack>
-                    <YStack gap="$3">
-                        <Button
-                            size="$5"
-                            theme="accent"
-                            fontWeight="800"
-                            icon={<ArrowUpRight size={20} />}
-                            onPress={handlePayRequest}
-                        >
-                            Pay Request
-                        </Button>
-                        <Button
-                            size="$5"
-                            bg="$red4"
-                            color="$red10"
-                            fontWeight="800"
-                            icon={<X size={20} />}
-                            onPress={handleDeclineRequest}
-                        >
-                            Decline
-                        </Button>
-                    </YStack>
+          return (
+            <RowContainer key={item.id} onPress={() => handleOpenClaim(item)}>
+              <XStack items="center" gap="$2">
+                <View position="relative">
+                  <Blockies
+                    seed={item.senderPubkey}
+                    size={10}
+                    scale={4.5}
+                    style={{ borderRadius: 5 }}
+                  />
+                  {!item.seen && (
+                    <View
+                      position="absolute"
+                      top={-2}
+                      right={-2}
+                      bg="$red10"
+                      w={8}
+                      h={8}
+                      rounded="$10"
+                      borderWidth={1.5}
+                      borderColor="$color2"
+                    />
+                  )}
+                </View>
+                <YStack gap="$0.5" mr="$2">
+                  <H6
+                    color="$accent4"
+                    textTransform="uppercase"
+                    numberOfLines={1}
+                    style={{ maxWidth: 180 }}
+                  >
+                    {displayName.replace('@bey.cash', '')}
+                  </H6>
+                  <Text fontSize="$2" color="$gray9">
+                    {timeAgo(item.receivedAt)}
+                  </Text>
                 </YStack>
-            </AppBottomSheet>
+              </XStack>
+
+              <YStack items="flex-end" justify="center">
+                {primaryCurrency === 'SATS' ? (
+                  <>
+                    <Text fontWeight="900" fontSize={20} color="$accent4">
+                      {sign}
+                      {currencyService.formatSats(item.amount)}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10" fontWeight="600">
+                      {sign}
+                      {formattedFiat}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text fontWeight="900" fontSize={20} color="$accent4">
+                      {sign}
+                      {formattedFiat}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10" fontWeight="600">
+                      {sign}
+                      {currencyService.formatSats(item.amount)}
+                    </Text>
+                  </>
+                )}
+              </YStack>
+            </RowContainer>
+          );
+        })}
+      </YStack>
+
+      <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
+        <YStack p="$4" gap="$4" flex={1}>
+          <YStack items="center" gap="$2" mb="$2">
+            <Text fontSize="$5" fontWeight="800" color="$color">
+              Payment Request
+            </Text>
+            <Text fontSize="$3" color="$gray10" textAlign="center">
+              {requestDisplayName} is requesting{' '}
+              {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.
+            </Text>
+          </YStack>
+          <YStack gap="$3">
+            <Button
+              size="$5"
+              theme="accent"
+              fontWeight="800"
+              icon={<ArrowUpRight size={20} />}
+              onPress={handlePayRequest}
+            >
+              Pay Request
+            </Button>
+            <Button
+              size="$5"
+              bg="$red4"
+              color="$red10"
+              fontWeight="800"
+              icon={<X size={20} />}
+              onPress={handleDeclineRequest}
+            >
+              Decline
+            </Button>
+          </YStack>
         </YStack>
-    );
+      </AppBottomSheet>
+    </YStack>
+  );
 }

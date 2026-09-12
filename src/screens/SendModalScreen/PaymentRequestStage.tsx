@@ -30,10 +30,7 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/currencyServic
 import { walletService } from '~/services/core';
 import { sendNostrToken } from '~/services/core/nostrService';
 import { decodeToken } from '~/services/core/tokenUtils';
-import {
-  PaymentStatusOverlay,
-  type PaymentStatusState,
-} from '~/components/PaymentStatusOverlay';
+import { PaymentStatusOverlay, type PaymentStatusState } from '~/components/PaymentStatusOverlay';
 import { seedService } from '~/services/seedService';
 import Blockies from '~/components/UI/Blockies';
 import { AppBottomSheetRef } from '~/components/UI/AppBottomSheet';
@@ -82,7 +79,13 @@ export function PaymentRequestStage({
   const [selectedMintUrl, setSelectedMintUrl] = useState<string | null>(null);
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
-  const { balance: storeBalance, activeMintUrl, mints, balances, refreshMintList } = useWalletStore();
+  const {
+    balance: storeBalance,
+    activeMintUrl,
+    mints,
+    balances,
+    refreshMintList,
+  } = useWalletStore();
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
   const { data: btcData } = useQuery({
@@ -92,7 +95,7 @@ export function PaymentRequestStage({
   });
 
   const currencySymbol = useMemo(() => {
-    return SUPPORTED_CURRENCIES.find(c => c.code === secondaryCurrency)?.symbol || '$';
+    return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
   }, [secondaryCurrency]);
 
   // ── Mint compatibility ───────────────────────────────────────────────────
@@ -110,13 +113,13 @@ export function PaymentRequestStage({
     }
 
     // 3. If active mint matches one of the requested mints
-    if (activeMintUrl && request.mints.some(m => normalize(m) === normalize(activeMintUrl))) {
+    if (activeMintUrl && request.mints.some((m) => normalize(m) === normalize(activeMintUrl))) {
       return activeMintUrl;
     }
 
     // 4. Find any other mint in the wallet that matches the request
     for (const reqMint of request.mints) {
-      const found = mints.find(m => normalize(m.mintUrl) === normalize(reqMint));
+      const found = mints.find((m) => normalize(m.mintUrl) === normalize(reqMint));
       if (found) return found.mintUrl;
     }
 
@@ -125,21 +128,24 @@ export function PaymentRequestStage({
 
   const activeMintInfo = useMemo(() => {
     if (!matchedMint) return null;
-    return mints.find(m => m.mintUrl.replace(/\/$/, '').toLowerCase() === matchedMint.replace(/\/$/, '').toLowerCase());
+    return mints.find(
+      (m) =>
+        m.mintUrl.replace(/\/$/, '').toLowerCase() === matchedMint.replace(/\/$/, '').toLowerCase(),
+    );
   }, [matchedMint, mints]);
 
   const mintDisplayName = useMemo(() => {
-    if (!matchedMint) return "No Compatible Mint";
+    if (!matchedMint) return 'No Compatible Mint';
     if (activeMintInfo?.nickname) return activeMintInfo.nickname;
     if (activeMintInfo?.name) return activeMintInfo.name;
-    return matchedMint.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    return matchedMint.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }, [activeMintInfo, matchedMint]);
 
   const isCompatible = useMemo(() => {
     if (!matchedMint) return false;
     if (!request.mints || request.mints.length === 0) return true;
     const normalize = (u: string) => u.replace(/\/$/, '').toLowerCase();
-    return request.mints.some(m => normalize(m) === normalize(matchedMint));
+    return request.mints.some((m) => normalize(m) === normalize(matchedMint));
   }, [matchedMint, request.mints]);
 
   const currentMintBalance = useMemo(() => {
@@ -170,7 +176,9 @@ export function PaymentRequestStage({
     setOverlayState('sending');
 
     try {
-      console.log(`[PaymentRequestStage] Sending ${amountSats} sats for payment request via mint ${matchedMint}`);
+      console.log(
+        `[PaymentRequestStage] Sending ${amountSats} sats for payment request via mint ${matchedMint}`,
+      );
       const { token: tokenString, id: operationId } = await walletService.send(
         matchedMint!,
         amountSats,
@@ -185,7 +193,7 @@ export function PaymentRequestStage({
         const senderPrivkeyHex = keys.privkey;
 
         console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
-        
+
         const decodedToken = decodeToken(tokenString);
         const proofs = decodedToken.proofs || [];
 
@@ -197,16 +205,22 @@ export function PaymentRequestStage({
         };
         const payloadToEncrypt = JSON.stringify(payloadObj);
 
-        const published = await sendNostrToken(payloadToEncrypt, request.nostrTarget, senderPrivkeyHex);
+        const published = await sendNostrToken(
+          payloadToEncrypt,
+          request.nostrTarget,
+          senderPrivkeyHex,
+        );
 
         if (!published) {
-          throw new Error('Failed to publish payment to Nostr relays. The recipient may not receive it.');
+          throw new Error(
+            'Failed to publish payment to Nostr relays. The recipient may not receive it.',
+          );
         }
       }
 
       console.log(`[PaymentRequestStage] ✅ Payment complete. OpId: ${operationId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       if (inboxItemId) {
         import('~/store/nostrInboxStore').then(({ useNostrInboxStore }) => {
           useNostrInboxStore.getState().markClaimed(inboxItemId);
@@ -235,7 +249,10 @@ export function PaymentRequestStage({
 
   return (
     <YStack flex={1} bg="$background">
-      <ScrollView contentContainerStyle={{ paddingBottom: 150 } as any} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 150 } as any}
+        showsVerticalScrollIndicator={false}
+      >
         <YStack gap="$4">
           {/* Mint Balance Row Selector */}
           <MintBalanceRow
@@ -252,31 +269,20 @@ export function PaymentRequestStage({
 
           {/* Middle Amount Display */}
           <YStack gap="$3" py="$6" items="center" justify="center">
-            <Text fontSize={52} fontFamily="$oswald" fontWeight="700" color="$accent3" lineHeight={54}>
+            <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
               {showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
             </Text>
             <Text color="$accent5" fontWeight="600" fontSize={16}>
-              ≈ {currencySymbol}{fiatValue} {secondaryCurrency}
+              ≈ {currencySymbol}
+              {fiatValue} {secondaryCurrency}
             </Text>
           </YStack>
 
           {/* Status Badge */}
-          <XStack
-            self="center"
-            items="center"
-            gap="$2"
-            bg="$purple9"
-            px="$4"
-            py="$3"
-            rounded="$10"
-          >
+          <XStack self="center" items="center" gap="$2" bg="$purple9" px="$4" py="$3" rounded="$10">
             <FileText size={16} color="white" />
-            <Text
-              fontSize="$3"
-              fontWeight="700"
-              color="white"
-            >
-              {request.description || "Requested"}
+            <Text fontSize="$3" fontWeight="700" color="white">
+              {request.description || 'Requested'}
             </Text>
           </XStack>
 
@@ -290,7 +296,8 @@ export function PaymentRequestStage({
                 </Text>
               </XStack>
               <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={18}>
-                Requires one of: {request.mints.map(m => m.replace(/^https?:\/\//, '')).join(', ')}
+                Requires one of:{' '}
+                {request.mints.map((m) => m.replace(/^https?:\/\//, '')).join(', ')}
               </Text>
             </YStack>
           )}
@@ -313,7 +320,9 @@ export function PaymentRequestStage({
           {/* Details List */}
           <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
             <View p="$3" px="$4">
-              <Text fontSize="$3" fontWeight="700" color="$gray12">Details</Text>
+              <Text fontSize="$3" fontWeight="700" color="$gray12">
+                Details
+              </Text>
             </View>
             <Separator borderColor="$borderColor" opacity={0.3} />
             <YStack separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
@@ -337,19 +346,32 @@ export function PaymentRequestStage({
                     <AlertCircle size={16} color="$red10" />
                   )
                 }
-                valueColor={isCompatible ? "$color" : "$red10"}
+                valueColor={isCompatible ? '$color' : '$red10'}
               />
               <DetailItem
                 label="Method"
-                value={request.nostrTarget ? "Payment Request via Nostr" : "Direct Cashu Request"}
+                value={request.nostrTarget ? 'Payment Request via Nostr' : 'Direct Cashu Request'}
                 icon={<Zap size={16} color="$yellow10" />}
               />
               {request.nostrTarget && (
                 <XStack justify="space-between" items="center" py="$3" px="$4">
-                  <Text fontSize="$3" color="$gray10" fontWeight="600">Recipient</Text>
+                  <Text fontSize="$3" color="$gray10" fontWeight="600">
+                    Recipient
+                  </Text>
                   <XStack gap="$2" items="center">
-                    <Blockies seed={request.nostrTarget} size={6} scale={2} style={{ borderRadius: 2 }} />
-                    <Text fontSize="$3" fontWeight="800" color="$color" numberOfLines={1} style={{ maxWidth: 180 }}>
+                    <Blockies
+                      seed={request.nostrTarget}
+                      size={6}
+                      scale={2}
+                      style={{ borderRadius: 2 }}
+                    />
+                    <Text
+                      fontSize="$3"
+                      fontWeight="800"
+                      color="$color"
+                      numberOfLines={1}
+                      style={{ maxWidth: 180 }}
+                    >
                       {truncateTarget(request.nostrTarget)}
                     </Text>
                   </XStack>
@@ -358,8 +380,8 @@ export function PaymentRequestStage({
               <DetailItem
                 label="Your Balance"
                 value={currencyService.formatSats(currentMintBalance)}
-                valueColor={isEnough ? "$green11" : "$red10"}
-                icon={<ShieldCheck size={16} color={isEnough ? "$green11" : "$red10"} />}
+                valueColor={isEnough ? '$green11' : '$red10'}
+                icon={<ShieldCheck size={16} color={isEnough ? '$green11' : '$red10'} />}
               />
             </YStack>
           </YStack>
@@ -432,7 +454,21 @@ export function PaymentRequestStage({
   );
 }
 
-function DetailItem({ label, value, icon, valueColor, onPress, isClickable }: { label: string, value: string, icon?: React.ReactNode, valueColor?: string, onPress?: () => void, isClickable?: boolean }) {
+function DetailItem({
+  label,
+  value,
+  icon,
+  valueColor,
+  onPress,
+  isClickable,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  valueColor?: string;
+  onPress?: () => void;
+  isClickable?: boolean;
+}) {
   return (
     <XStack
       justify="space-between"
@@ -442,10 +478,18 @@ function DetailItem({ label, value, icon, valueColor, onPress, isClickable }: { 
       onPress={onPress}
       pressStyle={isClickable ? { opacity: 0.7 } : undefined}
     >
-      <Text fontSize="$3" color="$gray10" fontWeight="600">{label}</Text>
+      <Text fontSize="$3" color="$gray10" fontWeight="600">
+        {label}
+      </Text>
       <XStack gap="$2" items="center">
         {icon}
-        <Text fontSize="$3" fontWeight="800" color={valueColor || "$color"} numberOfLines={1} style={{ maxWidth: 220 }}>
+        <Text
+          fontSize="$3"
+          fontWeight="800"
+          color={valueColor || '$color'}
+          numberOfLines={1}
+          style={{ maxWidth: 220 }}
+        >
           {value}
         </Text>
       </XStack>
