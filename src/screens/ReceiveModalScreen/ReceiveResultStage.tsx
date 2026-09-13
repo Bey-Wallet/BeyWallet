@@ -149,7 +149,7 @@ export function ReceiveResultStage({
           <Text color="$gray10" fontSize="$4" text="center" px="$4" lineHeight={22}>
             {error}
           </Text>
-          <Button size="$6" fontSize="$5" rounded="$12" width="100%" onPress={onClose} mt="$4">
+          <Button size="$6" fontSize="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
             Got it
           </Button>
         </YStack>
@@ -165,7 +165,7 @@ export function ReceiveResultStage({
         <Text color="$gray10" fontSize="$4" text="center" px="$4">
           {error || 'An error occurred while receiving the token.'}
         </Text>
-        <Button size="$6" fontSize="$5" rounded="$12" width="100%" onPress={onClose} mt="$4">
+        <Button size="$6" fontSize="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
           Go Back
         </Button>
       </YStack>
@@ -291,7 +291,7 @@ export function ReceiveResultStage({
           onPress={onClose}
           fontWeight="800"
 
-          rounded="$12"
+          rounded="$6"
           disabled={isLoading}
         >
           Done

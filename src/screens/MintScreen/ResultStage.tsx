@@ -89,7 +89,7 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
             {error || 'An error occurred while depositing.'}
           </Text>
         </YStack>
-        <Button theme="gray" size="$5" width="100%" onPress={onClose} mt="$4">
+        <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
           Go Back
         </Button>
       </YStack>
@@ -165,7 +165,7 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
         <Button
           size="$5"
           height={55}
-          rounded="$12"
+          rounded="$6"
           fontWeight="800"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

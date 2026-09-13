@@ -112,7 +112,7 @@ export function PaymentStage({
         px="$0"
       >
         <YStack items="center" gap="$4" mb="$4">
-          <View bg="white" p="$2" borderColor="$borderColor" borderWidth={1} rounded="$5">
+          <View bg="white" p="$2" borderColor="$borderColor" borderWidth={1} rounded="$6">
             <QRCode
               value={invoice}
               size={330}
@@ -127,7 +127,7 @@ export function PaymentStage({
           gap="$0"
           mb="$6"
           bg="$gray2"
-          rounded="$5"
+          rounded="$6"
           overflow="hidden"
           separator={<Separator borderColor="$borderColor" opacity={0.5} />}
         >
@@ -147,13 +147,11 @@ export function PaymentStage({
       <YStack position="absolute" b={0} l={0} r={0} py="$2" bg="$background">
         <XStack width="100%" justify="space-evenly" gap="$3">
           <Button
-            theme="red"
             size="$5"
             height={55}
-            rounded="$4"
+            rounded="$6"
             fontWeight="800"
-            bg="$red3"
-            color="$red10"
+
             flex={1}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -167,7 +165,7 @@ export function PaymentStage({
             size="$5"
             flex={1}
             height={55}
-            rounded="$4"
+            rounded="$6"
             fontWeight="800"
             disabled={isExpired || isChecking}
             icon={isChecking ? <Spinner size="small" color="white" /> : undefined}

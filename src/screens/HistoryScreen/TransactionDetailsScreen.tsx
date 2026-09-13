@@ -13,6 +13,7 @@ import {
   Adapt,
   Sheet,
   Square,
+  YGroup,
 } from 'tamagui';
 import {
   ChevronLeft,
@@ -1052,7 +1053,7 @@ export function TransactionDetailsScreen() {
             </XStack>
 
             {/* Compact status description */}
-            <YStack px="$4" py="$2">
+            <YStack py="$2">
               <Text color="$gray10" fontSize="$4" textAlign="center" lineHeight={20}>
                 {status === 'failed' || status === 'error'
                   ? 'Funds were not transferred.'
@@ -1075,176 +1076,176 @@ export function TransactionDetailsScreen() {
                                 : 'Transaction processed.'}
               </Text>
             </YStack>
-
             {/* Details table */}
-            <ListTable>
+            <YStack bg="$gray2" rounded="$6" overflow="hidden">
               <View p="$3" px="$4">
                 <Text fontSize="$3" fontWeight="700" color="$gray12">
                   Details
                 </Text>
               </View>
               <Separator borderColor="$borderColor" opacity={0.3} />
-
-              <ListTableRow label="Date" value={formatFullLocalTime(entry.createdAt)} />
-              <ListTableRow
-                label="Mint"
-                value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
-              />
-              {mintFee > 0 && (
-                <ListTableRow
-                  label="Fee Rate"
-                  value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`}
+              <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+                <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
+                <DetailItem
+                  label="Mint"
+                  value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
                 />
-              )}
-              {/* Via channel & contacts */}
-              {(() => {
-                let meta = entry.metadata ?? {};
-                if (typeof meta === 'string') {
-                  try {
-                    meta = JSON.parse(meta);
-                  } catch {
-                    meta = {};
+                {mintFee > 0 && (
+                  <DetailItem
+                    label="Fee Rate"
+                    value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`}
+                  />
+                )}
+                {/* Via channel & contacts */}
+                {(() => {
+                  let meta = entry.metadata ?? {};
+                  if (typeof meta === 'string') {
+                    try {
+                      meta = JSON.parse(meta);
+                    } catch {
+                      meta = {};
+                    }
                   }
-                }
-                const via: string | undefined = (meta as any)?.via;
-                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
-                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
-                const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
-                const targetMintName: string | undefined = (meta as any)?.targetMintName;
+                  const via: string | undefined = (meta as any)?.via;
+                  const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
+                  const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                  const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
+                  const targetMintName: string | undefined = (meta as any)?.targetMintName;
 
-                if (entry.type === 'swap' || via === 'swap') {
+                  if (entry.type === 'swap' || via === 'swap') {
+                    return (
+                      <>
+                        <DetailItem label="Channel" value="NUT-19 Direct Swap" />
+                        {sourceMintName && (
+                          <DetailItem label="Source Mint" value={sourceMintName} />
+                        )}
+                        {targetMintName && (
+                          <DetailItem label="Target Mint" value={targetMintName} />
+                        )}
+                      </>
+                    );
+                  }
+
+                  if (!via) return null;
+                  const viaLabel =
+                    via === 'nostr'
+                      ? 'Nostr'
+                      : via === 'qr' || via === 'scan'
+                        ? 'QR Scan'
+                        : via === 'nfc'
+                          ? 'NFC'
+                          : via === 'ecash_create'
+                            ? 'Ecash Token'
+                            : via === 'paste'
+                              ? 'Paste'
+                              : via === 'lightning'
+                                ? 'Lightning'
+                                : via;
                   return (
                     <>
-                      <ListTableRow label="Channel" value="NUT-19 Direct Swap" />
-                      {sourceMintName && (
-                        <ListTableRow label="Source Mint" value={sourceMintName} />
-                      )}
-                      {targetMintName && (
-                        <ListTableRow label="Target Mint" value={targetMintName} />
+                      <DetailItem label="Channel" value={viaLabel} />
+                      {via === 'nostr' && (nostrUsername || nostrPubkey) && (
+                        <DetailItem
+                          label={entry.type === 'send' ? 'Recipient' : 'Sender'}
+                          value={
+                            nostrUsername
+                              ? `@${nostrUsername.replace('@bey.cash', '')}`
+                              : nostrPubkey
+                                ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
+                                : 'Unknown'
+                          }
+                          isCopyable={!!nostrPubkey}
+                          onCopy={async () => {
+                            if (nostrPubkey) {
+                              await Clipboard.setStringAsync(nostrPubkey);
+                              toast.show('Copied!', { message: 'Nostr pubkey copied' });
+                            }
+                          }}
+                        />
                       )}
                     </>
                   );
-                }
-
-                if (!via) return null;
-                const viaLabel =
-                  via === 'nostr'
-                    ? 'Nostr'
-                    : via === 'qr' || via === 'scan'
-                      ? 'QR Scan'
-                      : via === 'nfc'
-                        ? 'NFC'
-                        : via === 'ecash_create'
-                          ? 'Ecash Token'
-                          : via === 'paste'
-                            ? 'Paste'
-                            : via === 'lightning'
-                              ? 'Lightning'
-                              : via;
-                return (
-                  <>
-                    <ListTableRow label="Channel" value={viaLabel} />
-                    {via === 'nostr' && (nostrUsername || nostrPubkey) && (
-                      <ListTableRow
-                        label={entry.type === 'send' ? 'Recipient' : 'Sender'}
-                        value={
-                          nostrUsername
-                            ? `@${nostrUsername.replace('@bey.cash', '')}`
-                            : nostrPubkey
-                              ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
-                              : 'Unknown'
-                        }
-                        isCopyable={!!nostrPubkey}
-                        onCopy={async () => {
-                          if (nostrPubkey) {
-                            await Clipboard.setStringAsync(nostrPubkey);
-                            toast.show('Copied!', { message: 'Nostr pubkey copied' });
-                          }
-                        }}
-                      />
-                    )}
-                  </>
-                );
-              })()}
-              {lockedToNpub && (
-                <ListTableRow
-                  label="Locked To"
-                  value={
-                    lockedToNpub === useSettingsStore.getState().npub
-                      ? 'You (Safe)'
-                      : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`
+                })()}
+                {lockedToNpub && (
+                  <DetailItem
+                    label="Locked To"
+                    value={
+                      lockedToNpub === useSettingsStore.getState().npub
+                        ? 'You (Safe)'
+                        : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`
+                    }
+                    isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
+                    onCopy={async () => {
+                      await Clipboard.setStringAsync(lockedToNpub);
+                      Haptics.selectionAsync();
+                      toast.show('Copied!', { message: 'NPUB copied to clipboard' });
+                    }}
+                  />
+                )}
+                {/* On-chain Details */}
+                {(() => {
+                  let meta = entry.metadata ?? {};
+                  if (typeof meta === 'string') {
+                    try {
+                      meta = JSON.parse(meta);
+                    } catch {
+                      meta = {};
+                    }
                   }
-                  isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
-                  onCopy={async () => {
-                    await Clipboard.setStringAsync(lockedToNpub);
-                    Haptics.selectionAsync();
-                    toast.show('Copied!', { message: 'NPUB copied to clipboard' });
-                  }}
-                />
-              )}
-              {/* On-chain Details */}
-              {(() => {
-                let meta = entry.metadata ?? {};
-                if (typeof meta === 'string') {
-                  try {
-                    meta = JSON.parse(meta);
-                  } catch {
-                    meta = {};
-                  }
-                }
-                const via = (meta as any)?.via;
-                if (via !== 'onchain') return null;
+                  const via = (meta as any)?.via;
+                  if (via !== 'onchain') return null;
 
-                const btcAddress =
-                  entry.type === 'mint' ? entry.paymentRequest : (meta as any)?.address;
-                const onchainFee = (meta as any)?.fee;
+                  const btcAddress =
+                    entry.type === 'mint' ? entry.paymentRequest : (meta as any)?.address;
+                  const onchainFee = (meta as any)?.fee;
 
-                return (
-                  <>
-                    {btcAddress ? (
-                      <ListTableRow
-                        label="BTC Address"
-                        value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
-                        isCopyable
-                        onCopy={async () => {
-                          await Clipboard.setStringAsync(btcAddress);
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          toast.show('Copied!', { message: 'BTC Address copied' });
-                        }}
-                      />
-                    ) : null}
-                    {entry.type === 'melt' && onchainFee !== undefined ? (
-                      <ListTableRow
-                        label="Network Fee"
-                        value={currencyService.formatSats(onchainFee)}
-                      />
-                    ) : null}
-                  </>
-                );
-              })()}
-              {/* Invoice for mint txns */}
-              {savedInvoice && (
-                <ListTableRow
-                  label="Invoice"
-                  value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
-                  isCopyable
-                  onCopy={async () => {
-                    await Clipboard.setStringAsync(savedInvoice);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    toast.show('Copied!', { message: 'Invoice copied' });
-                  }}
-                />
-              )}
-              {/* Token for send/receive txns */}
-              {token && typeof token === 'string' && (
-                <ListTableRow
-                  label="Token"
-                  value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
-                  isCopyable
-                  onCopy={handleCopyToken}
-                />
-              )}
-            </ListTable>
+                  return (
+                    <>
+                      {btcAddress ? (
+                        <DetailItem
+                          label="BTC Address"
+                          value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
+                          isCopyable
+                          onCopy={async () => {
+                            await Clipboard.setStringAsync(btcAddress);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            toast.show('Copied!', { message: 'BTC Address copied' });
+                          }}
+                        />
+                      ) : null}
+                      {entry.type === 'melt' && onchainFee !== undefined ? (
+                        <DetailItem
+                          label="Network Fee"
+                          value={currencyService.formatSats(onchainFee)}
+                        />
+                      ) : null}
+                    </>
+                  );
+                })()}
+                {/* Invoice for mint txns */}
+                {savedInvoice && (
+                  <DetailItem
+                    label="Invoice"
+                    value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
+                    isCopyable
+                    onCopy={async () => {
+                      await Clipboard.setStringAsync(savedInvoice);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      toast.show('Copied!', { message: 'Invoice copied' });
+                    }}
+                  />
+                )}
+                {/* Token for send/receive txns */}
+                {token && typeof token === 'string' && (
+                  <DetailItem
+                    label="Token"
+                    value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
+                    isCopyable
+                    onCopy={handleCopyToken}
+                  />
+                )}
+              </YGroup>
+            </YStack>
 
             {/* Pending actions */}
             {token &&
@@ -1268,8 +1269,8 @@ export function TransactionDetailsScreen() {
                       bg="$green10"
                       color="white"
                       size="$5"
-                      height={55}
-                      rounded="$4"
+                      height={60}
+                      rounded="$6"
                       onPress={handleClaimNow}
                       disabled={isClaiming}
                       icon={
@@ -1287,13 +1288,13 @@ export function TransactionDetailsScreen() {
               )}
 
             {/* Copy & Share buttons */}
-            <XStack gap="$2" mt="$4">
+            <XStack gap="$2">
               <Button
                 flex={1}
                 bg="$gray3"
                 color="$color"
-                height={55}
-                rounded="$4"
+                height={60}
+                rounded="$6"
                 icon={<Copy size={18} />}
                 onPress={handleCopyToken}
                 fontWeight="800"
@@ -1304,8 +1305,8 @@ export function TransactionDetailsScreen() {
                 flex={1}
                 bg="$gray3"
                 color="$color"
-                height={55}
-                rounded="$4"
+                height={60}
+                rounded="$6"
                 icon={<Share2 size={18} />}
                 onPress={handleShare}
                 fontWeight="800"
@@ -1337,4 +1338,38 @@ export function TransactionDetailsScreen() {
       </SafeAreaView>
     );
   }
+}
+
+function DetailItem({
+  label,
+  value,
+  isCopyable,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  isCopyable?: boolean;
+  onCopy?: () => void;
+}) {
+  return (
+    <XStack justify="space-between" items="center" py="$3" px="$4">
+      <Text fontSize="$3" color="$gray10" fontWeight="600">
+        {label}
+      </Text>
+      <XStack gap="$2" items="center">
+        <Text
+          fontSize="$3"
+          fontWeight="800"
+          color="$color"
+          numberOfLines={1}
+          style={{ maxWidth: 200 }}
+        >
+          {value}
+        </Text>
+        {isCopyable && (
+          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+        )}
+      </XStack>
+    </XStack>
+  );
 }

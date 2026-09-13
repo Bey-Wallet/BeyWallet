@@ -136,7 +136,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
           color="$color"
           size="$5"
           height={55}
-          rounded="$12"
+          rounded="$6"
           fontWeight="800"
           disabled={isLoading}
           onPress={() => {
@@ -151,7 +151,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
           flex={1}
           size="$5"
           height={55}
-          rounded="$12"
+          rounded="$6"
           fontWeight="800"
           disabled={isLoading}
           icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}

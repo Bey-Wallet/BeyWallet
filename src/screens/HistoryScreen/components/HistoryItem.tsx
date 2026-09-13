@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Text, XStack, YStack, View as TView } from 'tamagui';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Text, XStack, YStack, View as TView, Separator } from 'tamagui';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -14,9 +14,9 @@ import {
   Nfc,
   Box,
   ShieldCheck,
-  Clock,
   Bitcoin,
   RefreshCw,
+  Zap,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
@@ -24,14 +24,7 @@ import { useSettingsStore } from '~/store/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
 import { bitcoinService } from '~/services/bitcoinService';
 import { StatusBadge, BadgeStatus } from '~/components/UI/StatusBadge';
-import {
-  proofService,
-  walletService,
-  initService,
-  cleanToken,
-  decodeToken,
-  quotesService,
-} from '~/services/core';
+import { proofService, initService, quotesService } from '~/services/core';
 import { useToastController } from '@tamagui/toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -119,60 +112,6 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
   return empty;
 }
 
-function getSubtitleText(type: string, metadata?: Record<string, any>): string {
-  if (!metadata) {
-    if (type === 'swap') return 'Swap';
-    if (type === 'mint') return 'Lightning';
-    if (type === 'melt') return 'Lightning';
-    return 'Ecash';
-  }
-
-  const via = metadata.via;
-  const isP2PK = metadata.type === 'p2pk' || metadata.p2pkPubkey || metadata.lockToNpub;
-
-  let base = 'Ecash';
-
-  if (via === 'onchain') {
-    base = 'On-Chain';
-  } else if (via === 'lightning' || type === 'mint' || type === 'melt') {
-    if (via !== 'onchain') {
-      base = 'Lightning';
-    } else {
-      base = 'On-Chain';
-    }
-  } else if (via === 'swap' || type === 'swap') {
-    base = 'Swap';
-  } else if (via === 'nfc') {
-    base = 'NFC';
-  } else if (via === 'nostr') {
-    base = 'Nostr';
-  } else if (via === 'qr' || via === 'scan') {
-    base = 'QR Scan';
-  }
-
-  if (isP2PK) {
-    base = `${base}-P2PK`;
-  }
-
-  if (metadata.nostrUsername) {
-    const username = `@${metadata.nostrUsername.replace('@bey.cash', '')}`;
-    return `${base} · ${username}`;
-  } else if (metadata.nostrPubkey) {
-    const pubkey = String(metadata.nostrPubkey);
-    return `${base} · ${pubkey.slice(0, 10)}…`;
-  }
-
-  if (via === 'swap' || type === 'swap') {
-    const sourceName = metadata.sourceMintName || 'Mint';
-    const targetName = metadata.targetMintName || 'Mint';
-    if (metadata.sourceMintName && metadata.targetMintName) {
-      return `${base} · ${sourceName} ➔ ${targetName}`;
-    }
-  }
-
-  return base;
-}
-
 function getTypeLabel(type: string, metadata?: Record<string, any>): string {
   switch (type) {
     case 'send':
@@ -214,17 +153,6 @@ function getIconConfig(type: string, isFailed: boolean, metadata?: Record<string
   }
 }
 
-function getExpiryTimeLeftLabel(expiresAt?: any): string | null {
-  if (!expiresAt) return null;
-  const diff = Number(expiresAt) - Date.now();
-  if (diff <= 0) return 'Expired';
-  const hours = Math.floor(diff / (60 * 60 * 1000));
-  if (hours > 0) return `Expires in ${hours}h`;
-  const mins = Math.floor(diff / (60 * 1000));
-  if (mins > 0) return `Expires in ${mins}m`;
-  return `Expires in <1m`;
-}
-
 export interface HistoryItemProps {
   id: string;
   type: string;
@@ -248,6 +176,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
       queryKey: ['bitcoinPrice', secondaryCurrency],
       queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
       staleTime: 30000,
+      enabled: primaryCurrency !== 'SATS',
     });
 
     const fiatAmount = React.useMemo(() => {
@@ -275,9 +204,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
     const isExpired = expiresAt && Date.now() > Number(expiresAt);
 
     const Icon = getIconConfig(type, isFailed, metadata);
-    const viaInfo = getViaInfo(type, metadata);
     const label = getTypeLabel(type, metadata);
-
     const sign = type === 'swap' || type === 'receive-request' ? '' : isOutgoing ? '−' : '+';
 
     const handlePress = () => {
@@ -285,13 +212,11 @@ export const HistoryItem = React.memo<HistoryItemProps>(
       onPress(id, type);
     };
 
-    // Status check for pending items — tap the badge to refresh proof state
     const handleCheckStatus = async () => {
       if (isChecking) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setIsChecking(true);
       try {
-        // 1. If it has a token (pending ecash)
         let token = metadata?.token;
         if (token && typeof token === 'string') {
           const states = await proofService.checkProofStates(token);
@@ -307,9 +232,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           } else {
             toast.show('Still Pending', { message: 'Token has not been claimed yet' });
           }
-        }
-        // 2. If it's a pending mint with quoteId (lightning/on-chain deposit)
-        else if (type === 'mint' && quoteId && mintUrl) {
+        } else if (type === 'mint' && quoteId && mintUrl) {
           try {
             await quotesService.redeemMintQuote(mintUrl, quoteId);
             toast.show('Deposit Successful!', { message: 'Funds have been received' });
@@ -318,9 +241,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           } catch (err: any) {
             toast.show('Still Pending', { message: err?.message || 'Invoice is not paid yet' });
           }
-        }
-        // 3. Otherwise, just show a message
-        else {
+        } else {
           toast.show('Pending', { message: 'Waiting for transaction to complete' });
         }
       } catch (e: any) {
@@ -331,11 +252,6 @@ export const HistoryItem = React.memo<HistoryItemProps>(
       }
     };
 
-    const subLabel = getSubtitleText(type, metadata);
-    const expiryLabel = isPending && expiresAt ? getExpiryTimeLeftLabel(expiresAt) : null;
-    const subtitle = [subLabel, expiryLabel].filter(Boolean).join(' · ');
-
-    // Badge status derivation
     const badgeStatus: BadgeStatus = isExpired
       ? 'expired'
       : isPending
@@ -345,118 +261,61 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           : 'success';
 
     return (
-      <XStack bg="$gray2" my="$1" px="$3" py="$3.5" items="center" pr="$3.5" rounded="$6">
-        <TouchableOpacity
-          onPress={handlePress}
-          activeOpacity={0.7}
-          style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-        >
-          {/* Left: icon with mono bg circle */}
-          <TView
-            width={40}
-            height={40}
-            borderRadius={21}
-            bg="$gray4"
-            items="center"
-            justify="center"
-            marginRight="$3"
+      <YStack>
+        <XStack py="$3" items="center">
+          <TouchableOpacity
+            onPress={handlePress}
+            activeOpacity={0.7}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
           >
-            <Icon size={20} color="$accent4" strokeWidth={2.8} />
-          </TView>
+            {/* Left: icon with mono bg circle */}
+            <TView
+              width={40}
+              height={40}
+              borderRadius={21}
+              bg="$gray4"
+              items="center"
+              justify="center"
+              marginRight="$3"
+            >
+              <Icon size={20} color="$accent4" strokeWidth={2.8} />
+            </TView>
 
-          {/* Middle: title + subtitle */}
-          <YStack flex={1} gap="$0.5" mr="$2" justify="center">
-            <XStack items="center" gap="$1.5" flex={1}>
-              <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1} flex={1}>
+            {/* Middle: title */}
+            <YStack flex={1} mr="$2" justify="center">
+              <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1}>
                 {label}
               </Text>
-            </XStack>
-            {subtitle ? (
-              <XStack items="center" gap="$1.5" flex={1} mt="$0.5">
-                <TView mt="$0.5">
-                  {viaInfo.icon || <Clock size={10} strokeWidth={2.8} color="$gray10" />}
-                </TView>
-                <Text fontSize="$2" color="$gray10" flex={1}>
-                  {subtitle}
-                </Text>
-              </XStack>
-            ) : null}
-          </YStack>
+            </YStack>
 
-          {/* Right: amount */}
-          <YStack items="flex-end" justify="center" mr={isPending || isFailed ? '$2' : '$0'}>
-            {primaryCurrency === 'SATS' ? (
-              <>
-                <Text
-                  fontWeight="800"
-                  fontSize="$5"
-                  color="$color"
-                  fontVariant={['tabular-nums'] as any}
-                >
-                  {sign}
-                  {currencyService.formatSats(amount)}
-                </Text>
-                <Text
-                  fontSize="$2"
-                  color="$gray10"
-                  fontWeight="600"
-                  fontVariant={['tabular-nums'] as any}
-                >
-                  {sign}
-                  {formattedFiat}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  fontWeight="800"
-                  fontSize="$5"
-                  color="$color"
-                  fontVariant={['tabular-nums'] as any}
-                >
-                  {sign}
-                  {formattedFiat}
-                </Text>
-                <Text
-                  fontSize="$2"
-                  color="$gray10"
-                  fontWeight="600"
-                  fontVariant={['tabular-nums'] as any}
-                >
-                  {sign}
-                  {currencyService.formatSats(amount)}
-                </Text>
-              </>
-            )}
-          </YStack>
-        </TouchableOpacity>
+            {/* Right: primary amount only */}
+            <YStack items="flex-end" justify="center" mr={isPending || isFailed ? '$2' : '$0'}>
+              <Text
+                fontWeight="800"
+                fontSize="$5"
+                color="$color"
+                fontVariant={['tabular-nums'] as any}
+              >
+                {sign}
+                {primaryCurrency === 'SATS' ? currencyService.formatSats(amount) : formattedFiat}
+              </Text>
+            </YStack>
+          </TouchableOpacity>
 
-        {/* Status badge — only for pending or failed */}
-        {(isPending || isFailed) && (
-          <StatusBadge
-            status={badgeStatus}
-            onPress={isPending ? handleCheckStatus : undefined}
-            isChecking={isChecking}
-            size={28}
-          />
-        )}
-      </XStack>
+          {/* Status badge — only for pending or failed */}
+          {(isPending || isFailed) && (
+            <StatusBadge
+              status={badgeStatus}
+              onPress={isPending ? handleCheckStatus : undefined}
+              isChecking={isChecking}
+              size={28}
+            />
+          )}
+        </XStack>
+
+        {/* Perfect Separator */}
+        <Separator borderColor="$borderColor" opacity={0.3} />
+      </YStack>
     );
   },
 );
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-});

@@ -385,13 +385,13 @@ export default function NFCReceiveScreen() {
           <YStack
             bg="$accent12"
             p="$3"
-            rounded="$5"
+            rounded="$6"
             borderWidth={1}
             borderColor="$borderColor"
             gap="$6"
             width="100%"
             justify="space-between"
-            minH={230}
+            minH={210}
           >
             {/* Top Row */}
             <XStack justify="space-between" items="center">
@@ -410,7 +410,7 @@ export default function NFCReceiveScreen() {
             </XStack>
 
             <View width="100%" justify="center" items="center">
-              <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
+              <BeyIcon size={50} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
             </View>
 
             {/* Bottom Row */}
@@ -547,12 +547,13 @@ export default function NFCReceiveScreen() {
             fontWeight="700"
             icon={<Scan size={24} color={theme.color.val} />}
             onPress={() => router.replace('/(modals)/scanner')}
-            rounded="$5"
+            rounded="$6"
           >
             Scan QR Instead
           </Button>
           <Button
             size="$5"
+            height={60}
             fontWeight="700"
             icon={
               receiveState === 'error' ? (
@@ -562,7 +563,7 @@ export default function NFCReceiveScreen() {
               )
             }
             onPress={isNfcEnabled ? handleReceive : () => nfcService.goToNfcSetting()}
-            rounded="$5"
+            rounded="$6"
             theme={!isNfcEnabled ? 'gray' : receiveState === 'error' ? 'orange' : undefined}
           >
             {!isNfcEnabled

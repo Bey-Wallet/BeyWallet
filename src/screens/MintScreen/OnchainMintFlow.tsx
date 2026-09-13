@@ -378,7 +378,7 @@ export function OnchainMintFlow() {
       >
         <YStack items="center" gap="$4" mb="$4">
           {quoteData && (
-            <View bg="white" p="$3" borderColor="$borderColor" borderWidth={1} rounded="$5">
+            <View bg="white" p="$3" borderColor="$borderColor" borderWidth={1} rounded="$6">
               <QRCode
                 value={quoteData.request}
                 size={320}
@@ -392,7 +392,8 @@ export function OnchainMintFlow() {
           <XStack
             bg="$gray4"
             p="$3"
-            rounded="$5"
+            px="$4"
+            rounded="$6"
             items="center"
             justify="space-between"
             gap="$2"
@@ -401,7 +402,7 @@ export function OnchainMintFlow() {
             pressStyle={{ opacity: 0.8 }}
           >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-              <Text fontSize="$3" color="$color" fontFamily="$mono">
+              <Text fontSize="$4" color="$color" fontFamily="$mono">
                 {quoteData?.request}
               </Text>
             </ScrollView>
@@ -435,6 +436,8 @@ export function OnchainMintFlow() {
             }
           />
         </ListTable>
+
+        {/* WIP : Add mint info & Fees & confrimations */}
       </ScrollView>
 
       <XStack bg="$background" gap="$2">
@@ -444,7 +447,7 @@ export function OnchainMintFlow() {
           bg="$gray3"
           color="$color"
           height={55}
-          rounded="$4"
+          rounded="$6"
           fontWeight="800"
           onPress={() => router.back()}
         >
@@ -455,7 +458,7 @@ export function OnchainMintFlow() {
           size="$5"
           flex={1}
           height={55}
-          rounded="$4"
+          rounded="$6"
           fontWeight="800"
           icon={isChecking ? <Spinner size="small" /> : <RefreshCw size={20} />}
           onPress={() => handleCheckPayment(true)}

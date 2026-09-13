@@ -805,9 +805,9 @@ export function RequestEcashStage({
   return (
     <YStack flex={1} bg="$background">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
-        <YStack flex={1} px="$4" pb="$8" gap="$4">
+        <YStack flex={1} px="$4" pb="$8" pt="$4" gap="$4">
           {/* ── Hint banner ────────────────────────────────────────── */}
-          <XStack
+          {/* <XStack
             mt="$4"
             px="$4"
             py="$2"
@@ -823,11 +823,11 @@ export function RequestEcashStage({
               Share or display this QR. The sender's Cashu wallet will automatically fill in the
               amount and mint.
             </Text>
-          </XStack>
+          </XStack> */}
 
           {/* ── QR Code ──────────────────────────────────────────── */}
           <YStack items="center" gap="$4">
-            <View bg="white" borderWidth={1} borderColor="$borderColor" p="$3" rounded="$5">
+            <View bg="white" borderWidth={1} borderColor="$borderColor" p="$3" rounded="$6">
               {creqString ? (
                 <QRCode
                   value={creqString}
@@ -848,7 +848,7 @@ export function RequestEcashStage({
           <YStack
             gap="$0"
             bg="$gray2"
-            rounded="$5"
+            rounded="$6"
             overflow="hidden"
             separator={<Separator borderColor="$borderColor" opacity={0.5} />}
           >
@@ -893,7 +893,7 @@ export function RequestEcashStage({
                 size="$5"
                 theme="gray"
                 fontWeight="800"
-                rounded="$4"
+                rounded="$6"
                 icon={<Share2 size={20} />}
                 onPress={handleShare}
                 pressStyle={{ scale: 0.97 }}
@@ -905,7 +905,7 @@ export function RequestEcashStage({
                 size="$5"
                 theme="accent"
                 fontWeight="800"
-                rounded="$4"
+                rounded="$6"
                 icon={copied ? <Check size={20} /> : <Copy size={20} />}
                 onPress={handleCopy}
                 pressStyle={{ scale: 0.97 }}
@@ -920,7 +920,7 @@ export function RequestEcashStage({
                 bg="$purple10"
                 color="white"
                 fontWeight="800"
-                rounded="$4"
+                rounded="$6"
                 icon={isPublishing ? <Spinner size="small" color="white" /> : <Globe size={20} />}
                 onPress={handlePublish}
                 disabled={isPublishing}

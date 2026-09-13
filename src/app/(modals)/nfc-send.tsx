@@ -264,13 +264,13 @@ export default function NFCSendScreen() {
           <YStack
             bg="$accent12"
             p="$3"
-            rounded="$5"
+            rounded="$6"
             borderWidth={1}
             borderColor="$borderColor"
             gap="$6"
             width="100%"
             justify="space-between"
-            minH={230}
+            minH={210}
           >
             {/* Top Row */}
             <XStack justify="space-between" items="center">
@@ -289,7 +289,7 @@ export default function NFCSendScreen() {
             </XStack>
 
             <View width="100%" justify="center" items="center">
-              <BeyIcon size={80} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
+              <BeyIcon size={50} color={resolvedTheme === 'dark' ? 'black' : 'white'} />
             </View>
 
             {/* Bottom Row */}
@@ -422,7 +422,7 @@ export default function NFCSendScreen() {
                 size="$4"
                 bg={mode === 'hce' ? '$color' : 'transparent'}
                 color={mode === 'hce' ? '$background' : '$color'}
-                rounded="$4"
+                rounded="$6"
                 fontWeight="700"
                 onPress={() => {
                   setMode('hce');
@@ -442,7 +442,7 @@ export default function NFCSendScreen() {
                 size="$4"
                 bg={mode === 'write' ? '$color' : 'transparent'}
                 color={mode === 'write' ? '$background' : '$color'}
-                rounded="$4"
+                rounded="$6"
                 fontWeight="700"
                 onPress={() => {
                   setMode('write');
@@ -468,7 +468,7 @@ export default function NFCSendScreen() {
               fontWeight="700"
               icon={<NFCFill2 size={24} color={theme.color.val} />}
               onPress={() => nfcService.goToNfcSetting()}
-              rounded="$5"
+              rounded="$6"
               theme="gray"
             >
               Turn on NFC
@@ -480,7 +480,7 @@ export default function NFCSendScreen() {
               theme="green"
               icon={<CheckCircle2 size={22} color="white" />}
               onPress={() => router.back()}
-              rounded="$5"
+              rounded="$6"
             >
               Done
             </Button>
@@ -491,7 +491,7 @@ export default function NFCSendScreen() {
               theme="accent"
               icon={<Tag size={22} color="white" />}
               onPress={handleWriteToTag}
-              rounded="$5"
+              rounded="$6"
             >
               Write to Physical Tag
             </Button>
@@ -502,7 +502,7 @@ export default function NFCSendScreen() {
               theme={hceActive ? 'gray' : 'orange'}
               icon={<Radio size={22} color={theme.color.val} />}
               onPress={hceActive ? stopHceBroadcast : startHceBroadcast}
-              rounded="$5"
+              rounded="$6"
             >
               {hceActive ? 'Stop Broadcast' : 'Retry Broadcast'}
             </Button>

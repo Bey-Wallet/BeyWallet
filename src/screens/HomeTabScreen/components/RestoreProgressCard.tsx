@@ -202,7 +202,7 @@ export default function RestoreProgressCard() {
       <YStack
         width="100%"
         p="$3.5"
-        rounded="$5"
+        rounded="$6"
         bg="$color2"
         gap="$2.5"
         pressStyle={{ opacity: 0.9, scale: 0.99 }}

@@ -16,7 +16,7 @@ export function ListTable({
     <YStack
       gap="$0"
       bg="$gray2"
-      rounded="$5"
+      rounded="$6"
       overflow="hidden"
       separator={<Separator borderColor="$borderColor" opacity={0.5} />}
       {...props}

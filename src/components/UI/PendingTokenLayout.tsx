@@ -483,7 +483,7 @@ export function PendingTokenLayout({
             </YStack> */}
 
       {/* QR Code Container */}
-      <YStack items="center" gap="$3">
+      <YStack items="center" gap="$3" pt="$4">
         <View
           bg="white"
           p="$3"
@@ -531,6 +531,10 @@ export function PendingTokenLayout({
               label="Amount"
               value={`${currencyService.formatSats(Number(amount || 0))} (${fiatValue})`}
             />
+            <DetailRowItem
+              label="Fees"
+              value={`${currencyService.formatSats(Number(fee || 0))}`}
+            />
             {currentToken.startsWith('http') && (
               <DetailRowItem
                 label="Web Link"
@@ -577,13 +581,30 @@ export function PendingTokenLayout({
 
       {/* Action Buttons: Share / Send & Copy */}
       <XStack gap="$3" width="100%">
+
         <Button
           flex={1}
-          theme="gray"
-          size="$5"
-          bg="$gray2"
+         
+          bg={copied ? '$green3' : '$color2'}
+          hoverStyle={{ bg: copied ? '$green4' : '$color3' }}
+          color={copied ? '$green11' : '$color'}
+          size="$6"
           height={65}
-          rounded="$10"
+          rounded="$6"
+          onPress={handleCopy}
+          pressStyle={{ scale: 0.97 }}
+          icon={copied ? <Check size={20} color="$green11" /> : <Copy size={20} color="$accent5" />}
+          fontWeight="800"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </Button>
+        <Button
+          flex={1}
+         bg="$color2"
+          size="$6"
+       
+          height={65}
+          rounded="$6"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             shareSheetRef.current?.present();
@@ -593,23 +614,6 @@ export function PendingTokenLayout({
           fontWeight="800"
         >
           Send
-        </Button>
-
-        <Button
-          flex={1}
-          theme="gray"
-          bg={copied ? '$green3' : '$gray2'}
-          hoverStyle={{ bg: copied ? '$green4' : '$gray3' }}
-          color={copied ? '$green11' : '$color'}
-          size="$5"
-          height={65}
-          rounded="$10"
-          onPress={handleCopy}
-          pressStyle={{ scale: 0.97 }}
-          icon={copied ? <Check size={20} color="$green11" /> : <Copy size={20} color="$accent5" />}
-          fontWeight="800"
-        >
-          {copied ? 'Copied!' : 'Copy'}
         </Button>
       </XStack>
 

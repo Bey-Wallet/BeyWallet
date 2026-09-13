@@ -58,7 +58,7 @@ export function WelcomeStep({
         height={400}
         width="100%"
         bg="$gray2"
-        rounded="$5"
+        rounded="$6"
         items="center"
         justify="center"
         position="relative"
@@ -80,7 +80,7 @@ export function WelcomeStep({
       </YStack>
 
       {/* Bottom - CTAs */}
-      <YStack gap="$3" mb="$4" justify="center" items="center" pb="$4">
+      <YStack gap="$3" justify="center" items="center" pb="$4">
         <YStack items="center" gap="$2">
           <H1
             fontSize="$9"
@@ -118,7 +118,8 @@ export function WelcomeStep({
 
               fontSize="$6"
               fontWeight="700"
-              rounded="$5"
+              rounded="$6"
+              height={60}
               pressStyle={{ scale: 0.98, opacity: 0.9 }}
               color="$red10"
             >
@@ -131,7 +132,8 @@ export function WelcomeStep({
               onPress={onOpenSavedWallet}
               fontSize="$6"
               fontWeight="700"
-              rounded="$5"
+              rounded="$6"
+              height={60}
               pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Open saved wallet
@@ -146,7 +148,8 @@ export function WelcomeStep({
               onPress={handleImport}
               fontSize="$6"
               fontWeight="700"
-              rounded="$5"
+              rounded="$6"
+              height={60}
               pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Import existing wallet
@@ -158,7 +161,8 @@ export function WelcomeStep({
               onPress={handleCreate}
               fontSize="$6"
               fontWeight="700"
-              rounded="$5"
+              rounded="$6"
+              height={60}
               pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Create a new wallet

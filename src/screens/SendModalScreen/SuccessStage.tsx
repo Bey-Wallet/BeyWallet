@@ -46,26 +46,13 @@ export function SuccessStage({ amount, mintUrl, fee = 0, onClose }: SuccessStage
     toast.show('Copied!', { message: `${label} copied to clipboard` });
   };
 
-  const headerOptions = {
-    headerTitleAlign: 'center' as const,
-    headerTitle: () => (
-      <YStack items="center" justify="center" gap={1}>
-        <Text fontWeight="900" fontSize={18} color="$color" lineHeight={22}>
-          {primaryAmountLabel}
-        </Text>
-        <Text fontSize={12} fontWeight="600" color="$gray10" lineHeight={16}>
-          {secondaryAmountLabel}
-        </Text>
-      </YStack>
-    ),
-    headerRight: () => null,
-  };
+  
 
   const mintDomain = mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown';
 
   return (
     <YStack flex={1} bg="$background">
-      <Stack.Screen options={headerOptions} />
+      
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
@@ -130,7 +117,7 @@ export function SuccessStage({ amount, mintUrl, fee = 0, onClose }: SuccessStage
 
       {/* Final Done Button */}
       <YStack position="absolute" b="$4" l="$1" r="$1">
-        <Button size="$5" height={55} onPress={onClose} fontWeight="800" rounded="$12">
+        <Button size="$5" height={55} onPress={onClose} fontWeight="800" rounded="$6">
           Done
         </Button>
       </YStack>

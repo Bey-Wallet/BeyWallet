@@ -76,7 +76,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
           {/* Single unified list card container */}
           <YStack
             bg="$gray2"
-            rounded="$5"
+            rounded="$6"
             overflow="hidden"
             borderWidth={0}
             separator={<Separator borderColor="$borderColor" opacity={0.4} />}
@@ -247,7 +247,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
           disabled={!checked}
           fontSize="$5"
           fontWeight="800"
-          rounded="$4"
+          rounded="$6"
           height={55}
           pressStyle={checked ? { scale: 0.98, opacity: 0.9 } : undefined}
         >

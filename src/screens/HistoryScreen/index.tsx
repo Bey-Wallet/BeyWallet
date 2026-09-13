@@ -16,6 +16,7 @@ import {
   View as RNView,
   FlatList,
   ScrollView,
+  Animated,
 } from 'react-native';
 import {
   Clock,
@@ -55,12 +56,12 @@ interface HistoryEntry {
   metadata?: any;
 }
 
+const FILTER_BAR_HEIGHT = 56;
+
 export function HistoryScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const theme = useTheme();
-  const cardBg = theme.gray3?.val ?? '#1f1f1f';
-  const borderColor = theme.borderColor?.val ?? 'rgba(128,128,128,0.2)';
 
   const [mintFilter, setMintFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
@@ -71,6 +72,22 @@ export function HistoryScreen() {
   const timeSheetRef = useRef<AppBottomSheetRef>(null);
 
   const { pendingRequests, loadPendingRequests } = useNostrRequestStore();
+
+  // Scroll Animation for Filter Bar Hiding
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const diffClamp = Animated.diffClamp(scrollY, 0, FILTER_BAR_HEIGHT);
+
+  const filterBarTranslateY = diffClamp.interpolate({
+    inputRange: [0, FILTER_BAR_HEIGHT],
+    outputRange: [0, -FILTER_BAR_HEIGHT],
+    extrapolate: 'clamp',
+  });
+
+  const filterBarOpacity = diffClamp.interpolate({
+    inputRange: [0, FILTER_BAR_HEIGHT],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
     loadPendingRequests();
@@ -233,9 +250,6 @@ export function HistoryScreen() {
     return groups;
   }, [filteredHistory]);
 
-  // Flatten into FlashList-compatible flat array
-  // 'header' items render the date label; 'first' | 'middle' | 'last' | 'only' carry position info
-  // so HistoryItem can render its own rounded-card corners.
   type FlatItem =
     | { kind: 'header'; title: string }
     | { kind: 'item'; entry: HistoryEntry; position: 'first' | 'middle' | 'last' | 'only' };
@@ -349,11 +363,9 @@ export function HistoryScreen() {
     { key: 'onchain', label: 'On-chain', icon: <Bitcoin size={13} strokeWidth={2.5} /> },
   ];
 
-  // Show skeleton during initial load
   if (isLoading && !isRefetching) {
     return (
       <YStack flex={1} bg="$background">
-        {/* Filter bar skeleton */}
         <XStack px="$4" py="$3" gap="$2">
           <View style={styles.filterSkeletonBtn} />
           <View style={styles.filterSkeletonBtn} />
@@ -365,91 +377,114 @@ export function HistoryScreen() {
 
   return (
     <YStack flex={1} bg="$background">
-      {/* ── Scrollable Filter Chips ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 8 }}
+      {/* ── Floating Animated Filter Bar ── */}
+      <Animated.View
+        style={[
+          styles.animatedFilterBar,
+          {
+            transform: [{ translateY: filterBarTranslateY }],
+            opacity: filterBarOpacity,
+            backgroundColor: theme.background?.val,
+          },
+        ]}
       >
-        {FILTER_CHIPS.map((chip) => {
-          const active = typeFilter === chip.key;
-          return (
-            <Button
-              key={chip.key}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setTypeFilter(chip.key);
-              }}
-              size="$3"
-              rounded="$12"
-              chromeless={active ? false : true}
-              color={active ? '$color' : '$gray10'}
-            >
-              {chip.label}
-            </Button>
-          );
-        })}
-        {/* Mint filter chip */}
-        <Button
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            mintSheetRef.current?.present();
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 8,
+            gap: 8,
           }}
-          size="$2.5"
-          chromeless={mintFilter === 'all'}
-          color={mintFilter !== 'all' ? '$color' : '$gray10'}
-          icon={
-            <Landmark
-              size={13}
-              strokeWidth={2.5}
-              color={mintFilter !== 'all' ? '$color' : '#888'}
-            />
-          }
         >
-          {getMintFilterLabel(mintFilter)}
-        </Button>
-        {/* Time filter chip */}
-        <Button
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            timeSheetRef.current?.present();
-          }}
-          size="$2.5"
-          chromeless={timeFilter === 'all'}
-          color={timeFilter !== 'all' ? '$color' : '$gray10'}
-          icon={
-            <Calendar
-              size={13}
-              strokeWidth={2.5}
-              color={timeFilter !== 'all' ? '$color' : '#888'}
-            />
-          }
-        >
-          {getTimeFilterLabel(timeFilter)}
-        </Button>
-        {/* Clear chip */}
-        {isFiltered && (
+          {FILTER_CHIPS.map((chip) => {
+            const active = typeFilter === chip.key;
+            return (
+              <Button
+                key={chip.key}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setTypeFilter(chip.key);
+                }}
+                size="$3"
+                rounded="$12"
+                chromeless={!active}
+                color={active ? '$color' : '$gray10'}
+              >
+                {chip.label}
+              </Button>
+            );
+          })}
+          {/* Mint filter chip */}
           <Button
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setMintFilter('all');
-              setTimeFilter('all');
-              setTypeFilter('all');
+              mintSheetRef.current?.present();
             }}
             size="$2.5"
-            theme="red"
-            color="#ef4444"
-            icon={<X size={13} strokeWidth={2.5} color="#ef4444" />}
+            chromeless={mintFilter === 'all'}
+            color={mintFilter !== 'all' ? '$color' : '$gray10'}
+            icon={
+              <Landmark
+                size={13}
+                strokeWidth={2.5}
+                color={mintFilter !== 'all' ? '$color' : '#888'}
+              />
+            }
           >
-            Clear
+            {getMintFilterLabel(mintFilter)}
           </Button>
-        )}
-      </ScrollView>
+          {/* Time filter chip */}
+          <Button
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              timeSheetRef.current?.present();
+            }}
+            size="$2.5"
+            chromeless={timeFilter === 'all'}
+            color={timeFilter !== 'all' ? '$color' : '$gray10'}
+            icon={
+              <Calendar
+                size={13}
+                strokeWidth={2.5}
+                color={timeFilter !== 'all' ? '$color' : '#888'}
+              />
+            }
+          >
+            {getTimeFilterLabel(timeFilter)}
+          </Button>
+          {/* Clear chip */}
+          {isFiltered && (
+            <Button
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setMintFilter('all');
+                setTimeFilter('all');
+                setTypeFilter('all');
+              }}
+              size="$2.5"
+              theme="red"
+              color="#ef4444"
+              icon={<X size={13} strokeWidth={2.5} color="#ef4444" />}
+            >
+              Clear
+            </Button>
+          )}
+        </ScrollView>
+      </Animated.View>
 
       {/* ── Content ── */}
       {flatItems.length === 0 ? (
-        <YStack flex={1} items="center" justify="flex-start" gap="$4" pb={100}>
+        <YStack
+          flex={1}
+          items="center"
+          justify="flex-start"
+          gap="$4"
+          pt={FILTER_BAR_HEIGHT + 20}
+          pb={100}
+        >
           <View style={styles.emptyIcon}>
             <Clock size={36} color="$gray8" />
           </View>
@@ -479,7 +514,7 @@ export function HistoryScreen() {
           )}
         </YStack>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={flatItems}
           keyExtractor={(item, i) =>
             item.kind === 'header'
@@ -488,9 +523,22 @@ export function HistoryScreen() {
           }
           renderItem={renderItem}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FFD700" />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor="#FFD700"
+              progressViewOffset={FILTER_BAR_HEIGHT}
+            />
           }
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
+          scrollEventThrottle={16}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: FILTER_BAR_HEIGHT,
+            paddingBottom: 120,
+          }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -538,27 +586,20 @@ export function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  animatedFilterBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: FILTER_BAR_HEIGHT,
+    zIndex: 10,
+    elevation: 4,
+  },
   filterSkeletonBtn: {
     flex: 1,
     height: 36,
     borderRadius: 10,
     backgroundColor: 'rgba(128,128,128,0.12)',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: 'rgba(128,128,128,0.1)',
-  },
-  chipActive: {
-    backgroundColor: '#FFD700',
-  },
-  clearBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
   },
   emptyIcon: {
     width: 80,
@@ -566,6 +607,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'rgba(128,128,128,0.1)',
     alignItems: 'center',
-    justifyContent: 'center',
+    justify: 'center',
   },
 });

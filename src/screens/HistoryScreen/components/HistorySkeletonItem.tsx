@@ -13,24 +13,21 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import { useTheme } from 'tamagui';
+import { useTheme, Separator, YStack } from 'tamagui';
 
 const ShimmerRect = ({
   width,
   height,
   borderRadius = 6,
   progress,
-  delay = 0,
 }: {
   width: number | string;
   height: number;
   borderRadius?: number;
   progress: Animated.SharedValue<number>;
-  delay?: number;
 }) => {
   const theme = useTheme();
   const bg = theme.gray4?.val ?? '#333333';
-  const highlight = theme.gray6?.val ?? '#3a3a3a';
 
   const animStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 0.5, 1], [0.5, 1, 0.5]);
@@ -62,31 +59,28 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
   index = 0,
 }) => {
   return (
-    <View style={[styles.row]}>
-      {/* Left icon circle */}
-      <ShimmerRect width={22} height={22} borderRadius={6} progress={progress} />
+    <YStack>
+      <View style={styles.row}>
+        {/* Left icon circle placeholder (matches TView 40x40 circle) */}
+        <ShimmerRect width={40} height={40} borderRadius={20} progress={progress} />
 
-      {/* Middle content — title + subtitle */}
-      <View style={styles.middle}>
-        <ShimmerRect
-          width={index % 3 === 0 ? 140 : index % 3 === 1 ? 110 : 160}
-          height={14}
-          borderRadius={6}
-          progress={progress}
-        />
-        <View style={{ marginTop: 6 }}>
+        {/* Middle content — title only (subtitle removed) */}
+        <View style={styles.middle}>
           <ShimmerRect
-            width={index % 2 === 0 ? 90 : 70}
-            height={11}
-            borderRadius={5}
+            width={index % 3 === 0 ? 120 : index % 3 === 1 ? 90 : 140}
+            height={16}
+            borderRadius={6}
             progress={progress}
           />
         </View>
+
+        {/* Right — single primary amount placeholder */}
+        <ShimmerRect width={72} height={20} borderRadius={6} progress={progress} />
       </View>
 
-      {/* Right — amount */}
-      <ShimmerRect width={64} height={16} borderRadius={6} progress={progress} />
-    </View>
+      {/* Matching Separator */}
+      <Separator borderColor="$borderColor" opacity={0.3} />
+    </YStack>
   );
 };
 
@@ -95,29 +89,15 @@ export const HistorySkeletonSection: React.FC<{
   rows?: number;
   progress: Animated.SharedValue<number>;
 }> = ({ rows = 3, progress }) => {
-  const theme = useTheme();
   return (
     <View style={styles.section}>
-      {/* Date label */}
+      {/* Date label placeholder */}
       <View style={{ paddingHorizontal: 4, paddingVertical: 8, marginTop: 12 }}>
         <ShimmerRect width={80} height={12} borderRadius={5} progress={progress} />
       </View>
-      <View
-        style={[styles.card, { backgroundColor: theme.gray3?.val ?? '#1f1f1f', borderRadius: 16 }]}
-      >
+      <View style={styles.card}>
         {Array.from({ length: rows }).map((_, i) => (
-          <React.Fragment key={i}>
-            <HistorySkeletonItem progress={progress} index={i} />
-            {i < rows - 1 && (
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: theme.borderColor?.val ?? 'rgba(128,128,128,0.15)',
-                  opacity: 0.5,
-                }}
-              />
-            )}
-          </React.Fragment>
+          <HistorySkeletonItem key={i} progress={progress} index={i} />
         ))}
       </View>
     </View>
@@ -164,18 +144,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
     backgroundColor: 'transparent',
   },
   middle: {
     flex: 1,
-    gap: 0,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(128,128,128,0.15)',
-    marginLeft: 66,
+    justifyContent: 'center',
   },
 });

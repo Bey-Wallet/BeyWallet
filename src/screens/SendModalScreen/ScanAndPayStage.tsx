@@ -64,7 +64,7 @@ export function ScanAndPayStage({
       >
         <YStack gap="$4">
           {/* Input Card */}
-          <YStack bg="$gray2" rounded="$4" p="$4" minHeight={180}>
+          <YStack bg="$gray2" rounded="$6" p="$4" minHeight={180}>
             <XStack justify="space-between" items="center" mb="$2">
               <Text color="$gray10" fontSize="$4" fontWeight="600">
                 Enter Payment Request
@@ -117,7 +117,7 @@ export function ScanAndPayStage({
               flex={1}
               height={100}
               bg="$gray2"
-              rounded="$4"
+              rounded="$6"
               onPress={handleScanPress}
               pressStyle={{ bg: '$gray3' }}
             >
@@ -131,7 +131,7 @@ export function ScanAndPayStage({
               </YStack>
             </Button>
 
-            <Button flex={1} height={100} bg="$gray2" rounded="$4" disabled opacity={0.5}>
+            <Button flex={1} height={100} bg="$gray2" rounded="$6" disabled opacity={0.5}>
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
                   <Nfc size={24} color="$gray10" />
@@ -154,7 +154,7 @@ export function ScanAndPayStage({
             color="white"
             size="$5"
             fontWeight="700"
-            rounded="$4"
+            rounded="$6"
             disabled={isLoading}
             icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
             onPress={() => onContinue()}

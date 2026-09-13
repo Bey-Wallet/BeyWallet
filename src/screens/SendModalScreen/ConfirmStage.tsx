@@ -242,7 +242,7 @@ export function ConfirmStage({
         <Button
           bg="$gray3"
           color="$color"
-          size="$5"
+          size="$6"
           flex={1}
           height={60}
           rounded="$6"
@@ -253,11 +253,11 @@ export function ConfirmStage({
             onBack();
           }}
         >
-          Go Back
+        Back
         </Button>
         <Button
           theme="accent"
-          size="$5"
+          size="$6"
           flex={1}
           height={60}
           rounded="$6"

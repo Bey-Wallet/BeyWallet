@@ -1,5 +1,5 @@
 import React from 'react';
-import { YStack, XStack, Text, Button, Separator, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, Button, Separator, ScrollView, Circle } from 'tamagui';
 import { Check, XCircle } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/currencyService';
@@ -49,17 +49,17 @@ export function MeltResultStage({
   if (!isSuccess) {
     return (
       <YStack flex={1} justify="center" items="center" gap="$4" px="$4" bg="$background">
-        <YStack
+        <Circle
           width={100}
           height={100}
-          rounded="$10"
+
           bg="$red4"
           items="center"
           justify="center"
           animation="bouncy"
         >
           <XCircle size={50} color="$red10" strokeWidth={2.5} />
-        </YStack>
+        </Circle>
         <YStack items="center" gap="$2">
           <Text fontSize="$7" fontWeight="900" color="$color">
             Payment Failed
@@ -68,7 +68,7 @@ export function MeltResultStage({
             {error || 'The Lightning payment could not be completed.'}
           </Text>
         </YStack>
-        <Button theme="gray" size="$5" width="100%" onPress={onClose} mt="$4">
+        <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
           Go Back
         </Button>
       </YStack>

@@ -230,7 +230,7 @@ export default function SwapScreen() {
               </XStack>
 
               {/* Details List */}
-              <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3" mx="$4">
+              <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3" mx="$4">
                 <View p="$3" px="$4">
                   <Text fontSize="$3" fontWeight="700" color="$gray12">
                     Details
@@ -294,25 +294,25 @@ export default function SwapScreen() {
               size="$5"
               flex={1}
               height={55}
-              rounded="$4"
+              rounded="$6"
               fontWeight="800"
               disabled={isProcessing}
               onPress={() => setStep('amount')}
             >
-              Go Back
+              Back
             </Button>
             <Button
               theme="accent"
               size="$5"
               flex={1}
               height={55}
-              rounded="$4"
+              rounded="$6"
               fontWeight="800"
               onPress={handleConfirmSubmit}
               disabled={isProcessing}
               icon={isProcessing ? <Spinner size="small" color="white" /> : undefined}
             >
-              {isProcessing ? 'Swapping...' : 'Confirm Swap'}
+              {isProcessing ? 'Swapping...' : 'Swap'}
             </Button>
           </XStack>
         </YStack>

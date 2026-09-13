@@ -255,18 +255,7 @@ export function PaymentRequestStage({
       >
         <YStack gap="$4">
           {/* Mint Balance Row Selector */}
-          <MintBalanceRow
-            activeMint={activeMintInfo}
-            activeMintUrl={matchedMint || undefined}
-            displayName={mintDisplayName}
-            balance={currentMintBalance}
-            isSelector={true}
-            onPress={() => {
-              refreshMintList();
-              sheetRef.current?.present();
-            }}
-          />
-
+      
           {/* Middle Amount Display */}
           <YStack gap="$3" py="$6" items="center" justify="center">
             <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
@@ -318,7 +307,7 @@ export function PaymentRequestStage({
           )}
 
           {/* Details List */}
-          <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
+          <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
             <View p="$3" px="$4">
               <Text fontSize="$3" fontWeight="700" color="$gray12">
                 Details
@@ -389,14 +378,26 @@ export function PaymentRequestStage({
       </ScrollView>
 
       {/* Bottom Fixed Action Buttons (Cancel on Left, Pay on Right) */}
-      <YStack position="absolute" b="$4" l="$1" r="$1" bg="$background" gap="$2">
+      <YStack position="absolute" b="$4" l="$1" r="$1" bg="$background" gap="$3">
+            <MintBalanceRow
+            activeMint={activeMintInfo}
+            activeMintUrl={matchedMint || undefined}
+            displayName={mintDisplayName}
+            balance={currentMintBalance}
+            isSelector={true}
+            onPress={() => {
+              refreshMintList();
+              sheetRef.current?.present();
+            }}
+          />
+
         <XStack gap="$3">
           <Button
             flex={1}
             bg="$gray3"
             color="$color"
-            height={50}
-            rounded="$4"
+            height={60}
+            rounded="$6"
             disabled={isSending}
             fontWeight="700"
             fontSize="$5"
@@ -407,8 +408,8 @@ export function PaymentRequestStage({
           <Button
             flex={1}
             theme="accent"
-            height={50}
-            rounded="$4"
+            height={60}
+            rounded="$6"
             disabled={!isCompatible || !isEnough || isSending}
             icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
             fontWeight="700"

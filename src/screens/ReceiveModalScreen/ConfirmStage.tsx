@@ -281,7 +281,7 @@ export function ConfirmStage({
           color="$accent6"
           chromeless
           flex={1}
-          rounded="$12"
+          rounded="$6"
           size="$5"
           height={60}
           disabled={isLoading}
@@ -313,7 +313,7 @@ export function ConfirmStage({
           color="white"
 
           flex={1}
-          rounded="$12"
+          rounded="$6"
           size="$5"
           height={60}
           disabled={isLoading || proofStatus === 'spent'}

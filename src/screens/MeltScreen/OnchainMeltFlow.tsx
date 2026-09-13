@@ -548,7 +548,7 @@ export function OnchainMeltFlow() {
             {/* Details Table */}
             <YStack
               bg="$gray2"
-              rounded="$5"
+              rounded="$6"
               overflow="hidden"
               mb="$6"
               separator={<Separator borderColor="$borderColor" opacity={0.4} />}
@@ -591,15 +591,8 @@ export function OnchainMeltFlow() {
           </YStack>
         </ScrollView>
         <YStack py="$4" bg="$background">
-          <Button
-            theme="accent"
-            size="$5"
-            height={55}
-            rounded="$4"
-            fontWeight="800"
-            onPress={() => router.back()}
-          >
-            Awesome
+          <Button size="$5" height={55} rounded="$6" fontWeight="800" onPress={() => router.back()}>
+            Done
           </Button>
         </YStack>
       </YStack>
@@ -681,7 +674,7 @@ export function OnchainMeltFlow() {
                         borderWidth={2}
                         borderColor={isSelected ? '$accent10' : '$gray5'}
                         p="$3"
-                        rounded="$4"
+                        rounded="$6"
                         justify="space-between"
                         items="center"
                         onPress={() => setSelectedFeeIndex(option.fee_index)}
@@ -715,7 +708,7 @@ export function OnchainMeltFlow() {
                             justify="center"
                           >
                             {isSelected && (
-                              <View width={10} height={10} rounded="$5" bg="$accent10" />
+                              <View width={10} height={10} rounded="$6" bg="$accent10" />
                             )}
                           </View>
                         </XStack>
@@ -727,7 +720,7 @@ export function OnchainMeltFlow() {
             )}
 
             {/* Details List */}
-            <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3">
+            <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
               <View p="$3" px="$4">
                 <Text fontSize="$3" fontWeight="700" color="$gray12">
                   Details
@@ -772,25 +765,24 @@ export function OnchainMeltFlow() {
         {/* Confirm and Pay Actions */}
         <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
           <Button
-            theme="accent"
             size="$5"
+            chromeless
             height={55}
-            rounded="$4"
-            fontWeight="800"
-            onPress={handlePayMelt}
-          >
-            Confirm & Send
-          </Button>
-          <Button
-            size="$5"
-            bg="$gray3"
-            color="$color"
-            height={55}
-            rounded="$4"
+            rounded="$6"
             fontWeight="800"
             onPress={() => setStep('input')}
           >
             Go Back
+          </Button>
+          <Button
+            theme="accent"
+            size="$5"
+            height={55}
+            rounded="$6"
+            fontWeight="800"
+            onPress={handlePayMelt}
+          >
+            Confirm & Send
           </Button>
         </YStack>
       </YStack>

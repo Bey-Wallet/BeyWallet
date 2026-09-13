@@ -408,7 +408,7 @@ export default function MeltScreen() {
               </XStack>
 
               {/* Details List */}
-              <YStack bg="$gray2" rounded="$5" overflow="hidden" mb="$3" mx="$4">
+              <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3" mx="$4">
                 <View p="$3" px="$4">
                   <Text fontSize="$3" fontWeight="700" color="$gray12">
                     Details
@@ -471,19 +471,19 @@ export default function MeltScreen() {
               size="$5"
               flex={1}
               height={55}
-              rounded="$5"
+              rounded="$6"
               fontWeight="800"
               disabled={isPaying}
               onPress={() => setStep('invoice')}
             >
-              Go Back
+              Back
             </Button>
             <Button
               theme="accent"
               size="$5"
               flex={1}
               height={55}
-              rounded="$5"
+              rounded="$6"
               fontWeight="800"
               onPress={handleAuthenticate}
               disabled={isPaying || totalCost > balance}
