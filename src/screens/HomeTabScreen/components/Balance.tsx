@@ -51,10 +51,18 @@ export default function Balance() {
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
   return (
-    <YStack py="$2" gap="$5" height={200} justify="center" items="center" position="relative">
+    <YStack
+      py="$2"
+      gap="$5"
+      z={1000}
+      height={200}
+      justify="center"
+      items="center"
+      position="relative"
+    >
       {/* Syncing Indicator at the top (absolute) */}
       {isRestoring && (
-        <XStack position="absolute" top={15} items="center" gap="$2" self="center">
+        <XStack position="absolute" z={100} top={15} items="center" gap="$2" self="center">
           <View width={8} height={8} rounded="$10" bg="$accent10" animation="lazy" opacity={0.8} />
           <Text fontSize="$2" color="$gray10" fontWeight="600">
             Syncing...
@@ -68,6 +76,7 @@ export default function Balance() {
         pressStyle={{ opacity: 0.7 }}
         items="center"
         justify="center"
+        z={1000}
       >
         {displayAsSats ? (
           <RollingNumber

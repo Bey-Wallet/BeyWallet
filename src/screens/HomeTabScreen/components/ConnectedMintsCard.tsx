@@ -235,13 +235,6 @@ export const ConnectedMintsCard = () => {
             Add Mint
           </Text>
         </Button>
-        <Button
-          size="$4"
-          circular
-          theme="gray"
-          icon={<Settings2 strokeWidth={3} size={18} color="$accent2" />}
-          onPress={() => router.push('/(modals)/connected-mints')}
-        />
       </XStack>
     </>
   );

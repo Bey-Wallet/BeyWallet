@@ -607,6 +607,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'rgba(128,128,128,0.1)',
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
   },
 });

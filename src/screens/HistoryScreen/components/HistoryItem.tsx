@@ -163,10 +163,11 @@ export interface HistoryItemProps {
   onPress: (id: string, type: string) => void;
   mintUrl?: string;
   quoteId?: string;
+  position?: 'first' | 'middle' | 'last' | 'only';
 }
 
 export const HistoryItem = React.memo<HistoryItemProps>(
-  ({ id, type, amount, status, metadata, onPress, mintUrl, quoteId }) => {
+  ({ id, type, amount, status, metadata, onPress, mintUrl, quoteId, position = 'middle' }) => {
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const toast = useToastController();
     const queryClient = useQueryClient();
@@ -260,8 +261,13 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           ? 'failed'
           : 'success';
 
+    const showTopSeparator = position === 'first' || position === 'only';
+
     return (
       <YStack>
+        {/* Render top separator only for the first element in a group to prevent overlapping */}
+        {showTopSeparator && <Separator borderColor="$borderColor" opacity={0.3} />}
+
         <XStack py="$3" items="center">
           <TouchableOpacity
             onPress={handlePress}
@@ -270,13 +276,13 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           >
             {/* Left: icon with mono bg circle */}
             <TView
-              width={40}
-              height={40}
-              borderRadius={21}
+              width={50}
+              height={50}
+              rounded={1000}
               bg="$gray4"
               items="center"
               justify="center"
-              marginRight="$3"
+              mr="$3"
             >
               <Icon size={20} color="$accent4" strokeWidth={2.8} />
             </TView>
@@ -313,7 +319,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
           )}
         </XStack>
 
-        {/* Perfect Separator */}
+        {/* Bottom separator rendered for every item */}
         <Separator borderColor="$borderColor" opacity={0.3} />
       </YStack>
     );

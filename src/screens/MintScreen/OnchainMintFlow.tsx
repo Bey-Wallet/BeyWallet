@@ -279,7 +279,7 @@ export function OnchainMintFlow() {
           <YStack gap="$4" width="100%">
             {/* Oswald Typography Amount Display */}
             <YStack gap="$3" py="$6" items="center" justify="center">
-              <Text fontSize={52} fontWeight="700" color="$green10" lineHeight={54}>
+              <Text fontSize={52} fontWeight="700" lineHeight={54}>
                 +{currencyService.formatSats(amountPaid)}
               </Text>
               <Text color="$accent5" fontWeight="600" fontSize={16}>
@@ -313,7 +313,7 @@ export function OnchainMintFlow() {
             {/* Details Table */}
             <YStack
               bg="$gray2"
-              rounded="$5"
+              rounded="$6"
               overflow="hidden"
               mb="$6"
               separator={<Separator borderColor="$borderColor" opacity={0.4} />}
@@ -354,15 +354,8 @@ export function OnchainMintFlow() {
           </YStack>
         </ScrollView>
         <YStack py="$4" bg="$background">
-          <Button
-            theme="accent"
-            size="$5"
-            height={55}
-            rounded="$4"
-            fontWeight="800"
-            onPress={() => router.back()}
-          >
-            Awesome
+          <Button size="$5" height={55} rounded="$6" fontWeight="800" onPress={() => router.back()}>
+            Done
           </Button>
         </YStack>
       </YStack>

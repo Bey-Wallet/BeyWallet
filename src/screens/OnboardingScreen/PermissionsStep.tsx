@@ -1,6 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { YStack, XStack, Text, Button, H1, View, Switch, Separator } from 'tamagui';
-import { ChevronRight, Fingerprint, Sprout, WifiOff, Globe, User } from '@tamagui/lucide-icons';
+import {
+  ChevronRight,
+  Fingerprint,
+  Sprout,
+  WifiOff,
+  Globe,
+  User,
+  Landmark,
+} from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { biometricService } from '../../services/biometricService';
@@ -127,13 +135,13 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
         {skipUsername || isOffline ? (
           <>
             <Text
-              fontSize="$4"
+              fontSize="$7"
               px="$2"
               rounded="$3"
               py="$1"
-              fontWeight="700"
+              fontWeight="800"
               text="center"
-              color="$gray11"
+              color="$accent5"
             >
               {shortNpub}
             </Text>
@@ -165,7 +173,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
       {/* Bottom Section - Settings & Finish Button */}
       <YStack gap="$4" mb="$4">
         {/* Toggles Group Card */}
-        <YStack bg="$gray2" rounded="$5" borderWidth={0} overflow="hidden">
+        <YStack bg="$gray2" rounded="$6" borderWidth={0} overflow="hidden">
           {/* Biometrics Toggle */}
           <XStack p="$3.5" justify="space-between" items="center">
             <XStack gap="$3" items="center" flex={1}>
@@ -234,7 +242,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
               </>
             ) : (
               <>
-                <Sprout size={24} color="$green10" />
+                <Landmark size={24} color="$gray10" />
                 <YStack flex={1}>
                   <Text fontWeight="700" fontSize="$5">
                     Standard Default Mint
@@ -268,7 +276,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
           iconAfter={<ChevronRight size={18} />}
           fontSize="$5"
           fontWeight="700"
-          rounded="$5"
+          rounded="$6"
           pressStyle={{ scale: 0.98, opacity: 0.9 }}
         >
           Finish & Open Wallet

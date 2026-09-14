@@ -165,7 +165,7 @@ export default function NostrActivity() {
   if (unclaimed.length === 0) return null;
 
   return (
-    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$5" bg={'$color2'}>
+    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg={'$color2'}>
       {/* Section header */}
       <XStack items="center" justify="space-between">
         <XStack items="center" gap="$2">

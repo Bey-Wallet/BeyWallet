@@ -43,7 +43,7 @@ export default function BackupWarningCard() {
     <YStack
       width="100%"
       p="$3.5"
-      rounded="$5"
+      rounded="$6"
       bg="$color2"
       gap="$2.5"
       pressStyle={{ opacity: 0.9, scale: 0.99 }}
@@ -51,8 +51,8 @@ export default function BackupWarningCard() {
     >
       <XStack items="flex-start" justify="space-between">
         <XStack items="flex-start" gap="$2.5" flex={1}>
-          <View p="$2" bg="$orange5" rounded="$3" items="center" justify="center">
-            <AlertTriangle size={20} color="$orange10" />
+          <View p="$2" items="center" justify="center">
+            <AlertTriangle size={20} />
           </View>
           <YStack flex={1}>
             <H6 color="$color" fontWeight="800">
@@ -66,7 +66,7 @@ export default function BackupWarningCard() {
         <Button
           size="$2.5"
           circular
-          icon={<X size={18} color="$gray10" />}
+          icon={<X size={18} />}
           onPress={handleDismiss}
           pressStyle={{ opacity: 0.7 }}
         />
