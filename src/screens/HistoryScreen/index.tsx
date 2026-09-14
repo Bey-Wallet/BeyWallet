@@ -18,20 +18,7 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import {
-  Clock,
-  ChevronDown,
-  Building2,
-  Check,
-  Calendar,
-  Zap,
-  Landmark,
-  Box,
-  Filter,
-  X,
-  Bitcoin,
-  Inbox,
-} from '@tamagui/lucide-icons';
+import { Clock, Check, Calendar, Zap, Landmark, Box, X, Bitcoin, Inbox } from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '../../services/core';
 import { useRouter } from 'expo-router';
@@ -58,7 +45,37 @@ interface HistoryEntry {
 
 const FILTER_BAR_HEIGHT = 56;
 
-export function HistoryScreen() {
+function getMonthGroupTitle(createdAt: number): string {
+  const date = new Date(createdAt);
+  const now = new Date();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  if (
+    date.getFullYear() === thisMonthStart.getFullYear() &&
+    date.getMonth() === thisMonthStart.getMonth()
+  ) {
+    return 'This month';
+  }
+  if (
+    date.getFullYear() === lastMonthStart.getFullYear() &&
+    date.getMonth() === lastMonthStart.getMonth()
+  ) {
+    return 'Last month';
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString('en-US', { month: 'long' });
+  }
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+export function HistoryScreen({
+  showFilters = false,
+  onFiltersActiveChange,
+}: {
+  showFilters?: boolean;
+  onFiltersActiveChange?: (active: boolean) => void;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const theme = useTheme();
@@ -222,23 +239,7 @@ export function HistoryScreen() {
 
     filteredHistory.forEach((entry) => {
       if (!entry || !entry.createdAt) return;
-      const date = new Date(entry.createdAt);
-      const today = new Date();
-      const yesterday = new Date();
-      yesterday.setDate(today.getDate() - 1);
-
-      let groupTitle = '';
-      if (date.toDateString() === today.toDateString()) {
-        groupTitle = 'Today';
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        groupTitle = 'Yesterday';
-      } else {
-        groupTitle = date.toLocaleDateString('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        });
-      }
+      const groupTitle = getMonthGroupTitle(entry.createdAt);
 
       if (!currentGroup || currentGroup.title !== groupTitle) {
         currentGroup = { title: groupTitle, items: [] };
@@ -354,6 +355,10 @@ export function HistoryScreen() {
 
   const isFiltered = mintFilter !== 'all' || timeFilter !== 'all' || typeFilter !== 'all';
 
+  useEffect(() => {
+    onFiltersActiveChange?.(isFiltered);
+  }, [isFiltered, onFiltersActiveChange]);
+
   const FILTER_CHIPS: { key: string; label: string; icon?: React.ReactNode }[] = [
     { key: 'all', label: 'All' },
     { key: 'pending', label: 'Pending', icon: <Clock size={13} strokeWidth={2.5} /> },
@@ -363,13 +368,17 @@ export function HistoryScreen() {
     { key: 'onchain', label: 'On-chain', icon: <Bitcoin size={13} strokeWidth={2.5} /> },
   ];
 
+  const filterBarOffset = showFilters ? FILTER_BAR_HEIGHT : 0;
+
   if (isLoading && !isRefetching) {
     return (
       <YStack flex={1} bg="$background">
-        <XStack px="$4" py="$3" gap="$2">
-          <View style={styles.filterSkeletonBtn} />
-          <View style={styles.filterSkeletonBtn} />
-        </XStack>
+        {showFilters && (
+          <XStack px="$4" py="$3" gap="$2">
+            <View style={styles.filterSkeletonBtn} />
+            <View style={styles.filterSkeletonBtn} />
+          </XStack>
+        )}
         <HistoryPageSkeleton />
       </YStack>
     );
@@ -378,6 +387,7 @@ export function HistoryScreen() {
   return (
     <YStack flex={1} bg="$background">
       {/* ── Floating Animated Filter Bar ── */}
+      {showFilters && (
       <Animated.View
         style={[
           styles.animatedFilterBar,
@@ -474,6 +484,7 @@ export function HistoryScreen() {
           )}
         </ScrollView>
       </Animated.View>
+      )}
 
       {/* ── Content ── */}
       {flatItems.length === 0 ? (
@@ -482,7 +493,7 @@ export function HistoryScreen() {
           items="center"
           justify="flex-start"
           gap="$4"
-          pt={FILTER_BAR_HEIGHT + 20}
+          pt={filterBarOffset + 20}
           pb={100}
         >
           <View style={styles.emptyIcon}>
@@ -527,16 +538,20 @@ export function HistoryScreen() {
               refreshing={isRefetching}
               onRefresh={refetch}
               tintColor="#FFD700"
-              progressViewOffset={FILTER_BAR_HEIGHT}
+              progressViewOffset={filterBarOffset}
             />
           }
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: true,
-          })}
+          onScroll={
+            showFilters
+              ? Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+                  useNativeDriver: true,
+                })
+              : undefined
+          }
           scrollEventThrottle={16}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingTop: FILTER_BAR_HEIGHT,
+            paddingTop: showFilters ? FILTER_BAR_HEIGHT : 8,
             paddingBottom: 120,
           }}
           showsVerticalScrollIndicator={false}

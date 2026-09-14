@@ -28,7 +28,6 @@ import HomeHeaderMintSelector from '~/components/HomeMintSelector';
 import SettingsIcon from '~/components/icons/Settings';
 import WalletIcon from '~/components/icons/Wallet';
 import BeyIcon from '~/components/icons/BeyIcon';
-import HistoryVolume from '~/components/HistoryVolume';
 import LockIcon from '~/components/icons/Lock';
 import NFCFillIcon from '~/components/icons/NFC-fill';
 import * as Haptics from 'expo-haptics';
@@ -58,7 +57,7 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
 ));
 
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
-  <Text fontWeight="700" fontSize={20} color="$color">
+  <Text fontWeight="700" fontSize="$7" color="$color">
     {children.charAt(0).toUpperCase() + children.slice(1)}
   </Text>
 ));
@@ -87,8 +86,7 @@ export default function TabLayout() {
         headerTitle: ({ children }) => (
           <DefaultHeaderTitle>{children as string}</DefaultHeaderTitle>
         ),
-        headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
-        headerTitleAlign: 'center',
+        headerTitleAlign: 'left',
       }}
     >
       <Tabs.Screen
@@ -98,6 +96,8 @@ export default function TabLayout() {
         }}
         options={{
           title: 'Home',
+          headerTitleAlign: 'center',
+          headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerTitle: () => <HomeHeaderMintSelector />,
           tabBarIcon: ({ color }) => <BeyIcon size={24} color={color} />,
           headerRight: () => (
@@ -141,11 +141,6 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => <Clock size={24} strokeWidth={2.5} color={color as any} />,
-          headerRight: () => (
-            <XStack pr="$4">
-              <HistoryVolume />
-            </XStack>
-          ),
         }}
       />
 

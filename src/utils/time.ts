@@ -48,6 +48,32 @@ export function formatFullLocalTime(timestamp: number): string {
 }
 
 /**
+ * History list subtitle: "Now", "1 min", or "14 Sept" once the calendar day has passed.
+ */
+export function formatHistoryWhen(timestamp: number): string {
+  if (!timestamp || isNaN(timestamp)) return '';
+  const date = new Date(normalizeToMs(timestamp));
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+
+  if (!sameDay) {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+  }
+
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 60_000) return 'Now';
+  if (diffMs < 3_600_000) {
+    const mins = Math.max(1, Math.floor(diffMs / 60_000));
+    return `${mins} min`;
+  }
+  const hours = Math.max(1, Math.floor(diffMs / 3_600_000));
+  return `${hours} hr`;
+}
+
+/**
  * Returns a relative time string (e.g. "1h", "2m", "just now").
  * Matches Sovran's getTimeAgo behavior mentioned in comments.
  */

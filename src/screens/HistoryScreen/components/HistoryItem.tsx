@@ -27,6 +27,7 @@ import { StatusBadge, BadgeStatus } from '~/components/UI/StatusBadge';
 import { proofService, initService, quotesService } from '~/services/core';
 import { useToastController } from '@tamagui/toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { formatHistoryWhen } from '~/utils/time';
 
 type ViaResult = { label: string; icon: React.ReactNode; color: string };
 
@@ -112,20 +113,37 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
   return empty;
 }
 
+function parseMetadata(metadata?: Record<string, any> | string): Record<string, any> {
+  if (!metadata) return {};
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata);
+    } catch {
+      return {};
+    }
+  }
+  return metadata;
+}
+
+function getRailLabel(type: string, metadata?: Record<string, any>): string {
+  const via = metadata?.via;
+  if (via === 'onchain') return 'Onchain';
+  if (type === 'mint' || type === 'melt' || via === 'lightning') return 'Lightning';
+  return 'Ecash';
+}
+
 function getTypeLabel(type: string, metadata?: Record<string, any>): string {
   switch (type) {
-    case 'send':
-      return 'Send';
-    case 'receive':
-      return 'Receive';
-    case 'receive-request':
-      return 'Request';
-    case 'mint':
-      return 'Deposit';
-    case 'melt':
-      return 'Withdraw';
     case 'swap':
       return 'Swap';
+    case 'receive-request':
+      return 'Received Request';
+    case 'send':
+    case 'melt':
+      return `Sent ${getRailLabel(type, metadata)}`;
+    case 'receive':
+    case 'mint':
+      return `Received ${getRailLabel(type, metadata)}`;
     default:
       return type.charAt(0).toUpperCase() + type.slice(1);
   }
@@ -167,7 +185,18 @@ export interface HistoryItemProps {
 }
 
 export const HistoryItem = React.memo<HistoryItemProps>(
-  ({ id, type, amount, status, metadata, onPress, mintUrl, quoteId, position = 'middle' }) => {
+  ({
+    id,
+    type,
+    amount,
+    createdAt,
+    status,
+    metadata,
+    onPress,
+    mintUrl,
+    quoteId,
+    position = 'middle',
+  }) => {
     const { primaryCurrency, secondaryCurrency } = useSettingsStore();
     const toast = useToastController();
     const queryClient = useQueryClient();
@@ -201,11 +230,12 @@ export const HistoryItem = React.memo<HistoryItemProps>(
       status.toLowerCase() === 'expired' ||
       status.toLowerCase() === 'refunded';
 
-    const expiresAt = metadata?.expiresAt;
+    const parsedMetadata = parseMetadata(metadata);
+    const expiresAt = parsedMetadata?.expiresAt;
     const isExpired = expiresAt && Date.now() > Number(expiresAt);
-
-    const Icon = getIconConfig(type, isFailed, metadata);
-    const label = getTypeLabel(type, metadata);
+    const Icon = getIconConfig(type, isFailed, parsedMetadata);
+    const label = getTypeLabel(type, parsedMetadata);
+    const whenLabel = formatHistoryWhen(createdAt);
     const sign = type === 'swap' || type === 'receive-request' ? '' : isOutgoing ? '−' : '+';
 
     const handlePress = () => {
@@ -218,7 +248,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setIsChecking(true);
       try {
-        let token = metadata?.token;
+        let token = parsedMetadata?.token;
         if (token && typeof token === 'string') {
           const states = await proofService.checkProofStates(token);
           const isSpent = states.some((s: any) => s.state === 'SPENT');
@@ -287,11 +317,16 @@ export const HistoryItem = React.memo<HistoryItemProps>(
               <Icon size={20} color="$accent4" strokeWidth={2.8} />
             </TView>
 
-            {/* Middle: title */}
-            <YStack flex={1} mr="$2" justify="center">
+            {/* Middle: title + when */}
+            <YStack flex={1} mr="$2" justify="center" gap={2}>
               <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1}>
                 {label}
               </Text>
+              {!!whenLabel && (
+                <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                  {whenLabel}
+                </Text>
+              )}
             </YStack>
 
             {/* Right: primary amount only */}
