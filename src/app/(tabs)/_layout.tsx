@@ -21,6 +21,7 @@ import {
   Square,
   CopySlash,
   RectangleHorizontal,
+  Contact,
 } from '@tamagui/lucide-icons';
 import { useAppTheme } from '~/context/ThemeContext';
 import { useAuthStore } from '~/store/authStore';
@@ -117,22 +118,6 @@ export default function TabLayout() {
         }}
       />
 
-      {/* <Tabs.Screen
-        name="explore"
-        listeners={{
-          tabPress: () =>
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
-        options={{
-          headerShown: false,
-          title: "Explore",
-          tabBarIcon: ({ color }) => (
-            <Search size={24} strokeWidth={2.5} color={color as any} />
-          ),
-
-        }}
-      /> */}
-
       <Tabs.Screen
         name="history"
         listeners={{
@@ -141,6 +126,31 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => <Clock size={24} strokeWidth={2.5} color={color as any} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="contacts"
+        listeners={{
+          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+        }}
+        options={{
+          title: 'Contacts',
+          tabBarIcon: ({ color }) => <Contact size={24} strokeWidth={2.5} color={color as any} />,
+          headerRight: () => (
+            <XStack pr="$4">
+              <Button
+                circular
+                size="$3"
+                chromeless
+                icon={<Search size={22} strokeWidth={2.4} color="$gray10" />}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/(modals)/contact-search');
+                }}
+              />
+            </XStack>
+          ),
         }}
       />
 

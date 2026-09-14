@@ -650,8 +650,6 @@ export default function MintDetailsModal() {
                 </YStack>
               ) : (
                 <YGroup
-                  rounded="$5"
-                  bg="$gray3"
                   overflow="hidden"
                   separator={<Separator borderColor="$borderColor" opacity={0.5} />}
                 >
