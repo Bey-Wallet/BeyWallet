@@ -24,7 +24,7 @@ interface OnboardingState {
   generatedMnemonic: string | null;
 
   // Actions
-  checkOnboardingStatus: () => Promise<void>;
+  checkOnboardingStatus: () => Promise<boolean>;
   setStep: (step: OnboardingStep) => void;
   setGeneratedMnemonic: (mnemonic: string) => void;
   completeOnboarding: () => Promise<void>;
@@ -46,9 +46,11 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         isCheckingOnboarding: false,
       });
       console.log(`[OnboardingStore] Checked status: ${status === 'true'}`);
+      return status === 'true';
     } catch (err) {
       console.error('[OnboardingStore] Error checking status:', err);
       set({ isOnboarded: false, isCheckingOnboarding: false });
+      return false;
     }
   },
 

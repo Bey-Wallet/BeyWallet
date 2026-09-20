@@ -25,7 +25,6 @@ import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
 import { nostrService } from '~/services/wallet/nostrService';
 import { Keyset } from '@cashu/cashu-ts';
-import { expiryService } from '~/services/wallet/expiryService';
 
 // ─── Runtime Compatibility Patches ───────────────────────────
 
@@ -308,6 +307,7 @@ async function initializeWithMnemonic(
     nostrService.start(privkey, pubkey);
 
     // Start pending tokens sweeper
+    const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.startSweeper();
 
     console.log('[InitService] Manager ready with watchers and processors');
@@ -429,6 +429,7 @@ export const initService = {
     nostrService.start(privkey, pubkey);
 
     // Start pending tokens sweeper
+    const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.startSweeper();
 
     return manager;
@@ -480,6 +481,7 @@ export const initService = {
    */
   cleanup: async (): Promise<void> => {
     nostrService.stop();
+    const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.stopSweeper();
     if (manager) {
       await disableWatchers(manager);
@@ -500,6 +502,7 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
+    const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.stopSweeper();
     if (appStateSubscription) {
       appStateSubscription.remove();

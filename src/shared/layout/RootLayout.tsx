@@ -35,20 +35,24 @@ export function RootLayout() {
   // Check onboarding status and wallet existence on mount
   useEffect(() => {
     const checkStatus = async () => {
-      await checkOnboardingStatus();
+      const onboarded = await checkOnboardingStatus();
       const exists = await initService.walletExists();
       setWalletExists(exists);
-      console.log(
-        `[RootLayout] Startup check — onboarded: ${isOnboarded}, walletExists: ${exists}`,
-      );
-      if (exists && !isOnboarded) {
+      console.log(`[RootLayout] Startup check — onboarded: ${onboarded}, walletExists: ${exists}`);
+      if (exists && !onboarded) {
         console.log(
           '[RootLayout] ⚠️ Wallet found but marked as not onboarded. User may see welcome screen.',
         );
       }
     };
     checkStatus();
-  }, [isOnboarded]); // Re-check when onboarding status changes
+  }, [checkOnboardingStatus]);
+
+  // A wallet can be created while onboarding is open, after the startup check has completed.
+  useEffect(() => {
+    if (!isOnboarded) return;
+    initService.walletExists().then(setWalletExists);
+  }, [isOnboarded]);
 
   // Initialize wallet only if onboarded and wallet exists
   useEffect(() => {

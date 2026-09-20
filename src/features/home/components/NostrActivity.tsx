@@ -26,14 +26,6 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService } from '~/services/wallet/currencyService';
 import { useContactsStore } from '~/state/contactsStore';
 
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
 function safeNpubEncode(pubkey: string): string {
   if (!pubkey) return '';
   if (pubkey.startsWith('npub1')) return pubkey;
@@ -41,14 +33,14 @@ function safeNpubEncode(pubkey: string): string {
     try {
       const decoded = nip19.decode(pubkey);
       if (decoded.type === 'nprofile') {
-        return nip19.npubEncode(hexToBytes(decoded.data.pubkey));
+        return nip19.npubEncode(decoded.data.pubkey);
       }
     } catch {}
     return pubkey;
   }
   // Assume hex
   try {
-    return nip19.npubEncode(hexToBytes(pubkey));
+    return nip19.npubEncode(pubkey);
   } catch {
     return pubkey;
   }

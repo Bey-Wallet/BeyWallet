@@ -521,11 +521,7 @@ class NostrService {
       const { useContactsStore } = await import('~/state/contactsStore');
       const { nip19 } = await import('nostr-tools');
 
-      const bytes = new Uint8Array(pubkeyHex.length / 2);
-      for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = parseInt(pubkeyHex.substring(i * 2, i * 2 + 2), 16);
-      }
-      const npub = nip19.npubEncode(bytes);
+      const npub = nip19.npubEncode(pubkeyHex);
 
       const store = useContactsStore.getState();
       const contact = store.contacts[npub] || store.favorites[npub];
