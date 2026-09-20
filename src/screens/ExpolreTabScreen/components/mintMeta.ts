@@ -9,6 +9,8 @@ export interface MintMetadata {
   icon?: string; // resolved: icon_url → icon → iconUrl → favicon
   motd?: string;
   units?: string[];
+  nuts?: Record<string, any>;
+  supportsNut30?: boolean;
 }
 
 const metadataCache = new Map<string, MintMetadata>();
@@ -39,6 +41,23 @@ export async function fetchMintMeta(url: string): Promise<MintMetadata> {
 
     // Cashu NUT spec field is `icon_url`; legacy fallbacks: icon / iconUrl
     const iconFromInfo = data.icon_url || data.icon || data.iconUrl || '';
+
+    // Check for NUT-30 onchain support
+    const nuts = data.nuts || {};
+    const nut30 = nuts['30'] || nuts[30];
+    let supportsNut30 = !!(
+      nut30 && (nut30.supported || (Array.isArray(nut30.methods) && nut30.methods.length > 0))
+    );
+    if (!supportsNut30) {
+      const nut4 = nuts['4'] || nuts[4];
+      const nut5 = nuts['5'] || nuts[5];
+      const hasOnchainMint =
+        Array.isArray(nut4?.methods) && nut4.methods.some((m: any) => m.method === 'onchain');
+      const hasOnchainMelt =
+        Array.isArray(nut5?.methods) && nut5.methods.some((m: any) => m.method === 'onchain');
+      supportsNut30 = !!(hasOnchainMint && hasOnchainMelt);
+    }
+
     const meta: MintMetadata = {
       name: data.name || data.shortname,
       description: data.description || data.description_long,
@@ -49,6 +68,8 @@ export async function fetchMintMeta(url: string): Promise<MintMetadata> {
           ? data.units
           : Object.keys(data.units)
         : undefined,
+      nuts,
+      supportsNut30,
     };
     metadataCache.set(key, meta);
     return meta;

@@ -12,10 +12,13 @@ export type MintRecommendation = {
 };
 
 const DEFAULT_RELAYS = [
+  'wss://relay.cashumints.space',
+  'wss://nos.lol',
+  'wss://relay.azzamo.net',
+  'wss://relay.snort.social',
+  'wss://relay.primal.net',
   'wss://relay.damus.io',
   'wss://relay.8333.space/',
-  'wss://nos.lol',
-  'wss://relay.primal.net',
 ];
 
 const MINT_INFO_KIND = 38172;

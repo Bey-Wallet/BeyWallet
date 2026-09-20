@@ -254,7 +254,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
 
       <XStack gap="$3">
         <Button flex={1} size="$4" theme="gray" onPress={handleTrustImmediately}>
-          Trust Immediately
+          <Text fontWeight="600">Trust Immediately</Text>
         </Button>
         <Button
           flex={1}
@@ -263,7 +263,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
           onPress={handleFetchMintInfo}
           icon={<Sprout size={18} />}
         >
-          Preview
+          <Text fontWeight="600" color="$color">Preview</Text>
         </Button>
       </XStack>
     </YStack>
@@ -329,7 +329,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
           }}
           icon={<X size={18} />}
         >
-          Cancel
+          <Text fontWeight="600">Cancel</Text>
         </Button>
         <Button
           flex={1}
@@ -338,7 +338,9 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
           onPress={handleTrustMint}
           icon={<Check size={18} />}
         >
-          {isExistingUntrusted ? 'Trust this Mint' : 'Trust Mint'}
+          <Text fontWeight="600" color="$color">
+            {isExistingUntrusted ? 'Trust this Mint' : 'Trust Mint'}
+          </Text>
         </Button>
       </XStack>
     </YStack>
