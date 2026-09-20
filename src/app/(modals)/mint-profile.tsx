@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { MintProfileScreen } from '../../screens/MintProfileScreen';
+import { MintProfileScreen } from '~/features/mints';
 
 export default function MintProfileModal() {
   const { url } = useLocalSearchParams<{ url: string }>();

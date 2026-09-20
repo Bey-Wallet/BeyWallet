@@ -1,4 +1,4 @@
-import ContactsScreen from '~/screens/ContactsScreen';
+import ContactsScreen from '~/features/contacts';
 
 export default function Contacts() {
   return <ContactsScreen />;

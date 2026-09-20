@@ -1,4 +1,4 @@
-import { TransactionDetailsScreen } from '~/screens/HistoryScreen/TransactionDetailsScreen';
+import { TransactionDetailsScreen } from '~/features/history/TransactionDetailsScreen';
 
 export default function TransactionDetails() {
   return <TransactionDetailsScreen />;

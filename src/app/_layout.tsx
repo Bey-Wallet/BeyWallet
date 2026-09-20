@@ -1,8 +1,8 @@
 // Polyfills - MUST BE IMPORTED FIRST
-import '../polyfills';
+import '~/polyfills';
 
 import '../../tamagui-web.css';
-import { RootLayout } from '../components/layout/RootLayout';
+import { RootLayout } from '~/shared/layout/RootLayout';
 
 export {
   // Catch any errors thrown by the Layout component.

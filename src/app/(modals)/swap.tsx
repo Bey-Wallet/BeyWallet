@@ -1,6 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flex } from '~/components/UI/Flex';
-import SwapScreen from '~/screens/SwapScreen';
+import { Flex } from '~/shared/ui/Flex';
+import SwapScreen from '~/features/payments/swap';
 
 export default function Swap() {
   const insets = useSafeAreaInsets();

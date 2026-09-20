@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Button, useTheme, Text } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
 import React from 'react';
-import HomeHeaderMintSelector from '~/components/HomeMintSelector';
+import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
 
 // Extracted to module scope — never recreated on re-render
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (

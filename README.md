@@ -72,7 +72,9 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
 
 ### Prerequisites
 
-- Node.js & Yarn
+- Node.js
+- Yarn 4.5.0 (pinned through the `packageManager` field)
+- [Bun](https://bun.sh/) for the cache-clearing development command
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
 - [EAS CLI](https://docs.expo.dev/eas/) (`npm install -g eas-cli`)
 
@@ -89,8 +91,48 @@ Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** pro
     ```
 3.  **Start the app**:
     ```bash
-    npx expo start
+    yarn start
     ```
+
+### Project Structure
+
+The source tree is organized by ownership so routes stay small and product logic is easy to
+locate:
+
+```text
+src/
+├── app/                 # Thin Expo Router entry files
+├── features/            # Screens and feature-owned components
+│   └── payments/        # Send, receive, mint, melt, and swap flows
+├── shared/              # Reusable UI, icons, hooks, utilities, and theme
+├── services/
+│   ├── wallet/         # Cashu and wallet orchestration
+│   ├── platform/       # Device and operating-system integrations
+│   └── api/            # HTTP and relay-backed integrations
+├── state/               # Zustand stores
+└── storage/sqlite/      # SQLite schema, migrations, and repositories
+```
+
+Internal imports use the `~/*` alias. See
+[docs/folder-structure.md](docs/folder-structure.md) for ownership and dependency rules.
+
+### Validation
+
+Run the complete local validation suite before submitting a change:
+
+```bash
+yarn validate
+```
+
+The command runs TypeScript checking, the non-interactive Jest suite, and repository structure
+checks. Individual commands are also available:
+
+```bash
+yarn typecheck
+yarn test:ci
+yarn check:structure
+yarn format:check
+```
 
 ### Building for Production
 

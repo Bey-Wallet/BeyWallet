@@ -1,6 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flex } from '~/components/UI/Flex';
-import MintScreen from '~/screens/MintScreen';
+import { Flex } from '~/shared/ui/Flex';
+import MintScreen from '~/features/payments/mint';
 
 export default function MintModal() {
   const insets = useSafeAreaInsets();

@@ -9,9 +9,9 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "types": ["jest"],
     "paths": {
       "~/*": ["./src/*"],
-      "components/*": ["./src/components/*"],
       "app/*": ["./src/app/*"],
       "assets/*": ["./src/assets/*"]
     }

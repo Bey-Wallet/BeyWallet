@@ -1,17 +1,5 @@
 # Bey Wallet — What Changed (Old → Current)
 
-<<<<<<< HEAD
-
-## 🐛 Bug Fixes
-
-- **Removed dead `link` send mode** — Unreachable `sendMode === 'link'` code path removed from SendModalScreen, ConfirmStage, and SendMethodSelector. Relay publishing is handled safely by PendingTokenLayout (reported by @eniyos in #7)
-- **False offline detection** — `isInternetReachable: null` (indeterminate) no longer falsely flags user as offline (reported by @eniyos in #7)
-- **Settings crash on invalid mint URL** — `new URL()` on malformed mint URLs no longer crashes the Settings screen (reported by @eniyos in #7)
-
-=======
-
-> > > > > > > main
-
 ## 🆕 New Features
 
 | #   | What                                       | Description                                                                                             |

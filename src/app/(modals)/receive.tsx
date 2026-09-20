@@ -1,5 +1,5 @@
-import { ReceiveModalScreen } from '~/screens/ReceiveModalScreen';
-import { Flex } from '~/components/UI/Flex';
+import { ReceiveModalScreen } from '~/features/payments/receive';
+import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ReceiveModal() {

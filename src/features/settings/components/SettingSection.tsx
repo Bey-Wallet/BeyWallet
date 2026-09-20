@@ -1,0 +1,33 @@
+import React from 'react';
+import { YStack, Text, YGroup, Separator } from 'tamagui';
+import { SettingItem } from '~/features/settings/components/SettingItem';
+import { SettingSectionConfig } from '~/features/settings/components/types';
+
+interface SettingSectionProps extends SettingSectionConfig {
+  onItemPress?: (id: string) => void;
+}
+
+export const SettingSection: React.FC<SettingSectionProps> = ({
+  title,
+  titleColor = '$gray10',
+  items,
+  bg = '$gray3',
+  onItemPress,
+}) => {
+  return (
+    <YStack gap="$2">
+      <YGroup
+        rounded="$6"
+        bg={bg}
+        overflow="hidden"
+        separator={<Separator borderColor="$borderColor" opacity={0.5} />}
+      >
+        {items.map((item) => (
+          <YGroup.Item key={item.id}>
+            <SettingItem {...item} onPress={item.onPress || (() => onItemPress?.(item.id))} />
+          </YGroup.Item>
+        ))}
+      </YGroup>
+    </YStack>
+  );
+};

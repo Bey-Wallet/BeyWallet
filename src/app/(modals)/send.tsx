@@ -1,5 +1,5 @@
-import { SendModalScreen } from '~/screens/SendModalScreen';
-import { Flex } from '~/components/UI/Flex';
+import { SendModalScreen } from '~/features/payments/send';
+import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SendModal() {

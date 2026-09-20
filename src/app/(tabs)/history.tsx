@@ -3,7 +3,7 @@ import { useNavigation } from 'expo-router';
 import { Button, XStack } from 'tamagui';
 import { Filter } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { HistoryScreen } from '~/screens/HistoryScreen';
+import { HistoryScreen } from '~/features/history';
 
 export default function History() {
   const navigation = useNavigation();

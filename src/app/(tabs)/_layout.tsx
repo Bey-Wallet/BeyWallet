@@ -23,19 +23,19 @@ import {
   RectangleHorizontal,
   Contact,
 } from '@tamagui/lucide-icons';
-import { useAppTheme } from '~/context/ThemeContext';
-import { useAuthStore } from '~/store/authStore';
-import HomeHeaderMintSelector from '~/components/HomeMintSelector';
-import SettingsIcon from '~/components/icons/Settings';
-import WalletIcon from '~/components/icons/Wallet';
-import BeyIcon from '~/components/icons/BeyIcon';
-import LockIcon from '~/components/icons/Lock';
-import NFCFillIcon from '~/components/icons/NFC-fill';
+import { useAppTheme } from '~/shared/theme/ThemeContext';
+import { useAuthStore } from '~/state/authStore';
+import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
+import SettingsIcon from '~/shared/icons/Settings';
+import WalletIcon from '~/shared/icons/Wallet';
+import BeyIcon from '~/shared/icons/BeyIcon';
+import LockIcon from '~/shared/icons/Lock';
+import NFCFillIcon from '~/shared/icons/NFC-fill';
 import * as Haptics from 'expo-haptics';
-import HomeIcon from '~/components/icons/Home';
-import Blockies from '~/components/UI/Blockies';
-import { useSettingsStore } from '~/store/settingsStore';
-import { CustomTabBar } from '~/components/CustomTabBar';
+import HomeIcon from '~/shared/icons/Home';
+import Blockies from '~/shared/ui/Blockies';
+import { useSettingsStore } from '~/state/settingsStore';
+import { CustomTabBar } from '~/shared/ui/CustomTabBar';
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (

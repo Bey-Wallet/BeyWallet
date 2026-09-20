@@ -1,0 +1,225 @@
+import React, { useMemo } from 'react';
+import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
+import { useToastController } from '@tamagui/toast';
+import { H2, Image, Text, View, XStack, YStack, Spinner, Stack } from 'tamagui';
+import { useQuery } from '@tanstack/react-query';
+import { bitcoinService } from '~/services/api/bitcoinService';
+import * as Haptics from 'expo-haptics';
+import { RollingNumber } from '~/shared/ui/RollingNumber';
+import { useSettingsStore } from '~/state/settingsStore';
+import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
+
+export default function BitcoinPriceCard() {
+  const { secondaryCurrency } = useSettingsStore();
+  const toast = useToastController();
+  const [showSats, setShowSats] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const { data, isLoading, isFetching, refetch, dataUpdatedAt, isError, error } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    refetchInterval: 300000,
+    staleTime: 30000,
+  });
+
+  const handleRefresh = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    refetch();
+  };
+
+  const formatCurrency = (val: number) => {
+    return currencyService.formatValue(val, secondaryCurrency as CurrencyCode);
+  };
+
+  const formatSatPrice = (price: number) => {
+    const satPrice = price / 100000000;
+    const symbol = currencyService.getSymbol(secondaryCurrency as CurrencyCode);
+
+    if (satPrice === 0) return `${symbol}0.00/SAT`;
+
+    if (satPrice < 0.01) {
+      return `${symbol}${satPrice.toFixed(5)}/SAT`;
+    }
+    return `${symbol}${satPrice.toFixed(2)}/SAT`;
+  };
+
+  const [now, setNow] = React.useState(Date.now());
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 60000); // Update every 60 seconds — sub-minute precision not needed
+    return () => clearInterval(interval);
+  }, []);
+
+  React.useEffect(() => {
+    if (isError && error) {
+      toast.show('Error', { message: error.message });
+    }
+  }, [isError, error]);
+
+  const timeAgo = useMemo(() => {
+    if (!dataUpdatedAt) return '';
+    const mins = Math.floor((now - dataUpdatedAt) / 60000);
+    if (mins < 1) return 'Just now';
+    return `${mins} min ago`;
+  }, [dataUpdatedAt, now, isLoading]);
+
+  const isPositive = data ? data.change24h >= 0 : true;
+
+  return (
+    <YStack
+      width="100%"
+      height={isExpanded ? 120 : 48}
+      justify={isExpanded ? 'space-between' : 'center'}
+      borderColor="$gray3"
+      borderWidth={0.5}
+      rounded="$5"
+      bg={isExpanded ? '$gray2' : '$orange5'}
+      p="$2"
+      px="$3"
+      animation="lazy"
+      overflow="hidden"
+      pressStyle={{ opacity: 0.9, scale: 0.99 }}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowSats((prev) => !prev);
+      }}
+    >
+      <XStack justify="space-between" items="center">
+        <XStack gap="$2" items="center">
+          <Image
+            source={require('~/assets/images/Bitcoin.png')}
+            width={25}
+            height={25}
+            rounded={5}
+          />
+          <Text fontWeight="700" fontSize="$4" color="$orange12">
+            Bitcoin price
+          </Text>
+        </XStack>
+
+        {isExpanded ? (
+          <XStack gap="$3" items="center">
+            <XStack
+              gap="$1.5"
+              items="center"
+              onPress={(e) => {
+                e.stopPropagation();
+                handleRefresh();
+              }}
+              pressStyle={{ opacity: 0.7 }}
+              px="$2"
+              py="$1"
+            >
+              <Text fontSize="$2" color="$gray10">
+                {timeAgo}
+              </Text>
+              {isFetching ? (
+                <Spinner size="small" color="$orange11" />
+              ) : (
+                <RefreshCcw size={18} color="$gray10" />
+              )}
+            </XStack>
+            <XStack
+              onPress={(e) => {
+                e.stopPropagation();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsExpanded(false);
+              }}
+              pressStyle={{ opacity: 0.7, scale: 0.95 }}
+              p="$1.5"
+              bg="$gray3"
+              rounded="$3"
+              items="center"
+              justify="center"
+            >
+              <ChevronUp size={18} strokeWidth={3} color="$gray10" />
+            </XStack>
+          </XStack>
+        ) : (
+          <XStack gap="$3" items="center">
+            {data ? (
+              showSats ? (
+                <Text fontSize={16} fontWeight="700" color="$orange12">
+                  {formatSatPrice(data.price)}
+                </Text>
+              ) : (
+                <Text fontSize={16} fontWeight="700" color="$orange12">
+                  {formatCurrency(data.price)}
+                </Text>
+              )
+            ) : (
+              <View height={20} width={80} bg="$gray5" rounded="$2" opacity={0.5} />
+            )}
+            <XStack
+              onPress={(e) => {
+                e.stopPropagation();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsExpanded(true);
+              }}
+              pressStyle={{ opacity: 0.7, scale: 0.95 }}
+              p="$1.5"
+              bg="$gray3"
+              rounded="$3"
+              items="center"
+              justify="center"
+            >
+              <ChevronDown strokeWidth={3} size={18} color="$gray10" />
+            </XStack>
+          </XStack>
+        )}
+      </XStack>
+
+      {isExpanded && (
+        <XStack justify="space-between" items="flex-end" flex={1} pt="$3">
+          <YStack gap="$1.5" flex={1} justify="flex-end">
+            {data ? (
+              <XStack justify="space-between">
+                {showSats ? (
+                  <Text
+                    fontSize={22}
+                    fontWeight={800}
+                    letterSpacing={-1.2}
+                    color="$accent4"
+                    lineHeight={36}
+                  >
+                    {formatSatPrice(data.price)}
+                  </Text>
+                ) : (
+                  <RollingNumber
+                    showDecimals={false}
+                    fontSize={24}
+                    fontWeight={800}
+                    letterSpacing={-1.5}
+                    color="$accent4"
+                    lineHeight={36}
+                  >
+                    {formatCurrency(data.price)}
+                  </RollingNumber>
+                )}
+
+                <XStack gap="$2" items="flex-end" justify="flex-end">
+                  <View bg={isPositive ? '$green3' : '$red3'} px="$2" py="$0.5" rounded="$2">
+                    <Text color={isPositive ? '$green10' : '$red10'} fontWeight="700" fontSize="$2">
+                      {isPositive ? '+' : ''}
+                      {data.change24h.toFixed(2)}%
+                    </Text>
+                  </View>
+                  <Text color="$gray9" fontSize="$2" fontWeight="600">
+                    24h
+                  </Text>
+                </XStack>
+              </XStack>
+            ) : (
+              <YStack gap="$2">
+                <View height={30} width={120} bg="$gray5" rounded="$2" opacity={0.5} />
+                <View height={20} width={60} bg="$gray5" rounded="$2" opacity={0.5} />
+              </YStack>
+            )}
+          </YStack>
+        </XStack>
+      )}
+    </YStack>
+  );
+}

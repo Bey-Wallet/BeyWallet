@@ -1,3 +1,3 @@
-import { NostrUsernameScreen } from '../../screens/NostrUsernameScreen';
+import { NostrUsernameScreen } from '~/features/nostr';
 
 export default NostrUsernameScreen;
