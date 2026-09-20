@@ -31,4 +31,34 @@ Recent commits use prefixes such as `feat:` and `refactor:` followed by a concre
 
 ## Agent Instructions
 
-Prefix shell commands with `rtk`, following `C:\Users\Zaheer\.codex\RTK.md`. Preserve unrelated working-tree changes.
+- Inspect relevant existing code before making changes. Treat the repository as the source of truth.
+- Prefer existing architecture, patterns, and abstractions over introducing new ones.
+- Keep changes minimal and scoped to the requested task.
+- Do not refactor unrelated code while implementing a feature or fixing a bug.
+- Preserve unrelated working-tree changes. Never discard, overwrite, or revert user changes.
+- Ask before adding or replacing dependencies.
+- Do not commit or push unless explicitly requested.
+- For non-trivial bugs, investigate and identify the root cause before implementing a fix.
+- Prefer existing `coco-cashu-core` abstractions for Cashu operations where appropriate.
+
+### Security-Critical Changes
+
+Treat wallet seeds, key derivation, Cashu proofs, mint/keyset validation, Nostr private keys,
+wallet recovery, backups, and payment operations as security-critical.
+
+- Never weaken validation or security checks merely to make a flow work.
+- Do not change seed/key derivation or recovery semantics without explicit approval.
+- Do not expose secrets, recovery phrases, private keys, proofs, or credentials in logs.
+- Explain security-sensitive behavioral changes before implementing them.
+
+### Validation
+
+After making changes:
+- Run the narrowest relevant checks first.
+- Run TypeScript checks when appropriate.
+- Add focused regression tests when practical.
+- Do not use repository-wide formatting for a small change unless necessary.
+- For NFC, biometrics, notifications, or payment behavior that cannot be fully verified locally,
+  explicitly state what still requires device testing.
+
+Report the files changed, validation performed, and anything that remains unverified.
