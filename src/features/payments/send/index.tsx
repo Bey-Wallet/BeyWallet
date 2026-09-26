@@ -186,7 +186,7 @@ export function SendModalScreen() {
       if (params.mode === 'nostr' && params.to) {
         setSendMode('nostr');
         setNostrRecipientNpub(params.to as string);
-        setNostrRecipientUsername(params.username ? `${params.username}@bey.cash` : '');
+        setNostrRecipientUsername(params.username ? String(params.username) : '');
       } else if (params.mode) {
         setSendMode(params.mode as SendMode);
       }
@@ -517,9 +517,15 @@ export function SendModalScreen() {
       // Save contact if we have a username
       if (nostrRecipientUsername) {
         import('~/state/contactsStore').then(({ useContactsStore }) => {
+          const recipientLabel = nostrRecipientUsername.trim();
+          const recipientNip05 = recipientLabel.includes('@') ? recipientLabel : null;
           useContactsStore.getState().addContact({
             npub: nostrRecipientNpub,
-            username: nostrRecipientUsername.replace('@bey.cash', ''), // store without domain or keep it? The store usually keeps bare username or full NIP-05. Let's just keep the raw one we have, but if we auto-appended @bey.cash on line 89, let's remove it or keep it. Actually, `contact-details` passes `username`.
+            username: recipientNip05?.endsWith('@bey.cash')
+              ? recipientNip05.replace(/@bey\.cash$/i, '')
+              : null,
+            displayName: recipientNip05 ? null : recipientLabel,
+            nip05: recipientNip05,
           });
         });
       }

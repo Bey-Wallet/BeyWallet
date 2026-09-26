@@ -14,14 +14,13 @@ import {
   Sprout,
   Globe,
   ArrowLeft,
-  Search,
   Compass,
   Nfc,
   Bitcoin,
   Square,
   CopySlash,
   RectangleHorizontal,
-  Contact,
+  Users,
 } from '@tamagui/lucide-icons';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import { useAuthStore } from '~/state/authStore';
@@ -135,22 +134,8 @@ export default function TabLayout() {
           tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
         }}
         options={{
-          title: 'Contacts',
-          tabBarIcon: ({ color }) => <Contact size={24} strokeWidth={2.5} color={color as any} />,
-          headerRight: () => (
-            <XStack pr="$4">
-              <Button
-                circular
-                size="$3"
-                chromeless
-                icon={<Search size={22} strokeWidth={2.4} color="$gray10" />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(modals)/contact-search');
-                }}
-              />
-            </XStack>
-          ),
+          title: 'People',
+          tabBarIcon: ({ color }) => <Users size={24} strokeWidth={2.5} color={color as any} />,
         }}
       />
 

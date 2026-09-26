@@ -73,7 +73,10 @@ export const mintManager = {
    * Check if a mint is trusted.
    */
   isMintTrusted: async (mintUrl: string): Promise<boolean> => {
-    return mgr().mint.isTrustedMint(mintUrl);
+    const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '').toLowerCase();
+    const target = normalizeUrl(mintUrl);
+    const trustedMints = await mgr().mint.getAllTrustedMints();
+    return trustedMints.some((mint) => normalizeUrl(mint.mintUrl) === target);
   },
 
   // ─── Queries ──────────────────────────────────────────────

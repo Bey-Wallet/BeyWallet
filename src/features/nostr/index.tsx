@@ -11,6 +11,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { nip19 } from 'nostr-tools';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
+import { nostrService } from '~/services/wallet/nostrService';
 
 /** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
 function hexToBytes(hex: string): Uint8Array {
@@ -80,7 +81,7 @@ async function registerUsername(
   username: string,
   hexPubkey: string,
   hexPrivkey: string,
-): Promise<{ ok: boolean; error?: string; nip05?: string }> {
+): Promise<{ ok: boolean; error?: string; nip05?: string; profilePublished?: boolean }> {
   try {
     const privkeyBytes = hexToBytes(hexPrivkey);
     const proofEvent = finalizeEvent(
@@ -96,6 +97,8 @@ async function registerUsername(
       },
       privkeyBytes,
     );
+    const identifier = `${username.toLowerCase()}@${DOMAIN}`;
+    const profileEvent = await nostrService.createProfileEvent(identifier, hexPrivkey, hexPubkey);
 
     const res = await fetch(`${API_BASE}/register`, {
       method: 'POST',
@@ -104,6 +107,7 @@ async function registerUsername(
         username: username.toLowerCase(),
         pubkey: hexPubkey,
         proofEvent,
+        profileEvent,
       }),
     });
 
@@ -117,7 +121,12 @@ async function registerUsername(
     const data = await res.json().catch(() => null);
     if (!data?.success) return { ok: false, error: 'Registration response invalid' };
 
-    return { ok: true, nip05: data.nip05 };
+    const publishedByWallet = await nostrService.publishProfileEvent(profileEvent);
+    return {
+      ok: true,
+      nip05: data.nip05,
+      profilePublished: data.profilePublished === true || publishedByWallet,
+    };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Network error' };
   }
@@ -261,7 +270,9 @@ export function NostrUsernameScreen() {
         await setNip05(identifier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast.show('Username Updated! 🎉', {
-          message: `You are now ${identifier}`,
+          message: result.profilePublished
+            ? `You are now ${identifier}`
+            : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
           duration: 4000,
         });
         setInput('');

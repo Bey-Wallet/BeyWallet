@@ -6,6 +6,8 @@ import { normalizeNpub } from '~/shared/utils/nostr';
 export interface Contact {
   npub: string;
   username?: string | null;
+  displayName?: string | null;
+  nip05?: string | null;
   isFavorite: boolean;
 }
 
@@ -23,6 +25,11 @@ function normalizeUsername(username?: string | null): string | null {
   return username.trim().replace('@bey.cash', '');
 }
 
+function normalizeOptionalText(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized || null;
+}
+
 export const useContactsStore = create<ContactsState>()(
   persist(
     (set, get) => ({
@@ -35,7 +42,13 @@ export const useContactsStore = create<ContactsState>()(
           return {
             favorites: {
               ...state.favorites,
-              [npub]: { npub, username, isFavorite: true },
+              [npub]: {
+                npub,
+                username,
+                displayName: normalizeOptionalText(contact.displayName),
+                nip05: normalizeOptionalText(contact.nip05),
+                isFavorite: true,
+              },
             },
           };
         }),
@@ -55,7 +68,13 @@ export const useContactsStore = create<ContactsState>()(
           return {
             contacts: {
               ...state.contacts,
-              [npub]: { npub, username, isFavorite: false },
+              [npub]: {
+                npub,
+                username,
+                displayName: normalizeOptionalText(contact.displayName),
+                nip05: normalizeOptionalText(contact.nip05),
+                isFavorite: false,
+              },
             },
           };
         }),
@@ -79,6 +98,8 @@ export const useContactsStore = create<ContactsState>()(
             newContacts[normNpub] = {
               npub: normNpub,
               username: normUser,
+              displayName: normalizeOptionalText(contact.displayName),
+              nip05: normalizeOptionalText(contact.nip05),
               isFavorite: false,
             };
             if (normNpub !== key || contact.username !== normUser) {
@@ -92,6 +113,8 @@ export const useContactsStore = create<ContactsState>()(
             newFavorites[normNpub] = {
               npub: normNpub,
               username: normUser,
+              displayName: normalizeOptionalText(contact.displayName),
+              nip05: normalizeOptionalText(contact.nip05),
               isFavorite: true,
             };
             if (normNpub !== key || contact.username !== normUser) {

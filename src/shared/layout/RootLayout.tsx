@@ -9,6 +9,7 @@ import { useOnboardingStore } from '~/state/onboardingStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OnboardingScreen } from '~/features/onboarding';
 import { NostrPaymentReceived } from '~/shared/ui/NostrPaymentReceived';
+import { NostrClaimSheet } from '~/shared/ui/NostrClaimSheet';
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,7 @@ export function RootLayout() {
   return (
     <Providers cocoManager={manager}>
       <RootLayoutNav />
+      <NostrClaimSheet />
       <NostrPaymentReceived />
     </Providers>
   );

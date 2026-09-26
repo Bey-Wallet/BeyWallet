@@ -40,6 +40,15 @@ export const RELAYS: string[] = [
   'wss://relay.8333.space',
 ];
 
+// Public inbox relays advertised via NIP-17 kind 10050. Keep this list small
+// and aligned with the relay hints returned by bey.cash NIP-05 responses.
+export const NIP17_INBOX_RELAYS: string[] = [
+  'wss://relay.minibits.cash',
+  'wss://relay.damus.io',
+  'wss://relay.primal.net',
+  'wss://nos.lol',
+];
+
 // ─── Event Kinds ──────────────────────────────────────────────────────────────
 //
 // Kind 4    — NIP-04 Legacy encrypted DM  (cashu.me legacy, some wallets)
@@ -50,7 +59,13 @@ export const RELAYS: string[] = [
 const LISTENED_KINDS = [4, 13, 14, 1059];
 
 // How many seconds back to fetch on first connection
-const SINCE_SECONDS = 24 * 60 * 60; // 24 h
+const SINCE_SECONDS = 7 * 24 * 60 * 60; // Recover messages after several days offline
+const MAX_NOSTR_PAYMENT_MESSAGE_LENGTH = 64 * 1024;
+
+interface DecryptedNostrMessage {
+  text: string;
+  senderPubkey: string;
+}
 
 // Reconnect interval when the pool drops
 const RECONNECT_INTERVAL_MS = 30_000;
@@ -83,7 +98,7 @@ class NostrService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  public start(privkeyHex: string, pubkeyHex: string): void {
+  public start(privkeyHex: string, pubkeyHex: string, nip05?: string): void {
     if (this.isRunning) {
       console.log('[NostrService] Already running — restarting with fresh subscription');
       this._teardown();
@@ -99,6 +114,10 @@ class NostrService {
     );
 
     this._subscribe();
+    void this._publishInboxRelayList();
+    if (nip05) {
+      void this.publishProfile(nip05, privkeyHex, pubkeyHex);
+    }
     this._startReconnectLoop();
     this._listenAppState();
   }
@@ -255,7 +274,7 @@ class NostrService {
       const decrypted = await this._decrypt(event);
       if (decrypted === null) return;
 
-      await this._handleDecrypted(decrypted, event);
+      await this._handleDecrypted(decrypted.text, event, decrypted.senderPubkey);
     } catch (err) {
       // Decryption failure is normal if the key is wrong — do not log as error
       // console.debug(`[NostrService] Could not process event ${event.id}:`, err);
@@ -263,15 +282,18 @@ class NostrService {
   }
 
   /**
-   * Attempt to decrypt an event. Returns the plaintext string, or null if unhandled/failed.
+   * Attempt to decrypt an event and retain the authenticated sender identity.
    */
-  private async _decrypt(event: Event): Promise<string | null> {
+  private async _decrypt(event: Event): Promise<DecryptedNostrMessage | null> {
     if (!this.privkeyHex || !this.privkeyBytes) return null;
 
     // ── Kind 4: NIP-04 legacy encrypted DM ──────────────────────────────
     if (event.kind === 4) {
       try {
-        return await nip04.decrypt(this.privkeyHex, event.pubkey, event.content);
+        return {
+          text: await nip04.decrypt(this.privkeyHex, event.pubkey, event.content),
+          senderPubkey: event.pubkey,
+        };
       } catch {
         return null;
       }
@@ -281,17 +303,21 @@ class NostrService {
     // Unwrap using NIP-59 to get the inner sealed event (Kind 13 or 14)
     if (event.kind === 1059) {
       try {
-        const inner = unwrapEvent(event, this.privkeyBytes);
-        // The inner event content is the actual message (NIP-17 style)
-        if (inner.kind === 14 || inner.kind === 13) {
-          return inner.content;
+        const rumor = unwrapEvent(event, this.privkeyBytes);
+        // unwrapEvent verifies/decrypts the seal and returns the kind 14 rumor.
+        // Its pubkey is the real sender; the outer event uses a throwaway key.
+        if (rumor.kind === 14) {
+          return { text: rumor.content, senderPubkey: rumor.pubkey };
         }
-        // Fallback: try NIP-44 decrypt on the inner event content
+        // Fallback for non-standard wraps that expose another encrypted event.
         const convKey = nip44.v2.utils.getConversationKey(
           this.privkeyBytes,
-          Buffer.from(inner.pubkey, 'hex'),
+          Buffer.from(rumor.pubkey, 'hex'),
         );
-        return nip44.v2.decrypt(inner.content, convKey);
+        return {
+          text: nip44.v2.decrypt(rumor.content, convKey),
+          senderPubkey: rumor.pubkey,
+        };
       } catch {
         return null;
       }
@@ -302,11 +328,17 @@ class NostrService {
       try {
         const senderPubBytes = Buffer.from(event.pubkey, 'hex');
         const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, senderPubBytes);
-        return nip44.v2.decrypt(event.content, convKey);
+        return {
+          text: nip44.v2.decrypt(event.content, convKey),
+          senderPubkey: event.pubkey,
+        };
       } catch {
         // Also try NIP-04 as fallback
         try {
-          return await nip04.decrypt(this.privkeyHex, event.pubkey, event.content);
+          return {
+            text: await nip04.decrypt(this.privkeyHex, event.pubkey, event.content),
+            senderPubkey: event.pubkey,
+          };
         } catch {
           return null;
         }
@@ -323,7 +355,16 @@ class NostrService {
    * a claim sheet where the user inspects mint, fees, and sender info before
    * accepting the payment.
    */
-  private async _handleDecrypted(text: string, sourceEvent: Event): Promise<void> {
+  private async _handleDecrypted(
+    text: string,
+    sourceEvent: Event,
+    senderPubkey: string,
+  ): Promise<void> {
+    if (text.length > MAX_NOSTR_PAYMENT_MESSAGE_LENGTH) {
+      console.warn('[NostrService] Ignoring oversized payment message');
+      return;
+    }
+
     // ── 1. Check for incoming Payment Request (creqA / creqB) ──
     const creqMatch = text.match(/(creq[AB][A-Za-z0-9_=-]+)/i);
     if (creqMatch) {
@@ -336,7 +377,7 @@ class NostrService {
         const pr = PaymentRequest.fromEncodedRequest(creqString);
         if (pr.amount && pr.mints && pr.mints.length > 0) {
           const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
-          const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
+          const senderUsername = await this.getSenderUsername(senderPubkey);
 
           useNostrInboxStore.getState().addIncoming({
             id: sourceEvent.id,
@@ -344,7 +385,7 @@ class NostrService {
             tokenString: creqString,
             amount: pr.amount,
             mintUrl: pr.mints[0],
-            senderPubkey: sourceEvent.pubkey,
+            senderPubkey,
             senderUsername,
           });
         }
@@ -494,10 +535,34 @@ class NostrService {
       }
     }
 
+    if (
+      tokenString.length > MAX_NOSTR_PAYMENT_MESSAGE_LENGTH ||
+      !mintUrl ||
+      !Number.isSafeInteger(amount) ||
+      amount <= 0
+    ) {
+      console.warn('[NostrService] Ignoring invalid payment token metadata');
+      return;
+    }
+
     console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
     // Resolve sender username from local contacts or directory
-    const senderUsername = await this.getSenderUsername(sourceEvent.pubkey);
+    const senderUsername = await this.getSenderUsername(senderPubkey);
+
+    // Persist before emitting the UI event. DeviceEventEmitter is ephemeral,
+    // so without this handoff a payment received off the Home tab can vanish.
+    const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
+    useNostrInboxStore.getState().addIncoming({
+      id: sourceEvent.id,
+      type: 'token',
+      tokenString,
+      amount,
+      mintUrl,
+      senderPubkey,
+      senderUsername,
+      requestId: requestIdFromPayload,
+    });
 
     // ── Queue for manual claim via NostrClaimSheet ──────────────────────
     // Emit 'nostr:incoming' so the UI can present a claim sheet where the
@@ -507,13 +572,148 @@ class NostrService {
       tokenString,
       amount,
       mintUrl,
-      senderPubkey: sourceEvent.pubkey,
+      senderPubkey,
       senderUsername,
       requestId: requestIdFromPayload,
     });
     console.log(
-      `[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${sourceEvent.pubkey.slice(0, 8)}…`,
+      `[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${senderPubkey.slice(0, 8)}…`,
     );
+  }
+
+  /** Advertise the relays where other NIP-17 clients should deliver gift wraps. */
+  private async _publishInboxRelayList(): Promise<void> {
+    if (!this.privkeyBytes || !this.pool) return;
+
+    const event = finalizeEvent(
+      {
+        kind: 10050,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: NIP17_INBOX_RELAYS.map((relay) => ['relay', relay]),
+        content: '',
+      },
+      this.privkeyBytes,
+    );
+
+    try {
+      await Promise.any(this.pool.publish(RELAYS, event));
+      console.log('[NostrService] Published NIP-17 inbox relay preference.');
+    } catch (err: any) {
+      console.warn(
+        '[NostrService] Could not publish NIP-17 inbox relay preference:',
+        err?.message || err,
+      );
+    }
+  }
+
+  /**
+   * Build a signed kind-0 profile while preserving metadata already published
+   * by another Nostr client. The Bey address is always authoritative.
+   */
+  public async createProfileEvent(
+    nip05: string,
+    privkeyHex: string,
+    pubkeyHex: string,
+  ): Promise<Event> {
+    const privkeyBytes = hexToBytes(privkeyHex);
+    if (getPublicKey(privkeyBytes) !== pubkeyHex.toLowerCase()) {
+      throw new Error('Nostr profile key mismatch');
+    }
+
+    const normalizedNip05 = nip05.trim().toLowerCase();
+    const [username, domain, ...extraParts] = normalizedNip05.split('@');
+    if (
+      !username ||
+      domain !== 'bey.cash' ||
+      extraParts.length > 0 ||
+      !/^[a-z0-9_.-]{1,64}$/.test(username)
+    ) {
+      throw new Error('Invalid bey.cash NIP-05 identifier');
+    }
+
+    const existing = await this._fetchProfileMetadata(pubkeyHex);
+    const displayName =
+      typeof existing.display_name === 'string'
+        ? existing.display_name
+        : typeof existing.displayName === 'string'
+          ? existing.displayName
+          : username;
+
+    return finalizeEvent(
+      {
+        kind: 0,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: JSON.stringify({
+          ...existing,
+          name: typeof existing.name === 'string' ? existing.name : username,
+          display_name: displayName,
+          nip05: normalizedNip05,
+        }),
+      },
+      privkeyBytes,
+    );
+  }
+
+  /** Publish an already signed profile to every relay advertised by bey.cash. */
+  public async publishProfileEvent(profileEvent: Event): Promise<boolean> {
+    const pool = this.pool ?? new SimplePool();
+    const ownsPool = this.pool === null;
+
+    try {
+      await Promise.any(pool.publish(NIP17_INBOX_RELAYS, profileEvent));
+      console.log('[NostrService] Published Nostr kind-0 profile.');
+      return true;
+    } catch (err: any) {
+      console.warn('[NostrService] Could not publish Nostr profile:', err?.message || err);
+      return false;
+    } finally {
+      if (ownsPool) pool.close(NIP17_INBOX_RELAYS);
+    }
+  }
+
+  /** Create and publish/repair the profile associated with a Bey username. */
+  public async publishProfile(
+    nip05: string,
+    privkeyHex: string,
+    pubkeyHex: string,
+  ): Promise<boolean> {
+    try {
+      const profileEvent = await this.createProfileEvent(nip05, privkeyHex, pubkeyHex);
+      return this.publishProfileEvent(profileEvent);
+    } catch (err: any) {
+      console.warn('[NostrService] Could not create Nostr profile:', err?.message || err);
+      return false;
+    }
+  }
+
+  private async _fetchProfileMetadata(pubkeyHex: string): Promise<Record<string, unknown>> {
+    const pool = this.pool ?? new SimplePool();
+    const ownsPool = this.pool === null;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      const events = await Promise.race([
+        pool.querySync(NIP17_INBOX_RELAYS, {
+          authors: [pubkeyHex],
+          kinds: [0],
+          limit: 8,
+        }),
+        new Promise<Event[]>((resolve) => {
+          timeout = setTimeout(() => resolve([]), 5_000);
+        }),
+      ]);
+      const newest = events.sort((a, b) => b.created_at - a.created_at)[0];
+      if (!newest) return {};
+
+      const metadata = JSON.parse(newest.content);
+      return metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+    } catch {
+      return {};
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      if (ownsPool) pool.close(NIP17_INBOX_RELAYS);
+    }
   }
 
   private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {

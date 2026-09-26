@@ -20,7 +20,12 @@ import { Flex, SafeFlex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ContactDetailsScreen() {
-  const { npub, username } = useLocalSearchParams<{ npub: string; username?: string }>();
+  const { npub, username, displayName, nip05 } = useLocalSearchParams<{
+    npub: string;
+    username?: string;
+    displayName?: string;
+    nip05?: string;
+  }>();
   if (!npub) return <Text p="$4">Invalid Contact</Text>;
   const theme = useTheme();
   const toast = useToastController();
@@ -43,7 +48,13 @@ export default function ContactDetailsScreen() {
       removeFavorite(npub);
       toast.show('Removed from favorites');
     } else {
-      addFavorite({ npub, username: username || null, isFavorite: true });
+      addFavorite({
+        npub,
+        username: username || null,
+        displayName: displayName || null,
+        nip05: nip05 || null,
+        isFavorite: true,
+      });
       toast.show('Added to favorites');
     }
   };
@@ -51,7 +62,14 @@ export default function ContactDetailsScreen() {
   const handleSend = () => {
     router.push({
       pathname: '/(modals)/send',
-      params: { to: npub, username: username || '', mode: 'nostr' },
+      params: {
+        to: npub,
+        username:
+          nip05 ||
+          displayName ||
+          (username ? `${username.replace(/@bey\.cash$/i, '')}@bey.cash` : ''),
+        mode: 'nostr',
+      },
     });
   };
 
@@ -71,6 +89,8 @@ export default function ContactDetailsScreen() {
       queryParams: {
         npub: npub,
         ...(username ? { username: username } : {}),
+        ...(displayName ? { displayName } : {}),
+        ...(nip05 ? { nip05 } : {}),
       },
     });
 
@@ -90,7 +110,13 @@ export default function ContactDetailsScreen() {
   };
   const insets = useSafeAreaInsets();
 
-  const displayUsername = username ? `${username}@bey.cash` : '';
+  const legacyUsername = username
+    ? username.includes('@')
+      ? username
+      : `${username}@bey.cash`
+    : '';
+  const primaryLabel = displayName || nip05 || legacyUsername;
+  const secondaryLabel = displayName ? nip05 || legacyUsername : '';
 
   return (
     <Flex fill bg="$background" pb={insets.bottom || 16}>
@@ -103,9 +129,14 @@ export default function ContactDetailsScreen() {
           <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 7 }} />
 
           <YStack items="center" gap="$1">
-            {displayUsername ? (
+            {primaryLabel ? (
               <Text fontSize="$7" fontWeight="bold" color="$color">
-                {displayUsername}
+                {primaryLabel}
+              </Text>
+            ) : null}
+            {secondaryLabel ? (
+              <Text fontSize="$3" color="$gray10">
+                {secondaryLabel}
               </Text>
             ) : null}
             <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>

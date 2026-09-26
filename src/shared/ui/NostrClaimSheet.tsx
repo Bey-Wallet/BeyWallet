@@ -31,12 +31,37 @@ import { nip19 } from 'nostr-tools';
 import { nostrRequestStore } from '~/state/nostrRequestStore';
 import { Image } from 'tamagui';
 import { useToastController } from '@tamagui/toast';
-import { useRouter, usePathname } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
+import { useAuthStore } from '~/state/authStore';
 
 const nostrIcon = require('~/assets/images/nostr-icon-white-transparent.png');
+
+async function isTrustedMint(mintUrl: string): Promise<boolean> {
+  return mintManager.isMintTrusted(mintUrl);
+}
+
+let autoClaimQueue: Promise<void> = Promise.resolve();
+let recentAutoClaims: number[] = [];
+const AUTO_CLAIM_WINDOW_MS = 60_000;
+const MAX_AUTO_CLAIMS_PER_WINDOW = 12;
+
+function enqueueAutoClaim<T>(task: () => Promise<T>): Promise<T> {
+  const result = autoClaimQueue.then(task, task);
+  autoClaimQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+function reserveAutoClaimSlot(now = Date.now()): boolean {
+  recentAutoClaims = recentAutoClaims.filter((timestamp) => now - timestamp < AUTO_CLAIM_WINDOW_MS);
+  if (recentAutoClaims.length >= MAX_AUTO_CLAIMS_PER_WINDOW) return false;
+  recentAutoClaims.push(now);
+  return true;
+}
 
 function safeNpubEncode(pubkey: string): string {
   if (!pubkey) return '';
@@ -60,10 +85,11 @@ function safeNpubEncode(pubkey: string): string {
 
 export function NostrClaimSheet() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const presentedIdsRef = useRef(new Set<string>());
+  const recoveringIdsRef = useRef(new Set<string>());
   const toast = useToastController();
-  const router = useRouter();
-  const pathname = usePathname();
   const [activeItem, setActiveItem] = useState<NostrInboxItem | null>(null);
+  const [activeMintTrusted, setActiveMintTrusted] = useState<boolean | null>(null);
   const [claimStatus, setClaimStatus] = useState<'idle' | 'claiming' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -72,9 +98,13 @@ export function NostrClaimSheet() {
   const markClaimed = useNostrInboxStore((s) => s.markClaimed);
   const markFailed = useNostrInboxStore((s) => s.markFailed);
   const dismiss = useNostrInboxStore((s) => s.dismiss);
+  const inboxItems = useNostrInboxStore((s) => s.items);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const settingsNsec = useSettingsStore((s) => s.nsec);
   const secondaryCurrency = useSettingsStore((s) => s.secondaryCurrency);
+  const biometricEnabled = useSettingsStore((s) => s.biometricEnabled);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const canPresent = !biometricEnabled || isAuthenticated;
 
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -92,6 +122,26 @@ export function NostrClaimSheet() {
     );
   }, [activeItem?.amount, btcData?.price, secondaryCurrency]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeItem) {
+      setActiveMintTrusted(null);
+      return;
+    }
+
+    void isTrustedMint(activeItem.mintUrl)
+      .then((trusted) => {
+        if (!cancelled) setActiveMintTrusted(trusted);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveMintTrusted(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeItem]);
+
   // Listen for incoming Nostr payments
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener(
@@ -105,6 +155,8 @@ export function NostrClaimSheet() {
         senderUsername?: string;
         requestId?: string;
       }) => {
+        if (presentedIdsRef.current.has(data.eventId)) return;
+
         const existing = useNostrInboxStore.getState().items.find((i) => i.id === data.eventId);
         if (existing && (existing.status === 'claimed' || existing.status === 'claiming')) {
           console.log(
@@ -112,6 +164,11 @@ export function NostrClaimSheet() {
           );
           return;
         }
+
+        // The service has already persisted this payment. Keep payment details
+        // behind the biometric lock and restore the sheet after unlock.
+        if (!canPresent) return;
+        presentedIdsRef.current.add(data.eventId);
 
         const { useNostrRequestStore } = require('~/state/nostrRequestStore');
         try {
@@ -132,159 +189,150 @@ export function NostrClaimSheet() {
               r.state === 'pending'),
         );
 
-        if (matchingRequest) {
-          console.log('[NostrClaimSheet] Matches pending request! Auto-claiming...');
-          toast.show('Claiming payment...', { message: 'Auto-claiming requested payment' });
+        let mintIsTrusted = false;
+        try {
+          mintIsTrusted = await isTrustedMint(data.mintUrl);
+        } catch (trustErr) {
+          console.warn('[NostrClaimSheet] Could not verify mint trust:', trustErr);
+        }
+
+        if (mintIsTrusted) {
+          console.log('[NostrClaimSheet] Trusted mint payment detected. Auto-claiming...');
 
           addIncoming({
             id: data.eventId,
+            type: 'token',
             tokenString: data.tokenString,
             amount: data.amount,
             mintUrl: data.mintUrl,
             senderPubkey: data.senderPubkey,
             senderUsername: data.senderUsername,
+            requestId: data.requestId,
           });
 
-          markClaiming(data.eventId);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          if (!reserveAutoClaimSlot()) {
+            const error =
+              'Automatic claiming paused after too many incoming payments. Tap to retry.';
+            markFailed(data.eventId, error);
+            DeviceEventEmitter.emit('nostr:auto-claim-paused', {
+              amount: data.amount,
+              eventId: data.eventId,
+            });
+            return;
+          }
 
           try {
-            await mintManager.addMint(data.mintUrl, { trusted: true });
+            await enqueueAutoClaim(async () => {
+              markClaiming(data.eventId);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-            let privkeyHex: string | null = null;
-            if (settingsNsec) {
-              try {
-                if (settingsNsec.startsWith('nsec')) {
-                  const decoded = nip19.decode(settingsNsec);
-                  const bytes = decoded.data as Uint8Array;
-                  privkeyHex = Array.from(bytes)
-                    .map((b) => b.toString(16).padStart(2, '0'))
-                    .join('');
-                } else {
-                  privkeyHex = settingsNsec;
+              let privkeyHex: string | null = null;
+              if (settingsNsec) {
+                try {
+                  if (settingsNsec.startsWith('nsec')) {
+                    const decoded = nip19.decode(settingsNsec);
+                    const bytes = decoded.data as Uint8Array;
+                    privkeyHex = Array.from(bytes)
+                      .map((b) => b.toString(16).padStart(2, '0'))
+                      .join('');
+                  } else {
+                    privkeyHex = settingsNsec;
+                  }
+                } catch {
+                  /* ignore */
                 }
-              } catch {
-                /* ignore */
               }
-            }
 
-            let received = false;
-            if (privkeyHex) {
-              try {
-                await walletService.receiveP2PK(data.tokenString, privkeyHex);
-                received = true;
-                console.log(
-                  `[NostrClaimSheet] Auto-claim: ✅ P2PK receive success: ${data.amount} sats`,
-                );
-              } catch (p2pkErr: any) {
-                const errMsg = p2pkErr?.message ?? '';
-                const isP2PKError =
-                  errMsg.includes('locked') ||
-                  errMsg.includes('P2PK') ||
-                  errMsg.includes('public key') ||
-                  errMsg.includes('Witness') ||
-                  errMsg.includes('signature');
-
-                if (errMsg.includes('already spent') || p2pkErr?.code === 11001) {
-                  console.log(
-                    `[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`,
-                  );
+              let received = false;
+              if (privkeyHex) {
+                try {
+                  await walletService.receiveP2PK(data.tokenString, privkeyHex);
                   received = true;
-                } else if (!isP2PKError) {
+                  console.log(
+                    `[NostrClaimSheet] Auto-claim: ✅ P2PK receive success: ${data.amount} sats`,
+                  );
+                } catch (p2pkErr: any) {
+                  const errMsg = p2pkErr?.message ?? '';
+                  const isP2PKError =
+                    errMsg.includes('locked') ||
+                    errMsg.includes('P2PK') ||
+                    errMsg.includes('public key') ||
+                    errMsg.includes('Witness') ||
+                    errMsg.includes('signature');
+
+                  if (errMsg.includes('already spent') || p2pkErr?.code === 11001) {
+                    console.log(
+                      `[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`,
+                    );
+                    received = true;
+                  } else if (!isP2PKError) {
+                    await walletService.receive(data.tokenString);
+                    received = true;
+                    console.log(
+                      `[NostrClaimSheet] Auto-claim: ✅ Standard receive success: ${data.amount} sats`,
+                    );
+                  } else {
+                    throw p2pkErr;
+                  }
+                }
+              } else {
+                try {
                   await walletService.receive(data.tokenString);
                   received = true;
                   console.log(
-                    `[NostrClaimSheet] Auto-claim: ✅ Standard receive success: ${data.amount} sats`,
+                    `[NostrClaimSheet] Auto-claim: ✅ Standard receive success (no key): ${data.amount} sats`,
                   );
-                } else {
-                  throw p2pkErr;
-                }
-              }
-            } else {
-              try {
-                await walletService.receive(data.tokenString);
-                received = true;
-                console.log(
-                  `[NostrClaimSheet] Auto-claim: ✅ Standard receive success (no key): ${data.amount} sats`,
-                );
-              } catch (stdErr: any) {
-                if (stdErr?.message?.includes('already spent') || stdErr?.code === 11001) {
-                  console.log(
-                    `[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`,
-                  );
-                  received = true;
-                } else {
-                  throw stdErr;
-                }
-              }
-            }
-
-            if (received) {
-              markClaimed(data.eventId);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              refreshBalance();
-
-              await useNostrRequestStore.getState().markReceived(matchingRequest.id);
-
-              try {
-                const senderNpub = data.senderPubkey
-                  ? safeNpubEncode(data.senderPubkey)
-                  : undefined;
-
-                await historyService.tagHistoryVia(data.mintUrl, 'receive', 'nostr', {
-                  nostrPubkey: senderNpub,
-                  nostrUsername: data.senderUsername
-                    ? data.senderUsername.replace('@bey.cash', '')
-                    : undefined,
-                });
-              } catch (tagErr) {
-                console.warn('[NostrClaimSheet] Failed to tag history on auto-claim:', tagErr);
-              }
-
-              DeviceEventEmitter.emit('nostr:received', {
-                amount: data.amount,
-                mintUrl: data.mintUrl,
-                eventId: data.eventId,
-                senderPubkey: data.senderPubkey,
-                requestId: data.requestId,
-              });
-
-              toast.show('Payment Received! 🎉', {
-                message: `₿${data.amount} sats claimed automatically`,
-              });
-
-              setTimeout(async () => {
-                try {
-                  const history = await historyService.getHistory(5, 0);
-                  const entry = history.find(
-                    (e: any) =>
-                      e.type === 'receive' &&
-                      Number(e.amount) === Number(data.amount) &&
-                      e.mintUrl.replace(/\/$/, '') === data.mintUrl.replace(/\/$/, ''),
-                  );
-                  if (entry) {
-                    if (!pathname.includes('receive')) {
-                      router.push({
-                        pathname: '/(modals)/txn-details',
-                        params: { id: entry.id },
-                      });
-                    }
+                } catch (stdErr: any) {
+                  if (stdErr?.message?.includes('already spent') || stdErr?.code === 11001) {
+                    console.log(
+                      `[NostrClaimSheet] Auto-claim: Token already spent — treating as claimed`,
+                    );
+                    received = true;
                   } else {
-                    if (!pathname.includes('receive')) {
-                      router.push('/(tabs)/history');
-                    }
+                    throw stdErr;
                   }
-                } catch (navErr) {
-                  console.warn('[NostrClaimSheet] Navigation to details failed:', navErr);
                 }
-              }, 800);
-            }
+              }
+
+              if (received) {
+                markClaimed(data.eventId);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                refreshBalance();
+
+                if (matchingRequest) {
+                  await useNostrRequestStore.getState().markReceived(matchingRequest.id);
+                }
+
+                try {
+                  const senderNpub = data.senderPubkey
+                    ? safeNpubEncode(data.senderPubkey)
+                    : undefined;
+
+                  await historyService.tagHistoryVia(data.mintUrl, 'receive', 'nostr', {
+                    nostrPubkey: senderNpub,
+                    nostrUsername: data.senderUsername
+                      ? data.senderUsername.replace('@bey.cash', '')
+                      : undefined,
+                  });
+                } catch (tagErr) {
+                  console.warn('[NostrClaimSheet] Failed to tag history on auto-claim:', tagErr);
+                }
+
+                DeviceEventEmitter.emit('nostr:received', {
+                  amount: data.amount,
+                  mintUrl: data.mintUrl,
+                  eventId: data.eventId,
+                  senderPubkey: data.senderPubkey,
+                  requestId: data.requestId,
+                });
+              }
+            });
           } catch (err: any) {
             console.error('[NostrClaimSheet] Auto-claim failed:', err);
             markFailed(data.eventId, err?.message || 'Failed to auto-claim');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             toast.show('Auto-claim Failed', {
-              message: err.message || 'Could not claim requested payment',
+              message: err.message || 'Payment saved for manual retry',
             });
           }
           return;
@@ -295,11 +343,13 @@ export function NostrClaimSheet() {
 
         addIncoming({
           id: data.eventId,
+          type: 'token',
           tokenString: data.tokenString,
           amount: data.amount,
           mintUrl: data.mintUrl,
           senderPubkey: data.senderPubkey,
           senderUsername: data.senderUsername,
+          requestId: data.requestId,
         });
 
         setActiveItem({
@@ -309,28 +359,89 @@ export function NostrClaimSheet() {
           mintUrl: data.mintUrl,
           senderPubkey: data.senderPubkey,
           senderUsername: data.senderUsername,
+          requestId: data.requestId,
           receivedAt: Date.now(),
           status: 'pending',
           seen: false,
         });
         setClaimStatus('idle');
         setErrorMessage('');
-        sheetRef.current?.present();
       },
     );
 
     return () => subscription.remove();
-  }, [addIncoming, settingsNsec, markClaiming, markClaimed, markFailed, refreshBalance, router]);
+  }, [
+    addIncoming,
+    canPresent,
+    settingsNsec,
+    markClaiming,
+    markClaimed,
+    markFailed,
+    refreshBalance,
+  ]);
+
+  // Recover a persisted payment if its DeviceEventEmitter notification arrived
+  // before the UI listener mounted (cold start, background resume, or locked app).
+  useEffect(() => {
+    if (!canPresent || activeItem || claimStatus !== 'idle') return;
+
+    const nextItem = inboxItems.find(
+      (item) =>
+        !presentedIdsRef.current.has(item.id) &&
+        !recoveringIdsRef.current.has(item.id) &&
+        item.type !== 'request' &&
+        (item.status === 'pending' || item.status === 'failed'),
+    );
+    if (!nextItem) return;
+
+    recoveringIdsRef.current.add(nextItem.id);
+
+    void isTrustedMint(nextItem.mintUrl)
+      .then((trusted) => {
+        recoveringIdsRef.current.delete(nextItem.id);
+        if (trusted) {
+          DeviceEventEmitter.emit('nostr:incoming', {
+            eventId: nextItem.id,
+            tokenString: nextItem.tokenString,
+            amount: nextItem.amount,
+            mintUrl: nextItem.mintUrl,
+            senderPubkey: nextItem.senderPubkey,
+            senderUsername: nextItem.senderUsername,
+            requestId: nextItem.requestId,
+          });
+          return;
+        }
+
+        presentedIdsRef.current.add(nextItem.id);
+        setActiveItem(nextItem);
+        setErrorMessage('');
+      })
+      .catch(() => {
+        recoveringIdsRef.current.delete(nextItem.id);
+        presentedIdsRef.current.add(nextItem.id);
+        setActiveItem(nextItem);
+        setErrorMessage('');
+      });
+  }, [activeItem, canPresent, claimStatus, inboxItems]);
+
+  // AppBottomSheet is not mounted until activeItem is set, so present it only
+  // after React commits the item instead of racing the ref in the event callback.
+  useEffect(() => {
+    if (!activeItem || claimStatus !== 'idle' || !canPresent) return;
+
+    const frame = requestAnimationFrame(() => sheetRef.current?.present());
+    return () => cancelAnimationFrame(frame);
+  }, [activeItem, canPresent, claimStatus]);
 
   // Also allow opening from NostrActivity
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener(
       'nostr:openClaim',
       (item: NostrInboxItem) => {
+        presentedIdsRef.current.add(item.id);
         setActiveItem(item);
         setClaimStatus('idle');
         setErrorMessage('');
-        sheetRef.current?.present();
       },
     );
     return () => subscription.remove();
@@ -705,6 +816,17 @@ export function NostrClaimSheet() {
               </YStack>
             </Theme>
 
+            {activeMintTrusted === false && (
+              <YStack width="100%" bg="$yellow3" rounded="$4" px="$4" py="$3" gap="$1">
+                <Text color="$yellow11" fontSize="$3" fontWeight="800">
+                  Unknown mint
+                </Text>
+                <Text color="$yellow11" fontSize="$3" lineHeight={18}>
+                  Claiming will add and trust {mintDomain}. Only continue if you trust this mint.
+                </Text>
+              </YStack>
+            )}
+
             {/* Action buttons */}
             <XStack width="100%" gap="$3">
               <Button
@@ -731,7 +853,7 @@ export function NostrClaimSheet() {
                 icon={<ArrowDownLeft size={18} color="white" />}
                 pressStyle={{ scale: 0.97, opacity: 0.9 }}
               >
-                Claim Now
+                {activeMintTrusted === false ? 'Trust Mint & Claim' : 'Claim Now'}
               </Button>
             </XStack>
           </YStack>

@@ -23,6 +23,7 @@ export interface NostrInboxItem {
   mintUrl: string;
   senderPubkey: string;
   senderUsername?: string; // Resolved from bey.cash directory
+  requestId?: string; // Optional Cashu payment-request correlation ID
   receivedAt: number;
   status: NostrInboxStatus;
   error?: string;

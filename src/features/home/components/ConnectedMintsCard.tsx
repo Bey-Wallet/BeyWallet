@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, YStack, XStack, H6, Image, styled, Button, Separator } from 'tamagui';
-import { Plus, Sprout, Globe, ChevronRight, Settings2 } from '@tamagui/lucide-icons';
+import { Plus, Sprout, Globe, ChevronRight, Settings2, Landmark } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -16,6 +16,7 @@ const RowContainer = styled(XStack, {
   gap: '$2',
   p: '$2',
   rounded: '$4',
+  theme: 'gray',
   hoverStyle: { bg: '$backgroundHover' },
   pressStyle: { opacity: 0.7, bg: '$backgroundPress' },
 });
@@ -91,8 +92,8 @@ const MintRowItem = React.memo(
       <RowContainer onPress={() => onPress(mint.mintUrl)}>
         <XStack items="center" gap="$2.5" flex={1} mr="$2">
           {!mint.icon ? (
-            <View width={40} height={40} justify="center" bg="$gray5" rounded="$3" items="center">
-              <Sprout size={20} color={isActive ? '$green10' : '$gray11'} />
+            <View width={40} height={40} justify="center" bg="$color5" rounded={8} items="center">
+              <Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />
             </View>
           ) : (
             <Image
@@ -106,12 +107,12 @@ const MintRowItem = React.memo(
             />
           )}
 
-          <YStack gap="$0.5" flex={1}>
+          <YStack gap="$0.5" flex={1} theme="gray">
             <XStack items="center" gap="$1.5" flexWrap="wrap">
               <Text
                 fontSize="$5"
-                fontWeight="400"
-                color="$accent3"
+                fontWeight="600"
+                color="$color"
                 numberOfLines={1}
                 style={{ maxWidth: 140 }}
               >
@@ -121,7 +122,7 @@ const MintRowItem = React.memo(
           </YStack>
         </XStack>
 
-        <XStack items="center" gap="$1.5" pr="$2">
+        <XStack items="center" gap="$1.5" pr="$2" theme="gray">
           <YStack items="flex-end" justify="center">
             <RollingNumber
               fontSize={16}
@@ -185,7 +186,7 @@ export const ConnectedMintsCard = () => {
         {/* Mints List */}
         {mints.length === 0 ? (
           <YStack py="$6" items="center" justify="center" gap="$2" opacity={0.6}>
-            <View p="$3" bg="$gray4" rounded="$10">
+            <View p="$3" bg="$color4" rounded="$10">
               <Globe size={24} color="$gray10" />
             </View>
             <Text fontWeight="700" fontSize="$3" color="$color">

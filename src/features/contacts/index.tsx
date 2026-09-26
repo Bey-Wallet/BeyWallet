@@ -1,113 +1,288 @@
-import React, { useCallback, useMemo } from 'react';
-import { YStack, Text, Button, View } from 'tamagui';
-import { StyleSheet, FlatList } from 'react-native';
-import { UserPlus2 } from '@tamagui/lucide-icons';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Keyboard, ScrollView as NativeScrollView } from 'react-native';
+import { ClipboardPaste, Search, Users, X } from '@tamagui/lucide-icons';
+import { Button, Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { useContactsStore, type Contact } from '~/state/contactsStore';
-import { ContactItem } from '~/features/contacts/components/ContactItem';
+import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
+import { useNostrProfileSearch } from '~/features/contacts/hooks/useNostrProfileSearch';
+import {
+  getNostrProfileLabel,
+  NostrProfileItem,
+} from '~/features/contacts/components/NostrProfileItem';
+
+function contactToProfile(contact: Contact): NostrProfile | null {
+  const pubkeyHex = decodeNostrPublicKey(contact.npub);
+  if (!pubkeyHex) return null;
+
+  const legacyNip05 =
+    contact.nip05 ||
+    (contact.username
+      ? contact.username.includes('@')
+        ? contact.username
+        : `${contact.username}@bey.cash`
+      : undefined);
+
+  return {
+    pubkeyHex,
+    npub: contact.npub,
+    name: contact.username || undefined,
+    displayName: contact.displayName || undefined,
+    nip05: legacyNip05 || undefined,
+    nip05Verified: legacyNip05?.endsWith('@bey.cash'),
+    source: 'identifier',
+  };
+}
+
+function matchesLocalProfile(profile: NostrProfile, query: string): boolean {
+  const haystack = [profile.displayName, profile.name, profile.nip05, profile.npub]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(query.toLowerCase());
+}
+
+function mergeProfiles(local: NostrProfile[], remote: NostrProfile[]): NostrProfile[] {
+  const merged = new Map<string, NostrProfile>();
+  for (const profile of [...local, ...remote]) {
+    const current = merged.get(profile.pubkeyHex);
+    merged.set(profile.pubkeyHex, current ? { ...profile, ...current } : profile);
+  }
+  return Array.from(merged.values());
+}
 
 export default function ContactsScreen() {
   const router = useRouter();
   const favorites = useContactsStore((state) => state.favorites);
   const contacts = useContactsStore((state) => state.contacts || {});
+  const [search, setSearch] = useState('');
+  const { results: remoteResults, isSearching, error } = useNostrProfileSearch(search);
 
-  const items = useMemo(() => {
-    const list: Contact[] = [];
-    const seen = new Set<string>();
+  const favoriteProfiles = useMemo(
+    () =>
+      Object.values(favorites)
+        .map(contactToProfile)
+        .filter((profile): profile is NostrProfile => profile !== null),
+    [favorites],
+  );
 
-    Object.values(favorites).forEach((fav) => {
-      list.push(fav);
-      seen.add(fav.npub);
-    });
+  const savedProfiles = useMemo(() => {
+    const favoriteKeys = new Set(favoriteProfiles.map((profile) => profile.pubkeyHex));
+    return Object.values(contacts)
+      .map(contactToProfile)
+      .filter(
+        (profile): profile is NostrProfile =>
+          profile !== null && !favoriteKeys.has(profile.pubkeyHex),
+      );
+  }, [contacts, favoriteProfiles]);
 
-    Object.values(contacts).forEach((contact) => {
-      if (!seen.has(contact.npub)) {
-        list.push(contact);
-      }
-    });
+  const localProfiles = useMemo(
+    () => [...favoriteProfiles, ...savedProfiles],
+    [favoriteProfiles, savedProfiles],
+  );
 
-    return list;
-  }, [favorites, contacts]);
+  const searchResults = useMemo(() => {
+    const query = search.trim();
+    if (!query) return [];
+    return mergeProfiles(
+      localProfiles.filter((profile) => matchesLocalProfile(profile, query)),
+      remoteResults,
+    );
+  }, [localProfiles, remoteResults, search]);
 
-  const handleContactPress = useCallback(
-    (npub: string, username?: string | null) => {
+  const openProfile = useCallback(
+    (profile: NostrProfile) => {
       router.push({
         pathname: '/(modals)/contact-details',
-        params: { npub, username: username || '' },
+        params: {
+          npub: profile.npub,
+          username: profile.name || '',
+          displayName: profile.displayName || '',
+          nip05: profile.nip05 || '',
+        },
       });
     },
     [router],
   );
 
-  const handleSearch = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(modals)/contact-search');
-  }, [router]);
-
-  const renderItem = useCallback(
-    ({ item, index }: { item: Contact; index: number }) => {
-      const total = items.length;
-      const position =
-        total === 1 ? 'only' : index === 0 ? 'first' : index === total - 1 ? 'last' : 'middle';
-
-      return (
-        <ContactItem
-          npub={item.npub}
-          username={item.username}
-          onPress={handleContactPress}
-          position={position}
-        />
-      );
+  const sendToProfile = useCallback(
+    (profile: NostrProfile) => {
+      router.push({
+        pathname: '/(modals)/send',
+        params: {
+          to: profile.npub,
+          username: profile.nip05 || getNostrProfileLabel(profile),
+          mode: 'nostr',
+        },
+      });
     },
-    [handleContactPress, items.length],
+    [router],
   );
 
-  if (items.length === 0) {
-    return (
-      <YStack flex={1} bg="$background" items="center" justify="flex-start" gap="$4" pt={40} pb={100}>
-        <View style={styles.emptyIcon}>
-          <UserPlus2 size={36} color="$gray8" />
-        </View>
-        <YStack items="center" gap="$1">
-          <Text fontWeight="800" fontSize="$6" color="$color">
-            No contacts yet
-          </Text>
-          <Text fontSize="$3" color="$gray9" text="center" px="$8" lineHeight={20}>
-            Search people to add friends and pay them.
-          </Text>
-        </YStack>
-        <Button size="$3" bg="$gray3" rounded="$4" onPress={handleSearch}>
-          <Text fontWeight="700">Search people</Text>
-        </Button>
-      </YStack>
-    );
-  }
+  const handlePaste = useCallback(async () => {
+    const value = (await Clipboard.getStringAsync()).trim();
+    if (!value) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearch(value);
+  }, []);
+
+  const renderProfiles = (profiles: NostrProfile[]) =>
+    profiles.map((profile, index) => (
+      <NostrProfileItem
+        key={profile.pubkeyHex}
+        profile={profile}
+        onPress={openProfile}
+        onSend={sendToProfile}
+        showTopSeparator={index === 0}
+      />
+    ));
+
+  const hasSavedPeople = favoriteProfiles.length > 0 || savedProfiles.length > 0;
+  const isSearchActive = search.trim().length > 0;
 
   return (
     <YStack flex={1} bg="$background">
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.npub}
-        renderItem={renderItem}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 120,
-        }}
+      <NativeScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScrollBeginDrag={Keyboard.dismiss}
         showsVerticalScrollIndicator={false}
-      />
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 }}
+      >
+        <YStack gap="$5">
+          <YStack gap="$2">
+            <Text fontSize="$7" fontWeight="900" color="$color">
+              Pay anyone on Nostr
+            </Text>
+            <Text fontSize="$3" color="$gray10" lineHeight={20}>
+              Find a Nostr profile, then send eCash directly to their wallet.
+            </Text>
+          </YStack>
+
+          <XStack height={56} bg="$gray4" rounded="$6" px="$3" items="center" gap="$2">
+            <Search size={20} color="$gray10" />
+            <Input
+              flex={1}
+              height={48}
+              borderWidth={0}
+              bg="transparent"
+              px={0}
+              placeholder="Name, name@domain, npub, or nprofile"
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {isSearchActive ? (
+              <Button
+                circular
+                size="$2.5"
+                chromeless
+                icon={<X size={18} color="$gray10" />}
+                accessibilityLabel="Clear search"
+                onPress={() => setSearch('')}
+              />
+            ) : (
+              <Button
+                circular
+                size="$2.5"
+                chromeless
+                icon={<ClipboardPaste size={18} color="$gray10" />}
+                accessibilityLabel="Paste Nostr identifier"
+                onPress={handlePaste}
+              />
+            )}
+          </XStack>
+
+          {isSearchActive ? (
+            <YStack>
+              <XStack justify="space-between" items="center" mb="$2">
+                <Text fontSize="$4" fontWeight="800" color="$color">
+                  Results
+                </Text>
+                {isSearching && <Spinner size="small" color="$accentColor" />}
+              </XStack>
+
+              {searchResults.length > 0 && renderProfiles(searchResults)}
+
+              {!isSearching && searchResults.length === 0 && !error && (
+                <YStack items="center" gap="$2" py="$8">
+                  <View
+                    width={64}
+                    height={64}
+                    rounded={32}
+                    bg="$gray3"
+                    items="center"
+                    justify="center"
+                  >
+                    <Search size={28} color="$gray8" />
+                  </View>
+                  <Text fontSize="$5" fontWeight="800">
+                    No people found
+                  </Text>
+                  <Text color="$gray9" text="center" lineHeight={20}>
+                    Check the name or paste an exact Nostr public key.
+                  </Text>
+                </YStack>
+              )}
+
+              {error && (
+                <YStack bg="$red2" rounded="$4" p="$3">
+                  <Text color="$red10" text="center">
+                    {error}
+                  </Text>
+                </YStack>
+              )}
+            </YStack>
+          ) : (
+            <YStack gap="$5">
+              {favoriteProfiles.length > 0 && (
+                <YStack>
+                  <Text fontSize="$4" fontWeight="800" color="$color" mb="$2">
+                    Favorites
+                  </Text>
+                  {renderProfiles(favoriteProfiles)}
+                </YStack>
+              )}
+
+              {savedProfiles.length > 0 && (
+                <YStack>
+                  <Text fontSize="$4" fontWeight="800" color="$color" mb="$2">
+                    Saved people
+                  </Text>
+                  {renderProfiles(savedProfiles)}
+                </YStack>
+              )}
+
+              {!hasSavedPeople && (
+                <YStack items="center" gap="$3" pt="$4" pb="$8">
+                  <View
+                    width={80}
+                    height={80}
+                    rounded={40}
+                    bg="$gray3"
+                    items="center"
+                    justify="center"
+                  >
+                    <Users size={36} color="$gray8" />
+                  </View>
+                  <YStack items="center" gap="$1">
+                    <Text fontWeight="800" fontSize="$6" color="$color">
+                      Find someone to pay
+                    </Text>
+                    <Text fontSize="$3" color="$gray9" text="center" px="$5" lineHeight={20}>
+                      Search the Nostr network or paste an npub. People you pay can be saved here.
+                    </Text>
+                  </YStack>
+                </YStack>
+              )}
+            </YStack>
+          )}
+        </YStack>
+      </NativeScrollView>
     </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(128,128,128,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

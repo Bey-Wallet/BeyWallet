@@ -17,10 +17,11 @@ import BeyIcon from '~/shared/icons/BeyIcon';
 // sees the critical content instantly.
 import ConnectedMintsCard from '~/features/home/components/ConnectedMintsCard';
 import NostrActivity from '~/features/home/components/NostrActivity';
-import { NostrClaimSheet } from '~/shared/ui/NostrClaimSheet';
 import { useAuthStore } from '~/state/authStore';
 import { useRouter } from 'expo-router';
-const LazyBitcoinPriceCard = React.lazy(() => import('~/features/home/components/BitcoinPriceCard'));
+const LazyBitcoinPriceCard = React.lazy(
+  () => import('~/features/home/components/BitcoinPriceCard'),
+);
 
 const LazySupportView = React.lazy(() => import('~/features/home/components/SupportView'));
 
@@ -147,9 +148,6 @@ export function HomeTabScreen() {
           {/* <LazySupportView /> */}
         </React.Suspense>
       </YStack>
-
-      {/* Global Nostr claim sheet — listens for incoming payments */}
-      <NostrClaimSheet />
     </ScrollView>
   );
 }

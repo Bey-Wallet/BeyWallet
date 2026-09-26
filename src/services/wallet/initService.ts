@@ -303,8 +303,9 @@ async function initializeWithMnemonic(
     // Enable watchers with staggered delays to prevent DB contention on start
     await enableWatchers(manager);
 
-    // Start listening for Nostr Incoming Payments (Direct Messages)
-    nostrService.start(privkey, pubkey);
+    // Start listening for Nostr payments and repair the public username profile.
+    const nip05 = await repositories.settingsRepository.getSetting('nip05');
+    nostrService.start(privkey, pubkey, nip05 || undefined);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -425,8 +426,9 @@ export const initService = {
     // Enable watchers WITHOUT staggered delays
     await enableWatchers(manager, { fast: true });
 
-    // Start Nostr background receiver
-    nostrService.start(privkey, pubkey);
+    // Start Nostr background receiver and repair the public username profile.
+    const nip05 = await repositories.settingsRepository.getSetting('nip05');
+    nostrService.start(privkey, pubkey, nip05 || undefined);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');

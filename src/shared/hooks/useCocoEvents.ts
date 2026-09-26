@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { initService, eventService } from '~/services/wallet';
+import { initService, eventService, mintManager } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '~/services/platform/notificationService';
@@ -129,13 +129,31 @@ export function useCocoEvents() {
       handleBalanceUpdate();
     });
 
-    const nostrIncomingSub = DeviceEventEmitter.addListener('nostr:incoming', (payload: any) => {
-      console.log('[useCocoEvents] Nostr incoming:', payload.amount);
-      notificationService.sendLocalNotification(
-        'New Payment Arrived',
-        `You have an unclaimed payment of ₿${payload.amount} sats. Tap to claim it.`,
-      );
-    });
+    const nostrIncomingSub = DeviceEventEmitter.addListener(
+      'nostr:incoming',
+      async (payload: any) => {
+        console.log('[useCocoEvents] Nostr incoming:', payload.amount);
+        try {
+          if (await mintManager.isMintTrusted(payload.mintUrl)) return;
+        } catch {
+          // If trust cannot be verified, keep the safer pending-payment notification.
+        }
+        notificationService.sendLocalNotification(
+          'Payment Needs Review',
+          `Review a ₿${payload.amount} sat payment from an unknown mint.`,
+        );
+      },
+    );
+
+    const nostrAutoClaimPausedSub = DeviceEventEmitter.addListener(
+      'nostr:auto-claim-paused',
+      (payload: { amount: number }) => {
+        notificationService.sendLocalNotification(
+          'Payment Saved for Review',
+          `Automatic claiming was paused. Tap to review ₿${payload.amount} sats.`,
+        );
+      },
+    );
 
     const syncSub = DeviceEventEmitter.addListener(
       'nostr:sync-success',
@@ -161,6 +179,7 @@ export function useCocoEvents() {
       unsubs.forEach((unsub) => unsub());
       nostrSub.remove();
       nostrIncomingSub.remove();
+      nostrAutoClaimPausedSub.remove();
       syncSub.remove();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
