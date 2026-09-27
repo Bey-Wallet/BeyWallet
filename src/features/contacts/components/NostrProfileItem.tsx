@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { BadgeCheck, Send, Star } from '@tamagui/lucide-icons';
-import { Button, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 import type { NostrProfile } from '~/services/api/nostrProfileService';
@@ -26,9 +26,12 @@ export function getNostrProfileLabel(profile: NostrProfile): string {
 
 export const NostrProfileItem = React.memo<NostrProfileItemProps>(
   ({ profile, onPress, onSend, onLongPress, isFavorite, context, showTopSeparator = false }) => {
+    const [pictureFailed, setPictureFailed] = React.useState(false);
     const label = getNostrProfileLabel(profile);
     const subtitle =
       profile.nip05 && profile.nip05 !== label ? profile.nip05 : truncateNpub(profile.npub);
+
+    React.useEffect(() => setPictureFailed(false), [profile.picture]);
 
     return (
       <YStack>
@@ -53,7 +56,17 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               overflow="hidden"
               mr="$3"
             >
-              <Blockies seed={profile.npub} size={10} scale={5} style={{ borderRadius: 1000 }} />
+              {profile.picture && !pictureFailed ? (
+                <Image
+                  source={{ uri: profile.picture }}
+                  width={50}
+                  height={50}
+                  rounded={25}
+                  onError={() => setPictureFailed(true)}
+                />
+              ) : (
+                <Blockies seed={profile.npub} size={10} scale={5} style={{ borderRadius: 1000 }} />
+              )}
             </View>
             <YStack flex={1} mr="$2" justify="center" gap={2}>
               <XStack items="center" gap="$1">

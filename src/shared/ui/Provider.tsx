@@ -33,10 +33,10 @@ function InnerProvider({ children, cocoManager, ...rest }: any) {
       {...rest}
     >
       <BottomSheetModalProvider>
-        <ToastProvider swipeDirection="horizontal" duration={6000} native={[]}>
+        <ToastProvider swipeDirection="horizontal" duration={3000} native={[]}>
           {children}
           <CurrentToast />
-          <ToastViewport top="$8" left={0} right={0} />
+          <ToastViewport top="$3" left="$3" right="$3" />
         </ToastProvider>
       </BottomSheetModalProvider>
     </TamaguiProvider>

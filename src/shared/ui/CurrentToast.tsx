@@ -1,111 +1,176 @@
-import { Check, Loader, AlertCircle, Info } from '@tamagui/lucide-icons';
+import React, { useEffect, useMemo } from 'react';
+import { AlertCircle, Check, Info } from '@tamagui/lucide-icons';
 import { Toast, useToastController, useToastState } from '@tamagui/toast';
-import { Button, H4, View, XStack, YStack, Spinner } from 'tamagui';
+import { Button, Circle, Spinner, Text, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect } from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
 
-const SpinningLoader = ({ size, color }: { size: number; color: any }) => {
-  const rotation = useSharedValue(0);
+type ToastKind = 'loading' | 'success' | 'error' | 'warning' | 'info';
 
-  useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, {
-        duration: 1000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false,
-    );
-  }, []);
+type ToastVariant = 'default' | 'action';
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${rotation.value}deg` }],
-    };
-  });
+export interface ToastActionData {
+  variant?: ToastVariant;
+  actionLabel?: string;
+  onAction?: () => void;
+}
 
-  return (
-    <Animated.View style={animatedStyle}>
-      <Loader strokeWidth={3} size={size} color={color} />
-    </Animated.View>
-  );
-};
+function inferKind(title: string, explicitType?: string): ToastKind {
+  const text = `${explicitType || ''} ${title}`.toLowerCase();
+
+  if (/loading|checking|restoring|processing|sending|publishing|creating/.test(text)) {
+    return 'loading';
+  }
+
+  if (/error|fail|invalid|denied|not paid|warning/.test(text)) {
+    return text.includes('warning') ? 'warning' : 'error';
+  }
+
+  if (/success|saved|paid|claimed|added|updated|received|loaded|copied|complete/.test(text)) {
+    return 'success';
+  }
+
+  return 'info';
+}
 
 export function CurrentToast() {
   const currentToast = useToastState();
+  const controller = useToastController();
+
+  const kind = useMemo(
+    () => inferKind(currentToast?.title || '', (currentToast as any)?.type),
+    [currentToast?.id, currentToast?.title],
+  );
 
   useEffect(() => {
-    if (currentToast) {
-      if (currentToast.title === 'Success' || currentToast.title === 'Loaded successfully!') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+    if (!currentToast) return;
+
+    if (kind === 'success') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (kind === 'error') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else if (kind !== 'loading') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [currentToast?.id, currentToast?.title]);
+  }, [currentToast?.id, kind]);
 
-  if (!currentToast || currentToast.isHandledNatively) return null;
+  if (!currentToast || currentToast.isHandledNatively) {
+    return null;
+  }
 
-  const toastType = (currentToast as any).type || (currentToast as any).theme;
-  const isLoading = currentToast.title?.includes('Loading');
-  const isError =
-    currentToast.title &&
-    ['Error', 'Failed', 'Not Paid Yet', 'Invalid', 'Warning'].some((keyword) =>
-      currentToast.title.includes(keyword),
+  /*
+   * Tamagui stores custom toast properties inside customData.
+   * Support direct properties as a fallback as well.
+   */
+  const customData = (currentToast as any)?.customData as ToastActionData | undefined;
+
+  const actionData: ToastActionData = {
+    variant: customData?.variant ?? (currentToast as any)?.variant,
+
+    actionLabel: customData?.actionLabel ?? (currentToast as any)?.actionLabel,
+
+    onAction: customData?.onAction ?? (currentToast as any)?.onAction,
+  };
+
+  const isActionToast =
+    actionData.variant === 'action' && !!actionData.actionLabel && !!actionData.onAction;
+
+  /*
+   * Same icon styling for BOTH default and action toasts.
+   */
+  const statusIcon =
+    kind === 'loading' ? (
+      <Spinner size="small" color="$color" />
+    ) : kind === 'success' ? (
+      <Check size={16} strokeWidth={2.75} color="$color" />
+    ) : kind === 'error' || kind === 'warning' ? (
+      <AlertCircle size={16} strokeWidth={2.5} color="$color" />
+    ) : (
+      <Info size={16} strokeWidth={2.5} color="$color" />
     );
 
-  // Determine if it is a success action or general info
-  const isSuccess =
-    toastType === 'success' ||
-    (currentToast.title &&
-      ['success', 'save', 'paid', 'claim', 'add', 'updat', 'received', 'loaded'].some((keyword) =>
-        currentToast.title.toLowerCase().includes(keyword),
-      ));
-  const isInfo = toastType === 'info' || toastType === 'blue' || !isSuccess;
+  /*
+   * DEFAULT TOAST
+   *
+   * Original UI preserved.
+   */
+  if (!isActionToast) {
+    return (
+      <Toast
+        themeInverse
+        key={currentToast.id}
+        duration={currentToast.duration || (kind === 'loading' ? 12_000 : 3_000)}
+        animation="quick"
+        mt="$6"
+        width="auto"
+        maxW={360}
+        rounded={3000}
+        px="$3"
+        pr="$4"
+        bg="$gray4"
+        alignSelf="center"
+      >
+        <XStack items="center" gap="$2" py="$2" maxW="100%">
+          {statusIcon}
 
+          <YStack flexShrink={1} minW={0} justify="center">
+            <Toast.Title
+              flexShrink={1}
+              fontSize="$4"
+              fontWeight="800"
+              color="$color"
+              lineHeight={18}
+            >
+              {currentToast.title}
+            </Toast.Title>
+          </YStack>
+        </XStack>
+      </Toast>
+    );
+  }
+
+  /*
+   * ACTION TOAST
+   *
+   * Same exact visual language as default.
+   * Only difference: action button on the right.
+   */
   return (
     <Toast
       key={currentToast.id}
-      duration={currentToast.duration || 3000}
-      viewportName={currentToast.viewportName}
-      enterStyle={{ opacity: 0, scale: 0.5, y: -25 }}
-      exitStyle={{ opacity: 0, scale: 1, y: -20 }}
-      width={350}
-      theme={isLoading ? 'gray' : isError ? 'red' : isInfo ? 'gray' : 'green'}
-      rounded="$5"
-      transition="quick"
-      p="$3"
-
-      borderWidth={1}
-      borderColor="$borderColor"
+      duration={currentToast.duration || (kind === 'loading' ? 12_000 : 3_000)}
+      animation="quick"
+      mt="$6"
+      width="auto"
+      rounded={3000}
+      px="$3"
+      bg="$gray4"
+      style={{
+        alignSelf: 'center',
+        maxWidth: 360,
+      }}
     >
-      <XStack gap="$3" items="center" px="$2">
-        {isLoading ? (
-          <SpinningLoader size={18} color="$color" />
-        ) : isError ? (
-          <AlertCircle size={18} strokeWidth={3} color="$red11" />
-        ) : isInfo ? (
-          <Info size={18} strokeWidth={3} color="$color" opacity={0.8} />
-        ) : (
-          <Check size={18} strokeWidth={3} color="$green12" />
-        )}
-        <YStack flex={1} justify="center">
-          <Toast.Title fontWeight="700" fontSize="$4">
-            {currentToast.title}
-          </Toast.Title>
-          {!!currentToast.message && (
-            <Toast.Description color="$color" opacity={0.6} fontSize="$3" mt="$-1">
-              {currentToast.message}
-            </Toast.Description>
-          )}
-        </YStack>
+      <XStack items="center" justify="space-between" gap="$2" py="$2">
+        {statusIcon}
+
+        <Toast.Title flexShrink={1} fontSize="$4" fontWeight="800" color="$color" lineHeight={18}>
+          {currentToast.title}
+        </Toast.Title>
+
+        <Button
+          size="$2"
+          rounded={3000}
+          fontWeight="800"
+          pressStyle={{
+            opacity: 0.6,
+          }}
+          onPress={() => {
+            actionData.onAction?.();
+            controller.hide();
+          }}
+          accessibilityLabel={actionData.actionLabel}
+        >
+          {actionData.actionLabel}
+        </Button>
       </XStack>
     </Toast>
   );
@@ -114,44 +179,113 @@ export function CurrentToast() {
 export function ToastControl() {
   const toast = useToastController();
 
-  const showLoaderDemo = () => {
-    const id = 'demo-loader';
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    toast.show('Loading...', {
-      id,
-    });
+  const show = (kind: ToastKind, variant: ToastVariant = 'default') => {
+    const content: Record<
+      ToastKind,
+      {
+        title: string;
+        duration?: number;
+      }
+    > = {
+      info: {
+        title: 'Your wallet is ready',
+      },
 
-    setTimeout(() => {
-      toast.show('Loaded successfully!', {
-        id,
-      });
-    }, 2000);
+      loading: {
+        title: 'Processing your Lightning payment',
+        duration: 12_000,
+      },
+
+      success: {
+        title: '1,000 sats from arshad@bey.cash',
+      },
+
+      warning: {
+        title: 'Mint Untrusted',
+      },
+
+      error: {
+        title: 'Payment failed',
+      },
+    };
+
+    const selected = content[kind];
+
+    toast.show(selected.title, {
+      id: `toast-ui-preview-${kind}-${variant}`,
+      duration: selected.duration || 3_000,
+
+      customData:
+        variant === 'action'
+          ? {
+              variant: 'action',
+              actionLabel: kind === 'error' ? 'Retry' : 'View',
+
+              onAction: () => {
+                // Add action here.
+              },
+            }
+          : {
+              variant: 'default',
+            },
+    });
   };
 
   return (
-    <YStack gap="$2" items="center">
-      <H4>Toast demo</H4>
-      <XStack gap="$2" justify="center" flexWrap="wrap">
-        <Button
-          onPress={() => {
-            toast.show('Successfully saved!');
-          }}
-        >
-          Simple Success
-        </Button>
+    <YStack
+      width="100%"
+      gap="$2"
+      p="$3"
+      bg="$gray2"
+      borderWidth={1}
+      borderColor="$gray5"
+      rounded="$5"
+    >
+      <YStack gap={2}>
+        <Text fontSize="$3" fontWeight="800">
+          Toast Lab
+        </Text>
 
-        <Button theme="blue" onPress={showLoaderDemo}>
-          Show Loader
-        </Button>
+        <Text fontSize="$2" color="$gray10">
+          Temporary controls for testing every toast state.
+        </Text>
+      </YStack>
 
-        <Button
-          onPress={() => {
-            toast.hide();
-          }}
-        >
-          Hide
-        </Button>
+      {/* Default toasts */}
+
+      <XStack gap="$2">
+        <ToastPreviewButton label="Info" onPress={() => show('info')} />
+
+        <ToastPreviewButton label="Loading" onPress={() => show('loading')} />
+
+        <ToastPreviewButton label="Success" onPress={() => show('success')} />
+      </XStack>
+
+      <XStack gap="$2">
+        <ToastPreviewButton label="Warning" onPress={() => show('warning')} />
+
+        <ToastPreviewButton label="Error" onPress={() => show('error')} />
+      </XStack>
+
+      {/* Action toasts */}
+
+      <Text mt="$1" fontSize="$2" fontWeight="700" color="$gray10">
+        Action variant
+      </Text>
+
+      <XStack gap="$2">
+        <ToastPreviewButton label="Received · View" onPress={() => show('success', 'action')} />
+
+        <ToastPreviewButton label="Error · Retry" onPress={() => show('error', 'action')} />
       </XStack>
     </YStack>
+  );
+}
+
+function ToastPreviewButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Button flex={1} size="$3" bg="$gray4" borderWidth={1} borderColor="$gray6" onPress={onPress}>
+      {label}
+    </Button>
   );
 }

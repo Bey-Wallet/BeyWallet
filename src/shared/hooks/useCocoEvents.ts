@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '~/services/platform/notificationService';
 import { DeviceEventEmitter } from 'react-native';
 import { useToastController } from '@tamagui/toast';
+import { useRouter } from 'expo-router';
 
 /**
  * Hook to subscribe to coco CoreEvents and trigger wallet updates.
@@ -27,6 +28,7 @@ export function useCocoEvents() {
   const { refreshBalance } = useWalletStore();
   const queryClient = useQueryClient();
   const toast = useToastController();
+  const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleBalanceUpdate = useCallback(() => {
@@ -125,6 +127,11 @@ export function useCocoEvents() {
       );
       toast.show('Payment Received! 🎉', {
         message: `₿${payload.amount} sats added to your wallet via Nostr`,
+        customData: {
+          variant: 'action',
+          actionLabel: 'View',
+          onAction: () => router.push('/(tabs)/history'),
+        },
       });
       handleBalanceUpdate();
     });
@@ -191,5 +198,6 @@ export function useCocoEvents() {
     handleProofsStateChanged,
     handleMeltQuotePaid,
     handleHistoryUpdated,
+    router,
   ]);
 }

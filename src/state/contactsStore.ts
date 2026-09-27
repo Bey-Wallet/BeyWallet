@@ -12,6 +12,7 @@ export interface Person {
   nip05Verified?: boolean;
   picture?: string | null;
   about?: string | null;
+  profileUpdatedAt?: number;
   isFavorite: boolean;
 }
 
@@ -49,6 +50,7 @@ function mergePerson(existing: Person | undefined, input: PersonInput): Person {
     nip05Verified: input.nip05Verified ?? existing?.nip05Verified ?? false,
     picture: normalizeOptionalText(input.picture) ?? existing?.picture ?? null,
     about: normalizeOptionalText(input.about) ?? existing?.about ?? null,
+    profileUpdatedAt: input.profileUpdatedAt ?? existing?.profileUpdatedAt,
     isFavorite: input.isFavorite ?? existing?.isFavorite ?? false,
   };
 }

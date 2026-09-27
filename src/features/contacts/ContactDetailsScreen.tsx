@@ -21,6 +21,7 @@ import { useContactsStore } from '~/state/contactsStore';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
+import { personUpdateFromProfile } from '~/features/contacts/profileCache';
 
 export default function ContactDetailsScreen() {
   const { npub, username, displayName, nip05 } = useLocalSearchParams<{
@@ -37,18 +38,20 @@ export default function ContactDetailsScreen() {
   const people = useContactsStore((state) => state.people);
   const toggleFavoriteAction = useContactsStore((state) => state.toggleFavorite);
   const removePerson = useContactsStore((state) => state.removePerson);
+  const updatePerson = useContactsStore((state) => state.updatePerson);
   const [profile, setProfile] = useState<NostrProfile | null>(null);
   const favorite = !!people[npub]?.isFavorite;
 
   useEffect(() => {
     let cancelled = false;
     void nostrProfileService.getProfile(npub).then((value) => {
+      if (value) updatePerson(personUpdateFromProfile(value));
       if (!cancelled) setProfile(value);
     });
     return () => {
       cancelled = true;
     };
-  }, [npub]);
+  }, [npub, updatePerson]);
 
   const handleCopyNpub = async () => {
     if (!npub) return;
