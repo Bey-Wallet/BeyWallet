@@ -207,11 +207,16 @@ async function verifyProfileNip05(profile: NostrProfile): Promise<NostrProfile> 
   };
 }
 
-async function getProfile(pubkey: string): Promise<NostrProfile | null> {
+async function getProfile(
+  pubkey: string,
+  options: { forceRefresh?: boolean } = {},
+): Promise<NostrProfile | null> {
   const pubkeyHex = decodeNostrPublicKey(pubkey);
   if (!pubkeyHex) return null;
   const cached = profileCache.get(pubkeyHex);
-  if (cached && Date.now() - cached.fetchedAt < PROFILE_CACHE_MS) return cached.profile;
+  if (!options.forceRefresh && cached && Date.now() - cached.fetchedAt < PROFILE_CACHE_MS) {
+    return cached.profile;
+  }
   const raw = await fetchProfile(pubkeyHex);
   const profile = raw ? await verifyProfileNip05(raw) : null;
   profileCache.set(pubkeyHex, { profile, fetchedAt: Date.now() });

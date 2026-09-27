@@ -3,6 +3,7 @@ import {
   Alert,
   DeviceEventEmitter,
   Keyboard,
+  RefreshControl,
   ScrollView as NativeScrollView,
   useWindowDimensions,
 } from 'react-native';
@@ -91,6 +92,7 @@ export default function PeopleScreen() {
   const [historyInteractions, setHistoryInteractions] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<PeopleView>('recents');
+  const [refreshing, setRefreshing] = useState(false);
   const { results: remoteResults, isSearching, error } = useNostrProfileSearch(search);
 
   useEffect(() => {
@@ -224,10 +226,34 @@ export default function PeopleScreen() {
     [width],
   );
 
+  const refreshPeople = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await hydrateSavedPeople(Object.values(usePeopleStore.getState().people), {
+        forceRefresh: true,
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
+
+  const peopleRefreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={refreshPeople}
+      tintColor="#ca8a04"
+      colors={['#ca8a04']}
+    />
+  );
+
   const renderProfiles = (profiles: NostrProfile[], emptyTitle: string, emptyBody: string) => (
     <NativeScrollView
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      alwaysBounceVertical
+      refreshControl={peopleRefreshControl}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
     >
       {profiles.map((profile, index) => {
@@ -253,15 +279,16 @@ export default function PeopleScreen() {
 
   return (
     <YStack flex={1} bg="$background">
-      <YStack px="$4" pt="$2" pb="$2" gap="$2.5">
-        <XStack height={46} bg="$gray3" rounded="$5" px="$3" items="center" gap="$2">
-          <Search size={19} color="$gray10" />
+      <YStack px="$3" pt="$0" pb="$2" gap="$2.5">
+        <XStack height={50} bg="$gray4" rounded="$6" px="$3" items="center" gap="$2">
+          <Search size={19} strokeWidth={2.5} color="$gray10" />
           <Input
             flex={1}
             height={42}
             borderWidth={0}
             bg="transparent"
             px={0}
+            fontWeight={800}
             placeholder="Search Nostr"
             value={search}
             onChangeText={setSearch}
@@ -277,7 +304,9 @@ export default function PeopleScreen() {
               circular
               chromeless
               size="$2.5"
-              icon={isSearchActive ? <X size={17} /> : <ClipboardPaste size={17} />}
+              icon={
+                isSearchActive ? <X size={17} /> : <ClipboardPaste strokeWidth={2.5} size={17} />
+              }
               onPress={isSearchActive ? () => setSearch('') : paste}
               accessibilityLabel={isSearchActive ? 'Clear search' : 'Paste Nostr identifier'}
             />
@@ -285,7 +314,7 @@ export default function PeopleScreen() {
         </XStack>
 
         {!isSearchActive && (
-          <XStack bg="$gray2" rounded="$5" p="$1" gap="$1">
+          <XStack gap="$1">
             <ViewTab
               label="Recents"
               active={activeView === 'recents'}
@@ -315,6 +344,8 @@ export default function PeopleScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          alwaysBounceVertical
+          refreshControl={peopleRefreshControl}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
         >
           {searchResults.map((profile, index) => (
@@ -365,6 +396,8 @@ export default function PeopleScreen() {
           <View width={width} flex={1}>
             <NativeScrollView
               showsVerticalScrollIndicator={false}
+              alwaysBounceVertical
+              refreshControl={peopleRefreshControl}
               contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
             >
               {attentionItems.map((item) => (
@@ -405,38 +438,16 @@ function ViewTab({
 }) {
   return (
     <Button
-      unstyled
-      flex={1}
-      height={36}
-      rounded="$4"
-      bg={active ? '$background' : 'transparent'}
+      theme="gray"
+      fontWeight={800}
+      size="$3"
+      rounded="$12"
+      color={active ? '$color' : '$gray8'}
+      chromeless={active === false}
       pressStyle={{ opacity: 0.75 }}
       onPress={onPress}
     >
-      <XStack flex={1} items="center" justify="center" gap="$1">
-        {icon}
-        <Text
-          fontSize="$2"
-          fontWeight={active ? '800' : '600'}
-          color={active ? '$color' : '$gray10'}
-        >
-          {label}
-        </Text>
-        {(count > 0 || alert) && (
-          <Text
-            fontSize={10}
-            fontWeight="900"
-            color={alert ? 'white' : '$gray10'}
-            bg={alert ? '$red10' : '$gray4'}
-            px="$1"
-            py={1}
-            rounded="$10"
-            style={{ minWidth: 18, textAlign: 'center' }}
-          >
-            {count}
-          </Text>
-        )}
-      </XStack>
+      {label}
     </Button>
   );
 }

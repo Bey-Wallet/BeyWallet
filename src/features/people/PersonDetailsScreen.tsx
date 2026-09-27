@@ -1,27 +1,79 @@
-import React, { useEffect, useState } from 'react';
-import { YStack, XStack, Text, Button, ScrollView, Separator, useTheme, Image } from 'tamagui';
+import React, { useEffect, useMemo, useState } from 'react';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  Copy,
-  Send,
-  ArrowDownLeft,
-  Activity,
-  Share as ShareIcon,
-  Star,
-  Trash2,
-  BadgeCheck,
-} from '@tamagui/lucide-icons';
-import { Share } from 'react-native';
-import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+
 import { useToastController } from '@tamagui/toast';
-import Blockies from '~/shared/ui/Blockies';
-import { usePeopleStore } from '~/state/peopleStore';
-import { Flex } from '~/shared/ui/Flex';
+import { useQuery } from '@tanstack/react-query';
+
+import { BadgeCheck, Check, Clock3, Copy, WalletCards, XCircle } from '@tamagui/lucide-icons';
+
+import { Button, Image, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
+
+import Blockies from '~/shared/ui/Blockies';
+
+import { usePeopleStore } from '~/state/peopleStore';
+import { useSettingsStore } from '~/state/settingsStore';
+
+import {
+  decodeNostrPublicKey,
+  nostrProfileService,
+  type NostrProfile,
+} from '~/services/api/nostrProfileService';
+
+import { historyService } from '~/services/wallet/historyService';
+import { bitcoinService } from '~/services/api/bitcoinService';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
+
 import { personUpdateFromProfile } from '~/features/people/peopleProfileCache';
+
+import {
+  filterPersonHistory,
+  getPersonPaymentStatus,
+  type PersonHistoryEntry,
+} from '~/features/people/personHistory';
+
+function shortenedNpub(npub: string): string {
+  return npub.length > 24 ? `${npub.slice(0, 12)}…${npub.slice(-8)}` : npub;
+}
+
+function timestampMs(value: number): number {
+  return value < 10_000_000_000 ? value * 1000 : value;
+}
+
+function formatPaymentTime(createdAt: number): string {
+  const date = new Date(timestampMs(Number(createdAt)));
+  const today = new Date();
+
+  const sameDay = date.toDateString() === today.toDateString();
+
+  return sameDay
+    ? date.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+      });
+}
+
+function statusIcon(status: string, outgoing: boolean) {
+  const color = outgoing ? '#f5f5f5' : '#737373';
+
+  if (status === 'Failed' || status === 'Expired' || status === 'Refunded') {
+    return <XCircle size={11} color={outgoing ? '#fecaca' : '#dc2626'} />;
+  }
+
+  if (status === 'Awaiting claim' || status === 'Pending') {
+    return <Clock3 size={11} color={color} />;
+  }
+
+  return <Check size={11} color={color} strokeWidth={3} />;
+}
 
 export default function PersonDetailsScreen() {
   const { npub, username, displayName, nip05 } = useLocalSearchParams<{
@@ -30,247 +82,469 @@ export default function PersonDetailsScreen() {
     displayName?: string;
     nip05?: string;
   }>();
-  if (!npub) return <Text p="$4">Invalid person</Text>;
-  const theme = useTheme();
-  const toast = useToastController();
+
   const router = useRouter();
+  const toast = useToastController();
+  const insets = useSafeAreaInsets();
 
   const people = usePeopleStore((state) => state.people);
-  const toggleFavoriteAction = usePeopleStore((state) => state.toggleFavorite);
-  const removePerson = usePeopleStore((state) => state.removePerson);
   const updatePerson = usePeopleStore((state) => state.updatePerson);
+  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+
   const [profile, setProfile] = useState<NostrProfile | null>(null);
-  const favorite = !!people[npub]?.isFavorite;
+
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const [pictureFailed, setPictureFailed] = useState(false);
+
+  const savedPerson = npub ? people[npub] : undefined;
+
+  /*
+   * ------------------------------------------------------
+   * Load Nostr profile
+   * ------------------------------------------------------
+   */
 
   useEffect(() => {
+    if (!npub) return;
+
     let cancelled = false;
-    void nostrProfileService.getProfile(npub).then((value) => {
-      if (value) updatePerson(personUpdateFromProfile(value));
-      if (!cancelled) setProfile(value);
+
+    setProfileLoading(true);
+    setPictureFailed(false);
+
+    const loadProfile = async () => {
+      const direct = await nostrProfileService
+        .getProfile(npub, {
+          forceRefresh: true,
+        })
+        .catch(() => null);
+
+      if (direct) return direct;
+
+      const fallbackNip05 = nip05 || usePeopleStore.getState().people[npub]?.nip05;
+
+      if (!fallbackNip05) {
+        return null;
+      }
+
+      const expectedPubkey = decodeNostrPublicKey(npub);
+
+      const matches = await nostrProfileService.search(fallbackNip05).catch(() => []);
+
+      return matches.find((candidate) => candidate.pubkeyHex === expectedPubkey) || null;
+    };
+
+    void loadProfile().then((value) => {
+      if (value) {
+        updatePerson(personUpdateFromProfile(value));
+      }
+
+      if (!cancelled) {
+        setProfile(value);
+        setProfileLoading(false);
+      }
     });
+
     return () => {
       cancelled = true;
     };
-  }, [npub, updatePerson]);
+  }, [nip05, npub, updatePerson]);
 
-  const handleCopyNpub = async () => {
-    if (!npub) return;
+  /*
+   * ------------------------------------------------------
+   * Payment history
+   * ------------------------------------------------------
+   */
+
+  const { data: history = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['history', 'person', npub],
+
+    queryFn: () => historyService.getHistory(500, 0),
+
+    enabled: !!npub,
+  });
+
+  const isFiatEnabled = secondaryCurrency !== 'NONE';
+  const { data: btcData } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30_000,
+    enabled: isFiatEnabled,
+  });
+
+  const payments = useMemo(
+    () => filterPersonHistory(history as PersonHistoryEntry[], npub || ''),
+    [history, npub],
+  );
+
+  if (!npub) {
+    return <Text p="$4">Invalid person</Text>;
+  }
+
+  /*
+   * ------------------------------------------------------
+   * Resolved profile
+   * ------------------------------------------------------
+   */
+
+  const resolvedDisplayName =
+    profile?.displayName ||
+    profile?.name ||
+    savedPerson?.displayName ||
+    displayName ||
+    savedPerson?.username ||
+    username ||
+    'Nostr user';
+
+  const resolvedNip05 = profile?.nip05 || savedPerson?.nip05 || nip05;
+
+  const picture = pictureFailed ? undefined : profile?.picture || savedPerson?.picture || undefined;
+
+  /*
+   * ------------------------------------------------------
+   * Actions
+   * ------------------------------------------------------
+   */
+
+  const copyNpub = async () => {
     await Clipboard.setStringAsync(npub);
-    toast.show('Copied npub to clipboard');
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    toast.show('Copied npub to clipboard');
   };
 
-  const toggleFavorite = () => {
-    if (!npub) return;
+  const pay = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    toggleFavoriteAction(npub, {
-      npub,
-      username: profile?.name || username || null,
-      displayName: profile?.displayName || displayName || null,
-      nip05: profile?.nip05 || nip05 || null,
-      nip05Verified: profile?.nip05Verified,
-      picture: profile?.picture,
-      about: profile?.about,
-    });
-    toast.show(favorite ? 'Removed from favorites' : 'Added to favorites');
-  };
 
-  const handleSend = () => {
     router.push({
       pathname: '/(modals)/send',
+
       params: {
         to: npub,
-        username:
-          (profile?.nip05Verified ? profile.nip05 : '') ||
-          profile?.displayName ||
-          displayName ||
-          username ||
-          '',
+
+        username: resolvedNip05 || resolvedDisplayName,
+
         mode: 'nostr',
       },
     });
   };
 
-  const handleRequest = () => {
-    router.push({
-      pathname: '/(modals)/receive',
-      params: { from: npub, username: username || '' },
-    });
-  };
-
-  const handleShare = async () => {
-    if (!npub) return;
+  const request = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Construct the intent link dynamically to work in both Expo Go and Prod
-    const intentLink = Linking.createURL('/(modals)/person-details', {
-      queryParams: {
-        npub: npub,
-        ...(username ? { username: username } : {}),
-        ...(displayName ? { displayName } : {}),
-        ...(nip05 ? { nip05 } : {}),
+    router.push({
+      pathname: '/(modals)/receive',
+
+      params: {
+        from: npub,
+
+        username: resolvedNip05 || resolvedDisplayName,
       },
     });
-
-    // Copy to clipboard
-    await Clipboard.setStringAsync(intentLink);
-    toast.show('Link copied to clipboard');
-
-    // Open Share sheet
-    try {
-      await Share.share({
-        message: `Check out this profile on Bey Wallet: \n${intentLink}`,
-        url: intentLink,
-      });
-    } catch (error: any) {
-      console.error('Error sharing person:', error.message);
-    }
   };
-  const insets = useSafeAreaInsets();
 
-  const currentNip05 = profile?.nip05Verified ? profile.nip05 : undefined;
-  const primaryLabel =
-    profile?.displayName || profile?.name || displayName || username || currentNip05;
-  const secondaryLabel = primaryLabel !== currentNip05 ? currentNip05 : '';
+  const openPayment = (entry: PersonHistoryEntry) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    router.push({
+      pathname: '/(modals)/txn-details',
+
+      params: {
+        id: entry.id,
+      },
+    });
+  };
+
+  /*
+   * ------------------------------------------------------
+   * UI
+   * ------------------------------------------------------
+   */
 
   return (
-    <Flex fill bg="$background" pb={insets.bottom || 16}>
-      <ScrollView
-        f={1}
-        contentContainerStyle={{ p: '$4', gap: '$6', paddingBottom: 100, height: '100%' }}
-      >
-        {/* Header / Identity */}
-        <YStack items="center" gap="$4" pt="$4">
-          {profile?.picture ? (
-            <Image source={{ uri: profile.picture }} width={72} height={72} rounded={36} />
-          ) : (
-            <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 36 }} />
-          )}
+    <YStack flex={1} bg="$background">
+      <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+        <YStack px="$4" pb="$8">
+          {/* ------------------------------------------------
+              PROFILE
+          ------------------------------------------------ */}
 
-          <YStack items="center" gap="$1">
-            {primaryLabel ? (
-              <Text fontSize="$7" fontWeight="bold" color="$color">
-                {primaryLabel}
-              </Text>
-            ) : null}
-            {secondaryLabel ? (
-              <XStack gap="$1" items="center">
-                <BadgeCheck size={14} color="$green10" />
-                <Text fontSize="$3" color="$gray10">
-                  {secondaryLabel}
+          <YStack items="flex-start" gap="$3" pb="$5">
+            <YStack width={72} height={72} rounded={10} overflow="hidden" bg="$gray3">
+              {picture ? (
+                <Image
+                  source={{
+                    uri: picture,
+                  }}
+                  width={72}
+                  height={72}
+                  rounded={10}
+                  onError={() => setPictureFailed(true)}
+                />
+              ) : (
+                <Blockies
+                  seed={npub}
+                  size={12}
+                  scale={6}
+                  style={{
+                    borderRadius: 10,
+                  }}
+                />
+              )}
+            </YStack>
+
+            <YStack
+              flex={1}
+              gap="$2"
+              pt="$1"
+              style={{
+                minWidth: 0,
+              }}
+            >
+              <XStack items="center" gap="$1.5">
+                <Text
+                  fontSize="$7"
+                  fontWeight="900"
+                  numberOfLines={1}
+                  style={{
+                    flexShrink: 1,
+                  }}
+                >
+                  {resolvedDisplayName}
                 </Text>
+
+                {profileLoading && <Spinner size="small" />}
               </XStack>
-            ) : null}
-            <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>
-              <Text fontSize="$4" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
-                {`${npub.slice(0, 12)}...${npub.slice(-10)}`}
-              </Text>
-              <Copy size={14} color="$gray10" />
-            </XStack>
+
+              {resolvedNip05 ? (
+                <XStack items="center" gap="$1">
+                  <Text color="$gray10" fontSize="$3" numberOfLines={1}>
+                    {resolvedNip05}
+                  </Text>
+                  {profile?.nip05Verified && <BadgeCheck size={14} color="#16a34a" />}
+                </XStack>
+              ) : null}
+
+              <Button
+                style={{
+                  alignSelf: 'flex-start',
+                }}
+                size="$2.5"
+                fontSize="$2"
+                rounded="$6"
+                iconAfter={<Copy size={12} />}
+                onPress={copyNpub}
+                accessibilityLabel="Copy Nostr public key"
+              >
+                {shortenedNpub(npub)}
+              </Button>
+            </YStack>
+          </YStack>
+
+          {/* ------------------------------------------------
+              PAYMENT CONVERSATION
+          ------------------------------------------------ */}
+
+          <YStack gap="$3">
+            <Text fontSize="$3" fontWeight="800" color="$gray10">
+              PAYMENT HISTORY
+            </Text>
+
+            {historyLoading ? (
+              <YStack items="center" py="$8">
+                <Spinner size="large" />
+              </YStack>
+            ) : payments.length ? (
+              <YStack gap="$2.5">
+                {payments.map((entry) => {
+                  const outgoing = entry.type === 'send';
+
+                  const status = getPersonPaymentStatus(entry);
+
+                  const satsAmount = currencyService.formatSats(entry.amount);
+                  const fiatAmount =
+                    isFiatEnabled && btcData?.price
+                      ? currencyService.formatValue(
+                          currencyService.convertSatsToCurrency(entry.amount, btcData.price),
+                          secondaryCurrency as CurrencyCode,
+                        )
+                      : null;
+                  const showFiatFirst = primaryCurrency === 'FIAT' && !!fiatAmount;
+                  const primaryAmount = showFiatFirst ? fiatAmount : satsAmount;
+                  const secondaryAmount = showFiatFirst ? satsAmount : fiatAmount;
+
+                  return (
+                    <XStack key={entry.id} justify={outgoing ? 'flex-end' : 'flex-start'}>
+                      <Button
+                        unstyled
+
+                        style={{
+                          maxWidth: '82%',
+                        }}
+
+                        onPress={() => openPayment(entry)}
+
+                        pressStyle={{
+                          opacity: 0.8,
+                          scale: 0.99,
+                        }}
+
+                        accessibilityLabel={`${
+                          outgoing ? 'Sent' : 'Received'
+                        } ${entry.amount} sats, ${status}`}
+                      >
+                        {/* RADAR-STYLE PAYMENT CARD */}
+
+                        <YStack
+                          bg={outgoing ? '$color' : '$gray3'}
+
+                          style={{ minWidth: 160, maxWidth: 240 }}
+
+                          rounded="$6"
+
+                          overflow="hidden"
+                        >
+                          {/* Main payment information */}
+
+                          <YStack px="$3" pt="$2.5" minH={100} justify="space-between" pb="$2.5">
+                            {/* Direction */}
+
+                            <Text
+                              fontSize={11}
+                              fontWeight="600"
+
+                              color={outgoing ? '$background' : '$gray10'}
+
+                              opacity={0.75}
+                            >
+                              {outgoing ? 'Sent ↗' : '↙ Received'}
+                            </Text>
+
+                            {/* Amount */}
+
+                            <XStack items="baseline" mt="$1">
+                              <Text
+                                fontSize={24}
+                                lineHeight={27}
+                                fontWeight="800"
+
+                                color={outgoing ? '$background' : '$color'}
+
+                                letterSpacing={-0.5}
+                              >
+                                {primaryAmount}
+                              </Text>
+                            </XStack>
+
+                            {/* Secondary currency + time + status */}
+
+                            <XStack justify="space-between" items="center" gap="$2" mt="$1">
+                              {secondaryAmount ? (
+                                <Text
+                                  fontSize={11}
+                                  fontWeight="600"
+                                  color={outgoing ? '$background' : '$gray10'}
+                                  opacity={outgoing ? 0.72 : 1}
+                                >
+                                  {secondaryAmount}
+                                </Text>
+                              ) : (
+                                <XStack />
+                              )}
+
+                              <XStack items="center" gap="$1">
+                                <Text
+                                  fontSize={10}
+                                  color={outgoing ? '$background' : '$gray9'}
+                                  opacity={outgoing ? 0.65 : 1}
+                                >
+                                  {formatPaymentTime(entry.createdAt)}
+                                </Text>
+
+                                {statusIcon(status, outgoing)}
+                              </XStack>
+                            </XStack>
+                          </YStack>
+                        </YStack>
+                      </Button>
+                    </XStack>
+                  );
+                })}
+              </YStack>
+            ) : (
+              /*
+               * ----------------------------------------------
+               * EMPTY STATE
+               * ----------------------------------------------
+               */
+
+              <YStack items="center" gap="$2" py="$8" px="$5">
+                <YStack
+                  width={52}
+                  height={52}
+                  rounded={26}
+                  bg="$gray3"
+                  items="center"
+                  justify="center"
+                >
+                  <WalletCards size={23} color="#737373" />
+                </YStack>
+
+                <Text fontSize="$5" fontWeight="800">
+                  No payments yet
+                </Text>
+
+                <Text
+                  color="$gray9"
+                  fontSize="$3"
+
+                  style={{
+                    textAlign: 'center',
+                  }}
+                >
+                  Payments with {resolvedDisplayName} will appear here like a conversation.
+                </Text>
+              </YStack>
+            )}
           </YStack>
         </YStack>
-
-        {/* Action Buttons */}
-        <XStack justify="space-evenly" py="$2">
-          <YStack items="center" gap="$2">
-            <Button
-              size="$5"
-              circular
-              bg="$gray4"
-              icon={<Send size={20} color="$color" />}
-              onPress={handleSend}
-            />
-            <Text fontSize="$3" color="$gray10">
-              Send
-            </Text>
-          </YStack>
-
-          <YStack items="center" gap="$2">
-            <Button
-              size="$5"
-              circular
-              bg="$gray4"
-              icon={<ArrowDownLeft size={20} color="$color" />}
-              onPress={handleRequest}
-            />
-            <Text fontSize="$3" color="$gray10">
-              Request
-            </Text>
-          </YStack>
-
-          <YStack items="center" gap="$2">
-            <Button
-              size="$5"
-              circular
-              bg={favorite ? '$red4' : '$gray4'}
-              icon={
-                <Star
-                  size={20}
-                  color={favorite ? '$red10' : '$color'}
-                  fill={favorite ? theme.red10?.val : 'transparent'}
-                />
-              }
-              onPress={toggleFavorite}
-            />
-            <Text fontSize="$3" color="$gray10">
-              {favorite ? 'Favorited' : 'Favorite'}
-            </Text>
-          </YStack>
-
-          <YStack items="center" gap="$2">
-            <Button
-              size="$5"
-              circular
-              bg="$gray4"
-              icon={<ShareIcon size={20} color="$color" />}
-              onPress={handleShare}
-            />
-            <Text fontSize="$3" color="$gray10">
-              Share
-            </Text>
-          </YStack>
-        </XStack>
-
-        <Separator borderColor="$borderColor" opacity={0.5} />
-        {profile?.about ? (
-          <YStack gap="$2">
-            <Text fontSize="$4" fontWeight="800">
-              About
-            </Text>
-            <Text color="$gray10" lineHeight={21}>
-              {profile.about}
-            </Text>
-          </YStack>
-        ) : null}
-        {people[npub] && (
-          <Button
-            chromeless
-            color="$red10"
-            icon={<Trash2 size={18} color="$red10" />}
-            onPress={() => {
-              removePerson(npub);
-              toast.show('Removed from People');
-            }}
-          >
-            Remove from People
-          </Button>
-        )}
       </ScrollView>
 
-      {/* Floating Send Button */}
-      <YStack position="absolute" bottom={insets.bottom + 16} left="$4" right="$4">
+      {/* ----------------------------------------------------
+          BOTTOM ACTIONS
+      ---------------------------------------------------- */}
+
+      <XStack
+        justify="flex-end"
+        gap="$2"
+
+        px="$4"
+        pt="$3"
+
+        pb={Math.max(insets.bottom, 12)}
+
+        bg="transparent"
+      >
+        <Button size="$5" rounded="$6" bg="$gray3" onPress={request}>
+          Request
+        </Button>
+
         <Button
           size="$5"
+          rounded="$6"
+
           bg="$color"
           color="$background"
-          fontWeight="bold"
-          icon={<Send size={20} color="$background" />}
-          onPress={handleSend}
-          rounded="$5"
+
+          fontWeight="900"
+
+          onPress={pay}
         >
-          Send Ecash
+          Send
         </Button>
-      </YStack>
-    </Flex>
+      </XStack>
+    </YStack>
   );
 }

@@ -36,12 +36,15 @@ export function personUpdateFromProfile(profile: NostrProfile, updatedAt = Date.
   };
 }
 
-export async function hydrateSavedPerson(npub: string): Promise<NostrProfile | null> {
+export async function hydrateSavedPerson(
+  npub: string,
+  options: { forceRefresh?: boolean } = {},
+): Promise<NostrProfile | null> {
   const existingRequest = inFlight.get(npub);
   if (existingRequest) return existingRequest;
 
   const request = nostrProfileService
-    .getProfile(npub)
+    .getProfile(npub, options)
     .then((profile) => {
       if (profile) {
         // updatePerson deliberately does not create a record if the person was removed
@@ -56,14 +59,19 @@ export async function hydrateSavedPerson(npub: string): Promise<NostrProfile | n
   return request;
 }
 
-export async function hydrateSavedPeople(people: Person[]): Promise<void> {
-  const pending = people.filter((person) => needsNostrProfileRefresh(person));
+export async function hydrateSavedPeople(
+  people: Person[],
+  options: { forceRefresh?: boolean } = {},
+): Promise<void> {
+  const pending = options.forceRefresh
+    ? people
+    : people.filter((person) => needsNostrProfileRefresh(person));
   let nextIndex = 0;
 
   const worker = async () => {
     while (nextIndex < pending.length) {
       const person = pending[nextIndex++];
-      await hydrateSavedPerson(person.npub).catch(() => null);
+      await hydrateSavedPerson(person.npub, options).catch(() => null);
     }
   };
 

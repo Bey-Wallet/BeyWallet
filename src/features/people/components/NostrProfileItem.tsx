@@ -36,7 +36,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
     return (
       <YStack>
         {showTopSeparator && <Separator borderColor="$borderColor" opacity={0.3} />}
-        <XStack py="$3" items="center" gap="$2">
+        <XStack py="$2.5" items="center" gap="$2">
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -49,7 +49,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
             <View
               width={50}
               height={50}
-              rounded={1000}
+              rounded="$5"
               bg="$gray4"
               items="center"
               justify="center"
@@ -61,24 +61,31 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
                   source={{ uri: profile.picture }}
                   width={50}
                   height={50}
-                  rounded={25}
+                  rounded="$5"
                   onError={() => setPictureFailed(true)}
                 />
               ) : (
-                <Blockies seed={profile.npub} size={10} scale={5} style={{ borderRadius: 1000 }} />
+                <Blockies seed={profile.npub} size={10} scale={5} style={{ borderRadius: 8 }} />
               )}
             </View>
             <YStack flex={1} mr="$2" justify="center" gap={2}>
-              <XStack items="center" gap="$1">
-                <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1} flex={1}>
+              <XStack items="center" gap="$1" flex={1}>
+                {profile.nip05Verified && profile.nip05 === subtitle && (
+                  <BadgeCheck size={16} color="$color" strokeWidth={3} flexShrink={0} />
+                )}
+                <Text
+                  fontSize="$4"
+                  fontWeight="bold"
+                  color="$accent4"
+                  numberOfLines={1}
+                  flexShrink={1}
+                >
                   {label}
                 </Text>
-                {isFavorite && <Star size={14} color="#ca8a04" fill="#ca8a04" />}
+
+                {isFavorite && <Star size={14} color="#ca8a04" fill="#ca8a04" flexShrink={0} />}
               </XStack>
               <XStack items="center" gap="$1">
-                {profile.nip05Verified && profile.nip05 === subtitle && (
-                  <BadgeCheck size={12} color="$green10" />
-                )}
                 <Text fontSize="$2" color="$gray10" numberOfLines={1}>
                   {subtitle}
                 </Text>

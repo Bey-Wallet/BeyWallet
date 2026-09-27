@@ -3,6 +3,7 @@ import { Button, useTheme, Text } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
+import { PersonDetailsHeaderActions } from '~/features/people/components/PersonDetailsHeaderActions';
 
 // Extracted to module scope — never recreated on re-render
 const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
@@ -217,8 +218,9 @@ export default function ModalLayout() {
       <Stack.Screen
         name="person-details"
         options={{
-          title: 'Person Details',
+          title: '',
           presentation: 'fullScreenModal',
+          headerRight: () => <PersonDetailsHeaderActions />,
         }}
       />
       <Stack.Screen
