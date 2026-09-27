@@ -8,8 +8,8 @@ import { useWalletStore } from '~/state/walletStore';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OnboardingScreen } from '~/features/onboarding';
-import { NostrPaymentReceived } from '~/shared/ui/NostrPaymentReceived';
-import { NostrClaimSheet } from '~/shared/ui/NostrClaimSheet';
+import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentReceived';
+import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
 
 const queryClient = new QueryClient();
 

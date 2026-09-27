@@ -24,7 +24,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService } from '~/services/wallet/currencyService';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 
 function safeNpubEncode(pubkey: string): string {
   if (!pubkey) return '';
@@ -56,7 +56,7 @@ function formatNpub(hex: string): string {
 }
 
 function useResolveUsername(pubkey: string): string | undefined {
-  const people = useContactsStore((s) => s.people);
+  const people = usePeopleStore((s) => s.people);
 
   return useMemo(() => {
     const npub = safeNpubEncode(pubkey);
@@ -91,7 +91,7 @@ export default function NostrActivity() {
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
   const router = useRouter();
 
-  const people = useContactsStore((s) => s.people);
+  const people = usePeopleStore((s) => s.people);
 
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 

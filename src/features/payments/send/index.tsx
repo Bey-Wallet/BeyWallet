@@ -159,7 +159,7 @@ export function SendModalScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // ── Read params from contact-details or deep link ─────────────────────
+  // ── Read params from person-details or deep link ──────────────────────
   const params = useLocalSearchParams<{
     paymentRequest?: string;
     to?: string;
@@ -168,7 +168,7 @@ export function SendModalScreen() {
     inboxItemId?: string;
   }>();
 
-  // Auto-select Nostr mode + pre-fill recipient when coming from contact-details
+  // Auto-select Nostr mode + pre-fill recipient when coming from person-details
   React.useEffect(() => {
     const checkOfflineMode = async () => {
       try {
@@ -518,10 +518,10 @@ export function SendModalScreen() {
 
       // A successful payment is the point where a searched identity becomes saved.
       if (nostrRecipientNpub) {
-        import('~/state/contactsStore').then(({ useContactsStore }) => {
+        import('~/state/peopleStore').then(({ usePeopleStore }) => {
           const recipientLabel = nostrRecipientUsername?.trim() || '';
           const recipientNip05 = recipientLabel.includes('@') ? recipientLabel : null;
-          useContactsStore.getState().savePerson({
+          usePeopleStore.getState().savePerson({
             npub: nostrRecipientNpub,
             username: recipientNip05?.endsWith('@bey.cash')
               ? recipientNip05.replace(/@bey\.cash$/i, '')

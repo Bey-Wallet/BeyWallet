@@ -11,7 +11,6 @@ import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
 import BeyIcon from '~/shared/icons/BeyIcon';
-import { ToastControl } from '~/shared/ui/CurrentToast';
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -139,8 +138,6 @@ export function HomeTabScreen() {
         <BackupWarningCard />
 
         <ClaimUsernameCard />
-
-        {__DEV__ && <ToastControl />}
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

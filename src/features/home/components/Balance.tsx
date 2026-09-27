@@ -53,9 +53,9 @@ export default function Balance() {
   return (
     <YStack
       py="$2"
-      gap="$5"
+      gap="$3"
       z={1000}
-      height={200}
+      height={220}
       justify="center"
       items="center"
       position="relative"

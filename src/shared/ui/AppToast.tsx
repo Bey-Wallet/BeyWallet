@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { AlertCircle, Check, Info } from '@tamagui/lucide-icons';
 import { Toast, useToastController, useToastState } from '@tamagui/toast';
-import { Button, Circle, Spinner, Text, XStack, YStack } from 'tamagui';
+import { Button, Spinner, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 
 type ToastKind = 'loading' | 'success' | 'error' | 'warning' | 'info';
@@ -32,7 +32,7 @@ function inferKind(title: string, explicitType?: string): ToastKind {
   return 'info';
 }
 
-export function CurrentToast() {
+export function AppToast() {
   const currentToast = useToastState();
   const controller = useToastController();
 
@@ -173,119 +173,5 @@ export function CurrentToast() {
         </Button>
       </XStack>
     </Toast>
-  );
-}
-
-export function ToastControl() {
-  const toast = useToastController();
-
-  const show = (kind: ToastKind, variant: ToastVariant = 'default') => {
-    const content: Record<
-      ToastKind,
-      {
-        title: string;
-        duration?: number;
-      }
-    > = {
-      info: {
-        title: 'Your wallet is ready',
-      },
-
-      loading: {
-        title: 'Processing your Lightning payment',
-        duration: 12_000,
-      },
-
-      success: {
-        title: '1,000 sats from arshad@bey.cash',
-      },
-
-      warning: {
-        title: 'Mint Untrusted',
-      },
-
-      error: {
-        title: 'Payment failed',
-      },
-    };
-
-    const selected = content[kind];
-
-    toast.show(selected.title, {
-      id: `toast-ui-preview-${kind}-${variant}`,
-      duration: selected.duration || 3_000,
-
-      customData:
-        variant === 'action'
-          ? {
-              variant: 'action',
-              actionLabel: kind === 'error' ? 'Retry' : 'View',
-
-              onAction: () => {
-                // Add action here.
-              },
-            }
-          : {
-              variant: 'default',
-            },
-    });
-  };
-
-  return (
-    <YStack
-      width="100%"
-      gap="$2"
-      p="$3"
-      bg="$gray2"
-      borderWidth={1}
-      borderColor="$gray5"
-      rounded="$5"
-    >
-      <YStack gap={2}>
-        <Text fontSize="$3" fontWeight="800">
-          Toast Lab
-        </Text>
-
-        <Text fontSize="$2" color="$gray10">
-          Temporary controls for testing every toast state.
-        </Text>
-      </YStack>
-
-      {/* Default toasts */}
-
-      <XStack gap="$2">
-        <ToastPreviewButton label="Info" onPress={() => show('info')} />
-
-        <ToastPreviewButton label="Loading" onPress={() => show('loading')} />
-
-        <ToastPreviewButton label="Success" onPress={() => show('success')} />
-      </XStack>
-
-      <XStack gap="$2">
-        <ToastPreviewButton label="Warning" onPress={() => show('warning')} />
-
-        <ToastPreviewButton label="Error" onPress={() => show('error')} />
-      </XStack>
-
-      {/* Action toasts */}
-
-      <Text mt="$1" fontSize="$2" fontWeight="700" color="$gray10">
-        Action variant
-      </Text>
-
-      <XStack gap="$2">
-        <ToastPreviewButton label="Received · View" onPress={() => show('success', 'action')} />
-
-        <ToastPreviewButton label="Error · Retry" onPress={() => show('error', 'action')} />
-      </XStack>
-    </YStack>
-  );
-}
-
-function ToastPreviewButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Button flex={1} size="$3" bg="$gray4" borderWidth={1} borderColor="$gray6" onPress={onPress}>
-      {label}
-    </Button>
   );
 }

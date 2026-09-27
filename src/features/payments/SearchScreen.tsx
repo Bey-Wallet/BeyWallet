@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
 import Blockies from '~/shared/ui/Blockies';
 import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useMintRecommendationStore } from '~/state/mintRecommendationStore';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
@@ -35,7 +35,7 @@ export default function UniversalSearchScreen() {
   const [directory, setDirectory] = useState<Record<string, string>>({});
   const router = useRouter();
 
-  const people = useContactsStore((state) => state.people);
+  const people = usePeopleStore((state) => state.people);
   const { mints, scannerResult, setScannerResult } = useWalletStore();
   const { recommendations, fetchRecommendations } = useMintRecommendationStore();
 
@@ -259,7 +259,7 @@ export default function UniversalSearchScreen() {
 
     if (item.type === 'people' || item.type === 'address') {
       router.push({
-        pathname: '/(modals)/contact-details',
+        pathname: '/(modals)/person-details',
         params: {
           npub: item.subtitle || item.title,
           username: item.title.includes('@bey.cash') ? item.title.replace('@bey.cash', '') : '',

@@ -1,7 +1,7 @@
 import type { NostrProfile } from '~/services/api/nostrProfileService';
 import { nostrProfileService } from '~/services/api/nostrProfileService';
-import type { Person } from '~/state/contactsStore';
-import { useContactsStore } from '~/state/contactsStore';
+import type { Person } from '~/state/peopleStore';
+import { usePeopleStore } from '~/state/peopleStore';
 
 const PROFILE_REFRESH_MS = 24 * 60 * 60 * 1000;
 const MAX_CONCURRENT_REQUESTS = 3;
@@ -46,7 +46,7 @@ export async function hydrateSavedPerson(npub: string): Promise<NostrProfile | n
       if (profile) {
         // updatePerson deliberately does not create a record if the person was removed
         // while the relay request was in flight.
-        useContactsStore.getState().updatePerson(personUpdateFromProfile(profile));
+        usePeopleStore.getState().updatePerson(personUpdateFromProfile(profile));
       }
       return profile;
     })

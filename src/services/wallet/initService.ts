@@ -225,6 +225,7 @@ const customLogger = {
     if (
       msg.includes('Keyset restore failed') ||
       msg.includes('Restore completed with failures') ||
+      msg === 'WS error' ||
       msg.includes('WS request error') ||
       msg.includes('Polling task error') ||
       msg.includes('Failed to process mint quote') ||
@@ -233,6 +234,11 @@ const customLogger = {
       msg.includes('Quote amount undefined')
     ) {
       // Suppress noisy expected background/network errors
+      return;
+    }
+    if (msg.includes('Failed to fetch mint info')) {
+      const mintUrl = meta[0]?.mintUrl;
+      console.warn(`[Coco] Mint unavailable while refreshing info${mintUrl ? `: ${mintUrl}` : ''}`);
       return;
     }
     console.error(`[Coco] ${msg}`, ...meta);

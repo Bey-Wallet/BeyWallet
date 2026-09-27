@@ -12,16 +12,16 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
-import { selectSortedPeople, type Person, useContactsStore } from '~/state/contactsStore';
+import { selectSortedPeople, type Person, usePeopleStore } from '~/state/peopleStore';
 import { type NostrInboxItem, useNostrInboxStore } from '~/state/nostrInboxStore';
 import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
 import { historyService } from '~/services/wallet/historyService';
-import { useNostrProfileSearch } from '~/features/contacts/hooks/useNostrProfileSearch';
+import { useNostrProfileSearch } from '~/features/people/hooks/useNostrProfileSearch';
 import {
   getNostrProfileLabel,
   NostrProfileItem,
-} from '~/features/contacts/components/NostrProfileItem';
-import { hydrateSavedPeople } from '~/features/contacts/profileCache';
+} from '~/features/people/components/NostrProfileItem';
+import { hydrateSavedPeople } from '~/features/people/peopleProfileCache';
 
 type PeopleView = 'recents' | 'favorites' | 'attention';
 const VIEWS: PeopleView[] = ['recents', 'favorites', 'attention'];
@@ -80,13 +80,13 @@ function shortSender(item: NostrInboxItem): string {
   }
 }
 
-export default function ContactsScreen() {
+export default function PeopleScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const pagerRef = useRef<NativeScrollView>(null);
-  const people = useContactsStore((state) => state.people);
-  const toggleFavorite = useContactsStore((state) => state.toggleFavorite);
-  const removePerson = useContactsStore((state) => state.removePerson);
+  const people = usePeopleStore((state) => state.people);
+  const toggleFavorite = usePeopleStore((state) => state.toggleFavorite);
+  const removePerson = usePeopleStore((state) => state.removePerson);
   const inboxItems = useNostrInboxStore((state) => state.items);
   const [historyInteractions, setHistoryInteractions] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
@@ -171,7 +171,7 @@ export default function ContactsScreen() {
   const openProfile = useCallback(
     (profile: NostrProfile) =>
       router.push({
-        pathname: '/(modals)/contact-details',
+        pathname: '/(modals)/person-details',
         params: {
           npub: profile.npub,
           username: profile.name || '',
@@ -296,7 +296,7 @@ export default function ContactsScreen() {
               label="Favorites"
               active={activeView === 'favorites'}
               count={favoriteProfiles.length}
-              icon={<Star size={13} color="$yellow10" />}
+              icon={<Star size={13} color="#ca8a04" />}
               onPress={() => selectView('favorites')}
             />
             <ViewTab

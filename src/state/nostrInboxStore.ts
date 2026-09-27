@@ -95,8 +95,8 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         };
 
         if (item.senderUsername) {
-          import('~/state/contactsStore').then(({ useContactsStore }) => {
-            useContactsStore.getState().updatePerson({
+          import('~/state/peopleStore').then(({ usePeopleStore }) => {
+            usePeopleStore.getState().updatePerson({
               npub: item.senderPubkey,
               username: item.senderUsername,
             });

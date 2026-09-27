@@ -2,7 +2,7 @@
  * NostrSendStage
  *
  * When the user selects 'Nostr' send mode, this stage opens a bottom sheet
- * for searching bey.cash usernames or pasting/scanning npubs (like contact-search).
+ * for searching bey.cash usernames or pasting/scanning npubs (like people-search).
  * After selecting a recipient, shows the amount input with the recipient displayed.
  */
 
@@ -39,7 +39,7 @@ import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
@@ -78,7 +78,7 @@ export function NostrSendStage({
     setScannerResult,
   } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const people = useContactsStore((s) => s.people);
+  const people = usePeopleStore((s) => s.people);
   const favoriteContacts = Object.values(people).filter((person) => person.isFavorite);
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);

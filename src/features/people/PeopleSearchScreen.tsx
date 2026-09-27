@@ -6,11 +6,11 @@ import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
 import Blockies from '~/shared/ui/Blockies';
 import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 
-export default function ContactSearchScreen() {
-  const people = useContactsStore((state) => state.people);
-  const favoriteContacts = Object.values(people).filter((person) => person.isFavorite);
+export default function PeopleSearchScreen() {
+  const people = usePeopleStore((state) => state.people);
+  const favoritePeople = Object.values(people).filter((person) => person.isFavorite);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [directory, setDirectory] = useState<Record<string, string>>({});
@@ -95,12 +95,12 @@ export default function ContactSearchScreen() {
     doSearch(text);
   };
 
-  const onSelectContact = (contact: any) => {
+  const onSelectPerson = (person: any) => {
     router.push({
-      pathname: '/(modals)/contact-details',
+      pathname: '/(modals)/person-details',
       params: {
-        npub: contact.npub,
-        username: contact.username || '',
+        npub: person.npub,
+        username: person.username || '',
       },
     });
   };
@@ -149,7 +149,7 @@ export default function ContactSearchScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$2">
-          {results.map((contact, i) => (
+          {results.map((person, i) => (
             <XStack
               key={i}
               bg="$gray3"
@@ -158,31 +158,31 @@ export default function ContactSearchScreen() {
               items="center"
               gap="$3"
               cursor="pointer"
-              onPress={() => onSelectContact(contact)}
+              onPress={() => onSelectPerson(person)}
             >
-              <Blockies seed={contact.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
+              <Blockies seed={person.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
               <YStack>
                 <Text fontSize="$5" fontWeight="600" color="$color">
-                  {contact.username ? `${contact.username}@bey.cash` : 'Unknown User'}
+                  {person.username ? `${person.username}@bey.cash` : 'Unknown User'}
                 </Text>
                 <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-                  {formatNpub(contact.npub)}
+                  {formatNpub(person.npub)}
                 </Text>
               </YStack>
             </XStack>
           ))}
           {search.length > 0 && results.length === 0 && (
             <Text color="$gray10" textAlign="center" mt="$4">
-              No contacts found
+              No people found
             </Text>
           )}
 
-          {favoriteContacts.length > 0 && (
+          {favoritePeople.length > 0 && (
             <YStack mt="$4" gap="$2">
               <Text fontSize="$4" fontWeight="600" color="$gray10" px="$2">
                 Favorites
               </Text>
-              {favoriteContacts.map((contact, i) => (
+              {favoritePeople.map((person, i) => (
                 <XStack
                   key={`fav-${i}`}
                   bg="$gray3"
@@ -191,15 +191,15 @@ export default function ContactSearchScreen() {
                   items="center"
                   gap="$3"
                   cursor="pointer"
-                  onPress={() => onSelectContact(contact)}
+                  onPress={() => onSelectPerson(person)}
                 >
-                  <Blockies seed={contact.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
+                  <Blockies seed={person.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
                   <YStack>
                     <Text fontSize="$5" fontWeight="600" color="$color">
-                      {contact.username ? `${contact.username}@bey.cash` : 'Unknown User'}
+                      {person.username ? `${person.username}@bey.cash` : 'Unknown User'}
                     </Text>
                     <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-                      {formatNpub(contact.npub)}
+                      {formatNpub(person.npub)}
                     </Text>
                   </YStack>
                 </XStack>
@@ -229,7 +229,7 @@ export default function ContactSearchScreen() {
                     items="center"
                     gap="$3"
                     cursor="pointer"
-                    onPress={() => onSelectContact({ npub: npubStr, username: name, hex: pubkey })}
+                    onPress={() => onSelectPerson({ npub: npubStr, username: name, hex: pubkey })}
                   >
                     <Blockies seed={npubStr} size={12} scale={3} style={{ borderRadius: 3 }} />
                     <YStack>

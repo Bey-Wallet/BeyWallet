@@ -410,9 +410,9 @@ export function RequestEcashStage({
         if (!published) {
           throw new Error('Failed to send request via Nostr.');
         }
-        const { useContactsStore } = await import('~/state/contactsStore');
+        const { usePeopleStore } = await import('~/state/peopleStore');
         const recipientLabel = targetUsername?.trim() || '';
-        useContactsStore.getState().savePerson({
+        usePeopleStore.getState().savePerson({
           npub: targetNpub,
           username: recipientLabel.toLowerCase().endsWith('@bey.cash')
             ? recipientLabel.replace(/@bey\.cash$/i, '')

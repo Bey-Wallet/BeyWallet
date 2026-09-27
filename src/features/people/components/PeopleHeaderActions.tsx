@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Activity, Settings, Wifi, WifiOff } from '@tamagui/lucide-icons';
+import { Activity, Radio, Settings } from '@tamagui/lucide-icons';
 import { Button, Text, XStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
@@ -45,25 +45,17 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
   return (
     <XStack pr="$3" gap="$1" items="center">
       <Button
-        unstyled
-        height={32}
-        px="$2.5"
+        size="$3"
         rounded="$10"
+        icon={<Radio strokeWidth={2.5} size={16} color={healthy ? '#16a34a' : '#ca8a04'} />}
         bg={healthy ? '$green3' : '$gray3'}
         pressStyle={{ opacity: 0.75, scale: 0.97 }}
         onPress={() => open('/(modals)/nostr-diagnostics')}
         accessibilityLabel="Open Nostr diagnostics"
       >
-        <XStack items="center" gap="$1.5">
-          {connectionPercent === 0 ? (
-            <WifiOff size={14} color="$red10" />
-          ) : (
-            <Wifi size={14} color={healthy ? '$green10' : '$yellow10'} />
-          )}
-          <Text fontSize="$2" fontWeight="800" color={healthy ? '$green11' : '$color'}>
-            {connectionPercent === null ? '···' : `${connectionPercent}%`}
-          </Text>
-        </XStack>
+        <Text fontSize="$2" fontWeight="800" color={healthy ? '$green11' : '$color'}>
+          {connectionPercent === null ? '···' : `${connectionPercent}%`}
+        </Text>
       </Button>
       <Button
         circular

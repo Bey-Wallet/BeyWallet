@@ -4,7 +4,7 @@ import { Text, XStack, YStack, View as TView, Separator } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 
-export interface ContactItemProps {
+export interface PersonItemProps {
   npub: string;
   username?: string | null;
   onPress: (npub: string, username?: string | null) => void;
@@ -13,7 +13,10 @@ export interface ContactItemProps {
 
 function formatBeyUsername(username?: string | null): string {
   if (!username) return 'Unknown';
-  const local = username.trim().replace(/^@/, '').replace(/@bey\.cash$/i, '');
+  const local = username
+    .trim()
+    .replace(/^@/, '')
+    .replace(/@bey\.cash$/i, '');
   if (!local) return 'Unknown';
   return `${local}@bey.cash`;
 }
@@ -23,7 +26,7 @@ function truncateNpub(npub: string): string {
   return `${npub.slice(0, 10)}…${npub.slice(-8)}`;
 }
 
-export const ContactItem = React.memo<ContactItemProps>(
+export const PersonItem = React.memo<PersonItemProps>(
   ({ npub, username, onPress, position = 'middle' }) => {
     const handlePress = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

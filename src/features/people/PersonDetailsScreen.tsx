@@ -17,28 +17,28 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import Blockies from '~/shared/ui/Blockies';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
-import { personUpdateFromProfile } from '~/features/contacts/profileCache';
+import { personUpdateFromProfile } from '~/features/people/peopleProfileCache';
 
-export default function ContactDetailsScreen() {
+export default function PersonDetailsScreen() {
   const { npub, username, displayName, nip05 } = useLocalSearchParams<{
     npub: string;
     username?: string;
     displayName?: string;
     nip05?: string;
   }>();
-  if (!npub) return <Text p="$4">Invalid Contact</Text>;
+  if (!npub) return <Text p="$4">Invalid person</Text>;
   const theme = useTheme();
   const toast = useToastController();
   const router = useRouter();
 
-  const people = useContactsStore((state) => state.people);
-  const toggleFavoriteAction = useContactsStore((state) => state.toggleFavorite);
-  const removePerson = useContactsStore((state) => state.removePerson);
-  const updatePerson = useContactsStore((state) => state.updatePerson);
+  const people = usePeopleStore((state) => state.people);
+  const toggleFavoriteAction = usePeopleStore((state) => state.toggleFavorite);
+  const removePerson = usePeopleStore((state) => state.removePerson);
+  const updatePerson = usePeopleStore((state) => state.updatePerson);
   const [profile, setProfile] = useState<NostrProfile | null>(null);
   const favorite = !!people[npub]?.isFavorite;
 
@@ -103,7 +103,7 @@ export default function ContactDetailsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Construct the intent link dynamically to work in both Expo Go and Prod
-    const intentLink = Linking.createURL('/(modals)/contact-details', {
+    const intentLink = Linking.createURL('/(modals)/person-details', {
       queryParams: {
         npub: npub,
         ...(username ? { username: username } : {}),
@@ -123,7 +123,7 @@ export default function ContactDetailsScreen() {
         url: intentLink,
       });
     } catch (error: any) {
-      console.error('Error sharing contact:', error.message);
+      console.error('Error sharing person:', error.message);
     }
   };
   const insets = useSafeAreaInsets();

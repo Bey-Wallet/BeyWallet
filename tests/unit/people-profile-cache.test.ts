@@ -2,7 +2,7 @@ import { nip19 } from 'nostr-tools';
 import {
   needsNostrProfileRefresh,
   personUpdateFromProfile,
-} from '~/features/contacts/profileCache';
+} from '~/features/people/peopleProfileCache';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: jest.fn(() => null), setItem: jest.fn(), removeItem: jest.fn() },

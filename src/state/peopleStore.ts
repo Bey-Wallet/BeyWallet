@@ -16,12 +16,9 @@ export interface Person {
   isFavorite: boolean;
 }
 
-/** Temporary type alias for UI call sites while the feature is named contacts on disk. */
-export type Contact = Person;
-
 type PersonInput = Pick<Person, 'npub'> & Partial<Omit<Person, 'npub'>>;
 
-interface ContactsState {
+interface PeopleState {
   people: Record<string, Person>;
   savePerson: (person: PersonInput) => void;
   updatePerson: (person: PersonInput) => void;
@@ -74,7 +71,7 @@ export function migrateLegacyPeople(persisted: any): Record<string, Person> {
   return people;
 }
 
-export const useContactsStore = create<ContactsState>()(
+export const usePeopleStore = create<PeopleState>()(
   persist(
     (set) => ({
       people: {},
@@ -111,6 +108,7 @@ export const useContactsStore = create<ContactsState>()(
         }),
     }),
     {
+      // Keep the legacy key so upgrading users retain their saved people.
       name: 'bey-contacts-storage',
       storage: createJSONStorage(() => sqliteStorage),
       version: 2,
@@ -123,12 +121,12 @@ export const useContactsStore = create<ContactsState>()(
   ),
 );
 
-export function selectPersonByNpub(state: ContactsState, npub: string): Person | undefined {
+export function selectPersonByNpub(state: PeopleState, npub: string): Person | undefined {
   return state.people[normalizeNpub(npub)];
 }
 
 export function selectSortedPeople(
-  state: ContactsState,
+  state: PeopleState,
   interactionByNpub: Record<string, number> = {},
 ): Person[] {
   return Object.values(state.people).sort((a, b) => {

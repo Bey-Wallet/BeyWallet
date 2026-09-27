@@ -28,7 +28,7 @@ import {
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
@@ -118,7 +118,7 @@ interface DetailItem {
 // ─── Username resolver ────────────────────────────────────────────────────
 
 function useResolveUsername(pubkey: string): string | undefined {
-  const people = useContactsStore((s) => s.people);
+  const people = usePeopleStore((s) => s.people);
 
   return useMemo(() => {
     const npub = safeNpubEncode(pubkey);

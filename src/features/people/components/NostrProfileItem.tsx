@@ -73,7 +73,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
                 <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1} flex={1}>
                   {label}
                 </Text>
-                {isFavorite && <Star size={14} color="$yellow10" fill="$yellow10" />}
+                {isFavorite && <Star size={14} color="#ca8a04" fill="#ca8a04" />}
               </XStack>
               <XStack items="center" gap="$1">
                 {profile.nip05Verified && profile.nip05 === subtitle && (

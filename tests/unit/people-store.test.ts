@@ -3,7 +3,7 @@ import {
   migrateLegacyPeople,
   selectPendingActionCount,
   selectSortedPeople,
-} from '~/state/contactsStore';
+} from '~/state/peopleStore';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: jest.fn(() => null), setItem: jest.fn(), removeItem: jest.fn() },

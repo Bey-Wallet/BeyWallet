@@ -739,12 +739,12 @@ class NostrService {
 
   private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
     try {
-      const { useContactsStore } = await import('~/state/contactsStore');
+      const { usePeopleStore } = await import('~/state/peopleStore');
       const { nip19 } = await import('nostr-tools');
 
       const npub = nip19.npubEncode(pubkeyHex);
 
-      const store = useContactsStore.getState();
+      const store = usePeopleStore.getState();
       const contact = store.people[npub];
       if (contact?.username) {
         return contact.username;
