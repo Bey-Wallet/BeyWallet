@@ -13,7 +13,25 @@ import { DeviceEventEmitter } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type NostrInboxStatus = 'pending' | 'claiming' | 'claimed' | 'failed' | 'dismissed';
+export type NostrInboxStatus =
+  'pending' | 'claiming' | 'claimed' | 'failed' | 'approval_required' | 'dismissed';
+
+export type NostrClaimErrorCode =
+  | 'offline'
+  | 'wallet_locked'
+  | 'wallet_unavailable'
+  | 'unknown_mint'
+  | 'p2pk'
+  | 'validation'
+  | 'rate_limited'
+  | 'network'
+  | 'unknown';
+
+export interface NostrClaimFailure {
+  code: NostrClaimErrorCode;
+  message: string;
+  retryable: boolean;
+}
 
 export interface NostrInboxItem {
   id: string; // Nostr event ID
@@ -27,6 +45,10 @@ export interface NostrInboxItem {
   receivedAt: number;
   status: NostrInboxStatus;
   error?: string;
+  failure?: NostrClaimFailure;
+  attemptCount?: number;
+  lastAttemptAt?: number;
+  nextRetryAt?: number;
   seen: boolean; // Whether user has seen this notification
 }
 
@@ -38,7 +60,9 @@ interface NostrInboxState {
   addIncoming: (item: Omit<NostrInboxItem, 'status' | 'receivedAt' | 'seen'>) => void;
   markClaiming: (id: string) => void;
   markClaimed: (id: string) => void;
-  markFailed: (id: string, error: string) => void;
+  markFailed: (id: string, error: string, failure?: NostrClaimFailure) => void;
+  markApprovalRequired: (id: string) => void;
+  recordAttempt: (id: string, nextRetryAt?: number) => void;
   dismiss: (id: string) => void;
   markSeen: (id: string) => void;
   markAllSeen: () => void;
@@ -72,7 +96,7 @@ export const useNostrInboxStore = create<NostrInboxState>()(
 
         if (item.senderUsername) {
           import('~/state/contactsStore').then(({ useContactsStore }) => {
-            useContactsStore.getState().addContact({
+            useContactsStore.getState().updatePerson({
               npub: item.senderPubkey,
               username: item.senderUsername,
             });
@@ -88,7 +112,15 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       markClaiming: (id) => {
         set((s) => ({
           items: s.items.map((i) =>
-            i.id === id ? { ...i, status: 'claiming' as NostrInboxStatus } : i,
+            i.id === id
+              ? {
+                  ...i,
+                  status: 'claiming' as NostrInboxStatus,
+                  error: undefined,
+                  failure: undefined,
+                  nextRetryAt: undefined,
+                }
+              : i,
           ),
           activeClaimId: id,
         }));
@@ -97,18 +129,64 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       markClaimed: (id) => {
         set((s) => ({
           items: s.items.map((i) =>
-            i.id === id ? { ...i, status: 'claimed' as NostrInboxStatus, seen: true } : i,
+            i.id === id
+              ? {
+                  ...i,
+                  status: 'claimed' as NostrInboxStatus,
+                  seen: true,
+                  error: undefined,
+                  failure: undefined,
+                  nextRetryAt: undefined,
+                }
+              : i,
           ),
           activeClaimId: null,
         }));
       },
 
-      markFailed: (id, error) => {
+      markFailed: (id, error, failure) => {
         set((s) => ({
           items: s.items.map((i) =>
-            i.id === id ? { ...i, status: 'failed' as NostrInboxStatus, error } : i,
+            i.id === id ? { ...i, status: 'failed' as NostrInboxStatus, error, failure } : i,
           ),
           activeClaimId: null,
+        }));
+      },
+
+      markApprovalRequired: (id) => {
+        const failure: NostrClaimFailure = {
+          code: 'unknown_mint',
+          message: 'This payment is from a mint you have not trusted.',
+          retryable: false,
+        };
+        set((s) => ({
+          items: s.items.map((i) =>
+            i.id === id
+              ? {
+                  ...i,
+                  status: 'approval_required' as NostrInboxStatus,
+                  error: failure.message,
+                  failure,
+                  nextRetryAt: undefined,
+                }
+              : i,
+          ),
+        }));
+      },
+
+      recordAttempt: (id, nextRetryAt) => {
+        const now = Date.now();
+        set((s) => ({
+          items: s.items.map((i) =>
+            i.id === id
+              ? {
+                  ...i,
+                  attemptCount: (i.attemptCount || 0) + 1,
+                  lastAttemptAt: now,
+                  nextRetryAt,
+                }
+              : i,
+          ),
         }));
       },
 
@@ -134,12 +212,17 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       },
 
       getUnclaimed: () => {
-        return get().items.filter((i) => i.status === 'pending' || i.status === 'failed');
+        return get().items.filter(
+          (i) =>
+            i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+        );
       },
 
       getUnseenCount: () => {
         return get().items.filter(
-          (i) => !i.seen && (i.status === 'pending' || i.status === 'failed'),
+          (i) =>
+            !i.seen &&
+            (i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required'),
         ).length;
       },
 

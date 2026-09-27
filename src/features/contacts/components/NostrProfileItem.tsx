@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Send } from '@tamagui/lucide-icons';
+import { BadgeCheck, Send, Star } from '@tamagui/lucide-icons';
 import { Button, Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
@@ -10,6 +10,9 @@ interface NostrProfileItemProps {
   profile: NostrProfile;
   onPress: (profile: NostrProfile) => void;
   onSend: (profile: NostrProfile) => void;
+  onLongPress?: (profile: NostrProfile) => void;
+  isFavorite?: boolean;
+  context?: string;
   showTopSeparator?: boolean;
 }
 
@@ -22,7 +25,7 @@ export function getNostrProfileLabel(profile: NostrProfile): string {
 }
 
 export const NostrProfileItem = React.memo<NostrProfileItemProps>(
-  ({ profile, onPress, onSend, showTopSeparator = false }) => {
+  ({ profile, onPress, onSend, onLongPress, isFavorite, context, showTopSeparator = false }) => {
     const label = getNostrProfileLabel(profile);
     const subtitle =
       profile.nip05 && profile.nip05 !== label ? profile.nip05 : truncateNpub(profile.npub);
@@ -36,6 +39,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onPress(profile);
             }}
+            onLongPress={() => onLongPress?.(profile)}
             activeOpacity={0.7}
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
           >
@@ -52,15 +56,28 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               <Blockies seed={profile.npub} size={10} scale={5} style={{ borderRadius: 1000 }} />
             </View>
             <YStack flex={1} mr="$2" justify="center" gap={2}>
-              <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1}>
-                {label}
-              </Text>
-              <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                {subtitle}
-              </Text>
+              <XStack items="center" gap="$1">
+                <Text fontSize="$4" fontWeight="bold" color="$accent4" numberOfLines={1} flex={1}>
+                  {label}
+                </Text>
+                {isFavorite && <Star size={14} color="$yellow10" fill="$yellow10" />}
+              </XStack>
+              <XStack items="center" gap="$1">
+                {profile.nip05Verified && profile.nip05 === subtitle && (
+                  <BadgeCheck size={12} color="$green10" />
+                )}
+                <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                  {subtitle}
+                </Text>
+              </XStack>
               {profile.nip05 && profile.nip05 !== subtitle && (
                 <Text fontSize="$1" color="$gray9" numberOfLines={1}>
                   {truncateNpub(profile.npub)}
+                </Text>
+              )}
+              {context && (
+                <Text fontSize="$1" color="$gray8" numberOfLines={1}>
+                  {context}
                 </Text>
               )}
             </YStack>

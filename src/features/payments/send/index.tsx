@@ -8,7 +8,10 @@ import { P2PKAmountStage } from '~/features/payments/send/P2PKAmountStage';
 import { NostrSendStage } from '~/features/payments/send/NostrSendStage';
 import { ResultStage } from '~/features/payments/send/ResultStage';
 import { SuccessStage } from '~/features/payments/send/SuccessStage';
-import { PaymentRequestStage, type ParsedPaymentRequest } from '~/features/payments/send/PaymentRequestStage';
+import {
+  PaymentRequestStage,
+  type ParsedPaymentRequest,
+} from '~/features/payments/send/PaymentRequestStage';
 import { ScanAndPayStage } from '~/features/payments/send/ScanAndPayStage';
 import {
   walletService,
@@ -410,8 +413,7 @@ export function SendModalScreen() {
 
         let websiteUrl = 'https://bey.cash/c/';
         if (__DEV__) {
-          const hostUri =
-            require('expo-constants').default.expoConfig?.hostUri || 'localhost:3000';
+          const hostUri = require('expo-constants').default.expoConfig?.hostUri || 'localhost:3000';
           websiteUrl = `http://${hostUri.split(':')[0]}:3000/c/`;
         }
 
@@ -514,17 +516,17 @@ export function SendModalScreen() {
 
       if (!sent) throw new Error('Failed to publish to any relay');
 
-      // Save contact if we have a username
-      if (nostrRecipientUsername) {
+      // A successful payment is the point where a searched identity becomes saved.
+      if (nostrRecipientNpub) {
         import('~/state/contactsStore').then(({ useContactsStore }) => {
-          const recipientLabel = nostrRecipientUsername.trim();
+          const recipientLabel = nostrRecipientUsername?.trim() || '';
           const recipientNip05 = recipientLabel.includes('@') ? recipientLabel : null;
-          useContactsStore.getState().addContact({
+          useContactsStore.getState().savePerson({
             npub: nostrRecipientNpub,
             username: recipientNip05?.endsWith('@bey.cash')
               ? recipientNip05.replace(/@bey\.cash$/i, '')
               : null,
-            displayName: recipientNip05 ? null : recipientLabel,
+            displayName: recipientNip05 ? null : recipientLabel || null,
             nip05: recipientNip05,
           });
         });

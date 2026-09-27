@@ -410,6 +410,16 @@ export function RequestEcashStage({
         if (!published) {
           throw new Error('Failed to send request via Nostr.');
         }
+        const { useContactsStore } = await import('~/state/contactsStore');
+        const recipientLabel = targetUsername?.trim() || '';
+        useContactsStore.getState().savePerson({
+          npub: targetNpub,
+          username: recipientLabel.toLowerCase().endsWith('@bey.cash')
+            ? recipientLabel.replace(/@bey\.cash$/i, '')
+            : null,
+          displayName: recipientLabel.includes('@') ? null : recipientLabel || null,
+          nip05: recipientLabel.includes('@') ? recipientLabel : null,
+        });
         console.log(`[RequestEcashStage] Sent request to ${targetNpub}`);
       }
 
@@ -442,7 +452,7 @@ export function RequestEcashStage({
     } finally {
       setIsGenerating(false);
     }
-  }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest]);
+  }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest, targetNpub, targetUsername]);
 
   // ── Copy / Share ──────────────────────────────────────────────────────────
   const handleCopy = useCallback(async () => {

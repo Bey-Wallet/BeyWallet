@@ -1,13 +1,15 @@
-import React from 'react';
-import { YStack, XStack, Text, Button, ScrollView, Separator, useTheme } from 'tamagui';
+import React, { useEffect, useState } from 'react';
+import { YStack, XStack, Text, Button, ScrollView, Separator, useTheme, Image } from 'tamagui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Copy,
-  Heart,
   Send,
   ArrowDownLeft,
   Activity,
   Share as ShareIcon,
+  Star,
+  Trash2,
+  BadgeCheck,
 } from '@tamagui/lucide-icons';
 import { Share } from 'react-native';
 import * as Linking from 'expo-linking';
@@ -16,8 +18,9 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import Blockies from '~/shared/ui/Blockies';
 import { useContactsStore } from '~/state/contactsStore';
-import { Flex, SafeFlex } from '~/shared/ui/Flex';
+import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
 
 export default function ContactDetailsScreen() {
   const { npub, username, displayName, nip05 } = useLocalSearchParams<{
@@ -31,8 +34,21 @@ export default function ContactDetailsScreen() {
   const toast = useToastController();
   const router = useRouter();
 
-  const { addFavorite, removeFavorite, isFavorite } = useContactsStore();
-  const favorite = isFavorite(npub || '');
+  const people = useContactsStore((state) => state.people);
+  const toggleFavoriteAction = useContactsStore((state) => state.toggleFavorite);
+  const removePerson = useContactsStore((state) => state.removePerson);
+  const [profile, setProfile] = useState<NostrProfile | null>(null);
+  const favorite = !!people[npub]?.isFavorite;
+
+  useEffect(() => {
+    let cancelled = false;
+    void nostrProfileService.getProfile(npub).then((value) => {
+      if (!cancelled) setProfile(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [npub]);
 
   const handleCopyNpub = async () => {
     if (!npub) return;
@@ -44,19 +60,16 @@ export default function ContactDetailsScreen() {
   const toggleFavorite = () => {
     if (!npub) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (favorite) {
-      removeFavorite(npub);
-      toast.show('Removed from favorites');
-    } else {
-      addFavorite({
-        npub,
-        username: username || null,
-        displayName: displayName || null,
-        nip05: nip05 || null,
-        isFavorite: true,
-      });
-      toast.show('Added to favorites');
-    }
+    toggleFavoriteAction(npub, {
+      npub,
+      username: profile?.name || username || null,
+      displayName: profile?.displayName || displayName || null,
+      nip05: profile?.nip05 || nip05 || null,
+      nip05Verified: profile?.nip05Verified,
+      picture: profile?.picture,
+      about: profile?.about,
+    });
+    toast.show(favorite ? 'Removed from favorites' : 'Added to favorites');
   };
 
   const handleSend = () => {
@@ -65,9 +78,11 @@ export default function ContactDetailsScreen() {
       params: {
         to: npub,
         username:
-          nip05 ||
+          (profile?.nip05Verified ? profile.nip05 : '') ||
+          profile?.displayName ||
           displayName ||
-          (username ? `${username.replace(/@bey\.cash$/i, '')}@bey.cash` : ''),
+          username ||
+          '',
         mode: 'nostr',
       },
     });
@@ -110,13 +125,10 @@ export default function ContactDetailsScreen() {
   };
   const insets = useSafeAreaInsets();
 
-  const legacyUsername = username
-    ? username.includes('@')
-      ? username
-      : `${username}@bey.cash`
-    : '';
-  const primaryLabel = displayName || nip05 || legacyUsername;
-  const secondaryLabel = displayName ? nip05 || legacyUsername : '';
+  const currentNip05 = profile?.nip05Verified ? profile.nip05 : undefined;
+  const primaryLabel =
+    profile?.displayName || profile?.name || displayName || username || currentNip05;
+  const secondaryLabel = primaryLabel !== currentNip05 ? currentNip05 : '';
 
   return (
     <Flex fill bg="$background" pb={insets.bottom || 16}>
@@ -126,7 +138,11 @@ export default function ContactDetailsScreen() {
       >
         {/* Header / Identity */}
         <YStack items="center" gap="$4" pt="$4">
-          <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 7 }} />
+          {profile?.picture ? (
+            <Image source={{ uri: profile.picture }} width={72} height={72} rounded={36} />
+          ) : (
+            <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 36 }} />
+          )}
 
           <YStack items="center" gap="$1">
             {primaryLabel ? (
@@ -135,9 +151,12 @@ export default function ContactDetailsScreen() {
               </Text>
             ) : null}
             {secondaryLabel ? (
-              <Text fontSize="$3" color="$gray10">
-                {secondaryLabel}
-              </Text>
+              <XStack gap="$1" items="center">
+                <BadgeCheck size={14} color="$green10" />
+                <Text fontSize="$3" color="$gray10">
+                  {secondaryLabel}
+                </Text>
+              </XStack>
             ) : null}
             <XStack items="center" gap="$2" cursor="pointer" onPress={handleCopyNpub}>
               <Text fontSize="$4" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
@@ -182,10 +201,10 @@ export default function ContactDetailsScreen() {
               circular
               bg={favorite ? '$red4' : '$gray4'}
               icon={
-                <Heart
+                <Star
                   size={20}
                   color={favorite ? '$red10' : '$color'}
-                  fill={favorite ? theme.red10.val : 'transparent'}
+                  fill={favorite ? theme.red10?.val : 'transparent'}
                 />
               }
               onPress={toggleFavorite}
@@ -210,6 +229,29 @@ export default function ContactDetailsScreen() {
         </XStack>
 
         <Separator borderColor="$borderColor" opacity={0.5} />
+        {profile?.about ? (
+          <YStack gap="$2">
+            <Text fontSize="$4" fontWeight="800">
+              About
+            </Text>
+            <Text color="$gray10" lineHeight={21}>
+              {profile.about}
+            </Text>
+          </YStack>
+        ) : null}
+        {people[npub] && (
+          <Button
+            chromeless
+            color="$red10"
+            icon={<Trash2 size={18} color="$red10" />}
+            onPress={() => {
+              removePerson(npub);
+              toast.show('Removed from People');
+            }}
+          >
+            Remove from People
+          </Button>
+        )}
       </ScrollView>
 
       {/* Floating Send Button */}

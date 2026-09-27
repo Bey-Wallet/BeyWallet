@@ -564,6 +564,12 @@ class NostrService {
       requestId: requestIdFromPayload,
     });
 
+    // Claiming is owned by a non-React wallet service. Load it lazily to keep
+    // the Nostr transport independent from wallet lifecycle modules.
+    void import('~/services/wallet/nostrClaimService').then(({ nostrClaimService }) =>
+      nostrClaimService.enqueue(sourceEvent.id),
+    );
+
     // ── Queue for manual claim via NostrClaimSheet ──────────────────────
     // Emit 'nostr:incoming' so the UI can present a claim sheet where the
     // user inspects the mint, amount, fees, and sender before accepting.
@@ -582,8 +588,8 @@ class NostrService {
   }
 
   /** Advertise the relays where other NIP-17 clients should deliver gift wraps. */
-  private async _publishInboxRelayList(): Promise<void> {
-    if (!this.privkeyBytes || !this.pool) return;
+  private async _publishInboxRelayList(): Promise<boolean> {
+    if (!this.privkeyBytes || !this.pool) return false;
 
     const event = finalizeEvent(
       {
@@ -598,12 +604,27 @@ class NostrService {
     try {
       await Promise.any(this.pool.publish(RELAYS, event));
       console.log('[NostrService] Published NIP-17 inbox relay preference.');
+      return true;
     } catch (err: any) {
       console.warn(
         '[NostrService] Could not publish NIP-17 inbox relay preference:',
         err?.message || err,
       );
+      return false;
     }
+  }
+
+  public republishInboxRelayList(): Promise<boolean> {
+    return this._publishInboxRelayList();
+  }
+
+  public reconnectRelays(): void {
+    this.refresh();
+  }
+
+  public getRelayConnectionStatus(): Record<string, boolean> {
+    const statuses = this.pool?.listConnectionStatus?.();
+    return Object.fromEntries(RELAYS.map((relay) => [relay, statuses?.get(relay) === true]));
   }
 
   /**
@@ -724,7 +745,7 @@ class NostrService {
       const npub = nip19.npubEncode(pubkeyHex);
 
       const store = useContactsStore.getState();
-      const contact = store.contacts[npub] || store.favorites[npub];
+      const contact = store.people[npub];
       if (contact?.username) {
         return contact.username;
       }

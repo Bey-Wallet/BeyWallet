@@ -1,133 +1,149 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { normalizeNpub } from '~/shared/utils/nostr';
+import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import type { NostrInboxItem } from '~/state/nostrInboxStore';
 
-export interface Contact {
+export interface Person {
   npub: string;
   username?: string | null;
   displayName?: string | null;
   nip05?: string | null;
+  nip05Verified?: boolean;
+  picture?: string | null;
+  about?: string | null;
   isFavorite: boolean;
 }
 
-interface ContactsState {
-  favorites: Record<string, Contact>;
-  contacts: Record<string, Contact>;
-  addFavorite: (contact: Contact) => void;
-  removeFavorite: (npub: string) => void;
-  addContact: (contact: Omit<Contact, 'isFavorite'>) => void;
-  isFavorite: (npub: string) => boolean;
-}
+/** Temporary type alias for UI call sites while the feature is named contacts on disk. */
+export type Contact = Person;
 
-function normalizeUsername(username?: string | null): string | null {
-  if (!username) return null;
-  return username.trim().replace('@bey.cash', '');
+type PersonInput = Pick<Person, 'npub'> & Partial<Omit<Person, 'npub'>>;
+
+interface ContactsState {
+  people: Record<string, Person>;
+  savePerson: (person: PersonInput) => void;
+  updatePerson: (person: PersonInput) => void;
+  toggleFavorite: (npub: string, person?: PersonInput) => void;
+  removePerson: (npub: string) => void;
 }
 
 function normalizeOptionalText(value?: string | null): string | null {
-  const normalized = value?.trim();
-  return normalized || null;
+  const text = value?.trim();
+  return text || null;
+}
+
+function normalizeUsername(username?: string | null): string | null {
+  const text = normalizeOptionalText(username);
+  if (!text) return null;
+  return text.toLowerCase().endsWith('@bey.cash') ? text.slice(0, -9) : text;
+}
+
+function mergePerson(existing: Person | undefined, input: PersonInput): Person {
+  const npub = normalizeNpub(input.npub);
+  return {
+    npub,
+    username: normalizeUsername(input.username) ?? existing?.username ?? null,
+    displayName: normalizeOptionalText(input.displayName) ?? existing?.displayName ?? null,
+    nip05: normalizeOptionalText(input.nip05) ?? existing?.nip05 ?? null,
+    nip05Verified: input.nip05Verified ?? existing?.nip05Verified ?? false,
+    picture: normalizeOptionalText(input.picture) ?? existing?.picture ?? null,
+    about: normalizeOptionalText(input.about) ?? existing?.about ?? null,
+    isFavorite: input.isFavorite ?? existing?.isFavorite ?? false,
+  };
+}
+
+export function migrateLegacyPeople(persisted: any): Record<string, Person> {
+  const people: Record<string, Person> = {};
+  const mergeMap = (records: Record<string, any> | undefined, favorite?: boolean) => {
+    for (const [key, value] of Object.entries(records || {})) {
+      const npub = normalizeNpub(value.npub || key);
+      if (!npub) continue;
+      people[npub] = mergePerson(people[npub], {
+        ...value,
+        npub,
+        isFavorite: favorite === true || value.isFavorite === true || people[npub]?.isFavorite,
+      });
+    }
+  };
+  mergeMap(persisted?.people);
+  mergeMap(persisted?.contacts, false);
+  mergeMap(persisted?.favorites, true);
+  return people;
 }
 
 export const useContactsStore = create<ContactsState>()(
   persist(
-    (set, get) => ({
-      favorites: {},
-      contacts: {},
-      addFavorite: (contact) =>
+    (set) => ({
+      people: {},
+      savePerson: (person) =>
         set((state) => {
-          const npub = normalizeNpub(contact.npub);
-          const username = normalizeUsername(contact.username);
+          const npub = normalizeNpub(person.npub);
+          if (!npub) return state;
+          return { people: { ...state.people, [npub]: mergePerson(state.people[npub], person) } };
+        }),
+      updatePerson: (person) =>
+        set((state) => {
+          const npub = normalizeNpub(person.npub);
+          if (!npub || !state.people[npub]) return state;
+          return { people: { ...state.people, [npub]: mergePerson(state.people[npub], person) } };
+        }),
+      toggleFavorite: (npubValue, person) =>
+        set((state) => {
+          const npub = normalizeNpub(npubValue);
+          if (!npub) return state;
+          const current = state.people[npub];
+          const merged = mergePerson(current, person || { npub });
           return {
-            favorites: {
-              ...state.favorites,
-              [npub]: {
-                npub,
-                username,
-                displayName: normalizeOptionalText(contact.displayName),
-                nip05: normalizeOptionalText(contact.nip05),
-                isFavorite: true,
-              },
+            people: {
+              ...state.people,
+              [npub]: { ...merged, isFavorite: !current?.isFavorite },
             },
           };
         }),
-      removeFavorite: (npub) =>
+      removePerson: (npubValue) =>
         set((state) => {
-          const normNpub = normalizeNpub(npub);
-          const newFavs = { ...state.favorites };
-          delete newFavs[normNpub];
-          return { favorites: newFavs };
+          const people = { ...state.people };
+          delete people[normalizeNpub(npubValue)];
+          return { people };
         }),
-      addContact: (contact) =>
-        set((state) => {
-          const npub = normalizeNpub(contact.npub);
-          const username = normalizeUsername(contact.username);
-          // don't overwrite if it's already a favorite
-          if (state.favorites[npub]) return state;
-          return {
-            contacts: {
-              ...state.contacts,
-              [npub]: {
-                npub,
-                username,
-                displayName: normalizeOptionalText(contact.displayName),
-                nip05: normalizeOptionalText(contact.nip05),
-                isFavorite: false,
-              },
-            },
-          };
-        }),
-      isFavorite: (npub) => {
-        return !!get().favorites[normalizeNpub(npub)];
-      },
     }),
     {
       name: 'bey-contacts-storage',
       storage: createJSONStorage(() => sqliteStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          // Migrate/normalize all existing contacts/favorites
-          let changed = false;
-          const newContacts: Record<string, Contact> = {};
-          const newFavorites: Record<string, Contact> = {};
-
-          for (const [key, contact] of Object.entries(state.contacts || {})) {
-            const normNpub = normalizeNpub(contact.npub || key);
-            const normUser = normalizeUsername(contact.username);
-            newContacts[normNpub] = {
-              npub: normNpub,
-              username: normUser,
-              displayName: normalizeOptionalText(contact.displayName),
-              nip05: normalizeOptionalText(contact.nip05),
-              isFavorite: false,
-            };
-            if (normNpub !== key || contact.username !== normUser) {
-              changed = true;
-            }
-          }
-
-          for (const [key, contact] of Object.entries(state.favorites || {})) {
-            const normNpub = normalizeNpub(contact.npub || key);
-            const normUser = normalizeUsername(contact.username);
-            newFavorites[normNpub] = {
-              npub: normNpub,
-              username: normUser,
-              displayName: normalizeOptionalText(contact.displayName),
-              nip05: normalizeOptionalText(contact.nip05),
-              isFavorite: true,
-            };
-            if (normNpub !== key || contact.username !== normUser) {
-              changed = true;
-            }
-          }
-
-          if (changed) {
-            state.contacts = newContacts;
-            state.favorites = newFavorites;
-          }
-        }
-      },
+      version: 2,
+      migrate: (persisted) => ({ people: migrateLegacyPeople(persisted) }),
+      merge: (persisted, current) => ({
+        ...current,
+        people: migrateLegacyPeople(persisted),
+      }),
     },
   ),
 );
+
+export function selectPersonByNpub(state: ContactsState, npub: string): Person | undefined {
+  return state.people[normalizeNpub(npub)];
+}
+
+export function selectSortedPeople(
+  state: ContactsState,
+  interactionByNpub: Record<string, number> = {},
+): Person[] {
+  return Object.values(state.people).sort((a, b) => {
+    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+    const aTime = interactionByNpub[a.npub] || 0;
+    const bTime = interactionByNpub[b.npub] || 0;
+    if (aTime !== bTime) return bTime - aTime;
+    return (a.displayName || a.nip05 || a.username || a.npub).localeCompare(
+      b.displayName || b.nip05 || b.username || b.npub,
+    );
+  });
+}
+
+export function selectPendingActionCount(items: NostrInboxItem[]): number {
+  return items.filter(
+    (item) =>
+      item.status === 'approval_required' ||
+      (item.status === 'failed' && item.failure?.retryable === false),
+  ).length;
+}

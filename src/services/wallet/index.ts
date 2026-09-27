@@ -27,8 +27,22 @@ export { proofService } from '~/services/wallet/proofService';
 export type { DleqVerificationResult } from '~/services/wallet/proofService';
 export { recoveryService } from '~/services/wallet/recoveryService';
 export { nostrService } from '~/services/wallet/nostrService';
+export { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
+export type {
+  NostrDiagnosticSnapshot,
+  NostrRelayHealth,
+} from '~/services/wallet/nostrDiagnosticsService';
+export type {
+  NostrClaimErrorCode,
+  NostrClaimFailure,
+  NostrClaimResult,
+  NostrClaimRetryOptions,
+} from '~/services/wallet/nostrClaimService';
 export { consolidationService } from '~/services/wallet/consolidationService';
-export type { FragmentationAnalysis, ConsolidationResult } from '~/services/wallet/consolidationService';
+export type {
+  FragmentationAnalysis,
+  ConsolidationResult,
+} from '~/services/wallet/consolidationService';
 export { expiryService } from '~/services/wallet/expiryService';
 
 // ─── Utilities ────────────────────────────────────────────────

@@ -173,6 +173,10 @@ export default function ModalLayout() {
           presentation: 'fullScreenModal',
         }}
       />
+      <Stack.Screen
+        name="nostr-diagnostics"
+        options={{ title: 'Nostr Diagnostics', presentation: 'fullScreenModal' }}
+      />
 
       <Stack.Screen
         name="proofs"

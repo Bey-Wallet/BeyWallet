@@ -118,19 +118,17 @@ interface DetailItem {
 // ─── Username resolver ────────────────────────────────────────────────────
 
 function useResolveUsername(pubkey: string): string | undefined {
-  const favorites = useContactsStore((s) => s.favorites);
-  const contacts = useContactsStore((s) => s.contacts || {});
+  const people = useContactsStore((s) => s.people);
 
   return useMemo(() => {
     const npub = safeNpubEncode(pubkey);
     const candidates = [pubkey, npub];
 
     for (const key of candidates) {
-      if (favorites[key]?.username) return favorites[key].username!;
-      if (contacts[key]?.username) return contacts[key].username!;
+      if (people[key]?.username) return people[key].username!;
     }
     return undefined;
-  }, [pubkey, favorites, contacts]);
+  }, [pubkey, people]);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -169,7 +167,10 @@ export default function NostrActivityModal() {
   });
 
   const unclaimed = useMemo(
-    () => items.filter((i) => i.status === 'pending' || i.status === 'failed'),
+    () =>
+      items.filter(
+        (i) => i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+      ),
     [items],
   );
 

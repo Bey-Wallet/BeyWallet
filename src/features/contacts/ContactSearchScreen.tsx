@@ -9,8 +9,8 @@ import { Buffer } from 'buffer';
 import { useContactsStore } from '~/state/contactsStore';
 
 export default function ContactSearchScreen() {
-  const favorites = useContactsStore((state) => state.favorites);
-  const favoriteContacts = Object.values(favorites);
+  const people = useContactsStore((state) => state.people);
+  const favoriteContacts = Object.values(people).filter((person) => person.isFavorite);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [directory, setDirectory] = useState<Record<string, string>>({});

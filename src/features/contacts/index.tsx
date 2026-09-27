@@ -1,99 +1,136 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Keyboard, ScrollView as NativeScrollView } from 'react-native';
-import { ClipboardPaste, Search, Users, X } from '@tamagui/lucide-icons';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Keyboard, ScrollView as NativeScrollView } from 'react-native';
+import { Activity, ClipboardPaste, Search, Users, X } from '@tamagui/lucide-icons';
 import { Button, Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useContactsStore, type Contact } from '~/state/contactsStore';
+import {
+  selectPendingActionCount,
+  selectSortedPeople,
+  type Person,
+  useContactsStore,
+} from '~/state/contactsStore';
+import { useNostrInboxStore } from '~/state/nostrInboxStore';
 import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
+import { historyService } from '~/services/wallet/historyService';
 import { useNostrProfileSearch } from '~/features/contacts/hooks/useNostrProfileSearch';
 import {
   getNostrProfileLabel,
   NostrProfileItem,
 } from '~/features/contacts/components/NostrProfileItem';
 
-function contactToProfile(contact: Contact): NostrProfile | null {
-  const pubkeyHex = decodeNostrPublicKey(contact.npub);
+function personToProfile(person: Person): NostrProfile | null {
+  const pubkeyHex = decodeNostrPublicKey(person.npub);
   if (!pubkeyHex) return null;
-
-  const legacyNip05 =
-    contact.nip05 ||
-    (contact.username
-      ? contact.username.includes('@')
-        ? contact.username
-        : `${contact.username}@bey.cash`
-      : undefined);
-
   return {
     pubkeyHex,
-    npub: contact.npub,
-    name: contact.username || undefined,
-    displayName: contact.displayName || undefined,
-    nip05: legacyNip05 || undefined,
-    nip05Verified: legacyNip05?.endsWith('@bey.cash'),
+    npub: person.npub,
+    name: person.username || undefined,
+    displayName: person.displayName || undefined,
+    nip05: person.nip05 || undefined,
+    nip05Verified: person.nip05Verified,
+    picture: person.picture || undefined,
+    about: person.about || undefined,
     source: 'identifier',
   };
 }
 
-function matchesLocalProfile(profile: NostrProfile, query: string): boolean {
-  const haystack = [profile.displayName, profile.name, profile.nip05, profile.npub]
+function matches(profile: NostrProfile, query: string): boolean {
+  return [profile.displayName, profile.name, profile.nip05, profile.npub]
     .filter(Boolean)
     .join(' ')
-    .toLowerCase();
-  return haystack.includes(query.toLowerCase());
+    .toLowerCase()
+    .includes(query.toLowerCase());
 }
 
 function mergeProfiles(local: NostrProfile[], remote: NostrProfile[]): NostrProfile[] {
-  const merged = new Map<string, NostrProfile>();
+  const byPubkey = new Map<string, NostrProfile>();
   for (const profile of [...local, ...remote]) {
-    const current = merged.get(profile.pubkeyHex);
-    merged.set(profile.pubkeyHex, current ? { ...profile, ...current } : profile);
+    const current = byPubkey.get(profile.pubkeyHex);
+    byPubkey.set(profile.pubkeyHex, current ? { ...current, ...profile } : profile);
   }
-  return Array.from(merged.values());
+  return [...byPubkey.values()];
+}
+
+function readMetadata(entry: any): Record<string, any> {
+  if (entry?.metadata && typeof entry.metadata === 'object') return entry.metadata;
+  try {
+    return JSON.parse(entry?.metadata || '{}');
+  } catch {
+    return {};
+  }
 }
 
 export default function ContactsScreen() {
   const router = useRouter();
-  const favorites = useContactsStore((state) => state.favorites);
-  const contacts = useContactsStore((state) => state.contacts || {});
+  const people = useContactsStore((state) => state.people);
+  const toggleFavorite = useContactsStore((state) => state.toggleFavorite);
+  const removePerson = useContactsStore((state) => state.removePerson);
+  const inboxItems = useNostrInboxStore((state) => state.items);
+  const [historyInteractions, setHistoryInteractions] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const { results: remoteResults, isSearching, error } = useNostrProfileSearch(search);
 
-  const favoriteProfiles = useMemo(
-    () =>
-      Object.values(favorites)
-        .map(contactToProfile)
-        .filter((profile): profile is NostrProfile => profile !== null),
-    [favorites],
+  useEffect(() => {
+    let cancelled = false;
+    void historyService
+      .getHistory(500, 0)
+      .then((entries: any[]) => {
+        if (cancelled) return;
+        const interactions: Record<string, number> = {};
+        for (const entry of entries) {
+          const metadata = readMetadata(entry);
+          if (metadata.via !== 'nostr' || !metadata.nostrPubkey) continue;
+          const npub = metadata.nostrPubkey;
+          const timestamp = Number(entry.createdAt) || Date.parse(entry.createdAt) || 0;
+          interactions[npub] = Math.max(interactions[npub] || 0, timestamp);
+        }
+        setHistoryInteractions(interactions);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const interactions = useMemo(() => {
+    const result = { ...historyInteractions };
+    for (const item of inboxItems) {
+      const profile = decodeNostrPublicKey(item.senderPubkey);
+      if (!profile) continue;
+      try {
+        const { nip19 } = require('nostr-tools');
+        const npub = nip19.npubEncode(profile);
+        result[npub] = Math.max(result[npub] || 0, item.receivedAt);
+      } catch {}
+    }
+    return result;
+  }, [historyInteractions, inboxItems]);
+
+  const sortedPeople = useMemo(
+    () => selectSortedPeople({ people } as any, interactions),
+    [interactions, people],
   );
-
-  const savedProfiles = useMemo(() => {
-    const favoriteKeys = new Set(favoriteProfiles.map((profile) => profile.pubkeyHex));
-    return Object.values(contacts)
-      .map(contactToProfile)
-      .filter(
-        (profile): profile is NostrProfile =>
-          profile !== null && !favoriteKeys.has(profile.pubkeyHex),
-      );
-  }, [contacts, favoriteProfiles]);
-
   const localProfiles = useMemo(
-    () => [...favoriteProfiles, ...savedProfiles],
-    [favoriteProfiles, savedProfiles],
+    () => sortedPeople.map(personToProfile).filter((profile): profile is NostrProfile => !!profile),
+    [sortedPeople],
   );
-
-  const searchResults = useMemo(() => {
-    const query = search.trim();
-    if (!query) return [];
-    return mergeProfiles(
-      localProfiles.filter((profile) => matchesLocalProfile(profile, query)),
-      remoteResults,
-    );
-  }, [localProfiles, remoteResults, search]);
+  const isSearchActive = !!search.trim();
+  const results = useMemo(
+    () =>
+      isSearchActive
+        ? mergeProfiles(
+            localProfiles.filter((profile) => matches(profile, search.trim())),
+            remoteResults,
+          )
+        : localProfiles,
+    [isSearchActive, localProfiles, remoteResults, search],
+  );
+  const pendingCount = selectPendingActionCount(inboxItems);
 
   const openProfile = useCallback(
-    (profile: NostrProfile) => {
+    (profile: NostrProfile) =>
       router.push({
         pathname: '/(modals)/contact-details',
         params: {
@@ -102,13 +139,11 @@ export default function ContactsScreen() {
           displayName: profile.displayName || '',
           nip05: profile.nip05 || '',
         },
-      });
-    },
+      }),
     [router],
   );
-
-  const sendToProfile = useCallback(
-    (profile: NostrProfile) => {
+  const send = useCallback(
+    (profile: NostrProfile) =>
       router.push({
         pathname: '/(modals)/send',
         params: {
@@ -116,31 +151,31 @@ export default function ContactsScreen() {
           username: profile.nip05 || getNostrProfileLabel(profile),
           mode: 'nostr',
         },
-      });
-    },
+      }),
     [router],
   );
-
-  const handlePaste = useCallback(async () => {
+  const showActions = useCallback(
+    (profile: NostrProfile) => {
+      const person = people[profile.npub];
+      if (!person) return;
+      Alert.alert(getNostrProfileLabel(profile), undefined, [
+        {
+          text: person.isFavorite ? 'Unfavorite' : 'Favorite',
+          onPress: () => toggleFavorite(profile.npub),
+        },
+        { text: 'Remove', style: 'destructive', onPress: () => removePerson(profile.npub) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [people, removePerson, toggleFavorite],
+  );
+  const paste = useCallback(async () => {
     const value = (await Clipboard.getStringAsync()).trim();
-    if (!value) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSearch(value);
+    if (value) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSearch(value);
+    }
   }, []);
-
-  const renderProfiles = (profiles: NostrProfile[]) =>
-    profiles.map((profile, index) => (
-      <NostrProfileItem
-        key={profile.pubkeyHex}
-        profile={profile}
-        onPress={openProfile}
-        onSend={sendToProfile}
-        showTopSeparator={index === 0}
-      />
-    ));
-
-  const hasSavedPeople = favoriteProfiles.length > 0 || savedProfiles.length > 0;
-  const isSearchActive = search.trim().length > 0;
 
   return (
     <YStack flex={1} bg="$background">
@@ -153,133 +188,100 @@ export default function ContactsScreen() {
       >
         <YStack gap="$5">
           <YStack gap="$2">
-            <Text fontSize="$7" fontWeight="900" color="$color">
-              Pay anyone on Nostr
+            <Text fontSize="$7" fontWeight="900">
+              People
             </Text>
-            <Text fontSize="$3" color="$gray10" lineHeight={20}>
-              Find a Nostr profile, then send eCash directly to their wallet.
-            </Text>
+            <Text color="$gray10">Find someone on Nostr, then send or request eCash.</Text>
           </YStack>
-
           <XStack height={56} bg="$gray4" rounded="$6" px="$3" items="center" gap="$2">
             <Search size={20} color="$gray10" />
             <Input
               flex={1}
-              height={48}
               borderWidth={0}
               bg="transparent"
-              px={0}
-              placeholder="Name, name@domain, npub, or nprofile"
+              placeholder="Name, NIP-05, npub, or nprofile"
               value={search}
               onChangeText={setSearch}
               autoCapitalize="none"
               autoCorrect={false}
-              returnKeyType="search"
             />
-            {isSearchActive ? (
-              <Button
-                circular
-                size="$2.5"
-                chromeless
-                icon={<X size={18} color="$gray10" />}
-                accessibilityLabel="Clear search"
-                onPress={() => setSearch('')}
-              />
-            ) : (
-              <Button
-                circular
-                size="$2.5"
-                chromeless
-                icon={<ClipboardPaste size={18} color="$gray10" />}
-                accessibilityLabel="Paste Nostr identifier"
-                onPress={handlePaste}
-              />
-            )}
+            <Button
+              circular
+              chromeless
+              size="$2.5"
+              icon={isSearchActive ? <X size={18} /> : <ClipboardPaste size={18} />}
+              onPress={isSearchActive ? () => setSearch('') : paste}
+            />
           </XStack>
-
-          {isSearchActive ? (
-            <YStack>
-              <XStack justify="space-between" items="center" mb="$2">
-                <Text fontSize="$4" fontWeight="800" color="$color">
-                  Results
+          {!isSearchActive && pendingCount > 0 && (
+            <Button
+              bg="$yellow3"
+              color="$yellow11"
+              justify="flex-start"
+              onPress={() => router.push('/(modals)/nostr-activity')}
+            >
+              {pendingCount} Nostr payment{pendingCount === 1 ? '' : 's'} need attention
+            </Button>
+          )}
+          <YStack>
+            <XStack justify="space-between" items="center" mb="$2">
+              <Text fontSize="$4" fontWeight="800">
+                {isSearchActive ? 'Results' : 'People'}
+              </Text>
+              {isSearching && <Spinner size="small" />}
+            </XStack>
+            {results.map((profile, index) => {
+              const person = people[profile.npub];
+              const timestamp = interactions[profile.npub];
+              return (
+                <NostrProfileItem
+                  key={profile.pubkeyHex}
+                  profile={profile}
+                  isFavorite={person?.isFavorite}
+                  context={
+                    timestamp
+                      ? `Last interaction ${new Date(timestamp).toLocaleDateString()}`
+                      : undefined
+                  }
+                  onPress={openProfile}
+                  onLongPress={showActions}
+                  onSend={send}
+                  showTopSeparator={index === 0}
+                />
+              );
+            })}
+            {!isSearching && results.length === 0 && (
+              <YStack items="center" gap="$3" py="$8">
+                <View
+                  width={72}
+                  height={72}
+                  rounded={36}
+                  bg="$gray3"
+                  items="center"
+                  justify="center"
+                >
+                  {isSearchActive ? (
+                    <Search size={30} color="$gray8" />
+                  ) : (
+                    <Users size={32} color="$gray8" />
+                  )}
+                </View>
+                <Text fontSize="$5" fontWeight="800">
+                  {isSearchActive ? 'No people found' : 'Find someone to pay'}
                 </Text>
-                {isSearching && <Spinner size="small" color="$accentColor" />}
-              </XStack>
-
-              {searchResults.length > 0 && renderProfiles(searchResults)}
-
-              {!isSearching && searchResults.length === 0 && !error && (
-                <YStack items="center" gap="$2" py="$8">
-                  <View
-                    width={64}
-                    height={64}
-                    rounded={32}
-                    bg="$gray3"
-                    items="center"
-                    justify="center"
-                  >
-                    <Search size={28} color="$gray8" />
-                  </View>
-                  <Text fontSize="$5" fontWeight="800">
-                    No people found
-                  </Text>
-                  <Text color="$gray9" text="center" lineHeight={20}>
-                    Check the name or paste an exact Nostr public key.
-                  </Text>
-                </YStack>
-              )}
-
-              {error && (
-                <YStack bg="$red2" rounded="$4" p="$3">
-                  <Text color="$red10" text="center">
-                    {error}
-                  </Text>
-                </YStack>
-              )}
-            </YStack>
-          ) : (
-            <YStack gap="$5">
-              {favoriteProfiles.length > 0 && (
-                <YStack>
-                  <Text fontSize="$4" fontWeight="800" color="$color" mb="$2">
-                    Favorites
-                  </Text>
-                  {renderProfiles(favoriteProfiles)}
-                </YStack>
-              )}
-
-              {savedProfiles.length > 0 && (
-                <YStack>
-                  <Text fontSize="$4" fontWeight="800" color="$color" mb="$2">
-                    Saved people
-                  </Text>
-                  {renderProfiles(savedProfiles)}
-                </YStack>
-              )}
-
-              {!hasSavedPeople && (
-                <YStack items="center" gap="$3" pt="$4" pb="$8">
-                  <View
-                    width={80}
-                    height={80}
-                    rounded={40}
-                    bg="$gray3"
-                    items="center"
-                    justify="center"
-                  >
-                    <Users size={36} color="$gray8" />
-                  </View>
-                  <YStack items="center" gap="$1">
-                    <Text fontWeight="800" fontSize="$6" color="$color">
-                      Find someone to pay
-                    </Text>
-                    <Text fontSize="$3" color="$gray9" text="center" px="$5" lineHeight={20}>
-                      Search the Nostr network or paste an npub. People you pay can be saved here.
-                    </Text>
-                  </YStack>
-                </YStack>
-              )}
-            </YStack>
+                {error && <Text color="$red10">{error}</Text>}
+              </YStack>
+            )}
+          </YStack>
+          {!isSearchActive && (
+            <Button
+              chromeless
+              icon={<Activity size={18} />}
+              justify="flex-start"
+              onPress={() => router.push('/(modals)/nostr-activity')}
+            >
+              Nostr Activity
+            </Button>
           )}
         </YStack>
       </NativeScrollView>

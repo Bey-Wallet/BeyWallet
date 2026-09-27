@@ -18,6 +18,7 @@ const expectedRoutes = [
   '(modals)/nfc-receive.tsx',
   '(modals)/nfc-send.tsx',
   '(modals)/nostr-activity.tsx',
+  '(modals)/nostr-diagnostics.tsx',
   '(modals)/nostr-profile.tsx',
   '(modals)/nostr-settings.tsx',
   '(modals)/nostr-username.tsx',

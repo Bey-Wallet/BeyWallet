@@ -56,19 +56,17 @@ function formatNpub(hex: string): string {
 }
 
 function useResolveUsername(pubkey: string): string | undefined {
-  const favorites = useContactsStore((s) => s.favorites);
-  const contacts = useContactsStore((s) => s.contacts || {});
+  const people = useContactsStore((s) => s.people);
 
   return useMemo(() => {
     const npub = safeNpubEncode(pubkey);
     const candidates = [pubkey, npub];
 
     for (const key of candidates) {
-      if (favorites[key]?.username) return favorites[key].username!;
-      if (contacts[key]?.username) return contacts[key].username!;
+      if (people[key]?.username) return people[key].username!;
     }
     return undefined;
-  }, [pubkey, favorites, contacts]);
+  }, [pubkey, people]);
 }
 
 function timeAgo(ts: number): string {
@@ -93,8 +91,7 @@ export default function NostrActivity() {
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
   const router = useRouter();
 
-  const favorites = useContactsStore((s) => s.favorites);
-  const contacts = useContactsStore((s) => s.contacts || {});
+  const people = useContactsStore((s) => s.people);
 
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
@@ -114,7 +111,10 @@ export default function NostrActivity() {
 
   // Only unclaimed (pending / failed) items
   const unclaimed = useMemo(
-    () => items.filter((i) => i.status === 'pending' || i.status === 'failed'),
+    () =>
+      items.filter(
+        (i) => i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+      ),
     [items],
   );
 
@@ -188,11 +188,7 @@ export default function NostrActivity() {
           const sign = item.type === 'request' ? '?' : '+';
 
           const npub = safeNpubEncode(item.senderPubkey);
-          const resolvedUsername =
-            favorites[item.senderPubkey]?.username ||
-            contacts[item.senderPubkey]?.username ||
-            favorites[npub]?.username ||
-            contacts[npub]?.username;
+          const resolvedUsername = people[item.senderPubkey]?.username || people[npub]?.username;
           const displayName =
             item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
 

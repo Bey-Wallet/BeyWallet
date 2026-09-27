@@ -35,7 +35,7 @@ export default function UniversalSearchScreen() {
   const [directory, setDirectory] = useState<Record<string, string>>({});
   const router = useRouter();
 
-  const { favorites } = useContactsStore();
+  const people = useContactsStore((state) => state.people);
   const { mints, scannerResult, setScannerResult } = useWalletStore();
   const { recommendations, fetchRecommendations } = useMintRecommendationStore();
 
@@ -104,7 +104,7 @@ export default function UniversalSearchScreen() {
       const peopleResults: SearchResultItem[] = [];
 
       // Check favorites first
-      Object.values(favorites).forEach((contact: any) => {
+      Object.values(people).forEach((contact: any) => {
         if (
           contact.username?.toLowerCase().includes(lowerQuery) ||
           contact.npub?.toLowerCase().includes(lowerQuery)
@@ -220,7 +220,7 @@ export default function UniversalSearchScreen() {
 
       setResults(found);
     },
-    [directory, favorites, mints, recommendations],
+    [directory, people, mints, recommendations],
   );
 
   // Listen for scanner results returned to search screen

@@ -29,7 +29,11 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { nip19 } from 'nostr-tools';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
@@ -74,8 +78,8 @@ export function NostrSendStage({
     setScannerResult,
   } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const favorites = useContactsStore((s) => s.favorites);
-  const favoriteContacts = Object.values(favorites);
+  const people = useContactsStore((s) => s.people);
+  const favoriteContacts = Object.values(people).filter((person) => person.isFavorite);
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
   const contactSheetRef = useRef<AppBottomSheetRef>(null);
