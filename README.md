@@ -5,155 +5,127 @@
 [![React Native](https://img.shields.io/badge/React%20Native-000000?logo=react&logoColor=61DAFB)](https://reactnative.dev)
 [![Cashu](https://img.shields.io/badge/Protocol-Cashu-FFD700.svg)](https://cashu.space)
 
-> **Modular, Local-First Ecash Wallet for Bitcoin & Nostr.**
+> A local-first Cashu wallet for Bitcoin and Nostr.
 
-Bey Wallet is a premium, privacy-centric ecash wallet built on the **Cashu** protocol. It brings together high-speed Bitcoin payments and the censorship-resistant identity of **Nostr** in a fluid, modern interface.
+Bey Wallet combines ecash payments, Bitcoin funding and withdrawal flows, and Nostr identity in
+an Expo and React Native application. Wallet state is stored locally, sensitive operations are
+protected by device security, and wallet orchestration is built around the Coco Cashu packages.
 
----
-
-## 📸 Preview
+## Preview
 
 <div align="center" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/fddb0208-c9bb-4474-9837-99cbdf1331e2" />
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/b69f8b0f-0094-4768-87e1-f253a70ae7af" />
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/792bd336-f21a-4605-9137-fe037d33ea6f" />
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/be0c332e-e311-4d2f-9b11-c4a9e74c14f2" />
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/3d1a1d52-5cf9-4861-ae48-055f3901e8d0" />
-<img width="95" height="210" alt="image" src="https://github.com/user-attachments/assets/c0c4be99-24c1-4aa7-91b6-fae384ab6ac3" />
-
+<img width="95" height="210" alt="Bey Wallet balance screen" src="https://github.com/user-attachments/assets/fddb0208-c9bb-4474-9837-99cbdf1331e2" />
+<img width="95" height="210" alt="Bey Wallet payment screen" src="https://github.com/user-attachments/assets/b69f8b0f-0094-4768-87e1-f253a70ae7af" />
+<img width="95" height="210" alt="Bey Wallet mint screen" src="https://github.com/user-attachments/assets/792bd336-f21a-4605-9137-fe037d33ea6f" />
+<img width="95" height="210" alt="Bey Wallet history screen" src="https://github.com/user-attachments/assets/be0c332e-e311-4d2f-9b11-c4a9e74c14f2" />
+<img width="95" height="210" alt="Bey Wallet Nostr screen" src="https://github.com/user-attachments/assets/3d1a1d52-5cf9-4861-ae48-055f3901e8d0" />
+<img width="95" height="210" alt="Bey Wallet settings screen" src="https://github.com/user-attachments/assets/c0c4be99-24c1-4aa7-91b6-fae384ab6ac3" />
 </div>
 
----
+## Features
 
-## ✨ Features
+### Cashu and Bitcoin
 
-### 💰 Cashu (Ecash) & Bitcoin
+- Send and receive Cashu ecash, including P2PK-locked payments.
+- Fund the wallet over Lightning or with an on-chain Bitcoin address.
+- Pay Lightning invoices or withdraw to an on-chain Bitcoin address.
+- Manage multiple trusted mints and inspect balances and transaction history.
+- Exchange ecash offline over NFC and optimize fragmented proofs.
+- Restore wallet funds from a recovery phrase and export encrypted wallet backups.
 
-- **Next-Gen Standards**: Support for V3 and V4 Cashu tokens (NUT-00, NUT-11 P2PK).
-- **On-Chain Bitcoin**: Fund your wallet via Bitcoin addresses and melt ecash to pay any on-chain transaction directly.
-- **Mint Management**: Add, trust, and monitor multiple community mints from a central dashboard.
-- **Offline NFC Payments**: Send and receive ecash seamlessly by tapping phones, optimized automatically for various coin/proof subsets.
-- **Total Control**: Manage balances across different mints with real-time audit logs and multi-currency fiat conversions.
+### Nostr and People
 
-### 🆔 Nostr Integration
+- Use a wallet-derived Nostr identity and optionally register a `@bey.cash` NIP-05 identifier.
+- Search for people by npub or NIP-05 and verify NIP-05 profile associations.
+- Keep favorites, recent payment contacts, and person-specific payment history in one People view.
+- Send P2PK-locked ecash through encrypted Nostr messages.
+- Automatically claim payments from trusted mints; unknown mints require explicit approval.
+- Diagnose profile, NIP-05, inbox relay-list, and relay-connectivity problems.
 
-- **Built-in Identity**: Generate your `npub` directly from your wallet seed and claim your free `@bey.cash` NIP-05 identifier.
-- **Social Payments**: Send ecash locked to any receiver's Nostr public key (P2PK) for ultimate security.
-- **Direct Messages (DMs)**: Send, receive, and **request** Ecash instantly via encrypted Nostr Direct Messages (NIP-04/NIP-17). Payments arrive and are detected automatically in the background.
-- **Contact Management**: Built-in address book to save and resolve your friends' Npubs and aliases.
+See [People and Nostr](docs/features/people-and-nostr.md) for behavior and security boundaries.
 
-### 🛡️ Privacy & Security
+### Privacy and device integration
 
-- **Local-First Design**: Your data stays on your device. Period. Powered by high-performance SQLite.
-- **Secure Enclave**: Your recovery phrase and private keys are protected by hardware-level security.
-- **Biometric Guard**: Face ID, Touch ID, or Passcode protection for every sensitive operation.
-- **Privacy Mode**: Long-press balance to mask/unmask your funds in public.
-- **Custom display unit**: Configurable options to show SATS, local FIAT, or enable the ₿ symbol mode.
+- Store application and wallet data locally with SQLite.
+- Protect secret access and sensitive operations with device authentication.
+- Hide balances in public and display amounts in sats or a selected fiat currency.
+- Support camera scanning, NFC, notifications, secure storage, and deep links.
 
-### 💾 Reliability & Optimization
+## Technology
 
-- **Deterministic Recovery**: Restore your entire wallet balance across all mints with just 12 words.
-- **Optimize Wallet**: Consolidate fragmented ecash proofs to optimize wallet speed and transaction compilation.
-- **Smart Backups**: Export and import complete wallet state via encrypted `.bey` files.
+- Expo Router and React Native
+- TypeScript and Tamagui
+- Zustand and TanStack Query
+- Expo SQLite
+- `coco-cashu-core`, `coco-cashu-react`, and `coco-cashu-expo-sqlite`
+- `nostr-tools`
 
----
-
-## 🛠️ Tech Stack
-
-- **Engineering**: [Expo](https://expo.dev/) & [React Native](https://reactnative.dev/)
-- **Design System**: [Tamagui](https://tamagui.dev/) (Dynamic, type-safe styles)
-- **Logic**: [Zustand](https://docs.pmnd.rs/zustand/) & [TanStack Query](https://tanstack.com/query/latest)
-- **Storage**: [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
-- **Core Protocols**: `cashu-ts`, `nostr-tools`
-
----
-
-## 🏗️ Development
+## Development
 
 ### Prerequisites
 
 - Node.js
-- Yarn 4.5.0 (pinned through the `packageManager` field)
-- [Bun](https://bun.sh/) for the cache-clearing development command
-- [Expo CLI](https://docs.expo.dev/get-started/installation/)
-- [EAS CLI](https://docs.expo.dev/eas/) (`npm install -g eas-cli`)
+- Yarn 4.5.0, pinned in `package.json`
+- Bun, required by the cache-clearing `yarn start` command
+- Android Studio or Xcode for native development
+- EAS CLI for hosted production builds
 
-### Quick Start
+### Setup
 
-1.  **Clone the repo**:
-    ```bash
-    git clone https://github.com/Bey-Wallet/BeyWallet.git
-    cd BeyWallet
-    ```
-2.  **Install dependencies**:
-    ```bash
-    yarn install
-    ```
-3.  **Start the app**:
-    ```bash
-    yarn start
-    ```
+```bash
+git clone https://github.com/thehussein01/BeyWallet.git
+cd BeyWallet
+yarn install
+yarn start
+```
 
-### Project Structure
+The app uses native modules. Device features and native payment flows should be tested with a
+development build, not only in a web browser or Expo Go.
 
-The source tree is organized by ownership so routes stay small and product logic is easy to
-locate:
+### Common commands
+
+| Command                | Purpose                                           |
+| ---------------------- | ------------------------------------------------- |
+| `yarn start`           | Start Expo with a cleared cache                   |
+| `yarn android`         | Build and run the Android app                     |
+| `yarn ios`             | Build and run the iOS app                         |
+| `yarn web`             | Start the web app                                 |
+| `yarn typecheck`       | Check TypeScript without emitting files           |
+| `yarn test:ci`         | Run Jest once                                     |
+| `yarn check:structure` | Validate routes and feature ownership             |
+| `yarn validate`        | Run type checking, tests, and the structure check |
+| `yarn format:check`    | Check repository formatting                       |
+
+### Project structure
 
 ```text
 src/
 ├── app/                 # Thin Expo Router entry files
-├── features/            # Screens and feature-owned components
-│   └── payments/        # Send, receive, mint, melt, and swap flows
-├── shared/              # Reusable UI, icons, hooks, utilities, and theme
+├── features/            # Product screens and feature-owned components
+├── shared/              # Reusable UI, hooks, icons, theme, and utilities
 ├── services/
-│   ├── wallet/         # Cashu and wallet orchestration
-│   ├── platform/       # Device and operating-system integrations
-│   └── api/            # HTTP and relay-backed integrations
+│   ├── wallet/          # Cashu and wallet orchestration
+│   ├── platform/        # Native and operating-system integrations
+│   └── api/             # HTTP and relay-backed clients
 ├── state/               # Zustand stores
-└── storage/sqlite/      # SQLite schema, migrations, and repositories
+└── storage/sqlite/      # SQLite schema, adapters, and repositories
 ```
 
-Internal imports use the `~/*` alias. See
-[docs/folder-structure.md](docs/folder-structure.md) for ownership and dependency rules.
+Internal imports use the `~/*` alias. Read the [documentation index](docs/README.md) and
+[folder-structure guide](docs/folder-structure.md) before moving code between layers.
 
-### Validation
-
-Run the complete local validation suite before submitting a change:
-
-```bash
-yarn validate
-```
-
-The command runs TypeScript checking, the non-interactive Jest suite, and repository structure
-checks. Individual commands are also available:
-
-```bash
-yarn typecheck
-yarn test:ci
-yarn check:structure
-yarn format:check
-```
-
-### Building for Production
-
-Bey Wallet uses EAS for builds. To build the production APK:
+## Production build
 
 ```bash
 eas build -p android --profile production
 ```
 
----
+## Contributing
 
-## 🤝 Contributing
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Never include recovery
+phrases, private keys, proofs, credentials, or other wallet secrets in issues, screenshots, logs,
+tests, or commits.
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) to get started.
+## License
 
----
-
-## ⚖️ License
-
-Distributed under the Apache License, Version 2.0. See `LICENSE` for more information.
-
----
-
-<p align="center">Made with ❤️ for the Bitcoin & Nostr communities.</p>
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
