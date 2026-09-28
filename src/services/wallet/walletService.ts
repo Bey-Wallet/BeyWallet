@@ -783,7 +783,7 @@ export const walletService = {
     // BeyWallet is a SAT-only wallet; scanning USD or EUR keysets wastes database, network and CPU resources.
     if (m.wallet && !(m.wallet as any)._restoreOverridden) {
       (m.wallet as any)._restoreOverridden = true;
-      m.wallet.restore = async function (targetMintUrl: string) {
+      m.wallet.restore = async function (this: any, targetMintUrl: string) {
         this.logger?.info(`[WalletService] Starting optimized restore for ${targetMintUrl}`);
         const mint = await this.mintService.addMintByUrl(targetMintUrl, { trusted: true });
 

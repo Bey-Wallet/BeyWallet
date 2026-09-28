@@ -41,7 +41,11 @@ import { onchainNetwork } from '~/shared/utils/onchain';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -49,6 +53,7 @@ import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
+import { MeltQuoteState } from '@cashu/cashu-ts';
 
 export function OnchainMeltFlow() {
   const router = useRouter();
@@ -429,7 +434,7 @@ export function OnchainMeltFlow() {
           type: 'melt',
           amount: amountSats,
           quoteId: meltQuote.quote,
-          state: 'pending',
+          state: MeltQuoteState.PENDING,
           metadata: {
             via: 'onchain',
             address: address.trim(),
@@ -892,7 +897,7 @@ export function OnchainMeltFlow() {
         onValueChange={onKeypadChange}
         onConfirm={handleGetQuote}
         confirmLabel="Continue"
-        disabled={!canContinue}
+        confirmDisabled={!canContinue}
       />
 
       <MintSelectorSheet ref={sheetRef} />

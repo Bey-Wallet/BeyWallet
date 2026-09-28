@@ -42,7 +42,7 @@ const writeNdefTag = async (text: string) => {
     useAuthStore.getState().setLockDisabled(true);
     await NfcManager.requestTechnology(NfcTech.Ndef);
     const bytes = Ndef.encodeMessage([Ndef.textRecord(text)]);
-    await NfcManager.writeNdefMessage(bytes, { reconnectAfterWrite: false });
+    await NfcManager.ndefHandler.writeNdefMessage(bytes, { reconnectAfterWrite: false });
   } catch (e: any) {
     throw e;
   } finally {

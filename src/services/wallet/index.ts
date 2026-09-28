@@ -62,7 +62,6 @@ export type {
   MintInfo,
   DecodedTokenPreview,
   CoreProof,
-  CoreEvents,
   Mint,
   Keyset,
   Counter,

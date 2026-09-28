@@ -52,8 +52,8 @@ export default function NFCReceiveScreen() {
     'Unknown Mint';
   const balance = activeMintUrl ? balances[activeMintUrl] || 0 : 0;
 
-  const processTagRef = useRef<any>();
-  const handleReceiveRef = useRef<any>();
+  const processTagRef = useRef<any>(undefined);
+  const handleReceiveRef = useRef<any>(undefined);
   const isProcessingRef = useRef(false);
 
   useFocusEffect(
@@ -346,11 +346,6 @@ export default function NFCReceiveScreen() {
     }
   };
 
-  useEffect(() => {
-    processTagRef.current = processTag;
-    handleReceiveRef.current = handleReceive;
-  }, [processTag, handleReceive]);
-
   const handleReceive = async () => {
     if (isProcessingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -366,6 +361,11 @@ export default function NFCReceiveScreen() {
       setErrorMessage(err.message || 'Failed to read NFC tag');
     }
   };
+
+  useEffect(() => {
+    processTagRef.current = processTag;
+    handleReceiveRef.current = handleReceive;
+  }, [processTag, handleReceive]);
 
   const { resolvedTheme } = useAppTheme();
   const insets = useSafeAreaInsets();

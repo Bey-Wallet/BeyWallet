@@ -13,7 +13,7 @@
  * `new Manager()` constructor with explicit watcher enabling.
  */
 
-import { Manager, ConsoleLogger } from 'coco-cashu-core';
+import { Manager, ConsoleLogger, type Plugin } from 'coco-cashu-core';
 import { ExpoSqliteRepositories } from '~/storage/sqlite';
 import * as SQLite from 'expo-sqlite';
 import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
@@ -299,7 +299,7 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [HistoryWatcherPlugin, npcPlugin],
+    [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
   );
 
   repo = repositories;
@@ -426,7 +426,7 @@ export const initService = {
       async () => new Uint8Array(seed),
       customLogger as any,
       undefined,
-      [HistoryWatcherPlugin, npcPlugin],
+      [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
     );
 
     repo = repositories;

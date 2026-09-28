@@ -160,7 +160,7 @@ export default function Balance() {
 
           decimalOpacity={0.4}
           showDecimals={displayAsSats}
-          mt="$1"
+          style={{ marginTop: 4 }}
         >
           {!hideBalance && displayAsSats
             ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)

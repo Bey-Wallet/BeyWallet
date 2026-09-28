@@ -196,21 +196,17 @@ const surfaceColors = {
 export const config = createTamagui({
   ...defaultConfig,
   animations,
+  settings: {
+    ...defaultConfig.settings,
+    allowedStyleValues: false,
+    onlyAllowShorthands: false,
+  },
   fonts: {
     ...defaultConfig.fonts,
     heading: baselGroteskFont,
     body: baselGroteskFont,
     mono: monoFont,
     oswald: oswaldFont,
-  },
-  tokens: {
-    ...defaultConfig.tokens,
-    color: {
-      ...defaultConfig.tokens.color,
-      ...superblueColors,
-      ...beyblueColors,
-      ...surfaceColors,
-    },
   },
   themes: {
     ...defaultConfig.themes,

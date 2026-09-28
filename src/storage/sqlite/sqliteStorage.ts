@@ -1,6 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 import type { StateStorage } from 'zustand/middleware';
 
+type SynchronousStateStorage = Omit<StateStorage, 'getItem' | 'setItem' | 'removeItem'> & {
+  getItem: (name: string) => string | null;
+  setItem: (name: string, value: string) => void;
+  removeItem: (name: string) => void;
+};
+
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
 /**
@@ -48,7 +54,7 @@ export function closeDb(): void {
  * A fast, synchronous storage driver for Zustand using expo-sqlite.
  * Enables zero-delay hydration on app start by fetching state before the first React render frame.
  */
-export const sqliteStorage: StateStorage = {
+export const sqliteStorage: SynchronousStateStorage = {
   getItem: (name: string): string | null => {
     try {
       const db = getDb();

@@ -298,7 +298,7 @@ export default function UniversalSearchScreen() {
             style={{ borderRadius: 4 }}
           />
         ) : (
-          <MintIcon url={item.subtitle} hintIcon={item.data?.icon} size={45} />
+          <MintIcon url={item.subtitle || ''} hintIcon={item.data?.icon} size={45} />
         )}
         <YStack flex={1}>
           <Text fontSize="$5" fontWeight="600" color="$color">

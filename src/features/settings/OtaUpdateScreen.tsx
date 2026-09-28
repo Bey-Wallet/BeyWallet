@@ -578,7 +578,6 @@ export default function OtaUpdateScreen() {
               fontWeight="800"
               onPress={() => handleCheckUpdates(true)}
               icon={<RefreshCw size={18} color="white" />}
-              disabled={status === 'checking'}
             >
               Check for Updates
             </Button>

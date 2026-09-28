@@ -684,7 +684,7 @@ export default function MintDetailsModal() {
                             type={entry.type}
                             amount={entry.amount}
                             createdAt={entry.createdAt}
-                            status={entry.state || 'success'}
+                            status={('state' in entry && entry.state) || 'success'}
                             metadata={entry.metadata}
                             onPress={handleTransactionPress}
                           />

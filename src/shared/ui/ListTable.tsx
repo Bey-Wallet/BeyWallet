@@ -35,6 +35,9 @@ export function ListTableRow({
   onPress,
   icon: Icon,
   iconColor,
+  labelColor,
+  valueColor,
+  iconAfter,
   rightContent,
   multiline,
 }: {
@@ -46,6 +49,9 @@ export function ListTableRow({
   onPress?: () => void;
   icon?: any;
   iconColor?: string;
+  labelColor?: string;
+  valueColor?: string;
+  iconAfter?: React.ReactNode;
   rightContent?: React.ReactNode;
   multiline?: boolean;
 }) {
@@ -84,7 +90,7 @@ export function ListTableRow({
         {Icon && <Icon size={18} color={iconColor || '$gray10'} />}
         <Text
           fontSize="$4"
-          color="$gray10"
+          color={labelColor || '$gray10'}
           fontWeight="600"
           flex={1}
           flexShrink={1}
@@ -101,7 +107,7 @@ export function ListTableRow({
               fontSize="$4"
               text="right"
               fontWeight="600"
-              color="$color"
+              color={valueColor || '$color'}
               numberOfLines={1}
               style={{ maxWidth: 200 }}
             >
@@ -112,6 +118,7 @@ export function ListTableRow({
           )}
 
           {rightContent}
+          {iconAfter}
 
           {isCopyable && (
             <Button

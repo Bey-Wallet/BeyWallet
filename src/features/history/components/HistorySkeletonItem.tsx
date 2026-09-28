@@ -6,6 +6,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -24,7 +25,7 @@ const ShimmerRect = ({
   width: number | string;
   height: number;
   borderRadius?: number;
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
 }) => {
   const theme = useTheme();
   const bg = theme.gray4?.val ?? '#333333';
@@ -50,7 +51,7 @@ const ShimmerRect = ({
 };
 
 interface HistorySkeletonItemProps {
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
   index?: number;
 }
 
@@ -87,7 +88,7 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
 /** A full skeleton section: date header + N rows */
 export const HistorySkeletonSection: React.FC<{
   rows?: number;
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
 }> = ({ rows = 3, progress }) => {
   return (
     <View style={styles.section}>

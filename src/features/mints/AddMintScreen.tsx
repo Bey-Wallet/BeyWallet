@@ -31,6 +31,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { RefreshControl, TouchableOpacity, Keyboard } from 'react-native';
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -56,7 +57,7 @@ import AddMintModal, { AddMintModalRef } from '~/shared/ui/AddMintModal';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
 interface MintSkeletonRowProps {
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
   showTopSeparator?: boolean;
 }
 

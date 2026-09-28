@@ -61,7 +61,6 @@ export function CustomQRCode({
       // Generate matrix with 0 margin, we will handle margin ourselves
       const qr = QRCode.create(value, {
         errorCorrectionLevel: 'H',
-        margin: 0,
       });
       const modules = qr.modules.data;
       const moduleCount = qr.modules.size;

@@ -285,7 +285,7 @@ export function ReceiveResultStage({
         borderColor="$gray3"
       >
         <Button
-          theme={isReceiveLater ? 'gray' : ''}
+          theme={isReceiveLater ? 'gray' : undefined}
           size="$6"
           height={55}
           onPress={onClose}

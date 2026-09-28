@@ -208,8 +208,8 @@ export default function NostrActivity() {
                       top={-2}
                       right={-2}
                       bg="$red10"
-                      w={8}
-                      h={8}
+                      width={8}
+                      height={8}
                       rounded="$10"
                       borderWidth={1.5}
                       borderColor="$color2"

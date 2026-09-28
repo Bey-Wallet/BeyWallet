@@ -1,7 +1,7 @@
 import { SimplePool, type Filter, type Event, nip04, nip44, finalizeEvent } from 'nostr-tools';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { unwrapEvent } from 'nostr-tools/nip59';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes } from '@noble/hashes/utils.js';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
 import { Buffer } from 'buffer';
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
@@ -310,10 +310,7 @@ class NostrService {
           return { text: rumor.content, senderPubkey: rumor.pubkey };
         }
         // Fallback for non-standard wraps that expose another encrypted event.
-        const convKey = nip44.v2.utils.getConversationKey(
-          this.privkeyBytes,
-          Buffer.from(rumor.pubkey, 'hex'),
-        );
+        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, rumor.pubkey);
         return {
           text: nip44.v2.decrypt(rumor.content, convKey),
           senderPubkey: rumor.pubkey,
@@ -326,8 +323,7 @@ class NostrService {
     // ── Kind 14: NIP-17 Private DM (direct, no outer gift-wrap) ─────────
     if (event.kind === 14 || event.kind === 13) {
       try {
-        const senderPubBytes = Buffer.from(event.pubkey, 'hex');
-        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, senderPubBytes);
+        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, event.pubkey);
         return {
           text: nip44.v2.decrypt(event.content, convKey),
           senderPubkey: event.pubkey,

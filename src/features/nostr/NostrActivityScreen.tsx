@@ -554,8 +554,8 @@ function PendingTab({
                       bottom={-2}
                       right={-2}
                       bg="$red10"
-                      w={12}
-                      h={12}
+                      width={12}
+                      height={12}
                       rounded="$10"
                       items="center"
                       justify="center"

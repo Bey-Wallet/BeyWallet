@@ -170,7 +170,6 @@ export function InputStage({
       <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
         {isValidToken ? (
           <Button
-            theme="active"
             bg="$green9"
             color="white"
             size="$5"

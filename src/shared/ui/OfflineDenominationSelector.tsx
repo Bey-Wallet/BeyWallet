@@ -136,7 +136,7 @@ export function OfflineDenominationSelector({
   if (loading) {
     return (
       <YStack height={200} items="center" justify="center">
-        <Spinner size="medium" />
+        <Spinner size="small" />
       </YStack>
     );
   }

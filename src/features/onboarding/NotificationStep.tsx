@@ -51,7 +51,7 @@ export function NotificationStep({ onComplete, onSkip }: NotificationStepProps) 
   return (
     <YStack flex={1} bg="$background" px="$4" py="$6" justify="space-between">
       {/* Top spacer / Skip */}
-      <XStack justify="flex-end" w="100%">
+      <XStack justify="flex-end" width="100%">
         {!isEnabled && (
           <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
             <Text color="$gray10" fontWeight="600">

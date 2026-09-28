@@ -490,7 +490,7 @@ export function PendingTokenLayout({
           rounded="$6"
           borderWidth={1}
           borderColor="$borderColor"
-          elevation={2}
+          style={{ elevation: 2 }}
         >
           {qrCodeFragment ? (
             qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
@@ -531,10 +531,7 @@ export function PendingTokenLayout({
               label="Amount"
               value={`${currencyService.formatSats(Number(amount || 0))} (${fiatValue})`}
             />
-            <DetailRowItem
-              label="Fees"
-              value={`${currencyService.formatSats(Number(fee || 0))}`}
-            />
+            <DetailRowItem label="Fees" value={`${currencyService.formatSats(Number(fee || 0))}`} />
             {currentToken.startsWith('http') && (
               <DetailRowItem
                 label="Web Link"
@@ -581,10 +578,9 @@ export function PendingTokenLayout({
 
       {/* Action Buttons: Share / Send & Copy */}
       <XStack gap="$3" width="100%">
-
         <Button
           flex={1}
-         
+
           bg={copied ? '$green3' : '$color2'}
           hoverStyle={{ bg: copied ? '$green4' : '$color3' }}
           color={copied ? '$green11' : '$color'}
@@ -600,9 +596,9 @@ export function PendingTokenLayout({
         </Button>
         <Button
           flex={1}
-         bg="$color2"
+          bg="$color2"
           size="$6"
-       
+
           height={65}
           rounded="$6"
           onPress={() => {

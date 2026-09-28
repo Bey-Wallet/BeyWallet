@@ -45,7 +45,7 @@ const cryptoShim = {
     if (existingCrypto.getRandomValues) {
       return existingCrypto.getRandomValues(array);
     }
-    return Crypto.getRandomValues(array);
+    return Crypto.getRandomValues(array as Exclude<TypedArray, Float32Array | Float64Array>);
   },
   randomUUID: () => {
     if (existingCrypto.randomUUID) {
