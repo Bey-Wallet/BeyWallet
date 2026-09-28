@@ -195,6 +195,20 @@ export default function PeopleScreen() {
       }),
     [router],
   );
+  const toggleProfileFavorite = useCallback(
+    (profile: NostrProfile) => {
+      toggleFavorite(profile.npub, {
+        npub: profile.npub,
+        username: profile.name || null,
+        displayName: profile.displayName || null,
+        nip05: profile.nip05 || null,
+        nip05Verified: profile.nip05Verified,
+        picture: profile.picture || null,
+        about: profile.about || null,
+      });
+    },
+    [toggleFavorite],
+  );
   const showActions = useCallback(
     (profile: NostrProfile) => {
       const person = people[profile.npub];
@@ -268,6 +282,7 @@ export default function PeopleScreen() {
             }
             onPress={openProfile}
             onLongPress={showActions}
+            onFavorite={toggleProfileFavorite}
             onSend={send}
             showTopSeparator={index === 0}
           />
@@ -355,6 +370,7 @@ export default function PeopleScreen() {
               isFavorite={people[profile.npub]?.isFavorite}
               onPress={openProfile}
               onLongPress={showActions}
+              onFavorite={toggleProfileFavorite}
               onSend={send}
               showTopSeparator={index === 0}
             />

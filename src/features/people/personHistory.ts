@@ -38,7 +38,7 @@ export function filterPersonHistory(
           : null;
       return historyPubkey === targetPubkey;
     })
-    .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+    .sort((a, b) => Number(a.createdAt) - Number(b.createdAt));
 }
 
 export function getPersonPaymentStatus(entry: PersonHistoryEntry): string {

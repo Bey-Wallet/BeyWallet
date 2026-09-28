@@ -1,15 +1,18 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
-import { BadgeCheck, Send, Star } from '@tamagui/lucide-icons';
+import { Send, Star } from '@tamagui/lucide-icons';
 import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import type { NostrProfile } from '~/services/api/nostrProfileService';
+import { hasVerifiedNip05 } from '~/features/people/nip05';
 
 interface NostrProfileItemProps {
   profile: NostrProfile;
   onPress: (profile: NostrProfile) => void;
   onSend: (profile: NostrProfile) => void;
+  onFavorite?: (profile: NostrProfile) => void;
   onLongPress?: (profile: NostrProfile) => void;
   isFavorite?: boolean;
   context?: string;
@@ -25,7 +28,16 @@ export function getNostrProfileLabel(profile: NostrProfile): string {
 }
 
 export const NostrProfileItem = React.memo<NostrProfileItemProps>(
-  ({ profile, onPress, onSend, onLongPress, isFavorite, context, showTopSeparator = false }) => {
+  ({
+    profile,
+    onPress,
+    onSend,
+    onFavorite,
+    onLongPress,
+    isFavorite,
+    context,
+    showTopSeparator = false,
+  }) => {
     const [pictureFailed, setPictureFailed] = React.useState(false);
     const label = getNostrProfileLabel(profile);
     const subtitle =
@@ -70,20 +82,16 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
             </View>
             <YStack flex={1} mr="$2" justify="center" gap={2}>
               <XStack items="center" gap="$1" flex={1}>
-                {profile.nip05Verified && profile.nip05 === subtitle && (
-                  <BadgeCheck size={16} color="$color" strokeWidth={3} flexShrink={0} />
-                )}
                 <Text
                   fontSize="$4"
                   fontWeight="bold"
                   color="$accent4"
                   numberOfLines={1}
-                  flexShrink={1}
+                  style={{ flexShrink: 1 }}
                 >
                   {label}
                 </Text>
-
-                {isFavorite && <Star size={14} color="#ca8a04" fill="#ca8a04" flexShrink={0} />}
+                {hasVerifiedNip05(profile) && <Nip05VerifiedBadge />}
               </XStack>
               <XStack items="center" gap="$1">
                 <Text fontSize="$2" color="$gray10" numberOfLines={1}>
@@ -102,17 +110,38 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               )}
             </YStack>
           </TouchableOpacity>
-          <Button
-            circular
-            size="$3"
-            bg="$gray3"
-            icon={<Send size={17} color="$color" />}
-            accessibilityLabel={`Send eCash to ${label}`}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              onSend(profile);
-            }}
-          />
+          <XStack items="center" gap="$1.5">
+            {onFavorite && (
+              <Button
+                circular
+                size="$3"
+                bg="$gray3"
+                icon={
+                  <Star
+                    size={17}
+                    color={isFavorite ? '#ca8a04' : '$color'}
+                    fill={isFavorite ? '#ca8a04' : 'transparent'}
+                  />
+                }
+                accessibilityLabel={isFavorite ? `Unfavorite ${label}` : `Favorite ${label}`}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onFavorite(profile);
+                }}
+              />
+            )}
+            <Button
+              circular
+              size="$3"
+              bg="$gray3"
+              icon={<Send size={17} color="$color" />}
+              accessibilityLabel={`Send eCash to ${label}`}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onSend(profile);
+              }}
+            />
+          </XStack>
         </XStack>
         <Separator borderColor="$borderColor" opacity={0.3} />
       </YStack>

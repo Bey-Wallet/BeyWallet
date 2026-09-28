@@ -33,7 +33,7 @@ describe('person payment history', () => {
       NPUB,
     );
 
-    expect(entries.map((entry) => entry.id)).toEqual(['received', 'sent']);
+    expect(entries.map((entry) => entry.id)).toEqual(['sent', 'received']);
   });
 
   it('uses wallet state to label claimed and pending payments', () => {

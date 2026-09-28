@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -7,13 +7,24 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useQuery } from '@tanstack/react-query';
 
-import { BadgeCheck, Check, Clock3, Copy, WalletCards, XCircle } from '@tamagui/lucide-icons';
+import {
+  Check,
+  Clock3,
+  Copy,
+  QrCode,
+  UserRound,
+  WalletCards,
+  XCircle,
+} from '@tamagui/lucide-icons';
 
 import { Button, Image, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
+import { hasVerifiedNip05 } from '~/features/people/nip05';
 
 import Blockies from '~/shared/ui/Blockies';
+import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 
 import { usePeopleStore } from '~/state/peopleStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -96,6 +107,9 @@ export default function PersonDetailsScreen() {
   const [profileLoading, setProfileLoading] = useState(true);
 
   const [pictureFailed, setPictureFailed] = useState(false);
+  const [showNpubQr, setShowNpubQr] = useState(false);
+  const historyScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const didScrollToLatestRef = useRef(false);
 
   const savedPerson = npub ? people[npub] : undefined;
 
@@ -178,6 +192,19 @@ export default function PersonDetailsScreen() {
     [history, npub],
   );
 
+  useEffect(() => {
+    didScrollToLatestRef.current = false;
+  }, [npub]);
+
+  const scrollToLatestPayment = useCallback(() => {
+    if (historyLoading || !payments.length || didScrollToLatestRef.current) return;
+
+    didScrollToLatestRef.current = true;
+    requestAnimationFrame(() => {
+      historyScrollRef.current?.scrollToEnd({ animated: false });
+    });
+  }, [historyLoading, payments.length]);
+
   if (!npub) {
     return <Text p="$4">Invalid person</Text>;
   }
@@ -198,6 +225,14 @@ export default function PersonDetailsScreen() {
     'Nostr user';
 
   const resolvedNip05 = profile?.nip05 || savedPerson?.nip05 || nip05;
+  const nip05Verified = hasVerifiedNip05({
+    nip05: resolvedNip05,
+    nip05Verified: profile?.nip05
+      ? profile.nip05Verified === true
+      : savedPerson?.nip05
+        ? savedPerson.nip05Verified === true
+        : false,
+  });
 
   const picture = pictureFailed ? undefined : profile?.picture || savedPerson?.picture || undefined;
 
@@ -213,6 +248,11 @@ export default function PersonDetailsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     toast.show('Copied npub to clipboard');
+  };
+
+  const toggleNpubQr = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowNpubQr((visible) => !visible);
   };
 
   const pay = () => {
@@ -265,72 +305,36 @@ export default function PersonDetailsScreen() {
 
   return (
     <YStack flex={1} bg="$background">
-      <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-        <YStack px="$4" pb="$8">
-          {/* ------------------------------------------------
-              PROFILE
-          ------------------------------------------------ */}
+      <YStack flex={1} px="$4" gap="$4">
+        {/* ------------------------------------------------
+            PROFILE
+        ------------------------------------------------ */}
 
-          <YStack items="flex-start" gap="$3" pb="$5">
-            <YStack width={72} height={72} rounded={10} overflow="hidden" bg="$gray3">
-              {picture ? (
-                <Image
-                  source={{
-                    uri: picture,
-                  }}
-                  width={72}
-                  height={72}
-                  rounded={10}
-                  onError={() => setPictureFailed(true)}
+        <YStack height={200} rounded="$6" p="$3" bg="$gray2" overflow="hidden">
+          <Button
+            circular
+            chromeless
+            size="$3"
+            icon={showNpubQr ? <UserRound size={18} /> : <QrCode size={18} />}
+            onPress={toggleNpubQr}
+            accessibilityLabel={showNpubQr ? 'Show profile' : 'Show Nostr public key QR code'}
+            style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+          />
+
+          {showNpubQr ? (
+            <YStack flex={1} items="center" justify="center" gap="$2">
+              <YStack bg="white" rounded="$4" overflow="hidden">
+                <CustomQRCode
+                  value={npub}
+                  size={150}
+                  color="#000000"
+                  backgroundColor="#ffffff"
+                  dotShape="square"
+                  finderStyle="rounded"
                 />
-              ) : (
-                <Blockies
-                  seed={npub}
-                  size={12}
-                  scale={6}
-                  style={{
-                    borderRadius: 10,
-                  }}
-                />
-              )}
-            </YStack>
-
-            <YStack
-              flex={1}
-              gap="$2"
-              pt="$1"
-              style={{
-                minWidth: 0,
-              }}
-            >
-              <XStack items="center" gap="$1.5">
-                <Text
-                  fontSize="$7"
-                  fontWeight="900"
-                  numberOfLines={1}
-                  style={{
-                    flexShrink: 1,
-                  }}
-                >
-                  {resolvedDisplayName}
-                </Text>
-
-                {profileLoading && <Spinner size="small" />}
-              </XStack>
-
-              {resolvedNip05 ? (
-                <XStack items="center" gap="$1">
-                  <Text color="$gray10" fontSize="$3" numberOfLines={1}>
-                    {resolvedNip05}
-                  </Text>
-                  {profile?.nip05Verified && <BadgeCheck size={14} color="#16a34a" />}
-                </XStack>
-              ) : null}
+              </YStack>
 
               <Button
-                style={{
-                  alignSelf: 'flex-start',
-                }}
                 size="$2.5"
                 fontSize="$2"
                 rounded="$6"
@@ -341,176 +345,232 @@ export default function PersonDetailsScreen() {
                 {shortenedNpub(npub)}
               </Button>
             </YStack>
-          </YStack>
-
-          {/* ------------------------------------------------
-              PAYMENT CONVERSATION
-          ------------------------------------------------ */}
-
-          <YStack gap="$3">
-            <Text fontSize="$3" fontWeight="800" color="$gray10">
-              PAYMENT HISTORY
-            </Text>
-
-            {historyLoading ? (
-              <YStack items="center" py="$8">
-                <Spinner size="large" />
+          ) : (
+            <YStack flex={1} items="flex-start" gap="$3" justify="center">
+              <YStack width={72} height={72} rounded={10} overflow="hidden" bg="$gray3">
+                {picture ? (
+                  <Image
+                    source={{ uri: picture }}
+                    width={72}
+                    height={72}
+                    rounded={10}
+                    onError={() => setPictureFailed(true)}
+                  />
+                ) : (
+                  <Blockies seed={npub} size={12} scale={6} style={{ borderRadius: 10 }} />
+                )}
               </YStack>
-            ) : payments.length ? (
-              <YStack gap="$2.5">
-                {payments.map((entry) => {
-                  const outgoing = entry.type === 'send';
 
-                  const status = getPersonPaymentStatus(entry);
+              <YStack gap="$2" pr="$5" width="100%" style={{ minWidth: 0 }}>
+                <XStack items="center" gap="$1.5">
+                  <Text fontSize="$7" fontWeight="900" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    {resolvedDisplayName}
+                  </Text>
 
-                  const satsAmount = currencyService.formatSats(entry.amount);
-                  const fiatAmount =
-                    isFiatEnabled && btcData?.price
-                      ? currencyService.formatValue(
-                          currencyService.convertSatsToCurrency(entry.amount, btcData.price),
-                          secondaryCurrency as CurrencyCode,
-                        )
-                      : null;
-                  const showFiatFirst = primaryCurrency === 'FIAT' && !!fiatAmount;
-                  const primaryAmount = showFiatFirst ? fiatAmount : satsAmount;
-                  const secondaryAmount = showFiatFirst ? satsAmount : fiatAmount;
+                  {nip05Verified && <Nip05VerifiedBadge />}
+                  {profileLoading && <Spinner size="small" />}
+                </XStack>
 
-                  return (
-                    <XStack key={entry.id} justify={outgoing ? 'flex-end' : 'flex-start'}>
-                      <Button
-                        unstyled
+                {resolvedNip05 ? (
+                  <Text color="$gray10" fontSize="$3" numberOfLines={1}>
+                    {resolvedNip05}
+                  </Text>
+                ) : null}
 
-                        style={{
-                          maxWidth: '82%',
-                        }}
-
-                        onPress={() => openPayment(entry)}
-
-                        pressStyle={{
-                          opacity: 0.8,
-                          scale: 0.99,
-                        }}
-
-                        accessibilityLabel={`${
-                          outgoing ? 'Sent' : 'Received'
-                        } ${entry.amount} sats, ${status}`}
-                      >
-                        {/* RADAR-STYLE PAYMENT CARD */}
-
-                        <YStack
-                          bg={outgoing ? '$color' : '$gray3'}
-
-                          style={{ minWidth: 160, maxWidth: 240 }}
-
-                          rounded="$6"
-
-                          overflow="hidden"
-                        >
-                          {/* Main payment information */}
-
-                          <YStack px="$3" pt="$2.5" minH={100} justify="space-between" pb="$2.5">
-                            {/* Direction */}
-
-                            <Text
-                              fontSize={11}
-                              fontWeight="600"
-
-                              color={outgoing ? '$background' : '$gray10'}
-
-                              opacity={0.75}
-                            >
-                              {outgoing ? 'Sent ↗' : '↙ Received'}
-                            </Text>
-
-                            {/* Amount */}
-
-                            <XStack items="baseline" mt="$1">
-                              <Text
-                                fontSize={24}
-                                lineHeight={27}
-                                fontWeight="800"
-
-                                color={outgoing ? '$background' : '$color'}
-
-                                letterSpacing={-0.5}
-                              >
-                                {primaryAmount}
-                              </Text>
-                            </XStack>
-
-                            {/* Secondary currency + time + status */}
-
-                            <XStack justify="space-between" items="center" gap="$2" mt="$1">
-                              {secondaryAmount ? (
-                                <Text
-                                  fontSize={11}
-                                  fontWeight="600"
-                                  color={outgoing ? '$background' : '$gray10'}
-                                  opacity={outgoing ? 0.72 : 1}
-                                >
-                                  {secondaryAmount}
-                                </Text>
-                              ) : (
-                                <XStack />
-                              )}
-
-                              <XStack items="center" gap="$1">
-                                <Text
-                                  fontSize={10}
-                                  color={outgoing ? '$background' : '$gray9'}
-                                  opacity={outgoing ? 0.65 : 1}
-                                >
-                                  {formatPaymentTime(entry.createdAt)}
-                                </Text>
-
-                                {statusIcon(status, outgoing)}
-                              </XStack>
-                            </XStack>
-                          </YStack>
-                        </YStack>
-                      </Button>
-                    </XStack>
-                  );
-                })}
-              </YStack>
-            ) : (
-              /*
-               * ----------------------------------------------
-               * EMPTY STATE
-               * ----------------------------------------------
-               */
-
-              <YStack items="center" gap="$2" py="$8" px="$5">
-                <YStack
-                  width={52}
-                  height={52}
-                  rounded={26}
-                  bg="$gray3"
-                  items="center"
-                  justify="center"
+                <Button
+                  style={{ alignSelf: 'flex-start' }}
+                  theme="gray"
+                  size="$2.5"
+                  fontSize="$2"
+                  rounded="$4"
+                  fontWeight={800}
+                  iconAfter={<Copy strokeWidth={2.5} size={12} />}
+                  onPress={copyNpub}
+                  accessibilityLabel="Copy Nostr public key"
                 >
-                  <WalletCards size={23} color="#737373" />
-                </YStack>
-
-                <Text fontSize="$5" fontWeight="800">
-                  No payments yet
-                </Text>
-
-                <Text
-                  color="$gray9"
-                  fontSize="$3"
-
-                  style={{
-                    textAlign: 'center',
-                  }}
-                >
-                  Payments with {resolvedDisplayName} will appear here like a conversation.
-                </Text>
+                  {shortenedNpub(npub)}
+                </Button>
               </YStack>
-            )}
-          </YStack>
+            </YStack>
+          )}
         </YStack>
-      </ScrollView>
+
+        {/* ------------------------------------------------
+            PAYMENT CONVERSATION
+        ------------------------------------------------ */}
+
+        <YStack flex={1} gap="$3">
+          <Text fontSize="$3" fontWeight="800" color="$gray10">
+            PAYMENT HISTORY
+          </Text>
+
+          <ScrollView
+            ref={historyScrollRef}
+            flex={1}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={scrollToLatestPayment}
+          >
+            <YStack pb="$4">
+              {historyLoading ? (
+                <YStack items="center" py="$8">
+                  <Spinner size="large" />
+                </YStack>
+              ) : payments.length ? (
+                <YStack gap="$2.5">
+                  {payments.map((entry) => {
+                    const outgoing = entry.type === 'send';
+
+                    const status = getPersonPaymentStatus(entry);
+
+                    const satsAmount = currencyService.formatSats(entry.amount);
+                    const fiatAmount =
+                      isFiatEnabled && btcData?.price
+                        ? currencyService.formatValue(
+                            currencyService.convertSatsToCurrency(entry.amount, btcData.price),
+                            secondaryCurrency as CurrencyCode,
+                          )
+                        : null;
+                    const showFiatFirst = primaryCurrency === 'FIAT' && !!fiatAmount;
+                    const primaryAmount = showFiatFirst ? fiatAmount : satsAmount;
+                    const secondaryAmount = showFiatFirst ? satsAmount : fiatAmount;
+
+                    return (
+                      <XStack key={entry.id} justify={outgoing ? 'flex-end' : 'flex-start'}>
+                        <Button
+                          unstyled
+
+                          style={{
+                            maxWidth: '82%',
+                          }}
+
+                          onPress={() => openPayment(entry)}
+
+                          pressStyle={{
+                            opacity: 0.8,
+                            scale: 0.99,
+                          }}
+
+                          accessibilityLabel={`${
+                            outgoing ? 'Sent' : 'Received'
+                          } ${entry.amount} sats, ${status}`}
+                        >
+                          {/* RADAR-STYLE PAYMENT CARD */}
+
+                          <YStack
+                            bg={outgoing ? '$color' : '$gray3'}
+
+                            style={{ minWidth: 160, maxWidth: 240 }}
+
+                            rounded="$6"
+
+                            overflow="hidden"
+                          >
+                            {/* Main payment information */}
+
+                            <YStack px="$3" pt="$2.5" minH={100} justify="space-between" pb="$2.5">
+                              {/* Direction */}
+
+                              <Text
+                                fontSize={11}
+                                fontWeight="600"
+
+                                color={outgoing ? '$background' : '$gray10'}
+
+                                opacity={0.75}
+                              >
+                                {outgoing ? 'Sent ↗' : '↙ Received'}
+                              </Text>
+
+                              {/* Amount */}
+
+                              <XStack items="baseline" mt="$1">
+                                <Text
+                                  fontSize={24}
+                                  lineHeight={27}
+                                  fontWeight="800"
+
+                                  color={outgoing ? '$background' : '$color'}
+
+                                  letterSpacing={-0.5}
+                                >
+                                  {primaryAmount}
+                                </Text>
+                              </XStack>
+
+                              {/* Secondary currency + time + status */}
+
+                              <XStack justify="space-between" items="center" gap="$2" mt="$1">
+                                {secondaryAmount ? (
+                                  <Text
+                                    fontSize={11}
+                                    fontWeight="600"
+                                    color={outgoing ? '$background' : '$gray10'}
+                                    opacity={outgoing ? 0.72 : 1}
+                                  >
+                                    {secondaryAmount}
+                                  </Text>
+                                ) : (
+                                  <XStack />
+                                )}
+
+                                <XStack items="center" gap="$1">
+                                  <Text
+                                    fontSize={10}
+                                    color={outgoing ? '$background' : '$gray9'}
+                                    opacity={outgoing ? 0.65 : 1}
+                                  >
+                                    {formatPaymentTime(entry.createdAt)}
+                                  </Text>
+
+                                  {statusIcon(status, outgoing)}
+                                </XStack>
+                              </XStack>
+                            </YStack>
+                          </YStack>
+                        </Button>
+                      </XStack>
+                    );
+                  })}
+                </YStack>
+              ) : (
+                /*
+                 * ----------------------------------------------
+                 * EMPTY STATE
+                 * ----------------------------------------------
+                 */
+
+                <YStack items="center" gap="$2" py="$8" px="$5">
+                  <YStack
+                    width={52}
+                    height={52}
+                    rounded={26}
+                    bg="$gray3"
+                    items="center"
+                    justify="center"
+                  >
+                    <WalletCards size={23} color="#737373" />
+                  </YStack>
+
+                  <Text fontSize="$5" fontWeight="800">
+                    No payments yet
+                  </Text>
+
+                  <Text
+                    color="$gray9"
+                    fontSize="$3"
+
+                    style={{
+                      textAlign: 'center',
+                    }}
+                  >
+                    Payments with {resolvedDisplayName} will appear here like a conversation.
+                  </Text>
+                </YStack>
+              )}
+            </YStack>
+          </ScrollView>
+        </YStack>
+      </YStack>
 
       {/* ----------------------------------------------------
           BOTTOM ACTIONS
