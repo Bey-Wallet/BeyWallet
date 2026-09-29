@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Send, Star } from '@tamagui/lucide-icons';
+import { Send } from '@tamagui/lucide-icons';
 import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
@@ -12,9 +12,7 @@ interface NostrProfileItemProps {
   profile: NostrProfile;
   onPress: (profile: NostrProfile) => void;
   onSend: (profile: NostrProfile) => void;
-  onFavorite?: (profile: NostrProfile) => void;
   onLongPress?: (profile: NostrProfile) => void;
-  isFavorite?: boolean;
   context?: string;
   showTopSeparator?: boolean;
 }
@@ -28,16 +26,7 @@ export function getNostrProfileLabel(profile: NostrProfile): string {
 }
 
 export const NostrProfileItem = React.memo<NostrProfileItemProps>(
-  ({
-    profile,
-    onPress,
-    onSend,
-    onFavorite,
-    onLongPress,
-    isFavorite,
-    context,
-    showTopSeparator = false,
-  }) => {
+  ({ profile, onPress, onSend, onLongPress, context, showTopSeparator = false }) => {
     const [pictureFailed, setPictureFailed] = React.useState(false);
     const label = getNostrProfileLabel(profile);
     const subtitle =
@@ -111,25 +100,6 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
             </YStack>
           </TouchableOpacity>
           <XStack items="center" gap="$1.5">
-            {onFavorite && (
-              <Button
-                circular
-                size="$3"
-                bg="$gray3"
-                icon={
-                  <Star
-                    size={17}
-                    color={isFavorite ? '#ca8a04' : '$color'}
-                    fill={isFavorite ? '#ca8a04' : 'transparent'}
-                  />
-                }
-                accessibilityLabel={isFavorite ? `Unfavorite ${label}` : `Favorite ${label}`}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onFavorite(profile);
-                }}
-              />
-            )}
             <Button
               circular
               size="$3"

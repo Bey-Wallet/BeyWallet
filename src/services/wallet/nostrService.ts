@@ -6,8 +6,7 @@ import { decode as nip19Decode } from 'nostr-tools/nip19';
 import { Buffer } from 'buffer';
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
 // Removed top level walletService import to break require cycle.
-import { cleanToken } from '~/services/wallet/tokenUtils';
-import { getDecodedToken } from '@cashu/cashu-ts';
+import { decodeToken } from '~/services/wallet/tokenUtils';
 import { nostrRequestStore } from '~/state/nostrRequestStore';
 
 // ─── Relay List ───────────────────────────────────────────────────────────────
@@ -90,6 +89,9 @@ class NostrService {
   /** In-memory dedup cache. Cleared on stop. */
   private processedEvents = new Set<string>();
 
+  /** Prevent duplicate relay deliveries from processing the same event concurrently. */
+  private processingEvents = new Set<string>();
+
   /** AppState subscription reference */
   private appStateSub: any = null;
 
@@ -161,6 +163,7 @@ class NostrService {
       this.pool = null;
     }
     this.processedEvents.clear();
+    this.processingEvents.clear();
     this.isRunning = false;
     this.privkeyHex = null;
     this.pubkeyHex = null;
@@ -181,8 +184,11 @@ class NostrService {
 
     this.pool.subscribeMany(RELAYS, filter, {
       onevent: (event: Event) => {
-        this._processEvent(event).catch(() => {
-          /* silent */
+        this._processEvent(event).catch((error) => {
+          console.warn(
+            `[NostrService] Event ${event.id.slice(0, 8)}… escaped processing:`,
+            error instanceof Error ? error.message : 'unknown error',
+          );
         });
       },
       oneose: () => {
@@ -247,37 +253,47 @@ class NostrService {
   // ── Event Processing ───────────────────────────────────────────────────────
 
   private async _processEvent(event: Event): Promise<void> {
-    if (this.processedEvents.has(event.id)) return;
-    this.processedEvents.add(event.id);
-
     if (!this.privkeyHex || !this.pubkeyHex || !this.privkeyBytes) return;
-
-    // Skip our own outgoing events UNLESS it's a self-send (sender = recipient).
-    // When you send to yourself, the event's author is you AND the #p tag is also you.
-    if (event.pubkey === this.pubkeyHex) {
-      const pTags = event.tags.filter((t) => t[0] === 'p').map((t) => t[1]);
-      const isSelfSend = pTags.includes(this.pubkeyHex!);
-      if (!isSelfSend) {
-        return; // Outgoing event to someone else — skip
-      }
-      // Self-send — continue processing as incoming payment
-      console.log(
-        `[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`,
-      );
-    }
-
-    console.log(
-      `[NostrService] Event ${event.id.slice(0, 8)}… kind=${event.kind} from ${event.pubkey.slice(0, 8)}…`,
-    );
+    if (this.processedEvents.has(event.id) || this.processingEvents.has(event.id)) return;
+    this.processingEvents.add(event.id);
 
     try {
+      // Skip our own outgoing events UNLESS it's a self-send (sender = recipient).
+      // When you send to yourself, the event's author is you AND the #p tag is also you.
+      if (event.pubkey === this.pubkeyHex) {
+        const pTags = event.tags.filter((t) => t[0] === 'p').map((t) => t[1]);
+        const isSelfSend = pTags.includes(this.pubkeyHex!);
+        if (!isSelfSend) {
+          this.processedEvents.add(event.id);
+          return; // Outgoing event to someone else — skip
+        }
+        // Self-send — continue processing as incoming payment
+        console.log(
+          `[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`,
+        );
+      }
+
+      console.log(
+        `[NostrService] Event ${event.id.slice(0, 8)}… kind=${event.kind} from ${event.pubkey.slice(0, 8)}…`,
+      );
+
       const decrypted = await this._decrypt(event);
-      if (decrypted === null) return;
+      if (decrypted === null) {
+        console.warn(
+          `[NostrService] Event ${event.id.slice(0, 8)}… could not be decrypted; it remains retryable`,
+        );
+        return;
+      }
 
       await this._handleDecrypted(decrypted.text, event, decrypted.senderPubkey);
-    } catch (err) {
-      // Decryption failure is normal if the key is wrong — do not log as error
-      // console.debug(`[NostrService] Could not process event ${event.id}:`, err);
+      this.processedEvents.add(event.id);
+    } catch (error) {
+      console.warn(
+        `[NostrService] Event ${event.id.slice(0, 8)}… processing failed; it remains retryable:`,
+        error instanceof Error ? error.message : 'unknown error',
+      );
+    } finally {
+      this.processingEvents.delete(event.id);
     }
   }
 
@@ -372,7 +388,7 @@ class NostrService {
         const { PaymentRequest } = await import('@cashu/cashu-ts');
         const pr = PaymentRequest.fromEncodedRequest(creqString);
         if (pr.amount && pr.mints && pr.mints.length > 0) {
-          const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
+          const { useNostrInboxStore } = require('~/state/nostrInboxStore');
           const senderUsername = await this.getSenderUsername(senderPubkey);
 
           useNostrInboxStore.getState().addIncoming({
@@ -396,25 +412,29 @@ class NostrService {
     let mintUrl = '';
     let requestIdFromPayload: string | undefined = undefined;
 
-    // First try to parse as JSON PaymentRequestPayload (used by cashu.me for request fulfillment)
+    // First try to parse a NUT-18 PaymentRequestPayload used by interoperable wallets.
     try {
       const payload = JSON.parse(text);
-      if (payload && payload.proofs && payload.mint) {
+      if (
+        payload &&
+        Array.isArray(payload.proofs) &&
+        payload.proofs.length > 0 &&
+        typeof payload.mint === 'string'
+      ) {
         console.log(
           `[NostrService] 🎉 Found JSON PaymentRequestPayload in event ${sourceEvent.id.slice(0, 8)}…`,
         );
 
-        // Convert to standard V3/V4 token structure so our existing receive logic works
+        // Convert the payload to a V3 token, then pass it through the same decoder and
+        // validation path used for cashuA/cashuB messages.
         const tokenStruct = {
           token: [{ mint: payload.mint, proofs: payload.proofs }],
+          unit: typeof payload.unit === 'string' ? payload.unit : 'sat',
         };
 
         const b64 = Buffer.from(JSON.stringify(tokenStruct)).toString('base64');
         tokenString = `cashuA${b64}`;
-
-        mintUrl = payload.mint;
-        amount = payload.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-        requestIdFromPayload = payload.id;
+        requestIdFromPayload = typeof payload.id === 'string' ? payload.id : undefined;
       }
     } catch {
       // Not JSON, fallback to regex search for cashuA/cashuB strings
@@ -430,105 +450,17 @@ class NostrService {
       console.log(
         `[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`,
       );
+    }
 
-      const cleaned = cleanToken(tokenString);
-      const rawStr = cleaned.startsWith('cashu') ? cleaned.substring(5) : cleaned;
-
-      if (rawStr.startsWith('B')) {
-        // ── V4 CBOR token: manual byte scanning (no keyset lookup needed) ──
-        try {
-          const b64 = rawStr.substring(1); // strip version byte 'B'
-          const b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
-          const pad = (4 - (b64std.length % 4)) % 4;
-          const b64padded = b64std + '=='.substring(0, pad);
-          const bytes = new Uint8Array(Buffer.from(b64padded, 'base64'));
-
-          // Extract mint URL: find CBOR key "m" (0x61 0x6d)
-          for (let i = 0; i < bytes.length - 2; i++) {
-            if (bytes[i] === 0x61 && bytes[i + 1] === 0x6d) {
-              // "m" key
-              const lenByte = bytes[i + 2];
-              const major = (lenByte >> 5) & 0x07;
-              const info = lenByte & 0x1f;
-              if (major === 3) {
-                // text string
-                let urlLen = 0;
-                let urlStart = 0;
-                if (info < 24) {
-                  urlLen = info;
-                  urlStart = i + 3;
-                } else if (info === 24 && i + 4 < bytes.length) {
-                  urlLen = bytes[i + 3];
-                  urlStart = i + 4;
-                } else if (info === 25 && i + 5 < bytes.length) {
-                  urlLen = (bytes[i + 3] << 8) | bytes[i + 4];
-                  urlStart = i + 5;
-                }
-                if (urlLen > 0 && urlStart + urlLen <= bytes.length) {
-                  const url = new TextDecoder().decode(bytes.slice(urlStart, urlStart + urlLen));
-                  if (url.startsWith('http')) mintUrl = url;
-                }
-              }
-              break;
-            }
-          }
-
-          // Extract total amount: find CBOR key "a" (0x61 0x61) — each proof has an 'a' field
-          // Sum all small unsigned ints that follow 'a' keys
-          let totalAmount = 0;
-          for (let i = 0; i < bytes.length - 2; i++) {
-            if (bytes[i] === 0x61 && bytes[i + 1] === 0x61) {
-              // "a" key
-              const valByte = bytes[i + 2];
-              const valMajor = (valByte >> 5) & 0x07;
-              const valInfo = valByte & 0x1f;
-              if (valMajor === 0) {
-                // unsigned int
-                if (valInfo < 24) {
-                  totalAmount += valInfo;
-                } else if (valInfo === 24 && i + 3 < bytes.length) {
-                  totalAmount += bytes[i + 3];
-                } else if (valInfo === 25 && i + 4 < bytes.length) {
-                  totalAmount += (bytes[i + 3] << 8) | bytes[i + 4];
-                } else if (valInfo === 26 && i + 6 < bytes.length) {
-                  totalAmount +=
-                    (bytes[i + 3] << 24) |
-                    (bytes[i + 4] << 16) |
-                    (bytes[i + 5] << 8) |
-                    bytes[i + 6];
-                }
-              }
-            }
-          }
-          amount = totalAmount;
-
-          if (!mintUrl) {
-            console.error('[NostrService] V4 token: could not extract mint URL');
-            return;
-          }
-          console.log(`[NostrService] V4 CBOR parsed: mint=${mintUrl}, amount=${amount}`);
-        } catch (err: any) {
-          console.error('[NostrService] V4 CBOR parse error:', err?.message);
-          return;
-        }
-      } else {
-        // ── V3 JSON token: getDecodedToken is safe for V3 ──
-        try {
-          const decoded = getDecodedToken(cleaned);
-
-          if ((decoded as any).token && (decoded as any).token.length > 0) {
-            const first = (decoded as any).token[0];
-            mintUrl = first.mint;
-            amount = first.proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-          } else if ((decoded as any).mint && (decoded as any).proofs) {
-            mintUrl = (decoded as any).mint;
-            amount = (decoded as any).proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-          }
-        } catch (err: any) {
-          console.error('[NostrService] V3 token decode failed:', err?.message);
-          return;
-        }
-      }
+    try {
+      const decoded = decodeToken(tokenString);
+      mintUrl = decoded.mint;
+      amount = decoded.amount;
+    } catch {
+      console.warn(
+        `[NostrService] Event ${sourceEvent.id.slice(0, 8)}… contained an invalid token`,
+      );
+      return;
     }
 
     if (
@@ -548,7 +480,7 @@ class NostrService {
 
     // Persist before emitting the UI event. DeviceEventEmitter is ephemeral,
     // so without this handoff a payment received off the Home tab can vanish.
-    const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
+    const { useNostrInboxStore } = require('~/state/nostrInboxStore');
     useNostrInboxStore.getState().addIncoming({
       id: sourceEvent.id,
       type: 'token',
@@ -562,9 +494,8 @@ class NostrService {
 
     // Claiming is owned by a non-React wallet service. Load it lazily to keep
     // the Nostr transport independent from wallet lifecycle modules.
-    void import('~/services/wallet/nostrClaimService').then(({ nostrClaimService }) =>
-      nostrClaimService.enqueue(sourceEvent.id),
-    );
+    const { nostrClaimService } = require('~/services/wallet/nostrClaimService');
+    await nostrClaimService.enqueue(sourceEvent.id);
 
     // ── Queue for manual claim via NostrClaimSheet ──────────────────────
     // Emit 'nostr:incoming' so the UI can present a claim sheet where the

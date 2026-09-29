@@ -13,7 +13,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
-import { selectSortedPeople, type Person, usePeopleStore } from '~/state/peopleStore';
+import { selectPeopleByRecency, type Person, usePeopleStore } from '~/state/peopleStore';
 import { type NostrInboxItem, useNostrInboxStore } from '~/state/nostrInboxStore';
 import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
 import { historyService } from '~/services/wallet/historyService';
@@ -135,7 +135,7 @@ export default function PeopleScreen() {
   }, [historyInteractions, inboxItems]);
 
   const sortedPeople = useMemo(
-    () => selectSortedPeople({ people } as any, interactions),
+    () => selectPeopleByRecency({ people } as any, interactions),
     [interactions, people],
   );
   const localProfiles = useMemo(
@@ -194,20 +194,6 @@ export default function PeopleScreen() {
         },
       }),
     [router],
-  );
-  const toggleProfileFavorite = useCallback(
-    (profile: NostrProfile) => {
-      toggleFavorite(profile.npub, {
-        npub: profile.npub,
-        username: profile.name || null,
-        displayName: profile.displayName || null,
-        nip05: profile.nip05 || null,
-        nip05Verified: profile.nip05Verified,
-        picture: profile.picture || null,
-        about: profile.about || null,
-      });
-    },
-    [toggleFavorite],
   );
   const showActions = useCallback(
     (profile: NostrProfile) => {
@@ -276,13 +262,11 @@ export default function PeopleScreen() {
           <NostrProfileItem
             key={profile.pubkeyHex}
             profile={profile}
-            isFavorite={people[profile.npub]?.isFavorite}
             context={
               timestamp ? `Last interaction ${new Date(timestamp).toLocaleDateString()}` : undefined
             }
             onPress={openProfile}
             onLongPress={showActions}
-            onFavorite={toggleProfileFavorite}
             onSend={send}
             showTopSeparator={index === 0}
           />
@@ -367,10 +351,8 @@ export default function PeopleScreen() {
             <NostrProfileItem
               key={profile.pubkeyHex}
               profile={profile}
-              isFavorite={people[profile.npub]?.isFavorite}
               onPress={openProfile}
               onLongPress={showActions}
-              onFavorite={toggleProfileFavorite}
               onSend={send}
               showTopSeparator={index === 0}
             />

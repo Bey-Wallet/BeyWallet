@@ -501,7 +501,6 @@ export function NostrSendStage({
                   <NostrProfileItem
                     key={profile.pubkeyHex}
                     profile={profile}
-                    isFavorite={people[profile.npub]?.isFavorite}
                     onPress={selectProfile}
                     onSend={selectProfile}
                     showTopSeparator={index === 0}
@@ -518,7 +517,6 @@ export function NostrSendStage({
                         <NostrProfileItem
                           key={profile.pubkeyHex}
                           profile={profile}
-                          isFavorite
                           onPress={selectProfile}
                           onSend={selectProfile}
                           showTopSeparator={index === 0}
@@ -536,7 +534,6 @@ export function NostrSendStage({
                         <NostrProfileItem
                           key={profile.pubkeyHex}
                           profile={profile}
-                          isFavorite={people[profile.npub]?.isFavorite}
                           onPress={selectProfile}
                           onSend={selectProfile}
                           showTopSeparator={index === 0}

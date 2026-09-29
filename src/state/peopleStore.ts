@@ -140,6 +140,20 @@ export function selectSortedPeople(
   });
 }
 
+export function selectPeopleByRecency(
+  state: PeopleState,
+  interactionByNpub: Record<string, number> = {},
+): Person[] {
+  return Object.values(state.people)
+    .map((person, index) => ({ person, index }))
+    .sort((a, b) => {
+      const aTime = interactionByNpub[a.person.npub] || 0;
+      const bTime = interactionByNpub[b.person.npub] || 0;
+      return bTime - aTime || a.index - b.index;
+    })
+    .map(({ person }) => person);
+}
+
 export function selectPendingActionCount(items: NostrInboxItem[]): number {
   return items.filter(
     (item) =>

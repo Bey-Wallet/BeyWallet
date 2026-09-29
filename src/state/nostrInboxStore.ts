@@ -94,16 +94,17 @@ export const useNostrInboxStore = create<NostrInboxState>()(
           seen: false,
         };
 
-        if (item.senderUsername) {
-          import('~/state/peopleStore').then(({ usePeopleStore }) => {
-            usePeopleStore.getState().updatePerson({
-              npub: item.senderPubkey,
-              username: item.senderUsername,
-            });
-          });
-        }
-
         set((s) => ({ items: [newItem, ...s.items] }));
+
+        try {
+          const { usePeopleStore } = require('~/state/peopleStore');
+          usePeopleStore.getState().savePerson({
+            npub: item.senderPubkey,
+            username: item.senderUsername,
+          });
+        } catch {
+          // The payment is already persisted; contact hydration can retry later.
+        }
         console.log(
           `[NostrInboxStore] Queued incoming: ${item.amount} sats from ${item.senderPubkey.slice(0, 8)}…`,
         );

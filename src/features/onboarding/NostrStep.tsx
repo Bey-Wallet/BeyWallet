@@ -5,17 +5,8 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'rea
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '~/state/settingsStore';
 import { nip19 } from 'nostr-tools';
-import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
-
-/** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-  }
-  return bytes;
-}
+import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 
 interface NostrStepProps {
   onComplete: () => void;
@@ -69,52 +60,6 @@ async function checkAvailability(username: string): Promise<'available' | 'taken
     return 'error';
   } catch {
     return 'error';
-  }
-}
-
-async function registerUsername(
-  username: string,
-  hexPubkey: string,
-  hexPrivkey: string,
-): Promise<{ ok: boolean; error?: string; nip05?: string }> {
-  try {
-    const privkeyBytes = hexToBytes(hexPrivkey);
-    const proofEvent = finalizeEvent(
-      {
-        kind: 22242,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
-        content: JSON.stringify({
-          username: username.toLowerCase(),
-          domain: DOMAIN,
-          action: 'register',
-        }),
-      },
-      privkeyBytes,
-    );
-
-    const res = await fetch(`${API_BASE}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: username.toLowerCase(),
-        pubkey: hexPubkey,
-        proofEvent,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      const errMsg = data?.error || `Server error ${res.status}`;
-      return { ok: false, error: errMsg };
-    }
-
-    const data = await res.json().catch(() => null);
-    if (!data?.success) return { ok: false, error: 'Registration response invalid' };
-
-    return { ok: true, nip05: data.nip05 };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Network error' };
   }
 }
 
@@ -175,10 +120,10 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
     setIsRegistering(true);
     setErrorMsg(null);
     try {
-      const result = await registerUsername(input, hexPub, hexSec);
+      const result = await nostrIdentityService.registerUsername(input, hexPub, hexSec);
       console.log('[NostrStep] Registration result:', JSON.stringify(result));
       if (result.ok) {
-        const identifier = `${input}@${DOMAIN}`;
+        const identifier = result.nip05!;
         await setNip05(identifier);
         console.log(`[NostrStep] ✅ Username claimed: ${identifier}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

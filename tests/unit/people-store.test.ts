@@ -1,8 +1,8 @@
 import { nip19 } from 'nostr-tools';
 import {
   migrateLegacyPeople,
+  selectPeopleByRecency,
   selectPendingActionCount,
-  selectSortedPeople,
 } from '~/state/peopleStore';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
@@ -31,7 +31,7 @@ describe('unified People state', () => {
     });
   });
 
-  it('sorts favorites first and then by derived interaction time', () => {
+  it('sorts strictly by derived interaction time regardless of favorite state', () => {
     const state = {
       people: {
         [first]: { npub: first, displayName: 'Alice', isFavorite: false },
@@ -39,10 +39,10 @@ describe('unified People state', () => {
       },
     } as any;
 
-    expect(selectSortedPeople(state, { [first]: 200, [second]: 100 }).map((p) => p.npub)).toEqual([
-      second,
-      first,
-    ]);
+    expect(
+      selectPeopleByRecency(state, { [first]: 200, [second]: 100 }).map((p) => p.npub),
+    ).toEqual([first, second]);
+    expect(selectPeopleByRecency(state).map((p) => p.npub)).toEqual([first, second]);
     expect(state.people[first]).toBeDefined();
   });
 

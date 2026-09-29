@@ -22,10 +22,25 @@ import { walletFileService } from '~/services/platform/walletFileService';
 import { ActivityIndicator, Alert } from 'react-native';
 import { YStack, Text } from 'tamagui';
 import { DEFAULT_MINT } from '~/state/constants';
-import { generateDeterministicUsername, registerNip05Username } from '~/shared/utils/username';
+import { generateDeterministicUsername } from '~/shared/utils/username';
+import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 import { Buffer } from 'buffer';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function chooseUsernameFailureAction(message: string): Promise<'retry' | 'continue'> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Username registration failed',
+      `${message}\n\nYou can retry, or continue using your npub and add a username later in Settings.`,
+      [
+        { text: 'Continue with npub', onPress: () => resolve('continue') },
+        { text: 'Retry', onPress: () => resolve('retry') },
+      ],
+      { cancelable: false },
+    );
+  });
+}
 
 export function OnboardingScreen() {
   const {
@@ -54,6 +69,35 @@ export function OnboardingScreen() {
   // Extra mints from a backup file
   const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([]);
   const [hasSavedWallet, setHasSavedWallet] = useState(false);
+
+  const registerOnboardingUsername = async (
+    username: string,
+    pubkeyHex: string,
+    privkeyHex: string,
+    offline: boolean,
+    skipUsername: boolean,
+  ) => {
+    if (offline || skipUsername) {
+      await useSettingsStore.getState().setNip05(null);
+      return;
+    }
+
+    while (true) {
+      setFinishingStatus('Registering username…');
+      const result = await nostrIdentityService.registerUsername(username, pubkeyHex, privkeyHex);
+      if (result.ok && result.nip05) {
+        await useSettingsStore.getState().setNip05(result.nip05);
+        return;
+      }
+
+      // Never persist an identity until the public NIP-05 mapping is verified.
+      await useSettingsStore.getState().setNip05(null);
+      const action = await chooseUsernameFailureAction(
+        result.error || 'The public NIP-05 record could not be verified.',
+      );
+      if (action === 'continue') return;
+    }
+  };
 
   // Check on mount if a wallet exists but onboarding was not completed
   React.useEffect(() => {
@@ -166,25 +210,7 @@ export function OnboardingScreen() {
 
         await initialize();
 
-        // NIP-05 registration: only if online and not skipping username
-        if (!offline && !skipUsername) {
-          try {
-            setFinishingStatus('Registering profile…');
-            const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex);
-            if (registerResult.ok && registerResult.nip05) {
-              await useSettingsStore.getState().setNip05(registerResult.nip05);
-            } else {
-              await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`);
-            }
-          } catch (err) {
-            console.warn('[Onboarding] NIP-05 registration failed, setting fallback:', err);
-            await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`);
-          }
-        } else {
-          // Offline or user skipped username — nip05 stays null
-          console.log('[Onboarding] Skipping NIP-05 registration (offline or user chose to skip)');
-          await useSettingsStore.getState().setNip05(null);
-        }
+        await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
 
         // Only add default mint if online
         if (!offline) {
@@ -213,25 +239,7 @@ export function OnboardingScreen() {
         await useSettingsStore.getState().initialize(true);
         await initialize();
 
-        // NIP-05 registration: only if online and not skipping username
-        if (!offline && !skipUsername) {
-          try {
-            setFinishingStatus('Registering username…');
-            const registerResult = await registerNip05Username(username, pubkeyHex, privkeyHex);
-            if (registerResult.ok && registerResult.nip05) {
-              await useSettingsStore.getState().setNip05(registerResult.nip05);
-            } else {
-              await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`);
-            }
-          } catch (err) {
-            console.warn('[Onboarding] NIP-05 registration failed, setting fallback:', err);
-            await useSettingsStore.getState().setNip05(`${username.toLowerCase()}@bey.cash`);
-          }
-        } else {
-          // Offline or user skipped username — nip05 stays null
-          console.log('[Onboarding] Skipping NIP-05 registration (offline or user chose to skip)');
-          await useSettingsStore.getState().setNip05(null);
-        }
+        await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
 
         // Only add default mint if online
         if (!offline) {
@@ -248,6 +256,10 @@ export function OnboardingScreen() {
       }
     } catch (err) {
       console.error('[Onboarding] Onboarding completion failed:', err);
+      Alert.alert(
+        'Setup could not finish',
+        err instanceof Error ? err.message : 'Please try again.',
+      );
     } finally {
       setIsFinishing(false);
     }

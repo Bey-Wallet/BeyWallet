@@ -1,6 +1,4 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { finalizeEvent } from 'nostr-tools/pure';
-import { Buffer } from 'buffer';
 
 const ADJECTIVES = [
   'bold',
@@ -68,17 +66,6 @@ const ANIMALS = [
   'wasp',
 ];
 
-const DOMAIN = 'bey.cash';
-const API_BASE = 'https://bey.cash/api';
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-  }
-  return bytes;
-}
-
 /**
  * Generates a human-friendly, unique, and deterministic username
  * based on the user's Nostr public key.
@@ -113,54 +100,5 @@ export function generateDeterministicUsername(pubkeyHex: string): string {
     return `${adjective}${animal}${suffix}`;
   } catch (e) {
     return `user${pubkeyHex.slice(-4).toLowerCase()}`;
-  }
-}
-
-/**
- * Registers a NIP-05 username on the bey.cash API registry.
- */
-export async function registerNip05Username(
-  username: string,
-  hexPubkey: string,
-  hexPrivkey: string,
-): Promise<{ ok: boolean; error?: string; nip05?: string }> {
-  try {
-    const privkeyBytes = hexToBytes(hexPrivkey);
-    const proofEvent = finalizeEvent(
-      {
-        kind: 22242,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
-        content: JSON.stringify({
-          username: username.toLowerCase(),
-          domain: DOMAIN,
-          action: 'register',
-        }),
-      },
-      privkeyBytes,
-    );
-
-    const res = await fetch(`${API_BASE}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: username.toLowerCase(),
-        pubkey: hexPubkey,
-        proofEvent,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      const errMsg = data?.error || `Server error ${res.status}`;
-      return { ok: false, error: errMsg };
-    }
-
-    const data = await res.json().catch(() => null);
-    if (!data?.success) return { ok: false, error: 'Registration response invalid' };
-
-    return { ok: true, nip05: data.nip05 };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Network error' };
   }
 }

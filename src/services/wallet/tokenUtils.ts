@@ -300,7 +300,6 @@ function decodeV4TokenManually(
  */
 export function decodeToken(tokenString: string): DecodedTokenPreview {
   const cleaned = cleanToken(tokenString);
-  console.log('[decodeToken] input prefix:', cleaned.substring(0, 40));
 
   // ── Primary: @cashu/cashu-ts — handles V3 (JSON) AND V4 (CBOR) ──────────
   try {
