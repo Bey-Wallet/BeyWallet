@@ -20,7 +20,6 @@ import {
   Nfc,
   Globe,
   ChevronRight,
-  UsersRound,
   Clock,
   AlertCircle,
   X,
@@ -716,27 +715,6 @@ export function PendingTokenLayout({
               <Nfc size={24} color="$color" />
               <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
                 NFC Send
-              </Text>
-            </XStack>
-
-            {/* Nostr Send */}
-            <XStack
-              py="$3.5"
-              px="$2"
-              items="center"
-              gap="$4"
-              pressStyle={{ opacity: 0.6 }}
-              disabled={!!displayNpub}
-              opacity={displayNpub ? 0.4 : 1}
-              onPress={() => {
-                shareSheetRef.current?.dismiss();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                toast.show('Nostr Send', { message: 'Nostr sending is not implemented yet' });
-              }}
-            >
-              <UsersRound size={24} color="$color" />
-              <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
-                Nostr Send
               </Text>
             </XStack>
 

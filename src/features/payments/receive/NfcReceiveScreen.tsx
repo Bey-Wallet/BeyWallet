@@ -242,16 +242,27 @@ export default function NFCReceiveScreen() {
 
         if (nostrTarget) {
           const mnemonic = await seedService.getMnemonic();
-          if (mnemonic) {
-            const keys = await seedService.getNostrKeys(mnemonic);
-            const decodedToken = decodeToken(tokenString);
-            const payloadObj = {
-              id: pr.id,
-              mint: targetMint,
-              unit: pr.unit || 'sat',
-              proofs: decodedToken.proofs || [],
-            };
-            await sendNostrToken(JSON.stringify(payloadObj), nostrTarget, keys.privkey);
+          if (!mnemonic) {
+            throw new Error('Wallet seed is unavailable. The Nostr payment was not sent.');
+          }
+
+          const keys = await seedService.getNostrKeys(mnemonic);
+          const decodedToken = decodeToken(tokenString);
+          const payloadObj = {
+            id: pr.id,
+            mint: targetMint,
+            unit: pr.unit || 'sat',
+            proofs: decodedToken.proofs || [],
+          };
+          const published = await sendNostrToken(
+            JSON.stringify(payloadObj),
+            nostrTarget,
+            keys.privkey,
+          );
+          if (!published) {
+            throw new Error(
+              'No Nostr relay accepted the payment. Open History to recover or share the token.',
+            );
           }
 
           setReceiveState('paid');

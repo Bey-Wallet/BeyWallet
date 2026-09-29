@@ -195,29 +195,29 @@ export function NostrUsernameScreen() {
 
     setIsRegistering(true);
     try {
-      // 1. If editing, first unregister the old username from the network
-      if (isEditing && oldUsername && oldUsername.toLowerCase() !== input.toLowerCase()) {
-        console.log(`[NostrUsername] Releasing old username: ${oldUsername}`);
-        const deleteResult = await unregisterUsername(oldUsername, hexPub, hexSec);
-        if (!deleteResult.ok) {
-          toast.show('Warning', {
-            message: `Could not release old name: ${deleteResult.error}`,
-            duration: 4000,
-          });
-        }
-      }
-
-      // 2. Register the new username
       const result = await nostrIdentityService.registerUsername(input, hexPub, hexSec);
       if (result.ok) {
         const identifier = result.nip05!;
+        let oldUsernameReleaseError: string | undefined;
+
+        // Preserve the current identity until the replacement is confirmed registered.
+        if (isEditing && oldUsername && oldUsername.toLowerCase() !== input.toLowerCase()) {
+          console.log(`[NostrUsername] Releasing old username: ${oldUsername}`);
+          const deleteResult = await unregisterUsername(oldUsername, hexPub, hexSec);
+          if (!deleteResult.ok) {
+            oldUsernameReleaseError = deleteResult.error || 'Unknown registry error';
+          }
+        }
+
         await setNip05(identifier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast.show('Username Updated! 🎉', {
-          message: result.profilePublished
-            ? `You are now ${identifier}`
-            : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
-          duration: 4000,
+          message: oldUsernameReleaseError
+            ? `${identifier} is active, but ${oldUsername}@${DOMAIN} could not be released: ${oldUsernameReleaseError}`
+            : result.profilePublished
+              ? `You are now ${identifier}`
+              : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
+          duration: oldUsernameReleaseError ? 6000 : 4000,
         });
         setInput('');
         setCheckState('idle');

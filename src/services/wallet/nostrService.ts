@@ -61,6 +61,13 @@ const LISTENED_KINDS = [4, 13, 14, 1059];
 const SINCE_SECONDS = 7 * 24 * 60 * 60; // Recover messages after several days offline
 const MAX_NOSTR_PAYMENT_MESSAGE_LENGTH = 64 * 1024;
 
+export async function hasSuccessfulRelayPublish(
+  publishAttempts: Promise<unknown>[],
+): Promise<boolean> {
+  const results = await Promise.allSettled(publishAttempts);
+  return results.some((result) => result.status === 'fulfilled');
+}
+
 interface DecryptedNostrMessage {
   text: string;
   senderPubkey: string;
@@ -828,6 +835,7 @@ class NostrService {
       console.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e);
     }
 
+    const ownsPool = this.pool === null;
     const pool = this.pool ?? new SimplePool();
 
     console.log(
@@ -835,11 +843,17 @@ class NostrService {
     );
 
     try {
-      const promises = [Promise.any(pool.publish(RELAYS, nip04Event))];
+      const publishAttempts: Promise<unknown>[] = [Promise.any(pool.publish(RELAYS, nip04Event))];
       if (nip17Event) {
-        promises.push(Promise.any(pool.publish(RELAYS, nip17Event)));
+        publishAttempts.push(Promise.any(pool.publish(RELAYS, nip17Event)));
       }
-      await Promise.allSettled(promises);
+
+      const published = await hasSuccessfulRelayPublish(publishAttempts);
+      if (!published) {
+        console.error('[NostrService] Failed to publish token to any relay.');
+        return false;
+      }
+
       console.log(`[NostrService] ✅ Token published via Nostr.`);
 
       // Emit event for UI
@@ -852,6 +866,10 @@ class NostrService {
     } catch (err: any) {
       console.error('[NostrService] Failed to publish token to any relay:', err?.message || err);
       return false;
+    } finally {
+      if (ownsPool) {
+        pool.close(RELAYS);
+      }
     }
   }
 

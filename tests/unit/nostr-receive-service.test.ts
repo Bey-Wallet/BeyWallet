@@ -1,6 +1,10 @@
 import { nip19 } from 'nostr-tools';
 import { generateSecretKey, getPublicKey, verifyEvent } from 'nostr-tools/pure';
-import { NIP17_INBOX_RELAYS, nostrService } from '~/services/wallet/nostrService';
+import {
+  hasSuccessfulRelayPublish,
+  NIP17_INBOX_RELAYS,
+  nostrService,
+} from '~/services/wallet/nostrService';
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 import { useNostrInboxStore } from '~/state/nostrInboxStore';
 import { usePeopleStore } from '~/state/peopleStore';
@@ -66,6 +70,22 @@ describe('Nostr receive service', () => {
 
   it('advertises the relay used by Minibits', () => {
     expect(NIP17_INBOX_RELAYS).toContain('wss://relay.minibits.cash');
+  });
+
+  it('only reports publication success when at least one relay transport succeeds', async () => {
+    await expect(
+      hasSuccessfulRelayPublish([
+        Promise.reject(new Error('NIP-04 relays unavailable')),
+        Promise.reject(new Error('NIP-17 relays unavailable')),
+      ]),
+    ).resolves.toBe(false);
+
+    await expect(
+      hasSuccessfulRelayPublish([
+        Promise.reject(new Error('NIP-04 relays unavailable')),
+        Promise.resolve('wss://relay.minibits.cash'),
+      ]),
+    ).resolves.toBe(true);
   });
 
   it('keeps a delivery retryable when decryption fails', async () => {
