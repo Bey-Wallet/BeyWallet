@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Activity, Radio, Settings, Signal } from '@tamagui/lucide-icons';
+import { Activity, Clock, Radio, Settings, Signal } from '@tamagui/lucide-icons';
 import { Button, Text, XStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
@@ -43,17 +43,19 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
   const healthy = connectionPercent !== null && connectionPercent >= 75;
 
   return (
-    <XStack pr="$3" gap="$1" items="center">
+    <XStack mr="$3" gap="$1" items="center" bg="$gray4" rounded="$12" p="$2">
       <Button
         size="$3"
         rounded="$10"
-        icon={<Signal strokeWidth={2.5} size={16} color={healthy ? '#16a34a' : '#f45f45'} />}
-        bg={healthy ? '$green3' : '$gray3'}
+        chromeless
+        p="$0"
+        pl="$2"
+        icon={<Signal strokeWidth={2.5} size={16} />}
         pressStyle={{ opacity: 0.75, scale: 0.97 }}
         onPress={() => open('/(modals)/nostr-diagnostics')}
         accessibilityLabel="Open Nostr diagnostics"
       >
-        <Text fontSize="$2" fontWeight="800" color={healthy ? '$green11' : '$color'}>
+        <Text fontSize="$2" fontWeight="800">
           {connectionPercent === null ? '···' : `${connectionPercent}%`}
         </Text>
       </Button>
@@ -61,7 +63,7 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
         circular
         size="$3"
         chromeless
-        icon={<Activity size={19} color="$color" />}
+        icon={<Clock size={19} color="$color" />}
         onPress={() => open('/(modals)/nostr-activity')}
         accessibilityLabel="Open Nostr activity"
       />
