@@ -13,7 +13,7 @@
  * `new Manager()` constructor with explicit watcher enabling.
  */
 
-import { Manager, ConsoleLogger } from 'coco-cashu-core';
+import { Manager, ConsoleLogger, type Plugin } from 'coco-cashu-core';
 import { ExpoSqliteRepositories } from '~/storage/sqlite';
 import * as SQLite from 'expo-sqlite';
 import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
@@ -225,6 +225,7 @@ const customLogger = {
     if (
       msg.includes('Keyset restore failed') ||
       msg.includes('Restore completed with failures') ||
+      msg === 'WS error' ||
       msg.includes('WS request error') ||
       msg.includes('Polling task error') ||
       msg.includes('Failed to process mint quote') ||
@@ -233,6 +234,11 @@ const customLogger = {
       msg.includes('Quote amount undefined')
     ) {
       // Suppress noisy expected background/network errors
+      return;
+    }
+    if (msg.includes('Failed to fetch mint info')) {
+      const mintUrl = meta[0]?.mintUrl;
+      console.warn(`[Coco] Mint unavailable while refreshing info${mintUrl ? `: ${mintUrl}` : ''}`);
       return;
     }
     console.error(`[Coco] ${msg}`, ...meta);
@@ -293,7 +299,7 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [HistoryWatcherPlugin, npcPlugin],
+    [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
   );
 
   repo = repositories;
@@ -306,6 +312,9 @@ async function initializeWithMnemonic(
     // Start listening for Nostr payments and repair the public username profile.
     const nip05 = await repositories.settingsRepository.getSetting('nip05');
     nostrService.start(privkey, pubkey, nip05 || undefined);
+    // Deferred import keeps claim orchestration below the wallet lifecycle boundary.
+    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+    nostrClaimService.start(privkey);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -417,7 +426,7 @@ export const initService = {
       async () => new Uint8Array(seed),
       customLogger as any,
       undefined,
-      [HistoryWatcherPlugin, npcPlugin],
+      [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
     );
 
     repo = repositories;
@@ -429,6 +438,8 @@ export const initService = {
     // Start Nostr background receiver and repair the public username profile.
     const nip05 = await repositories.settingsRepository.getSetting('nip05');
     nostrService.start(privkey, pubkey, nip05 || undefined);
+    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+    nostrClaimService.start(privkey);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -483,6 +494,8 @@ export const initService = {
    */
   cleanup: async (): Promise<void> => {
     nostrService.stop();
+    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+    nostrClaimService.stop();
     const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.stopSweeper();
     if (manager) {
@@ -504,6 +517,9 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
+    nostrService.stop();
+    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+    nostrClaimService.stop();
     const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.stopSweeper();
     if (appStateSubscription) {

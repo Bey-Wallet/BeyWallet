@@ -52,8 +52,8 @@ export default function NFCReceiveScreen() {
     'Unknown Mint';
   const balance = activeMintUrl ? balances[activeMintUrl] || 0 : 0;
 
-  const processTagRef = useRef<any>();
-  const handleReceiveRef = useRef<any>();
+  const processTagRef = useRef<any>(undefined);
+  const handleReceiveRef = useRef<any>(undefined);
   const isProcessingRef = useRef(false);
 
   useFocusEffect(
@@ -242,16 +242,27 @@ export default function NFCReceiveScreen() {
 
         if (nostrTarget) {
           const mnemonic = await seedService.getMnemonic();
-          if (mnemonic) {
-            const keys = await seedService.getNostrKeys(mnemonic);
-            const decodedToken = decodeToken(tokenString);
-            const payloadObj = {
-              id: pr.id,
-              mint: targetMint,
-              unit: pr.unit || 'sat',
-              proofs: decodedToken.proofs || [],
-            };
-            await sendNostrToken(JSON.stringify(payloadObj), nostrTarget, keys.privkey);
+          if (!mnemonic) {
+            throw new Error('Wallet seed is unavailable. The Nostr payment was not sent.');
+          }
+
+          const keys = await seedService.getNostrKeys(mnemonic);
+          const decodedToken = decodeToken(tokenString);
+          const payloadObj = {
+            id: pr.id,
+            mint: targetMint,
+            unit: pr.unit || 'sat',
+            proofs: decodedToken.proofs || [],
+          };
+          const published = await sendNostrToken(
+            JSON.stringify(payloadObj),
+            nostrTarget,
+            keys.privkey,
+          );
+          if (!published) {
+            throw new Error(
+              'No Nostr relay accepted the payment. Open History to recover or share the token.',
+            );
           }
 
           setReceiveState('paid');
@@ -346,11 +357,6 @@ export default function NFCReceiveScreen() {
     }
   };
 
-  useEffect(() => {
-    processTagRef.current = processTag;
-    handleReceiveRef.current = handleReceive;
-  }, [processTag, handleReceive]);
-
   const handleReceive = async () => {
     if (isProcessingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -366,6 +372,11 @@ export default function NFCReceiveScreen() {
       setErrorMessage(err.message || 'Failed to read NFC tag');
     }
   };
+
+  useEffect(() => {
+    processTagRef.current = processTag;
+    handleReceiveRef.current = handleReceive;
+  }, [processTag, handleReceive]);
 
   const { resolvedTheme } = useAppTheme();
   const insets = useSafeAreaInsets();

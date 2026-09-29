@@ -149,7 +149,6 @@ export function ScanAndPayStage({
       {isLikelyValid && (
         <View position="absolute" px="$0" bottom="$4" left="$0" right="$0">
           <Button
-            theme="active"
             bg="$green9"
             color="white"
             size="$5"

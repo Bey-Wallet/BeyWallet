@@ -30,7 +30,11 @@ import {
 } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, SUPPORTED_CURRENCIES, CurrencyCode } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  SUPPORTED_CURRENCIES,
+  CurrencyCode,
+} from '~/services/wallet/currencyService';
 import {
   Landmark,
   Zap,
@@ -225,7 +229,7 @@ export default function MeltScreen() {
         'Invalid input. Enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)',
       );
     }
-  }, [activeMintUrl, invoice, lnAddressAmount, balance, resolveAndGetQuote]);
+  }, [activeMintUrl, invoice, lnAddressAmount, balance]);
 
   // ─── Resolve LN address to invoice and get quote ──────────
   const resolveAndGetQuote = useCallback(

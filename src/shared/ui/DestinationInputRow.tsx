@@ -15,6 +15,7 @@ interface DestinationInputRowProps {
   isPasting?: boolean;
   onIconPress?: () => void;
   isError?: boolean;
+  multiline?: boolean;
 }
 
 export function DestinationInputRow({
@@ -28,6 +29,7 @@ export function DestinationInputRow({
   isPasting = false,
   onIconPress,
   isError = false,
+  multiline = false,
 }: DestinationInputRowProps) {
   const [isFocused, setIsFocused] = React.useState(false);
   const inputRef = React.useRef<any>(null);
@@ -84,7 +86,10 @@ export function DestinationInputRow({
             >
               {React.isValidElement(defaultIcon)
                 ? React.cloneElement(defaultIcon as React.ReactElement<any>, {
-                    color: isError ? '$red10' : defaultIcon.props.color || '$accent5',
+                    color: isError
+                      ? '$red10'
+                      : (defaultIcon as React.ReactElement<{ color?: string }>).props.color ||
+                        '$accent5',
                   })
                 : defaultIcon}
             </View>
@@ -118,12 +123,13 @@ export function DestinationInputRow({
               bg="transparent"
               autoCapitalize="none"
               autoCorrect={false}
+              multiline={multiline}
               color={textColor}
               fontSize="$5"
               fontWeight={800}
               p={0}
               height={30}
-              style={{ outlineStyle: 'none' }}
+              style={{ outlineStyle: 'solid', outlineWidth: 0 }}
             />
           ) : (
             <Text

@@ -5,7 +5,6 @@
 // Re-export everything the UI/stores might need from coco-cashu-core
 export type {
   CoreProof,
-  CoreEvents,
   Mint,
   Keyset,
   Counter,
@@ -60,5 +59,6 @@ export interface DecodedTokenPreview {
   unit: string;
   proofs: any[];
   memo?: string;
+  isPaymentRequest?: boolean;
   raw?: any;
 }

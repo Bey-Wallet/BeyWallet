@@ -8,7 +8,11 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +32,7 @@ interface P2PKAmountStageProps {
   isLoading?: boolean;
   error?: string | null;
   isOffline?: boolean;
+  onSelectedProofsChange?: (proofs: any[]) => void;
 }
 
 export function P2PKAmountStage({

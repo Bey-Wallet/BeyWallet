@@ -1,6 +1,6 @@
 import React from 'react';
 import { YStack, XStack, Text, Button, View, Spinner, Separator, ScrollView } from 'tamagui';
-import { Copy, AtSign, RefreshCw, ChevronLeft, Scan, Check } from '@tamagui/lucide-icons';
+import { Copy, AtSign, RefreshCw, Scan, Check } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import * as Clipboard from 'expo-clipboard';
@@ -9,8 +9,9 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
-import { useRouter, Stack } from 'expo-router';
+import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { Flex } from '~/shared/ui/Flex';
 
 export default function NostrProfileScreen() {
@@ -19,12 +20,13 @@ export default function NostrProfileScreen() {
   const npub = useSettingsStore((state) => state.npub);
 
   // Live NIP-05 lookup from bey.cash
-  const { username, nip05, loading: nip05Loading, refresh } = useNip05Lookup();
+  const { username, nip05, loading: nip05Loading, status: nip05Status, refresh } = useNip05Lookup();
 
   // Defer QR code rendering to avoid blocking navigation transition
   const [isQrReady, setIsQrReady] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [copiedNip05, setCopiedNip05] = React.useState(false);
+  const hasFocusedRef = React.useRef(false);
 
   React.useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -32,6 +34,23 @@ export default function NostrProfileScreen() {
     });
     return () => task.cancel();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (hasFocusedRef.current) {
+        refresh();
+      } else {
+        hasFocusedRef.current = true;
+      }
+    }, [refresh]),
+  );
+
+  const isNip05Verified = nip05Status === 'verified' && !!nip05;
+
+  const handleAddNip05 = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(modals)/nostr-username');
+  };
 
   const handleCopy = async () => {
     if (!npub) return;
@@ -54,7 +73,7 @@ export default function NostrProfileScreen() {
   const handleShare = async () => {
     if (!npub) return;
     try {
-      const shareMessage = nip05 ? `${nip05}\n${npub}` : npub;
+      const shareMessage = isNip05Verified ? `${nip05}\n${npub}` : npub;
       await Share.share({
         message: shareMessage,
       });
@@ -82,8 +101,9 @@ export default function NostrProfileScreen() {
           headerTitle: () => (
             <XStack gap="$2" items="center" justify="center">
               <Text fontSize={18} fontWeight="700" color="$accent4">
-                {username ? username : 'Bey Wallet User'}
+                {isNip05Verified && username ? username : 'Bey Wallet User'}
               </Text>
+              {isNip05Verified && <Nip05VerifiedBadge size={17} />}
               <Button
                 size="$2"
                 circular
@@ -148,8 +168,68 @@ export default function NostrProfileScreen() {
 
           {/* Profile Identity Details Card */}
           <YStack bg="$gray2" rounded="$5" p="$4" gap="$4" mb="$4">
+            <XStack items="center" gap="$3">
+              <View
+                width={38}
+                height={38}
+                rounded="$10"
+                bg="$gray4"
+                items="center"
+                justify="center"
+              >
+                {isNip05Verified ? (
+                  <Nip05VerifiedBadge size={21} />
+                ) : (
+                  <AtSign size={20} color="$gray10" />
+                )}
+              </View>
+
+              <YStack flex={1} gap="$1">
+                <XStack items="center" gap="$1.5">
+                  <Text fontSize="$3" fontWeight="800">
+                    {isNip05Verified
+                      ? 'NIP-05 discoverable'
+                      : nip05Status === 'not_found'
+                        ? 'Not NIP-05 discoverable'
+                        : nip05Status === 'error'
+                          ? 'NIP-05 check unavailable'
+                          : 'Checking NIP-05'}
+                  </Text>
+                  {isNip05Verified && <Nip05VerifiedBadge size={14} />}
+                </XStack>
+                <Text fontSize="$2" color="$gray10" lineHeight={17}>
+                  {isNip05Verified
+                    ? `${nip05} resolves to this wallet.`
+                    : nip05Status === 'not_found'
+                      ? 'No bey.cash address currently resolves to this public key.'
+                      : nip05Status === 'error'
+                        ? 'Connect to the internet and try the lookup again.'
+                        : 'Checking the public bey.cash NIP-05 registry…'}
+                </Text>
+              </YStack>
+
+              {nip05Loading ? (
+                <Spinner size="small" />
+              ) : nip05Status === 'not_found' ? (
+                <Button size="$3" theme="accent" fontWeight="700" onPress={handleAddNip05}>
+                  Add
+                </Button>
+              ) : nip05Status === 'error' ? (
+                <Button
+                  size="$3"
+                  circular
+                  chromeless
+                  icon={<RefreshCw size={17} />}
+                  onPress={refresh}
+                  accessibilityLabel="Retry NIP-05 lookup"
+                />
+              ) : null}
+            </XStack>
+
+            <Separator borderColor="$borderColor" opacity={0.5} />
+
             {/* Nostr Address (NIP-05) Row - Conditionally Rendered */}
-            {nip05 && (
+            {isNip05Verified && (
               <YStack gap="$3">
                 <XStack
                   justify="space-between"
@@ -221,21 +301,6 @@ export default function NostrProfileScreen() {
             )}
           </YStack>
         </ScrollView>
-
-        {/* Bottom Actions */}
-        <YStack gap="$3" px="$4" pb="$4" pt="$2" bg="$background">
-          <Button
-            size="$5"
-            theme="accent"
-            fontWeight="800"
-            rounded="$5"
-            icon={<BeyIcon />}
-            onPress={handleShare}
-            pressStyle={{ scale: 0.98, bg: '$gray2' }}
-          >
-            Share
-          </Button>
-        </YStack>
       </Flex>
     </YStack>
   );

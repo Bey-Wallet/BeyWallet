@@ -467,7 +467,7 @@ export function SettingsScreen() {
         {
           id: 'verify-dleq',
           title: 'Verify Proofs (Offline)',
-          subtitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
+          subTitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
           icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
           disabled: isVerifyingDleq,
         },

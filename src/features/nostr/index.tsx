@@ -11,7 +11,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { nip19 } from 'nostr-tools';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
-import { nostrService } from '~/services/wallet/nostrService';
+import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 
 /** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
 function hexToBytes(hex: string): Uint8Array {
@@ -73,62 +73,6 @@ async function checkAvailability(username: string): Promise<'available' | 'taken
     return 'error';
   } catch {
     return 'error';
-  }
-}
-
-/** Register username on bey.cash using signed proof event */
-async function registerUsername(
-  username: string,
-  hexPubkey: string,
-  hexPrivkey: string,
-): Promise<{ ok: boolean; error?: string; nip05?: string; profilePublished?: boolean }> {
-  try {
-    const privkeyBytes = hexToBytes(hexPrivkey);
-    const proofEvent = finalizeEvent(
-      {
-        kind: 22242,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
-        content: JSON.stringify({
-          username: username.toLowerCase(),
-          domain: DOMAIN,
-          action: 'register',
-        }),
-      },
-      privkeyBytes,
-    );
-    const identifier = `${username.toLowerCase()}@${DOMAIN}`;
-    const profileEvent = await nostrService.createProfileEvent(identifier, hexPrivkey, hexPubkey);
-
-    const res = await fetch(`${API_BASE}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: username.toLowerCase(),
-        pubkey: hexPubkey,
-        proofEvent,
-        profileEvent,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      const errMsg = data?.error || `Server error ${res.status}`;
-      console.error(`[NostrUsername] Registration failed (${res.status}):`, errMsg);
-      return { ok: false, error: errMsg };
-    }
-
-    const data = await res.json().catch(() => null);
-    if (!data?.success) return { ok: false, error: 'Registration response invalid' };
-
-    const publishedByWallet = await nostrService.publishProfileEvent(profileEvent);
-    return {
-      ok: true,
-      nip05: data.nip05,
-      profilePublished: data.profilePublished === true || publishedByWallet,
-    };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Network error' };
   }
 }
 
@@ -251,29 +195,29 @@ export function NostrUsernameScreen() {
 
     setIsRegistering(true);
     try {
-      // 1. If editing, first unregister the old username from the network
-      if (isEditing && oldUsername && oldUsername.toLowerCase() !== input.toLowerCase()) {
-        console.log(`[NostrUsername] Releasing old username: ${oldUsername}`);
-        const deleteResult = await unregisterUsername(oldUsername, hexPub, hexSec);
-        if (!deleteResult.ok) {
-          toast.show('Warning', {
-            message: `Could not release old name: ${deleteResult.error}`,
-            duration: 4000,
-          });
-        }
-      }
-
-      // 2. Register the new username
-      const result = await registerUsername(input, hexPub, hexSec);
+      const result = await nostrIdentityService.registerUsername(input, hexPub, hexSec);
       if (result.ok) {
-        const identifier = `${input}@${DOMAIN}`;
+        const identifier = result.nip05!;
+        let oldUsernameReleaseError: string | undefined;
+
+        // Preserve the current identity until the replacement is confirmed registered.
+        if (isEditing && oldUsername && oldUsername.toLowerCase() !== input.toLowerCase()) {
+          console.log(`[NostrUsername] Releasing old username: ${oldUsername}`);
+          const deleteResult = await unregisterUsername(oldUsername, hexPub, hexSec);
+          if (!deleteResult.ok) {
+            oldUsernameReleaseError = deleteResult.error || 'Unknown registry error';
+          }
+        }
+
         await setNip05(identifier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast.show('Username Updated! 🎉', {
-          message: result.profilePublished
-            ? `You are now ${identifier}`
-            : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
-          duration: 4000,
+          message: oldUsernameReleaseError
+            ? `${identifier} is active, but ${oldUsername}@${DOMAIN} could not be released: ${oldUsernameReleaseError}`
+            : result.profilePublished
+              ? `You are now ${identifier}`
+              : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
+          duration: oldUsernameReleaseError ? 6000 : 4000,
         });
         setInput('');
         setCheckState('idle');

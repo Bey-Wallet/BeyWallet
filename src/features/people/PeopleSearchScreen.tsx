@@ -6,11 +6,17 @@ import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
 import Blockies from '~/shared/ui/Blockies';
 import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
+import { hasVerifiedNip05 } from '~/features/people/nip05';
 
-export default function ContactSearchScreen() {
-  const favorites = useContactsStore((state) => state.favorites);
-  const favoriteContacts = Object.values(favorites);
+function getPersonLabel(person: any): string {
+  return person.displayName || person.username || person.nip05 || 'Unknown User';
+}
+
+export default function PeopleSearchScreen() {
+  const people = usePeopleStore((state) => state.people);
+  const favoritePeople = Object.values(people).filter((person) => person.isFavorite);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [directory, setDirectory] = useState<Record<string, string>>({});
@@ -60,14 +66,20 @@ export default function ContactSearchScreen() {
           else if (data instanceof Uint8Array) hex = Buffer.from(data).toString('hex');
 
           // See if we have a username for this hex
-          let username = null;
+          let username: string | null = null;
           for (const [name, pubkey] of Object.entries(dict)) {
             if (pubkey.toLowerCase() === hex) {
               username = name;
               break;
             }
           }
-          found.push({ npub: lowerQuery, username, hex });
+          found.push({
+            npub: lowerQuery,
+            username,
+            nip05: username ? `${username}@bey.cash` : null,
+            nip05Verified: Boolean(username),
+            hex,
+          });
         }
       } catch {
         // invalid npub, ignore
@@ -79,7 +91,13 @@ export default function ContactSearchScreen() {
           // convert hex to npub
           try {
             const npub = nip19.npubEncode(pubkey);
-            found.push({ npub, username: name, hex: pubkey });
+            found.push({
+              npub,
+              username: name,
+              nip05: `${name}@bey.cash`,
+              nip05Verified: true,
+              hex: pubkey,
+            });
           } catch {
             // ignore invalid pubkeys
           }
@@ -95,12 +113,14 @@ export default function ContactSearchScreen() {
     doSearch(text);
   };
 
-  const onSelectContact = (contact: any) => {
+  const onSelectPerson = (person: any) => {
     router.push({
-      pathname: '/(modals)/contact-details',
+      pathname: '/(modals)/person-details',
       params: {
-        npub: contact.npub,
-        username: contact.username || '',
+        npub: person.npub,
+        username: person.username || '',
+        displayName: person.displayName || '',
+        nip05: person.nip05 || '',
       },
     });
   };
@@ -149,7 +169,7 @@ export default function ContactSearchScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$2">
-          {results.map((contact, i) => (
+          {results.map((person, i) => (
             <XStack
               key={i}
               bg="$gray3"
@@ -158,31 +178,39 @@ export default function ContactSearchScreen() {
               items="center"
               gap="$3"
               cursor="pointer"
-              onPress={() => onSelectContact(contact)}
+              onPress={() => onSelectPerson(person)}
             >
-              <Blockies seed={contact.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
-              <YStack>
-                <Text fontSize="$5" fontWeight="600" color="$color">
-                  {contact.username ? `${contact.username}@bey.cash` : 'Unknown User'}
-                </Text>
+              <Blockies seed={person.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
+              <YStack flex={1}>
+                <XStack items="center" gap="$1">
+                  <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+                    {getPersonLabel(person)}
+                  </Text>
+                  {hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
+                </XStack>
+                {person.nip05 && person.nip05 !== getPersonLabel(person) && (
+                  <Text fontSize="$3" color="$gray10" numberOfLines={1}>
+                    {person.nip05}
+                  </Text>
+                )}
                 <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-                  {formatNpub(contact.npub)}
+                  {formatNpub(person.npub)}
                 </Text>
               </YStack>
             </XStack>
           ))}
           {search.length > 0 && results.length === 0 && (
-            <Text color="$gray10" textAlign="center" mt="$4">
-              No contacts found
+            <Text color="$gray10" mt="$4" style={{ textAlign: 'center' }}>
+              No people found
             </Text>
           )}
 
-          {favoriteContacts.length > 0 && (
+          {favoritePeople.length > 0 && (
             <YStack mt="$4" gap="$2">
               <Text fontSize="$4" fontWeight="600" color="$gray10" px="$2">
                 Favorites
               </Text>
-              {favoriteContacts.map((contact, i) => (
+              {favoritePeople.map((person, i) => (
                 <XStack
                   key={`fav-${i}`}
                   bg="$gray3"
@@ -191,15 +219,23 @@ export default function ContactSearchScreen() {
                   items="center"
                   gap="$3"
                   cursor="pointer"
-                  onPress={() => onSelectContact(contact)}
+                  onPress={() => onSelectPerson(person)}
                 >
-                  <Blockies seed={contact.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
-                  <YStack>
-                    <Text fontSize="$5" fontWeight="600" color="$color">
-                      {contact.username ? `${contact.username}@bey.cash` : 'Unknown User'}
-                    </Text>
+                  <Blockies seed={person.npub} size={12} scale={3} style={{ borderRadius: 3 }} />
+                  <YStack flex={1}>
+                    <XStack items="center" gap="$1">
+                      <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+                        {getPersonLabel(person)}
+                      </Text>
+                      {hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
+                    </XStack>
+                    {person.nip05 && person.nip05 !== getPersonLabel(person) && (
+                      <Text fontSize="$3" color="$gray10" numberOfLines={1}>
+                        {person.nip05}
+                      </Text>
+                    )}
                     <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-                      {formatNpub(contact.npub)}
+                      {formatNpub(person.npub)}
                     </Text>
                   </YStack>
                 </XStack>
@@ -229,13 +265,24 @@ export default function ContactSearchScreen() {
                     items="center"
                     gap="$3"
                     cursor="pointer"
-                    onPress={() => onSelectContact({ npub: npubStr, username: name, hex: pubkey })}
+                    onPress={() =>
+                      onSelectPerson({
+                        npub: npubStr,
+                        username: name,
+                        nip05: `${name}@bey.cash`,
+                        nip05Verified: true,
+                        hex: pubkey,
+                      })
+                    }
                   >
                     <Blockies seed={npubStr} size={12} scale={3} style={{ borderRadius: 3 }} />
-                    <YStack>
-                      <Text fontSize="$5" fontWeight="600" color="$color">
-                        {name}@bey.cash
-                      </Text>
+                    <YStack flex={1}>
+                      <XStack items="center" gap="$1">
+                        <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+                          {name}@bey.cash
+                        </Text>
+                        <Nip05VerifiedBadge />
+                      </XStack>
                       <Text fontSize="$3" color="$gray10" numberOfLines={1}>
                         {formatNpub(npubStr)}
                       </Text>

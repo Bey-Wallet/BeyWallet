@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 
 interface DeleteWalletSheetProps {
-  innerRef: React.RefObject<AppBottomSheetRef>;
+  innerRef: React.RefObject<AppBottomSheetRef | null>;
   isDeleting: boolean;
   seedWords: string[];
   onDelete: () => void;

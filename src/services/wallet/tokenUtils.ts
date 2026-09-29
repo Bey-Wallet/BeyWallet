@@ -264,14 +264,15 @@ function decodeV4TokenManually(
 
       for (const p of groupProofs) {
         // c (C) is a Uint8Array — hex encode it
-        const C =
-          p.c instanceof Uint8Array
-            ? Array.from(p.c)
-                .map((b) => b.toString(16).padStart(2, '0'))
-                .join('')
-            : typeof p.c === 'string'
-              ? p.c
-              : '';
+        const commitment: Uint8Array | null =
+          p.c instanceof Uint8Array ? (p.c as Uint8Array) : null;
+        const C = commitment
+          ? Array.from(commitment)
+              .map((b) => b.toString(16).padStart(2, '0'))
+              .join('')
+          : typeof p.c === 'string'
+            ? p.c
+            : '';
         proofs.push({
           id: keysetId,
           amount: typeof p.a === 'number' ? p.a : 0,
@@ -299,7 +300,6 @@ function decodeV4TokenManually(
  */
 export function decodeToken(tokenString: string): DecodedTokenPreview {
   const cleaned = cleanToken(tokenString);
-  console.log('[decodeToken] input prefix:', cleaned.substring(0, 40));
 
   // ── Primary: @cashu/cashu-ts — handles V3 (JSON) AND V4 (CBOR) ──────────
   try {

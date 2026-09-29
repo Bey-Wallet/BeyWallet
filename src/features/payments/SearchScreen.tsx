@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
 import Blockies from '~/shared/ui/Blockies';
 import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useMintRecommendationStore } from '~/state/mintRecommendationStore';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
@@ -35,7 +35,7 @@ export default function UniversalSearchScreen() {
   const [directory, setDirectory] = useState<Record<string, string>>({});
   const router = useRouter();
 
-  const { favorites } = useContactsStore();
+  const people = usePeopleStore((state) => state.people);
   const { mints, scannerResult, setScannerResult } = useWalletStore();
   const { recommendations, fetchRecommendations } = useMintRecommendationStore();
 
@@ -104,7 +104,7 @@ export default function UniversalSearchScreen() {
       const peopleResults: SearchResultItem[] = [];
 
       // Check favorites first
-      Object.values(favorites).forEach((contact: any) => {
+      Object.values(people).forEach((contact: any) => {
         if (
           contact.username?.toLowerCase().includes(lowerQuery) ||
           contact.npub?.toLowerCase().includes(lowerQuery)
@@ -220,7 +220,7 @@ export default function UniversalSearchScreen() {
 
       setResults(found);
     },
-    [directory, favorites, mints, recommendations],
+    [directory, people, mints, recommendations],
   );
 
   // Listen for scanner results returned to search screen
@@ -259,7 +259,7 @@ export default function UniversalSearchScreen() {
 
     if (item.type === 'people' || item.type === 'address') {
       router.push({
-        pathname: '/(modals)/contact-details',
+        pathname: '/(modals)/person-details',
         params: {
           npub: item.subtitle || item.title,
           username: item.title.includes('@bey.cash') ? item.title.replace('@bey.cash', '') : '',
@@ -298,7 +298,7 @@ export default function UniversalSearchScreen() {
             style={{ borderRadius: 4 }}
           />
         ) : (
-          <MintIcon url={item.subtitle} hintIcon={item.data?.icon} size={45} />
+          <MintIcon url={item.subtitle || ''} hintIcon={item.data?.icon} size={45} />
         )}
         <YStack flex={1}>
           <Text fontSize="$5" fontWeight="600" color="$color">

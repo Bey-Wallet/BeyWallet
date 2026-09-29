@@ -1,6 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, YStack, XStack, H6, Image, styled, Button, Separator } from 'tamagui';
-import { Plus, Sprout, Globe, ChevronRight, Settings2, Landmark } from '@tamagui/lucide-icons';
+import { Plus, Landmark } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -9,6 +9,12 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
+import { mintRecommendationService } from '~/services/api/mintRecommendationService';
+import AddMintModal, { type AddMintModalRef } from '~/shared/ui/AddMintModal';
+import {
+  getMintPlaceholders,
+  type RecommendedMint,
+} from '~/features/home/components/mintPlaceholders';
 
 const RowContainer = styled(XStack, {
   items: 'center',
@@ -143,8 +149,80 @@ const MintRowItem = React.memo(
   },
 );
 
+interface MintPlaceholderItemProps {
+  mint: RecommendedMint;
+  onAdd: (mintUrl: string) => void;
+}
+
+const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProps) => {
+  const hostname = useMemo(() => new URL(mint.mintUrl).hostname, [mint.mintUrl]);
+  const [iconFailed, setIconFailed] = useState(false);
+  const { data: metadata } = useQuery({
+    queryKey: ['mint-metadata', mint.mintUrl],
+    queryFn: () => mintRecommendationService.fetchMintMetadata(mint.mintUrl),
+    staleTime: 5 * 60 * 1000,
+  });
+  const iconUrl =
+    metadata?.icon_url ||
+    metadata?.picture ||
+    metadata?.icon ||
+    `${new URL(mint.mintUrl).origin}/favicon.ico`;
+
+  useEffect(() => setIconFailed(false), [iconUrl]);
+
+  return (
+    <RowContainer>
+      <XStack items="center" gap="$2.5" flex={1} mr="$2" opacity={0.48}>
+        <View
+          width={40}
+          height={40}
+          justify="center"
+          bg="$color5"
+          rounded={8}
+          items="center"
+          overflow="hidden"
+        >
+          {iconUrl && !iconFailed ? (
+            <Image
+              src={iconUrl}
+              width={40}
+              height={40}
+              alt={`${mint.name} icon`}
+              onError={() => setIconFailed(true)}
+            />
+          ) : (
+            <Landmark size={20} color="$color11" />
+          )}
+        </View>
+        <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
+          <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+            {mint.name}
+          </Text>
+          <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+            {hostname}
+          </Text>
+        </YStack>
+      </XStack>
+
+      <Button
+        size="$3"
+        rounded="$10"
+        theme="gray"
+        icon={<Plus size={14} strokeWidth={3} />}
+        onPress={() => onAdd(mint.mintUrl)}
+        pressStyle={{ scale: 0.96, opacity: 0.8 }}
+      >
+        Add
+      </Button>
+    </RowContainer>
+  );
+});
+
+MintPlaceholderItem.displayName = 'MintPlaceholderItem';
+
 export const ConnectedMintsCard = () => {
   const router = useRouter();
+  const addMintRef = useRef<AddMintModalRef>(null);
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -178,27 +256,20 @@ export const ConnectedMintsCard = () => {
     router.push('/(modals)/add-mint');
   }, [router]);
 
+  const handleAddRecommendedMint = useCallback((mintUrl: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    addMintRef.current?.present(mintUrl);
+  }, []);
+
   const normalizedActiveUrl = activeMintUrl?.replace(/\/$/, '');
+  const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
     <>
       <YStack width="100%" gap="$3" p="$1.5" rounded="$6" bg="$color2">
-        {/* Mints List */}
-        {mints.length === 0 ? (
-          <YStack py="$6" items="center" justify="center" gap="$2" opacity={0.6}>
-            <View p="$3" bg="$color4" rounded="$10">
-              <Globe size={24} color="$gray10" />
-            </View>
-            <Text fontWeight="700" fontSize="$3" color="$color">
-              No mints connected
-            </Text>
-            <Text fontSize="$2" color="$gray10" text="center">
-              Add a Cashu mint to start sending and receiving ecash.
-            </Text>
-          </YStack>
-        ) : (
-          <YStack separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-            {mints.map((mint) => {
+        <YStack separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+          {[
+            ...mints.map((mint) => {
               const normalizedMintUrl = mint.mintUrl.replace(/\/$/, '');
               const balance = balances[mint.mintUrl] || 0;
               const isActive = normalizedMintUrl === normalizedActiveUrl;
@@ -218,9 +289,16 @@ export const ConnectedMintsCard = () => {
                   onPress={handleMintPress}
                 />
               );
-            })}
-          </YStack>
-        )}
+            }),
+            ...placeholders.map((mint) => (
+              <MintPlaceholderItem
+                key={mint.mintUrl}
+                mint={mint}
+                onAdd={handleAddRecommendedMint}
+              />
+            )),
+          ]}
+        </YStack>
       </YStack>
       <XStack gap="$2">
         {/* Add Mint Button at bottom */}
@@ -237,6 +315,7 @@ export const ConnectedMintsCard = () => {
           </Text>
         </Button>
       </XStack>
+      <AddMintModal ref={addMintRef} />
     </>
   );
 };

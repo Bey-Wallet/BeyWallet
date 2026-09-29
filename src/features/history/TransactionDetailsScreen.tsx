@@ -328,7 +328,7 @@ export function TransactionDetailsScreen() {
   const expiresAt = metadata?.expiresAt ? Number(metadata.expiresAt) : undefined;
 
   const handleReclaim = async () => {
-    if (!token || isReclaiming) return;
+    if (!entry || !token || isReclaiming) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsReclaiming(true);
     try {
@@ -419,6 +419,7 @@ export function TransactionDetailsScreen() {
   const [savedInvoice, setSavedInvoice] = useState<string | null>(null);
   useEffect(() => {
     if (isPendingMint) {
+      if (!entry) return;
       try {
         if ((entry as any).paymentRequest) {
           setSavedInvoice((entry as any).paymentRequest);
@@ -657,7 +658,7 @@ export function TransactionDetailsScreen() {
   };
 
   const handleRefresh = async () => {
-    if (isRefetching) return;
+    if (!entry || isRefetching) return;
 
     if (token) {
       try {
@@ -1027,11 +1028,11 @@ export function TransactionDetailsScreen() {
                 lineHeight={54}
                 color="$accent3"
               >
-                {entry.type !== 'swap' ? amountSign : ''}
+                {metadata?.via !== 'swap' ? amountSign : ''}
                 {headerPrimaryAmount}
               </Text>
               <Text color="$accent5" fontWeight="600" fontSize={16} mt="$1">
-                {entry.type !== 'swap' ? amountSign : ''}
+                {metadata?.via !== 'swap' ? amountSign : ''}
                 {headerSecondaryAmount}
               </Text>
             </YStack>
@@ -1061,7 +1062,7 @@ export function TransactionDetailsScreen() {
                     ? 'Funds were returned to your wallet.'
                     : status === 'pending' || status === 'unclaimed'
                       ? 'Waiting for payment to be processed.'
-                      : entry.type === 'swap' || metadata?.via === 'swap'
+                      : metadata?.via === 'swap'
                         ? 'Atomic transfer completed between mints.'
                         : entry.type === 'send'
                           ? 'The recipient has claimed your ecash.'
@@ -1112,7 +1113,7 @@ export function TransactionDetailsScreen() {
                   const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
                   const targetMintName: string | undefined = (meta as any)?.targetMintName;
 
-                  if (entry.type === 'swap' || via === 'swap') {
+                  if (via === 'swap') {
                     return (
                       <>
                         <DetailItem label="Channel" value="NUT-19 Direct Swap" />
@@ -1196,7 +1197,7 @@ export function TransactionDetailsScreen() {
                   if (via !== 'onchain') return null;
 
                   const btcAddress =
-                    entry.type === 'mint' ? entry.paymentRequest : (meta as any)?.address;
+                    'paymentRequest' in entry ? entry.paymentRequest : (meta as any)?.address;
                   const onchainFee = (meta as any)?.fee;
 
                   return (

@@ -1,40 +1,96 @@
 # Contributing to Bey Wallet
 
-First off, thank you for considering contributing to Bey Wallet! It's people like you that make it a better tool for everyone.
+Thank you for helping improve Bey Wallet. Changes to a wallet can affect real funds, so favor
+small, reviewable pull requests with focused tests and explicit validation notes.
 
-## How Can I Contribute?
+## Before starting
 
-### Reporting Bugs
+- Search the [issue tracker](https://github.com/thehussein01/BeyWallet/issues) for related work.
+- Open an issue before a large feature, storage migration, dependency change, or protocol change.
+- Base new work on `main` and keep each branch focused on one problem.
+- Read [docs/README.md](docs/README.md) for architecture and feature documentation.
 
-- Check the [issue tracker](https://github.com/arshfx01/bey-wallet/issues) to see if the bug has already been reported.
-- If not, open a new issue with a clear title and description.
-- Include steps to reproduce the bug and any relevant logs or screenshots.
+## Local setup
 
-### Suggesting Enhancements
+```bash
+git clone https://github.com/thehussein01/BeyWallet.git
+cd BeyWallet
+yarn install
+yarn start
+```
 
-- Open an issue to discuss the proposed enhancement.
-- Explain the "why" and "how" of the feature.
+Yarn 4.5.0 is pinned in `package.json`. The development start command also requires Bun.
 
-### Pull Requests
+## Architecture and style
 
-1.  Fork the repo and create your branch from `main`.
-2.  If you've added code that should be tested, add tests.
-3.  If you've changed APIs, update the documentation.
-4.  Ensure the test suite passes.
-5.  Make sure your code lints.
-6.  Issue that pull request!
+- Use TypeScript for new logic and theme-aware Tamagui components for UI.
+- Keep `src/app` routes as thin wrappers around screens owned by `src/features`.
+- Put reusable UI and utilities in `src/shared`, wallet orchestration in
+  `src/services/wallet`, native integrations in `src/services/platform`, and remote clients in
+  `src/services/api`.
+- Prefer existing Coco Cashu abstractions over duplicating wallet behavior.
+- Use the `~/*` alias for imports from `src`.
+- Follow Prettier: two spaces, single quotes, semicolons, trailing commas, and a 100-character
+  print width.
+- Do not add or replace dependencies without discussing the change first.
 
-## Code Style
+See [docs/folder-structure.md](docs/folder-structure.md) for dependency and ownership rules.
 
-- Follow the existing code style in the project.
-- Use TypeScript for all new logic.
-- Ensure components are modular and theme-aware (using Tamagui).
+## Security-sensitive changes
+
+Treat wallet seeds, key derivation, proofs, mint and keyset validation, Nostr private keys,
+recovery, backups, and payment operations as security-critical.
+
+- Never weaken validation to make a flow succeed.
+- Do not change recovery or key-derivation semantics without explicit agreement.
+- Never log or commit recovery phrases, private keys, proofs, tokens, or credentials.
+- Explain any security-sensitive behavior change in the pull request.
+- Add regression tests for public-key normalization, persistence, recovery, and wallet behavior
+  where applicable.
+
+## Validation
+
+Run the narrowest relevant checks while developing, followed by the full local suite:
+
+```bash
+yarn validate
+yarn format:check
+```
+
+The available focused commands are:
+
+```bash
+yarn typecheck
+yarn test:ci
+yarn check:structure
+```
+
+Run `yarn check:structure` after adding, moving, renaming, or deleting routes or feature files.
+There is currently no repository lint script; do not report a lint run unless one is added.
+
+Native behavior cannot be fully established by Jest. For NFC, biometrics, notifications, camera,
+deep links, and payment flows, document the devices and scenarios tested. The
+[Nostr and People checklist](docs/testing/nostr-people-checklist.md) covers the current social
+payment flows.
+
+## Pull requests
+
+A pull request should include:
+
+- The problem and resulting behavior.
+- Related issues.
+- Security and migration considerations.
+- Tests and commands run, including any unrelated baseline failures.
+- Device checks that were performed or remain outstanding.
+- Screenshots or recordings for visible UI changes.
+- Documentation updates when behavior, APIs, routes, or storage contracts change.
+
+Use a concrete commit prefix such as `feat:`, `fix:`, `refactor:`, `test:`, or `docs:` and keep
+commits focused.
 
 ## Community
 
-- Be respectful and inclusive in all interactions.
-- Focus on constructive feedback and collaboration.
-
----
+Be respectful, keep feedback constructive, and avoid including sensitive wallet information in
+public discussions.
 
 Apache 2.0 © Bey Wallet

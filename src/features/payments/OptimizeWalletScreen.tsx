@@ -315,7 +315,7 @@ export default function OptimizeWalletScreen() {
           {!canOptimize && proofs.length > 0 && (
             <XStack
               bg="$green2"
-              borderW={1}
+              borderWidth={1}
               borderColor="$green6"
               p="$3.5"
               rounded="$4"

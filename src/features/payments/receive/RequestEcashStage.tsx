@@ -381,15 +381,16 @@ export function RequestEcashStage({
         }
       }
 
-      const transports = npub
-        ? [
-            {
-              type: PaymentRequestTransportType.NOSTR,
-              target: target,
-              tags: [['n', '17']],
-            },
-          ]
-        : [];
+      const transports =
+        npub && target
+          ? [
+              {
+                type: PaymentRequestTransportType.NOSTR,
+                target: target,
+                tags: [['n', '17']],
+              },
+            ]
+          : [];
 
       const pr = new PaymentRequest(
         transports,
@@ -410,6 +411,16 @@ export function RequestEcashStage({
         if (!published) {
           throw new Error('Failed to send request via Nostr.');
         }
+        const { usePeopleStore } = await import('~/state/peopleStore');
+        const recipientLabel = targetUsername?.trim() || '';
+        usePeopleStore.getState().savePerson({
+          npub: targetNpub,
+          username: recipientLabel.toLowerCase().endsWith('@bey.cash')
+            ? recipientLabel.replace(/@bey\.cash$/i, '')
+            : null,
+          displayName: recipientLabel.includes('@') ? null : recipientLabel || null,
+          nip05: recipientLabel.includes('@') ? recipientLabel : null,
+        });
         console.log(`[RequestEcashStage] Sent request to ${targetNpub}`);
       }
 
@@ -442,7 +453,7 @@ export function RequestEcashStage({
     } finally {
       setIsGenerating(false);
     }
-  }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest]);
+  }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest, targetNpub, targetUsername]);
 
   // ── Copy / Share ──────────────────────────────────────────────────────────
   const handleCopy = useCallback(async () => {
@@ -742,7 +753,7 @@ export function RequestEcashStage({
                   fontWeight={800}
                   p={0}
                   height={30}
-                  style={{ outlineStyle: 'none' }}
+                  style={{ outlineStyle: 'solid', outlineWidth: 0 }}
                   maxLength={80}
                 />
               </YStack>
@@ -966,11 +977,11 @@ export function RequestEcashStage({
       </ScrollView>
 
       <ProcessingSheet
-        isOpen={isGenerating || !!generateError}
-        state={generateError ? 'error' : 'processing'}
+        visible={isGenerating || !!generateError}
+        status={generateError ? 'error' : 'processing'}
         title={generateError ? 'Request Failed' : 'Creating Request'}
-        message={generateError ? generateError : 'Generating your Nostr ecash request...'}
-        error={generateError || undefined}
+        detail={generateError ? generateError : 'Generating your Nostr ecash request...'}
+        errorMessage={generateError || undefined}
         onClose={() => setGenerateError(null)}
       />
     </YStack>

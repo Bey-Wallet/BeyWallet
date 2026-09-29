@@ -216,9 +216,9 @@ export default function ScannerScreen() {
     if (data.toLowerCase().startsWith('ur:')) {
       setIsUR(true);
       try {
-        const prevCount = decoderRef.current.receivedIndexes?.length || 0;
+        const prevCount = decoderRef.current.receivedPartIndexes?.length || 0;
         decoderRef.current.receivePart(data);
-        const newCount = decoderRef.current.receivedIndexes?.length || 0;
+        const newCount = decoderRef.current.receivedPartIndexes?.length || 0;
 
         // Subtle haptic tick when a new unique fragment is captured
         if (newCount > prevCount) {

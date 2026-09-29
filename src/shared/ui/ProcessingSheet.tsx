@@ -248,8 +248,8 @@ export function ProcessingSheet({
               {variant === 'nostr' && (
                 <XStack items="center" gap="$3">
                   <View
-                    w={48}
-                    h={48}
+                    width={48}
+                    height={48}
                     borderRadius={5}
                     bg="$purple10"
                     items="center"
@@ -259,14 +259,14 @@ export function ProcessingSheet({
                   </View>
                   <AnimatedBeam />
                   <View
-                    w={40}
-                    h={40}
+                    width={40}
+                    height={40}
                     borderRadius={5}
                     bg="$gray3"
                     items="center"
                     justify="center"
-                    bw={1}
-                    bc="$gray6"
+                    borderWidth={1}
+                    borderColor="$gray6"
                   >
                     <User size={24} color="$color" />
                   </View>

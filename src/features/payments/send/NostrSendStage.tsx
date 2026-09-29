@@ -2,26 +2,17 @@
  * NostrSendStage
  *
  * When the user selects 'Nostr' send mode, this stage opens a bottom sheet
- * for searching bey.cash usernames or pasting/scanning npubs (like contact-search).
+ * for searching Nostr profiles, resolving NIP-05 addresses, or pasting/scanning
+ * npub and nprofile identifiers using the same lookup flow as People.
  * After selecting a recipient, shows the amount input with the recipient displayed.
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Button, Input, View, Avatar, Square, ScrollView } from 'tamagui';
-import {
-  Search,
-  ClipboardPaste,
-  ChevronDown,
-  Sprout,
-  User,
-  X,
-  Wallet,
-  ArrowUpDown,
-} from '@tamagui/lucide-icons';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { YStack, XStack, Text, Button, Input } from 'tamagui';
+import { Search, ClipboardPaste, User, ArrowUpDown } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
-import Blockies from '~/shared/ui/Blockies';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -29,15 +20,62 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
-import { nip19 } from 'nostr-tools';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Buffer } from 'buffer';
-import { useContactsStore } from '~/state/contactsStore';
+import { selectSortedPeople, type Person, usePeopleStore } from '~/state/peopleStore';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
+import {
+  decodeNostrPublicKey,
+  nostrProfileService,
+  type NostrProfile,
+} from '~/services/api/nostrProfileService';
+import { useNostrProfileSearch } from '~/features/people/hooks/useNostrProfileSearch';
+import { NostrProfileItem } from '~/features/people/components/NostrProfileItem';
+import {
+  getNostrRecipientLabel,
+  isExactNostrRecipientQuery,
+  isResolvedNostrRecipient,
+} from '~/features/payments/send/nostrRecipient';
+
+function personToProfile(person: Person): NostrProfile | null {
+  const pubkeyHex = decodeNostrPublicKey(person.npub);
+  if (!pubkeyHex) return null;
+  return {
+    pubkeyHex,
+    npub: person.npub,
+    name: person.username || undefined,
+    displayName: person.displayName || undefined,
+    nip05: person.nip05 || undefined,
+    nip05Verified: person.nip05Verified,
+    picture: person.picture || undefined,
+    about: person.about || undefined,
+    source: 'identifier',
+  };
+}
+
+function profileMatches(profile: NostrProfile, query: string): boolean {
+  return [profile.displayName, profile.name, profile.nip05, profile.npub]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+    .includes(query.trim().toLowerCase());
+}
+
+function mergeProfiles(local: NostrProfile[], remote: NostrProfile[]): NostrProfile[] {
+  const byPubkey = new Map<string, NostrProfile>();
+  for (const profile of [...local, ...remote]) {
+    const current = byPubkey.get(profile.pubkeyHex);
+    byPubkey.set(profile.pubkeyHex, current ? { ...current, ...profile } : profile);
+  }
+  return [...byPubkey.values()];
+}
 
 interface NostrSendStageProps {
   amount: string;
@@ -74,8 +112,7 @@ export function NostrSendStage({
     setScannerResult,
   } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const favorites = useContactsStore((s) => s.favorites);
-  const favoriteContacts = Object.values(favorites);
+  const people = usePeopleStore((s) => s.people);
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
   const contactSheetRef = useRef<AppBottomSheetRef>(null);
@@ -83,103 +120,92 @@ export function NostrSendStage({
 
   const isLoadingMint = isInitializing || isRefreshing;
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [directory, setDirectory] = useState<Record<string, string>>({});
-  const [hasRecipient, setHasRecipient] = useState(!!recipientNpub);
+  const [isResolvingRecipient, setIsResolvingRecipient] = useState(false);
+  const { results: remoteResults, isSearching, error: searchError } = useNostrProfileSearch(search);
+  const savedProfiles = useMemo(
+    () =>
+      selectSortedPeople({ people } as any)
+        .map(personToProfile)
+        .filter((profile): profile is NostrProfile => !!profile),
+    [people],
+  );
+  const favoriteProfiles = useMemo(
+    () => savedProfiles.filter((profile) => people[profile.npub]?.isFavorite),
+    [people, savedProfiles],
+  );
+  const otherProfiles = useMemo(
+    () => savedProfiles.filter((profile) => !people[profile.npub]?.isFavorite),
+    [people, savedProfiles],
+  );
+  const searchResults = useMemo(
+    () =>
+      search.trim()
+        ? mergeProfiles(
+            savedProfiles.filter((profile) => profileMatches(profile, search)),
+            remoteResults,
+          )
+        : [],
+    [remoteResults, savedProfiles, search],
+  );
+  const hasRecipient = isResolvedNostrRecipient(recipientNpub);
+
+  const selectProfile = useCallback(
+    (profile: NostrProfile) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setRecipientNpub(profile.npub);
+      setRecipientUsername(getNostrRecipientLabel(profile));
+      setSearch('');
+      contactSheetRef.current?.dismiss();
+    },
+    [setRecipientNpub, setRecipientUsername],
+  );
+
+  const resolveExactRecipient = useCallback(
+    async (value: string): Promise<boolean> => {
+      const cleaned = value.trim().replace(/^nostr:/i, '');
+      if (!isExactNostrRecipientQuery(cleaned)) return false;
+      setIsResolvingRecipient(true);
+      try {
+        const [profile] = await nostrProfileService.search(cleaned);
+        if (!profile) return false;
+        selectProfile(profile);
+        return true;
+      } finally {
+        setIsResolvingRecipient(false);
+      }
+    },
+    [selectProfile],
+  );
 
   // Check if we just returned from the scanner
   useEffect(() => {
     if (scannerResult) {
-      let cleaned = scannerResult.trim();
-      if (cleaned.toLowerCase().startsWith('nostr:')) {
-        cleaned = cleaned.slice(6);
-      }
-      setRecipientNpub(cleaned);
-      doSearch(cleaned, directory);
+      const cleaned = scannerResult.trim().replace(/^nostr:/i, '');
+      setSearch(cleaned);
       setScannerResult(null);
+      void resolveExactRecipient(cleaned).then((resolved) => {
+        if (!resolved) contactSheetRef.current?.present();
+      });
     }
-  }, [scannerResult, setRecipientNpub, setScannerResult, directory]);
-
-  // Fetch bey.cash directory
-  useEffect(() => {
-    const fetchDirectory = async () => {
-      try {
-        const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.names) setDirectory(data.names);
-        }
-      } catch {
-        /* silent */
-      }
-    };
-    fetchDirectory();
-  }, []);
+  }, [resolveExactRecipient, scannerResult, setScannerResult]);
 
   // Auto-open contact sheet if no recipient
   useEffect(() => {
-    if (!recipientNpub) {
-      setTimeout(() => contactSheetRef.current?.present(), 300);
-    } else {
-      setHasRecipient(true);
-    }
-  }, [recipientNpub]);
-
-  const doSearch = (query: string, dict: Record<string, string> = directory) => {
-    if (!query) {
-      setResults([]);
-      return;
-    }
-    const lowerQuery = query.toLowerCase().trim();
-    const found: any[] = [];
-
-    if (lowerQuery.startsWith('npub1')) {
-      try {
-        const decoded = nip19.decode(lowerQuery);
-        if (decoded.type === 'npub') {
-          let hex = '';
-          const data = decoded.data as unknown;
-          if (typeof data === 'string') hex = data.toLowerCase();
-          else if (data instanceof Uint8Array) hex = Buffer.from(data).toString('hex');
-
-          let username = null;
-          for (const [name, pubkey] of Object.entries(dict)) {
-            if (pubkey.toLowerCase() === hex) {
-              username = name;
-              break;
-            }
-          }
-          found.push({ npub: lowerQuery, username, hex });
-        }
-      } catch {
-        /* invalid npub */
-      }
-    } else {
-      for (const [name, pubkey] of Object.entries(dict)) {
-        if (name.toLowerCase().includes(lowerQuery)) {
-          try {
-            const npub = nip19.npubEncode(pubkey);
-            found.push({ npub, username: name, hex: pubkey });
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    }
-    setResults(found);
-  };
+    if (hasRecipient) return;
+    const timeout = setTimeout(() => contactSheetRef.current?.present(), 300);
+    return () => clearTimeout(timeout);
+  }, [hasRecipient]);
 
   const handleSearchChange = (text: string) => {
     setSearch(text);
-    doSearch(text);
   };
 
   const handlePaste = async () => {
-    const text = await Clipboard.getStringAsync();
-    if (text) {
-      setSearch(text);
-      doSearch(text, directory);
-    }
+    const value = (await Clipboard.getStringAsync()).trim();
+    if (!value) return;
+    setSearch(value);
+    contactSheetRef.current?.present();
+    await resolveExactRecipient(value);
   };
 
   const handleOpenScanner = () => {
@@ -189,28 +215,12 @@ export function NostrSendStage({
     });
   };
 
-  const selectContact = (contact: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setRecipientNpub(contact.npub);
-    setRecipientUsername(contact.username ? `${contact.username}@bey.cash` : '');
-    setHasRecipient(true);
-    contactSheetRef.current?.dismiss();
-  };
-
   const clearRecipient = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRecipientNpub('');
     setRecipientUsername('');
-    setHasRecipient(false);
     setSearch('');
-    setResults([]);
     contactSheetRef.current?.present();
-  };
-
-  const formatNpub = (str: string | null) => {
-    if (!str) return '';
-    if (str.length < 20) return str;
-    return `${str.slice(0, 10)}...${str.slice(-6)}`;
   };
 
   // ── Amount logic ──────────────────────────────────────────────
@@ -243,13 +253,9 @@ export function NostrSendStage({
   const isOverBalance = parsedAmountSats > balance;
 
   const isInvalidRecipient = useMemo(() => {
-    const val = (recipientUsername || recipientNpub).trim().toLowerCase();
-    if (!val) return false;
-    const isNpub = val.startsWith('npub1') && val.length >= 50;
-    const isUsername = val.endsWith('@bey.cash');
-    if (val.length <= 4) return false;
-    return !isNpub && !isUsername;
-  }, [recipientUsername, recipientNpub]);
+    if (!recipientNpub.trim()) return false;
+    return !isResolvedNostrRecipient(recipientNpub);
+  }, [recipientNpub]);
 
   const isValidAmount =
     parsedAmountSats > 0 && !isOverBalance && hasRecipient && !isInvalidRecipient;
@@ -432,11 +438,13 @@ export function NostrSendStage({
             if (val === '') {
               clearRecipient();
             } else {
-              setRecipientNpub(val);
-              doSearch(val, directory);
+              setRecipientNpub('');
+              setRecipientUsername(val);
+              setSearch(val);
+              contactSheetRef.current?.present();
             }
           }}
-          placeholder="Search bey.cash or npub..."
+          placeholder="NIP-05, name, npub, or nprofile"
           onPaste={handlePaste}
           onScan={handleOpenScanner}
           defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
@@ -458,7 +466,7 @@ export function NostrSendStage({
       {/* ── Contact Search Sheet ──────────────────────────────────── */}
       <AppBottomSheet ref={contactSheetRef} snapPoints={['70%', '90%']}>
         <YStack p="$4" gap="$3" flex={1}>
-          <Text fontSize="$6" fontWeight="800" color="$accent5" textAlign="center">
+          <Text fontSize="$6" fontWeight="800" color="$accent5" style={{ textAlign: 'center' }}>
             Send to
           </Text>
 
@@ -468,84 +476,79 @@ export function NostrSendStage({
               flex={1}
               borderWidth={0}
               bg="transparent"
-              placeholder="Search username or paste npub"
+              placeholder="Name, NIP-05, npub, or nprofile"
               value={search}
               onChangeText={handleSearchChange}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Button
-              size="$2"
-              chromeless
-              icon={<ClipboardPaste size={18} />}
-              onPress={handlePaste}
-            />
+            {isSearching || isResolvingRecipient ? (
+              <Spinner size="small" />
+            ) : (
+              <Button
+                size="$2"
+                chromeless
+                icon={<ClipboardPaste size={18} />}
+                onPress={handlePaste}
+              />
+            )}
           </XStack>
 
           <BottomSheetScrollView showsVerticalScrollIndicator={false}>
             <YStack gap="$2" pb="$4">
-              {results.map((contact, i) => (
-                <XStack
-                  key={i}
-                  bg="$gray3"
-                  p="$3"
-                  rounded="$4"
-                  items="center"
-                  gap="$3"
-                  onPress={() => selectContact(contact)}
-                  pressStyle={{ opacity: 0.7 }}
-                >
-                  <Blockies seed={contact.npub} size={10} scale={3} style={{ borderRadius: 3 }} />
-                  <YStack flex={1}>
-                    <Text fontSize="$4" fontWeight="700" color="$color">
-                      {contact.username ? `${contact.username}@bey.cash` : 'Unknown User'}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                      {formatNpub(contact.npub)}
-                    </Text>
-                  </YStack>
-                </XStack>
-              ))}
+              {search.trim() ? (
+                searchResults.map((profile, index) => (
+                  <NostrProfileItem
+                    key={profile.pubkeyHex}
+                    profile={profile}
+                    onPress={selectProfile}
+                    onSend={selectProfile}
+                    showTopSeparator={index === 0}
+                  />
+                ))
+              ) : (
+                <>
+                  {favoriteProfiles.length > 0 && (
+                    <YStack gap="$1">
+                      <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
+                        Favorites
+                      </Text>
+                      {favoriteProfiles.map((profile, index) => (
+                        <NostrProfileItem
+                          key={profile.pubkeyHex}
+                          profile={profile}
+                          onPress={selectProfile}
+                          onSend={selectProfile}
+                          showTopSeparator={index === 0}
+                        />
+                      ))}
+                    </YStack>
+                  )}
 
-              {search.length > 0 && results.length === 0 && (
-                <Text color="$gray10" textAlign="center" mt="$4">
-                  No contacts found
-                </Text>
+                  {otherProfiles.length > 0 && (
+                    <YStack mt="$3" gap="$1">
+                      <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
+                        People
+                      </Text>
+                      {otherProfiles.map((profile, index) => (
+                        <NostrProfileItem
+                          key={profile.pubkeyHex}
+                          profile={profile}
+                          onPress={selectProfile}
+                          onSend={selectProfile}
+                          showTopSeparator={index === 0}
+                        />
+                      ))}
+                    </YStack>
+                  )}
+                </>
               )}
 
-              {/* Favorites */}
-              {favoriteContacts.length > 0 && !search && (
+              {search.trim() && !isSearching && !searchResults.length && (
                 <YStack mt="$3" gap="$2">
-                  <Text fontSize="$3" fontWeight="600" color="$gray10" px="$1">
-                    Favorites
+                  <Text color="$gray10" style={{ textAlign: 'center' }}>
+                    {searchError || 'No people found'}
                   </Text>
-                  {favoriteContacts.map((contact: any, i: number) => (
-                    <XStack
-                      key={`fav-${i}`}
-                      bg="$gray3"
-                      p="$3"
-                      rounded="$4"
-                      items="center"
-                      gap="$3"
-                      onPress={() => selectContact(contact)}
-                      pressStyle={{ opacity: 0.7 }}
-                    >
-                      <Blockies
-                        seed={contact.npub}
-                        size={10}
-                        scale={3}
-                        style={{ borderRadius: 3 }}
-                      />
-                      <YStack flex={1}>
-                        <Text fontSize="$4" fontWeight="700" color="$color">
-                          {contact.username ? `${contact.username}@bey.cash` : 'Unknown'}
-                        </Text>
-                        <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                          {formatNpub(contact.npub)}
-                        </Text>
-                      </YStack>
-                    </XStack>
-                  ))}
                 </YStack>
               )}
             </YStack>

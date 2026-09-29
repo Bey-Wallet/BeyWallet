@@ -62,7 +62,6 @@ export function OtaUpdateChecker() {
           <Button
             flex={1}
             size="$4"
-            theme="active"
             onPress={() => {
               sheetRef.current?.dismiss();
               // Small delay to let the sheet close before navigating

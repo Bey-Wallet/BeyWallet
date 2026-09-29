@@ -13,7 +13,7 @@ import {
   type MintQuoteResponse,
   type MeltQuoteResponse,
 } from '@cashu/cashu-ts';
-import { secp256k1 } from '@noble/curves/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { Buffer } from 'buffer';
 
 function mgr() {
@@ -442,7 +442,8 @@ export const quotesService = {
     const pubkeyHex = Buffer.from(pubkeyBytes).toString('hex');
 
     return withKeysetRecovery(mintUrl, async () => {
-      const wallet = await mgr().getWallet(mintUrl);
+      const wallet = new Wallet(new CashuMint(mintUrl));
+      await wallet.loadMint();
       const quote = await wallet.createLockedMintQuote(amount, pubkeyHex);
       console.log(
         `[QuotesService] ✅ NUT-20 Signed Mint Quote created: ${quote.quote} (locked to ${pubkeyHex.slice(0, 8)}…)`,
@@ -517,6 +518,7 @@ export const quotesService = {
     amount_paid: number;
     amount_issued: number;
     expiry: number;
+    unit: string;
   }> => {
     const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/mint/quote/onchain/${quoteId}`, {
       method: 'GET',
@@ -524,7 +526,8 @@ export const quotesService = {
     if (!res.ok) {
       throw new Error(`Failed to check on-chain mint quote: ${await res.text()}`);
     }
-    return await res.json();
+    const quote = await res.json();
+    return { ...quote, unit: quote.unit || 'sat' };
   },
 
   /**

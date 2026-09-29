@@ -28,11 +28,19 @@ type Row = {
   operationId: string | null;
 };
 
+type AppMetadata = Record<string, unknown>;
+type WithAppMetadata<T extends { metadata?: unknown }> = Omit<T, 'metadata'> & {
+  metadata?: AppMetadata;
+};
 type NewHistoryEntry =
-  | Omit<MintHistoryEntry, 'id'>
-  | Omit<MeltHistoryEntry, 'id'>
-  | Omit<SendHistoryEntry, 'id'>
-  | Omit<ReceiveHistoryEntry, 'id'>;
+  | WithAppMetadata<Omit<MintHistoryEntry, 'id'>>
+  | WithAppMetadata<Omit<MeltHistoryEntry, 'id'>>
+  | (WithAppMetadata<Omit<SendHistoryEntry, 'id' | 'state'>> & {
+      state: SendHistoryState | 'unclaimed' | 'claimed' | 'expired';
+    })
+  | (WithAppMetadata<Omit<ReceiveHistoryEntry, 'id'>> & {
+      state?: 'unclaimed';
+    });
 
 type UpdatableHistoryEntry =
   | Omit<MintHistoryEntry, 'id' | 'createdAt'>
@@ -106,7 +114,10 @@ export class ExpoHistoryRepository {
     return this.rowToEntry(row);
   }
 
-  async addHistoryEntry(history: NewHistoryEntry): Promise<HistoryEntry> {
+  async addHistoryEntry(history: Omit<HistoryEntry, 'id'>): Promise<HistoryEntry>;
+  async addHistoryEntry(history: NewHistoryEntry): Promise<HistoryEntry>;
+  async addHistoryEntry(input: Omit<HistoryEntry, 'id'> | NewHistoryEntry): Promise<HistoryEntry> {
+    const history = input as NewHistoryEntry;
     const baseParams = [
       history.mintUrl,
       history.type,
@@ -140,7 +151,7 @@ export class ExpoHistoryRepository {
         break;
       case 'receive':
         tokenJson = history.token ? JSON.stringify(history.token as ReceiveToken) : null;
-        state = history.state || null;
+        state = 'state' in history && typeof history.state === 'string' ? history.state : null;
         break;
     }
 
@@ -183,7 +194,7 @@ export class ExpoHistoryRepository {
   async updateHistoryMeltEntry(
     mintUrl: string,
     quoteId: string,
-    state: MeltQuoteState,
+    state: MeltQuoteState | 'paid' | 'failed',
   ): Promise<HistoryEntry> {
     await this.db.run(
       `UPDATE coco_cashu_history SET state = ? WHERE mintUrl = ? AND quoteId = ? AND type = 'melt'`,

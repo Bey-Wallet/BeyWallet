@@ -81,7 +81,7 @@ export interface InsetProps {
 /**
  * Spacing component that indents content on all four sides
  */
-export function Inset({ all = '$4', children }: InsetProps): JSX.Element {
+export function Inset({ all = '$4', children }: InsetProps): React.JSX.Element {
   return <Flex p={all}>{children}</Flex>;
 }
 
@@ -96,7 +96,7 @@ export function SafeFlex({
   edges = ['top', 'bottom'],
   children,
   ...props
-}: SafeFlexProps): JSX.Element {
+}: SafeFlexProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
 
   const paddingBottom = edges.includes('bottom') ? insets.bottom : 0;

@@ -18,7 +18,7 @@ import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
 import { walletService, mintManager, quotesService, initService } from '~/services/wallet';
-import { currencyService } from '~/services/wallet/currencyService';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';

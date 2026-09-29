@@ -1,4 +1,5 @@
-import type { Plugin, HistoryEntry, Token } from 'coco-cashu-core';
+import type { Plugin, HistoryEntry } from 'coco-cashu-core';
+import type { Token } from '@cashu/cashu-ts';
 
 /**
  * HistoryWatcherPlugin

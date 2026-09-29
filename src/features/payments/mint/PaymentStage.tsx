@@ -132,7 +132,7 @@ export function PaymentStage({
           separator={<Separator borderColor="$borderColor" opacity={0.5} />}
         >
           <DetailItem label="Pay Invoice" value={`${sats} SATS`} />
-          <DetailItem label="Expires in (UTC)" value={`${formatTime(timeLeft)}`} />
+          <DetailItem label="Expires in (UTC)" value={formatTime(timeLeft ?? 0)} />
           <DetailItem label="Mint" value={getMintName(mintUrl)} />
           <DetailItem label="Fee Rate" value={feeDisplay} />
           <DetailItem

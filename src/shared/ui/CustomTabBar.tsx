@@ -10,7 +10,11 @@ import { useAppTheme } from '~/shared/theme/ThemeContext';
 const MARGIN = 6;
 const ANIMATION_DURATION = 200;
 
-export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
+export function CustomTabBar({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { resolvedTheme } = useAppTheme();
@@ -71,7 +75,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
           />
         )}
 
-        {state.routes.map((route, index): JSX.Element => {
+        {state.routes.map((route, index): React.JSX.Element => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
 

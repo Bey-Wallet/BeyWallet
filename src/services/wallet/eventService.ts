@@ -23,11 +23,11 @@
  *   'history:updated'
  */
 
-import type { CoreEvents } from 'coco-cashu-core';
+import type { Manager } from 'coco-cashu-core';
 import { initService } from '~/services/wallet/initService';
 
-type EventName = keyof CoreEvents;
-type EventHandler<E extends EventName> = (payload: CoreEvents[E]) => void | Promise<void>;
+type EventName = Parameters<Manager['on']>[0];
+type EventHandler = Parameters<Manager['on']>[1];
 
 export const eventService = {
   /**
@@ -40,14 +40,14 @@ export const eventService = {
    * });
    * // Later: unsub();
    */
-  on: <E extends EventName>(event: E, handler: EventHandler<E>): (() => void) => {
+  on: (event: EventName, handler: EventHandler): (() => void) => {
     return initService.getManager().on(event, handler);
   },
 
   /**
    * Unsubscribe from a CoreEvent.
    */
-  off: <E extends EventName>(event: E, handler: EventHandler<E>): void => {
+  off: (event: EventName, handler: EventHandler): void => {
     initService.getManager().off(event, handler);
   },
 
@@ -55,7 +55,7 @@ export const eventService = {
    * Subscribe to a CoreEvent for a single emission.
    * Returns an unsubscribe function (in case you want to cancel early).
    */
-  once: <E extends EventName>(event: E, handler: EventHandler<E>): (() => void) => {
+  once: (event: EventName, handler: EventHandler): (() => void) => {
     return initService.getManager().once(event, handler);
   },
 };

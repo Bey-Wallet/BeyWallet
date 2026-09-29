@@ -91,7 +91,6 @@ export const InfoSheet = forwardRef<InfoSheetRef>((_, ref) => {
         </Text>
         <Button
           size="$5"
-          theme="active"
           fontWeight="700"
           rounded="$4"
           width="100%"

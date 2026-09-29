@@ -111,6 +111,7 @@ export const consolidationService = {
             unit: 'sat',
             amount: decoded.amount || totalAmount,
             createdAt: Date.now(),
+            operationId: sendResult.id,
             state: 'unclaimed',
             token: decoded.raw || sendResult.token,
             metadata: {

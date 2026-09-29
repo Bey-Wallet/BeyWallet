@@ -28,8 +28,10 @@ const PROFILE_RELAYS = [
 
 const QUERY_TIMEOUT_MS = 5500;
 const DIRECTORY_CACHE_MS = 5 * 60 * 1000;
+const PROFILE_CACHE_MS = 5 * 60 * 1000;
 
 let beyDirectoryCache: { names: Record<string, string>; fetchedAt: number } | null = null;
+const profileCache = new Map<string, { profile: NostrProfile | null; fetchedAt: number }>();
 
 function asText(value: unknown, maxLength = 280): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -196,6 +198,31 @@ async function resolveNip05(identifier: string): Promise<NostrProfile | null> {
   }
 }
 
+async function verifyProfileNip05(profile: NostrProfile): Promise<NostrProfile> {
+  if (!profile.nip05) return profile;
+  const resolved = await resolveNip05(profile.nip05).catch(() => null);
+  return {
+    ...profile,
+    nip05Verified: resolved?.pubkeyHex === profile.pubkeyHex,
+  };
+}
+
+async function getProfile(
+  pubkey: string,
+  options: { forceRefresh?: boolean } = {},
+): Promise<NostrProfile | null> {
+  const pubkeyHex = decodeNostrPublicKey(pubkey);
+  if (!pubkeyHex) return null;
+  const cached = profileCache.get(pubkeyHex);
+  if (!options.forceRefresh && cached && Date.now() - cached.fetchedAt < PROFILE_CACHE_MS) {
+    return cached.profile;
+  }
+  const raw = await fetchProfile(pubkeyHex);
+  const profile = raw ? await verifyProfileNip05(raw) : null;
+  profileCache.set(pubkeyHex, { profile, fetchedAt: Date.now() });
+  return profile;
+}
+
 function searchBeyDirectory(query: string, names: Record<string, string>): NostrProfile[] {
   const lowerQuery = query.toLowerCase();
   const results: NostrProfile[] = [];
@@ -238,13 +265,14 @@ function dedupeProfiles(profiles: NostrProfile[]): NostrProfile[] {
 }
 
 export const nostrProfileService = {
+  getProfile,
   async search(query: string): Promise<NostrProfile[]> {
     const cleaned = query.trim().replace(/^nostr:/i, '');
     if (!cleaned) return [];
 
     const exactPubkey = decodeNostrPublicKey(cleaned);
     if (exactPubkey) {
-      const metadata = await fetchProfile(exactPubkey).catch(() => null);
+      const metadata = await getProfile(exactPubkey).catch(() => null);
       return [metadata || profileFromPubkey(exactPubkey, 'identifier')];
     }
 

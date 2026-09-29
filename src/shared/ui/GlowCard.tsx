@@ -47,7 +47,7 @@ export default function GlowCard({
     <View
       width={width}
       height={height}
-      borderRadius={rounded}
+      borderRadius={rounded as number}
       overflow="hidden"
       backgroundColor={bgColor}
     >

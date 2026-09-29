@@ -15,6 +15,10 @@ import { cleanToken, encodeToken, decodeToken } from '~/services/wallet/tokenUti
 import type { Token } from '@cashu/cashu-ts';
 import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
+import {
+  isDuplicateOutputsError,
+  receiveWithDuplicateOutputRecovery,
+} from '~/services/wallet/cashuReceiveRecovery';
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -574,7 +578,7 @@ export const walletService = {
    */
   receive: async (token: string): Promise<void> => {
     const cleaned = cleanToken(token);
-    console.log('[WalletService] Receiving token:', cleaned.substring(0, 50) + '...');
+    console.log('[WalletService] Receiving ecash token');
 
     // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
     // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
@@ -619,15 +623,11 @@ export const walletService = {
     }
 
     try {
-      await mgr().wallet.receive(cleaned);
+      await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
       console.log('[WalletService] ✅ Token received successfully');
     } catch (err: any) {
       const msg: string = err?.message ?? '';
       console.error('[WalletService] Receive failed:', msg);
-      console.error(
-        '[WalletService] Full error:',
-        JSON.stringify(err, Object.getOwnPropertyNames(err), 2),
-      );
 
       if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
         throw new Error('Mint is not trusted. Please add and trust the mint first.');
@@ -644,7 +644,7 @@ export const walletService = {
           } else {
             unsafeManager.walletService?.clearAllCaches?.();
           }
-          await mgr().wallet.receive(cleaned);
+          await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
           console.log('[WalletService] ✅ Token received (after cache clear)');
           return;
         } catch (retryErr: any) {
@@ -658,6 +658,8 @@ export const walletService = {
       if (msg.includes('Invalid token') || err?.name === 'ProofValidationError') {
         throw new Error('Invalid token format. Please check the token and try again.');
       }
+
+      if (isDuplicateOutputsError(err)) throw err;
 
       if (msg.includes('could not be verified') || msg.includes('outputs')) {
         throw new Error(
@@ -686,7 +688,7 @@ export const walletService = {
    */
   receiveP2PK: async (token: string, nostrPrivKey: string | string[]): Promise<void> => {
     const cleaned = cleanToken(token);
-    console.log('[WalletService] Receiving P2PK token:', cleaned.substring(0, 50) + '...');
+    console.log('[WalletService] Receiving P2PK token');
     const m = mgr();
     const unsafeManager = m as any;
 
@@ -711,15 +713,11 @@ export const walletService = {
 
       // 2. Use coco's standard receive — it now knows the key
       console.log('[WalletService] P2PK: Receiving via coco standard pipeline...');
-      await m.wallet.receive(cleaned);
+      await receiveWithDuplicateOutputRecovery(() => m.wallet.receive(cleaned));
 
       console.log('[WalletService] ✅ P2PK Token received successfully via coco');
     } catch (err: any) {
       console.error('[WalletService] P2PK Receive failed:', err?.message || err);
-      console.error(
-        '[WalletService] P2PK Full error:',
-        JSON.stringify(err, Object.getOwnPropertyNames(err), 2),
-      );
       throw err;
     }
   },
@@ -783,7 +781,7 @@ export const walletService = {
     // BeyWallet is a SAT-only wallet; scanning USD or EUR keysets wastes database, network and CPU resources.
     if (m.wallet && !(m.wallet as any)._restoreOverridden) {
       (m.wallet as any)._restoreOverridden = true;
-      m.wallet.restore = async function (targetMintUrl: string) {
+      m.wallet.restore = async function (this: any, targetMintUrl: string) {
         this.logger?.info(`[WalletService] Starting optimized restore for ${targetMintUrl}`);
         const mint = await this.mintService.addMintByUrl(targetMintUrl, { trusted: true });
 

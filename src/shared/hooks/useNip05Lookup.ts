@@ -41,6 +41,8 @@ export interface Nip05Result {
   loading: boolean;
   /** Whether the lookup succeeded from remote */
   isRemote: boolean;
+  /** Result of the latest authoritative remote lookup */
+  status: 'idle' | 'loading' | 'verified' | 'not_found' | 'error';
   /** Refresh the lookup */
   refresh: () => void;
 }
@@ -63,6 +65,7 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
   const [nip05, setNip05State] = useState<string | null>(storedNip05);
   const [loading, setLoading] = useState(false);
   const [isRemote, setIsRemote] = useState(false);
+  const [status, setStatus] = useState<Nip05Result['status']>('idle');
   const fetchedRef = useRef(false);
 
   // Initialize from stored value
@@ -78,9 +81,14 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
     if (!npub) return;
 
     const hexPub = npubToHex(npub);
-    if (!hexPub) return;
+    if (!hexPub) {
+      setStatus('error');
+      return;
+    }
 
     setLoading(true);
+    setStatus('loading');
+    setIsRemote(false);
 
     try {
       // Fetch all names from bey.cash NIP-05 endpoint
@@ -95,6 +103,7 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
 
       if (!res.ok) {
         console.log(`[NIP-05] bey.cash returned ${res.status}`);
+        setStatus('error');
         return;
       }
 
@@ -117,6 +126,7 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
         setUsername(foundUsername);
         setNip05State(fullNip05);
         setIsRemote(true);
+        setStatus('verified');
 
         // Persist to local store if changed
         if (storedNip05 !== fullNip05) {
@@ -124,6 +134,8 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
         }
       } else {
         console.log(`[NIP-05] No bey.cash username found for this npub`);
+        setIsRemote(false);
+        setStatus('not_found');
         // If no remote match but we had a stored bey.cash nip05, clear it
         if (storedNip05 && storedNip05.endsWith(`@${DOMAIN}`)) {
           // The registration may have been removed
@@ -132,6 +144,8 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
       }
     } catch (err) {
       console.log('[NIP-05] Lookup failed (may be offline):', err);
+      setIsRemote(false);
+      setStatus('error');
     } finally {
       setLoading(false);
     }
@@ -157,6 +171,7 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
     username: username || (storedNip05 ? storedNip05.split('@')[0] : null),
     loading,
     isRemote,
+    status,
     refresh: doLookup,
   };
 }

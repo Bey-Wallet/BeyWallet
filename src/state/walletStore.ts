@@ -529,10 +529,17 @@ export const useWalletStore = create<WalletState>()(
 
           // 1. Process Pending Deposits (Mints)
           const pendingOnchainMints = history.filter(
-            (h) => h.type === 'mint' && h.state === 'pending' && h.metadata?.via === 'onchain',
+            (h): h is Extract<(typeof history)[number], { type: 'mint' }> =>
+              h.type === 'mint' &&
+              String(h.state).toLowerCase() === 'pending' &&
+              h.metadata?.via === 'onchain',
           );
 
           for (const entry of pendingOnchainMints) {
+            const metadata = entry.metadata as unknown as {
+              via?: string;
+              privKey?: string;
+            };
             try {
               console.log(
                 `[WalletStore] Auto-checking pending on-chain deposit quote ${entry.quoteId} for mint ${entry.mintUrl}`,
@@ -542,14 +549,14 @@ export const useWalletStore = create<WalletState>()(
                 entry.quoteId,
               );
               const delta = status.amount_paid - status.amount_issued;
-              if (delta > 0 && entry.metadata?.privKey) {
+              if (delta > 0 && metadata.privKey) {
                 console.log(
                   `[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sats...`,
                 );
                 await quotesService.redeemOnchainMintQuote(
                   entry.mintUrl,
                   entry.quoteId,
-                  entry.metadata.privKey,
+                  metadata.privKey,
                 );
                 get().refreshBalance();
               }
@@ -560,10 +567,18 @@ export const useWalletStore = create<WalletState>()(
 
           // 2. Process Pending Withdrawals (Melts)
           const pendingOnchainMelts = history.filter(
-            (h) => h.type === 'melt' && h.state === 'pending' && h.metadata?.via === 'onchain',
+            (h): h is Extract<(typeof history)[number], { type: 'melt' }> =>
+              h.type === 'melt' &&
+              String(h.state).toLowerCase() === 'pending' &&
+              h.metadata?.via === 'onchain',
           );
 
           for (const entry of pendingOnchainMelts) {
+            const metadata = entry.metadata as unknown as {
+              via?: string;
+              changeOutputs?: any[];
+              inputs?: Array<{ secret: string }>;
+            };
             try {
               console.log(
                 `[WalletStore] Auto-checking pending on-chain melt quote ${entry.quoteId} for mint ${entry.mintUrl}`,
@@ -580,12 +595,12 @@ export const useWalletStore = create<WalletState>()(
                 const m = initService.getManager() as any;
 
                 // Claim change proofs if any
-                if (status.change && status.change.length > 0 && entry.metadata?.changeOutputs) {
+                if (status.change && status.change.length > 0 && metadata.changeOutputs) {
                   const wallet = new Wallet(new CashuMint(entry.mintUrl));
                   await wallet.loadMint();
                   const keyset = wallet.getKeyset(status.change[0].id);
 
-                  const outputData = entry.metadata.changeOutputs.map((h: any) => {
+                  const outputData = metadata.changeOutputs.map((h: any) => {
                     // Deserialize Uint8Array from hex string
                     const secretBytes = new Uint8Array(
                       h.secret.match(/.{1,2}/g).map((byte: string) => parseInt(byte, 16)),
@@ -607,8 +622,8 @@ export const useWalletStore = create<WalletState>()(
                 }
 
                 // Mark inputs as spent
-                if (entry.metadata?.inputs) {
-                  const secrets = entry.metadata.inputs.map((p: any) => p.secret);
+                if (metadata.inputs) {
+                  const secrets = metadata.inputs.map((p) => p.secret);
                   await m.proofService.setProofState(entry.mintUrl, secrets, 'spent');
                 }
 
@@ -626,8 +641,8 @@ export const useWalletStore = create<WalletState>()(
                 const m = initService.getManager() as any;
 
                 // Restore inputs back to ready
-                if (entry.metadata?.inputs) {
-                  const secrets = entry.metadata.inputs.map((p: any) => p.secret);
+                if (metadata.inputs) {
+                  const secrets = metadata.inputs.map((p) => p.secret);
                   await m.proofService.setProofState(entry.mintUrl, secrets, 'ready');
                 }
 
