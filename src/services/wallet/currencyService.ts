@@ -1,4 +1,5 @@
 import { useSettingsStore } from '~/state/settingsStore';
+import { bitcoinService } from '~/services/api/bitcoinService';
 
 export type CurrencyCode =
   | 'USD'
@@ -152,26 +153,7 @@ export const currencyService = {
   },
 
   async fetchBitcoinPrice(currencyCode: CurrencyCode) {
-    const vsCurrency = currencyCode.toLowerCase();
-    const priceRes = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${vsCurrency}&include_24hr_change=true`,
-    );
-
-    if (!priceRes.ok) {
-      throw new Error(`Price API failed: ${priceRes.status}`);
-    }
-
-    const priceData = await priceRes.json();
-
-    if (!priceData?.bitcoin?.[vsCurrency]) {
-      throw new Error(`Invalid price format from CoinGecko for ${vsCurrency}`);
-    }
-
-    return {
-      price: priceData.bitcoin[vsCurrency],
-      change24h: priceData.bitcoin[`${vsCurrency}_24h_change`] || 0,
-      updatedAt: Math.floor(Date.now() / 1000),
-    };
+    return bitcoinService.fetchPrice(currencyCode);
   },
 
   convertSatsToCurrency(sats: number, btcPrice: number): number {

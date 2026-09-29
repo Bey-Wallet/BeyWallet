@@ -324,7 +324,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
         </YStack>
 
         {previewInfo.description ? (
-          <Text color="$gray11" fontSize="$3" lineHeight={20} textAlign="center">
+          <Text color="$gray12" fontSize="$3" lineHeight={20} textAlign="center">
             {previewInfo.description}
           </Text>
         ) : null}
@@ -332,7 +332,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
         <XStack p="$3" bg="$orange2" rounded="$4" gap="$2.5" items="flex-start">
           <ShieldAlert size={19} color="$orange10" />
           <YStack flex={1} gap="$1">
-            <Text fontSize="$3" color="$orange10" fontWeight="800">
+            <Text fontSize="$4" color="$orange10" fontWeight="800">
               This mint will hold your funds
             </Text>
             <Text fontSize="$2" color="$orange10" lineHeight={17}>

@@ -6,29 +6,75 @@ export interface BitcoinPriceData {
   updatedAt: number;
 }
 
+function isValidPrice(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+async function fetchFromCoinPaprika(vsCurrency: string): Promise<BitcoinPriceData> {
+  const quoteCurrency = vsCurrency.toUpperCase();
+  const response = await fetch(
+    `https://api.coinpaprika.com/v1/tickers/btc-bitcoin?quotes=${encodeURIComponent(quoteCurrency)}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`CoinPaprika price API failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const quote = data?.quotes?.[quoteCurrency];
+
+  if (!isValidPrice(quote?.price)) {
+    throw new Error(`Invalid price format from CoinPaprika for ${vsCurrency}`);
+  }
+
+  return {
+    price: quote.price,
+    change24h: Number.isFinite(quote.percent_change_24h) ? quote.percent_change_24h : 0,
+    updatedAt: Math.floor(Date.now() / 1000),
+  };
+}
+
+async function fetchFromCoinbase(vsCurrency: string): Promise<BitcoinPriceData> {
+  const quoteCurrency = vsCurrency.toUpperCase();
+  const response = await fetch(
+    `https://api.coinbase.com/v2/prices/BTC-${encodeURIComponent(quoteCurrency)}/spot`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Coinbase price API failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const price = Number(data?.data?.amount);
+
+  if (!isValidPrice(price)) {
+    throw new Error(`Invalid price format from Coinbase for ${vsCurrency}`);
+  }
+
+  return {
+    price,
+    change24h: 0,
+    updatedAt: Math.floor(Date.now() / 1000),
+  };
+}
+
 export const bitcoinService = {
   async fetchPrice(currency: string = 'usd'): Promise<BitcoinPriceData> {
     const vsCurrency = currency.toLowerCase();
     try {
-      const priceRes = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${vsCurrency}&include_24hr_change=true`,
-      );
-
-      if (!priceRes.ok) {
-        throw new Error(`Price API failed: ${priceRes.status}`);
+      let parsedData: BitcoinPriceData;
+      try {
+        parsedData = await fetchFromCoinPaprika(vsCurrency);
+      } catch (primaryError) {
+        try {
+          parsedData = await fetchFromCoinbase(vsCurrency);
+        } catch (fallbackError) {
+          throw new AggregateError(
+            [primaryError, fallbackError],
+            `All Bitcoin price providers failed for ${vsCurrency}`,
+          );
+        }
       }
-
-      const priceData = await priceRes.json();
-
-      if (!priceData?.bitcoin?.[vsCurrency]) {
-        throw new Error(`Invalid price format from CoinGecko for ${vsCurrency}`);
-      }
-
-      const parsedData = {
-        price: priceData.bitcoin[vsCurrency],
-        change24h: priceData.bitcoin[`${vsCurrency}_24h_change`] || 0,
-        updatedAt: Math.floor(Date.now() / 1000),
-      };
 
       // Save to local cache synchronously
       sqliteStorage.setItem(`btc_price_cache_${vsCurrency}`, JSON.stringify(parsedData));
