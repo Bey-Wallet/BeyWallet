@@ -301,21 +301,6 @@ export default function NostrProfileScreen() {
             )}
           </YStack>
         </ScrollView>
-
-        {/* Bottom Actions */}
-        <YStack gap="$3" px="$4" pb="$4" pt="$2" bg="$background">
-          <Button
-            size="$5"
-            theme="accent"
-            fontWeight="800"
-            rounded="$5"
-            icon={<BeyIcon />}
-            onPress={handleShare}
-            pressStyle={{ scale: 0.98, bg: '$gray2' }}
-          >
-            Share
-          </Button>
-        </YStack>
       </Flex>
     </YStack>
   );
