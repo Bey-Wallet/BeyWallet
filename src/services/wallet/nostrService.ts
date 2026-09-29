@@ -481,7 +481,7 @@ class NostrService {
     // Persist before emitting the UI event. DeviceEventEmitter is ephemeral,
     // so without this handoff a payment received off the Home tab can vanish.
     const { useNostrInboxStore } = require('~/state/nostrInboxStore');
-    useNostrInboxStore.getState().addIncoming({
+    const added = useNostrInboxStore.getState().addIncoming({
       id: sourceEvent.id,
       type: 'token',
       tokenString,
@@ -491,6 +491,10 @@ class NostrService {
       senderUsername,
       requestId: requestIdFromPayload,
     });
+
+    // Relays replay recent events whenever the app reconnects. A claimed or
+    // dismissed inbox item is terminal, so do not enqueue or present it again.
+    if (!added) return;
 
     // Claiming is owned by a non-React wallet service. Load it lazily to keep
     // the Nostr transport independent from wallet lifecycle modules.

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Activity, Radio, Settings } from '@tamagui/lucide-icons';
+import { Activity, Radio, Settings, Signal } from '@tamagui/lucide-icons';
 import { Button, Text, XStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
@@ -47,7 +47,7 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
       <Button
         size="$3"
         rounded="$10"
-        icon={<Radio strokeWidth={2.5} size={16} color={healthy ? '#16a34a' : '#ca8a04'} />}
+        icon={<Signal strokeWidth={2.5} size={16} color={healthy ? '#16a34a' : '#f45f45'} />}
         bg={healthy ? '$green3' : '$gray3'}
         pressStyle={{ opacity: 0.75, scale: 0.97 }}
         onPress={() => open('/(modals)/nostr-diagnostics')}

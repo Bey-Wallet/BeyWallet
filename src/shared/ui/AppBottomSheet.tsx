@@ -22,6 +22,7 @@ interface AppBottomSheetProps {
   onClose?: () => void;
   enablePanDownToClose?: boolean;
   backgroundColor?: string;
+  bottomInset?: number;
 }
 
 export interface AppBottomSheetRef {
@@ -30,7 +31,17 @@ export interface AppBottomSheetRef {
 }
 
 const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
-  ({ children, snapPoints, onClose, enablePanDownToClose = true, backgroundColor }, ref) => {
+  (
+    {
+      children,
+      snapPoints,
+      onClose,
+      enablePanDownToClose = true,
+      backgroundColor,
+      bottomInset = 0,
+    },
+    ref,
+  ) => {
     const bottomSheetRef = useRef<BottomSheetModal>(null);
     const theme = useTheme();
     const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +100,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         enablePanDownToClose={enablePanDownToClose}
         enableDynamicSizing={enableDynamicSizing}
         snapPoints={snapPoints}
+        bottomInset={bottomInset}
         backdropComponent={renderBackdrop}
         stackBehavior="push"
         // Keyboard: sheet expands to fill space above keyboard (works with dynamic sizing)

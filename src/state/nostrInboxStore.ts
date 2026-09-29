@@ -57,7 +57,8 @@ interface NostrInboxState {
   activeClaimId: string | null; // ID of the item currently being claimed
 
   // Actions
-  addIncoming: (item: Omit<NostrInboxItem, 'status' | 'receivedAt' | 'seen'>) => void;
+  /** Returns false when this persisted Nostr event is already known. */
+  addIncoming: (item: Omit<NostrInboxItem, 'status' | 'receivedAt' | 'seen'>) => boolean;
   markClaiming: (id: string) => void;
   markClaimed: (id: string) => void;
   markFailed: (id: string, error: string, failure?: NostrClaimFailure) => void;
@@ -84,7 +85,7 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         // Deduplicate by event ID
         if (get().items.some((existing) => existing.id === item.id)) {
           console.log(`[NostrInboxStore] Duplicate event ${item.id.slice(0, 8)}, skipping`);
-          return;
+          return false;
         }
 
         const newItem: NostrInboxItem = {
@@ -108,6 +109,7 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         console.log(
           `[NostrInboxStore] Queued incoming: ${item.amount} sats from ${item.senderPubkey.slice(0, 8)}…`,
         );
+        return true;
       },
 
       markClaiming: (id) => {

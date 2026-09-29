@@ -133,6 +133,34 @@ describe('Nostr receive service', () => {
     });
   });
 
+  it('does not re-enqueue a dismissed payment when relays replay it after restart', async () => {
+    const service = nostrService as any;
+    const senderPubkey = '07'.repeat(32);
+    const event = { id: 'dismissed-payment', kind: 1059 } as any;
+    const payload = JSON.stringify({
+      mint: 'https://mint.example',
+      unit: 'sat',
+      proofs: [{ id: 'keyset', amount: 5, secret: 'secret', C: '02aa' }],
+    });
+    jest.spyOn(service, 'getSenderUsername').mockResolvedValue('CaseSensitive');
+    (nostrClaimService.enqueue as jest.Mock).mockResolvedValue({
+      eventId: event.id,
+      status: 'approval_required',
+    });
+
+    await service._handleDecrypted(payload, event, senderPubkey);
+    useNostrInboxStore.getState().dismiss(event.id);
+    await service._handleDecrypted(payload, event, senderPubkey);
+
+    expect(nostrClaimService.enqueue).toHaveBeenCalledTimes(1);
+    expect(useNostrInboxStore.getState().items).toHaveLength(1);
+    expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+      id: event.id,
+      status: 'dismissed',
+      senderUsername: 'CaseSensitive',
+    });
+  });
+
   it('creates a signed kind-0 profile and preserves existing metadata', async () => {
     const privateKey = generateSecretKey();
     const privateKeyHex = bytesToHex(privateKey);

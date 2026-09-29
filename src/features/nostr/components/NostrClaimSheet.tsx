@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
-import { Button, Separator, Text, Theme, XStack, YStack } from 'tamagui';
+import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { nip19 } from 'nostr-tools';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -12,6 +15,12 @@ import { nostrClaimService, type NostrClaimResult } from '~/services/wallet/nost
 import { useAuthStore } from '~/state/authStore';
 import { type NostrInboxItem, useNostrInboxStore } from '~/state/nostrInboxStore';
 import { useSettingsStore } from '~/state/settingsStore';
+import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
+import { personUpdateFromProfile } from '~/features/people/peopleProfileCache';
+import { usePeopleStore } from '~/state/peopleStore';
+import { bitcoinService } from '~/services/api/bitcoinService';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 
 function safeNpub(pubkey: string): string {
   if (!pubkey) return '';
@@ -30,18 +39,27 @@ function safeNpub(pubkey: string): string {
 export function NostrClaimSheet() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const presented = useRef(new Set<string>());
+  const insets = useSafeAreaInsets();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mintTrusted, setMintTrusted] = useState<boolean | null>(null);
+  const [senderProfile, setSenderProfile] = useState<NostrProfile | null>(null);
+  const [pictureFailed, setPictureFailed] = useState(false);
   const [claimStatus, setClaimStatus] = useState<'idle' | 'claiming' | 'success' | 'error'>('idle');
   const items = useNostrInboxStore((state) => state.items);
   const dismiss = useNostrInboxStore((state) => state.dismiss);
-  const biometricEnabled = useSettingsStore((state) => state.biometricEnabled);
+  const { biometricEnabled, primaryCurrency, secondaryCurrency } = useSettingsStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canPresent = !biometricEnabled || isAuthenticated;
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) || null,
     [activeId, items],
   );
+  const { data: btcData } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    enabled: secondaryCurrency !== 'NONE',
+    staleTime: 30_000,
+  });
 
   const present = useCallback((item: NostrInboxItem) => {
     presented.current.add(item.id);
@@ -94,12 +112,31 @@ export function NostrClaimSheet() {
 
   useEffect(() => {
     if (!activeItem) return;
-    void mintManager
-      .isMintTrusted(activeItem.mintUrl)
-      .then(setMintTrusted)
-      .catch(() => setMintTrusted(false));
-    const frame = requestAnimationFrame(() => sheetRef.current?.present());
-    return () => cancelAnimationFrame(frame);
+    let cancelled = false;
+    let frame: number | undefined;
+    setMintTrusted(null);
+    setSenderProfile(null);
+    setPictureFailed(false);
+
+    void Promise.all([
+      mintManager.isMintTrusted(activeItem.mintUrl).catch(() => false),
+      nostrProfileService
+        .getProfile(safeNpub(activeItem.senderPubkey), { forceRefresh: true })
+        .catch(() => null),
+    ]).then(([trusted, profile]) => {
+      if (cancelled) return;
+      setMintTrusted(trusted);
+      setSenderProfile(profile);
+      if (profile) {
+        usePeopleStore.getState().updatePerson(personUpdateFromProfile(profile));
+      }
+      frame = requestAnimationFrame(() => sheetRef.current?.present());
+    });
+
+    return () => {
+      cancelled = true;
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
   }, [activeItem]);
 
   const handleClaim = useCallback(async () => {
@@ -128,43 +165,107 @@ export function NostrClaimSheet() {
 
   if (!activeItem) return null;
   const npub = safeNpub(activeItem.senderPubkey);
-  const sender = activeItem.senderUsername || `${npub.slice(0, 10)}…${npub.slice(-6)}`;
+  const storedUsername = activeItem.senderUsername
+    ? activeItem.senderUsername.includes('@')
+      ? activeItem.senderUsername
+      : `${activeItem.senderUsername}@bey.cash`
+    : undefined;
+  const sender =
+    (senderProfile?.nip05Verified ? senderProfile.nip05 : undefined) ||
+    storedUsername ||
+    `${npub.slice(0, 10)}…${npub.slice(-6)}`;
+  const displayName = senderProfile?.displayName || senderProfile?.name;
   const mintDomain = activeItem.mintUrl.replace(/^https?:\/\//, '').split('/')[0];
+  const satsAmount = currencyService.formatSats(activeItem.amount, { explicitSign: true });
+  const fiatAmount =
+    secondaryCurrency !== 'NONE' && btcData?.price
+      ? `+${currencyService.formatValue(
+          currencyService.convertSatsToCurrency(activeItem.amount, btcData.price),
+          secondaryCurrency as CurrencyCode,
+        )}`
+      : null;
+  const primaryAmount = primaryCurrency === 'FIAT' && fiatAmount ? fiatAmount : satsAmount;
+  const secondaryAmount = primaryCurrency === 'FIAT' && fiatAmount ? satsAmount : fiatAmount;
 
   return (
     <>
-      <Theme inverse>
-        <AppBottomSheet
-          ref={sheetRef}
-          onClose={() => {
-            setActiveId(null);
-            setClaimStatus('idle');
-          }}
-          enablePanDownToClose={claimStatus !== 'claiming'}
+      <AppBottomSheet
+        ref={sheetRef}
+        snapPoints={['85%']}
+        bottomInset={insets.bottom}
+        onClose={() => {
+          setActiveId(null);
+          setClaimStatus('idle');
+        }}
+        enablePanDownToClose={claimStatus !== 'claiming'}
+      >
+        <BottomSheetScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 8 }}
         >
-          <YStack p="$4" gap="$4" items="center">
+          <YStack gap="$4" items="center">
             {claimStatus === 'success' ? (
               <>
-                <Text fontSize={48} fontWeight="900" color="$color1">
-                  {activeItem.amount.toLocaleString()} sats
+                <Text fontSize={42} fontWeight="900" color="$color">
+                  {primaryAmount}
                 </Text>
+                {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
                 <Text color="$green10" fontSize="$5" fontWeight="800">
                   Received successfully
                 </Text>
               </>
             ) : (
               <>
-                <Blockies seed={npub} size={10} scale={6} style={{ borderRadius: 30 }} />
+                <View
+                  width={72}
+                  height={72}
+                  rounded="$10"
+                  overflow="hidden"
+                  bg="$gray4"
+                  items="center"
+                  justify="center"
+                >
+                  {senderProfile?.picture && !pictureFailed ? (
+                    <Image
+                      source={{ uri: senderProfile.picture }}
+                      width={72}
+                      height={72}
+                      onError={() => setPictureFailed(true)}
+                    />
+                  ) : (
+                    <Blockies seed={npub} size={10} scale={7.2} style={{ borderRadius: 12 }} />
+                  )}
+                </View>
                 <YStack items="center" gap="$1">
                   <Text fontSize="$3" color="$gray10">
                     Incoming Nostr payment
                   </Text>
-                  <Text fontSize="$5" fontWeight="800" color="$color1">
-                    {sender}
+                  {displayName && (
+                    <Text
+                      fontSize="$5"
+                      fontWeight="800"
+                      color="$color"
+                      textAlign="center"
+                      numberOfLines={2}
+                    >
+                      {displayName}
+                    </Text>
+                  )}
+                  <XStack items="center" justify="center" gap="$1.5" px="$2">
+                    <Text
+                      fontSize="$3"
+                      fontWeight="700"
+                      color="$gray12"
+                      textAlign="center"
+                      numberOfLines={2}
+                    >
+                      {sender}
+                    </Text>
+                    {senderProfile?.nip05Verified === true && <Nip05VerifiedBadge />}
+                  </XStack>
+                  <Text fontSize={36} fontWeight="900" color="$color">
+                    {primaryAmount}
                   </Text>
-                  <Text fontSize={36} fontWeight="900" color="$color1">
-                    +{activeItem.amount.toLocaleString()} sats
-                  </Text>
+                  {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
                 </YStack>
                 <YStack width="100%" borderWidth={1} borderColor="$borderColor" rounded="$4">
                   <DetailRow icon={<User size={16} color="$gray9" />} label="From" value={sender} />
@@ -178,15 +279,15 @@ export function NostrClaimSheet() {
                   <DetailRow
                     icon={<ShieldCheck size={16} color="$gray9" />}
                     label="Type"
-                    value="Nostr DM"
+                    value={senderProfile?.nip05Verified === true ? 'Nostr · NIP-05' : 'Nostr'}
                   />
                 </YStack>
                 {mintTrusted === false && (
-                  <YStack width="100%" bg="$yellow3" rounded="$4" p="$3">
-                    <Text color="$yellow11" fontWeight="800">
+                  <YStack width="100%" bg="$orange2" rounded="$4" p="$3">
+                    <Text color="$orange10" fontWeight="800">
                       Unknown mint
                     </Text>
-                    <Text color="$yellow11">Only continue if you trust {mintDomain}.</Text>
+                    <Text color="$orange10">Only continue if you trust {mintDomain}.</Text>
                   </YStack>
                 )}
                 {claimStatus === 'error' && activeItem.error && (
@@ -200,25 +301,34 @@ export function NostrClaimSheet() {
               </>
             )}
             <XStack width="100%" gap="$3">
-              <Button flex={1} onPress={handleClose} disabled={claimStatus === 'claiming'}>
+              <Button
+                flex={1}
+                size="$5"
+                fontSize="$4"
+                rounded="$6"
+                theme="red"
+                onPress={handleClose}
+                disabled={claimStatus === 'claiming'}
+              >
                 {claimStatus === 'success' ? 'Done' : 'Delete'}
               </Button>
               {claimStatus !== 'success' && (
                 <Button
-                  flex={2}
-                  bg="$green9"
-                  color="white"
-                  icon={<ArrowDownLeft size={18} color="white" />}
+                  flex={1}
+                  size="$5"
+                  fontSize="$4"
+                  rounded="$6"
+                  themeInverse
                   onPress={handleClaim}
                   disabled={claimStatus === 'claiming'}
                 >
-                  {mintTrusted === false ? 'Trust Mint & Claim' : 'Try Again'}
+                  {mintTrusted === false ? 'Trust & Claim' : 'Try Again'}
                 </Button>
               )}
             </XStack>
           </YStack>
-        </AppBottomSheet>
-      </Theme>
+        </BottomSheetScrollView>
+      </AppBottomSheet>
       <ProcessingSheet
         visible={claimStatus === 'claiming'}
         status="processing"
@@ -246,7 +356,7 @@ function DetailRow({
         {icon}
         <Text color="$gray10">{label}</Text>
       </XStack>
-      <Text fontWeight="700" numberOfLines={1} style={{ maxWidth: 180 }}>
+      <Text flex={1} ml="$3" fontWeight="700" textAlign="right" numberOfLines={2}>
         {value}
       </Text>
     </XStack>

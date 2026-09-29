@@ -6,6 +6,7 @@ import { mintManager } from '~/services/wallet/mintManager';
 import { walletService } from '~/services/wallet/walletService';
 import { networkService } from '~/services/platform/networkService';
 import { notificationService } from '~/services/platform/notificationService';
+import { isDuplicateOutputsError } from '~/services/wallet/cashuReceiveRecovery';
 import {
   type NostrClaimErrorCode,
   type NostrClaimFailure,
@@ -15,7 +16,7 @@ import {
 
 export interface NostrClaimResult {
   eventId: string;
-  status: 'claimed' | 'approval_required' | 'deferred' | 'failed';
+  status: 'claimed' | 'approval_required' | 'deferred' | 'failed' | 'dismissed';
   amount?: number;
   failure?: NostrClaimFailure;
 }
@@ -65,6 +66,13 @@ function shouldFallbackToStandardReceive(error: unknown): boolean {
 
 function classifyFailure(error: unknown): NostrClaimFailure {
   const message = errorMessage(error);
+  if (isDuplicateOutputsError(error)) {
+    return {
+      code: 'unknown',
+      message: 'Wallet outputs are resynchronizing with the mint. The payment will retry.',
+      retryable: true,
+    };
+  }
   if (
     /offline|network request failed|fetch failed|timeout|timed out|socket|connection/i.test(message)
   ) {
@@ -198,6 +206,9 @@ class NostrClaimService {
     if (item.status === 'claimed') {
       return { eventId, status: 'claimed', amount: item.amount };
     }
+    // Dismissal is a durable user decision. A replayed relay event must never
+    // move it back to pending/approval_required or attempt to spend it.
+    if (item.status === 'dismissed') return { eventId, status: 'dismissed' };
     if (this.processing.has(eventId)) return { eventId, status: 'deferred' };
 
     const walletFailure = this.canUseWallet();

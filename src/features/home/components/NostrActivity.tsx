@@ -10,9 +10,9 @@
  * tokens as claimed so they don't linger after restarts.
  */
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View, styled, Button } from 'tamagui';
+import { YStack, XStack, H6, Text, View, styled, Button, Image } from 'tamagui';
 import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
@@ -25,6 +25,8 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService } from '~/services/wallet/currencyService';
 import { usePeopleStore } from '~/state/peopleStore';
+import type { Person } from '~/state/peopleStore';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 
 function safeNpubEncode(pubkey: string): string {
   if (!pubkey) return '';
@@ -86,6 +88,50 @@ const RowContainer = styled(XStack, {
   pressStyle: { opacity: 0.7 },
 });
 
+function SenderAvatar({
+  person,
+  pubkey,
+  unseen,
+}: {
+  person?: Person;
+  pubkey: string;
+  unseen: boolean;
+}) {
+  const [pictureFailed, setPictureFailed] = useState(false);
+
+  useEffect(() => setPictureFailed(false), [person?.picture]);
+
+  return (
+    <View position="relative">
+      <View width={45} height={45} rounded="$3" overflow="hidden" bg="$gray4">
+        {person?.picture && !pictureFailed ? (
+          <Image
+            source={{ uri: person.picture }}
+            width={45}
+            height={45}
+            onError={() => setPictureFailed(true)}
+          />
+        ) : (
+          <Blockies seed={pubkey} size={10} scale={4.5} style={{ borderRadius: 5 }} />
+        )}
+      </View>
+      {unseen && (
+        <View
+          position="absolute"
+          top={-2}
+          right={-2}
+          bg="$red10"
+          width={8}
+          height={8}
+          rounded="$10"
+          borderWidth={1.5}
+          borderColor="$color2"
+        />
+      )}
+    </View>
+  );
+}
+
 export default function NostrActivity() {
   const items = useNostrInboxStore((s) => s.items);
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
@@ -98,6 +144,7 @@ export default function NostrActivity() {
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    enabled: secondaryCurrency !== 'NONE',
     staleTime: 30000,
   });
 
@@ -181,80 +228,64 @@ export default function NostrActivity() {
 
       <YStack gap="$3">
         {unclaimed.map((item) => {
-          const fiatAmount = btcData?.price
-            ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
-            : 0;
-          const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
-          const sign = item.type === 'request' ? '?' : '+';
-
           const npub = safeNpubEncode(item.senderPubkey);
-          const resolvedUsername = people[item.senderPubkey]?.username || people[npub]?.username;
+          const person = people[npub] || people[item.senderPubkey];
+          const resolvedUsername = item.senderUsername || person?.username || undefined;
+          const fullUsername =
+            person?.nip05 ||
+            (resolvedUsername
+              ? resolvedUsername.includes('@')
+                ? resolvedUsername
+                : `${resolvedUsername}@bey.cash`
+              : undefined);
           const displayName =
-            item.senderUsername || resolvedUsername || formatNpub(item.senderPubkey);
+            person?.displayName || resolvedUsername || formatNpub(item.senderPubkey);
+          const sign = item.type === 'request' ? '' : '+';
+          const satsAmount = `${sign}${currencyService.formatSats(item.amount)}`;
+          const formattedFiat =
+            secondaryCurrency !== 'NONE' && btcData?.price
+              ? `${sign}${currencyService.formatValue(
+                  currencyService.convertSatsToCurrency(item.amount, btcData.price),
+                  secondaryCurrency as any,
+                )}`
+              : null;
+          const primaryAmount =
+            primaryCurrency === 'FIAT' && formattedFiat ? formattedFiat : satsAmount;
+          const secondaryAmount =
+            primaryCurrency === 'FIAT' && formattedFiat ? satsAmount : formattedFiat;
 
           return (
             <RowContainer key={item.id} onPress={() => handleOpenClaim(item)}>
-              <XStack items="center" gap="$2">
-                <View position="relative">
-                  <Blockies
-                    seed={item.senderPubkey}
-                    size={10}
-                    scale={4.5}
-                    style={{ borderRadius: 5 }}
-                  />
-                  {!item.seen && (
-                    <View
-                      position="absolute"
-                      top={-2}
-                      right={-2}
-                      bg="$red10"
-                      width={8}
-                      height={8}
-                      rounded="$10"
-                      borderWidth={1.5}
-                      borderColor="$color2"
-                    />
-                  )}
-                </View>
-                <YStack gap="$0.5" mr="$2">
-                  <H6
-                    color="$accent4"
-                    textTransform="uppercase"
-                    numberOfLines={1}
-                    style={{ maxWidth: 180 }}
-                  >
-                    {displayName.replace('@bey.cash', '')}
-                  </H6>
+              <XStack items="center" gap="$2" flex={1} style={{ minWidth: 0 }}>
+                <SenderAvatar person={person} pubkey={item.senderPubkey} unseen={!item.seen} />
+                <YStack gap="$0.5" mr="$2" flex={1} style={{ minWidth: 0 }}>
+                  <XStack items="center" gap="$1" style={{ minWidth: 0 }}>
+                    <H6 color="$color" numberOfLines={1} style={{ flexShrink: 1 }}>
+                      {displayName}
+                    </H6>
+                    {person?.nip05Verified === true && <Nip05VerifiedBadge size={14} />}
+                  </XStack>
+                  {fullUsername ? (
+                    <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                      {fullUsername}
+                    </Text>
+                  ) : null}
                   <Text fontSize="$2" color="$gray9">
+                    {item.type === 'request' ? 'Payment request · ' : ''}
                     {timeAgo(item.receivedAt)}
                   </Text>
                 </YStack>
               </XStack>
 
-              <YStack items="flex-end" justify="center">
-                {primaryCurrency === 'SATS' ? (
-                  <>
-                    <Text fontWeight="900" fontSize={20} color="$accent4">
-                      {sign}
-                      {currencyService.formatSats(item.amount)}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10" fontWeight="600">
-                      {sign}
-                      {formattedFiat}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text fontWeight="900" fontSize={20} color="$accent4">
-                      {sign}
-                      {formattedFiat}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10" fontWeight="600">
-                      {sign}
-                      {currencyService.formatSats(item.amount)}
-                    </Text>
-                  </>
-                )}
+              <YStack items="flex-end" justify="center" flexShrink={0}>
+                <Text fontWeight="900" fontSize={20} color="$color">
+                  {primaryAmount}
+                </Text>
+                {secondaryAmount ? (
+                  <Text fontSize="$2" color="$gray10" fontWeight="600">
+                    {secondaryAmount}
+                  </Text>
+                ) : null}
               </YStack>
             </RowContainer>
           );

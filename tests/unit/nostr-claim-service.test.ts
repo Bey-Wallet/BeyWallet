@@ -72,6 +72,17 @@ describe('nostrClaimService', () => {
 
   afterEach(() => nostrClaimService.stop());
 
+  it('does not claim an item after the user dismissed it', async () => {
+    addPayment('dismissed');
+    useNostrInboxStore.getState().dismiss('dismissed');
+
+    await expect(nostrClaimService.enqueue('dismissed')).resolves.toMatchObject({
+      status: 'dismissed',
+    });
+    expect(receiveP2PK).not.toHaveBeenCalled();
+    expect(useNostrInboxStore.getState().items[0].status).toBe('dismissed');
+  });
+
   it('claims a trusted-mint payment and serializes duplicate events', async () => {
     addPayment('trusted');
     const results = await Promise.all([
@@ -104,6 +115,19 @@ describe('nostrClaimService', () => {
     expect(item.failure).toMatchObject({ code: 'network', retryable: true });
     expect(item.attemptCount).toBe(1);
     expect(item.nextRetryAt).toBeGreaterThan(Date.now());
+  });
+
+  it('keeps duplicate mint outputs retryable while counters resynchronize', async () => {
+    receiveP2PK.mockRejectedValue(Object.assign(new Error('Duplicate outputs'), { code: 11008 }));
+    addPayment('duplicate-outputs');
+
+    await expect(nostrClaimService.enqueue('duplicate-outputs')).resolves.toMatchObject({
+      status: 'deferred',
+      failure: {
+        message: 'Wallet outputs are resynchronizing with the mint. The payment will retry.',
+        retryable: true,
+      },
+    });
   });
 
   it('waits for manual action after a P2PK failure', async () => {
