@@ -278,11 +278,25 @@ export default function ScannerScreen() {
     // If explicitly asked to return to a path (e.g. from P2PK Send flow)
     if (params.returnTo) {
       console.log('[Scanner] returnTo detected:', params.returnTo);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
-        const lower = trimmed.toLowerCase();
-        const normalized = lower.startsWith('cashu:') ? trimmed.substring(6) : trimmed;
+        // The home scan action historically treated every result as an ecash token. Resolve the
+        // input first so unified payment URIs and payment requests reach their payment flow.
+        const result = await resolveUniversalInput(trimmed);
+        const redirected = handleUniversalRedirect(result, {
+          router,
+          replace: true,
+        });
+
+        if (redirected) {
+          return;
+        }
+
+        // Preserve the existing receive fallback for inputs the universal resolver does not own.
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const normalized = trimmed.toLowerCase().startsWith('cashu:')
+          ? trimmed.substring(6)
+          : trimmed;
         router.replace({
           pathname: '/(modals)/receive',
           params: { scannedToken: normalized },
@@ -290,6 +304,7 @@ export default function ScannerScreen() {
         return;
       }
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       console.log('[Scanner] Returning result to store for:', params.returnTo);
       useWalletStore.getState().setScannerResult(trimmed);
       router.back();
@@ -298,7 +313,7 @@ export default function ScannerScreen() {
 
     // Use Universal Resolver for robust format detection & redirection
     const result = await resolveUniversalInput(trimmed);
-    console.log('[Scanner] Resolved universal input:', result.type, result.cleaned);
+    console.log('[Scanner] Resolved universal input type:', result.type);
 
     const redirected = handleUniversalRedirect(result, {
       router,

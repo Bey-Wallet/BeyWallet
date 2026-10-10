@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { InteractionManager } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -66,7 +67,7 @@ export default function MeltScreen() {
   const [resolvedInvoice, setResolvedInvoice] = useState<string | null>(null);
   const [lnAddress, setLnAddress] = useState<string | null>(null);
   const [lnAddressAmount, setLnAddressAmount] = useState('0');
-  const [status, setStatus] = useState<'success' | 'error'>('success');
+  const [status, setStatus] = useState<'success' | 'error' | 'pending' | 'unresolved'>('success');
   const [error, setError] = useState<string | null>(null);
   const [isGettingQuote, setIsGettingQuote] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
@@ -75,6 +76,23 @@ export default function MeltScreen() {
   const [feeReserve, setFeeReserve] = useState(0);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const router = useRouter();
+  const paymentRef = useRef<LightningPayment | null>(null);
+  const payLock = useRef(false);
+  const quoteGeneration = useRef(0);
+
+  const paymentFor = (mintUrl: string, bolt11: string) => {
+    const current = paymentRef.current;
+    if (current?.mintUrl === mintUrl && current.invoice === bolt11) return current;
+    if (current) void current.dispose().catch(() => {});
+    return (paymentRef.current = new LightningPayment(mintUrl, bolt11));
+  };
+
+  useEffect(
+    () => () => {
+      void paymentRef.current?.dispose().catch(() => {});
+    },
+    [],
+  );
 
   const balance = useWalletStore((s) => s.balance);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -84,6 +102,15 @@ export default function MeltScreen() {
 
   // Auto-fetch quote for bolt11 invoice to display its amount immediately
   useEffect(() => {
+    const generation = ++quoteGeneration.current;
+    setQuoteId(null);
+    setQuoteAmount(0);
+    setFeeReserve(0);
+    setResolvedInvoice(null);
+    setStep('invoice');
+    const old = paymentRef.current;
+    paymentRef.current = null;
+    const release = old?.dispose() ?? Promise.resolve();
     const cleaned = invoice.trim();
     if (!cleaned) {
       setLnAddressAmount('0');
@@ -94,9 +121,13 @@ export default function MeltScreen() {
     if (inputType === 'bolt11' && activeMintUrl) {
       setIsGettingQuote(true);
       setError(null);
-      quotesService
-        .createMeltQuote(activeMintUrl, cleaned)
+      release
+        .then(() => {
+          if (generation !== quoteGeneration.current) throw new Error('Invoice changed');
+          return paymentFor(activeMintUrl, cleaned).preview();
+        })
         .then((quote) => {
+          if (generation !== quoteGeneration.current) return;
           console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
           setQuoteAmount(quote.amount);
           setFeeReserve(quote.fee_reserve);
@@ -104,13 +135,16 @@ export default function MeltScreen() {
           setLnAddressAmount(quote.amount.toString());
         })
         .catch((err) => {
-          console.error('[MeltScreen] Auto-quote failed:', err);
+          if (generation !== quoteGeneration.current) return;
           setError(err.message || 'Failed to parse invoice amount');
         })
         .finally(() => {
-          setIsGettingQuote(false);
+          if (generation === quoteGeneration.current) setIsGettingQuote(false);
         });
     }
+    return () => {
+      ++quoteGeneration.current;
+    };
   }, [invoice, activeMintUrl]);
 
   const { data: btcData } = useQuery({
@@ -234,12 +268,14 @@ export default function MeltScreen() {
   // ─── Resolve LN address to invoice and get quote ──────────
   const resolveAndGetQuote = useCallback(
     async (address: string, amountSats: number) => {
+      const generation = quoteGeneration.current;
       setIsGettingQuote(true);
       setError(null);
 
       try {
         console.log(`[MeltScreen] Resolving ${address} for ${amountSats} sats...`);
         const bolt11 = await requestInvoiceFromLnurl(address, amountSats);
+        if (generation !== quoteGeneration.current) return;
         setResolvedInvoice(bolt11);
         console.log('[MeltScreen] Resolved to invoice:', bolt11.substring(0, 40) + '...');
         await getQuoteForInvoice(bolt11);
@@ -256,8 +292,10 @@ export default function MeltScreen() {
   const getQuoteForInvoice = useCallback(
     async (bolt11: string) => {
       if (!activeMintUrl) return;
+      const generation = quoteGeneration.current;
 
       const offline = await networkService.isOffline();
+      if (generation !== quoteGeneration.current) return;
       if (offline) {
         setError('You are offline. Please check your internet connection.');
         return;
@@ -268,9 +306,15 @@ export default function MeltScreen() {
 
       try {
         console.log('[MeltScreen] Getting melt quote from', activeMintUrl);
-        const quote = await quotesService.createMeltQuote(activeMintUrl, bolt11);
-
-        console.log('[MeltScreen] Quote:', JSON.stringify(quote));
+        const payment = paymentFor(activeMintUrl, bolt11);
+        const quote = await payment.preview();
+        if (generation !== quoteGeneration.current || paymentRef.current !== payment) return;
+        if (quote.expiry && quote.expiry <= Date.now() / 1000) {
+          await payment.dispose();
+          paymentRef.current = null;
+          setQuoteId(null);
+          throw new Error('Quote expired. Continue again to review a fresh quote.');
+        }
         setQuoteAmount(quote.amount);
         setFeeReserve(quote.fee_reserve);
         setQuoteId(quote.quote);
@@ -288,10 +332,11 @@ export default function MeltScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setStep('confirm');
       } catch (err: any) {
+        if (generation !== quoteGeneration.current) return;
         console.error('[MeltScreen] Quote failed:', err);
         setError(err.message || 'Failed to get melt quote');
       } finally {
-        setIsGettingQuote(false);
+        if (generation === quoteGeneration.current) setIsGettingQuote(false);
       }
     },
     [activeMintUrl, balance],
@@ -299,11 +344,15 @@ export default function MeltScreen() {
 
   // ─── Pay Handler ──────────────────────────────────────────
   const handlePay = useCallback(async () => {
-    if (!activeMintUrl || !quoteId) return;
+    if (!activeMintUrl || !quoteId || payLock.current) return;
+    const payment = paymentRef.current;
+    if (!payment || payment.mintUrl !== activeMintUrl) return;
+    payLock.current = true;
 
     const offline = await networkService.isOffline();
     if (offline) {
       setError('You are offline. Please check your internet connection.');
+      payLock.current = false;
       return;
     }
 
@@ -312,20 +361,20 @@ export default function MeltScreen() {
 
     try {
       console.log('[MeltScreen] Paying melt quote:', quoteId);
-      await quotesService.payMeltQuote(activeMintUrl, quoteId);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setStatus('success');
+      const result = await payment.pay();
+      if (paymentRef.current !== payment) return;
+      if (result === 'paid') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStatus(result === 'paid' ? 'success' : result);
       refreshBalance();
       setStep('result');
     } catch (err: any) {
-      console.error('[MeltScreen] Payment failed:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(err.message || 'Lightning payment failed');
       setStatus('error');
       setStep('result');
     } finally {
       setIsPaying(false);
+      payLock.current = false;
     }
   }, [activeMintUrl, quoteId, refreshBalance]);
 
@@ -508,6 +557,11 @@ export default function MeltScreen() {
             feeReserve={feeReserve}
             error={error}
             onClose={handleClose}
+            onRefresh={async () => {
+              const result = await paymentRef.current?.refresh();
+              if (result) setStatus(result === 'paid' ? 'success' : result);
+              refreshBalance();
+            }}
           />
         </YStack>
       )}

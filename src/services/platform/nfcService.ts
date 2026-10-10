@@ -1,8 +1,9 @@
 import { Platform } from 'react-native';
-import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
+import NfcManager, { NfcTech, Ndef, NfcEvents, type TagEvent } from 'react-native-nfc-manager';
 import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce';
 import { useAuthStore } from '~/state/authStore';
 import { cleanToken, decodeToken, encodeTokenV4 } from '~/services/wallet';
+import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 
 const init = async function () {
   const supported = await NfcManager.isSupported();
@@ -15,6 +16,110 @@ const init = async function () {
 const isEnabled = function () {
   return NfcManager.isEnabled();
 };
+
+export interface NfcPaymentSession {
+  read: () => Promise<TagEvent>;
+  write: (text: string) => Promise<void>;
+  close: () => Promise<void>;
+}
+
+let paymentSession: NfcPaymentSession | null = null;
+
+/** Own reader mode until settlement or cancellation. */
+const openPaymentSession = (): NfcPaymentSession => {
+  if (paymentSession) throw new Error('An NFC payment session is already open');
+  const previousLock = useAuthStore.getState().isLockDisabled;
+  useAuthStore.getState().setLockDisabled(true);
+  let closed = false;
+  let ready = false;
+  let opening: Promise<TagEvent> | undefined;
+  const session: NfcPaymentSession = {
+    read: () =>
+      (opening ??= (async () => {
+        try {
+          if (closed) throw new Error('NFC session closed');
+          await NfcManager.requestTechnology(
+            NfcTech.Ndef,
+            Platform.OS === 'android'
+              ? { isReaderModeEnabled: true, readerModeFlags: 0x1 | 0x2 | 0x100 }
+              : undefined,
+          );
+          if (closed) {
+            await NfcManager.cancelTechnologyRequest().catch(() => {});
+            throw new Error('NFC session closed');
+          }
+          const tag = await NfcManager.getTag();
+          if (!tag) throw new Error('No NFC tag found');
+          ready = true;
+          return tag;
+        } catch (error) {
+          await session.close();
+          throw error;
+        }
+      })()),
+    write: async (text) => {
+      if (closed || !ready) throw new Error('NFC contact lost. Reconnect to the same request.');
+      if (!isStringSafeForNFC(text)) throw new Error('Payment token is too large for NFC');
+      const bytes = Ndef.encodeMessage([Ndef.textRecord(text)]);
+      if (!bytes) throw new Error('Cannot encode NFC payment');
+      try {
+        await NfcManager.ndefHandler.writeNdefMessage(bytes, { reconnectAfterWrite: false });
+      } catch (error) {
+        // Native errors may contain payload data: only log a fixed failure category.
+        const message = error instanceof Error ? error.message : String(error);
+        const category = /TagLost|tag lost/i.test(message)
+          ? 'contact_lost'
+          : /read.?only|not writable/i.test(message)
+            ? 'read_only'
+            : /ERR_NO_TECH_REQ|not connected/i.test(message)
+              ? 'session_missing'
+              : /too (large|long)|capacity/i.test(message)
+                ? 'capacity'
+                : 'write_failed';
+        console.warn('[NfcPaymentSession] Write failed', { category });
+        await session.close();
+        throw new Error(
+          category === 'contact_lost' || category === 'session_missing'
+            ? 'NFC contact lost. Reconnect to the same request to deliver the existing payment.'
+            : `NFC write failed (${category}). The existing payment remains in History.`,
+        );
+      }
+    },
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      await NfcManager.cancelTechnologyRequest().catch(() => {});
+      if (paymentSession === session) {
+        paymentSession = null;
+        useAuthStore.getState().setLockDisabled(previousLock);
+      }
+    },
+  };
+  paymentSession = session;
+  return session;
+};
+
+export function decodePaymentNdef(tag: TagEvent): string {
+  for (const record of tag.ndefMessage ?? []) {
+    if (record.tnf !== Ndef.TNF_WELL_KNOWN || record.type.length !== 1) continue;
+    const payload = new Uint8Array(record.payload);
+    if (record.type[0] === 0x54) return Ndef.text.decodePayload(payload).trim();
+    if (record.type[0] === 0x55) return Ndef.uri.decodePayload(payload).trim();
+  }
+  throw new Error('No supported NDEF Text or URI payment record found');
+}
+
+export function assertSameNfcPaymentRequest(tag: TagEvent, expectedRequest: string): void {
+  const input = parsePaymentInput(decodePaymentNdef(tag));
+  if (
+    !input.matched ||
+    !input.ok ||
+    input.value.primary.type !== 'cashu_request' ||
+    input.value.primary.value !== expectedRequest
+  ) {
+    throw new Error('Reconnect to the same payment request. The existing token was not delivered.');
+  }
+}
 
 const goToNfcSetting = function () {
   useAuthStore.getState().setLockDisabled(true);
@@ -147,6 +252,7 @@ const isStringSafeForNFC = function (str: string): boolean {
 };
 
 export const nfcService = {
+  openPaymentSession,
   init,
   isEnabled,
   goToNfcSetting,

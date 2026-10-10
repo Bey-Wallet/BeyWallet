@@ -1,4 +1,4 @@
-const { withAndroidManifest, withDangerousMod } = require('@expo/config-plugins');
+const { withAndroidManifest, withDangerousMod, withMainActivity } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
@@ -75,6 +75,74 @@ const withHce = (config) => {
       }
     });
 
+    // NDEF Text records dispatch as text/plain, separately from URI records.
+    const activity = application.activity.find(
+      (item) => item.$['android:name'] === '.MainActivity',
+    );
+    if (!activity) throw new Error('Cannot register NFC: MainActivity is missing');
+    const filters = (activity['intent-filter'] ??= []);
+    const registrations = [
+      { 'android:mimeType': 'text/plain' },
+      ...['cashu', 'lightning', 'creq', 'bitcoin'].map((scheme) => ({ 'android:scheme': scheme })),
+    ];
+    for (const data of registrations) {
+      const exists = filters.some(
+        (filter) =>
+          filter.action?.some(
+            (action) => action.$['android:name'] === 'android.nfc.action.NDEF_DISCOVERED',
+          ) &&
+          filter.data?.some((item) =>
+            Object.entries(data).every(([key, value]) => item.$[key] === value),
+          ),
+      );
+      if (!exists) {
+        filters.push({
+          action: [{ $: { 'android:name': 'android.nfc.action.NDEF_DISCOVERED' } }],
+          category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
+          data: [{ $: data }],
+        });
+      }
+    }
+
+    return config;
+  });
+
+  // Open the reader screen rather than routing an NFC URI as a QR payment.
+  // Do not forward bearer data in a URL; a cold launch may require another tap.
+  config = withMainActivity(config, (config) => {
+    if (config.modResults.language !== 'kt') throw new Error('NFC launch routing requires Kotlin');
+    let source = config.modResults.contents;
+    if (!source.includes('private fun routeNfcIntent(')) {
+      for (const name of ['android.content.Intent', 'android.net.Uri', 'android.nfc.NfcAdapter']) {
+        source = source.replace(/^(package .*\r?\n)/, `$1import ${name}\n`);
+      }
+      source = source.replace(
+        '    super.onCreate(null)',
+        '    routeNfcIntent(intent)\n    super.onCreate(null)',
+      );
+      if (!source.includes('    routeNfcIntent(intent)'))
+        throw new Error('Cannot add NFC launch routing');
+      if (source.includes('override fun onNewIntent(')) {
+        throw new Error('MainActivity already owns onNewIntent; integrate NFC routing explicitly');
+      }
+      source = source.replace(
+        'class MainActivity : ReactActivity() {',
+        `class MainActivity : ReactActivity() {
+  private fun routeNfcIntent(incoming: Intent?) {
+    if (incoming?.action == NfcAdapter.ACTION_NDEF_DISCOVERED) {
+      incoming.data = Uri.parse("bey-wallet:///(modals)/nfc-receive")
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    routeNfcIntent(intent)
+    super.onNewIntent(intent)
+    setIntent(intent)
+  }
+`,
+      );
+    }
+    config.modResults.contents = source;
     return config;
   });
 

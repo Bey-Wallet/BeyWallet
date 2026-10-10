@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   YStack,
   XStack,
@@ -27,11 +27,16 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
-import { walletService } from '~/services/wallet';
-import { sendNostrToken } from '~/services/wallet/nostrService';
-import { decodeToken } from '~/services/wallet/tokenUtils';
+import {
+  isPaymentMintAllowed,
+  type ParsedPaymentRequest,
+} from '~/services/wallet/paymentRequestModel';
+import {
+  PaymentRequestPayment,
+  previewPaymentRequest,
+  type PaymentRequestCost,
+} from '~/services/wallet/paymentRequestPayment';
 import { PaymentStatusOverlay, type PaymentStatusState } from '~/shared/ui/PaymentStatusOverlay';
-import { seedService } from '~/services/platform/seedService';
 import Blockies from '~/shared/ui/Blockies';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -39,29 +44,16 @@ import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ParsedPaymentRequest {
-  /** Raw creqA... string */
-  raw: string;
-  /** Request ID */
-  id?: string;
-  /** Amount in sats (may be undefined if open-ended) */
-  amount?: number;
-  /** Currency unit */
-  unit?: string;
-  /** Optional memo / description */
-  description?: string;
-  /** Accepted mint URLs */
-  mints: string[];
-  /** Nostr pubkey or npub the payment should be sent to */
-  nostrTarget?: string;
-}
+export type { ParsedPaymentRequest } from '~/services/wallet/paymentRequestModel';
 
 interface PaymentRequestStageProps {
   request: ParsedPaymentRequest;
   inboxItemId?: string;
-  onSuccess: (amount: number, operationId: string) => void;
+  onSuccess: (amount: number, operationId: string, encodedToken: string) => void;
   onError: (msg: string) => void;
   onCancel: () => void;
+  writeNfc?: (token: string) => Promise<void>;
+  autoPay?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -72,12 +64,27 @@ export function PaymentRequestStage({
   onSuccess,
   onError,
   onCancel,
+  writeNfc,
+  autoPay = false,
 }: PaymentRequestStageProps) {
   const [isSending, setIsSending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [overlayState, setOverlayState] = useState<PaymentStatusState | null>(null);
   const [selectedMintUrl, setSelectedMintUrl] = useState<string | null>(null);
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const paymentRef = useRef<PaymentRequestPayment | null>(null);
+  const actionLock = useRef(false);
+  const automaticPaymentStarted = useRef(false);
+  const [cost, setCost] = useState<PaymentRequestCost | null>(null);
+  const [receipt, setReceipt] = useState<'awaiting' | 'unconfirmed' | null>(null);
+  const [hasOperation, setHasOperation] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const {
     balance: storeBalance,
@@ -100,31 +107,38 @@ export function PaymentRequestStage({
 
   // ── Mint compatibility ───────────────────────────────────────────────────
   const matchedMint = useMemo(() => {
-    const normalize = (u: string) => u.replace(/\/$/, '').toLowerCase();
+    if (paymentRef.current) return paymentRef.current.cost.mintUrl;
+    if (selectedMintUrl) return selectedMintUrl;
+    const candidates = mints.filter((mint) => isPaymentMintAllowed(request, mint.mintUrl));
+    const funded = candidates.filter((mint) => (balances[mint.mintUrl] ?? 0) >= request.amount);
+    return (
+      funded.find((mint) => mint.mintUrl === activeMintUrl)?.mintUrl ||
+      funded[0]?.mintUrl ||
+      candidates[0]?.mintUrl ||
+      null
+    );
+  }, [selectedMintUrl, activeMintUrl, mints, request, balances, hasOperation]);
 
-    // 1. If user manually selected a mint on this screen
-    if (selectedMintUrl) {
-      return selectedMintUrl;
+  useEffect(() => {
+    if (paymentRef.current) return;
+    let cancelled = false;
+    setCost(null);
+    setLocalError(null);
+    if (matchedMint) {
+      previewPaymentRequest(request, matchedMint)
+        .then((preview) => {
+          if (!cancelled) setCost(preview);
+        })
+        .catch((error) => {
+          if (!cancelled) setLocalError(error.message);
+        });
+    } else {
+      setLocalError('No compatible funded mint is available');
     }
-
-    // 2. If request specified NO mints (empty array), any mint works! Default to active or first mint
-    if (!request.mints || request.mints.length === 0) {
-      return activeMintUrl || mints[0]?.mintUrl || null;
-    }
-
-    // 3. If active mint matches one of the requested mints
-    if (activeMintUrl && request.mints.some((m) => normalize(m) === normalize(activeMintUrl))) {
-      return activeMintUrl;
-    }
-
-    // 4. Find any other mint in the wallet that matches the request
-    for (const reqMint of request.mints) {
-      const found = mints.find((m) => normalize(m.mintUrl) === normalize(reqMint));
-      if (found) return found.mintUrl;
-    }
-
-    return null;
-  }, [selectedMintUrl, activeMintUrl, mints, request.mints]);
+    return () => {
+      cancelled = true;
+    };
+  }, [matchedMint, request]);
 
   const activeMintInfo = useMemo(() => {
     if (!matchedMint) return null;
@@ -143,10 +157,8 @@ export function PaymentRequestStage({
 
   const isCompatible = useMemo(() => {
     if (!matchedMint) return false;
-    if (!request.mints || request.mints.length === 0) return true;
-    const normalize = (u: string) => u.replace(/\/$/, '').toLowerCase();
-    return request.mints.some((m) => normalize(m) === normalize(matchedMint));
-  }, [matchedMint, request.mints]);
+    return isPaymentMintAllowed(request, matchedMint);
+  }, [matchedMint, request]);
 
   const currentMintBalance = useMemo(() => {
     if (!matchedMint) return 0;
@@ -154,7 +166,7 @@ export function PaymentRequestStage({
   }, [matchedMint, balances, activeMintUrl, storeBalance]);
 
   const amountSats = request.amount ?? 0;
-  const isEnough = amountSats > 0 && currentMintBalance >= amountSats;
+  const isEnough = !!cost && currentMintBalance >= cost.totalDebit;
 
   const fiatValue = useMemo(() => {
     if (!btcData?.price || !amountSats) return '0.00';
@@ -168,7 +180,9 @@ export function PaymentRequestStage({
 
   // ── Send handler ─────────────────────────────────────────────────────────
   const handlePay = async () => {
-    if (!isCompatible || !isEnough) return;
+    if (actionLock.current || (!paymentRef.current && (!isCompatible || !isEnough || !cost)))
+      return;
+    actionLock.current = true;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSending(true);
@@ -176,69 +190,68 @@ export function PaymentRequestStage({
     setOverlayState('sending');
 
     try {
-      console.log(
-        `[PaymentRequestStage] Sending ${amountSats} sats for payment request via mint ${matchedMint}`,
-      );
-      const { token: tokenString, id: operationId } = await walletService.send(
-        matchedMint!,
-        amountSats,
-      );
-
-      if (request.nostrTarget) {
-        const mnemonic = await seedService.getMnemonic();
-        if (!mnemonic) {
-          throw new Error('Wallet seed not found. Please restore or create a wallet first.');
-        }
-        const keys = await seedService.getNostrKeys(mnemonic);
-        const senderPrivkeyHex = keys.privkey;
-
-        console.log(`[PaymentRequestStage] Publishing token via Nostr to ${request.nostrTarget}`);
-
-        const decodedToken = decodeToken(tokenString);
-        const proofs = decodedToken.proofs || [];
-
-        const payloadObj = {
-          id: request.id,
-          mint: matchedMint,
-          unit: request.unit || 'sat',
-          proofs: proofs,
-        };
-        const payloadToEncrypt = JSON.stringify(payloadObj);
-
-        const published = await sendNostrToken(
-          payloadToEncrypt,
-          request.nostrTarget,
-          senderPrivkeyHex,
-        );
-
-        if (!published) {
-          throw new Error(
-            'Failed to publish payment to Nostr relays. The recipient may not receive it.',
-          );
-        }
-      }
-
-      console.log(`[PaymentRequestStage] ✅ Payment complete. OpId: ${operationId}`);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      if (inboxItemId) {
-        import('~/state/nostrInboxStore').then(({ useNostrInboxStore }) => {
-          useNostrInboxStore.getState().markClaimed(inboxItemId);
-        });
-      }
-
+      paymentRef.current ??= new PaymentRequestPayment(request, cost!);
+      await paymentRef.current.deliver(writeNfc);
       setOverlayState(null);
-      onSuccess(amountSats, operationId);
+      setReceipt('awaiting');
     } catch (err: any) {
-      console.error('[PaymentRequestStage] Payment failed:', err);
-      const msg = err?.message || 'Payment failed';
+      const operationId = paymentRef.current?.operationId;
+      const msg = operationId
+        ? `${paymentRef.current?.failureMessage || 'Delivery unconfirmed.'} Existing operation ${operationId} is in History. Do not pay this request again.`
+        : err?.message || 'Payment failed';
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setOverlayState(null);
-      onError(msg);
+      setLocalError(msg);
     } finally {
+      setHasOperation(!!paymentRef.current?.operationId);
       setIsSending(false);
+      actionLock.current = false;
     }
   };
+
+  const refreshReceipt = async () => {
+    if (actionLock.current || !paymentRef.current) return;
+    actionLock.current = true;
+    try {
+      const payment = paymentRef.current;
+      if (await payment.refresh()) {
+        if (!mounted.current) return;
+        if (inboxItemId) {
+          const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
+          useNostrInboxStore.getState().markClaimed(inboxItemId);
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onSuccess(amountSats, payment.operationId!, payment.encoded!);
+      }
+    } catch {
+      if (mounted.current)
+        setLocalError(
+          'Receipt check unavailable. The existing payment remains pending in History.',
+        );
+    } finally {
+      actionLock.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (!autoPay || automaticPaymentStarted.current || !cost || !isCompatible || !isEnough) return;
+    automaticPaymentStarted.current = true;
+    void handlePay();
+  }, [autoPay, cost, isCompatible, isEnough]);
+
+  useEffect(() => {
+    if (receipt !== 'awaiting') return;
+    const poll = setInterval(() => {
+      void refreshReceipt();
+    }, 3000);
+    const timeout = setTimeout(() => {
+      setReceipt('unconfirmed');
+    }, 60_000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(timeout);
+    };
+  }, [receipt]);
 
   const truncateTarget = (s?: string) => {
     if (!s) return undefined;
@@ -255,7 +268,7 @@ export function PaymentRequestStage({
       >
         <YStack gap="$4">
           {/* Mint Balance Row Selector */}
-      
+
           {/* Middle Amount Display */}
           <YStack gap="$3" py="$6" items="center" justify="center">
             <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
@@ -307,6 +320,15 @@ export function PaymentRequestStage({
           )}
 
           {/* Details List */}
+          {(receipt || hasOperation) && (
+            <YStack gap="$2" p="$4">
+              <Text fontWeight="700">
+                {receipt === 'awaiting' ? 'Awaiting recipient' : 'Receipt unconfirmed'}
+              </Text>
+              <Text>The payment remains pending in History. Do not pay this request again.</Text>
+              <Button onPress={refreshReceipt}>Refresh status</Button>
+            </YStack>
+          )}
           <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
             <View p="$3" px="$4">
               <Text fontSize="$3" fontWeight="700" color="$gray12">
@@ -315,6 +337,14 @@ export function PaymentRequestStage({
             </View>
             <Separator borderColor="$borderColor" opacity={0.3} />
             <YStack separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+              {cost && (
+                <DetailItem
+                  label="Total debit (including fees)"
+                  value={`${cost.totalDebit} sats`}
+                />
+              )}
+              {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sats`} />}
+              {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sats`} />}
               <DetailItem
                 label="Mint"
                 value={mintDisplayName}
@@ -379,17 +409,17 @@ export function PaymentRequestStage({
 
       {/* Bottom Fixed Action Buttons (Cancel on Left, Pay on Right) */}
       <YStack position="absolute" b="$4" l="$1" r="$1" bg="$background" gap="$3">
-            <MintBalanceRow
-            activeMint={activeMintInfo}
-            activeMintUrl={matchedMint || undefined}
-            displayName={mintDisplayName}
-            balance={currentMintBalance}
-            isSelector={true}
-            onPress={() => {
-              refreshMintList();
-              sheetRef.current?.present();
-            }}
-          />
+        <MintBalanceRow
+          activeMint={activeMintInfo}
+          activeMintUrl={matchedMint || undefined}
+          displayName={mintDisplayName}
+          balance={currentMintBalance}
+          isSelector={true}
+          onPress={() => {
+            refreshMintList();
+            sheetRef.current?.present();
+          }}
+        />
 
         <XStack gap="$3">
           <Button
@@ -405,19 +435,21 @@ export function PaymentRequestStage({
           >
             Cancel
           </Button>
-          <Button
-            flex={1}
-            theme="accent"
-            height={60}
-            rounded="$6"
-            disabled={!isCompatible || !isEnough || isSending}
-            icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
-            fontWeight="700"
-            fontSize="$5"
-            onPress={handlePay}
-          >
-            {isSending ? 'Sending…' : 'Pay'}
-          </Button>
+          {(!autoPay || hasOperation) && (
+            <Button
+              flex={1}
+              theme="accent"
+              height={60}
+              rounded="$6"
+              disabled={!!receipt || (!hasOperation && (!isCompatible || !isEnough)) || isSending}
+              icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
+              fontWeight="700"
+              fontSize="$5"
+              onPress={handlePay}
+            >
+              {isSending ? 'Sending…' : hasOperation ? 'Retry delivery' : 'Pay'}
+            </Button>
+          )}
         </XStack>
       </YStack>
 
@@ -430,12 +462,7 @@ export function PaymentRequestStage({
         mintUrl={matchedMint || request.mints[0] || ''}
         errorMessage={localError || undefined}
         onDismiss={() => {
-          if (overlayState === 'success') {
-            setOverlayState(null);
-            onSuccess(amountSats, '');
-          } else {
-            setOverlayState(null);
-          }
+          setOverlayState(null);
         }}
         onRetry={() => {
           setOverlayState(null);
@@ -446,6 +473,7 @@ export function PaymentRequestStage({
       <MintSelectorSheet
         ref={sheetRef}
         onSelect={(mintUrl) => {
+          if (paymentRef.current) return;
           setSelectedMintUrl(mintUrl);
         }}
         activeMintUrl={matchedMint || undefined}

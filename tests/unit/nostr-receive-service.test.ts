@@ -1,9 +1,12 @@
 import { nip19 } from 'nostr-tools';
 import { generateSecretKey, getPublicKey, verifyEvent } from 'nostr-tools/pure';
+import { wrapEvent } from 'nostr-tools/nip59';
+import { getEncodedTokenV4 } from '@cashu/cashu-ts';
 import {
   hasSuccessfulRelayPublish,
   NIP17_INBOX_RELAYS,
   nostrService,
+  createNip17GiftWrap,
 } from '~/services/wallet/nostrService';
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 import { useNostrInboxStore } from '~/state/nostrInboxStore';
@@ -52,7 +55,7 @@ describe('Nostr receive service', () => {
     const recipientPublicKey = getPublicKey(recipientPrivateKey);
 
     const service = nostrService as any;
-    const giftWrap = await service.createNip17GiftWrap(
+    const giftWrap = createNip17GiftWrap(
       'cashuAtest-token',
       recipientPublicKey,
       senderPrivateKeyHex,
@@ -70,6 +73,80 @@ describe('Nostr receive service', () => {
 
   it('advertises the relay used by Minibits', () => {
     expect(NIP17_INBOX_RELAYS).toContain('wss://relay.minibits.cash');
+  });
+
+  it('hands a Minibits-style NIP-17 ordinary V4 message to automatic claiming intact', async () => {
+    const senderKey = generateSecretKey();
+    const recipientKey = generateSecretKey();
+    const service = nostrService as any;
+    service.privkeyHex = bytesToHex(recipientKey);
+    service.privkeyBytes = recipientKey;
+    service.pubkeyHex = getPublicKey(recipientKey);
+    jest.spyOn(service, 'getSenderUsername').mockResolvedValue(undefined);
+    const token = getEncodedTokenV4({
+      mint: 'https://mint.example',
+      unit: 'sat',
+      proofs: [
+        {
+          id: '01' + 'ab'.repeat(32),
+          amount: 5,
+          secret: 'synthetic-only',
+          C: '02' + '11'.repeat(32),
+        },
+      ],
+    });
+    // Same kind/tags/wrapEvent call as the cloned Minibits encryptAndSendDirectMessageNip17.
+    const event = wrapEvent(
+      {
+        kind: 14,
+        created_at: Math.ceil(Date.now() / 1000),
+        tags: [
+          ['p', service.pubkeyHex],
+          ['from', 'sender@minibits.cash'],
+        ],
+        content: token,
+      },
+      senderKey,
+      service.pubkeyHex,
+    );
+    await service._processEvent(event);
+    await service._processEvent(event);
+    expect(nostrClaimService.enqueue).toHaveBeenCalledTimes(1);
+    expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+      tokenString: token,
+      amount: 5,
+      senderPubkey: getPublicKey(senderKey),
+    });
+  });
+
+  it('preserves standard base64 V3 token characters in incoming legacy messages', async () => {
+    const service = nostrService as any;
+    jest.spyOn(service, 'getSenderUsername').mockResolvedValue(undefined);
+    const token =
+      'cashuA' +
+      Buffer.from(
+        JSON.stringify({
+          token: [
+            {
+              mint: 'https://mint.example',
+              proofs: [
+                {
+                  id: '00' + 'ab'.repeat(7),
+                  amount: 5,
+                  secret: 'synthetic-only',
+                  C: '02' + '11'.repeat(32),
+                },
+              ],
+            },
+          ],
+          unit: 'sat',
+          memo: '\uffff'.repeat(6),
+        }),
+      ).toString('base64');
+    expect(token).toMatch(/[+/]/);
+    await service._handleDecrypted(`Payment: ${token}`, { id: 'legacy-base64' }, '07'.repeat(32));
+    expect(useNostrInboxStore.getState().items[0].tokenString).toBe(token);
+    expect(nostrClaimService.enqueue).toHaveBeenCalledWith('legacy-base64');
   });
 
   it('only reports publication success when at least one relay transport succeeds', async () => {

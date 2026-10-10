@@ -179,7 +179,13 @@ export function ReceiveModalScreen() {
   ); // stable — only depends on token state, reads mints via ref
 
   React.useEffect(() => {
-    console.log('[ReceiveModal] Params updated:', params);
+    console.log('[ReceiveModal] Params updated:', {
+      hasScannedToken: Boolean(params.scannedToken),
+      hasRequestId: Boolean(params.requestId),
+      from: params.from,
+      mode: params.mode,
+      paste: params.paste,
+    });
     if (params.scannedToken) {
       let raw = params.scannedToken.trim();
       let lower = raw.toLowerCase();

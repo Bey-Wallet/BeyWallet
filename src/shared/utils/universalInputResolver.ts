@@ -1,4 +1,5 @@
 import { nip19 } from 'nostr-tools';
+import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 
 export type UniversalInputType =
   | 'cashu_token'
@@ -74,20 +75,67 @@ export async function resolveUniversalInput(rawInput: string): Promise<Universal
     return { type: 'unknown', raw: rawInput, cleaned: '', error: 'Input is empty' };
   }
 
-  // 1. Strip common web/app URI prefixes
+  // 1. Parse payment inputs, including Numo-style BIP-321 unified URIs.
+  const paymentInput = parsePaymentInput(rawInput);
+  if (paymentInput.matched) {
+    if (!paymentInput.ok) {
+      return {
+        type: 'unknown',
+        raw: rawInput,
+        cleaned: input,
+        error: paymentInput.reason,
+      };
+    }
+
+    const { primary } = paymentInput.value;
+    switch (primary.type) {
+      case 'cashu_token':
+        return {
+          type: 'cashu_token',
+          raw: rawInput,
+          cleaned: primary.value,
+          resolvedData: { token: primary.value },
+        };
+      case 'cashu_request':
+        return {
+          type: 'cashu_request',
+          raw: rawInput,
+          cleaned: primary.value,
+          resolvedData: { paymentRequest: primary.value },
+        };
+      case 'lightning_invoice':
+        return {
+          type: 'lightning_invoice',
+          raw: rawInput,
+          cleaned: primary.value,
+          resolvedData: { invoice: primary.value },
+        };
+      case 'bitcoin_onchain':
+        return {
+          type: 'bitcoin_onchain',
+          raw: rawInput,
+          cleaned: primary.value,
+          resolvedData: { address: primary.value },
+        };
+      case 'bolt12_offer':
+        return {
+          type: 'unknown',
+          raw: rawInput,
+          cleaned: primary.value,
+          error: 'BOLT12 offers are not supported yet',
+        };
+    }
+  }
+
+  // 2. Strip non-payment web/app URI prefixes
   let lower = input.toLowerCase();
-  if (lower.startsWith('web+cashu://')) input = input.slice(12);
-  else if (lower.startsWith('web+cashu:')) input = input.slice(10);
-  else if (lower.startsWith('cashu:')) input = input.slice(6);
-  else if (lower.startsWith('web+nostr:')) input = input.slice(10);
+  if (lower.startsWith('web+nostr:')) input = input.slice(10);
   else if (lower.startsWith('nostr://')) input = input.slice(8);
   else if (lower.startsWith('nostr:')) input = input.slice(6);
-  else if (lower.startsWith('lightning:')) input = input.slice(10);
-  else if (lower.startsWith('bitcoin:')) input = input.slice(8);
 
   lower = input.toLowerCase();
 
-  // 2. Check for exclusive bey.cash share links (/c, /#c, /c#, /r, /#r, /r#)
+  // 3. Check for exclusive bey.cash share links (/c, /#c, /c#, /r, /#r, /r#)
   if (
     lower.includes('bey.cash/') ||
     lower.includes('/c#') ||
@@ -152,37 +200,7 @@ export async function resolveUniversalInput(rawInput: string): Promise<Universal
     }
   }
 
-  // 3. Cashu Ecash Token (cashuA... / cashuB...)
-  if (lower.startsWith('cashua') || lower.startsWith('cashub')) {
-    return {
-      type: 'cashu_token',
-      raw: rawInput,
-      cleaned: input,
-      resolvedData: { token: input },
-    };
-  }
-
-  // 4. Cashu Payment Request (creqA... / creqB...)
-  if (lower.startsWith('creqa') || lower.startsWith('creqb') || lower.startsWith('creq')) {
-    return {
-      type: 'cashu_request',
-      raw: rawInput,
-      cleaned: input,
-      resolvedData: { paymentRequest: input },
-    };
-  }
-
-  // 5. Lightning Invoice (lnbc... / lntb...)
-  if (lower.startsWith('lnbc') || lower.startsWith('lntb')) {
-    return {
-      type: 'lightning_invoice',
-      raw: rawInput,
-      cleaned: input,
-      resolvedData: { invoice: input },
-    };
-  }
-
-  // 6. LNURL (lnurl1...)
+  // 4. LNURL (lnurl1...)
   if (lower.startsWith('lnurl1')) {
     return {
       type: 'lightning_address',
@@ -192,7 +210,7 @@ export async function resolveUniversalInput(rawInput: string): Promise<Universal
     };
   }
 
-  // 7. Nostr NPUB / Nprofile / Nevent / Naddr / 64-char Hex Pubkey
+  // 5. Nostr NPUB / Nprofile / Nevent / Naddr / 64-char Hex Pubkey
   if (
     lower.startsWith('npub1') ||
     lower.startsWith('nprofile1') ||
@@ -226,18 +244,7 @@ export async function resolveUniversalInput(rawInput: string): Promise<Universal
     }
   }
 
-  // 8. Bitcoin On-Chain Address (Legacy 1..., P2SH 3..., Bech32 SegWit bc1q..., Taproot bc1p..., Testnet tb1...)
-  const isBitcoinOnchain = /^(1|3|bc1[qzp]|tb1[qzp])[a-zA-HJ-NP-Z0-9]{25,90}$/i.test(input);
-  if (isBitcoinOnchain) {
-    return {
-      type: 'bitcoin_onchain',
-      raw: rawInput,
-      cleaned: input,
-      resolvedData: { address: input },
-    };
-  }
-
-  // 9. NIP-05 Username (e.g. satoshi@bey.cash, alice@domain.com, @satoshi, or plain username satoshi)
+  // 6. NIP-05 Username (e.g. satoshi@bey.cash, alice@domain.com, @satoshi, or plain username satoshi)
   if (
     input.includes('@') ||
     /^[a-zA-Z0-9._-]+$/.test(input.startsWith('@') ? input.slice(1) : input)

@@ -21,6 +21,7 @@ expo-env.d.ts
 
 .ultra.cache.json
 tmp
+.tmp
 *.tsbuildinfo
 *.tmp.js
 yarn-error.log

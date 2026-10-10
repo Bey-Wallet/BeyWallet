@@ -1,6 +1,6 @@
 import { SimplePool, type Filter, type Event, nip04, nip44, finalizeEvent } from 'nostr-tools';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
-import { unwrapEvent } from 'nostr-tools/nip59';
+import { unwrapEvent, wrapEvent } from 'nostr-tools/nip59';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
 import { Buffer } from 'buffer';
@@ -66,6 +66,58 @@ export async function hasSuccessfulRelayPublish(
 ): Promise<boolean> {
   const results = await Promise.allSettled(publishAttempts);
   return results.some((result) => result.status === 'fulfilled');
+}
+
+export function resolveNostrRecipient(identifier: string): {
+  pubkey: string;
+  relayHints: string[];
+} {
+  const normalized = identifier.trim();
+  if (/^[0-9a-f]{64}$/i.test(normalized)) {
+    return { pubkey: normalized.toLowerCase(), relayHints: [] };
+  }
+
+  const decoded = nip19Decode(normalized);
+  if (decoded.type === 'npub') {
+    return { pubkey: decoded.data as string, relayHints: [] };
+  }
+  if (decoded.type === 'nprofile') {
+    const data = decoded.data as { pubkey: string; relays?: string[] };
+    const relayHints = (data.relays || []).filter((relay) => {
+      try {
+        const url = new URL(relay);
+        return (
+          url.protocol === 'wss:' && !!url.hostname && !url.username && !url.password && !url.hash
+        );
+      } catch {
+        return false;
+      }
+    });
+    return { pubkey: data.pubkey, relayHints };
+  }
+
+  throw new Error('Unsupported Nostr identifier');
+}
+
+/**
+ * Build a standards-compliant NIP-59 gift wrap containing a NIP-17 kind-14 message.
+ * Delegating this to nostr-tools ensures the unsigned rumor includes its required event id.
+ */
+export function createNip17GiftWrap(
+  message: string,
+  recipientPubkeyHex: string,
+  senderPrivkeyHex: string,
+): Event {
+  return wrapEvent(
+    {
+      kind: 14,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['p', recipientPubkeyHex]],
+      content: message,
+    },
+    hexToBytes(senderPrivkeyHex),
+    recipientPubkeyHex,
+  );
 }
 
 interface DecryptedNostrMessage {
@@ -368,11 +420,8 @@ class NostrService {
   }
 
   /**
-   * Handle decrypted message content — queue cashu tokens for manual claiming.
-   *
-   * Instead of auto-receiving, we emit 'nostr:incoming' so the UI can show
-   * a claim sheet where the user inspects mint, fees, and sender info before
-   * accepting the payment.
+   * Persist incoming tokens and hand them to the automatic claim worker.
+   * Unknown mints and terminal claim failures remain available for review.
    */
   private async _handleDecrypted(
     text: string,
@@ -449,7 +498,7 @@ class NostrService {
 
     if (!tokenString) {
       // Match V3 (cashuA) and V4 (cashuB) tokens
-      const tokenMatch = text.match(/(cashu[AB][A-Za-z0-9_=-]+)/i);
+      const tokenMatch = text.match(/(cashu[AB][A-Za-z0-9+/_=-]+)/i);
       if (!tokenMatch) {
         return;
       }
@@ -506,11 +555,10 @@ class NostrService {
     // Claiming is owned by a non-React wallet service. Load it lazily to keep
     // the Nostr transport independent from wallet lifecycle modules.
     const { nostrClaimService } = require('~/services/wallet/nostrClaimService');
-    await nostrClaimService.enqueue(sourceEvent.id);
+    const claimResult = await nostrClaimService.enqueue(sourceEvent.id);
 
-    // ── Queue for manual claim via NostrClaimSheet ──────────────────────
-    // Emit 'nostr:incoming' so the UI can present a claim sheet where the
-    // user inspects the mint, amount, fees, and sender before accepting.
+    // The claim sheet reviews unknown mints or terminal errors; successful
+    // automatic claims do not need a confirmation prompt.
     DeviceEventEmitter.emit('nostr:incoming', {
       eventId: sourceEvent.id,
       tokenString,
@@ -520,9 +568,10 @@ class NostrService {
       senderUsername,
       requestId: requestIdFromPayload,
     });
-    console.log(
-      `[NostrService] 🔔 Queued incoming payment for manual claim: ${amount} sats from ${senderPubkey.slice(0, 8)}…`,
-    );
+    console.log('[NostrService] Incoming payment handled', {
+      eventId: sourceEvent.id,
+      category: claimResult?.status || 'saved',
+    });
   }
 
   /** Advertise the relays where other NIP-17 clients should deliver gift wraps. */
@@ -720,64 +769,6 @@ class NostrService {
   // ── Sending via Nostr ──────────────────────────────────────────────────────
 
   /**
-   * Helper to build a NIP-17 Gift Wrap event (Kind 1059 wrapping Kind 13 Seal wrapping Kind 14 Rumor).
-   * Used by cashu.me and modern Nostr wallets for direct message subscriptions.
-   */
-  private async createNip17GiftWrap(
-    message: string,
-    recipientPubkeyHex: string,
-    senderPrivkeyHex: string,
-  ): Promise<Event> {
-    const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
-    const senderPubkeyHex = getPublicKey(senderPrivkeyBytes);
-
-    // 1. Rumor (Kind 14) - Unsigned inner DM
-    const rumor = {
-      kind: 14,
-      created_at: Math.floor(Date.now() / 1000),
-      pubkey: senderPubkeyHex,
-      tags: [['p', recipientPubkeyHex]],
-      content: message,
-    };
-    const rumorString = JSON.stringify(rumor);
-
-    // 2. Seal (Kind 13) - Encrypted with sender <-> recipient key & signed by sender
-    const sealConvKey = nip44.v2.utils.getConversationKey(senderPrivkeyBytes, recipientPubkeyHex);
-    const encryptedRumor = nip44.v2.encrypt(rumorString, sealConvKey);
-
-    const sealTemplate = {
-      kind: 13,
-      created_at: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 10),
-      pubkey: senderPubkeyHex,
-      tags: [],
-      content: encryptedRumor,
-    };
-    const signedSeal = finalizeEvent(sealTemplate, senderPrivkeyBytes);
-    const sealString = JSON.stringify(signedSeal);
-
-    // 3. Gift Wrap (Kind 1059) - Encrypted with ephemeral random key & signed by ephemeral key
-    const ephemeralPrivkeyBytes = generateSecretKey();
-    const ephemeralPubkeyHex = getPublicKey(ephemeralPrivkeyBytes);
-    const wrapConvKey = nip44.v2.utils.getConversationKey(
-      ephemeralPrivkeyBytes,
-      recipientPubkeyHex,
-    );
-    const encryptedSeal = nip44.v2.encrypt(sealString, wrapConvKey);
-
-    const randomPastTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400);
-
-    const wrapTemplate = {
-      kind: 1059,
-      created_at: randomPastTime,
-      pubkey: ephemeralPubkeyHex,
-      tags: [['p', recipientPubkeyHex]],
-      content: encryptedSeal,
-    };
-
-    return finalizeEvent(wrapTemplate, ephemeralPrivkeyBytes);
-  }
-
-  /**
    * Send a cashu token / payment payload to a recipient via Nostr DM.
    * Dual-publishes using both NIP-04 (Kind 4) and NIP-17 (Kind 1059 Gift Wrap)
    * so all Nostr wallets (cashu.me, minibits, nutsack, etc.) receive the payment.
@@ -793,21 +784,14 @@ class NostrService {
     senderPrivkeyHex: string,
   ): Promise<boolean> {
     // Resolve npub/nprofile → hex
-    let recipientPubkeyHex = recipientPubkeyHexOrNpub.trim();
-    if (recipientPubkeyHex.startsWith('npub') || recipientPubkeyHex.startsWith('nprofile')) {
-      try {
-        const decoded = nip19Decode(recipientPubkeyHex);
-        if (decoded.type === 'npub') {
-          recipientPubkeyHex = decoded.data as string;
-        } else if (decoded.type === 'nprofile') {
-          recipientPubkeyHex = (decoded.data as any).pubkey as string;
-        } else {
-          throw new Error('Unsupported bech32 prefix');
-        }
-      } catch (e: any) {
-        throw new Error(`Invalid Nostr identifier: ${e.message}`);
-      }
+    let recipient: ReturnType<typeof resolveNostrRecipient>;
+    try {
+      recipient = resolveNostrRecipient(recipientPubkeyHexOrNpub);
+    } catch (e: any) {
+      throw new Error(`Invalid Nostr identifier: ${e.message}`);
     }
+    const recipientPubkeyHex = recipient.pubkey;
+    const publishRelays = [...new Set([...recipient.relayHints, ...RELAYS])];
 
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
 
@@ -826,11 +810,7 @@ class NostrService {
     // Build NIP-17 Gift Wrap Event
     let nip17Event: Event | null = null;
     try {
-      nip17Event = await this.createNip17GiftWrap(
-        tokenString,
-        recipientPubkeyHex,
-        senderPrivkeyHex,
-      );
+      nip17Event = createNip17GiftWrap(tokenString, recipientPubkeyHex, senderPrivkeyHex);
     } catch (e) {
       console.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e);
     }
@@ -839,13 +819,15 @@ class NostrService {
     const pool = this.pool ?? new SimplePool();
 
     console.log(
-      `[NostrService] 📤 Sending token via Nostr DM (NIP-04 & NIP-17) to ${recipientPubkeyHex.slice(0, 8)}… on ${RELAYS.length} relays`,
+      `[NostrService] 📤 Sending token via Nostr DM (NIP-04 & NIP-17) to ${recipientPubkeyHex.slice(0, 8)}… on ${publishRelays.length} relays`,
     );
 
     try {
-      const publishAttempts: Promise<unknown>[] = [Promise.any(pool.publish(RELAYS, nip04Event))];
+      const publishAttempts: Promise<unknown>[] = [
+        Promise.any(pool.publish(publishRelays, nip04Event)),
+      ];
       if (nip17Event) {
-        publishAttempts.push(Promise.any(pool.publish(RELAYS, nip17Event)));
+        publishAttempts.push(Promise.any(pool.publish(publishRelays, nip17Event)));
       }
 
       const published = await hasSuccessfulRelayPublish(publishAttempts);
@@ -868,7 +850,7 @@ class NostrService {
       return false;
     } finally {
       if (ownsPool) {
-        pool.close(RELAYS);
+        pool.close(publishRelays);
       }
     }
   }

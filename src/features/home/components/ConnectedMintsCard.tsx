@@ -20,7 +20,7 @@ const RowContainer = styled(XStack, {
   items: 'center',
   justify: 'space-between',
   gap: '$2',
-  p: '$2',
+  py: '$2',
   rounded: '$4',
   theme: 'gray',
   hoverStyle: { bg: '$backgroundHover' },
@@ -96,7 +96,7 @@ const MintRowItem = React.memo(
 
     return (
       <RowContainer onPress={() => onPress(mint.mintUrl)}>
-        <XStack items="center" gap="$2.5" flex={1} mr="$2">
+        <XStack items="center" gap="$2.5" flex={1} mr="$0">
           {!mint.icon ? (
             <View width={40} height={40} justify="center" bg="$color5" rounded={8} items="center">
               <Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />
@@ -266,7 +266,7 @@ export const ConnectedMintsCard = () => {
 
   return (
     <>
-      <YStack width="100%" gap="$3" p="$1.5" rounded="$6" bg="$color2">
+      <YStack width="100%" gap="$3" p="$0" rounded="$6">
         <YStack separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
           {[
             ...mints.map((mint) => {

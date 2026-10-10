@@ -1,5 +1,6 @@
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
 import { nip19 } from 'nostr-tools';
+import { getTokenMetadata } from '@cashu/cashu-ts';
 import { historyService } from '~/services/wallet/historyService';
 import { initService } from '~/services/wallet/initService';
 import { mintManager } from '~/services/wallet/mintManager';
@@ -60,10 +61,6 @@ function isP2pkFailure(error: unknown): boolean {
   return /p2pk|locked|public key|witness|signature/i.test(errorMessage(error));
 }
 
-function shouldFallbackToStandardReceive(error: unknown): boolean {
-  return /not (a )?p2pk|no p2pk|not locked|no spending condition/i.test(errorMessage(error));
-}
-
 function classifyFailure(error: unknown): NostrClaimFailure {
   const message = errorMessage(error);
   if (isDuplicateOutputsError(error)) {
@@ -74,7 +71,9 @@ function classifyFailure(error: unknown): NostrClaimFailure {
     };
   }
   if (
-    /offline|network request failed|fetch failed|timeout|timed out|socket|connection/i.test(message)
+    /offline|network request failed|network unavailable|fetch failed|timeout|timed out|socket|connection/i.test(
+      message,
+    )
   ) {
     return { code: 'network', message, retryable: true };
   }
@@ -100,6 +99,18 @@ class NostrClaimService {
     this.stop();
     this.privateKeyHex = privateKeyHex;
     this.running = true;
+    // A process can stop between markClaiming and the mint response. Persisted
+    // claims must resume; the mint still validates and rejects already-spent inputs.
+    const store = useNostrInboxStore.getState();
+    for (const item of store.items) {
+      if (item.type !== 'request' && item.status === 'claiming') {
+        store.markFailed(item.id, 'Interrupted claim. Checking the saved payment again.', {
+          code: 'wallet_unavailable',
+          message: 'Interrupted claim. Checking the saved payment again.',
+          retryable: true,
+        });
+      }
+    }
     this.appStateSubscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') void this.processPending();
     });
@@ -213,33 +224,31 @@ class NostrClaimService {
 
     const walletFailure = this.canUseWallet();
     if (walletFailure) return this.defer(item, walletFailure);
-    if (await networkService.isOffline()) {
-      return this.defer(item, {
-        code: 'offline',
-        message: 'Payment saved. It will retry when the device is online.',
-        retryable: true,
-      });
-    }
-
-    const trusted = await mintManager.isMintTrusted(item.mintUrl);
-    if (!trusted && !options.trustMint) {
-      store.markApprovalRequired(eventId);
-      return {
-        eventId,
-        status: 'approval_required',
-        failure: useNostrInboxStore.getState().items.find((i) => i.id === eventId)?.failure,
-      };
-    }
-    if (!this.reserveClaimSlot() && !options.force) {
-      return this.defer(item, {
-        code: 'rate_limited',
-        message: 'Automatic claiming paused after too many incoming payments.',
-        retryable: true,
-      });
-    }
-
     this.processing.add(eventId);
     try {
+      if (await networkService.isOffline()) {
+        return this.defer(item, {
+          code: 'offline',
+          message: 'Payment saved. It will retry when the device is online.',
+          retryable: true,
+        });
+      }
+      const trusted = await mintManager.isMintTrusted(item.mintUrl);
+      if (!trusted && !options.trustMint) {
+        store.markApprovalRequired(eventId);
+        return {
+          eventId,
+          status: 'approval_required',
+          failure: useNostrInboxStore.getState().items.find((i) => i.id === eventId)?.failure,
+        };
+      }
+      if (!this.reserveClaimSlot() && !options.force) {
+        return this.defer(item, {
+          code: 'rate_limited',
+          message: 'Automatic claiming paused after too many incoming payments.',
+          retryable: true,
+        });
+      }
       if (!trusted && options.trustMint) {
         await mintManager.addMint(item.mintUrl, { trusted: true });
       }
@@ -256,6 +265,10 @@ class NostrClaimService {
         return { eventId, status: 'claimed', amount: item.amount };
       }
       const failure = classifyFailure(error);
+      console.warn('[NostrClaimService] Claim deferred or failed', {
+        eventId,
+        category: failure.code,
+      });
       const result = this.defer(item, failure, true);
       DeviceEventEmitter.emit('nostr:claim-result', result);
       return result;
@@ -266,15 +279,21 @@ class NostrClaimService {
   }
 
   private async receive(item: NostrInboxItem): Promise<void> {
-    try {
-      await walletService.receiveP2PK(item.tokenString, this.privateKeyHex!);
-    } catch (error) {
-      if (isAlreadySpent(error)) throw error;
-      if (shouldFallbackToStandardReceive(error)) {
-        await walletService.receive(item.tokenString);
-        return;
+    // Inspect the standard metadata without resolving compact keyset IDs. Actual
+    // decoding, keyset checks, mint redemption and P2PK validation belong to Coco.
+    const metadata = getTokenMetadata(item.tokenString);
+    const needsSigning = metadata.incompleteProofs.some((proof) => {
+      try {
+        const secret = JSON.parse(proof.secret);
+        return Array.isArray(secret) && secret[0] === 'P2PK';
+      } catch {
+        return false;
       }
-      throw error;
+    });
+    if (needsSigning) {
+      await walletService.receiveP2PK(item.tokenString, this.privateKeyHex!);
+    } else {
+      await walletService.receive(item.tokenString);
     }
   }
 

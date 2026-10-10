@@ -19,6 +19,7 @@ import {
   isDuplicateOutputsError,
   receiveWithDuplicateOutputRecovery,
 } from '~/services/wallet/cashuReceiveRecovery';
+import { refreshReceiveKeysets } from '~/services/wallet/cashuReceiveKeysets';
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -298,7 +299,7 @@ export const walletService = {
   sendWithToken: async (
     mintUrl: string,
     amount: number,
-  ): Promise<{ encoded: string; token: Token }> => {
+  ): Promise<{ encoded: string; token: Token; id: string }> => {
     return withKeysetRecovery(mintUrl, async () => {
       const m = mgr();
       let preparedId: string | null = null;
@@ -306,9 +307,9 @@ export const walletService = {
       try {
         const prepared = await m.send.prepareSend(mintUrl, amount);
         preparedId = prepared.id;
-        const { token } = await m.send.executePreparedSend(prepared.id);
+        const { token, operation } = await m.send.executePreparedSend(prepared.id);
         const encoded = encodeToken(token);
-        return { encoded, token };
+        return { encoded, token, id: operation.id };
       } catch (err) {
         if (preparedId) {
           try {
@@ -590,39 +591,15 @@ export const walletService = {
     // (getDecodedToken would throw for V4 when short keyset IDs aren't cached yet)
     const mintUrl: string | null = extractMintUrlFromToken(cleaned);
 
-    // Pre-sync keysets for V4 tokens so the short 8-byte keyset IDs can be mapped
-    // to the full keyset IDs from the mint.
-    //
-    // Flow:
-    //  1. mintService.updateMintData() — fetches fresh keysets from the mint network
-    //     and writes the full 66-char keyset IDs (e.g. 01884a74bb2fc5ee...) to the DB.
-    //  2. walletService.clearCache() — clears the internal CashuWallet object that was
-    //     built BEFORE we fetched keysets. This forces rebuild on the next receive() call.
-    //     Without this, the wallet uses stale in-memory keyset IDs and the short ID
-    //     "01884a74bb2fc5ee" fails to map to the full ID.
-    //
-    // NOTE: We do NOT call reinitFast() here — that's overkill (destroys the whole Manager).
-    // clearCache() on the internal WalletService is sufficient.
-    if (mintUrl) {
-      try {
-        console.log('[WalletService] Pre-syncing keysets for token, mint:', mintUrl);
-        await unsafeManager.mintService.updateMintData(mintUrl);
-        // Clear the internal CashuWallet cache so next receive() rebuilds it with new keysets
-        if (typeof unsafeManager.walletService?.clearCache === 'function') {
-          unsafeManager.walletService.clearCache(mintUrl);
-          console.log('[WalletService] ✅ Keyset pre-sync complete + wallet cache cleared');
-        } else {
-          // Fallback: clear ALL wallet caches if per-mint clear isn't available
-          unsafeManager.walletService?.clearAllCaches?.();
-          console.log('[WalletService] ✅ Keyset pre-sync complete + all wallet caches cleared');
-        }
-      } catch (syncErr: any) {
-        console.warn('[WalletService] Keyset pre-sync failed (non-fatal):', syncErr?.message);
-        // Non-fatal: attempt receive anyway — may succeed if keysets were already cached
-      }
-    }
-
+    // Reconcile removed active keysets and refresh the wallet before decoding compact IDs.
     try {
+      if (mintUrl)
+        await refreshReceiveKeysets(
+          mgr(),
+          initService.getRepo().keysetRepository,
+          mintUrl,
+          cleaned,
+        );
       await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
       console.log('[WalletService] ✅ Token received successfully');
     } catch (err: any) {
@@ -631,6 +608,12 @@ export const walletService = {
 
       if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
         throw new Error('Mint is not trusted. Please add and trust the mint first.');
+      }
+
+      if (/unknown keyset/i.test(msg)) {
+        throw new Error(
+          'The mint does not recognize a keyset used by this token. Its mint may have reset or rotated keys. Keep the token and contact its sender or mint operator.',
+        );
       }
 
       // V4 short keyset ID mapping failed — clear wallet cache and retry once
@@ -713,6 +696,9 @@ export const walletService = {
 
       // 2. Use coco's standard receive — it now knows the key
       console.log('[WalletService] P2PK: Receiving via coco standard pipeline...');
+      const mintUrl = extractMintUrlFromToken(cleaned);
+      if (mintUrl)
+        await refreshReceiveKeysets(m, initService.getRepo().keysetRepository, mintUrl, cleaned);
       await receiveWithDuplicateOutputRecovery(() => m.wallet.receive(cleaned));
 
       console.log('[WalletService] ✅ P2PK Token received successfully via coco');

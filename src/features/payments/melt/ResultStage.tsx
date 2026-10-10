@@ -8,11 +8,12 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 
 interface MeltResultStageProps {
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'pending' | 'unresolved';
   amount: number;
   feeReserve: number;
   error?: string | null;
   onClose: () => void;
+  onRefresh?: () => void;
 }
 
 export function MeltResultStage({
@@ -21,6 +22,7 @@ export function MeltResultStage({
   feeReserve,
   error,
   onClose,
+  onRefresh,
 }: MeltResultStageProps) {
   const { secondaryCurrency } = useSettingsStore();
   const isSuccess = status === 'success';
@@ -41,7 +43,7 @@ export function MeltResultStage({
   React.useEffect(() => {
     if (isSuccess) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
+    } else if (status === 'error') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [status, isSuccess]);
@@ -62,12 +64,21 @@ export function MeltResultStage({
         </Circle>
         <YStack items="center" gap="$2">
           <Text fontSize="$7" fontWeight="900" color="$color">
-            Payment Failed
+            {status === 'pending'
+              ? 'Payment pending'
+              : status === 'unresolved'
+                ? 'Payment unresolved'
+                : 'Payment Failed'}
           </Text>
           <Text color="$gray10" fontSize="$4" textAlign="center" px="$4">
-            {error || 'The Lightning payment could not be completed.'}
+            {status === 'pending' || status === 'unresolved'
+              ? 'Check the existing payment status. Do not pay this invoice again.'
+              : error || 'The Lightning payment could not be completed.'}
           </Text>
         </YStack>
+        {(status === 'pending' || status === 'unresolved') && onRefresh && (
+          <Button onPress={onRefresh}>Refresh status</Button>
+        )}
         <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
           Go Back
         </Button>

@@ -44,7 +44,8 @@ import { Image } from 'tamagui';
 import { nip19 } from 'nostr-tools';
 import { eventService, proofService } from '~/services/wallet';
 import SendMethodSelector, { SendMode } from '~/shared/ui/SendMethodSelector';
-import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
+import { parsePaymentRequest as validatePaymentRequest } from '~/services/wallet/paymentRequestModel';
+import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import Blockies from '~/shared/ui/Blockies';
 import {
   OfflineOptimizationSheet,
@@ -75,29 +76,8 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
       return null;
     }
 
-    const pr = PaymentRequest.fromEncodedRequest(cleaned);
-    // Extract Nostr transport target (npub)
-    let nostrTarget: string | undefined;
-    if (pr.transport) {
-      const nostrTr = pr.transport.find(
-        (t: any) =>
-          t.type === PaymentRequestTransportType.NOSTR ||
-          t.type === 'nostr' ||
-          String(t.type) === '1',
-      );
-      if (nostrTr) nostrTarget = nostrTr.target;
-    }
-    return {
-      raw: cleaned,
-      id: pr.id ?? undefined,
-      amount: pr.amount ?? undefined,
-      unit: pr.unit ?? 'sat',
-      description: pr.description ?? undefined,
-      mints: pr.mints ?? [],
-      nostrTarget,
-    };
+    return validatePaymentRequest(cleaned);
   } catch (e) {
-    console.error('[SendModal] Failed to parse payment request:', e);
     return null;
   }
 }
@@ -207,10 +187,18 @@ export function SendModalScreen() {
   // Auto-switch to payment_request step if we got a creqA param
   React.useEffect(() => {
     if (activeParsedRequest) {
-      console.log('[SendModal] Auto-switching to payment_request stage:', activeParsedRequest);
+      console.log('[SendModal] Auto-switching to payment_request stage');
       setStep('payment_request');
+    } else if (params.paymentRequest) {
+      try {
+        validatePaymentRequest(params.paymentRequest);
+      } catch (error: any) {
+        setError(error.message);
+        setStatus('error');
+        setStep('result');
+      }
     }
-  }, [activeParsedRequest]);
+  }, [activeParsedRequest, params.paymentRequest]);
 
   const balance = useWalletStore((s) => s.balance);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -633,9 +621,20 @@ export function SendModalScreen() {
   };
 
   const handleScanContinue = (forcedInput?: string) => {
-    const input = (typeof forcedInput === 'string' ? forcedInput : scanInput).trim();
+    let input = (typeof forcedInput === 'string' ? forcedInput : scanInput).trim();
     if (!input) return;
     setError(null);
+
+    const parsedInput = parsePaymentInput(input);
+    if (parsedInput.matched) {
+      if (!parsedInput.ok) {
+        setError(parsedInput.reason);
+        setStatus('error');
+        setStep('result');
+        return;
+      }
+      input = parsedInput.value.normalized;
+    }
 
     // Auto-redirect to receive if it looks like a token
     const isPaymentRequest =
@@ -655,7 +654,11 @@ export function SendModalScreen() {
       setManualParsedRequest(parsed);
       // step is auto-switched by useEffect
     } else {
-      setError('Invalid payment request format');
+      try {
+        validatePaymentRequest(input);
+      } catch (error: any) {
+        setError(error.message);
+      }
       setStatus('error');
       setStep('result');
     }
@@ -718,15 +721,19 @@ export function SendModalScreen() {
       />
       {step === 'payment_request' && activeParsedRequest && (
         <PaymentRequestStage
+          key={activeParsedRequest.raw}
           request={activeParsedRequest}
           inboxItemId={params.inboxItemId}
-          onSuccess={(paidAmount, opId) => {
+          onSuccess={(paidAmount, opId, paymentToken) => {
             setAmount(String(paidAmount));
             setOperationId(opId);
+            setEncodedToken(paymentToken);
+            rawTokenRef.current = paymentToken;
+            setStatus('success');
             queryClient.invalidateQueries({ queryKey: ['history'] });
             queryClient.invalidateQueries({ queryKey: ['balance'] });
             refreshBalance();
-            setStep('success');
+            setStep('result');
           }}
           onError={(msg) => {
             setError(msg);

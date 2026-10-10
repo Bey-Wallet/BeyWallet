@@ -161,7 +161,7 @@ export class ExpoProofRepository implements ProofRepository {
         }
         if (row.usedByOperationId) {
           throw new Error(
-            `Proof already reserved by operation ${row.usedByOperationId}: ${secret}`,
+            `Proof already reserved by operation ${row.usedByOperationId}. Check the existing operation in History.`,
           );
         }
       }
