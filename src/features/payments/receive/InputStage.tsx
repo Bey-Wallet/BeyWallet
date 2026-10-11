@@ -1,3 +1,4 @@
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router } from 'expo-router';
 import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
@@ -149,7 +150,7 @@ export function InputStage({
               rounded="$4"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(modals)/nfc-receive');
+                nfcFlow.openReader();
               }}
               pressStyle={{ bg: '$gray3' }}
             >

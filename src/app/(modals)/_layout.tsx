@@ -68,22 +68,6 @@ export default function ModalLayout() {
         }}
       />
       <Stack.Screen
-        name="nfc-receive"
-        options={{
-          headerTitle: ({ children }) => <DefaultHeaderTitle>NFC</DefaultHeaderTitle>,
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="nfc-send"
-        options={{
-          headerTitle: ({ children }) => <DefaultHeaderTitle>NFC Send</DefaultHeaderTitle>,
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
         name="+not-found"
         options={{
           title: 'Not Found',

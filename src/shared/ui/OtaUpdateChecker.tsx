@@ -5,12 +5,15 @@ import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Download } from '@tamagui/lucide-icons';
+import { useNfcPresentation } from '~/features/nfc/NfcSheetHost';
 
 export function OtaUpdateChecker() {
+  const nfc = useNfcPresentation();
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const router = useRouter();
   const theme = useTheme();
   const [hasUpdate, setHasUpdate] = useState(false);
+  const hasPresented = useRef(false);
 
   useEffect(() => {
     async function checkUpdates() {
@@ -20,10 +23,6 @@ export function OtaUpdateChecker() {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           setHasUpdate(true);
-          // Slight delay to ensure UI is ready
-          setTimeout(() => {
-            sheetRef.current?.present();
-          }, 1000);
         }
       } catch (error) {
         console.log('Error checking for updates', error);
@@ -32,6 +31,15 @@ export function OtaUpdateChecker() {
 
     checkUpdates();
   }, []);
+
+  useEffect(() => {
+    if (!hasUpdate || nfc.visible || hasPresented.current) return;
+    const timer = setTimeout(() => {
+      hasPresented.current = true;
+      sheetRef.current?.present();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [hasUpdate, nfc.visible]);
 
   if (!hasUpdate) return null;
 

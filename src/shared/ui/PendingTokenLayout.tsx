@@ -49,8 +49,7 @@ import {
   mintManager,
 } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
-import { nfcService } from '~/services/platform/nfcService';
-import { ProcessingSheet, ProcessingStatus } from '~/shared/ui/ProcessingSheet';
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 import { useAuthStore } from '~/state/authStore';
 import { StatusBadge, BadgeStatus } from '~/shared/ui/StatusBadge';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -67,7 +66,7 @@ export interface PendingTokenLayoutProps {
   hideActions?: boolean;
   onClaim?: () => void | Promise<void>;
   isClaiming?: boolean;
-  onNfcPress?: () => void;
+  operationId?: string;
   expiresAt?: number;
   /** Controls the status badge color in the header. Defaults to 'pending'. */
   headerStatus?: BadgeStatus;
@@ -90,7 +89,7 @@ export function PendingTokenLayout({
   hideActions = false,
   onClaim,
   isClaiming = false,
-  onNfcPress,
+  operationId,
   expiresAt,
   headerStatus = 'pending',
   onCheckStatus,
@@ -110,6 +109,7 @@ export function PendingTokenLayout({
   const [intervalMs, setIntervalMs] = useState(150);
   const encoderRef = useRef<UREncoder | null>(null);
   const shareSheetRef = useRef<AppBottomSheetRef>(null);
+  const pendingNfc = useRef(false);
   const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>(
     token?.startsWith('cashuB') ? 'V4' : 'V3',
   );
@@ -150,50 +150,15 @@ export function PendingTokenLayout({
 
   const MAX_STATIC_QR_LENGTH = 1000;
 
-  const [showNfcSheet, setShowNfcSheet] = useState(false);
-  const [nfcStatus, setNfcStatus] = useState<ProcessingStatus>('processing');
-  const [nfcMessage, setNfcMessage] = useState('Preparing to send...');
-  const [nfcError, setNfcError] = useState<string | undefined>(undefined);
-  const simulationRef = useRef<any>(null);
-
   const handleNfcShare = () => {
     if (!currentToken) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({
-      pathname: '/(modals)/nfc-send',
-      params: {
-        token: currentToken,
-        amount: String(amount),
-        mintUrl: mintUrl || '',
-      },
+    nfcFlow.openSend({
+      token: currentToken,
+      amount: Number(amount),
+      mintUrl: mintUrl || '',
+      operationId,
+      fees: fee,
     });
-  };
-
-  const handleWriteToTag = async () => {
-    if (simulationRef.current) {
-      await nfcService.stopHceSimulation(simulationRef.current);
-      simulationRef.current = null;
-    }
-    setNfcStatus('processing');
-    setNfcMessage('Approach physical tag to write...');
-    try {
-      await nfcService.writeNdefTag(currentToken);
-      setNfcStatus('success');
-      setNfcMessage('Token written to tag!');
-    } catch (e: any) {
-      console.error('NFC write error:', e);
-      setNfcStatus('error');
-      setNfcMessage('NFC Write Failed');
-      setNfcError(e.message || 'An error occurred during NFC transmission.');
-    }
-  };
-
-  const handleCloseNfc = async () => {
-    setShowNfcSheet(false);
-    if (simulationRef.current) {
-      await nfcService.stopHceSimulation(simulationRef.current);
-      simulationRef.current = null;
-    }
   };
 
   const { data: btcData } = useQuery({
@@ -664,7 +629,16 @@ export function PendingTokenLayout({
         </YStack>
       )}
 
-      <AppBottomSheet ref={shareSheetRef} backgroundColor="$gray4">
+      <AppBottomSheet
+        ref={shareSheetRef}
+        backgroundColor="$gray4"
+        onClose={() => {
+          if (pendingNfc.current) {
+            pendingNfc.current = false;
+            handleNfcShare();
+          }
+        }}
+      >
         <YStack flex={1} px="$4" gap="$4">
           <XStack items="center" justify="space-between" width="100%" pt="$2">
             <Text fontSize="$6" fontWeight="800" color="$color">
@@ -707,9 +681,8 @@ export function PendingTokenLayout({
               gap="$4"
               pressStyle={{ opacity: 0.6 }}
               onPress={() => {
+                pendingNfc.current = true;
                 shareSheetRef.current?.dismiss();
-                if (onNfcPress) onNfcPress();
-                else handleNfcShare();
               }}
             >
               <Nfc size={24} color="$color" />

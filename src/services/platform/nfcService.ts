@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents, type TagEvent } from 'react-native-nfc-manager';
-import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce';
+import type { HCESession } from 'react-native-hce';
 import { useAuthStore } from '~/state/authStore';
 import { cleanToken, decodeToken, encodeTokenV4 } from '~/services/wallet';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
@@ -122,47 +122,7 @@ export function assertSameNfcPaymentRequest(tag: TagEvent, expectedRequest: stri
 }
 
 const goToNfcSetting = function () {
-  useAuthStore.getState().setLockDisabled(true);
-  const result = NfcManager.goToNfcSetting();
-  setTimeout(() => useAuthStore.getState().setLockDisabled(false), 3000);
-  return result;
-};
-
-const readNdefTag = async () => {
-  try {
-    useAuthStore.getState().setLockDisabled(true);
-    await NfcManager.requestTechnology(NfcTech.Ndef);
-    const tag = await NfcManager.getTag();
-    return tag;
-  } catch (e: any) {
-    throw e;
-  } finally {
-    await NfcManager.cancelTechnologyRequest().catch(() => {});
-    setTimeout(() => useAuthStore.getState().setLockDisabled(false), 1000);
-  }
-};
-
-const writeNdefTag = async (text: string) => {
-  try {
-    useAuthStore.getState().setLockDisabled(true);
-    await NfcManager.requestTechnology(NfcTech.Ndef);
-    const bytes = Ndef.encodeMessage([Ndef.textRecord(text)]);
-    await NfcManager.ndefHandler.writeNdefMessage(bytes, { reconnectAfterWrite: false });
-  } catch (e: any) {
-    throw e;
-  } finally {
-    await NfcManager.cancelTechnologyRequest().catch(() => {});
-    setTimeout(() => useAuthStore.getState().setLockDisabled(false), 1000);
-  }
-};
-
-const startListening = async (callback: (tag: any) => void) => {
-  try {
-    await NfcManager.registerTagEvent();
-    NfcManager.setEventListener(NfcEvents.DiscoverTag, callback);
-  } catch (e) {
-    console.warn('Failed to register tag event', e);
-  }
+  return NfcManager.goToNfcSetting();
 };
 
 const stopListening = async () => {
@@ -170,11 +130,15 @@ const stopListening = async () => {
   await NfcManager.unregisterTagEvent().catch(() => {});
 };
 
+const hceLocks = new WeakMap<HCESession, boolean>();
 const startHceSimulation = async (text: string) => {
   if (Platform.OS !== 'android') {
     throw new Error('HCE is only supported on Android');
   }
+  const { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } =
+    require('react-native-hce') as typeof import('react-native-hce');
 
+  const previousLock = useAuthStore.getState().isLockDisabled;
   try {
     useAuthStore.getState().setLockDisabled(true);
 
@@ -195,12 +159,7 @@ const startHceSimulation = async (text: string) => {
         const decoded = decodeToken(clean);
         const v4Token = encodeTokenV4(decoded);
         content = v4Token.startsWith('cashu:') ? v4Token : `cashu:${v4Token}`;
-        console.log(
-          '[nfcService] Formatted compact V4 token for HCE broadcast:',
-          content.slice(0, 25) + '…',
-        );
-      } catch (err) {
-        console.warn('[nfcService] Could not convert to V4, using raw token:', err);
+      } catch {
         content = text.startsWith('cashu:') ? text : `cashu:${text}`;
       }
       // Use Text record type for raw tokens
@@ -218,12 +177,12 @@ const startHceSimulation = async (text: string) => {
       throw new Error('Failed to get HCE session instance');
     }
 
+    hceLocks.set(session, previousLock);
     await session.setApplication(tag);
     await session.setEnabled(true);
     return session;
   } catch (e: any) {
-    console.error('Failed to start HCE simulation', e);
-    useAuthStore.getState().setLockDisabled(false);
+    useAuthStore.getState().setLockDisabled(previousLock);
     throw e;
   }
 };
@@ -233,9 +192,10 @@ const stopHceSimulation = async (session: any) => {
   try {
     await session.setEnabled(false);
   } catch (e: any) {
-    console.warn('Failed to stop HCE simulation', e);
+    console.warn('[nfcService] Could not stop NFC broadcast');
   } finally {
-    useAuthStore.getState().setLockDisabled(false);
+    useAuthStore.getState().setLockDisabled(hceLocks.get(session) ?? false);
+    hceLocks.delete(session);
   }
 };
 
@@ -256,11 +216,8 @@ export const nfcService = {
   init,
   isEnabled,
   goToNfcSetting,
-  readNdefTag,
-  writeNdefTag,
   startHceSimulation,
   stopHceSimulation,
-  startListening,
   stopListening,
   isStringSafeForNFC,
 };

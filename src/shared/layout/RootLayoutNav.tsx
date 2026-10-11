@@ -20,6 +20,8 @@ import { useCocoEvents } from '~/shared/hooks/useCocoEvents';
 import { useColorScheme } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { notificationService } from '~/services/platform/notificationService';
+import { isNfcIntent } from '~/features/nfc/nativeIntent';
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 
 // Lazy-load global checkers — they don't need to mount during the critical startup paint
 const LazyOtaUpdateChecker = React.lazy(() =>
@@ -48,7 +50,7 @@ export function RootLayoutNav() {
       // prompts (like Camera/FaceID) push the app into 'inactive' state temporarily.
       if (isOnboarded && appState.current === 'active' && nextAppState === 'background') {
         markBackgrounded();
-        lock();
+        void nfcFlow.background().then(() => lock());
       }
 
       appState.current = nextAppState;
@@ -62,8 +64,8 @@ export function RootLayoutNav() {
   // Global listener for deep links to handle direct ecash receiving/claiming
   useEffect(() => {
     const handleUrl = (url: string) => {
-      console.log('[RootLayoutNav] Deep link received:', url);
       if (!url) return;
+      if (isNfcIntent(url)) return;
 
       let tokenFound = '';
       let paymentRequestFound = '';

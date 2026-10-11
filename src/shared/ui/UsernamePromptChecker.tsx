@@ -7,8 +7,10 @@ import { AtSign } from '@tamagui/lucide-icons';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
+import { useNfcPresentation } from '~/features/nfc/NfcSheetHost';
 
 export function UsernamePromptChecker() {
+  const nfc = useNfcPresentation();
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const router = useRouter();
   const theme = useTheme();
@@ -26,6 +28,7 @@ export function UsernamePromptChecker() {
     // Wait for fully onboarded, settings loaded, lookup finished, or already dismissed
     if (
       !isOnboarded ||
+      nfc.visible ||
       !isSettingsInitialized ||
       loading ||
       hasPrompted ||
@@ -47,6 +50,7 @@ export function UsernamePromptChecker() {
     return () => clearTimeout(timeout);
   }, [
     isOnboarded,
+    nfc.visible,
     isSettingsInitialized,
     loading,
     nip05,

@@ -1,3 +1,4 @@
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router, Tabs } from 'expo-router';
 import { Button, XStack, Text, useTheme, H1 } from 'tamagui';
@@ -110,7 +111,7 @@ export default function TabLayout() {
                 icon={<Nfc size={24} />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(modals)/nfc-receive');
+                  nfcFlow.openReader();
                 }}
               />
             </XStack>

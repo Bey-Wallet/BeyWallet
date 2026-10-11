@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OnboardingScreen } from '~/features/onboarding';
 import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentReceived';
 import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
+import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ export function RootLayout() {
   return (
     <Providers cocoManager={manager}>
       <RootLayoutNav />
+      <NfcSheetHost walletReady={!!manager && !isInitializing} />
       <NostrClaimSheet />
       <NostrPaymentReceived />
     </Providers>

@@ -4,6 +4,7 @@ import path from 'node:path';
 const root = process.cwd();
 const expectedRoutes = [
   '+html.tsx',
+  '+native-intent.tsx',
   '(modals)/+not-found.tsx',
   '(modals)/_layout.tsx',
   '(modals)/add-mint.tsx',
@@ -15,8 +16,6 @@ const expectedRoutes = [
   '(modals)/mint-details.tsx',
   '(modals)/mint-profile.tsx',
   '(modals)/mint.tsx',
-  '(modals)/nfc-receive.tsx',
-  '(modals)/nfc-send.tsx',
   '(modals)/nostr-activity.tsx',
   '(modals)/nostr-diagnostics.tsx',
   '(modals)/nostr-profile.tsx',

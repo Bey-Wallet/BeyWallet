@@ -8,7 +8,6 @@ import {
   Landmark,
   Zap,
   User,
-  Smartphone,
   Wifi,
   Copy,
 } from '@tamagui/lucide-icons';
@@ -29,7 +28,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 
 const nostrIconWhite = require('~/assets/images/nostr-icon-white-transparent.png');
 
-export type ProcessingVariant = 'standard' | 'nostr' | 'nfc';
+export type ProcessingVariant = 'standard' | 'nostr';
 
 export type ProcessingStatus = 'processing' | 'success' | 'error';
 
@@ -90,83 +89,6 @@ function AnimatedBeam() {
           animatedStyle,
         ]}
       />
-    </View>
-  );
-}
-
-function RadarLoader() {
-  const scale1 = useSharedValue(1);
-  const opacity1 = useSharedValue(1);
-  const scale2 = useSharedValue(1);
-  const opacity2 = useSharedValue(1);
-
-  useEffect(() => {
-    scale1.value = withRepeat(
-      withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
-      -1,
-      false,
-    );
-    opacity1.value = withRepeat(
-      withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
-      -1,
-      false,
-    );
-
-    const timer = setTimeout(() => {
-      scale2.value = withRepeat(
-        withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }),
-        -1,
-        false,
-      );
-      opacity2.value = withRepeat(
-        withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }),
-        -1,
-        false,
-      );
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const style1 = useAnimatedStyle(() => ({
-    transform: [{ scale: scale1.value }],
-    opacity: opacity1.value,
-  }));
-
-  const style2 = useAnimatedStyle(() => ({
-    transform: [{ scale: scale2.value }],
-    opacity: opacity2.value,
-  }));
-
-  return (
-    <View width={100} height={100} items="center" justify="center">
-      <Animated.View
-        style={[
-          {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: '#FFD700',
-            position: 'absolute',
-          },
-          style1,
-        ]}
-      />
-      <Animated.View
-        style={[
-          {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: '#FFD700',
-            position: 'absolute',
-          },
-          style2,
-        ]}
-      />
-      <View width={40} height={40} borderRadius={20} bg="$accent10" items="center" justify="center">
-        <Smartphone size={20} color="white" />
-      </View>
     </View>
   );
 }
@@ -272,7 +194,6 @@ export function ProcessingSheet({
                   </View>
                 </XStack>
               )}
-              {variant === 'nfc' && <RadarLoader />}
 
               <Text fontSize="$6" fontWeight="700" color="$color1">
                 {title || 'Processing...'}

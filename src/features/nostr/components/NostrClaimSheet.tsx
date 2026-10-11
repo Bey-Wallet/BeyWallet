@@ -21,6 +21,7 @@ import { usePeopleStore } from '~/state/peopleStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
+import { useNfcPresentation } from '~/features/nfc/NfcSheetHost';
 
 function safeNpub(pubkey: string): string {
   if (!pubkey) return '';
@@ -49,7 +50,8 @@ export function NostrClaimSheet() {
   const dismiss = useNostrInboxStore((state) => state.dismiss);
   const { biometricEnabled, primaryCurrency, secondaryCurrency } = useSettingsStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const canPresent = !biometricEnabled || isAuthenticated;
+  const nfc = useNfcPresentation();
+  const canPresent = (!biometricEnabled || isAuthenticated) && !nfc.visible;
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) || null,
     [activeId, items],
@@ -111,7 +113,7 @@ export function NostrClaimSheet() {
   }, [activeItem, canPresent, items, present]);
 
   useEffect(() => {
-    if (!activeItem) return;
+    if (!activeItem || !canPresent) return;
     let cancelled = false;
     let frame: number | undefined;
     setMintTrusted(null);
@@ -137,7 +139,7 @@ export function NostrClaimSheet() {
       cancelled = true;
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
-  }, [activeItem]);
+  }, [activeItem, canPresent]);
 
   const handleClaim = useCallback(async () => {
     if (!activeItem) return;

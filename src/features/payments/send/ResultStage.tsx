@@ -164,6 +164,7 @@ export function ResultStage({
         {token ? (
           <PendingTokenLayout
             token={token}
+            operationId={operationId}
             amount={amount}
             fee={fee}
             mintUrl={mintUrl}

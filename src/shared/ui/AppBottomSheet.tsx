@@ -21,8 +21,10 @@ interface AppBottomSheetProps {
   snapPoints?: (string | number)[];
   onClose?: () => void;
   enablePanDownToClose?: boolean;
+  canDismiss?: boolean;
   backgroundColor?: string;
   bottomInset?: number;
+  containerComponent?: React.ComponentType<React.PropsWithChildren>;
 }
 
 export interface AppBottomSheetRef {
@@ -37,8 +39,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       snapPoints,
       onClose,
       enablePanDownToClose = true,
+      canDismiss = true,
       backgroundColor,
       bottomInset = 0,
+      containerComponent,
     },
     ref,
   ) => {
@@ -48,6 +52,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
 
     const handleSheetChanges = useCallback(
       (index: number) => {
+        if (index === -1 && !canDismiss) {
+          bottomSheetRef.current?.present();
+          return;
+        }
         setIsOpen(index >= 0);
         if (index === -1) {
           onClose?.();
@@ -55,7 +63,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       },
-      [onClose],
+      [onClose, canDismiss],
     );
 
     const renderBackdrop = useCallback(
@@ -64,11 +72,11 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           {...props}
           disappearsOnIndex={-1}
           appearsOnIndex={0}
-          pressBehavior={enablePanDownToClose ? 'close' : 'none'}
+          pressBehavior={enablePanDownToClose && canDismiss ? 'close' : 'none'}
           opacity={0.4}
         />
       ),
-      [enablePanDownToClose],
+      [enablePanDownToClose, canDismiss],
     );
 
     useImperativeHandle(ref, () => ({
@@ -76,7 +84,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         bottomSheetRef.current?.present();
       },
       dismiss: () => {
-        bottomSheetRef.current?.dismiss();
+        if (canDismiss) bottomSheetRef.current?.dismiss();
       },
     }));
 
@@ -85,22 +93,23 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       if (!isOpen) return;
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        bottomSheetRef.current?.dismiss();
+        if (canDismiss) bottomSheetRef.current?.dismiss();
         return true;
       });
 
       return () => backHandler.remove();
-    }, [isOpen]);
+    }, [isOpen, canDismiss]);
 
     const enableDynamicSizing = !snapPoints;
 
     return (
       <BottomSheetModal
         ref={bottomSheetRef}
-        enablePanDownToClose={enablePanDownToClose}
+        enablePanDownToClose={enablePanDownToClose && canDismiss}
         enableDynamicSizing={enableDynamicSizing}
         snapPoints={snapPoints}
         bottomInset={bottomInset}
+        containerComponent={containerComponent}
         backdropComponent={renderBackdrop}
         stackBehavior="push"
         // Keyboard: sheet expands to fill space above keyboard (works with dynamic sizing)

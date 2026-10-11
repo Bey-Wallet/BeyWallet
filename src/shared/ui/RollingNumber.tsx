@@ -121,7 +121,7 @@ export const RollingNumber = ({
   trigger,
   prefix = '',
   suffix = '',
-  decimalOpacity = 0.5,
+  decimalOpacity = 1,
   precision = 2,
   showDecimals = true,
 }: RollingNumberProps) => {
@@ -171,7 +171,6 @@ export const RollingNumber = ({
 
               fontSize={fontSize}
               letterSpacing={letterSpacing}
-              opacity={currentOpacity}
             />
           );
         } else {
@@ -183,7 +182,6 @@ export const RollingNumber = ({
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginRight: letterSpacing,
-                opacity: currentOpacity,
               }}
             >
               <Text

@@ -1,3 +1,4 @@
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,7 +132,7 @@ export function ScanAndPayStage({
               </YStack>
             </Button>
 
-            <Button flex={1} height={100} bg="$gray2" rounded="$6" disabled opacity={0.5}>
+            <Button flex={1} height={100} bg="$gray2" rounded="$6" onPress={nfcFlow.openReader}>
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
                   <Nfc size={24} color="$gray10" />

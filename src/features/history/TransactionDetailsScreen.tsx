@@ -99,6 +99,7 @@ interface HistoryEntry {
   createdAt: number;
   metadata?: any;
   token?: any;
+  operationId?: string;
 }
 
 export function TransactionDetailsScreen() {
@@ -985,6 +986,7 @@ export function TransactionDetailsScreen() {
         >
           <PendingTokenLayout
             token={token}
+            operationId={entry.type === 'send' ? entry.operationId : undefined}
             amount={entry.amount}
             fee={mintFee}
             mintUrl={entry.mintUrl}
@@ -1256,6 +1258,7 @@ export function TransactionDetailsScreen() {
                   {entry.type === 'send' ? (
                     <PendingTokenLayout
                       token={token}
+                      operationId={entry.operationId}
                       amount={entry.amount}
                       fee={mintFee}
                       mintUrl={entry.mintUrl}
