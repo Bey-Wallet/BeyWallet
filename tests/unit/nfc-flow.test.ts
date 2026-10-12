@@ -20,7 +20,7 @@ jest.mock('~/services/platform/nfcService', () => ({
 }));
 jest.mock('~/shared/utils/paymentInputParser', () => ({ parsePaymentInput: jest.fn() }));
 jest.mock('~/services/wallet/paymentRequestModel', () => ({
-  parsePaymentRequest: () => ({ raw: 'request', amount: 4, delivery: 'nfc' }),
+  parsePaymentRequest: jest.fn(() => ({ raw: 'request', amount: 4, delivery: 'nfc' })),
   isPaymentMintAllowed: () => true,
 }));
 jest.mock('~/services/wallet/paymentRequestPayment', () => ({
@@ -67,6 +67,7 @@ import { redirectNfcIntent } from '~/features/nfc/nativeIntent';
 import { nfcService, assertSameNfcPaymentRequest } from '~/services/platform/nfcService';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import { PaymentRequestPayment } from '~/services/wallet/paymentRequestPayment';
+import { parsePaymentRequest } from '~/services/wallet/paymentRequestModel';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { proofService } from '~/services/wallet/proofService';
 import { walletService } from '~/services/wallet';
@@ -83,6 +84,9 @@ let refresh: jest.Mock;
 let events: Record<string, () => void>;
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .mocked(parsePaymentRequest)
+    .mockReturnValue({ raw: 'request', amount: 4, delivery: 'nfc' } as any);
   jest.useFakeTimers();
   Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
   flow = new NfcFlow();
@@ -136,6 +140,58 @@ it('automatically pays once and keeps same-session Numo write-back open', async 
   await flush();
   expect(deliver).toHaveBeenCalledTimes(1);
   expect(refresh).toHaveBeenCalled();
+});
+it('shows publishing then awaiting redemption without writing Nostr requests back over NFC', async () => {
+  jest
+    .mocked(parsePaymentRequest)
+    .mockReturnValue({ raw: 'request', amount: 4, delivery: 'nip17' } as any);
+  let release!: () => void;
+  deliver.mockImplementationOnce((_writer, publishing) => {
+    publishing();
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  });
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot().message).toContain('Publishing');
+  expect(close).toHaveBeenCalledTimes(1);
+  release();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'pending', hasPayment: true });
+  expect(flow.getSnapshot().message).toContain('Published');
+  expect(write).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('keeps unacknowledged publication unconfirmed and retries the retained controller', async () => {
+  jest
+    .mocked(parsePaymentRequest)
+    .mockReturnValue({ raw: 'request', amount: 4, delivery: 'nip17' } as any);
+  const controller = {
+    request: { raw: 'request', delivery: 'nip17' },
+    cost: { mintUrl: 'mint' },
+    operationId: 'op',
+    encoded: 'existing-token',
+    publicationState: 'unconfirmed',
+    failureMessage: 'Delivery unconfirmed. The existing payment remains in History.',
+    deliver,
+    refresh,
+  };
+  jest.mocked(PaymentRequestPayment).mockReturnValue(controller as any);
+  deliver.mockRejectedValueOnce(new Error('unconfirmed')).mockResolvedValueOnce(undefined);
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'unconfirmed',
+    canRetryDelivery: true,
+    hasPayment: true,
+  });
+  await flow.retry();
+  expect(PaymentRequestPayment).toHaveBeenCalledTimes(1);
+  expect(deliver).toHaveBeenCalledTimes(2);
+  expect(flow.getSnapshot().status).toBe('pending');
+  expect(write).not.toHaveBeenCalled();
 });
 it('blocks dismissal during mutation and retains success until Done', async () => {
   let release!: () => void;
@@ -383,14 +439,12 @@ it('keeps outgoing payment pending until its operation is finalized even if all 
   jest
     .mocked(proofService.checkProofStates)
     .mockResolvedValue([{ state: 'SPENT' }, { state: 'SPENT' }] as any);
-  const manager = jest
-    .spyOn(initService, 'getManager')
-    .mockReturnValueOnce({
-      send: {
-        checkPendingOperation: async () => {},
-        getOperation: async () => ({ state: 'pending' }),
-      },
-    } as any);
+  const manager = jest.spyOn(initService, 'getManager').mockReturnValueOnce({
+    send: {
+      checkPendingOperation: async () => {},
+      getOperation: async () => ({ state: 'pending' }),
+    },
+  } as any);
   await flow.refresh();
   expect(flow.getSnapshot().status).toBe('pending');
   manager.mockRestore();

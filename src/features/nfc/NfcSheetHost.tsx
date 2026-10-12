@@ -100,10 +100,11 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const viewHistory = () => {
     if (nfcFlow.dismiss()) router.push('/(tabs)/history');
   };
+  const retryDelivery = ['error', 'unconfirmed'].includes(state.status) && state.canRetryDelivery;
   const primaryAction =
     state.status === 'disabled'
       ? { label: 'Open NFC settings', run: () => nfcService.goToNfcSetting() }
-      : state.status === 'error' && state.canRetryDelivery
+      : retryDelivery
         ? { label: 'Retry delivery', run: nfcFlow.retry }
         : state.status === 'error' && !state.hasPayment
           ? { label: 'Try again', run: nfcFlow.retry }
@@ -112,7 +113,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             ? { label: 'Refresh status', run: nfcFlow.refresh }
             : undefined;
   const showHistory = ['unconfirmed', 'error'].includes(state.status) && state.hasPayment;
-  const showRefresh = state.status === 'error' && state.canRetryDelivery && state.hasPayment;
+  const showRefresh = retryDelivery && state.hasPayment;
   const showCheckNfc = state.status === 'disabled';
   return (
     <AppBottomSheet

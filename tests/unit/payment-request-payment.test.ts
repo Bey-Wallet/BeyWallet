@@ -4,6 +4,10 @@ jest.mock('~/services/platform/seedService', () => ({
 jest.mock('~/services/wallet/initService', () => ({
   initService: { getManager: jest.fn(), getRepo: jest.fn() },
 }));
+jest.mock('~/services/wallet/paymentRequestPublisher', () => ({
+  ...jest.requireActual('~/services/wallet/paymentRequestPublisher'),
+  publishPaymentRequest: jest.fn(),
+}));
 
 import {
   PaymentRequestPayment,
@@ -15,6 +19,39 @@ import { seedService } from '~/services/platform/seedService';
 import type { ParsedPaymentRequest } from '~/services/wallet/paymentRequestModel';
 import type { CoreProof } from 'coco-cashu-core';
 import { getEncodedToken, type Token } from '@cashu/cashu-ts';
+import { publishPaymentRequest } from '~/services/wallet/paymentRequestPublisher';
+
+it('retries Nostr delivery with the same encrypted event, token and operation', async () => {
+  const { payment: original, prepareSend, executePreparedSend } = harness();
+  jest.mocked(seedService.getMnemonic).mockResolvedValue('synthetic mnemonic');
+  jest.mocked(seedService.getNostrKeys).mockResolvedValue({
+    privkey: '34'.repeat(32),
+    pubkey: '12'.repeat(32),
+    npub: 'npub1synthetic',
+    nsec: 'nsec1synthetic',
+  });
+  jest
+    .mocked(publishPaymentRequest)
+    .mockRejectedValueOnce(new Error('delivery unconfirmed'))
+    .mockResolvedValueOnce({ eventId: 'event', acceptedRelays: ['wss://relay.example'] });
+  const payment = new PaymentRequestPayment(
+    { ...original.request, id: 'request-id', delivery: 'nip17', nostrTarget: '12'.repeat(32) },
+    original.cost,
+  );
+  const publishing = jest.fn();
+  await expect(payment.deliver(undefined, publishing)).rejects.toThrow('unconfirmed');
+  expect(payment.publicationState).toBe('unconfirmed');
+  const token = payment.token;
+  await payment.deliver(undefined, publishing);
+  expect(payment.publicationState).toBe('published');
+  expect(payment.failureMessage).toBeUndefined();
+  expect(payment.token).toBe(token);
+  expect(prepareSend).toHaveBeenCalledTimes(1);
+  expect(executePreparedSend).toHaveBeenCalledTimes(1);
+  expect(publishing).toHaveBeenCalledTimes(2);
+  const calls = jest.mocked(publishPaymentRequest).mock.calls;
+  expect(calls[0][0]).toBe(calls[1][0]);
+});
 
 it('pending, empty, and partial proof states never produce success', () => {
   expect(areAllPaymentProofsSpent([], 1)).toBe(false);

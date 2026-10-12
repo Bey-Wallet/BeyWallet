@@ -71,3 +71,29 @@ The pre-existing `RollingNumber.tsx` working-tree change was preserved.
 The previously reported receiving-recognition and Lightning defects are separate
 tasks. They have not been fixed or independently reproduced during this refactor;
 device runs should record those failures separately from sheet regressions.
+
+## Reverted Android token-transfer attempt
+
+An attempted fix for ordinary phone-to-phone Android NFC transfers was reverted
+after the user reported that it broke compatibility with Numo Pay. Those changes
+are no longer part of the implementation. The specific cause of the Numo Pay
+regression was not established.
+
+The attempt addressed two reported issues: Bey sends to Minibits/Cashu.me failed
+with “Tag does not support NDEF,” and receiving from those wallets could show
+Android's wallet selector while Bey's receiving sheet was open. It included a
+`react-native-hce` protocol patch, foreground HCE preference, explicit reader-mode
+ownership, ISO-DEP Type 4 fallback reads/write-back, and retained reader ownership
+after connection failures.
+
+The attempted changes passed 101 focused automated tests, Java protocol checks,
+TypeScript, formatting, structure checks, Android compilation and packaged NFC
+registration inspection. Those results applied to the reverted implementation
+and did not establish device interoperability or Numo Pay compatibility.
+
+The Minibits/Cashu.me issues remain unresolved. Any future fix must first reproduce
+the failures and preserve Numo Pay Cashu-only and unified request payments,
+including same-contact token write-back. Verify transfers and settlement with
+Numo Pay, Minibits and Cashu.me on real devices before considering the fix complete;
+record wallet versions, phone models and Android versions. Do not reapply the
+reverted approach without investigating the Numo Pay regression.

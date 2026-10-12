@@ -323,12 +323,17 @@ export class NfcFlow {
           fees: cost.receiverFee + cost.senderFee,
           locked: true,
         });
-        await this.payment.deliver(this.writeExisting);
+        await this.payment.deliver(this.writeExisting, () => {
+          if (this.alive(generation)) this.update({ message: 'Publishing encrypted payment.' });
+        });
         if (this.alive(generation)) {
           this.update({
             status: 'pending',
             hasPayment: true,
-            message: 'Waiting for the recipient to claim the payment.',
+            message:
+              request.delivery === 'nip17'
+                ? 'Published. Waiting for the recipient to redeem the payment.'
+                : 'Waiting for the recipient to claim the payment.',
           });
           this.startPolling();
         }
@@ -377,7 +382,7 @@ export class NfcFlow {
       await this.stopSession();
       if (this.alive(generation))
         this.update({
-          status: 'error',
+          status: this.payment?.publicationState === 'unconfirmed' ? 'unconfirmed' : 'error',
           hasPayment: !!this.payment?.operationId || !!this.lightning || !!this.send,
           canRetryDelivery: !!this.payment?.encoded || !!this.send,
           message:
@@ -428,11 +433,16 @@ export class NfcFlow {
       this.update({ locked: true, status: 'paying', canRetryDelivery: false });
       try {
         await this.stopSession();
-        await this.payment.deliver(this.writeExisting);
+        await this.payment.deliver(this.writeExisting, () => {
+          if (this.alive(generation)) this.update({ message: 'Publishing encrypted payment.' });
+        });
         if (this.alive(generation)) {
           this.update({
             status: 'pending',
-            message: 'Waiting for the recipient to claim the payment.',
+            message:
+              this.payment.request.delivery === 'nip17'
+                ? 'Published. Waiting for the recipient to redeem the payment.'
+                : 'Waiting for the recipient to claim the payment.',
           });
           this.startPolling();
         }
@@ -440,9 +450,11 @@ export class NfcFlow {
         await this.stopSession();
         if (this.alive(generation))
           this.update({
-            status: 'error',
+            status: this.payment.publicationState === 'unconfirmed' ? 'unconfirmed' : 'error',
             canRetryDelivery: true,
-            message: 'Reconnect to the same request to retry delivery of the existing payment.',
+            message:
+              this.payment.failureMessage ||
+              'Reconnect to the same request to retry delivery of the existing payment.',
           });
       } finally {
         this.busy = false;

@@ -90,8 +90,8 @@ export default function Balance() {
               `_${showBitcoinSymbol}`
             }
             letterSpacing={-1}
-            fontSize={36}
-            fontWeight="800"
+            fontSize={44}
+            fontWeight={800}
             color="$accent3"
 
             decimalOpacity={0.4}
@@ -115,8 +115,8 @@ export default function Balance() {
             value={hideBalance ? '****' : secondaryBalance}
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
             letterSpacing={-1}
-            fontSize={36}
-            fontWeight="800"
+            fontSize={44}
+            fontWeight={800}
             color="$accent3"
 
             decimalOpacity={0.4}
@@ -155,7 +155,7 @@ export default function Balance() {
           }
           letterSpacing={-1}
           fontSize={20}
-          fontWeight="800"
+          fontWeight={800}
           color="$accent7"
 
           decimalOpacity={0.4}

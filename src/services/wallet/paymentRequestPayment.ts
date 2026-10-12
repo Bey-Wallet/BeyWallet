@@ -93,13 +93,14 @@ export class PaymentRequestPayment {
   private publication?: PaymentRequestPublication;
   private deliverable = false;
   failureMessage?: string;
+  publicationState?: 'publishing' | 'published' | 'unconfirmed';
 
   constructor(
     readonly request: ParsedPaymentRequest,
     readonly cost: PaymentRequestCost,
   ) {}
 
-  async deliver(writeNfc?: (token: string) => Promise<void>) {
+  async deliver(writeNfc?: (token: string) => Promise<void>, onPublishing?: () => void) {
     if (this.busy) return;
     this.busy = true;
     let stage = 'validation';
@@ -172,13 +173,17 @@ export class PaymentRequestPayment {
         if (!this.publication)
           throw new Error('Existing payment delivery is unresolved. Check History.');
         stage = 'relay_publication';
+        this.publicationState = 'publishing';
+        onPublishing?.();
         await publishPaymentRequest(this.publication);
+        this.publicationState = 'published';
       } else {
         stage = 'nfc_write';
         await writeNfc!(this.encoded!);
       }
       this.failureMessage = undefined;
     } catch (error) {
+      if (stage === 'relay_publication') this.publicationState = 'unconfirmed';
       const messages: Record<string, string> = {
         validation: 'Payment validation failed.',
         preparation: 'Payment preparation failed.',
@@ -186,7 +191,7 @@ export class PaymentRequestPayment {
         encoding: 'Token encoding failed. Retry delivery of the existing payment.',
         net_value: 'Prepared token net value could not be verified. Check History.',
         encryption: 'Payment encryption failed. Retry delivery of the existing payment.',
-        relay_publication: 'NIP-17 relay delivery was not acknowledged.',
+        relay_publication: 'Delivery unconfirmed. The existing payment remains in History.',
         nfc_write: 'NFC write failed. Keep the phones together and retry delivery.',
       };
       this.failureMessage = messages[stage];

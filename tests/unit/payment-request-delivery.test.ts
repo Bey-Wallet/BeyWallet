@@ -69,6 +69,54 @@ describe('resolveNostrRecipient', () => {
 });
 
 describe('createNip17GiftWrap', () => {
+  it.each(['Cashu.me', 'Minibits', 'Sovran'])(
+    'delivers intact NUT-18 JSON through the %s receiver decryption path',
+    (peer) => {
+      const recipientSecret = generateSecretKey();
+      const payload = createPaymentRequestPayload(
+        {
+          mint: 'https://mint.example/Bitcoin',
+          unit: 'sat',
+          proofs: [
+            {
+              id: '01' + 'ab'.repeat(32),
+              amount: 8,
+              secret: 'synthetic',
+              C: '02' + '11'.repeat(32),
+            },
+          ],
+        } as Token,
+        { id: 'peer-request-id', unit: 'sat' },
+      );
+      const event = createNip17GiftWrap(
+        JSON.stringify(payload),
+        getPublicKey(recipientSecret),
+        bytesToHex(generateSecretKey()),
+      );
+      // Cashu.me manually decrypts wrap -> seal -> rumor (stores/nostr.ts).
+      // Minibits uses nip59.unwrapEvent; Sovran's cache uses the same two NIP-44 layers.
+      let content: string;
+      if (peer === 'Minibits') {
+        content = unwrapEvent(event, recipientSecret).content;
+      } else {
+        const seal = JSON.parse(
+          nip44.v2.decrypt(
+            event.content,
+            nip44.v2.utils.getConversationKey(recipientSecret, event.pubkey),
+          ),
+        );
+        const rumor = JSON.parse(
+          nip44.v2.decrypt(
+            seal.content,
+            nip44.v2.utils.getConversationKey(recipientSecret, seal.pubkey),
+          ),
+        );
+        content = rumor.content;
+      }
+      expect(JSON.parse(content)).toEqual(payload);
+      expect(JSON.parse(content).proofs[0].id).toHaveLength(66);
+    },
+  );
   it('creates a canonical gift wrap whose rumor has a valid id', () => {
     const senderSecret = generateSecretKey();
     const recipientSecret = generateSecretKey();

@@ -267,7 +267,7 @@ export const ConnectedMintsCard = () => {
   return (
     <>
       <YStack width="100%" gap="$3" p="$0" rounded="$6">
-        <YStack separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+        <YStack>
           {[
             ...mints.map((mint) => {
               const normalizedMintUrl = mint.mintUrl.replace(/\/$/, '');

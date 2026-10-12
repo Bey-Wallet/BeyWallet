@@ -4,6 +4,7 @@ import { createNip17GiftWrap, resolveNostrRecipient, RELAYS } from './nostrServi
 export interface PaymentRequestPublication {
   event: Event;
   relays: string[];
+  recipientRelays: string[];
 }
 
 export function preparePaymentRequestPublication(
@@ -15,6 +16,7 @@ export function preparePaymentRequestPublication(
   return {
     event: createNip17GiftWrap(payload, recipient.pubkey, privateKey),
     relays: [...new Set([...recipient.relayHints, ...RELAYS])],
+    recipientRelays: [...new Set(recipient.relayHints)],
   };
 }
 
@@ -28,32 +30,63 @@ export async function publishPaymentRequest(
     const pool = createPool();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const accepted = new Set<string>();
+    let rejected = 0;
+    let tracking = true;
+    let timedOut = false;
     try {
       const acknowledgements = pool
         .publish(publication.relays, publication.event)
         .map((promise, index) =>
-          promise.then(() => {
-            accepted.add(publication.relays[index]);
-            return publication.relays[index];
-          }),
+          promise.then(
+            (result) => {
+              if (!tracking) return;
+              // The locked nostr-tools pool resolves connection failures as strings.
+              // Only successful relay OK responses count as acknowledgements.
+              if (typeof result === 'string' && result.startsWith('connection failure: ')) {
+                rejected++;
+              } else {
+                accepted.add(publication.relays[index]);
+              }
+            },
+            () => {
+              if (tracking) rejected++;
+            },
+          ),
         );
+      // Attach rejection handlers before cleanup, including to attempts still pending at timeout.
+      // A fast fallback ACK must not disconnect a slower recipient relay.
       await Promise.race([
-        Promise.any(acknowledgements),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error('Publication timed out')), 10_000);
+        Promise.allSettled(acknowledgements),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(() => {
+            timedOut = true;
+            resolve();
+          }, 10_000);
         }),
       ]);
+      const recipientAccepted = publication.recipientRelays.filter((relay) => accepted.has(relay));
+      const confirmed = publication.recipientRelays.length
+        ? recipientAccepted.length > 0
+        : accepted.size > 0;
       console.info('[PaymentRequestPublisher]', {
         eventId: publication.event.id,
-        acceptedRelays: [...accepted].map((relay) => new URL(relay).host),
+        attempt: attempt + 1,
+        category: confirmed ? 'relay_accepted' : 'relay_acceptance_unconfirmed',
+        recipientAcknowledgements: recipientAccepted.length,
+        fallbackAcknowledgements: accepted.size - recipientAccepted.length,
+        rejected,
+        unfinished: publication.relays.length - accepted.size - rejected,
+        timedOut,
       });
-      return { eventId: publication.event.id, acceptedRelays: [...accepted] };
+      if (confirmed) return { eventId: publication.event.id, acceptedRelays: [...accepted] };
     } catch {
       console.warn('[PaymentRequestPublisher]', {
         eventId: publication.event.id,
+        attempt: attempt + 1,
         category: 'relay_acceptance_unconfirmed',
       });
     } finally {
+      tracking = false;
       if (timer) clearTimeout(timer);
       pool.close(publication.relays);
     }
