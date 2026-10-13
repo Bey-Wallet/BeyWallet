@@ -38,7 +38,7 @@ export default React.memo(function ActionButtons() {
     <>
       <XStack gap="$3" items="center" justify="space-between" width="100%">
         <Button
-          theme="gray"
+          bg="$color2"
           flex={1}
           height={58}
           rounded="$6"
@@ -46,7 +46,7 @@ export default React.memo(function ActionButtons() {
           onPress={handleScan}
         />
         <Button
-          theme="gray"
+          bg="$color2"
           flex={1}
           height={58}
           rounded="$6"
@@ -54,7 +54,7 @@ export default React.memo(function ActionButtons() {
           onPress={handleSwap}
         />
         <Button
-          theme="gray"
+          bg="$color2"
           flex={1}
           height={58}
           rounded="$6"

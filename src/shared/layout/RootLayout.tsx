@@ -27,11 +27,10 @@ export function RootLayout() {
   const [manager, setManager] = useState<any>(null);
 
   const [loaded, error] = useFonts({
-    BaselGroteskBook: require('~/assets/fonts/Inter-Tight-Medium.otf'),
-    BaselGroteskMedium: require('~/assets/fonts/Inter-Tight-SemiBold.otf'),
-    BaselGroteskBold: require('~/assets/fonts/Inter-Tight_Bold.otf'),
+    TTFirsNeueNormal: require('~/assets/fonts/tt_firs_neue_normal.ttf'),
+    TTFirsNeueMedium: require('~/assets/fonts/tt_firs_neue_medium.ttf'),
+    TTFirsNeueDemiBold: require('~/assets/fonts/tt_firs_neue_demi_bold.ttf'),
     Mono: require('~/assets/fonts/Mono.otf'),
-    Oswald: require('~/assets/fonts/Oswald.otf'),
   });
 
   // Check onboarding status and wallet existence on mount

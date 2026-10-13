@@ -267,6 +267,20 @@ export const ConnectedMintsCard = () => {
   return (
     <>
       <YStack width="100%" gap="$3" p="$0" rounded="$6">
+        <XStack items="center" my="$-2" justify="space-between">
+          <H6 fontWeight="800" fontSize="$4" color="$color10">
+            Mints
+          </H6>
+          <Button
+            size="$2"
+            chromeless
+            circular
+            theme="gray"
+            rounded="$10"
+            onPress={handleAddMint}
+            icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
+          ></Button>
+        </XStack>
         <YStack>
           {[
             ...mints.map((mint) => {

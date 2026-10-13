@@ -277,7 +277,7 @@ export function OnchainMintFlow() {
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
         >
           <YStack gap="$4" width="100%">
-            {/* Oswald Typography Amount Display */}
+            {/* Payment amount */}
             <YStack gap="$3" py="$6" items="center" justify="center">
               <Text fontSize={52} fontWeight="700" lineHeight={54}>
                 +{currencyService.formatSats(amountPaid)}

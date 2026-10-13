@@ -90,7 +90,7 @@ export default function Balance() {
               `_${showBitcoinSymbol}`
             }
             letterSpacing={-1}
-            fontSize={44}
+            fontSize={42}
             fontWeight={800}
             color="$accent3"
 
@@ -115,7 +115,7 @@ export default function Balance() {
             value={hideBalance ? '****' : secondaryBalance}
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
             letterSpacing={-1}
-            fontSize={44}
+            fontSize={42}
             fontWeight={800}
             color="$accent3"
 
@@ -153,7 +153,6 @@ export default function Balance() {
             (hideBalance ? '_hidden' : displayAsSats ? '_visible_fiat_sub' : '_visible_sats_sub') +
             `_${showBitcoinSymbol}`
           }
-          letterSpacing={-1}
           fontSize={20}
           fontWeight={800}
           color="$accent7"

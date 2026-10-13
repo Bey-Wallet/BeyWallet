@@ -21,8 +21,8 @@ const animations = createAnimations({
   },
 });
 
-const baselGroteskFont = createFont({
-  family: 'BaselGroteskBook',
+const ttFirsNeueFont = createFont({
+  family: 'TTFirsNeueNormal',
   size: {
     1: 11,
     2: 12,
@@ -71,18 +71,24 @@ const baselGroteskFont = createFont({
     8: 1,
   },
   face: {
-    400: { normal: 'BaselGroteskBook' },
-    500: { normal: 'BaselGroteskMedium' },
-    600: { normal: 'BaselGroteskMedium' },
-    1000: { normal: 'BaselGroteskBold' },
-    bold: { normal: 'BaselGroteskBold' },
+    100: { normal: 'TTFirsNeueNormal' },
+    200: { normal: 'TTFirsNeueNormal' },
+    300: { normal: 'TTFirsNeueNormal' },
+    400: { normal: 'TTFirsNeueNormal' },
+    500: { normal: 'TTFirsNeueMedium' },
+    600: { normal: 'TTFirsNeueDemiBold' },
+    700: { normal: 'TTFirsNeueDemiBold' },
+    800: { normal: 'TTFirsNeueDemiBold' },
+    900: { normal: 'TTFirsNeueDemiBold' },
+    1000: { normal: 'TTFirsNeueDemiBold' },
+    bold: { normal: 'TTFirsNeueDemiBold' },
   },
 });
 
 const monoFont = createFont({
   family: 'Mono',
-  size: baselGroteskFont.size,
-  lineHeight: baselGroteskFont.lineHeight,
+  size: ttFirsNeueFont.size,
+  lineHeight: ttFirsNeueFont.lineHeight,
   weight: {
     4: '400',
     5: '500',
@@ -97,28 +103,6 @@ const monoFont = createFont({
     500: { normal: 'Mono' },
     600: { normal: 'Mono' },
     bold: { normal: 'Mono' },
-  },
-});
-
-const oswaldFont = createFont({
-  family: 'Oswald',
-  size: baselGroteskFont.size,
-  lineHeight: baselGroteskFont.lineHeight,
-  weight: {
-    4: '400',
-    5: '500',
-    7: '700',
-    bold: '700',
-  },
-  letterSpacing: {
-    4: 0,
-    8: 1,
-  },
-  face: {
-    400: { normal: 'Oswald' },
-    500: { normal: 'Oswald' },
-    700: { normal: 'Oswald' },
-    bold: { normal: 'Oswald' },
   },
 });
 
@@ -203,10 +187,9 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: baselGroteskFont,
-    body: baselGroteskFont,
+    heading: ttFirsNeueFont,
+    body: ttFirsNeueFont,
     mono: monoFont,
-    oswald: oswaldFont,
   },
   themes: {
     ...defaultConfig.themes,

@@ -94,7 +94,7 @@ export function MeltResultStage({
         px="$4"
       >
         <YStack gap="$4">
-          {/* Oswald Typography Amount Display */}
+          {/* Payment amount */}
           <YStack gap="$3" py="$6" items="center" justify="center">
             <Text fontSize={52} fontWeight="700" color="$red10" lineHeight={54}>
               -{currencyService.formatSats(amount)}

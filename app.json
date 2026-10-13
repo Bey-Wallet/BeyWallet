@@ -112,11 +112,10 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/Inter-Tight-Medium.otf",
-            "./src/assets/fonts/Inter-Tight-SemiBold.otf",
-            "./src/assets/fonts/Inter-Tight_Bold.otf",
-            "./src/assets/fonts/Mono.otf",
-            "./src/assets/fonts/Oswald.otf"
+            "./src/assets/fonts/tt_firs_neue_normal.ttf",
+            "./src/assets/fonts/tt_firs_neue_medium.ttf",
+            "./src/assets/fonts/tt_firs_neue_demi_bold.ttf",
+            "./src/assets/fonts/Mono.otf"
           ]
         }
       ],
