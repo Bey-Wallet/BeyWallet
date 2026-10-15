@@ -1,11 +1,12 @@
+import { useToastController } from '@tamagui/toast';
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState } from 'react';
 import { WelcomeStep } from '~/features/onboarding/WelcomeStep';
-import { CreatingWalletSheet } from '~/features/onboarding/CreatingWalletSheet';
+import { WalletCreationTask } from '~/features/onboarding/WalletCreationTask';
 import { SeedStep } from '~/features/onboarding/SeedStep';
 import { BiometricStep } from '~/features/onboarding/BiometricStep';
 import { NotificationStep } from '~/features/onboarding/NotificationStep';
 import { networkService } from '~/services/platform/networkService';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import { NostrStep } from '~/features/onboarding/NostrStep';
 import { ImportSeedStep } from '~/features/onboarding/ImportSeedStep';
 import { MintConfirmationStep } from '~/features/onboarding/MintConfirmationStep';
@@ -19,7 +20,7 @@ import { initService, mintManager, nostrService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
-import { ActivityIndicator, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { YStack, Text } from 'tamagui';
 import { DEFAULT_MINT } from '~/state/constants';
 import { generateDeterministicUsername } from '~/shared/utils/username';
@@ -69,6 +70,27 @@ export function OnboardingScreen() {
   // Extra mints from a backup file
   const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([]);
   const [hasSavedWallet, setHasSavedWallet] = useState(false);
+  const [savedWalletAction, setSavedWalletAction] = useState<'open' | 'delete' | null>(null);
+  const toast = useToastController();
+  const busy = currentStep === 'creating' || isImporting || isFinishing;
+  usePendingOperationToast({
+    active:
+      currentStep === 'creating' ||
+      (isImporting && currentStep !== 'import') ||
+      (isFinishing && currentStep !== 'permissions' && currentStep !== 'welcome'),
+    title:
+      currentStep === 'creating'
+        ? 'Creating wallet…'
+        : isImporting
+          ? 'Importing wallet…'
+          : 'Setting up wallet…',
+    description:
+      currentStep === 'creating'
+        ? 'Preparing your secure wallet.'
+        : isImporting
+          ? importStatus
+          : finishingStatus,
+  });
 
   const registerOnboardingUsername = async (
     username: string,
@@ -109,6 +131,8 @@ export function OnboardingScreen() {
   }, []);
 
   const handleResumeRestore = async () => {
+    if (busy) return;
+    setSavedWalletAction('open');
     setIsFinishing(true);
     try {
       console.log('[Onboarding] Resuming saved wallet setup...');
@@ -118,16 +142,20 @@ export function OnboardingScreen() {
       setStep('restoring');
     } catch (err) {
       console.error('[Onboarding] Failed to resume wallet:', err);
+      toast.show('Wallet setup failed', { message: 'Failed to open saved wallet.', kind: 'error' });
       Alert.alert(
         'Resume Failed',
         'Failed to open saved wallet. You may need to delete it and start over.',
       );
     } finally {
       setIsFinishing(false);
+      setSavedWalletAction(null);
     }
   };
 
   const handleDeleteSavedWallet = async () => {
+    if (busy) return;
+    setSavedWalletAction('delete');
     setIsFinishing(true);
     try {
       console.log('[Onboarding] Deleting existing wallet to start over...');
@@ -135,21 +163,29 @@ export function OnboardingScreen() {
       await resetOnboarding();
       setHasSavedWallet(false);
       setStep('welcome');
+      toast.show('Wallet deleted', { kind: 'success' });
     } catch (err) {
       console.error('[Onboarding] Failed to delete wallet:', err);
+      toast.show('Wallet deletion failed', {
+        message: 'Failed to completely delete the wallet.',
+        kind: 'error',
+      });
       Alert.alert('Error', 'Failed to completely delete the wallet.');
     } finally {
       setIsFinishing(false);
+      setSavedWalletAction(null);
     }
   };
 
   // ── Navigation ──────────────────────────────────────────────
 
   const handleCreateWallet = () => {
+    if (busy) return;
     setIsImportingFlow(false);
     setStep('consent');
   };
   const handleImportWallet = () => {
+    if (busy) return;
     setIsImportingFlow(true);
     setStep('import');
   };
@@ -256,6 +292,10 @@ export function OnboardingScreen() {
       }
     } catch (err) {
       console.error('[Onboarding] Onboarding completion failed:', err);
+      toast.show('Setup could not finish', {
+        message: err instanceof Error ? err.message : 'Please try again.',
+        kind: 'error',
+      });
       Alert.alert(
         'Setup could not finish',
         err instanceof Error ? err.message : 'Please try again.',
@@ -344,6 +384,7 @@ export function OnboardingScreen() {
     } catch (err) {
       console.error('[Onboarding] Import failed:', err);
       setImportStatus('Import failed. Please try again.');
+      toast.show('Import failed', { message: 'Please try again.', kind: 'error' });
       setIsImporting(false);
     }
   };
@@ -364,6 +405,7 @@ export function OnboardingScreen() {
   // ── File import (restore from .bey backup file) ─────────────
 
   const handleImportFromFile = async () => {
+    if (busy) return;
     try {
       const backup = await walletFileService.importWalletFromFile();
 
@@ -406,9 +448,6 @@ export function OnboardingScreen() {
     }
   };
 
-  // ── Loading overlay ─────────────────────────────────────────
-  // Replaced by ProcessingSheet in the render tree below
-
   // ── Step router ─────────────────────────────────────────────
 
   const insets = useSafeAreaInsets();
@@ -420,6 +459,9 @@ export function OnboardingScreen() {
         return (
           <Flex fill bg="$background" pb={insets.bottom || 16}>
             <WelcomeStep
+              busy={busy}
+              isSettingUp={isFinishing && savedWalletAction === 'open'}
+              isDeleting={isFinishing && savedWalletAction === 'delete'}
               onCreateWallet={handleCreateWallet}
               onImportWallet={handleImportWallet}
               onImportFromFile={handleImportFromFile}
@@ -427,8 +469,15 @@ export function OnboardingScreen() {
               onOpenSavedWallet={handleResumeRestore}
               onDeleteSavedWallet={handleDeleteSavedWallet}
             />
-            <CreatingWalletSheet
+            <WalletCreationTask
               open={currentStep === 'creating'}
+              onError={() => {
+                toast.show('Wallet creation failed', {
+                  message: 'Please try again.',
+                  kind: 'error',
+                });
+                setStep('welcome');
+              }}
               onComplete={handleCreatingComplete}
               generateMnemonic={seedService.generateMnemonic}
             />
@@ -441,6 +490,7 @@ export function OnboardingScreen() {
       case 'permissions':
         return (
           <PermissionsStep
+            isFinishing={isFinishing}
             initialUsername={tempUsername}
             npub={tempNpub}
             onComplete={handlePermissionsComplete}
@@ -450,6 +500,7 @@ export function OnboardingScreen() {
       case 'import':
         return (
           <ImportSeedStep
+            isImporting={isImporting}
             onImport={(mnemonic) => handleImportSeed(mnemonic, {})}
             onBack={() => setStep('welcome')}
           />
@@ -474,18 +525,7 @@ export function OnboardingScreen() {
     } // close switch
   }; // close renderStep
 
-  return (
-    <YStack flex={1}>
-      {renderStep()}
-
-      <ProcessingSheet
-        visible={isImporting || isFinishing}
-        status="processing"
-        title={isImporting ? 'Importing wallet...' : 'Setting up wallet...'}
-        detail={isImporting ? importStatus : finishingStatus}
-      />
-    </YStack>
-  );
+  return <YStack flex={1}>{renderStep()}</YStack>;
 }
 
 // ── Wrapper that fires restoreAllMints on mount ──────────────────────────────

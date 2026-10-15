@@ -1,3 +1,5 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
@@ -57,6 +59,12 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const [hasText, setHasText] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
+    const [automaticProcessing, setAutomaticProcessing] = useState(false);
+    usePendingOperationToast({
+      active: isValidating && automaticProcessing,
+      title: 'Reading payment…',
+      description: 'Finding the payment or recipient.',
+    });
     const [detectedType, setDetectedType] = useState<UniversalInputType | null>(null);
 
     const clearInput = () => {
@@ -67,7 +75,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       setDetectedType(null);
     };
 
-    const processInput = async (textToProcess?: string): Promise<boolean> => {
+    const processInput = async (textToProcess?: string, automatic = false): Promise<boolean> => {
       const text = (textToProcess ?? inputTextRef.current).trim();
       if (!text) {
         setValidationError(null);
@@ -75,6 +83,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         return false;
       }
 
+      setAutomaticProcessing(automatic);
       setIsValidating(true);
       setValidationError(null);
 
@@ -118,7 +127,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           inputTextRef.current = text.trim();
           inputRef.current?.setNativeProps({ text: text.trim() });
           setHasText(true);
-          await processInput(text.trim());
+          await processInput(text.trim(), true);
         } else {
           toast.show('Clipboard Empty', { message: 'No text found in clipboard.' });
         }
@@ -142,7 +151,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     useImperativeHandle(ref, () => ({
       clear: clearInput,
       focus: () => inputRef.current?.focus(),
-      process: (text?: string) => processInput(text),
+      process: (text?: string) => processInput(text, true),
     }));
 
     const getTypeBadge = (t: UniversalInputType) => {
@@ -193,21 +202,23 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           <XStack gap="$1.5" items="center">
             {hasText ? (
               <>
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="tertiary"
                   size="xxsmall"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel="Clear input"
                   icon={<X size={14} color="$color" />}
+                  disabled={isValidating}
                   onPress={clearInput}
                 />
                 <AppButton
                   variant="branded"
                   emphasis="primary"
                   size="xxsmall"
-                  loading={isValidating}
+                  loading={isValidating && !automaticProcessing}
+                  loadingText="Reading payment…"
                   icon={isValidating ? undefined : <ArrowRight size={14} />}
                   onPress={() => processInput()}
                   disabled={isValidating}

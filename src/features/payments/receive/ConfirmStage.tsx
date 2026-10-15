@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { YStack, XStack, Text, View, Separator, ScrollView, YGroup } from 'tamagui';
@@ -176,6 +177,7 @@ export function ConfirmStage({
   return (
     <YStack flex={1} bg="$background">
       <ScrollView
+        pointerEvents={isLoading ? 'none' : 'auto'}
         contentContainerStyle={{ paddingBottom: 250 } as any}
         showsVerticalScrollIndicator={false}
       >
@@ -304,6 +306,7 @@ export function ConfirmStage({
           emphasis="primary"
           size="large"
           loading={isLoading}
+          loadingText="Receiving ecash…"
           flex={1}
           disabled={isLoading || proofStatus === 'spent'}
           onPress={() => {
@@ -351,11 +354,11 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

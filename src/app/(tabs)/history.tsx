@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { useNavigation } from 'expo-router';
 import { XStack } from 'tamagui';
@@ -22,11 +22,11 @@ export default function History() {
     navigation.setOptions({
       headerRight: () => (
         <XStack pr="$4">
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xsmall"
-            iconOnly
+
             shape="circular"
             accessibilityLabel="Filter history"
             icon={

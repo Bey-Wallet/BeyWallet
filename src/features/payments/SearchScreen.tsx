@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
@@ -352,21 +352,21 @@ export default function UniversalSearchScreen() {
           {isSearching ? (
             <Spinner size="small" />
           ) : search.length > 0 ? (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               accessibilityLabel="Clear input"
               icon={<X size={16} />}
               onPress={() => setSearch('')}
             />
           ) : (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               accessibilityLabel="Scan QR code"
               icon={<Scan strokeWidth={3} size={20} color="$gray10" />}
               onPress={handleScan}

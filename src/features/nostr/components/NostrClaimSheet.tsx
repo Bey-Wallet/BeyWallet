@@ -10,7 +10,6 @@ import * as Haptics from 'expo-haptics';
 import { nip19 } from 'nostr-tools';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import Blockies from '~/shared/ui/Blockies';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import { mintManager } from '~/services/wallet/mintManager';
 import { nostrClaimService, type NostrClaimResult } from '~/services/wallet/nostrClaimService';
 import { useAuthStore } from '~/state/authStore';
@@ -143,7 +142,7 @@ export function NostrClaimSheet() {
   }, [activeItem, canPresent]);
 
   const handleClaim = useCallback(async () => {
-    if (!activeItem) return;
+    if (!activeItem || claimStatus === 'claiming') return;
     setClaimStatus('claiming');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const result = await nostrClaimService.retry(activeItem.id, {
@@ -156,7 +155,7 @@ export function NostrClaimSheet() {
       setClaimStatus('error');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [activeItem, mintTrusted]);
+  }, [activeItem, mintTrusted, claimStatus]);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.dismiss();
@@ -322,7 +321,7 @@ export function NostrClaimSheet() {
                   flex={1}
                   onPress={handleClaim}
                   loading={claimStatus === 'claiming'}
-                  loadingText="Claiming..."
+                  loadingText="Receiving ecash…"
                   disabled={claimStatus === 'claiming'}
                 >
                   {mintTrusted === false ? 'Trust & Claim' : 'Try Again'}
@@ -332,14 +331,6 @@ export function NostrClaimSheet() {
           </YStack>
         </BottomSheetScrollView>
       </AppBottomSheet>
-      <ProcessingSheet
-        visible={claimStatus === 'claiming'}
-        status="processing"
-        variant="nostr"
-        title="Claiming..."
-        amount={activeItem.amount}
-        detail={`Receiving from ${sender}`}
-      />
     </>
   );
 }

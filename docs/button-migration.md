@@ -1,6 +1,24 @@
 # Button migration report
 
-All 286 former Tamagui Button usages in 95 caller files have been migrated: **248 AppButton actions, 35 AppPressable controls, and 3 noninteractive badges**. The Button inside AppButton is the only permitted raw Tamagui Button. Unused Button imports were also removed from Home and PaymentStatusOverlay.
+All 286 former Tamagui Button usages in 95 caller files have been migrated: **248 AppButton actions, 35 AppPressable controls, and 3 noninteractive badges**. The Button inside AppButton is the only permitted raw Tamagui Button.
+
+## Operation feedback and compact icon actions
+
+Icon-only actions now use AppIconButton, a ref-forwarding AppButton wrapper requiring an icon and accessible label. It forbids visible children and trailing icons. Compact density uses 4-point padding, minimum dimensions 32/36/40/48/56 and icons/spinners 20/24/28/32/36. Rounded radii, circular shapes, theme palettes, reduced motion, and hit slop reaching 48 points remain shared with AppButton. Home keeps Send as its only branded shortcut.
+
+ProcessingSheet and PaymentStatusOverlay have been deleted. Visible initiating buttons own progress with labels such as “Creating ecash…”, “Receiving ecash…”, and “Checking payment…”. Automatic decoding, automatic payment delivery, on-chain preparation/payment, and wallet creation use usePendingOperationToast under OperationFeedbackProvider. Each hook has a stable identity; phase updates replace only its own record, and completion/unmount removes only that record. Infinite-duration, controlled, polite pending toasts coexist with ordinary completion toasts and other operations. Pending toasts have no pointer interaction and prevent Escape/swipe dismissal.
+
+AppToast accepts a typed explicit kind (loading, success, error, warning, info) before legacy title inference, displays descriptions, and uses the shared reduced-motion spinner. Payment-request delivery reports “Payment sent; awaiting receipt” as info. Receipt polling stays quiet and existing payment confirmation determines success. Request-generation failures remain inline with an error toast and the Generate Request retry action. WalletCreationTask retains the existing mnemonic callback sequence without simulated progress phases. No dependencies or wallet/recovery semantics changed.
+
+The development playground includes compact icon actions, button-owned loading, and a toggleable automatic-operation toast. Manual Android/browser layout, large text, NFC, biometrics, and real payment checks still require devices.
+
+## Operation feedback verification (2026-10-15)
+
+- Migrated 73 icon actions across 44 caller files, including Home shortcuts, keypad deletion, proof counters, and the offline-mode switch. The button audit now rejects icon-only AppButton callers outside AppIconButton.
+- Native Jest: 42 suites and 212 tests passed. New coverage includes compact geometry, forwarded refs, loading labels, reduced motion, concurrent pending records, phase updates, timeout configuration, independent cleanup, screen blur/unmount, repeated operations, button-to-toast handoff, scan/shared-link decoding, automatic payment delivery, pending receipt polling, safe delivery retries, request-generation errors, and the headless wallet-creation sequence.
+- Web Jest: 5 checks passed, covering keyboard/focus behavior, busy/disabled ARIA state, links, refs, a real popover trigger, and icon controls under real light/dark themes.
+- TypeScript and the button audit passed. No executable references to the removed sheets remain. Structure and scoped formatting are checked with the repository commands.
+- Manual Android and real-browser layout, large text, screen-reader behavior, touch targets, NFC, biometrics, and end-to-end payments remain unverified. Automated UI tests use mocked wallet/network boundaries; no live payment was made.
 
 ## Choosing a button
 
@@ -36,7 +54,7 @@ An error does not make retry destructive: Try Again is branded-primary when it i
 
 Branded primary backgrounds resolve the active theme's blue10, including nested themes, and retain darker hover/press colors. White labels on the requested blue10 palette do not reach 4.5:1 in both themes; the existing branded idle contrast test explicitly uses a 3:1 floor. Other enabled solid palettes and tertiary states are checked against 4.5:1. This migration preserves the requested blue10/white combination and the user's disabled colors.
 
-## Verification
+## Original button migration verification
 
 - Source-expression audit: all 351 original onPress and disabled expressions preserved across the 95 migrated files; only the three informational badges intentionally stop being disabled controls.
 - Native Jest: 36 suites, 194 tests passed, including shared controls, spinner cleanup, focus/reduced motion, and NFC lock/retry/refresh checks.
@@ -46,6 +64,8 @@ Branded primary backgrounds resolve the active theme's blue10, including nested 
 - Manual Android and real-browser screenshots, small-screen layout, large text, touch alignment, popover placement, and end-to-end NFC/biometric/payment device checks remain outstanding. No live payment or network action was used for this migration.
 
 ## Per-file inventory
+
+This inventory records the original Tamagui migration. Icon-only entries now use AppIconButton, including keypad deletion, proof counters, and the offline-mode switch; their handlers and accessibility states remain feature-owned.
 
 The numbers below identify former Button occurrences within each file in source order. Every row is migrated. Layout compositions remain feature-owned; specialized controls are not forced into AppButton's label API.
 
@@ -137,7 +157,6 @@ The numbers below identify former Button occurrences within each file in source 
 - [shared/ui/OfflineOptimizationSheet.tsx](../src/shared/ui/OfflineOptimizationSheet.tsx) — **3 usages**. #1 Back: AppButton default/secondary; #2 Select Coins Manually...: AppButton default/text-only; #3 Confirm & Continue: AppButton branded/primary.
 - [shared/ui/OtaUpdateChecker.tsx](../src/shared/ui/OtaUpdateChecker.tsx) — **2 usages**. #1 Later: AppButton default/text-only; #2 Update Now: AppButton branded/primary.
 - [shared/ui/PendingTokenLayout.tsx](../src/shared/ui/PendingTokenLayout.tsx) — **6 usages**. #1 {copied ? 'Copied!' : 'Copy'}: AppButton default/secondary; #2 Send: AppButton branded/primary; #3 Reclaim Token: AppButton warning/secondary; #4 Claim Now: AppButton branded/primary; #5 "Close": AppButton default/tertiary; #6 "Copy": AppButton default/tertiary.
-- [shared/ui/ProcessingSheet.tsx](../src/shared/ui/ProcessingSheet.tsx) — **5 usages**. #1 DONE: AppButton default/primary; #2 DETAILS: AppButton default/secondary; #3 GOT IT: AppButton default/primary; #4 TRY AGAIN: AppButton branded/primary; #5 CLOSE: AppButton default/primary.
 - [shared/ui/ReceiveModeSelector.tsx](../src/shared/ui/ReceiveModeSelector.tsx) — **1 usages**. #1 {isLoading ? 'Loading...' : MODE_LABELS[mode]}: AppPressable.
 - [shared/ui/SendMethodSelector.tsx](../src/shared/ui/SendMethodSelector.tsx) — **1 usages**. #1 {isLoading ? 'Loading...' : MODE_LABELS[mode]}: AppPressable.
 - [shared/ui/StatusScreen.tsx](../src/shared/ui/StatusScreen.tsx) — **2 usages**. #1 {actionLabel}: AppButton branded/primary; #2 Close: AppButton default/primary.

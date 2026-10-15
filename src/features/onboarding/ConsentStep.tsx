@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
 import { YStack, XStack, Text, H1, View, ScrollView, Separator } from 'tamagui';
@@ -45,11 +46,11 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
     >
       {/* Top Back Button */}
       <XStack justify="flex-start" py="$2">
-        <AppButton
+        <AppIconButton
           variant="default"
           emphasis="tertiary"
           size="medium"
-          iconOnly
+
           shape="circular"
           accessibilityLabel="Go back"
           icon={<ArrowLeft size={24} color="$color" />}

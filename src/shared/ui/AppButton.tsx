@@ -30,13 +30,20 @@ type AppButtonBaseProps = Omit<
 
 export type AppButtonProps = AppButtonBaseProps &
   (
-    | { iconOnly?: false; children: string; icon?: AppButtonIcon; shape?: 'rounded' }
+    | {
+        iconOnly?: false;
+        children: string;
+        icon?: AppButtonIcon;
+        shape?: 'rounded';
+        density?: never;
+      }
     | {
         iconOnly: true;
         children?: never;
         icon: NonNullable<AppButtonIcon>;
         accessibilityLabel: string;
         shape?: 'rounded' | 'circular';
+        density?: 'regular' | 'compact';
       }
   );
 
@@ -70,6 +77,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     shape = 'rounded',
     fullWidth = false,
     labelFontSize,
+    density = 'regular',
     onPress,
     accessibilityState,
     accessibilityLabel,
@@ -93,7 +101,11 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     muted ? 'buttonDisabledText' : `${prefix}${transparent ? 'Text' : `${level}Text`}`,
   );
   const blocked = disabled || loading;
-  const [minHeight, fontSize, iconSize, radius] = sizes[size];
+  const [minHeight, fontSize, regularIconSize, radius] = sizes[size];
+  const compact = iconOnly && density === 'compact';
+  const iconSize = compact
+    ? { xxsmall: 20, xsmall: 24, small: 28, medium: 32, large: 36 }[size]
+    : regularIconSize;
   const hitPadding = Math.max(0, (48 - minHeight) / 2);
 
   return (
@@ -126,8 +138,8 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
       position="relative"
       hitSlop={{ top: hitPadding, bottom: hitPadding, left: hitPadding, right: hitPadding }}
       rounded={shape === 'circular' ? minHeight / 2 : radius}
-      px={iconOnly ? 0 : 16}
-      py={8}
+      px={iconOnly ? (compact ? 4 : 0) : 16}
+      py={compact ? 4 : 8}
       flexDirection="row"
       items="center"
       justify="center"

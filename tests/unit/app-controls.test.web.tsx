@@ -1,6 +1,7 @@
 import React, { act } from 'react';
 import { Popover, TamaguiProvider, Text } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { config } from '~/tamagui.config';
 
@@ -94,9 +95,12 @@ it('opens a popover through an AppButton trigger and keeps its expanded state', 
       <TamaguiProvider config={config} defaultTheme="light">
         <Popover onOpenChange={onOpenChange}>
           <Popover.Trigger asChild>
-            <AppButton variant="default" emphasis="tertiary">
-              More options
-            </AppButton>
+            <AppIconButton
+              variant="default"
+              emphasis="tertiary"
+              icon={() => null}
+              accessibilityLabel="More options"
+            />
           </Popover.Trigger>
         </Popover>
       </TamaguiProvider>,
@@ -110,3 +114,46 @@ it('opens a popover through an AppButton trigger and keeps its expanded state', 
   await act(async () => root.unmount());
   container.remove();
 });
+
+it.each(['light', 'dark'])(
+  'forwards icon link refs and exposes busy state in the %s theme',
+  async (theme) => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = React.createRef<React.ComponentRef<typeof AppIconButton>>();
+    const onPress = jest.fn((event) => event.preventDefault());
+    const render = (loading: boolean) => (
+      <TamaguiProvider config={config} defaultTheme={theme}>
+        <AppIconButton
+          ref={ref}
+          variant="default"
+          role="link"
+          href="/"
+          icon={() => null}
+          accessibilityLabel="Open wallet"
+          loading={loading}
+          onPress={onPress}
+        />
+      </TamaguiProvider>
+    );
+    await act(async () => root.render(render(false)));
+    const link = container.querySelector('a')!;
+    expect(ref.current).toBe(link);
+    expect(link.getAttribute('aria-label')).toBe('Open wallet');
+    expect(link.getAttribute('href')).toBe('/');
+    await act(async () => {
+      link.focus();
+      link.click();
+    });
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(link);
+    await act(async () => root.render(render(true)));
+    expect(link.getAttribute('aria-busy')).toBe('true');
+    expect(link.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => link.click());
+    expect(onPress).toHaveBeenCalledTimes(1);
+    await act(async () => root.unmount());
+    container.remove();
+  },
+);

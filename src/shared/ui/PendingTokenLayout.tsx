@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Separator, View, ScrollView, useTheme, YGroup } from 'tamagui';
@@ -607,11 +608,11 @@ export function PendingTokenLayout({
             <Text fontSize="$6" fontWeight="800" color="$color">
               Share / Send
             </Text>
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Close"
               icon={<X size={20} color="$color11" strokeWidth={3} />}
@@ -741,11 +742,11 @@ function DetailRowItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

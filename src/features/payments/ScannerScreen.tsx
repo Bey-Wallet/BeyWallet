@@ -1,3 +1,6 @@
+import { useToastController } from '@tamagui/toast';
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
@@ -162,6 +165,14 @@ export default function ScannerScreen() {
   const params = useLocalSearchParams();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolutionOrigin, setResolutionOrigin] = useState<'scan' | 'paste'>('scan');
+  const toast = useToastController();
+  usePendingOperationToast({
+    active: isResolving && resolutionOrigin === 'scan',
+    title: 'Reading QR code…',
+    description: 'Finding the payment or recipient.',
+  });
   const [flash, setFlash] = useState<'off' | 'on'>('off');
   const [progress, setProgress] = useState(0);
   const [isUR, setIsUR] = useState(false);
@@ -275,70 +286,83 @@ export default function ScannerScreen() {
     }
   };
 
-  const onSuccess = async (data: string) => {
-    setScanned(true);
+  const onSuccess = async (data: string, origin: 'scan' | 'paste' = 'scan') => {
+    if (isResolving) return;
+    setIsResolving(true);
+    setResolutionOrigin(origin);
+    try {
+      setScanned(true);
 
-    const trimmed = data.trim();
-    if (!trimmed) return;
+      const trimmed = data.trim();
+      if (!trimmed) return;
 
-    // If explicitly asked to return to a path (e.g. from P2PK Send flow)
-    if (params.returnTo) {
-      console.log('[Scanner] returnTo detected:', params.returnTo);
+      // If explicitly asked to return to a path (e.g. from P2PK Send flow)
+      if (params.returnTo) {
+        console.log('[Scanner] returnTo detected:', params.returnTo);
 
-      if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
-        // The home scan action historically treated every result as an ecash token. Resolve the
-        // input first so unified payment URIs and payment requests reach their payment flow.
-        const result = await resolveUniversalInput(trimmed);
-        const redirected = handleUniversalRedirect(result, {
-          router,
-          replace: true,
-        });
+        if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
+          // The home scan action historically treated every result as an ecash token. Resolve the
+          // input first so unified payment URIs and payment requests reach their payment flow.
+          const result = await resolveUniversalInput(trimmed);
+          const redirected = handleUniversalRedirect(result, {
+            router,
+            replace: true,
+          });
 
-        if (redirected) {
+          if (redirected) {
+            return;
+          }
+
+          // Preserve the existing receive fallback for inputs the universal resolver does not own.
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          const normalized = trimmed.toLowerCase().startsWith('cashu:')
+            ? trimmed.substring(6)
+            : trimmed;
+          router.replace({
+            pathname: '/(modals)/receive',
+            params: { scannedToken: normalized },
+          });
           return;
         }
 
-        // Preserve the existing receive fallback for inputs the universal resolver does not own.
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const normalized = trimmed.toLowerCase().startsWith('cashu:')
-          ? trimmed.substring(6)
-          : trimmed;
-        router.replace({
-          pathname: '/(modals)/receive',
-          params: { scannedToken: normalized },
-        });
+        console.log('[Scanner] Returning result to store for:', params.returnTo);
+        useWalletStore.getState().setScannerResult(trimmed);
+        router.back();
         return;
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      console.log('[Scanner] Returning result to store for:', params.returnTo);
-      useWalletStore.getState().setScannerResult(trimmed);
-      router.back();
-      return;
-    }
+      // Use Universal Resolver for robust format detection & redirection
+      const result = await resolveUniversalInput(trimmed);
+      console.log('[Scanner] Resolved universal input type:', result.type);
 
-    // Use Universal Resolver for robust format detection & redirection
-    const result = await resolveUniversalInput(trimmed);
-    console.log('[Scanner] Resolved universal input type:', result.type);
+      const redirected = handleUniversalRedirect(result, {
+        router,
+        replace: true,
+      });
 
-    const redirected = handleUniversalRedirect(result, {
-      router,
-      replace: true,
-    });
-
-    if (!redirected) {
-      // Fallback: Set result in store and go back
-      console.log('[Scanner] Fallback: returning data to previous screen...');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      useWalletStore.getState().setScannerResult(trimmed);
-      router.back();
+      if (!redirected) {
+        // Fallback: Set result in store and go back
+        console.log('[Scanner] Fallback: returning data to previous screen...');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        useWalletStore.getState().setScannerResult(trimmed);
+        router.back();
+      }
+    } catch (error: any) {
+      toast.show('Unable to read QR code', {
+        message: error?.message || 'Please try again.',
+        kind: 'error',
+      });
+      setScanned(false);
+    } finally {
+      setIsResolving(false);
     }
   };
 
   const handlePaste = async () => {
     const text = await Clipboard.getStringAsync();
     if (text) {
-      onSuccess(text);
+      onSuccess(text, 'paste');
     }
   };
 
@@ -360,32 +384,35 @@ export default function ScannerScreen() {
           <YStack flex={1} justify="space-between" p="$4">
             {/* Header */}
             <XStack justify="space-between" items="center">
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="medium"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Close"
                 icon={<X size={24} color="white" />}
                 onPress={() => router.back()}
               />
               <XStack gap="$2">
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="secondary"
                   size="medium"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel="Paste"
+                  loading={isResolving && resolutionOrigin === 'paste'}
+                  loadingText="Reading payment…"
+                  disabled={isResolving}
                   icon={<ClipboardIcon size={20} color="white" />}
                   onPress={handlePaste}
                 />
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="tertiary"
                   size="medium"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
                   icon={

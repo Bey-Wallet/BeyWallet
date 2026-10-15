@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, {
   useImperativeHandle,
   forwardRef,
@@ -322,22 +322,22 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
           {/* Header configuration */}
           <XStack items="center" justify="space-between" width="100%" pb="$0">
             {stage === 'ecash' ? (
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Go back"
                 icon={<ChevronLeft size={20} color="$color11" strokeWidth={3} />}
                 onPress={() => transitionTo('main')}
               />
             ) : (
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Close"
                 icon={<X size={20} color="$color11" strokeWidth={3} />}

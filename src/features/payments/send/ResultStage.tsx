@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo } from 'react';
 import { YStack, Text, ScrollView, View, XStack, Separator, YGroup } from 'tamagui';
@@ -291,11 +292,11 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

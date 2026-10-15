@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useState, useRef, useCallback } from 'react';
@@ -391,11 +392,11 @@ export default function MintDetailsModal() {
             </YStack>
           ),
           headerLeft: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="secondary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Go back"
               icon={<ChevronLeft size={20} color="$color" />}
@@ -406,11 +407,11 @@ export default function MintDetailsModal() {
             />
           ),
           headerRight: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="secondary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Share"
               icon={<Share2 size={18} color="$color" />}

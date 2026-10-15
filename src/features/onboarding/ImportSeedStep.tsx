@@ -16,11 +16,12 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ImportSeedStepProps {
+  isImporting?: boolean;
   onImport: (mnemonic: string) => void;
   onBack: () => void;
 }
 
-export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
+export function ImportSeedStep({ onImport, onBack, isImporting = false }: ImportSeedStepProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +158,11 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <YStack flex={1} bg="$background" px="$4" pt={insets.top + 8} pb={insets.bottom + 8}>
-        <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          pointerEvents={isImporting ? 'none' : 'auto'}
+          flex={1}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <YStack gap="$2" mb="$3" mt="$2">
             <H2 fontSize="$8" fontWeight="800" letterSpacing={-0.5} color="$color">
@@ -238,6 +243,7 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
           <XStack justify="center" mb="$4">
             {words.length > 0 ? (
               <AppButton
+                disabled={isImporting}
                 variant="default"
                 emphasis="secondary"
                 size="xsmall"
@@ -248,6 +254,7 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
               </AppButton>
             ) : (
               <AppButton
+                disabled={isImporting}
                 variant="default"
                 emphasis="secondary"
                 size="xsmall"
@@ -323,13 +330,16 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
             size="large"
             width="100%"
             onPress={handleImport}
-            disabled={!isValid || !checkedConsent}
+            loading={isImporting}
+            loadingText="Importing wallet…"
+            disabled={isImporting || !isValid || !checkedConsent}
           >
             Confirm
           </AppButton>
 
           {/* Back Button */}
           <AppButton
+            disabled={isImporting}
             variant="default"
             emphasis="secondary"
             size="medium"

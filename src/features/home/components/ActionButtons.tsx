@@ -1,12 +1,63 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useCallback } from 'react';
-import { XStack } from 'tamagui';
-import { Scan, ArrowLeftRight, Shuffle, RefreshCcw, ScanLine, Repeat } from '@tamagui/lucide-icons';
+import { Text, View, XStack, useTheme } from 'tamagui';
+import { Scan, Repeat } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ArrowDownIcon from '~/shared/icons/ArrowDown';
 import SendIcon from '~/shared/icons/Send';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
+
+function HomeAction({
+  label,
+  accessibilityLabel = label,
+  icon: Icon,
+  branded = false,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel?: string;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  branded?: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const color = branded ? '$buttonBrandedPrimaryText' : '$buttonDefaultSecondaryText';
+  const iconColor = String(
+    (branded ? theme.buttonBrandedPrimaryText : theme.buttonDefaultSecondaryText)?.val ??
+      theme.color?.val,
+  );
+
+  return (
+    <AppPressable
+      flex={1}
+      minWidth={0}
+      minHeight={80}
+      rounded="$6"
+      p={12}
+      gap={12}
+      items="flex-start"
+      justify="space-between"
+      bg={'$buttonDefaultSecondary'}
+      hoverStyle={{
+        bg: '$buttonDefaultSecondaryHover',
+      }}
+      pressStyle={{
+        bg: '$buttonDefaultSecondaryPress',
+        scale: 0.98,
+      }}
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+    >
+      <View aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Icon size={24} color={iconColor} />
+      </View>
+      <Text color={color} fontSize={14} lineHeight={20} fontWeight="600" flexShrink={1}>
+        {label}
+      </Text>
+    </AppPressable>
+  );
+}
 
 export default React.memo(function ActionButtons() {
   const router = useRouter();
@@ -37,47 +88,16 @@ export default React.memo(function ActionButtons() {
 
   return (
     <>
-      <XStack gap="$3" items="center" justify="space-between" width="100%">
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          iconOnly
+      <XStack gap={8} items="stretch" width="100%">
+        <HomeAction
+          label="Scan"
           accessibilityLabel="Scan QR code"
-          icon={<Scan size={28} strokeWidth={3} />}
-          flex={1}
+          icon={Scan}
           onPress={handleScan}
         />
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          iconOnly
-          accessibilityLabel="Swap"
-          icon={<Repeat size={28} strokeWidth={2.5} />}
-          flex={1}
-          onPress={handleSwap}
-        />
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          iconOnly
-          accessibilityLabel="Receive"
-          icon={<ArrowDownIcon size={32} />}
-          flex={1}
-          onPress={handleReceive}
-        />
-        <AppButton
-          variant="branded"
-          emphasis="primary"
-          size="large"
-          iconOnly
-          accessibilityLabel="Send"
-          icon={<SendIcon size={30} />}
-          flex={1}
-          onPress={handleSend}
-        />
+        {/* <HomeAction label="Swap" icon={Repeat} onPress={handleSwap} /> */}
+        <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
+        <HomeAction label="Send" icon={SendIcon} branded onPress={handleSend} />
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />

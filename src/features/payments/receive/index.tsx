@@ -1,3 +1,4 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState, useCallback, useEffect } from 'react';
 import { InteractionManager, BackHandler } from 'react-native';
 import { YStack } from 'tamagui';
@@ -15,7 +16,6 @@ import { nip19, SimplePool } from 'nostr-tools';
 import { RELAYS } from '~/services/wallet/nostrService';
 import { deriveSharingKeys, decryptToken } from '~/shared/utils/ecashSharing';
 import ReceiveModeSelector, { ReceiveMode } from '~/shared/ui/ReceiveModeSelector';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import * as ClipboardAPI from 'expo-clipboard';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
@@ -37,7 +37,14 @@ export function ReceiveModalScreen() {
   const [token, setToken] = useState('');
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [isDecoding, setIsDecoding] = useState(false);
+  const [automaticDecode, setAutomaticDecode] = useState(false);
+  const decodeLock = React.useRef(false);
   const [isReceiving, setIsReceiving] = useState(false);
+  usePendingOperationToast({
+    active: isDecoding && automaticDecode,
+    title: 'Reading ecash…',
+    description: 'Opening the token or shared link.',
+  });
   const [status, setStatus] = useState<'success' | 'error'>('success');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -68,10 +75,12 @@ export function ReceiveModalScreen() {
   }, [fetchMintInfo]);
 
   const handleDecodeToken = useCallback(
-    async (tokenToDecode?: string) => {
+    async (tokenToDecode?: string, automatic = false) => {
       const targetToken = tokenToDecode || token;
-      if (!targetToken.trim()) return;
+      if (!targetToken.trim() || decodeLock.current) return;
+      decodeLock.current = true;
 
+      setAutomaticDecode(automatic || !!tokenToDecode);
       setIsDecoding(true);
       setError(null);
       setIsReceiveLater(false);
@@ -172,6 +181,7 @@ export function ReceiveModalScreen() {
         console.error('[ReceiveModal] Failed to decode token:', err);
         setError(err.message || 'Invalid token format');
       } finally {
+        decodeLock.current = false;
         setIsDecoding(false);
       }
     },
@@ -487,6 +497,8 @@ export function ReceiveModalScreen() {
           token={token}
           setToken={setToken}
           isLoading={isDecoding}
+          automaticProgress={automaticDecode}
+          onAutoContinue={() => handleDecodeToken(undefined, true)}
           error={error}
           onContinue={handleNext}
           onScanPress={() => {
@@ -539,18 +551,6 @@ export function ReceiveModalScreen() {
           }
         />
       )}
-
-      {/* Global ProcessingSheet to prevent unmounting bugs during step transitions */}
-      <ProcessingSheet
-        visible={isReceiving}
-        title="Receiving"
-        amount={tokenInfo?.amount || 0}
-        detail={
-          tokenInfo
-            ? `Receiving from ${tokenInfo.preview?.name || tokenInfo.mint.replace(/^https?:\/\//, '').split('/')[0]}`
-            : 'Receiving...'
-        }
-      />
     </YStack>
   );
 }

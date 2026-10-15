@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
@@ -317,11 +318,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         options={{
           title: name,
           headerRight: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Copy"
               icon={<Share2 size={20} color="$color" />}

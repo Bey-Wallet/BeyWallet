@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 import { YStack, XStack, Text, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
 import { Sprout, Zap, ShieldCheck } from '@tamagui/lucide-icons';
 
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -83,6 +82,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
   return (
     <YStack flex={1} bg="$background">
       <ScrollView
+        pointerEvents={isLoading ? 'none' : 'auto'}
         contentContainerStyle={{ paddingBottom: 180 } as any}
         showsVerticalScrollIndicator={false}
       >
@@ -153,6 +153,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
           emphasis="primary"
           size="large"
           loading={isLoading}
+          loadingText="Creating Lightning invoice…"
           flex={1}
           disabled={isLoading}
           onPress={() => {
@@ -163,13 +164,6 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
           {isLoading ? 'Creating...' : 'Confirm'}
         </AppButton>
       </YStack>
-
-      <ProcessingSheet
-        visible={!!isLoading}
-        title="Creating Invoice"
-        amount={sats}
-        detail={`Requesting from ${mintDisplayName}`}
-      />
     </YStack>
   );
 }

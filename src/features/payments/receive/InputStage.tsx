@@ -13,6 +13,8 @@ interface InputStageProps {
   token: string;
   setToken: (val: string) => void;
   isLoading?: boolean;
+  automaticProgress?: boolean;
+  onAutoContinue?: () => void;
   error?: string | null;
   onContinue: () => void;
   onScanPress?: () => void;
@@ -22,6 +24,8 @@ export function InputStage({
   token,
   setToken,
   isLoading,
+  automaticProgress = false,
+  onAutoContinue,
   error,
   onContinue,
   onScanPress,
@@ -63,9 +67,9 @@ export function InputStage({
     const trimmed = token.trim();
     if (isValidToken && !isLoading && !error && trimmed !== lastAttemptedToken) {
       setLastAttemptedToken(trimmed);
-      onContinue();
+      (onAutoContinue ?? onContinue)();
     }
-  }, [token, isValidToken, isLoading, error, lastAttemptedToken, onContinue]);
+  }, [token, isValidToken, isLoading, error, lastAttemptedToken, onContinue, onAutoContinue]);
 
   const handleScanPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -86,6 +90,7 @@ export function InputStage({
                 Enter Token
               </Text>
               <AppButton
+                disabled={isLoading}
                 variant="default"
                 emphasis="secondary"
                 size="xxsmall"
@@ -96,6 +101,7 @@ export function InputStage({
               </AppButton>
             </XStack>
             <TextArea
+              disabled={isLoading}
               value={token}
               onChangeText={setToken}
               placeholder="Usage: Paste Cashu token, Lightning invoice, or LNURL..."
@@ -128,6 +134,7 @@ export function InputStage({
           {/* Scanning Options */}
           <XStack gap="$3">
             <AppPressable
+              disabled={isLoading}
               px={12}
               py={4}
               flex={1}
@@ -152,6 +159,7 @@ export function InputStage({
             </AppPressable>
 
             <AppPressable
+              disabled={isLoading}
               px={12}
               py={4}
               flex={1}
@@ -188,7 +196,8 @@ export function InputStage({
             variant="branded"
             emphasis="primary"
             size="large"
-            loading={isLoading}
+            loading={isLoading && !automaticProgress}
+            loadingText="Reading ecash…"
             disabled={isLoading}
             onPress={onContinue}
           >

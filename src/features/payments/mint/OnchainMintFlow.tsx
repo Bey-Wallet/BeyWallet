@@ -1,6 +1,9 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
+import { Landmark } from '@tamagui/lucide-icons';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView } from 'tamagui';
 import {
   Copy,
   Check,
@@ -35,6 +38,11 @@ export function OnchainMintFlow() {
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
   const [step, setStep] = useState<'loading' | 'deposit' | 'success' | 'error'>('loading');
+  usePendingOperationToast({
+    active: step === 'loading',
+    title: 'Preparing deposit address…',
+    description: 'Requesting an on-chain address from your mint.',
+  });
   const [quoteData, setQuoteData] = useState<{
     quote: string;
     request: string;
@@ -46,6 +54,7 @@ export function OnchainMintFlow() {
 
   // Payment status tracking
   const [isChecking, setIsChecking] = useState(false);
+  const [isManualCheck, setIsManualCheck] = useState(false);
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountIssued, setAmountIssued] = useState(0);
   const [txState, setTxState] = useState('UNPAID');
@@ -153,6 +162,7 @@ export function OnchainMintFlow() {
       if (!activeMintUrl || !quoteData || isChecking) return;
 
       setIsChecking(true);
+      if (showToast) setIsManualCheck(true);
       try {
         console.log('[OnchainMintFlow] Checking deposit status for:', quoteData.quote);
         const status = await quotesService.checkOnchainMintQuote(activeMintUrl, quoteData.quote);
@@ -187,7 +197,10 @@ export function OnchainMintFlow() {
           refreshBalance();
         } else {
           if (showToast) {
-            toast.show('Checking status', { message: 'No new payments detected yet.' });
+            toast.show('Payment pending', {
+              message: 'No new payments detected yet.',
+              kind: 'info',
+            });
           }
         }
       } catch (err: any) {
@@ -199,6 +212,7 @@ export function OnchainMintFlow() {
         }
       } finally {
         setIsChecking(false);
+        if (showToast) setIsManualCheck(false);
       }
     },
     [activeMintUrl, quoteData, isChecking, refreshBalance, toast],
@@ -219,8 +233,12 @@ export function OnchainMintFlow() {
   if (step === 'loading') {
     return (
       <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
-        <Spinner size="large" color="$accent10" />
-        <Paragraph color="$gray10">Generating on-chain deposit address...</Paragraph>
+        <Landmark size={48} color="$accent10" />
+        <Paragraph color="$gray10">On-chain deposit</Paragraph>
+        <Text fontWeight="600">{mintDisplayName}</Text>
+        <Paragraph color="$gray10" textAlign="center">
+          Your deposit address will appear here.
+        </Paragraph>
       </YStack>
     );
   }
@@ -388,11 +406,11 @@ export function OnchainMintFlow() {
                 {quoteData?.request}
               </Text>
             </ScrollView>
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="secondary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Copy"
               icon={
@@ -412,13 +430,7 @@ export function OnchainMintFlow() {
           <ListTableRow
             label="Checking Status"
             value="Every 10s"
-            iconAfter={
-              isChecking ? (
-                <Spinner size="small" color="$accent10" />
-              ) : (
-                <Clock size={14} color="$gray10" />
-              )
-            }
+            iconAfter={<Clock size={14} color="$gray10" />}
           />
         </ListTable>
 
@@ -439,7 +451,8 @@ export function OnchainMintFlow() {
           variant="branded"
           emphasis="primary"
           size="large"
-          loading={isChecking}
+          loading={isManualCheck}
+          loadingText="Checking payment…"
           icon={<RefreshCw size={20} />}
           flex={1}
           onPress={() => handleCheckPayment(true)}

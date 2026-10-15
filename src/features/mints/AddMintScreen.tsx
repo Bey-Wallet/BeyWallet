@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -656,11 +657,11 @@ export default function AddMintScreen() {
         options={{
           headerTitle: 'Mints',
           headerLeft: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="medium"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Go back"
               icon={<ChevronLeft size={28} color="$color" />}
@@ -671,11 +672,11 @@ export default function AddMintScreen() {
             />
           ),
           headerRight: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="medium"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Scan QR code"
               icon={<Scan size={28} color="$color" />}

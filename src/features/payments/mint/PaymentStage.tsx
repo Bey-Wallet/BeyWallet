@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useMemo } from 'react';
 import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView } from 'tamagui';
@@ -154,6 +155,7 @@ export function PaymentStage({
             emphasis="primary"
             size="large"
             loading={isChecking}
+            loadingText="Checking payment…"
             flex={1}
             disabled={isExpired || isChecking}
             onPress={async () => {
@@ -207,11 +209,11 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

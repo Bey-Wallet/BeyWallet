@@ -133,7 +133,6 @@ export function HomeTabScreen() {
         {/* Above-the-fold: renders immediately */}
         <WalletCard />
         <ActionButtons />
-        {__DEV__ && <ButtonPlayground />}
 
         <RestoreProgressCard />
 

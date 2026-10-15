@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, YStack, XStack, H6, Image, styled, Separator } from 'tamagui';
@@ -271,11 +272,11 @@ export const ConnectedMintsCard = () => {
           <H6 fontWeight="800" fontSize="$4" color="$color10">
             Mints
           </H6>
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             shape="circular"
             accessibilityLabel="Add mint"
             icon={<Plus strokeWidth={3} size={18} color="$accent2" />}

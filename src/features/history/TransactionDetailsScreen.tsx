@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
@@ -850,11 +851,11 @@ export function TransactionDetailsScreen() {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
     headerRight: () => (
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="tertiary"
         size="xsmall"
-        iconOnly
+
         shape="circular"
         accessibilityLabel="Delete transaction"
         icon={<Trash2 size={22} />}
@@ -1367,11 +1368,11 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

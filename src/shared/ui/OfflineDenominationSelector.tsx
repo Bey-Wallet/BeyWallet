@@ -1,5 +1,5 @@
 import { AppButton } from '~/shared/ui/AppButton';
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useMemo } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { AlertCircle, Plus, Minus } from '@tamagui/lucide-icons';
@@ -226,43 +226,27 @@ export function OfflineDenominationSelector({
               </YStack>
 
               <XStack gap="$3" items="center">
-                <AppPressable
-                  px={12}
-                  py={4}
-                  rounded={8}
+                <AppIconButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  icon={Minus}
                   accessibilityLabel="Select fewer proofs"
-                  bg="$gray5"
                   onPress={() => handleDecrement(group.amount)}
                   disabled={selectedCount === 0}
-                  disabledStyle={{ opacity: 0.3 }}
-                  minHeight={36}
-                  flexDirection="row"
-                  items="center"
-                  justify="center"
-                  gap={8}
-                >
-                  <Minus size={14} />
-                </AppPressable>
+                />
                 <Text fontSize="$5" fontWeight="800" minWidth={24} textAlign="center">
                   {selectedCount}
                 </Text>
-                <AppPressable
-                  px={12}
-                  py={4}
-                  rounded={8}
+                <AppIconButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  icon={Plus}
                   accessibilityLabel="Select more proofs"
-                  bg={isFullySelected ? '$gray5' : '$accent5'}
                   onPress={() => handleIncrement(group.amount, availableCount)}
                   disabled={isFullySelected}
-                  disabledStyle={{ opacity: 0.3 }}
-                  minHeight={36}
-                  flexDirection="row"
-                  items="center"
-                  justify="center"
-                  gap={8}
-                >
-                  <Plus size={14} />
-                </AppPressable>
+                />
               </XStack>
             </XStack>
           );

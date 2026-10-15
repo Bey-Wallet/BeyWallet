@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { XStack, YStack, Text, Separator, Theme } from 'tamagui';
 import { Copy, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
@@ -122,11 +122,11 @@ export function ListTableRow({
           {iconAfter}
 
           {isCopyable && (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               accessibilityLabel="Copy"
               icon={<Copy size={16} color="$gray10" />}
               onPress={handleCopy}

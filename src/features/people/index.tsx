@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -301,11 +301,11 @@ export default function PeopleScreen() {
           {isSearching ? (
             <Spinner size="small" />
           ) : (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel={isSearchActive ? 'Clear search' : 'Paste Nostr identifier'}
               icon={

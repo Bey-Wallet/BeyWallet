@@ -293,6 +293,7 @@ export default function SwapScreen() {
               emphasis="primary"
               size="large"
               loading={isProcessing}
+              loadingText="Swapping ecash…"
               flex={1}
               onPress={handleConfirmSubmit}
               disabled={isProcessing}

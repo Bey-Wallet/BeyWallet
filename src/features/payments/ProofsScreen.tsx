@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useCallback } from 'react';
@@ -120,22 +121,22 @@ function DetailItem({
           {value}
         </Text>
         {onShare && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Share"
             icon={<Share2 size={14} color="$gray10" />}
             onPress={onShare}
           />
         )}
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={14} color="$gray10" />}
             onPress={onCopy}
@@ -797,11 +798,11 @@ export default function ProofsModal() {
         options={{
           headerTitle: 'Proof Manager',
           headerLeft: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="medium"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Go back"
               icon={<ChevronLeft size={24} />}
@@ -812,11 +813,11 @@ export default function ProofsModal() {
             />
           ),
           headerRight: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="medium"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Refresh"
               icon={<RefreshCw size={20} />}

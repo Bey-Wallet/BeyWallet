@@ -39,6 +39,16 @@ function walk(directory) {
     function visit(node) {
       if (
         (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+        node.tagName.getText(source) === 'AppButton' &&
+        node.attributes.properties.some(
+          (property) => property.name?.getText(source) === 'iconOnly',
+        ) &&
+        filename.replaceAll('\\', '/') !== 'src/shared/ui/AppIconButton.tsx'
+      ) {
+        violations.push(`${filename}: use AppIconButton for icon-only actions`);
+      }
+      if (
+        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
         (node.tagName.getText(source) === 'Button' ||
           (ts.isPropertyAccessExpression(node.tagName) &&
             namespaces.has(node.tagName.expression.getText(source)) &&
@@ -59,5 +69,7 @@ if (violations.length) {
   console.error(violations.join('\n'));
   process.exitCode = 1;
 } else {
-  console.log('Button check passed: Tamagui Button is confined to AppButton.');
+  console.log(
+    'Button check passed: Tamagui Button is confined to AppButton; icon-only actions use AppIconButton.',
+  );
 }

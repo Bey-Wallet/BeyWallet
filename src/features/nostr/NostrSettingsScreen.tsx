@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useEffect, useState } from 'react';
 import { YStack, Text, XStack, Separator, View, ScrollView, Image } from 'tamagui';
@@ -133,11 +133,11 @@ export default function NostrSettingsScreen() {
                   </Text>
                 </YStack>
               </XStack>
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Copy"
                 icon={<Copy size={16} color="$accent5" strokeWidth={2.5} />}
@@ -181,22 +181,22 @@ export default function NostrSettingsScreen() {
                 </XStack>
                 <XStack gap="$1">
                   {isNsecVisible && (
-                    <AppButton
+                    <AppIconButton
                       variant="default"
                       emphasis="tertiary"
                       size="xsmall"
-                      iconOnly
+
                       shape="circular"
                       accessibilityLabel="Copy"
                       icon={<Copy size={16} color="$red10" strokeWidth={2.5} />}
                       onPress={() => handleCopy(nsec, 'nsec')}
                     />
                   )}
-                  <AppButton
+                  <AppIconButton
                     variant="default"
                     emphasis="tertiary"
                     size="xsmall"
-                    iconOnly
+
                     shape="circular"
                     accessibilityLabel={isNsecVisible ? 'Hide private key' : 'Reveal private key'}
                     icon={

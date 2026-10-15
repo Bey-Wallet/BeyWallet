@@ -112,6 +112,7 @@ export function ConfirmStage({
   return (
     <YStack flex={1} bg="$background">
       <ScrollView
+        pointerEvents={isLoading ? 'none' : 'auto'}
         contentContainerStyle={{ paddingBottom: 180 } as any}
         showsVerticalScrollIndicator={false}
       >
@@ -262,6 +263,7 @@ export function ConfirmStage({
           emphasis="primary"
           size="large"
           loading={isLoading}
+          loadingText={sendMode === 'nostr' ? 'Sending via Nostr…' : 'Creating ecash…'}
           flex={1}
           disabled={isLoading}
           onPress={() => {

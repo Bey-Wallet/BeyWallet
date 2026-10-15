@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, Input, ScrollView } from 'tamagui';
 import { Search, ClipboardPaste, QrCode, ScanQrCode } from '@tamagui/lucide-icons';
@@ -157,20 +157,20 @@ export default function PeopleSearchScreen() {
             />
           </XStack>
           <XStack>
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               accessibilityLabel="Paste"
               icon={<ClipboardPaste size={20} />}
               onPress={handlePaste}
             />
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xxsmall"
-              iconOnly
+
               accessibilityLabel="Scan QR code"
               icon={<ScanQrCode size={20} />}
               onPress={handlePaste}

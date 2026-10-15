@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, Text, View, Separator, ScrollView, YGroup } from 'tamagui';
@@ -258,6 +259,7 @@ export function ReceiveResultStage({
                 emphasis="primary"
                 size="large"
                 loading={isLoading}
+                loadingText="Receiving ecash…"
                 icon={<ArrowDownLeft size={20} color="$blue10" />}
                 onPress={onClaimNow}
                 disabled={isLoading}
@@ -322,11 +324,11 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}

@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import {
@@ -328,11 +329,11 @@ export default function TokenDetailsModal() {
               </Adapt>
 
               <Popover.Trigger asChild>
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="tertiary"
                   size="medium"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel="More options"
                   icon={<MoreHorizontal size={24} />}
@@ -536,11 +537,11 @@ export default function TokenDetailsModal() {
 
       {/* Action Buttons */}
       <XStack mt="auto" pb={insets.bottom + 20} gap="$2" width="100%" px="$4">
-        <AppButton
+        <AppIconButton
           variant="default"
           emphasis="secondary"
           size="medium"
-          iconOnly
+
           accessibilityLabel="Share"
           icon={<Share2 size={18} />}
           flex={1}

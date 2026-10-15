@@ -2,14 +2,23 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useMemo } from 'react';
 import { AlertCircle, Check, Info } from '@tamagui/lucide-icons';
 import { Toast, useToastController, useToastState } from '@tamagui/toast';
-import { Spinner, XStack, YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
+import { Spinner } from '~/shared/ui/Spinner';
+import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import * as Haptics from 'expo-haptics';
 
-type ToastKind = 'loading' | 'success' | 'error' | 'warning' | 'info';
+export type ToastKind = 'loading' | 'success' | 'error' | 'warning' | 'info';
+
+declare module '@tamagui/toast' {
+  interface CustomData {
+    kind?: ToastKind;
+  }
+}
 
 type ToastVariant = 'default' | 'action';
 
 export interface ToastActionData {
+  kind?: ToastKind;
   variant?: ToastVariant;
   actionLabel?: string;
   onAction?: () => void;
@@ -36,10 +45,14 @@ function inferKind(title: string, explicitType?: string): ToastKind {
 export function AppToast() {
   const currentToast = useToastState();
   const controller = useToastController();
+  const reducedMotion = useReducedMotion();
 
   const kind = useMemo(
-    () => inferKind(currentToast?.title || '', (currentToast as any)?.type),
-    [currentToast?.id, currentToast?.title],
+    () =>
+      (currentToast?.customData as ToastActionData | undefined)?.kind ??
+      (currentToast as any)?.kind ??
+      inferKind(currentToast?.title || '', (currentToast as any)?.type),
+    [currentToast?.id, currentToast?.title, currentToast?.customData, currentToast?.kind],
   );
 
   useEffect(() => {
@@ -80,7 +93,7 @@ export function AppToast() {
    */
   const statusIcon =
     kind === 'loading' ? (
-      <Spinner size="small" color="$color" />
+      <Spinner size={16} color="$color" reduceMotion={reducedMotion} />
     ) : kind === 'success' ? (
       <Check size={16} strokeWidth={2.75} color="$color" />
     ) : kind === 'error' || kind === 'warning' ? (
@@ -123,6 +136,7 @@ export function AppToast() {
             >
               {currentToast.title}
             </Toast.Title>
+            {currentToast.message && <Toast.Description>{currentToast.message}</Toast.Description>}
           </YStack>
         </XStack>
       </Toast>
@@ -153,9 +167,12 @@ export function AppToast() {
       <XStack items="center" justify="space-between" gap="$2" py="$2">
         {statusIcon}
 
-        <Toast.Title flexShrink={1} fontSize="$4" fontWeight="800" color="$color" lineHeight={18}>
-          {currentToast.title}
-        </Toast.Title>
+        <YStack flexShrink={1}>
+          <Toast.Title flexShrink={1} fontSize="$4" fontWeight="800" color="$color" lineHeight={18}>
+            {currentToast.title}
+          </Toast.Title>
+          {currentToast.message && <Toast.Description>{currentToast.message}</Toast.Description>}
+        </YStack>
 
         <AppButton
           variant="default"

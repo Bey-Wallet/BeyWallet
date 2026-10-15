@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
@@ -64,11 +65,11 @@ export default function NostrDiagnosticsScreen() {
                   : 'Not checked yet'}
               </Text>
             </YStack>
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="secondary"
               size="medium"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Refresh"
               icon={<RefreshCw size={18} />}

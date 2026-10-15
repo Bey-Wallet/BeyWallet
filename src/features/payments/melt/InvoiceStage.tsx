@@ -13,7 +13,6 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Spinner } from '~/shared/ui/Spinner';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +39,7 @@ interface InvoiceStageProps {
   onContinue: () => void;
   balance: number;
   isLoading?: boolean;
+  disabled?: boolean;
   error?: string | null;
 }
 
@@ -51,6 +51,7 @@ export function InvoiceStage({
   onContinue,
   balance,
   isLoading,
+  disabled,
   error,
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
@@ -373,9 +374,11 @@ export function InvoiceStage({
         value={localInputValue}
         onValueChange={onKeypadChange}
         onConfirm={onContinue}
-        confirmLabel={isLoading ? 'Processing...' : 'Continue'}
-        confirmDisabled={!isValidAmount || isLoading}
-        confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+        confirmLabel="Continue"
+        isLoading={isLoading}
+        loadingText="Preparing Lightning payment…"
+        confirmDisabled={!isValidAmount || disabled || isLoading}
+        confirmIcon={undefined}
       />
 
       <MintSelectorSheet ref={sheetRef} />

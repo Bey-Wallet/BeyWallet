@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme, Text } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
@@ -35,11 +35,11 @@ export default function ModalLayout() {
         headerShadowVisible: false,
         headerTitle: ({ children }) => <DefaultHeaderTitle>{children}</DefaultHeaderTitle>,
         headerLeft: () => (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="secondary"
             size="xsmall"
-            iconOnly
+
             shape="circular"
             accessibilityLabel="Close"
             icon={<X size={24} color="$color" />}

@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback, useRef } from 'react';
@@ -59,7 +60,6 @@ import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '~/features/payments/send/ResultStage';
 import { sendNostrToken } from '~/services/wallet/nostrService';
 import { seedService } from '~/services/platform/seedService';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
@@ -109,22 +109,22 @@ function DetailItem({
           {value}
         </Text>
         {onShare && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Share"
             icon={<Share2 size={16} color="$gray10" />}
             onPress={onShare}
           />
         )}
         {isCopyable && (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xxsmall"
-            iconOnly
+
             accessibilityLabel="Copy"
             icon={<Copy size={16} color="$gray10" />}
             onPress={onCopy}
@@ -366,7 +366,7 @@ export function RequestEcashStage({
 
   // ── Generate NUT-18 Cashu Payment Request ─────────────────────────────────
   const handleGenerate = useCallback(async () => {
-    if (!isValidAmount || !activeMintUrl) return;
+    if (isGenerating || !isValidAmount || !activeMintUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsGenerating(true);
     setGenerateError(null);
@@ -461,11 +461,26 @@ export function RequestEcashStage({
     } catch (err: any) {
       console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
       setGenerateError(err?.message || 'Failed to generate request');
+      toast.show('Request failed', {
+        message: err?.message || 'Failed to generate request',
+        kind: 'error',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsGenerating(false);
     }
-  }, [amtNum, isValidAmount, activeMintUrl, note, npub, addRequest, targetNpub, targetUsername]);
+  }, [
+    amtNum,
+    isValidAmount,
+    activeMintUrl,
+    note,
+    npub,
+    addRequest,
+    targetNpub,
+    targetUsername,
+    isGenerating,
+    toast,
+  ]);
 
   // ── Copy / Share ──────────────────────────────────────────────────────────
   const handleCopy = useCallback(async () => {
@@ -624,6 +639,7 @@ export function RequestEcashStage({
       }
     } catch (e) {
       console.warn('[RequestEcashStage] check status error:', e);
+      toast.show('Unable to check payment', { message: 'Please try again.', kind: 'error' });
     } finally {
       setIsChecking(false);
     }
@@ -637,7 +653,12 @@ export function RequestEcashStage({
   if (step === 'amount') {
     return (
       <YStack flex={1} px="$4" justify="space-between" bg="$background">
-        <YStack gap="$1.5">
+        <YStack gap="$1.5" pointerEvents={isGenerating ? 'none' : 'auto'}>
+          {generateError && (
+            <Text color="$red10" accessibilityRole="alert">
+              {generateError}
+            </Text>
+          )}
           {/* Mint Selector Row */}
           <MintBalanceRow
             activeMint={activeMint}
@@ -780,11 +801,11 @@ export function RequestEcashStage({
             </XStack>
 
             {note.length > 0 && (
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Clear input"
                 icon={<XIcon size="$1.5" color="$accent5" strokeWidth={2.5} />}
@@ -804,7 +825,8 @@ export function RequestEcashStage({
           value={localInputValue}
           onValueChange={onKeypadChange}
           onConfirm={handleGenerate}
-          confirmLabel={isGenerating ? 'Generating…' : 'Generate Request'}
+          confirmLabel="Generate Request"
+          loadingText="Creating payment request…"
           confirmDisabled={!isValidAmount || isGenerating || !npub}
           confirmIcon={isGenerating ? <Spinner size="small" /> : <QrCode size={20} />}
           isLoading={isGenerating}
@@ -964,6 +986,7 @@ export function RequestEcashStage({
                 emphasis="secondary"
                 size="xsmall"
                 loading={isChecking}
+                loadingText="Checking payment…"
                 icon={<RefreshCw size={14} color="$accent9" />}
                 onPress={handleCheckStatus}
                 disabled={isChecking}
@@ -983,15 +1006,6 @@ export function RequestEcashStage({
           </YStack>
         </YStack>
       </ScrollView>
-
-      <ProcessingSheet
-        visible={isGenerating || !!generateError}
-        status={generateError ? 'error' : 'processing'}
-        title={generateError ? 'Request Failed' : 'Creating Request'}
-        detail={generateError ? generateError : 'Generating your Nostr ecash request...'}
-        errorMessage={generateError || undefined}
-        onClose={() => setGenerateError(null)}
-      />
     </YStack>
   );
 }

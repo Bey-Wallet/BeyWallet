@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { YStack, XStack, Text, H6, View } from 'tamagui';
 import { AlertTriangle, X } from '@tamagui/lucide-icons';
@@ -64,11 +64,11 @@ export default function BackupWarningCard() {
             </Text>
           </YStack>
         </XStack>
-        <AppButton
+        <AppIconButton
           variant="default"
           emphasis="tertiary"
           size="xxsmall"
-          iconOnly
+
           shape="circular"
           accessibilityLabel="Dismiss notice"
           icon={<X size={18} />}

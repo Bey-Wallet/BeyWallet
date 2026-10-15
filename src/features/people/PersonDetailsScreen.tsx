@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -313,11 +314,11 @@ export default function PersonDetailsScreen() {
         ------------------------------------------------ */}
 
         <YStack height={200} rounded="$6" p="$3" bg="$gray2" overflow="hidden">
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xsmall"
-            iconOnly
+
             shape="circular"
             accessibilityLabel={showNpubQr ? 'Show profile' : 'Show Nostr public key QR code'}
             icon={showNpubQr ? <UserRound size={18} /> : <QrCode size={18} />}

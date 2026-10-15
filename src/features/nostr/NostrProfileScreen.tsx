@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { YStack, XStack, Text, View, Spinner, Separator, ScrollView } from 'tamagui';
@@ -105,11 +106,11 @@ export default function NostrProfileScreen() {
                 {isNip05Verified && username ? username : 'Bey Wallet User'}
               </Text>
               {isNip05Verified && <Nip05VerifiedBadge size={17} />}
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xxsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Refresh"
                 loading={nip05Loading}
@@ -123,11 +124,11 @@ export default function NostrProfileScreen() {
             </XStack>
           ),
           headerRight: () => (
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="small"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Scan QR code"
               icon={<Scan size={20} />}
@@ -227,11 +228,11 @@ export default function NostrProfileScreen() {
                   Add
                 </AppButton>
               ) : nip05Status === 'error' ? (
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="tertiary"
                   size="xsmall"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel="Retry NIP-05 lookup"
                   icon={<RefreshCw size={17} />}

@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router, Tabs } from 'expo-router';
@@ -105,11 +105,11 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <BeyIcon size={24} color={color} />,
           headerRight: () => (
             <XStack pr="$4" gap="$2">
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xsmall"
-                iconOnly
+
                 shape="circular"
                 accessibilityLabel="Open NFC"
                 icon={<Nfc size={24} />}

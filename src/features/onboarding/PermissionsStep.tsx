@@ -19,12 +19,18 @@ import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 interface PermissionsStepProps {
+  isFinishing?: boolean;
   initialUsername: string;
   npub: string;
   onComplete: (username: string, biometricEnabled: boolean, skipUsername: boolean) => void;
 }
 
-export function PermissionsStep({ initialUsername, npub, onComplete }: PermissionsStepProps) {
+export function PermissionsStep({
+  initialUsername,
+  npub,
+  onComplete,
+  isFinishing = false,
+}: PermissionsStepProps) {
   const insets = useSafeAreaInsets();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [isRequestingBio, setIsRequestingBio] = useState(false);
@@ -270,12 +276,15 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
 
         {/* Finish Button */}
         <AppButton
+          disabled={isFinishing}
           variant="branded"
           emphasis="primary"
           size="large"
           iconAfter={<ChevronRight size={18} />}
           width="100%"
           onPress={handleFinish}
+          loading={isFinishing}
+          loadingText="Setting up wallet…"
         >
           Finish & Open Wallet
         </AppButton>
@@ -303,6 +312,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
           {/* Actions */}
           <YStack gap="$3" width="100%">
             <AppButton
+              disabled={isFinishing}
               variant="branded"
               emphasis="primary"
               size="large"
@@ -311,6 +321,7 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
               Enable Biometrics
             </AppButton>
             <AppButton
+              disabled={isFinishing}
               variant="default"
               emphasis="text-only"
               size="large"

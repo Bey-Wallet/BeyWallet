@@ -1,4 +1,4 @@
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useCallback } from 'react';
 import { InteractionManager, Switch, Alert } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -22,7 +22,6 @@ import {
   initService,
 } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import { Text, YStack, XStack, Separator, View, H2, H4 } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -552,11 +551,11 @@ export function SendModalScreen() {
         )
         .catch(() => {});
 
-      setStep('success');
-
-      console.log(
-        `[SendModal] ✅ Nostr send complete: ${amountSats} sats to ${nostrRecipientNpub.slice(0, 10)}…`,
-      );
+      setStep('result');
+      toast.show('Payment sent; awaiting receipt', {
+        message: 'Receipt will be confirmed when the ecash is claimed.',
+        kind: 'info',
+      });
     } catch (err: any) {
       console.error('[SendModal] Nostr send failed:', err);
       setError(err.message || 'Failed to send via Nostr');
@@ -575,6 +574,7 @@ export function SendModalScreen() {
     expiryEnabled,
     expiryHours,
     nostrRecipientUsername,
+    toast,
   ]);
 
   const handleExecuteSend = async () => {
@@ -683,11 +683,11 @@ export function SendModalScreen() {
           headerTitle: () => <H4 fontWeight="bold">{headerTitle}</H4>,
 
           headerRight: () => (
-            <AppPressable
-              px={12}
-              py={4}
-              rounded={8}
-              bg="$background"
+            <AppIconButton
+              variant={isOffline ? 'critical' : 'default'}
+              emphasis="tertiary"
+              size="xsmall"
+              icon={isOffline ? CloudOff : Cloud}
               accessibilityLabel={isOffline ? 'Switch to online mode' : 'Switch to offline mode'}
               accessibilityState={{ checked: isOffline }}
               accessibilityRole="switch"
@@ -705,27 +705,8 @@ export function SendModalScreen() {
                   });
                 }
               }}
-              disabled={isHardwareOffline}
-              disabledStyle={{ opacity: 0.8 }}
-              pressStyle={{ scale: 0.95 }}
-              minHeight={36}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <XStack items="center">
-                {isOffline ? (
-                  <>
-                    <CloudOff color="$red10" />
-                  </>
-                ) : (
-                  <>
-                    <Cloud color="$color" />
-                  </>
-                )}
-              </XStack>
-            </AppPressable>
+              disabled={isHardwareOffline || isProcessing || nostrSending}
+            />
           ),
         }}
       />
@@ -858,24 +839,6 @@ export function SendModalScreen() {
           onBack={() => setStep('amount')}
         />
       )}
-
-      {/* ProcessingSheet for Nostr sending */}
-      <ProcessingSheet
-        visible={nostrSending}
-        status="processing"
-        variant="nostr"
-        title="Sending via Nostr"
-        amount={parseInt(amount, 10) || 0}
-        detail={`Sending to ${nostrRecipientUsername || nostrRecipientNpub.slice(0, 10) + '…'}`}
-      />
-
-      {/* ProcessingSheet for standard send */}
-      <ProcessingSheet
-        visible={isProcessing && !isOffline && !nostrSending}
-        title="Processing"
-        amount={parseInt(amount, 10) || 0}
-        detail="Creating ecash tokens..."
-      />
 
       {/* Offline Optimization Selector */}
       <OfflineOptimizationSheet

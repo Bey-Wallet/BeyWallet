@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { buttonThemes } from '~/tamagui.config';
 import { defaultConfig } from '@tamagui/config/v5';
 import { processColor } from 'react-native';
@@ -135,6 +136,61 @@ it('centers an icon-only loading spinner and keeps its accessible name', async (
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(1);
   await act(async () => tree.unmount());
 });
+
+it.each([
+  ['xxsmall', 32, 20],
+  ['xsmall', 36, 24],
+  ['small', 40, 28],
+  ['medium', 48, 32],
+  ['large', 56, 36],
+] as const)(
+  'uses compact geometry and a 48 point touch target for %s icon actions',
+  async (size, dimension, iconSize) => {
+    const Icon = (_props: { size?: number }) => null;
+    const ref = React.createRef<React.ComponentRef<typeof AppIconButton>>();
+    const onPress = jest.fn();
+    let tree!: ReactTestRenderer;
+    mockReducedMotion = true;
+    await act(async () => {
+      tree = create(
+        <AppIconButton
+          ref={ref}
+          icon={Icon}
+          size={size}
+          accessibilityLabel="Scan"
+          onPress={onPress}
+        />,
+        {
+          createNodeMock: (element) => (element.type === 'Button' ? { marker: 'button' } : null),
+        },
+      );
+    });
+    const button = tree.root.findByType('Button' as any);
+    expect(ref.current).toEqual({ marker: 'button' });
+    expect(button.props).toMatchObject({ width: dimension, minHeight: dimension, px: 4, py: 4 });
+    expect(button.props.hitSlop.top * 2 + dimension).toBeGreaterThanOrEqual(48);
+    expect(tree.root.findByType(Icon).props.size).toBe(iconSize);
+    expect(tree.root.findAllByType('Text' as any)).toHaveLength(0);
+    await act(async () =>
+      tree.update(
+        <AppIconButton
+          icon={Icon}
+          size={size}
+          accessibilityLabel="Scan"
+          onPress={onPress}
+          loading
+        />,
+      ),
+    );
+    tree.root.findByType('Button' as any).props.onPress({});
+    expect(onPress).not.toHaveBeenCalled();
+    expect(tree.root.findByType('Spinner' as any).props).toMatchObject({
+      size: iconSize,
+      reduceMotion: true,
+    });
+    await act(async () => tree.unmount());
+  },
+);
 
 it('normalizes element icon geometry without losing stroke details and honors layout width', async () => {
   const Icon = (_props: { size?: number; color?: string; strokeWidth?: number }) => null;

@@ -1,3 +1,4 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
@@ -46,7 +47,6 @@ import {
 } from '@tamagui/lucide-icons';
 
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
@@ -72,6 +72,12 @@ export default function MeltScreen() {
   const [isGettingQuote, setIsGettingQuote] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [isManualQuote, setIsManualQuote] = useState(false);
+  usePendingOperationToast({
+    active: isGettingQuote && !isManualQuote,
+    title: 'Preparing Lightning payment…',
+    description: 'Fetching the invoice amount and fees.',
+  });
   const [quoteAmount, setQuoteAmount] = useState(0);
   const [feeReserve, setFeeReserve] = useState(0);
   const [quoteId, setQuoteId] = useState<string | null>(null);
@@ -103,6 +109,7 @@ export default function MeltScreen() {
   // Auto-fetch quote for bolt11 invoice to display its amount immediately
   useEffect(() => {
     const generation = ++quoteGeneration.current;
+    setIsGettingQuote(false);
     setQuoteId(null);
     setQuoteAmount(0);
     setFeeReserve(0);
@@ -184,86 +191,92 @@ export default function MeltScreen() {
 
   // ─── Invoice Stage: Continue Handler ──────────────────────
   const handleInvoiceContinue = useCallback(async () => {
-    if (!activeMintUrl) {
-      setError('No active mint selected');
-      return;
-    }
-
-    const offline = await networkService.isOffline();
-    if (offline) {
-      setError('You are offline. Please check your internet connection.');
-      return;
-    }
-
-    const cleaned = invoice.trim();
-    if (!cleaned) {
-      setError('Please enter a Lightning invoice or address');
-      return;
-    }
-
-    const inputType = detectLightningInputType(cleaned);
-    console.log('[MeltScreen] Input type:', inputType);
-
-    if (inputType === 'bolt11') {
-      // Bolt11 invoice — go directly to get quote
-      await getQuoteForInvoice(cleaned);
-    } else if (inputType === 'address' || inputType === 'lnurlp') {
-      // Lightning address or LNURL — need to resolve to invoice
-      setLnAddress(cleaned);
-      setError(null);
-      setIsResolvingAddress(true);
-
-      try {
-        // Fetch LNURL params to get min/max amounts
-        const params = await getLnurlPayParams(cleaned);
-        if (!params) {
-          setError('Could not resolve Lightning address. Check the address and try again.');
-          setIsResolvingAddress(false);
-          return;
-        }
-
-        const minSats = Math.ceil(params.minSendable / 1000);
-        const maxSats = Math.floor(params.maxSendable / 1000);
-
-        const amountSats = parseInt(lnAddressAmount, 10);
-        if (isNaN(amountSats) || amountSats <= 0) {
-          setError('Enter a valid amount');
-          setIsResolvingAddress(false);
-          return;
-        }
-
-        if (amountSats < minSats) {
-          setError(`Minimum amount is ${minSats} sats`);
-          setIsResolvingAddress(false);
-          return;
-        }
-
-        if (amountSats > maxSats) {
-          setError(`Maximum amount is ${maxSats} sats`);
-          setIsResolvingAddress(false);
-          return;
-        }
-
-        if (amountSats > balance) {
-          setError('Insufficient balance');
-          setIsResolvingAddress(false);
-          return;
-        }
-
-        console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sats`);
-        await resolveAndGetQuote(cleaned, amountSats);
-      } catch (err: any) {
-        console.error('[MeltScreen] LN address resolution failed:', err);
-        setError(err.message || 'Failed to resolve Lightning address');
-      } finally {
-        setIsResolvingAddress(false);
+    if (isManualQuote || isGettingQuote) return;
+    setIsManualQuote(true);
+    try {
+      if (!activeMintUrl) {
+        setError('No active mint selected');
+        return;
       }
-    } else {
-      setError(
-        'Invalid input. Enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)',
-      );
+
+      const offline = await networkService.isOffline();
+      if (offline) {
+        setError('You are offline. Please check your internet connection.');
+        return;
+      }
+
+      const cleaned = invoice.trim();
+      if (!cleaned) {
+        setError('Please enter a Lightning invoice or address');
+        return;
+      }
+
+      const inputType = detectLightningInputType(cleaned);
+      console.log('[MeltScreen] Input type:', inputType);
+
+      if (inputType === 'bolt11') {
+        // Bolt11 invoice — go directly to get quote
+        await getQuoteForInvoice(cleaned);
+      } else if (inputType === 'address' || inputType === 'lnurlp') {
+        // Lightning address or LNURL — need to resolve to invoice
+        setLnAddress(cleaned);
+        setError(null);
+        setIsResolvingAddress(true);
+
+        try {
+          // Fetch LNURL params to get min/max amounts
+          const params = await getLnurlPayParams(cleaned);
+          if (!params) {
+            setError('Could not resolve Lightning address. Check the address and try again.');
+            setIsResolvingAddress(false);
+            return;
+          }
+
+          const minSats = Math.ceil(params.minSendable / 1000);
+          const maxSats = Math.floor(params.maxSendable / 1000);
+
+          const amountSats = parseInt(lnAddressAmount, 10);
+          if (isNaN(amountSats) || amountSats <= 0) {
+            setError('Enter a valid amount');
+            setIsResolvingAddress(false);
+            return;
+          }
+
+          if (amountSats < minSats) {
+            setError(`Minimum amount is ${minSats} sats`);
+            setIsResolvingAddress(false);
+            return;
+          }
+
+          if (amountSats > maxSats) {
+            setError(`Maximum amount is ${maxSats} sats`);
+            setIsResolvingAddress(false);
+            return;
+          }
+
+          if (amountSats > balance) {
+            setError('Insufficient balance');
+            setIsResolvingAddress(false);
+            return;
+          }
+
+          console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sats`);
+          await resolveAndGetQuote(cleaned, amountSats);
+        } catch (err: any) {
+          console.error('[MeltScreen] LN address resolution failed:', err);
+          setError(err.message || 'Failed to resolve Lightning address');
+        } finally {
+          setIsResolvingAddress(false);
+        }
+      } else {
+        setError(
+          'Invalid input. Enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)',
+        );
+      }
+    } finally {
+      setIsManualQuote(false);
     }
-  }, [activeMintUrl, invoice, lnAddressAmount, balance]);
+  }, [activeMintUrl, invoice, lnAddressAmount, balance, isManualQuote, isGettingQuote]);
 
   // ─── Resolve LN address to invoice and get quote ──────────
   const resolveAndGetQuote = useCallback(
@@ -417,7 +430,8 @@ export default function MeltScreen() {
             setInvoice={setInvoice}
             onContinue={handleInvoiceContinue}
             balance={balance}
-            isLoading={isGettingQuote || isResolvingAddress}
+            isLoading={isResolvingAddress || isManualQuote}
+            disabled={isGettingQuote || isManualQuote}
             error={error}
           />
         </YStack>
@@ -533,6 +547,7 @@ export default function MeltScreen() {
               emphasis="primary"
               size="large"
               loading={isPaying}
+              loadingText="Paying Lightning invoice…"
               flex={1}
               onPress={handleAuthenticate}
               disabled={isPaying || totalCost > balance}
@@ -560,14 +575,6 @@ export default function MeltScreen() {
           />
         </YStack>
       )}
-
-      <ProcessingSheet
-        visible={isPaying}
-        title="Processing Payment"
-        amount={quoteAmount}
-        detail={lnAddress ? `Paying ${lnAddress}` : 'Paying Lightning Invoice'}
-        direction="send"
-      />
     </YStack>
   );
 }

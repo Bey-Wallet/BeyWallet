@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { XStack, YStack, Text, View, Input } from 'tamagui';
 import { Clipboard as ClipboardIcon, ScanLine, X as XIcon } from '@tamagui/lucide-icons';
@@ -151,11 +151,11 @@ export function DestinationInputRow({
 
       <XStack gap="$1" items="center">
         {value.length > 0 ? (
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="tertiary"
             size="xsmall"
-            iconOnly
+
             shape="circular"
             accessibilityLabel="Clear input"
             icon={<XIcon size="$1.5" color={accentColor} strokeWidth={2.5} />}
@@ -163,11 +163,11 @@ export function DestinationInputRow({
           />
         ) : (
           <>
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Paste"
               icon={<ClipboardIcon size="$1.5" color={accentColor} strokeWidth={2.5} />}
@@ -177,11 +177,11 @@ export function DestinationInputRow({
               }}
               disabled={isPasting}
             />
-            <AppButton
+            <AppIconButton
               variant="default"
               emphasis="tertiary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel="Scan QR code"
               icon={<ScanLine size="$1.5" color={accentColor} strokeWidth={2.5} />}

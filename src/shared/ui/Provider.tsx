@@ -5,6 +5,7 @@ import { ManagerProvider, MintProvider, BalanceProvider } from 'coco-cashu-react
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { AppToast } from '~/shared/ui/AppToast';
+import { OperationFeedbackProvider } from '~/shared/ui/OperationFeedback';
 import { config } from '~/tamagui.config';
 import { ThemeProvider, useAppTheme } from '~/shared/theme/ThemeContext';
 
@@ -34,8 +35,10 @@ function InnerProvider({ children, cocoManager, ...rest }: any) {
     >
       <BottomSheetModalProvider>
         <ToastProvider swipeDirection="horizontal" duration={3000} native={[]}>
-          {children}
-          <AppToast />
+          <OperationFeedbackProvider>
+            {children}
+            <AppToast />
+          </OperationFeedbackProvider>
           <ToastViewport top="$3" left="$3" right="$3" />
         </ToastProvider>
       </BottomSheetModalProvider>

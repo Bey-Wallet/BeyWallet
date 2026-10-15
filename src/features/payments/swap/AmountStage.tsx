@@ -11,7 +11,6 @@ import {
   SUPPORTED_CURRENCIES,
 } from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -290,12 +289,6 @@ export function AmountStage({
         activeMintUrl={targetMintUrl}
         changeGlobalActiveMint={false}
         onSelect={setTargetMintUrl}
-      />
-      <ProcessingSheet
-        visible={!!isLoading}
-        title="Swapping"
-        amount={Number(amount)}
-        detail={`From ${sourceDisplayName} to ${targetDisplayName}`}
       />
     </YStack>
   );

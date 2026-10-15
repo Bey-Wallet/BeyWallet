@@ -1,5 +1,5 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { AppButton } from '~/shared/ui/AppButton';
 /**
  * NostrSendStage
  *
@@ -495,11 +495,11 @@ export function NostrSendStage({
             {isSearching || isResolvingRecipient ? (
               <Spinner size="small" />
             ) : (
-              <AppButton
+              <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="xxsmall"
-                iconOnly
+
                 accessibilityLabel="Paste"
                 icon={<ClipboardPaste size={18} />}
                 onPress={handlePaste}

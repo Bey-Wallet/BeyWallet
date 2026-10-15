@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -55,21 +56,21 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
       >
         {connectionPercent === null ? '···' : `${connectionPercent}%`}
       </AppButton>
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="tertiary"
         size="xsmall"
-        iconOnly
+
         shape="circular"
         accessibilityLabel="Open Nostr activity"
         icon={<Clock size={19} color="$color" />}
         onPress={() => open('/(modals)/nostr-activity')}
       />
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="tertiary"
         size="xsmall"
-        iconOnly
+
         shape="circular"
         accessibilityLabel="Open Nostr settings"
         icon={<Settings size={19} color="$color" />}

@@ -1,3 +1,5 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState } from 'react';
 import { ArrowRight, Plus } from '@tamagui/lucide-icons';
 import { Text, Theme, XStack, YStack } from 'tamagui';
@@ -17,6 +19,12 @@ function Examples() {
   const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light');
   const [state, setState] = useState('normal');
   const [manualLoading, setManualLoading] = useState(false);
+  const [automaticLoading, setAutomaticLoading] = useState(false);
+  usePendingOperationToast({
+    active: automaticLoading,
+    title: 'Creating payment request…',
+    description: 'Automatic operation preview. Stop it with the control below.',
+  });
   const [presses, setPresses] = useState(0);
   const [selected, setSelected] = useState(false);
   const disabled = state.includes('disabled');
@@ -97,10 +105,10 @@ function Examples() {
         </AppButton>
         <Text color="$color">Icon-only actions and selected controls</Text>
         <XStack gap="$3" items="center">
-          <AppButton
+          <AppIconButton
             variant="branded"
             emphasis="primary"
-            iconOnly
+
             icon={Plus}
             size="large"
             accessibilityLabel="Add example"
@@ -108,10 +116,10 @@ function Examples() {
             disabled={disabled}
             onPress={onPress}
           />
-          <AppButton
+          <AppIconButton
             variant="default"
             emphasis="secondary"
-            iconOnly
+
             icon={ArrowRight}
             shape="circular"
             accessibilityLabel="Next example"
@@ -159,8 +167,22 @@ function Examples() {
         >
           {manualLoading ? 'Stop manual loading' : 'Start manual loading'}
         </AppButton>
-        <AppButton loading={manualLoading} icon={Plus} onPress={onPress}>
-          Manually controlled loading
+        <AppButton
+          loading={manualLoading}
+          loadingText="Creating ecash…"
+          icon={Plus}
+          onPress={onPress}
+        >
+          Create ecash
+        </AppButton>
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          onPress={() => setAutomaticLoading((value) => !value)}
+        >
+          {automaticLoading
+            ? 'Stop automatic operation preview'
+            : 'Preview automatic operation toast'}
         </AppButton>
       </YStack>
     </Theme>

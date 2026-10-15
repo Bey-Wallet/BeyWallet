@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Send } from '@tamagui/lucide-icons';
@@ -101,11 +101,11 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
             </YStack>
           </TouchableOpacity>
           <XStack items="center" gap="$1.5">
-            <AppButton
+            <AppIconButton
               variant="branded"
               emphasis="primary"
               size="xsmall"
-              iconOnly
+
               shape="circular"
               accessibilityLabel={`Send eCash to ${label}`}
               icon={<Send size={17} color="$color" />}

@@ -1,3 +1,4 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,7 +11,6 @@ import {
   Separator,
   ScrollView,
   View,
-  Spinner,
   Avatar,
   YGroup,
 } from 'tamagui';
@@ -71,6 +71,11 @@ export function OnchainMeltFlow() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
   const [step, setStep] = useState<'input' | 'confirm' | 'paying' | 'success' | 'error'>('input');
+  usePendingOperationToast({
+    active: step === 'paying',
+    title: 'Sending on-chain payment…',
+    description: 'Submitting your transaction to the mint.',
+  });
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('0');
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
@@ -467,9 +472,15 @@ export function OnchainMeltFlow() {
   if (step === 'paying') {
     return (
       <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
-        <Spinner size="large" color="$accent10" />
+        <Landmark size={48} color="$accent10" />
         <Text color="$gray10" fontSize="$4" fontWeight="600">
-          Processing your transaction...
+          On-chain payment
+        </Text>
+        <Text fontSize="$7" fontWeight="700">
+          {Number(amount).toLocaleString()} SATS
+        </Text>
+        <Text color="$gray10" textAlign="center">
+          {address}
         </Text>
       </YStack>
     );

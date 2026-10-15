@@ -1,4 +1,4 @@
-import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -62,11 +62,11 @@ export const PersonDetailsHeaderActions = React.memo(function PersonDetailsHeade
 
   return (
     <XStack gap="$2" mr="$2">
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="tertiary"
         size="xsmall"
-        iconOnly
+
         shape="circular"
         accessibilityLabel={favorite ? 'Remove from favorites' : 'Add to favorites'}
         icon={
@@ -78,11 +78,11 @@ export const PersonDetailsHeaderActions = React.memo(function PersonDetailsHeade
         }
         onPress={handleFavorite}
       />
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="secondary"
         size="xsmall"
-        iconOnly
+
         shape="circular"
         accessibilityLabel="Share person"
         icon={<Share2 size={18} color="$color" />}

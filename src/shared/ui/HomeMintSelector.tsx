@@ -1,3 +1,4 @@
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import {
@@ -110,11 +111,11 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             {/* Custom Header matching ActionSelectorSheet */}
             <XStack items="center" justify="space-between" width="100%" pb="$2">
               <XStack items="center" justify="center" gap="$3">
-                <AppButton
+                <AppIconButton
                   variant="default"
                   emphasis="tertiary"
                   size="medium"
-                  iconOnly
+
                   shape="circular"
                   accessibilityLabel="Close"
                   icon={<X size={20} color="$color" strokeWidth={3} />}
@@ -255,11 +256,11 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                                 mint.name ||
                                 mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                             </Text>
-                            <AppButton
+                            <AppIconButton
                               variant="default"
                               emphasis="tertiary"
                               size="xxsmall"
-                              iconOnly
+
                               shape="circular"
                               accessibilityLabel="Edit nickname"
                               icon={<Edit3 size={12} color="$gray10" />}

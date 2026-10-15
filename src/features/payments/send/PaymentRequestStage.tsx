@@ -1,3 +1,5 @@
+import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
+import { useToastController } from '@tamagui/toast';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { YStack, XStack, Text, Separator, View, Avatar, H1, ScrollView } from 'tamagui';
@@ -26,7 +28,6 @@ import {
   previewPaymentRequest,
   type PaymentRequestCost,
 } from '~/services/wallet/paymentRequestPayment';
-import { PaymentStatusOverlay, type PaymentStatusState } from '~/shared/ui/PaymentStatusOverlay';
 import Blockies from '~/shared/ui/Blockies';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -58,8 +59,9 @@ export function PaymentRequestStage({
   autoPay = false,
 }: PaymentRequestStageProps) {
   const [isSending, setIsSending] = useState(false);
+  const [automaticDelivery, setAutomaticDelivery] = useState(false);
+  const [isRefreshingReceipt, setIsRefreshingReceipt] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [overlayState, setOverlayState] = useState<PaymentStatusState | null>(null);
   const [selectedMintUrl, setSelectedMintUrl] = useState<string | null>(null);
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const paymentRef = useRef<PaymentRequestPayment | null>(null);
@@ -68,6 +70,12 @@ export function PaymentRequestStage({
   const [cost, setCost] = useState<PaymentRequestCost | null>(null);
   const [receipt, setReceipt] = useState<'awaiting' | 'unconfirmed' | null>(null);
   const [hasOperation, setHasOperation] = useState(false);
+  const toast = useToastController();
+  usePendingOperationToast({
+    active: isSending && automaticDelivery,
+    title: 'Sending payment…',
+    description: 'Delivering your payment request.',
+  });
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -169,29 +177,32 @@ export function PaymentRequestStage({
   }, [amountSats]);
 
   // ── Send handler ─────────────────────────────────────────────────────────
-  const handlePay = async () => {
+  const handlePay = async (origin: 'button' | 'automatic' = 'button') => {
     if (actionLock.current || (!paymentRef.current && (!isCompatible || !isEnough || !cost)))
       return;
     actionLock.current = true;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setAutomaticDelivery(origin === 'automatic');
     setIsSending(true);
     setLocalError(null);
-    setOverlayState('sending');
 
     try {
       paymentRef.current ??= new PaymentRequestPayment(request, cost!);
       await paymentRef.current.deliver(writeNfc);
-      setOverlayState(null);
       setReceipt('awaiting');
+      toast.show('Payment sent; awaiting receipt', {
+        message: 'The payment remains pending in History.',
+        kind: 'info',
+      });
     } catch (err: any) {
       const operationId = paymentRef.current?.operationId;
       const msg = operationId
         ? `${paymentRef.current?.failureMessage || 'Delivery unconfirmed.'} Existing operation ${operationId} is in History. Do not pay this request again.`
         : err?.message || 'Payment failed';
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setOverlayState(null);
       setLocalError(msg);
+      toast.show('Payment delivery failed', { message: msg, kind: 'error' });
     } finally {
       setHasOperation(!!paymentRef.current?.operationId);
       setIsSending(false);
@@ -199,9 +210,10 @@ export function PaymentRequestStage({
     }
   };
 
-  const refreshReceipt = async () => {
+  const refreshReceipt = async (manual = false) => {
     if (actionLock.current || !paymentRef.current) return;
     actionLock.current = true;
+    if (manual) setIsRefreshingReceipt(true);
     try {
       const payment = paymentRef.current;
       if (await payment.refresh()) {
@@ -212,13 +224,24 @@ export function PaymentRequestStage({
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onSuccess(amountSats, payment.operationId!, payment.encoded!);
+      } else if (manual) {
+        toast.show('Payment pending', {
+          message: 'Receipt has not been confirmed yet.',
+          kind: 'info',
+        });
       }
     } catch {
+      if (manual)
+        toast.show('Receipt check unavailable', {
+          message: 'The existing payment remains pending in History.',
+          kind: 'error',
+        });
       if (mounted.current)
         setLocalError(
           'Receipt check unavailable. The existing payment remains pending in History.',
         );
     } finally {
+      if (manual) setIsRefreshingReceipt(false);
       actionLock.current = false;
     }
   };
@@ -226,7 +249,7 @@ export function PaymentRequestStage({
   useEffect(() => {
     if (!autoPay || automaticPaymentStarted.current || !cost || !isCompatible || !isEnough) return;
     automaticPaymentStarted.current = true;
-    void handlePay();
+    void handlePay('automatic');
   }, [autoPay, cost, isCompatible, isEnough]);
 
   useEffect(() => {
@@ -320,7 +343,9 @@ export function PaymentRequestStage({
                 variant="default"
                 emphasis="secondary"
                 size="medium"
-                onPress={refreshReceipt}
+                onPress={() => void refreshReceipt(true)}
+                loading={isRefreshingReceipt}
+                loadingText="Checking payment…"
               >
                 Refresh status
               </AppButton>
@@ -346,6 +371,7 @@ export function PaymentRequestStage({
                 label="Mint"
                 value={mintDisplayName}
                 onPress={() => {
+                  if (isSending || hasOperation) return;
                   refreshMintList();
                   sheetRef.current?.present();
                 }}
@@ -424,20 +450,22 @@ export function PaymentRequestStage({
             emphasis="secondary"
             size="large"
             flex={1}
+
             disabled={isSending}
             onPress={onCancel}
           >
             Cancel
           </AppButton>
-          {(!autoPay || hasOperation) && (
+          {(!autoPay || hasOperation || !!localError || (isSending && !automaticDelivery)) && (
             <AppButton
               variant="branded"
               emphasis="primary"
               size="large"
               loading={isSending}
+              loadingText="Sending payment…"
               flex={1}
               disabled={!!receipt || (!hasOperation && (!isCompatible || !isEnough)) || isSending}
-              onPress={handlePay}
+              onPress={() => void handlePay()}
             >
               {isSending ? 'Sending…' : hasOperation ? 'Retry delivery' : 'Pay'}
             </AppButton>
@@ -445,27 +473,10 @@ export function PaymentRequestStage({
         </XStack>
       </YStack>
 
-      <PaymentStatusOverlay
-        visible={!!overlayState}
-        state={overlayState || 'sending'}
-        direction="send"
-        amount={amountSats}
-        recipient={truncateTarget(request.nostrTarget)}
-        mintUrl={matchedMint || request.mints[0] || ''}
-        errorMessage={localError || undefined}
-        onDismiss={() => {
-          setOverlayState(null);
-        }}
-        onRetry={() => {
-          setOverlayState(null);
-          setLocalError(null);
-        }}
-      />
-
       <MintSelectorSheet
         ref={sheetRef}
         onSelect={(mintUrl) => {
-          if (paymentRef.current) return;
+          if (isSending || paymentRef.current) return;
           setSelectedMintUrl(mintUrl);
         }}
         activeMintUrl={matchedMint || undefined}

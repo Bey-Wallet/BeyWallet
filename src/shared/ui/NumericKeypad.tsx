@@ -1,4 +1,5 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
@@ -11,6 +12,7 @@ interface NumericKeypadProps {
   onConfirm: () => void;
   confirmLabel: string;
   isLoading?: boolean;
+  loadingText?: string;
   maxAmount?: number;
   currency?: string;
   showBalance?: boolean;
@@ -52,19 +54,15 @@ const NumButton = React.memo(
 );
 
 const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
-  <AppPressable
+  <AppIconButton
+    variant="default"
+    emphasis="tertiary"
+    size="large"
+    icon={ChevronLeft}
     accessibilityLabel="Delete last digit"
     flex={1}
-    height={55}
     onPress={onPress}
-    pressStyle={{ bg: 'transparent', borderColor: '$colorTransparent', scale: 1.5 }}
-    flexDirection="row"
-    items="center"
-    justify="center"
-    gap={8}
-  >
-    <ChevronLeft size={32} color="$color" />
-  </AppPressable>
+  />
 ));
 
 export function NumericKeypad({
@@ -73,6 +71,7 @@ export function NumericKeypad({
   onConfirm,
   confirmLabel,
   isLoading = false,
+  loadingText,
   maxAmount,
   currency = 'SATS',
   showBalance = false,
@@ -88,25 +87,28 @@ export function NumericKeypad({
 
   const handlePress = useCallback(
     (digit: string) => {
+      if (isLoading) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onValueChange(value === '0' ? digit : value + digit);
     },
-    [value, onValueChange],
+    [value, onValueChange, isLoading],
   );
 
   const handleDelete = useCallback(() => {
+    if (isLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (value.length <= 1) {
       onValueChange('0');
     } else {
       onValueChange(value.slice(0, -1));
     }
-  }, [value, onValueChange]);
+  }, [value, onValueChange, isLoading]);
 
   const handleConfirm = useCallback(() => {
+    if (isLoading || confirmDisabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onConfirm();
-  }, [onConfirm]);
+  }, [onConfirm, isLoading, confirmDisabled]);
 
   // Memoize amount display color
   const amountColor = isOverBalance || isBalanceZero ? '$red10' : '$color';
@@ -153,11 +155,12 @@ export function NumericKeypad({
             emphasis="primary"
             size="large"
             loading={isLoading}
+            loadingText={loadingText ?? confirmLabel}
             icon={confirmIcon || null}
             onPress={handleConfirm}
             disabled={!canContinue || confirmDisabled}
           >
-            {isLoading ? 'Processing...' : confirmLabel}
+            {confirmLabel}
           </AppButton>
         )}
       </YStack>

@@ -9,6 +9,9 @@ import GlowCard from '~/shared/ui/GlowCard';
 import BeyIcon from '~/shared/icons/BeyIcon';
 
 interface WelcomeStepProps {
+  busy?: boolean;
+  isSettingUp?: boolean;
+  isDeleting?: boolean;
   onCreateWallet: () => void;
   onImportWallet: () => void;
   onImportFromFile: () => void;
@@ -18,6 +21,9 @@ interface WelcomeStepProps {
 }
 
 export function WelcomeStep({
+  busy = false,
+  isSettingUp = false,
+  isDeleting = false,
   onCreateWallet,
   onImportWallet,
   onImportFromFile,
@@ -103,7 +109,10 @@ export function WelcomeStep({
         {hasSavedWallet ? (
           <>
             <AppButton
+              disabled={busy}
               variant="critical"
+              loading={isDeleting}
+              loadingText="Deleting wallet…"
               emphasis="secondary"
               size="large"
               width="100%"
@@ -121,11 +130,14 @@ export function WelcomeStep({
               Delete & Start Over
             </AppButton>
             <AppButton
+              disabled={busy}
               variant="branded"
               emphasis="primary"
               size="large"
               width="100%"
               onPress={onOpenSavedWallet}
+              loading={isSettingUp}
+              loadingText="Setting up wallet…"
             >
               Open saved wallet
             </AppButton>
@@ -133,6 +145,7 @@ export function WelcomeStep({
         ) : (
           <>
             <AppButton
+              disabled={busy}
               variant="default"
               emphasis="secondary"
               size="large"
@@ -142,6 +155,7 @@ export function WelcomeStep({
               Import existing wallet
             </AppButton>
             <AppButton
+              disabled={busy}
               variant="branded"
               emphasis="primary"
               size="large"
