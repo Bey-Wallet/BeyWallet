@@ -1,5 +1,6 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, Input, Button, Avatar } from 'tamagui';
+import { YStack, XStack, Text, H1, Input, Avatar } from 'tamagui';
 import {
   Clipboard as ClipboardIcon,
   ScanLine,
@@ -17,7 +18,11 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useRouter } from 'expo-router';
@@ -327,18 +332,26 @@ export function InvoiceStage({
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
             />
 
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray5"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
               disabled={isBolt11}
               opacity={isBolt11 ? 0.6 : 1}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
-              {conversionValue}
-            </Button>
+              <Text color="$color" fontSize="$3" fontWeight="600">
+                {conversionValue}
+              </Text>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
         {/* Invoice / LN Address Input Row */}

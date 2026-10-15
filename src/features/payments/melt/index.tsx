@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { InteractionManager } from 'react-native';
@@ -20,7 +21,6 @@ import {
   Text,
   YStack,
   XStack,
-  Button,
   Separator,
   View,
   H1,
@@ -44,7 +44,7 @@ import {
   AlertCircle,
   Sprout,
 } from '@tamagui/lucide-icons';
-import { Spinner } from '~/shared/ui/Spinner';
+
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 
@@ -518,32 +518,27 @@ export default function MeltScreen() {
 
           {/* Fixed Action Buttons */}
           <XStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
-            <Button
-              bg="$gray3"
-              color="$color"
-              size="$5"
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="large"
               flex={1}
-              height={55}
-              rounded="$6"
-              fontWeight="800"
               disabled={isPaying}
               onPress={() => setStep('invoice')}
             >
               Back
-            </Button>
-            <Button
-              theme="accent"
-              size="$5"
+            </AppButton>
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              loading={isPaying}
               flex={1}
-              height={55}
-              rounded="$6"
-              fontWeight="800"
               onPress={handleAuthenticate}
               disabled={isPaying || totalCost > balance}
-              icon={isPaying ? <Spinner size="small" color="white" /> : undefined}
             >
               {isPaying ? 'Paying...' : 'Pay'}
-            </Button>
+            </AppButton>
           </XStack>
         </YStack>
       )}

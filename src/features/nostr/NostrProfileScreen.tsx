@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, Button, View, Spinner, Separator, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, Spinner, Separator, ScrollView } from 'tamagui';
 import { Copy, AtSign, RefreshCw, Scan, Check } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
@@ -104,11 +105,15 @@ export default function NostrProfileScreen() {
                 {isNip05Verified && username ? username : 'Bey Wallet User'}
               </Text>
               {isNip05Verified && <Nip05VerifiedBadge size={17} />}
-              <Button
-                size="$2"
-                circular
-                chromeless
-                icon={nip05Loading ? <Spinner size="small" /> : <RefreshCw size={14} />}
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xxsmall"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Refresh"
+                loading={nip05Loading}
+                icon={<RefreshCw size={14} />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   refresh();
@@ -118,11 +123,13 @@ export default function NostrProfileScreen() {
             </XStack>
           ),
           headerRight: () => (
-            <Button
-              size="$3.5"
-              circular
-
-              pressStyle={{ opacity: 0.8 }}
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="small"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Scan QR code"
               icon={<Scan size={20} />}
               onPress={() => router.push({ pathname: '/(modals)/scanner' })}
             />
@@ -211,17 +218,24 @@ export default function NostrProfileScreen() {
               {nip05Loading ? (
                 <Spinner size="small" />
               ) : nip05Status === 'not_found' ? (
-                <Button size="$3" theme="accent" fontWeight="700" onPress={handleAddNip05}>
+                <AppButton
+                  variant="branded"
+                  emphasis="primary"
+                  size="xsmall"
+                  onPress={handleAddNip05}
+                >
                   Add
-                </Button>
+                </AppButton>
               ) : nip05Status === 'error' ? (
-                <Button
-                  size="$3"
-                  circular
-                  chromeless
+                <AppButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="xsmall"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel="Retry NIP-05 lookup"
                   icon={<RefreshCw size={17} />}
                   onPress={refresh}
-                  accessibilityLabel="Retry NIP-05 lookup"
                 />
               ) : null}
             </XStack>

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useCallback, useRef } from 'react';
-import { YStack, Button } from 'tamagui';
+import { YStack } from 'tamagui';
 import { Fingerprint } from '@tamagui/lucide-icons';
 import { biometricService } from '~/services/platform/biometricService';
 import * as Haptics from 'expo-haptics';
@@ -91,18 +92,15 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
         {/* Bottom Section - Unlock Button */}
         <YStack gap="$4" pb="$8" width="100%" items="center" justify="flex-end">
-          <Button
-            size="$5"
-            theme="accent"
-            onPress={() => handleAuthenticate(true)}
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
             icon={<Fingerprint size={20} />}
-            fontSize="$6"
-            fontWeight="700"
-            rounded="$10"
-            pressStyle={{ scale: 0.98, opacity: 0.9 }}
+            onPress={() => handleAuthenticate(true)}
           >
             Unlock
-          </Button>
+          </AppButton>
         </YStack>
       </YStack>
     </YStack>

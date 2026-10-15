@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { Platform } from 'react-native';
 import { Button, Text, XStack, useTheme, type ButtonProps, type GetRef } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
@@ -6,13 +7,14 @@ import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 export type AppButtonVariant = 'default' | 'branded' | 'critical' | 'warning';
 export type AppButtonEmphasis = 'primary' | 'secondary' | 'tertiary' | 'text-only';
 export type AppButtonSize = 'xxsmall' | 'xsmall' | 'small' | 'medium' | 'large';
-type Icon = React.ComponentType<{ size: number; color: string }>;
+type IconProps = { size: number; color: string };
+export type AppButtonIcon =
+  React.ComponentType<IconProps> | React.ReactElement<Partial<IconProps>> | null;
 
-export type AppButtonProps = Omit<
+type AppButtonBaseProps = Omit<
   ButtonProps,
   'children' | 'variant' | 'size' | 'icon' | 'iconAfter' | 'disabled'
 > & {
-  children: string;
   variant?: AppButtonVariant;
   emphasis?: AppButtonEmphasis;
   size?: AppButtonSize;
@@ -20,12 +22,30 @@ export type AppButtonProps = Omit<
   disabled?: boolean;
   /** Optional label shown beside the spinner while loading. */
   loadingText?: string;
-  icon?: Icon;
-  iconAfter?: Icon;
+  iconAfter?: AppButtonIcon;
   fullWidth?: boolean;
   /** For previewing accessibility text sizes; system font scaling remains enabled. */
   labelFontSize?: number;
 };
+
+export type AppButtonProps = AppButtonBaseProps &
+  (
+    | { iconOnly?: false; children: string; icon?: AppButtonIcon; shape?: 'rounded' }
+    | {
+        iconOnly: true;
+        children?: never;
+        icon: NonNullable<AppButtonIcon>;
+        accessibilityLabel: string;
+        shape?: 'rounded' | 'circular';
+      }
+  );
+
+function renderIcon(icon: AppButtonIcon | undefined, props: IconProps) {
+  if (!icon) return null;
+  if (React.isValidElement(icon)) return React.cloneElement(icon, props);
+  const IconComponent = icon as React.ComponentType<IconProps>;
+  return <IconComponent {...props} />;
+}
 
 const sizes = {
   xxsmall: [32, 12, 14, 8],
@@ -44,13 +64,16 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     loading = false,
     disabled = false,
     loadingText,
-    icon: LeadingIcon,
-    iconAfter: TrailingIcon,
+    icon,
+    iconAfter,
+    iconOnly = false,
+    shape = 'rounded',
     fullWidth = false,
     labelFontSize,
     onPress,
     accessibilityState,
     accessibilityLabel,
+    width,
     ...props
   },
   ref,
@@ -79,22 +102,31 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
       group
       {...props}
       ref={ref}
-      accessibilityRole="button"
+      accessibilityRole={props.accessibilityRole ?? (props.role === 'link' ? 'link' : 'button')}
       accessibilityLabel={
         loading ? (loadingText ?? accessibilityLabel ?? children) : (accessibilityLabel ?? children)
       }
-      accessibilityState={{ ...accessibilityState, disabled: blocked, busy: loading }}
+      {...(Platform.OS === 'web'
+        ? {
+            'aria-disabled': blocked,
+            'aria-busy': loading,
+            'aria-selected': props['aria-selected'] ?? accessibilityState?.selected,
+            'aria-expanded': props['aria-expanded'] ?? accessibilityState?.expanded,
+            'aria-checked': props['aria-checked'] ?? accessibilityState?.checked,
+          }
+        : { accessibilityState: { ...accessibilityState, disabled: blocked, busy: loading } })}
       disabled={blocked}
       onPress={(event) => {
         if (!blocked) onPress?.(event);
       }}
-      width={fullWidth ? '100%' : undefined}
+      width={fullWidth ? '100%' : (width ?? (iconOnly ? minHeight : undefined))}
+      minWidth={iconOnly ? minHeight : undefined}
       minHeight={minHeight}
       height="auto"
       position="relative"
       hitSlop={{ top: hitPadding, bottom: hitPadding, left: hitPadding, right: hitPadding }}
-      rounded={radius}
-      px={16}
+      rounded={shape === 'circular' ? minHeight / 2 : radius}
+      px={iconOnly ? 0 : 16}
       py={8}
       flexDirection="row"
       items="center"
@@ -123,7 +155,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
       }}
     >
       <XStack items="center" justify="center" gap={8} flexShrink={1}>
-        {loading || LeadingIcon ? (
+        {loading || icon ? (
           <XStack
             width={iconSize}
             height={iconSize}
@@ -142,42 +174,44 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
                 color={color}
                 reduceMotion={reducedMotion}
               />
-            ) : LeadingIcon ? (
-              <LeadingIcon size={iconSize} color={color} />
-            ) : null}
+            ) : (
+              renderIcon(icon, { size: iconSize, color })
+            )}
           </XStack>
         ) : null}
-        <Text
-          fontFamily="$body"
-          fontWeight="600"
-          fontSize={labelFontSize ?? fontSize}
-          lineHeight={(labelFontSize ?? fontSize) * 1.4}
-          color={color}
-          flexShrink={1}
-          textAlign="center"
-          includeFontPadding={false}
-          $group-hover={
-            blocked
-              ? {}
-              : textOnly
-                ? { textDecorationLine: 'underline' }
-                : emphasis === 'tertiary' && variant === 'branded'
-                  ? { color: token('buttonBrandedTextHover') }
-                  : {}
-          }
-          $group-press={
-            blocked
-              ? {}
-              : textOnly
-                ? { textDecorationLine: 'underline' }
-                : emphasis === 'tertiary' && variant === 'branded'
-                  ? { color: token('buttonBrandedTextPress') }
-                  : {}
-          }
-        >
-          {loading ? (loadingText ?? children) : children}
-        </Text>
-        {!loading && TrailingIcon ? (
+        {!iconOnly && (
+          <Text
+            fontFamily="$body"
+            fontWeight="600"
+            fontSize={labelFontSize ?? fontSize}
+            lineHeight={(labelFontSize ?? fontSize) * 1.4}
+            color={color}
+            flexShrink={1}
+            textAlign="center"
+            {...(Platform.OS === 'android' ? { includeFontPadding: false } : {})}
+            $group-hover={
+              blocked
+                ? {}
+                : textOnly
+                  ? { textDecorationLine: 'underline' }
+                  : emphasis === 'tertiary' && variant === 'branded'
+                    ? { color: token('buttonBrandedTextHover') }
+                    : {}
+            }
+            $group-press={
+              blocked
+                ? {}
+                : textOnly
+                  ? { textDecorationLine: 'underline' }
+                  : emphasis === 'tertiary' && variant === 'branded'
+                    ? { color: token('buttonBrandedTextPress') }
+                    : {}
+            }
+          >
+            {loading ? (loadingText ?? children) : children}
+          </Text>
+        )}
+        {!loading && !iconOnly && iconAfter ? (
           <XStack
             width={iconSize}
             height={iconSize}
@@ -188,7 +222,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <TrailingIcon size={iconSize} color={color} />
+            {renderIcon(iconAfter, { size: iconSize, color })}
           </XStack>
         ) : null}
       </XStack>

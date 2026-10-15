@@ -1,9 +1,9 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import {
   YStack,
   XStack,
   Text,
-  Button,
   H2,
   Separator,
   View,
@@ -293,9 +293,15 @@ export default function TokenDetailsModal() {
         <Text color="$red10" fontSize="$6" fontWeight="700" text="center">
           Token Not Found
         </Text>
-        <Button theme="accent" size="$5" width="100%" onPress={() => router.back()}>
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
+          width="100%"
+          onPress={() => router.back()}
+        >
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -322,10 +328,14 @@ export default function TokenDetailsModal() {
               </Adapt>
 
               <Popover.Trigger asChild>
-                <Button
-                  circular
+                <AppButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="medium"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel="More options"
                   icon={<MoreHorizontal size={24} />}
-                  chromeless
                   onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
                 />
               </Popover.Trigger>
@@ -403,32 +413,30 @@ export default function TokenDetailsModal() {
         >
           {showAnimatedQR && (
             <>
-              <Button
-                size="$2.5"
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<Gauge size={16} />}
                 onPress={changeSpeed}
-                color="$color"
-                fontWeight="700"
               >
                 {speedLabel}
-              </Button>
+              </AppButton>
               <Separator
                 vertical
                 height={15}
                 style={{ alignSelf: 'center' }}
                 borderColor="$gray8"
               />
-              <Button
-                size="$2.5"
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<ZoomIn size={16} />}
                 onPress={changeSize}
-                color="$color"
-                fontWeight="700"
               >
                 {sizeLabel}
-              </Button>
+              </AppButton>
               <Separator
                 vertical
                 height={15}
@@ -437,16 +445,15 @@ export default function TokenDetailsModal() {
               />
             </>
           )}
-          <Button
-            size="$2.5"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="xxsmall"
             icon={<Hexagon size={16} />}
             onPress={handleToggleVersion}
-            color="$color"
-            fontWeight="700"
           >
             {tokenVersion}
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
 
@@ -529,27 +536,27 @@ export default function TokenDetailsModal() {
 
       {/* Action Buttons */}
       <XStack mt="auto" pb={insets.bottom + 20} gap="$2" width="100%" px="$4">
-        <Button
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="medium"
+          iconOnly
+          accessibilityLabel="Share"
+          icon={<Share2 size={18} />}
           flex={1}
           onPress={handleShare}
-          theme="gray"
-          size="$4"
-          fontWeight="800"
-          pressStyle={{ opacity: 0.8, scale: 0.98 }}
-          icon={<Share2 size={18} />}
         />
 
-        <Button
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="medium"
+          icon={copied ? <Check size={18} /> : <Copy size={18} />}
           flex={1.5}
           onPress={handleCopy}
-          size="$4"
-          theme="accent"
-          fontWeight="800"
-          pressStyle={{ opacity: 0.8, scale: 0.98 }}
-          icon={copied ? <Check size={18} /> : <Copy size={18} />}
         >
           {copied ? 'Copied!' : 'Copy'}
-        </Button>
+        </AppButton>
       </XStack>
     </YStack>
   );

@@ -1,6 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { useNavigation } from 'expo-router';
-import { Button, XStack } from 'tamagui';
+import { XStack } from 'tamagui';
 import { Filter } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { HistoryScreen } from '~/features/history';
@@ -21,10 +22,13 @@ export default function History() {
     navigation.setOptions({
       headerRight: () => (
         <XStack pr="$4">
-          <Button
-            circular
-            size="$3"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xsmall"
+            iconOnly
+            shape="circular"
+            accessibilityLabel="Filter history"
             icon={
               <Filter
                 size={22}
@@ -39,7 +43,5 @@ export default function History() {
     });
   }, [navigation, filterHighlighted, toggleFilters]);
 
-  return (
-    <HistoryScreen showFilters={showFilters} onFiltersActiveChange={setFiltersActive} />
-  );
+  return <HistoryScreen showFilters={showFilters} onFiltersActiveChange={setFiltersActive} />;
 }

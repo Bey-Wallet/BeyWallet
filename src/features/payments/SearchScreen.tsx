@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, Input, Button, Spinner } from 'tamagui';
+import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -351,11 +352,22 @@ export default function UniversalSearchScreen() {
           {isSearching ? (
             <Spinner size="small" />
           ) : search.length > 0 ? (
-            <Button size="$2" chromeless icon={<X size={16} />} onPress={() => setSearch('')} />
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              accessibilityLabel="Clear input"
+              icon={<X size={16} />}
+              onPress={() => setSearch('')}
+            />
           ) : (
-            <Button
-              size="$2"
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              accessibilityLabel="Scan QR code"
               icon={<Scan strokeWidth={3} size={20} color="$gray10" />}
               onPress={handleScan}
             />

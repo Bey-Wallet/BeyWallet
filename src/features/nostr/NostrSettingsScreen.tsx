@@ -1,5 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useEffect, useState } from 'react';
-import { YStack, Text, XStack, Button, Separator, View, ScrollView, Image } from 'tamagui';
+import { YStack, Text, XStack, Separator, View, ScrollView, Image } from 'tamagui';
 import {
   Key,
   Copy,
@@ -131,10 +133,13 @@ export default function NostrSettingsScreen() {
                   </Text>
                 </YStack>
               </XStack>
-              <Button
-                size="$3"
-                circular
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xsmall"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Copy"
                 icon={<Copy size={16} color="$accent5" strokeWidth={2.5} />}
                 onPress={() => handleCopy(npub, 'npub')}
               />
@@ -176,18 +181,24 @@ export default function NostrSettingsScreen() {
                 </XStack>
                 <XStack gap="$1">
                   {isNsecVisible && (
-                    <Button
-                      size="$3"
-                      circular
-                      chromeless
+                    <AppButton
+                      variant="default"
+                      emphasis="tertiary"
+                      size="xsmall"
+                      iconOnly
+                      shape="circular"
+                      accessibilityLabel="Copy"
                       icon={<Copy size={16} color="$red10" strokeWidth={2.5} />}
                       onPress={() => handleCopy(nsec, 'nsec')}
                     />
                   )}
-                  <Button
-                    size="$3"
-                    circular
-                    chromeless
+                  <AppButton
+                    variant="default"
+                    emphasis="tertiary"
+                    size="xsmall"
+                    iconOnly
+                    shape="circular"
+                    accessibilityLabel={isNsecVisible ? 'Hide private key' : 'Reveal private key'}
                     icon={
                       isNsecVisible ? (
                         <EyeOff size={16} color="$red10" strokeWidth={2.5} />
@@ -210,12 +221,16 @@ export default function NostrSettingsScreen() {
 
           <Separator borderColor="$borderColor" opacity={0.5} my="$2" />
 
-          <Button
+          <AppPressable
             height="auto"
             p="$4"
             bg="$gray3"
             rounded="$6"
             onPress={() => router.push('/(modals)/nostr-diagnostics')}
+            flexDirection="row"
+            items="center"
+            justify="center"
+            gap={8}
           >
             <XStack flex={1} items="center" gap="$3">
               <Activity
@@ -236,7 +251,7 @@ export default function NostrSettingsScreen() {
               </YStack>
               <ChevronRight size={18} color="$gray9" />
             </XStack>
-          </Button>
+          </AppPressable>
 
           {/* Relays Section */}
           <YStack gap="$4">

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, Input, Button, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, Input, ScrollView } from 'tamagui';
 import { Search, ClipboardPaste, QrCode, ScanQrCode } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -156,13 +157,24 @@ export default function PeopleSearchScreen() {
             />
           </XStack>
           <XStack>
-            <Button
-              size="$2"
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              accessibilityLabel="Paste"
               icon={<ClipboardPaste size={20} />}
               onPress={handlePaste}
             />
-            <Button size="$2" chromeless icon={<ScanQrCode size={20} />} onPress={handlePaste} />
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              accessibilityLabel="Scan QR code"
+              icon={<ScanQrCode size={20} />}
+              onPress={handlePaste}
+            />
           </XStack>
         </XStack>
       </XStack>

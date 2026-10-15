@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, Button, H1, View, ScrollView, Separator } from 'tamagui';
+import { YStack, XStack, Text, H1, View, ScrollView, Separator } from 'tamagui';
 import {
   Lock,
   Key,
@@ -44,9 +45,13 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
     >
       {/* Top Back Button */}
       <XStack justify="flex-start" py="$2">
-        <Button
-          circular
-          chromeless
+        <AppButton
+          variant="default"
+          emphasis="tertiary"
+          size="medium"
+          iconOnly
+          shape="circular"
+          accessibilityLabel="Go back"
           icon={<ArrowLeft size={24} color="$color" />}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -239,20 +244,16 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
           </Text>
         </XStack>
 
-        <Button
-          size="$5"
-          theme={checked ? 'accent' : 'gray'}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
           width="100%"
           onPress={handleContinue}
           disabled={!checked}
-          fontSize="$5"
-          fontWeight="800"
-          rounded="$6"
-          height={55}
-          pressStyle={checked ? { scale: 0.98, opacity: 0.9 } : undefined}
         >
           Agree & Continue
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );

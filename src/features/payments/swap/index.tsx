@@ -1,18 +1,8 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  View,
-  Separator,
-  Spinner,
-  ScrollView,
-  YGroup,
-  Avatar,
-} from 'tamagui';
+import { YStack, XStack, Text, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
 import { RefreshCw, ShieldCheck, Landmark, Zap, ArrowUpDown, Sprout } from '@tamagui/lucide-icons';
 import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -288,32 +278,27 @@ export default function SwapScreen() {
 
           {/* Fixed Action Buttons */}
           <XStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
-            <Button
-              bg="$gray3"
-              color="$color"
-              size="$5"
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="large"
               flex={1}
-              height={55}
-              rounded="$6"
-              fontWeight="800"
               disabled={isProcessing}
               onPress={() => setStep('amount')}
             >
               Back
-            </Button>
-            <Button
-              theme="accent"
-              size="$5"
+            </AppButton>
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              loading={isProcessing}
               flex={1}
-              height={55}
-              rounded="$6"
-              fontWeight="800"
               onPress={handleConfirmSubmit}
               disabled={isProcessing}
-              icon={isProcessing ? <Spinner size="small" color="white" /> : undefined}
             >
               {isProcessing ? 'Swapping...' : 'Swap'}
-            </Button>
+            </AppButton>
           </XStack>
         </YStack>
       )}

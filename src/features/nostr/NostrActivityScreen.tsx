@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 /**
  * Nostr Activity Modal
  *
@@ -11,7 +12,7 @@
 
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, Text, View, Separator, H6, Theme, Button, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, Separator, H6, Theme, Spinner } from 'tamagui';
 import {
   CheckCircle2,
   AlertCircle,
@@ -436,31 +437,26 @@ export default function NostrActivityModal() {
                 {/* Actions */}
                 <XStack width="100%" gap="$3">
                   {detailItem.tokenString && (
-                    <Button
-                      flex={1}
-                      themeInverse
-                      size="$5"
-                      fontWeight="700"
-                      rounded="$4"
+                    <AppButton
+                      variant="default"
+                      emphasis="secondary"
+                      size="large"
                       icon={<Copy size={16} />}
+                      flex={1}
                       onPress={handleCopyToken}
-                      pressStyle={{ scale: 0.97 }}
                     >
                       {copied ? 'Copied!' : 'Copy Token'}
-                    </Button>
+                    </AppButton>
                   )}
-                  <Button
+                  <AppButton
+                    variant="default"
+                    emphasis="primary"
+                    size="large"
                     flex={1}
-                    bg="$gray4"
-                    color="$color"
-                    size="$5"
-                    fontWeight="700"
-                    rounded="$4"
                     onPress={() => detailSheetRef.current?.dismiss()}
-                    pressStyle={{ scale: 0.97 }}
                   >
                     Done
-                  </Button>
+                  </AppButton>
                 </XStack>
               </>
             ) : null}

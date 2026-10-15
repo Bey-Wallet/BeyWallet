@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef } from 'react';
-import { YStack, XStack, Text, View, Button, H6 } from 'tamagui';
+import { YStack, XStack, Text, View, H6 } from 'tamagui';
 import { CheckCircle2, AlertCircle, Clock, ChevronRight, X } from '@tamagui/lucide-icons';
 import { Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -233,11 +234,13 @@ export default function RestoreProgressCard() {
         <YStack p="$4" pt="$2" gap="$4" flex={1}>
           {/* Header */}
           <XStack items="center" justify="space-between" width="100%" pb="$2">
-            <Button
-              circular
-              size="$4"
-              bg="$gray5"
-              pressStyle={{ scale: 0.95, bg: '$gray5' }}
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Close"
               icon={<X size={20} color="$color" strokeWidth={3} />}
               onPress={() => sheetRef.current?.dismiss()}
             />

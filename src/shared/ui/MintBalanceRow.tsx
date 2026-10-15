@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { XStack, YStack, Text, Avatar, Button } from 'tamagui';
+import { XStack, YStack, Text, Avatar } from 'tamagui';
 import { ChevronDown, Sprout } from '@tamagui/lucide-icons';
 import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
@@ -111,18 +112,15 @@ export function MintBalanceRow({
           {currencyService.formatSats(balance)}
         </Text>
         {showMax && (
-          <Button
-            size="$2"
-            rounded="$3"
-            borderWidth={0}
-            color="$color"
-            fontWeight="600"
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="xxsmall"
             onPress={onMaxPress}
             disabled={maxDisabled || balance === 0}
-            pressStyle={{ scale: 0.96, bg: '$gray4' }}
           >
             Max
-          </Button>
+          </AppButton>
         )}
       </XStack>
     </XStack>

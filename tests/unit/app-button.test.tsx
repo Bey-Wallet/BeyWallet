@@ -30,7 +30,9 @@ beforeEach(() => {
   );
 });
 
-async function render(props: Partial<React.ComponentProps<typeof AppButton>> = {}) {
+async function render(
+  props: Partial<Extract<React.ComponentProps<typeof AppButton>, { iconOnly?: false }>> = {},
+) {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(<AppButton {...props}>Submit example</AppButton>);
@@ -103,6 +105,54 @@ it.each([
 ] as const)('uses proportional corner rounding for %s buttons', async (size, radius) => {
   const tree = await render({ size });
   expect(tree.root.findByType('Button' as any).props.rounded).toBe(radius);
+  await act(async () => tree.unmount());
+});
+
+it('centers an icon-only loading spinner and keeps its accessible name', async () => {
+  const Icon = () => null;
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <AppButton
+        iconOnly
+        icon={Icon}
+        shape="circular"
+        size="small"
+        accessibilityLabel="Scan QR code"
+        loading
+      />,
+    );
+  });
+  const button = tree.root.findByType('Button' as any);
+  expect(button.props).toMatchObject({
+    width: 40,
+    minHeight: 40,
+    rounded: 20,
+    accessibilityLabel: 'Scan QR code',
+  });
+  expect(tree.root.findAllByType('Text' as any)).toHaveLength(0);
+  expect(tree.root.findAllByType(Icon)).toHaveLength(0);
+  expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(1);
+  await act(async () => tree.unmount());
+});
+
+it('normalizes element icon geometry without losing stroke details and honors layout width', async () => {
+  const Icon = (_props: { size?: number; color?: string; strokeWidth?: number }) => null;
+  const tree = await render({ width: 220, icon: <Icon size={32} color="red" strokeWidth={3} /> });
+  expect(tree.root.findByType(Icon).props).toMatchObject({
+    size: 20,
+    color: '#FFFFFF',
+    strokeWidth: 3,
+  });
+  expect(tree.root.findByType('Button' as any).props.width).toBe(220);
+  await act(async () =>
+    tree.update(
+      <AppButton fullWidth width={220}>
+        Submit example
+      </AppButton>,
+    ),
+  );
+  expect(tree.root.findByType('Button' as any).props.width).toBe('100%');
   await act(async () => tree.unmount());
 });
 

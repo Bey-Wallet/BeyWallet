@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef } from 'react';
-import { YStack, XStack, Text, Button, H2, Input, ScrollView, View } from 'tamagui';
+import { YStack, XStack, Text, H2, Input, ScrollView, View } from 'tamagui';
 import {
   KeyRound,
   ClipboardPaste,
@@ -236,29 +237,25 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
           </XStack>
           <XStack justify="center" mb="$4">
             {words.length > 0 ? (
-              <Button
-                size="$3"
-                chromeless
-                onPress={handleClear}
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xsmall"
                 icon={<Trash2 size={16} color="$gray10" />}
+                onPress={handleClear}
               >
-                <Text color="$gray10" fontWeight="600">
-                  Clear
-                </Text>
-              </Button>
+                Clear
+              </AppButton>
             ) : (
-              <Button
-                size="$3"
-                borderWidth={1}
-                borderColor="$borderColor"
-                bg="$background"
-                rounded="$4"
-
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xsmall"
                 icon={<ClipboardPaste size={16} color="$color" />}
                 onPress={handlePaste}
               >
-                <Text fontWeight="600">Paste</Text>
-              </Button>
+                Paste
+              </AppButton>
             )}
           </XStack>
         </ScrollView>
@@ -320,35 +317,29 @@ export function ImportSeedStep({ onImport, onBack }: ImportSeedStepProps) {
         {/* Bottom Buttons block */}
         <YStack gap="$2" mt="$4">
           {/* Confirm Button */}
-          <Button
-            size="$5"
-            theme={isValid && checkedConsent ? 'accent' : 'gray'}
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
             width="100%"
             onPress={handleImport}
             disabled={!isValid || !checkedConsent}
-
-            fontSize="$5"
-            fontWeight="700"
-            rounded="$5"
-            pressStyle={isValid && checkedConsent ? { scale: 0.98, opacity: 0.9 } : undefined}
-            opacity={isValid && checkedConsent ? 1 : 0.5}
           >
             Confirm
-          </Button>
+          </AppButton>
 
           {/* Back Button */}
-          <Button
-            size="$4"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
               onBack();
             }}
           >
-            <Text color="$gray10" fontSize="$3" fontWeight="600">
-              Back
-            </Text>
-          </Button>
+            Back
+          </AppButton>
         </YStack>
       </YStack>
     </KeyboardAvoidingView>

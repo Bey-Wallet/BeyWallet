@@ -32,16 +32,20 @@ it('guards Android Back, backdrop, swipe and imperative dismissal consistently',
       return { remove: jest.fn() };
     });
   const ref = React.createRef<AppBottomSheetRef>();
+  const onOpenChange = jest.fn();
   let sheet!: ReactTestRenderer;
   await act(async () => {
     sheet = create(
-      <AppBottomSheet ref={ref} canDismiss={false}>
+      <AppBottomSheet ref={ref} canDismiss={false} onOpenChange={onOpenChange}>
         <React.Fragment />
       </AppBottomSheet>,
     );
   });
   const modal = () => sheet.root.findByType('Modal' as any);
   await act(async () => modal().props.onChange(0));
+  expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  await act(async () => modal().props.onChange(-1));
+  expect(onOpenChange).toHaveBeenCalledTimes(1);
   expect(back()).toBe(true);
   ref.current?.dismiss();
   expect(mockDismiss).not.toHaveBeenCalled();
@@ -49,7 +53,7 @@ it('guards Android Back, backdrop, swipe and imperative dismissal consistently',
   expect(modal().props.backdropComponent({}).props.pressBehavior).toBe('none');
   await act(async () => {
     sheet.update(
-      <AppBottomSheet ref={ref}>
+      <AppBottomSheet ref={ref} onOpenChange={onOpenChange}>
         <React.Fragment />
       </AppBottomSheet>,
     );
@@ -59,6 +63,8 @@ it('guards Android Back, backdrop, swipe and imperative dismissal consistently',
   expect(back()).toBe(true);
   ref.current?.dismiss();
   expect(mockDismiss).toHaveBeenCalledTimes(2);
+  await act(async () => modal().props.onChange(-1));
+  expect(onOpenChange).toHaveBeenLastCalledWith(false);
   await act(async () => sheet.unmount());
   listener.mockRestore();
 });

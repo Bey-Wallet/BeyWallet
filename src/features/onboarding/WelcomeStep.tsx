@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, Text, Button, H1, View, XStack, Image } from 'tamagui';
+import { YStack, Text, H1, View, XStack, Image } from 'tamagui';
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -101,9 +102,10 @@ export function WelcomeStep({
 
         {hasSavedWallet ? (
           <>
-            <Button
-              size="$5"
-              theme="gray"
+            <AppButton
+              variant="critical"
+              emphasis="secondary"
+              size="large"
               width="100%"
               onPress={() => {
                 Alert.alert(
@@ -115,58 +117,39 @@ export function WelcomeStep({
                   ],
                 );
               }}
-
-              fontSize="$6"
-              fontWeight="700"
-              rounded="$6"
-              height={60}
-              pressStyle={{ scale: 0.98, opacity: 0.9 }}
-              color="$red10"
             >
               Delete & Start Over
-            </Button>
-            <Button
-              size="$5"
-              theme="accent"
+            </AppButton>
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               width="100%"
               onPress={onOpenSavedWallet}
-              fontSize="$6"
-              fontWeight="700"
-              rounded="$6"
-              height={60}
-              pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Open saved wallet
-            </Button>
+            </AppButton>
           </>
         ) : (
           <>
-            <Button
-              size="$5"
-              theme="gray"
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="large"
               width="100%"
               onPress={handleImport}
-              fontSize="$6"
-              fontWeight="700"
-              rounded="$6"
-              height={60}
-              pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Import existing wallet
-            </Button>
-            <Button
-              size="$5"
-              theme="accent"
+            </AppButton>
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               width="100%"
               onPress={handleCreate}
-              fontSize="$6"
-              fontWeight="700"
-              rounded="$6"
-              height={60}
-              pressStyle={{ scale: 0.98, opacity: 0.9 }}
             >
               Create a new wallet
-            </Button>
+            </AppButton>
           </>
         )}
       </YStack>

@@ -1,13 +1,18 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
+import { YStack, XStack, Text, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
 import { Switch } from 'react-native';
 import { Sprout, Zap, ShieldCheck, Lock, Clock } from '@tamagui/lucide-icons';
-import { Spinner } from '~/shared/ui/Spinner';
+
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { SendMode } from '~/shared/ui/SendMethodSelector';
 import Blockies from '~/shared/ui/Blockies';
 import * as Haptics from 'expo-haptics';
@@ -239,38 +244,33 @@ export function ConfirmStage({
 
       {/* Action Buttons */}
       <XStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-        <Button
-          bg="$gray3"
-          color="$color"
-          size="$6"
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="large"
           flex={1}
-          height={60}
-          rounded="$6"
-          fontWeight="800"
           disabled={isLoading}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onBack();
           }}
         >
-        Back
-        </Button>
-        <Button
-          theme="accent"
-          size="$6"
+          Back
+        </AppButton>
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          loading={isLoading}
           flex={1}
-          height={60}
-          rounded="$6"
-          fontWeight="800"
           disabled={isLoading}
-          icon={isLoading ? <Spinner size="small" color="$color" /> : undefined}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onConfirm();
           }}
         >
           {isLoading ? 'Creating...' : 'Send'}
-        </Button>
+        </AppButton>
       </XStack>
     </YStack>
   );

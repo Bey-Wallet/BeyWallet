@@ -1,9 +1,9 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   YStack,
   XStack,
   Text,
-  Button,
   H2,
   H3,
   H4,
@@ -273,7 +273,14 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     return (
       <YStack flex={1} items="center" justify="center" bg="$background" p="$4" gap="$4">
         <Text color="$red10">Failed to fetch mint information.</Text>
-        <Button onPress={() => router.back()}>Go Back</Button>
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="medium"
+          onPress={() => router.back()}
+        >
+          Go Back
+        </AppButton>
       </YStack>
     );
   }
@@ -310,10 +317,13 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         options={{
           title: name,
           headerRight: () => (
-            <Button
-              circular
-              size="$3"
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Copy"
               icon={<Share2 size={20} color="$color" />}
               onPress={() => handleCopy(url, 'Mint URL')}
             />
@@ -548,11 +558,10 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         borderTopWidth={1}
         borderTopColor="$gray4"
       >
-        <Button
-          size="$4"
-          fontWeight="bold"
-          theme={isTrusted ? 'green' : isAlreadyAdded ? 'orange' : 'accent'}
-          disabled={isTrusted}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="medium"
           icon={
             isTrusted ? (
               <ShieldCheck size={18} />
@@ -562,10 +571,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               <Plus size={18} />
             )
           }
+          disabled={isTrusted}
           onPress={handleAction}
         >
           {isTrusted ? 'Mint Trusted' : isAlreadyAdded ? 'Trust this Mint' : 'Connect to this Mint'}
-        </Button>
+        </AppButton>
       </YStack>
 
       <AddMintModal ref={addMintRef} />

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, Text, Button, H2, View, XStack } from 'tamagui';
+import { YStack, Text, H2, View, XStack } from 'tamagui';
 import { Fingerprint, ShieldCheck, Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { biometricService } from '~/services/platform/biometricService';
@@ -50,17 +51,17 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
       {/* Top spacer / Skip */}
       <XStack justify="flex-end" width="100%">
         {!isEnabled && (
-          <Button
-            size="$3"
-            rounded="$10"
+          <AppButton
+            variant="default"
+            emphasis="text-only"
+            size="xsmall"
             onPress={async () => {
               await useSettingsStore.getState().setBiometricEnabled(false);
               onSkip();
             }}
-            pressStyle={{ opacity: 0.5 }}
           >
             Skip
-          </Button>
+          </AppButton>
         )}
       </XStack>
 
@@ -122,20 +123,18 @@ export function BiometricStep({ onComplete, onSkip }: BiometricStepProps) {
         )}
 
         {!isEnabled && (
-          <Button
-            size="$5"
-            theme="accent"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isEnabling}
+            icon={<Fingerprint size={24} />}
             width="100%"
             onPress={handleEnable}
             disabled={isEnabling}
-            icon={<Fingerprint size={24} />}
-            fontSize="$5"
-            fontWeight="700"
-            rounded="$4"
-            pressStyle={{ scale: 0.98, opacity: 0.9 }}
           >
             {isEnabling ? 'Enabling...' : 'Enable Biometric Security'}
-          </Button>
+          </AppButton>
         )}
 
         <Text color="$gray9" fontSize="$2" text="center">

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, Button, View, ScrollView, H2 } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView, H2 } from 'tamagui';
 import {
   ShieldCheck,
   Copy,
@@ -130,15 +131,15 @@ export function BackupSeedScreen() {
 
           {/* Copy Button */}
           <XStack items="center" justify="center">
-            <Button
-              size="$3"
-              rounded="$10"
-
-              onPress={handleCopy}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
               icon={copied ? <Check /> : <Copy />}
+              onPress={handleCopy}
             >
               {copied ? 'Copied!' : 'Copy '}
-            </Button>
+            </AppButton>
           </XStack>
         </YStack>
       </ScrollView>

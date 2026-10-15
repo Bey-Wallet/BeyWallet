@@ -1,10 +1,11 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef } from 'react';
 import {
   YStack,
   XStack,
   Text,
   ScrollView,
-  Button,
   View,
   Separator,
   useTheme,
@@ -45,6 +46,7 @@ export default function OptimizeWalletScreen() {
   const toast = useToastController();
   const queryClient = useQueryClient();
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [mintSelectorExpanded, setMintSelectorExpanded] = useState(false);
 
   const { activeMintUrl, mints, refreshBalance, refreshMintList, isInitializing, isRefreshing } =
     useWalletStore();
@@ -174,11 +176,11 @@ export default function OptimizeWalletScreen() {
           </YStack>
           {/* Mint Selector Pill */}
           <XStack justify="center" items="center" width="100%">
-            <Button
-              size="$3"
+            <AppPressable
+              py={4}
+              accessibilityState={{ expanded: mintSelectorExpanded, busy: isLoadingMint }}
               rounded="$4"
               bg="$blue10"
-              color="white"
               px={isLoadingMint ? '$3' : '$1.5'}
               borderWidth={0}
               disabled={isLoadingMint}
@@ -189,46 +191,51 @@ export default function OptimizeWalletScreen() {
               }}
               maxW={170}
               pressStyle={{ scale: 0.97, opacity: 0.95, bg: '$blue11' }}
-              icon={
-                isLoadingMint ? (
-                  <Spinner size="small" color="white" />
-                ) : (
-                  <Avatar rounded="$3" size="$2">
-                    <Avatar.Image src={selectedMint?.icon} />
-                    <Avatar.Fallback
-                      backgroundColor="rgba(255,255,255,0.2)"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      <Sprout size={14} color="white" />
-                    </Avatar.Fallback>
-                  </Avatar>
-                )
-              }
-              iconAfter={
-                isLoadingMint ? undefined : (
-                  <Square
-                    size="$2"
-                    borderWidth={0.5}
-                    borderColor="rgba(255,255,255,0.2)"
-                    bg="rgba(255,255,255,0.15)"
-                    rounded="$3"
-                  >
-                    <ChevronDown size={16} strokeWidth={3} color="white" />
-                  </Square>
-                )
-              }
-              textProps={{
-                fontSize: '$3',
-                fontWeight: '700',
-                maxW: 110,
-                numberOfLines: 1,
-                color: 'white',
-              }}
-              ellipse
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
-              {isLoadingMint ? 'Loading...' : mintName}
-            </Button>
+              {isLoadingMint ? (
+                <Spinner size="small" color="white" />
+              ) : (
+                <Avatar rounded="$3" size="$2">
+                  <Avatar.Image src={selectedMint?.icon} />
+                  <Avatar.Fallback
+                    backgroundColor="rgba(255,255,255,0.2)"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <Sprout size={14} color="white" />
+                  </Avatar.Fallback>
+                </Avatar>
+              )}
+
+              <Text
+                {...{
+                  fontSize: '$3',
+                  fontWeight: '700',
+                  maxW: 110,
+                  numberOfLines: 1,
+                  color: 'white',
+                }}
+              >
+                {isLoadingMint ? 'Loading...' : mintName}
+              </Text>
+
+              {isLoadingMint ? undefined : (
+                <Square
+                  size="$2"
+                  borderWidth={0.5}
+                  borderColor="rgba(255,255,255,0.2)"
+                  bg="rgba(255,255,255,0.15)"
+                  rounded="$3"
+                >
+                  <ChevronDown size={16} strokeWidth={3} color="white" />
+                </Square>
+              )}
+            </AppPressable>
           </XStack>
 
           {/* Fragmentation Summary Cards */}
@@ -381,32 +388,31 @@ export default function OptimizeWalletScreen() {
         opacity={isOptimizing ? 0.8 : 1}
       >
         {isOptimizing ? (
-          <Button size="$5" bg="$gray4" rounded="$5" disabled>
-            <XStack gap="$2" items="center">
-              <Spinner color="$color" />
-              <Text fontSize="$4" fontWeight="800" color="$color">
-                Optimizing wallet...
-              </Text>
-            </XStack>
-          </Button>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isOptimizing}
+            disabled
+          >
+            Optimizing wallet...
+          </AppButton>
         ) : (
-          <Button
-            size="$5"
-            bg={canOptimize ? '$green10' : '$gray4'}
-            pressStyle={canOptimize ? { scale: 0.98, opacity: 0.9 } : undefined}
-            rounded="$5"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            icon={<Sparkles size={20} color={canOptimize ? 'white' : '$gray9'} />}
             onPress={handleOptimize}
             disabled={!canOptimize}
-            icon={<Sparkles size={20} color={canOptimize ? 'white' : '$gray9'} />}
           >
-            <Text fontSize="$6" fontWeight="800" color={canOptimize ? 'white' : '$gray9'}>
-              {canOptimize ? 'Optimize Wallet' : 'Already Optimal'}
-            </Text>
-          </Button>
+            {canOptimize ? 'Optimize Wallet' : 'Already Optimal'}
+          </AppButton>
         )}
       </YStack>
 
       <MintSelectorSheet
+        onOpenChange={setMintSelectorExpanded}
         ref={sheetRef}
         activeMintUrl={selectedMintUrl}
         onSelect={(url) => setSelectedMintUrl(url)}

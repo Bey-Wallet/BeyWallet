@@ -1,6 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
-  Button,
   Input,
   Text,
   YStack,
@@ -413,23 +413,19 @@ const DiscoveredMintRow = React.memo(
                 </Text>
               </XStack>
             ) : (
-              <Button
-                size="$3.5"
-                theme="gray"
-                rounded="$10"
-                px="$3"
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="small"
                 icon={<Plus size={16} strokeWidth={2.5} />}
-                pressStyle={{ scale: 0.95 }}
                 onPress={(e) => {
                   e.stopPropagation();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onAdd(mint.url);
                 }}
               >
-                <Text fontSize="$2" fontWeight="700">
-                  Add
-                </Text>
-              </Button>
+                Add
+              </AppButton>
             )}
           </View>
         </TouchableOpacity>
@@ -660,11 +656,13 @@ export default function AddMintScreen() {
         options={{
           headerTitle: 'Mints',
           headerLeft: () => (
-            <Button
-              circular
-              size="$4"
-              chromeless
-              pressStyle={{ scale: 0.95, bg: '$gray4' }}
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Go back"
               icon={<ChevronLeft size={28} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -673,11 +671,13 @@ export default function AddMintScreen() {
             />
           ),
           headerRight: () => (
-            <Button
-              circular
-              size="$4"
-              chromeless
-              pressStyle={{ scale: 0.95, bg: '$gray4' }}
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Scan QR code"
               icon={<Scan size={28} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -790,18 +790,15 @@ export default function AddMintScreen() {
                     </Text>
                   </XStack>
                 ) : (
-                  <Button
-                    size="$3"
-                    themeInverse
-                    rounded="$10"
-                    px="$3"
-                    onPress={() => handleAddMintAction(formattedDetectedUrl)}
+                  <AppButton
+                    variant="branded"
+                    emphasis="primary"
+                    size="xsmall"
                     iconAfter={<ArrowRight size={14} />}
+                    onPress={() => handleAddMintAction(formattedDetectedUrl)}
                   >
-                    <Text fontWeight="700" color="$color">
-                      Add
-                    </Text>
-                  </Button>
+                    Add
+                  </AppButton>
                 )}
               </XStack>
             </YStack>
@@ -896,11 +893,14 @@ export default function AddMintScreen() {
               <Text color="$red10" fontWeight="600" fontSize="$3">
                 Failed to discover mints
               </Text>
-              <Button size="$2.5" theme="accent" onPress={() => refetchDiscover()}>
-                <Text fontWeight="700" color="white">
-                  Retry
-                </Text>
-              </Button>
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="xxsmall"
+                onPress={() => refetchDiscover()}
+              >
+                Retry
+              </AppButton>
             </YStack>
           ) : filteredDiscoveredMints.length === 0 ? (
             <YStack py="$5" items="center" justify="center" gap="$1" bg="$color2" rounded="$5">
@@ -931,18 +931,15 @@ export default function AddMintScreen() {
               {/* Load more indicator / button */}
               {hasMore && (
                 <XStack justify="center" py="$4">
-                  <Button
-                    size="$3"
-                    theme="gray"
-                    rounded="$10"
-                    onPress={handleLoadMore}
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
                     icon={<ChevronDown size={16} />}
-                    pressStyle={{ scale: 0.96 }}
+                    onPress={handleLoadMore}
                   >
-                    <Text fontSize="$3" fontWeight="700" color="$color">
-                      {`Load More Mints (${filteredDiscoveredMints.length - visibleCount} remaining)`}
-                    </Text>
-                  </Button>
+                    {`Load More Mints (${filteredDiscoveredMints.length - visibleCount} remaining)`}
+                  </AppButton>
                 </XStack>
               )}
             </YStack>

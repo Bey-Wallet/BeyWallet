@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -5,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
 import { useToastController } from '@tamagui/toast';
 import { Share2, Star } from '@tamagui/lucide-icons';
-import { Button, XStack } from 'tamagui';
+import { XStack } from 'tamagui';
 import { usePeopleStore } from '~/state/peopleStore';
 
 export const PersonDetailsHeaderActions = React.memo(function PersonDetailsHeaderActions() {
@@ -61,10 +62,13 @@ export const PersonDetailsHeaderActions = React.memo(function PersonDetailsHeade
 
   return (
     <XStack gap="$2" mr="$2">
-      <Button
-        circular
-
-        size="$3"
+      <AppButton
+        variant="default"
+        emphasis="tertiary"
+        size="xsmall"
+        iconOnly
+        shape="circular"
+        accessibilityLabel={favorite ? 'Remove from favorites' : 'Add to favorites'}
         icon={
           <Star
             size={19}
@@ -73,15 +77,16 @@ export const PersonDetailsHeaderActions = React.memo(function PersonDetailsHeade
           />
         }
         onPress={handleFavorite}
-        accessibilityLabel={favorite ? 'Remove from favorites' : 'Add to favorites'}
       />
-      <Button
-        circular
-
-        size="$3"
+      <AppButton
+        variant="default"
+        emphasis="secondary"
+        size="xsmall"
+        iconOnly
+        shape="circular"
+        accessibilityLabel="Share person"
         icon={<Share2 size={18} color="$color" />}
         onPress={handleShare}
-        accessibilityLabel="Share person"
       />
     </XStack>
   );

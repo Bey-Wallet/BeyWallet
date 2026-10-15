@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
-import { YStack, XStack, Text, Button, Input, Spinner } from 'tamagui';
+import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
 import {
   X,
   Clipboard,
@@ -192,36 +193,38 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           <XStack gap="$1.5" items="center">
             {hasText ? (
               <>
-                <Button
-                  size="$2"
-                  circular
-                  chromeless
+                <AppButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="xxsmall"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel="Clear input"
                   icon={<X size={14} color="$color" />}
                   onPress={clearInput}
                 />
-                <Button
-                  size="$2"
-                  bg="$accent3"
-                  color="$background"
-                  fontWeight="700"
+                <AppButton
+                  variant="branded"
+                  emphasis="primary"
+                  size="xxsmall"
+                  loading={isValidating}
+                  icon={isValidating ? undefined : <ArrowRight size={14} />}
                   onPress={() => processInput()}
                   disabled={isValidating}
-                  pressStyle={{ scale: 0.97, opacity: 0.9 }}
-                  icon={isValidating ? undefined : <ArrowRight size={14} />}
                 >
                   {isValidating ? '...' : 'Go'}
-                </Button>
+                </AppButton>
               </>
             ) : (
-              <Button
-                size="$2"
-                theme="gray"
-                onPress={handlePaste}
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<Clipboard size={12} />}
-                scaleIcon={1.2}
+                onPress={handlePaste}
               >
                 Paste
-              </Button>
+              </AppButton>
             )}
           </XStack>
         </XStack>

@@ -1,6 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { Button, ScrollView, Text, View, XStack, YStack } from 'tamagui';
+import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 import { CheckCircle2, RefreshCw, XCircle } from '@tamagui/lucide-icons';
 import { useToastController } from '@tamagui/toast';
 import { SafeFlex } from '~/shared/ui/Flex';
@@ -63,7 +64,17 @@ export default function NostrDiagnosticsScreen() {
                   : 'Not checked yet'}
               </Text>
             </YStack>
-            <Button circular icon={<RefreshCw size={18} />} onPress={refresh} disabled={loading} />
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Refresh"
+              icon={<RefreshCw size={18} />}
+              onPress={refresh}
+              disabled={loading}
+            />
           </XStack>
 
           <CheckRow
@@ -76,17 +87,29 @@ export default function NostrDiagnosticsScreen() {
             ok={snapshot?.profile.present && snapshot.profile.nip05Matches}
             detail={snapshot?.profile.nip05 || 'Profile missing or NIP-05 differs'}
           />
-          <Button onPress={() => repair('profile')} disabled={!!repairing}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
+            onPress={() => repair('profile')}
+            disabled={!!repairing}
+          >
             Repair profile
-          </Button>
+          </AppButton>
           <CheckRow
             label="Kind-10050 inbox relays are published"
             ok={snapshot?.inboxRelayList.published && snapshot.inboxRelayList.matches}
             detail={`${snapshot?.inboxRelayList.relays.length || 0} relays advertised`}
           />
-          <Button onPress={() => repair('inbox')} disabled={!!repairing}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
+            onPress={() => repair('inbox')}
+            disabled={!!repairing}
+          >
             Republish inbox relay list
-          </Button>
+          </AppButton>
 
           <YStack gap="$2">
             <Text fontSize="$4" fontWeight="900">
@@ -101,9 +124,15 @@ export default function NostrDiagnosticsScreen() {
               />
             ))}
           </YStack>
-          <Button onPress={() => repair('relays')} disabled={!!repairing}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
+            onPress={() => repair('relays')}
+            disabled={!!repairing}
+          >
             Reconnect relays
-          </Button>
+          </AppButton>
         </YStack>
       </ScrollView>
     </SafeFlex>

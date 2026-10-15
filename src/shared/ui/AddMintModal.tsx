@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Button, Image, Text, YStack, XStack, Spinner, Paragraph, View, useTheme } from 'tamagui';
+import { Image, Text, YStack, XStack, Spinner, Paragraph, View, useTheme } from 'tamagui';
 import {
   Check,
   AlertCircle,
@@ -255,11 +256,15 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
         )}
       </YStack>
 
-      <Button size="$5" themeInverse onPress={handleFetchMintInfo} icon={<ShieldAlert size={18} />}>
-        <Text fontWeight="700" color="$color">
-          Review Mint
-        </Text>
-      </Button>
+      <AppButton
+        variant="branded"
+        emphasis="primary"
+        size="large"
+        icon={<ShieldAlert size={18} />}
+        onPress={handleFetchMintInfo}
+      >
+        Review Mint
+      </AppButton>
     </YStack>
   );
 
@@ -419,30 +424,30 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
         )}
 
         <XStack gap="$3">
-          <Button
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="large"
+            icon={<X size={18} />}
             flex={1}
-            size="$5"
-            theme="gray"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setStage('input');
               setPreviewUrl(null);
             }}
-            icon={<X size={18} />}
           >
             Back
-          </Button>
-          <Button
-            flex={1.4}
-            size="$5"
-            themeInverse
-            onPress={handleTrustMint}
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
             icon={<Check size={18} />}
+            flex={1.4}
+            onPress={handleTrustMint}
           >
-            <Text fontWeight="700" color="$color">
-              Trust & Add Mint
-            </Text>
-          </Button>
+            Trust & Add Mint
+          </AppButton>
         </XStack>
       </YStack>
     );

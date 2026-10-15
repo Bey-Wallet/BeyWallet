@@ -1,9 +1,10 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   YStack,
   XStack,
   Text,
-  Button,
   Separator,
   View,
   useTheme,
@@ -18,7 +19,17 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { Clock, Check, Calendar, Zap, Landmark, Box, X, Bitcoin, Inbox } from '@tamagui/lucide-icons';
+import {
+  Clock,
+  Check,
+  Calendar,
+  Zap,
+  Landmark,
+  Box,
+  X,
+  Bitcoin,
+  Inbox,
+} from '@tamagui/lucide-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initService, historyService, eventService } from '~/services/wallet';
 import { useRouter } from 'expo-router';
@@ -87,6 +98,8 @@ export function HistoryScreen({
 
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
   const timeSheetRef = useRef<AppBottomSheetRef>(null);
+  const [mintFilterExpanded, setMintFilterExpanded] = useState(false);
+  const [timeFilterExpanded, setTimeFilterExpanded] = useState(false);
 
   const { pendingRequests, loadPendingRequests } = useNostrRequestStore();
 
@@ -388,102 +401,134 @@ export function HistoryScreen({
     <YStack flex={1} bg="$background">
       {/* ── Floating Animated Filter Bar ── */}
       {showFilters && (
-      <Animated.View
-        style={[
-          styles.animatedFilterBar,
-          {
-            transform: [{ translateY: filterBarTranslateY }],
-            opacity: filterBarOpacity,
-            backgroundColor: theme.background?.val,
-          },
-        ]}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 8,
-            gap: 8,
-          }}
+        <Animated.View
+          style={[
+            styles.animatedFilterBar,
+            {
+              transform: [{ translateY: filterBarTranslateY }],
+              opacity: filterBarOpacity,
+              backgroundColor: theme.background?.val,
+            },
+          ]}
         >
-          {FILTER_CHIPS.map((chip) => {
-            const active = typeFilter === chip.key;
-            return (
-              <Button
-                key={chip.key}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setTypeFilter(chip.key);
-                }}
-                size="$3"
-                rounded="$12"
-                chromeless={!active}
-                color={active ? '$color' : '$gray10'}
-              >
-                {chip.label}
-              </Button>
-            );
-          })}
-          {/* Mint filter chip */}
-          <Button
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              mintSheetRef.current?.present();
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: 8,
+              gap: 8,
             }}
-            size="$2.5"
-            chromeless={mintFilter === 'all'}
-            color={mintFilter !== 'all' ? '$color' : '$gray10'}
-            icon={
+          >
+            {FILTER_CHIPS.map((chip) => {
+              const active = typeFilter === chip.key;
+              return (
+                <AppPressable
+                  px={12}
+                  py={4}
+                  bg={!active ? 'transparent' : '$gray4'}
+                  accessibilityState={{ selected: active }}
+                  key={chip.key}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setTypeFilter(chip.key);
+                  }}
+                  rounded="$12"
+                  minHeight={36}
+                  flexDirection="row"
+                  items="center"
+                  justify="center"
+                  gap={8}
+                >
+                  <Text color={active ? '$color' : '$gray10'} fontSize="$3" fontWeight="600">
+                    {chip.label}
+                  </Text>
+                </AppPressable>
+              );
+            })}
+            {/* Mint filter chip */}
+            <AppPressable
+              px={12}
+              py={4}
+              rounded={8}
+              bg={mintFilter === 'all' ? 'transparent' : '$gray4'}
+              accessibilityState={{ selected: mintFilter !== 'all', expanded: mintFilterExpanded }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                mintSheetRef.current?.present();
+              }}
+              minHeight={32}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
               <Landmark
                 size={13}
                 strokeWidth={2.5}
                 color={mintFilter !== 'all' ? '$color' : '#888'}
               />
-            }
-          >
-            {getMintFilterLabel(mintFilter)}
-          </Button>
-          {/* Time filter chip */}
-          <Button
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              timeSheetRef.current?.present();
-            }}
-            size="$2.5"
-            chromeless={timeFilter === 'all'}
-            color={timeFilter !== 'all' ? '$color' : '$gray10'}
-            icon={
+
+              <Text
+                color={mintFilter !== 'all' ? '$color' : '$gray10'}
+                fontSize="$3"
+                fontWeight="600"
+              >
+                {getMintFilterLabel(mintFilter)}
+              </Text>
+            </AppPressable>
+            {/* Time filter chip */}
+            <AppPressable
+              px={12}
+              py={4}
+              rounded={8}
+              bg={timeFilter === 'all' ? 'transparent' : '$gray4'}
+              accessibilityState={{ selected: timeFilter !== 'all', expanded: timeFilterExpanded }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                timeSheetRef.current?.present();
+              }}
+              minHeight={32}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
               <Calendar
                 size={13}
                 strokeWidth={2.5}
                 color={timeFilter !== 'all' ? '$color' : '#888'}
               />
-            }
-          >
-            {getTimeFilterLabel(timeFilter)}
-          </Button>
-          {/* Clear chip */}
-          {isFiltered && (
-            <Button
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setMintFilter('all');
-                setTimeFilter('all');
-                setTypeFilter('all');
-              }}
-              size="$2.5"
-              theme="red"
-              color="#ef4444"
-              icon={<X size={13} strokeWidth={2.5} color="#ef4444" />}
-            >
-              Clear
-            </Button>
-          )}
-        </ScrollView>
-      </Animated.View>
+
+              <Text
+                color={timeFilter !== 'all' ? '$color' : '$gray10'}
+                fontSize="$3"
+                fontWeight="600"
+              >
+                {getTimeFilterLabel(timeFilter)}
+              </Text>
+            </AppPressable>
+            {/* Clear chip */}
+            {isFiltered && (
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
+                icon={<X size={13} strokeWidth={2.5} color="#ef4444" />}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setMintFilter('all');
+                  setTimeFilter('all');
+                  setTypeFilter('all');
+                }}
+              >
+                Clear
+              </AppButton>
+            )}
+          </ScrollView>
+        </Animated.View>
       )}
 
       {/* ── Content ── */}
@@ -510,18 +555,18 @@ export function HistoryScreen({
             </Text>
           </YStack>
           {isFiltered && (
-            <Button
-              size="$3"
-              bg="$gray3"
-              rounded="$4"
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
               onPress={() => {
                 setMintFilter('all');
                 setTimeFilter('all');
                 setTypeFilter('all');
               }}
             >
-              <Text fontWeight="700">Clear Filters</Text>
-            </Button>
+              Clear Filters
+            </AppButton>
           )}
         </YStack>
       ) : (
@@ -560,6 +605,7 @@ export function HistoryScreen({
 
       {/* ── Sheets ── */}
       <MintSelectorSheet
+        onOpenChange={setMintFilterExpanded}
         ref={mintSheetRef}
         activeMintUrl={mintFilter}
         onSelect={(url) => {
@@ -569,7 +615,7 @@ export function HistoryScreen({
         showAllOption={true}
       />
 
-      <AppBottomSheet ref={timeSheetRef} snapPoints={['40%']}>
+      <AppBottomSheet ref={timeSheetRef} snapPoints={['40%']} onOpenChange={setTimeFilterExpanded}>
         <YStack p="$4" gap="$3">
           <Text fontSize="$6" fontWeight="800">
             Filter by Time

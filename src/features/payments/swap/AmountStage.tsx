@@ -1,10 +1,15 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { YStack, XStack, Text, Button, View } from 'tamagui';
+import { YStack, XStack, Text, View } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
@@ -222,18 +227,24 @@ export function AmountStage({
               color={isOverBalance ? '$red10' : '$color'}
             />
 
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray3"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <Text fontSize="$5" fontWeight="600" color="$accent10">
                 {conversionValue}
               </Text>
-            </Button>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
 

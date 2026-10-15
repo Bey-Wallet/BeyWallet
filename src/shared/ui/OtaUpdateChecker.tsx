@@ -1,6 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Text, YStack, useTheme, XStack } from 'tamagui';
+import { Text, YStack, useTheme, XStack } from 'tamagui';
 import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -64,12 +65,20 @@ export function OtaUpdateChecker() {
           fixes.
         </Text>
         <XStack space="$3" width="100%" justifyContent="center" marginTop="$2">
-          <Button flex={1} size="$4" onPress={() => sheetRef.current?.dismiss()}>
-            Later
-          </Button>
-          <Button
+          <AppButton
+            variant="default"
+            emphasis="text-only"
+            size="medium"
             flex={1}
-            size="$4"
+            onPress={() => sheetRef.current?.dismiss()}
+          >
+            Later
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="medium"
+            flex={1}
             onPress={() => {
               sheetRef.current?.dismiss();
               // Small delay to let the sheet close before navigating
@@ -79,7 +88,7 @@ export function OtaUpdateChecker() {
             }}
           >
             Update Now
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
     </AppBottomSheet>

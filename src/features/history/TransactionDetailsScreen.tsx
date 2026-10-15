@@ -1,9 +1,9 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   YStack,
   XStack,
   Text,
-  Button,
   ScrollView,
   View,
   Separator,
@@ -850,10 +850,13 @@ export function TransactionDetailsScreen() {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
     headerRight: () => (
-      <Button
-        size="$3"
-        circular
-
+      <AppButton
+        variant="default"
+        emphasis="tertiary"
+        size="xsmall"
+        iconOnly
+        shape="circular"
+        accessibilityLabel="Delete transaction"
         icon={<Trash2 size={22} />}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -880,26 +883,24 @@ export function TransactionDetailsScreen() {
         </YStack>
 
         <XStack gap="$3" width="100%" mt="$2">
-          <Button
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
             flex={1}
-            size="$4"
-            bg="$gray4"
-            fontWeight="700"
             onPress={() => deleteSheetRef.current?.dismiss()}
           >
             Cancel
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
+            variant="critical"
+            emphasis="primary"
+            size="medium"
             flex={1}
-            size="$4"
-            theme="red"
-            bg="$red10"
-            color="white"
-            fontWeight="700"
             onPress={handleDeleteTransaction}
           >
             Delete
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
     </AppBottomSheet>
@@ -1269,54 +1270,43 @@ export function TransactionDetailsScreen() {
                       expiresAt={expiresAt}
                     />
                   ) : entry.type === 'receive' && status === 'unclaimed' ? (
-                    <Button
-                      bg="$green10"
-                      color="white"
-                      size="$5"
-                      height={60}
-                      rounded="$6"
+                    <AppButton
+                      variant="branded"
+                      emphasis="primary"
+                      size="large"
+                      loading={isClaiming}
+                      icon={<ArrowDownLeft size={20} color="white" />}
                       onPress={handleClaimNow}
                       disabled={isClaiming}
-                      icon={
-                        isClaiming ? (
-                          <Spinner size="small" color="white" />
-                        ) : (
-                          <ArrowDownLeft size={20} color="white" />
-                        )
-                      }
                     >
                       CLAIM NOW
-                    </Button>
+                    </AppButton>
                   ) : null}
                 </YStack>
               )}
 
             {/* Copy & Share buttons */}
             <XStack gap="$2">
-              <Button
-                flex={1}
-                bg="$gray3"
-                color="$color"
-                height={60}
-                rounded="$6"
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="large"
                 icon={<Copy size={18} />}
+                flex={1}
                 onPress={handleCopyToken}
-                fontWeight="800"
               >
                 Copy
-              </Button>
-              <Button
-                flex={1}
-                bg="$gray3"
-                color="$color"
-                height={60}
-                rounded="$6"
+              </AppButton>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="large"
                 icon={<Share2 size={18} />}
+                flex={1}
                 onPress={handleShare}
-                fontWeight="800"
               >
                 Share
-              </Button>
+              </AppButton>
             </XStack>
           </YStack>
         </ScrollView>
@@ -1335,9 +1325,15 @@ export function TransactionDetailsScreen() {
           <Text color="$gray10" text="center">
             {e.message}
           </Text>
-          <Button mt="$4" onPress={() => router.back()}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
+            mt="$4"
+            onPress={() => router.back()}
+          >
             Go Back
-          </Button>
+          </AppButton>
         </YStack>
       </SafeAreaView>
     );
@@ -1371,7 +1367,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

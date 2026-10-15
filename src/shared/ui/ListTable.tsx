@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { XStack, YStack, Text, Button, Separator, Theme } from 'tamagui';
+import { XStack, YStack, Text, Separator, Theme } from 'tamagui';
 import { Copy, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -121,9 +122,12 @@ export function ListTableRow({
           {iconAfter}
 
           {isCopyable && (
-            <Button
-              size="$2"
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              accessibilityLabel="Copy"
               icon={<Copy size={16} color="$gray10" />}
               onPress={handleCopy}
             />

@@ -1,3 +1,5 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,7 +19,7 @@ import {
   XCircle,
 } from '@tamagui/lucide-icons';
 
-import { Button, Image, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui';
+import { Image, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
@@ -311,13 +313,15 @@ export default function PersonDetailsScreen() {
         ------------------------------------------------ */}
 
         <YStack height={200} rounded="$6" p="$3" bg="$gray2" overflow="hidden">
-          <Button
-            circular
-            chromeless
-            size="$3"
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xsmall"
+            iconOnly
+            shape="circular"
+            accessibilityLabel={showNpubQr ? 'Show profile' : 'Show Nostr public key QR code'}
             icon={showNpubQr ? <UserRound size={18} /> : <QrCode size={18} />}
             onPress={toggleNpubQr}
-            accessibilityLabel={showNpubQr ? 'Show profile' : 'Show Nostr public key QR code'}
             style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
           />
 
@@ -334,16 +338,16 @@ export default function PersonDetailsScreen() {
                 />
               </YStack>
 
-              <Button
-                size="$2.5"
-                fontSize="$2"
-                rounded="$6"
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 iconAfter={<Copy size={12} />}
                 onPress={copyNpub}
                 accessibilityLabel="Copy Nostr public key"
               >
                 {shortenedNpub(npub)}
-              </Button>
+              </AppButton>
             </YStack>
           ) : (
             <YStack flex={1} items="flex-start" gap="$3" justify="center">
@@ -377,19 +381,17 @@ export default function PersonDetailsScreen() {
                   </Text>
                 ) : null}
 
-                <Button
-                  style={{ alignSelf: 'flex-start' }}
-                  theme="gray"
-                  size="$2.5"
-                  fontSize="$2"
-                  rounded="$4"
-                  fontWeight={800}
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xxsmall"
                   iconAfter={<Copy strokeWidth={2.5} size={12} />}
+                  style={{ alignSelf: 'flex-start' }}
                   onPress={copyNpub}
                   accessibilityLabel="Copy Nostr public key"
                 >
                   {shortenedNpub(npub)}
-                </Button>
+                </AppButton>
               </YStack>
             </YStack>
           )}
@@ -436,26 +438,25 @@ export default function PersonDetailsScreen() {
 
                     return (
                       <XStack key={entry.id} justify={outgoing ? 'flex-end' : 'flex-start'}>
-                        <Button
-                          unstyled
-
+                        <AppPressable
                           style={{
                             maxWidth: '82%',
                           }}
-
                           onPress={() => openPayment(entry)}
-
                           pressStyle={{
                             opacity: 0.8,
                             scale: 0.99,
                           }}
-
                           accessibilityLabel={`${
                             outgoing ? 'Sent' : 'Received'
                           } ${entry.amount} sats, ${status}`}
+                          minHeight={48}
+                          flexDirection="row"
+                          items="center"
+                          justify="center"
+                          gap={8}
                         >
                           {/* RADAR-STYLE PAYMENT CARD */}
-
                           <YStack
                             bg={outgoing ? '$color' : '$gray3'}
 
@@ -527,7 +528,7 @@ export default function PersonDetailsScreen() {
                               </XStack>
                             </YStack>
                           </YStack>
-                        </Button>
+                        </AppPressable>
                       </XStack>
                     );
                   })}
@@ -587,23 +588,13 @@ export default function PersonDetailsScreen() {
 
         bg="transparent"
       >
-        <Button size="$5" rounded="$6" bg="$gray3" onPress={request}>
+        <AppButton variant="default" emphasis="secondary" size="large" onPress={request}>
           Request
-        </Button>
+        </AppButton>
 
-        <Button
-          size="$5"
-          rounded="$6"
-
-          bg="$color"
-          color="$background"
-
-          fontWeight="900"
-
-          onPress={pay}
-        >
+        <AppButton variant="branded" emphasis="primary" size="large" onPress={pay}>
           Send
-        </Button>
+        </AppButton>
       </XStack>
     </YStack>
   );

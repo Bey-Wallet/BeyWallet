@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { YStack, H3, Circle, Text, Button } from 'tamagui';
+import { YStack, H3, Circle, Text } from 'tamagui';
 import { Info, CheckCircle2, AlertTriangle, XCircle } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -89,16 +90,16 @@ export const InfoSheet = forwardRef<InfoSheetRef>((_, ref) => {
         <Text fontSize="$4" color="$color11" textAlign="center" px="$2">
           {config.description}
         </Text>
-        <Button
-          size="$5"
-          fontWeight="700"
-          rounded="$4"
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
           width="100%"
           mt="$3"
           onPress={() => sheetRef.current?.dismiss()}
         >
           {config.buttonText}
-        </Button>
+        </AppButton>
       </YStack>
     </AppBottomSheet>
   );

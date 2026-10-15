@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, Text, Button, H2, View, XStack } from 'tamagui';
+import { YStack, Text, H2, View, XStack } from 'tamagui';
 import { BellRing, Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { notificationService } from '~/services/platform/notificationService';
@@ -53,11 +54,9 @@ export function NotificationStep({ onComplete, onSkip }: NotificationStepProps) 
       {/* Top spacer / Skip */}
       <XStack justify="flex-end" width="100%">
         {!isEnabled && (
-          <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
-            <Text color="$gray10" fontWeight="600">
-              Skip
-            </Text>
-          </Button>
+          <AppButton variant="default" emphasis="text-only" size="xsmall" onPress={onSkip}>
+            Skip
+          </AppButton>
         )}
       </XStack>
 
@@ -119,20 +118,18 @@ export function NotificationStep({ onComplete, onSkip }: NotificationStepProps) 
         )}
 
         {!isEnabled && (
-          <Button
-            size="$5"
-            theme="accent"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isEnabling}
+            icon={<BellRing size={24} />}
             width="100%"
             onPress={handleEnable}
             disabled={isEnabling}
-            icon={<BellRing size={24} />}
-            fontSize="$5"
-            fontWeight="700"
-            rounded="$4"
-            pressStyle={{ scale: 0.98, opacity: 0.9 }}
           >
             {isEnabling ? 'Enabling...' : 'Enable Notifications'}
-          </Button>
+          </AppButton>
         )}
 
         <Text color="$gray9" fontSize="$2" text="center">

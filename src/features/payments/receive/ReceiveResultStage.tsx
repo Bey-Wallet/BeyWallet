@@ -1,15 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Spinner,
-  YStack,
-  XStack,
-  Text,
-  Button,
-  View,
-  Separator,
-  ScrollView,
-  YGroup,
-} from 'tamagui';
+import { YStack, XStack, Text, View, Separator, ScrollView, YGroup } from 'tamagui';
 import { Check, ArrowDownLeft, AlertCircle, Copy, Clock } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as ExpoClipboard from 'expo-clipboard';
@@ -149,9 +140,16 @@ export function ReceiveResultStage({
           <Text color="$gray10" fontSize="$4" text="center" px="$4" lineHeight={22}>
             {error}
           </Text>
-          <Button size="$6" fontSize="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
+            width="100%"
+            onPress={onClose}
+            mt="$4"
+          >
             Got it
-          </Button>
+          </AppButton>
         </YStack>
       );
     }
@@ -165,9 +163,16 @@ export function ReceiveResultStage({
         <Text color="$gray10" fontSize="$4" text="center" px="$4">
           {error || 'An error occurred while receiving the token.'}
         </Text>
-        <Button size="$6" fontSize="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
+          width="100%"
+          onPress={onClose}
+          mt="$4"
+        >
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -248,25 +253,17 @@ export function ReceiveResultStage({
           {/* Action Buttons (If Receive Later) */}
           {isReceiveLater && currentToken && (
             <YStack gap="$2">
-              <Button
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
+                loading={isLoading}
+                icon={<ArrowDownLeft size={20} color="$blue10" />}
                 onPress={onClaimNow}
-                chromeless
-                color="$blue10"
-                size="$5"
-                height={55}
-                rounded="$4"
-                fontWeight="800"
                 disabled={isLoading}
-                icon={
-                  isLoading ? (
-                    <Spinner size="small" color="$blue10" />
-                  ) : (
-                    <ArrowDownLeft size={20} color="$blue10" />
-                  )
-                }
               >
                 Claim Now
-              </Button>
+              </AppButton>
             </YStack>
           )}
         </YStack>
@@ -284,18 +281,15 @@ export function ReceiveResultStage({
         borderTopWidth={1}
         borderColor="$gray3"
       >
-        <Button
-          theme={isReceiveLater ? 'gray' : undefined}
-          size="$6"
-          height={55}
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
           onPress={onClose}
-          fontWeight="800"
-
-          rounded="$6"
           disabled={isLoading}
         >
           Done
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );
@@ -328,7 +322,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

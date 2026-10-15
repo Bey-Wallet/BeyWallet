@@ -10,7 +10,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Modal } from 'react-native';
-import { YStack, XStack, Text, Button, Separator, View } from 'tamagui';
+import { YStack, XStack, Text, Separator, View } from 'tamagui';
 import {
   Check,
   X,

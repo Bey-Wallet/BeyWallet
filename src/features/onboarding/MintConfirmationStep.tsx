@@ -1,9 +1,9 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, Button, H2, View, Card, H3, Separator } from 'tamagui';
+import { YStack, XStack, Text, H2, View, Card, H3, Separator } from 'tamagui';
 import { Check, ShieldCheck, Sprout, Star, Info } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Spinner } from '~/shared/ui/Spinner';
 
 const DEFAULT_MINTS = [
   {
@@ -136,25 +136,27 @@ export function MintConfirmationStep({ onComplete, onSkip }: MintConfirmationSte
       </YStack>
 
       <YStack gap="$3">
-        <Button
-          size="$5"
-          theme="accent"
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          loading={isConnecting}
+          icon={<ShieldCheck size={20} />}
           onPress={handleConfirm}
           disabled={isConnecting}
-          icon={isConnecting ? <Spinner size="small" /> : <ShieldCheck size={20} />}
-          fontWeight="700"
-          fontSize="$5"
-          rounded="$4"
-          pressStyle={{ scale: 0.98 }}
         >
           {isConnecting ? 'Connecting...' : 'Connect & Continue'}
-        </Button>
+        </AppButton>
 
-        <Button size="$4" chromeless onPress={handleSkip} disabled={isConnecting}>
-          <Text color="$gray10" fontSize="$3">
-            Skip for now
-          </Text>
-        </Button>
+        <AppButton
+          variant="default"
+          emphasis="text-only"
+          size="medium"
+          onPress={handleSkip}
+          disabled={isConnecting}
+        >
+          Skip for now
+        </AppButton>
       </YStack>
     </YStack>
   );

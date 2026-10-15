@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 /**
  * NostrActivity
  *
@@ -12,7 +13,7 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View, styled, Button, Image } from 'tamagui';
+import { YStack, XStack, H6, Text, View, styled, Image } from 'tamagui';
 import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
@@ -304,25 +305,24 @@ export default function NostrActivity() {
             </Text>
           </YStack>
           <YStack gap="$3">
-            <Button
-              size="$5"
-              theme="accent"
-              fontWeight="800"
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               icon={<ArrowUpRight size={20} />}
               onPress={handlePayRequest}
             >
               Pay Request
-            </Button>
-            <Button
-              size="$5"
-              bg="$red4"
-              color="$red10"
-              fontWeight="800"
+            </AppButton>
+            <AppButton
+              variant="critical"
+              emphasis="secondary"
+              size="large"
               icon={<X size={20} />}
               onPress={handleDeclineRequest}
             >
               Decline
-            </Button>
+            </AppButton>
           </YStack>
         </YStack>
       </AppBottomSheet>

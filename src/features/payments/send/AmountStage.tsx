@@ -1,5 +1,6 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Button, Avatar, Square } from 'tamagui';
+import { YStack, XStack, Text, H1, Avatar, Square } from 'tamagui';
 import { ArrowUpDown, AlertCircle, Wallet } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -7,7 +8,11 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Haptics from 'expo-haptics';
@@ -236,16 +241,24 @@ export function AmountStage({
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
             />
 
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray5"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
-              {conversionValue}
-            </Button>
+              <Text color="$color" fontSize="$3" fontWeight="600">
+                {conversionValue}
+              </Text>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
       </YStack>

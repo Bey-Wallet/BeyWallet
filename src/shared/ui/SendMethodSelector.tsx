@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { Button, Text, YStack, XStack, ListItem, View, Square } from 'tamagui';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import React, { useRef, useState } from 'react';
+import { Text, YStack, XStack, ListItem, View, Square } from 'tamagui';
 import { ChevronDown, Send, Lock, Zap, ScanLine, Check, Link } from '@tamagui/lucide-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -71,6 +72,7 @@ const MODE_ICONS: Record<SendMode, React.ReactNode> = {
 
 export default function SendMethodSelector({ mode, onSelect, isLoading }: SendMethodSelectorProps) {
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const handleSelect = (selectedMode: SendMode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -81,8 +83,10 @@ export default function SendMethodSelector({ mode, onSelect, isLoading }: SendMe
   return (
     <>
       {/* Pill button shown in the nav header */}
-      <Button
-        size="$3"
+      <AppPressable
+        py={4}
+        bg="$background"
+        accessibilityState={{ expanded, busy: !!isLoading }}
         theme={({ standard: 'white', p2pk: 'orange', nostr: 'pink', scan: 'green' } as const)[mode]}
         px={isLoading ? '$3' : '$3'}
         borderWidth={1}
@@ -94,27 +98,34 @@ export default function SendMethodSelector({ mode, onSelect, isLoading }: SendMe
         gap="$1"
         rounded="$10"
         pressStyle={{ scale: 0.97, opacity: 0.9 }}
-        icon={<View>{isLoading ? <Spinner color="$color10" /> : MODE_ICONS[mode]}</View>}
-        iconAfter={
-          isLoading ? undefined : (
-            <View>
-              <ChevronDown strokeWidth={2.5} color="$color" />
-            </View>
-          )
-        }
-        textProps={{
-          fontSize: '$4',
-          fontWeight: '700',
-
-          numberOfLines: 1,
-        }}
-        ellipse
+        minHeight={36}
+        flexDirection="row"
+        items="center"
+        justify="center"
       >
-        {isLoading ? 'Loading...' : MODE_LABELS[mode]}
-      </Button>
+        <View>{isLoading ? <Spinner color="$color10" /> : MODE_ICONS[mode]}</View>
+        <Text
+          color="$color"
+
+          {...{
+            fontSize: '$4',
+            fontWeight: '700',
+
+            numberOfLines: 1,
+          }}
+        >
+          {isLoading ? 'Loading...' : MODE_LABELS[mode]}
+        </Text>
+
+        {isLoading ? undefined : (
+          <View>
+            <ChevronDown strokeWidth={2.5} color="$color" />
+          </View>
+        )}
+      </AppPressable>
 
       {/* Bottom sheet with method list */}
-      <AppBottomSheet ref={sheetRef} snapPoints={['44%']}>
+      <AppBottomSheet ref={sheetRef} snapPoints={['44%']} onOpenChange={setExpanded}>
         <YStack p="$4" pt="$2" gap="$4">
           <YStack gap="$1" mb="$1">
             <Text fontSize="$6" text="center" color="$accent5" fontWeight="800">

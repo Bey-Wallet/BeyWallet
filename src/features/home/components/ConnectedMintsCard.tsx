@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, YStack, XStack, H6, Image, styled, Button, Separator } from 'tamagui';
+import { View, Text, YStack, XStack, H6, Image, styled, Separator } from 'tamagui';
 import { Plus, Landmark } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
@@ -204,16 +205,15 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
         </YStack>
       </XStack>
 
-      <Button
-        size="$3"
-        rounded="$10"
-        theme="gray"
+      <AppButton
+        variant="branded"
+        emphasis="primary"
+        size="xsmall"
         icon={<Plus size={14} strokeWidth={3} />}
         onPress={() => onAdd(mint.mintUrl)}
-        pressStyle={{ scale: 0.96, opacity: 0.8 }}
       >
         Add
-      </Button>
+      </AppButton>
     </RowContainer>
   );
 });
@@ -271,15 +271,16 @@ export const ConnectedMintsCard = () => {
           <H6 fontWeight="800" fontSize="$4" color="$color10">
             Mints
           </H6>
-          <Button
-            size="$2"
-            chromeless
-            circular
-            theme="gray"
-            rounded="$10"
-            onPress={handleAddMint}
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            shape="circular"
+            accessibilityLabel="Add mint"
             icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
-          ></Button>
+            onPress={handleAddMint}
+          />
         </XStack>
         <YStack>
           {[
@@ -316,18 +317,15 @@ export const ConnectedMintsCard = () => {
       </YStack>
       <XStack gap="$2">
         {/* Add Mint Button at bottom */}
-        <Button
-          size="$4"
-          theme="gray"
-          rounded="$10"
-          onPress={handleAddMint}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="medium"
           icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
-          pressStyle={{ scale: 0.98, opacity: 0.9 }}
+          onPress={handleAddMint}
         >
-          <Text fontWeight="800" fontSize="$3" color="$accent2">
-            Add Mint
-          </Text>
-        </Button>
+          Add Mint
+        </AppButton>
       </XStack>
       <AddMintModal ref={addMintRef} />
     </>

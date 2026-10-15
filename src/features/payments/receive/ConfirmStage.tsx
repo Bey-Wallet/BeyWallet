@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, Button, View, Separator, ScrollView, YGroup } from 'tamagui';
+import { YStack, XStack, Text, View, Separator, ScrollView, YGroup } from 'tamagui';
 import { ShieldCheck, AlertTriangle, Copy, Clock, Check } from '@tamagui/lucide-icons';
 import { Spinner } from '~/shared/ui/Spinner';
 import * as Haptics from 'expo-haptics';
@@ -277,23 +278,14 @@ export function ConfirmStage({
       </ScrollView>
 
       <YStack position="absolute" b="$2" l="$4" r="$4" gap="$2">
-        <Button
-          color="$accent6"
-          chromeless
+        <AppButton
+          variant="default"
+          emphasis="text-only"
+          size="large"
+          loading={isSavingLater}
+          icon={<Clock size={18} color="$accent6" />}
           flex={1}
-          rounded="$6"
-          size="$5"
-          height={60}
           disabled={isLoading}
-          icon={
-            isSavingLater ? (
-              <Spinner size="small" color="$color" />
-            ) : (
-              <Clock size={18} color="$accent6" />
-            )
-          }
-          fontWeight="700"
-          fontSize="$5"
           onPress={async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setIsSavingLater(true);
@@ -303,28 +295,21 @@ export function ConfirmStage({
               setIsSavingLater(false);
             }
           }}
-          pressStyle={{ opacity: 0.9, scale: 0.98 }}
         >
           {isSavingLater ? 'Saving...' : 'Claim Later'}
-        </Button>
+        </AppButton>
 
-        <Button
-          bg={proofStatus === 'spent' ? '$gray5' : isMintTrusted ? '$green9' : '$orange9'}
-          color="white"
-
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          loading={isLoading}
           flex={1}
-          rounded="$6"
-          size="$5"
-          height={60}
           disabled={isLoading || proofStatus === 'spent'}
-          icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
-          fontWeight="700"
-          fontSize="$5"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             onConfirm();
           }}
-          pressStyle={{ opacity: 0.9, scale: 0.98 }}
         >
           {isLoading
             ? 'Receiving...'
@@ -333,7 +318,7 @@ export function ConfirmStage({
               : isMintTrusted
                 ? 'Receive'
                 : 'Trust & Receive'}
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );
@@ -366,7 +351,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

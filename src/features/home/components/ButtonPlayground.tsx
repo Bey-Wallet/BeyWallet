@@ -7,6 +7,7 @@ import {
   type AppButtonSize,
   type AppButtonVariant,
 } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 
 const variants: AppButtonVariant[] = ['default', 'branded', 'critical', 'warning'];
 const emphases: AppButtonEmphasis[] = ['primary', 'secondary', 'tertiary', 'text-only'];
@@ -17,12 +18,13 @@ function Examples() {
   const [state, setState] = useState('normal');
   const [manualLoading, setManualLoading] = useState(false);
   const [presses, setPresses] = useState(0);
+  const [selected, setSelected] = useState(false);
   const disabled = state.includes('disabled');
   const loading = state.includes('loading');
   const onPress = () => setPresses((count) => count + 1);
 
   return (
-    <Theme>
+    <Theme name={previewTheme}>
       <YStack bg="$background" p="$3" gap="$4" rounded={16}>
         <Text color="$color">Local theme preview</Text>
         <XStack gap="$2" flexWrap="wrap">
@@ -93,6 +95,42 @@ function Examples() {
         >
           Leading and trailing icons
         </AppButton>
+        <Text color="$color">Icon-only actions and selected controls</Text>
+        <XStack gap="$3" items="center">
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            iconOnly
+            icon={Plus}
+            size="large"
+            accessibilityLabel="Add example"
+            loading={loading}
+            disabled={disabled}
+            onPress={onPress}
+          />
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            iconOnly
+            icon={ArrowRight}
+            shape="circular"
+            accessibilityLabel="Next example"
+            loading={loading}
+            disabled={disabled}
+            onPress={onPress}
+          />
+          <AppPressable
+            minHeight={48}
+            px="$3"
+            rounded={12}
+            bg={selected ? '$blue4' : '$gray3'}
+            accessibilityState={{ selected }}
+            disabled={disabled || loading}
+            onPress={() => setSelected((value) => !value)}
+          >
+            <Text color="$color">{selected ? 'Selected filter' : 'Select filter'}</Text>
+          </AppPressable>
+        </XStack>
         <AppButton
           fullWidth
           loading={loading}

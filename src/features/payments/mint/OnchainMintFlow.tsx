@@ -1,15 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  View,
-  Paragraph,
-  Separator,
-  ScrollView,
-  Spinner,
-} from 'tamagui';
+import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView, Spinner } from 'tamagui';
 import {
   Copy,
   Check,
@@ -247,16 +238,9 @@ export function OnchainMintFlow() {
             {errorMsg || 'Could not request a deposit address.'}
           </Text>
         </YStack>
-        <Button
-          theme="accent"
-          size="$5"
-          height={55}
-          rounded="$4"
-          fontWeight="800"
-          onPress={() => router.back()}
-        >
+        <AppButton variant="default" emphasis="primary" size="large" onPress={() => router.back()}>
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -354,9 +338,14 @@ export function OnchainMintFlow() {
           </YStack>
         </ScrollView>
         <YStack py="$4" bg="$background">
-          <Button size="$5" height={55} rounded="$6" fontWeight="800" onPress={() => router.back()}>
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
+            onPress={() => router.back()}
+          >
             Done
-          </Button>
+          </AppButton>
         </YStack>
       </YStack>
     );
@@ -399,10 +388,13 @@ export function OnchainMintFlow() {
                 {quoteData?.request}
               </Text>
             </ScrollView>
-            <Button
-              size="$3"
-              bg="$gray5"
-              circular
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Copy"
               icon={
                 copied ? <Check size={18} color="$green10" /> : <Copy size={18} color="$color" />
               }
@@ -434,31 +426,27 @@ export function OnchainMintFlow() {
       </ScrollView>
 
       <XStack bg="$background" gap="$2">
-        <Button
-          size="$5"
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
           flex={1}
-          bg="$gray3"
-          color="$color"
-          height={55}
-          rounded="$6"
-          fontWeight="800"
           onPress={() => router.back()}
         >
           Close
-        </Button>
-        <Button
-          theme="accent"
-          size="$5"
+        </AppButton>
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          loading={isChecking}
+          icon={<RefreshCw size={20} />}
           flex={1}
-          height={55}
-          rounded="$6"
-          fontWeight="800"
-          icon={isChecking ? <Spinner size="small" /> : <RefreshCw size={20} />}
           onPress={() => handleCheckPayment(true)}
           disabled={isChecking}
         >
           Check
-        </Button>
+        </AppButton>
       </XStack>
     </YStack>
   );

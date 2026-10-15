@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { YStack, XStack, Text, Button, Spinner, useTheme, View, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, Spinner, useTheme, View, ScrollView } from 'tamagui';
 import * as Updates from 'expo-updates';
 import {
   DownloadCloud,
@@ -343,15 +344,15 @@ export default function OtaUpdateScreen() {
                 </YStack>
               </YStack>
               <YStack flex={1} items="center">
-                <Button
-                  size="$3"
-                  rounded="$10"
-                  fontWeight="700"
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
                   icon={<RefreshCw size={12} />}
                   onPress={() => handleCheckUpdates(true)}
                 >
                   Check Now
-                </Button>
+                </AppButton>
               </YStack>
             </YStack>
           )}
@@ -491,15 +492,15 @@ export default function OtaUpdateScreen() {
                 </YStack>
               </YStack>
               <YStack flex={1} items="center">
-                <Button
-                  size="$3"
-                  rounded="$10"
-                  fontWeight="700"
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
                   icon={<ArrowUpCircle size={12} />}
                   onPress={handleRestart}
                 >
                   Restart App
-                </Button>
+                </AppButton>
               </YStack>
             </YStack>
           )}
@@ -520,15 +521,15 @@ export default function OtaUpdateScreen() {
                 </YStack>
               </YStack>
               <YStack flex={1} items="center">
-                <Button
-                  size="$3"
-                  rounded="$10"
-                  fontWeight="700"
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
                   icon={<RefreshCw size={12} />}
                   onPress={() => handleCheckUpdates(true)}
                 >
                   Try Again
-                </Button>
+                </AppButton>
               </YStack>
             </YStack>
           )}
@@ -570,45 +571,39 @@ export default function OtaUpdateScreen() {
         {/* Bottom Action Buttons */}
         <YStack gap="$2" width="100%">
           {(status === 'idle' || status === 'no-update' || status === 'error') && (
-            <Button
-              theme="accent"
-              size="$5"
-              height={52}
-              rounded="$5"
-              fontWeight="800"
-              onPress={() => handleCheckUpdates(true)}
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               icon={<RefreshCw size={18} color="white" />}
+              onPress={() => handleCheckUpdates(true)}
             >
               Check for Updates
-            </Button>
+            </AppButton>
           )}
 
           {status === 'update-available' && (
-            <Button
-              theme="accent"
-              size="$5"
-              height={52}
-              rounded="$5"
-              fontWeight="800"
-              onPress={handleDownload}
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               icon={<DownloadCloud size={20} color="white" />}
+              onPress={handleDownload}
             >
               Download & Install
-            </Button>
+            </AppButton>
           )}
 
           {status === 'ready' && (
-            <Button
-              theme="accent"
-              size="$5"
-              height={52}
-              rounded="$5"
-              fontWeight="800"
-              onPress={handleRestart}
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               icon={<ArrowUpCircle size={20} color="white" />}
+              onPress={handleRestart}
             >
               Restart App to Apply
-            </Button>
+            </AppButton>
           )}
         </YStack>
       </YStack>

@@ -1,7 +1,8 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 import { FullWindowOverlay } from 'react-native-screens';
-import { Button, Text, View, XStack, YStack, useTheme } from 'tamagui';
+import { Text, View, XStack, YStack, useTheme } from 'tamagui';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -156,40 +157,52 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
 
           {primaryAction && (
             <XStack width="100%" gap="$3">
-              <Button
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
                 flex={1}
-                size="$5"
-                rounded="$6"
-                fontWeight="700"
                 disabled={state.locked}
                 onPress={primaryAction.run}
               >
                 {primaryAction.label}
-              </Button>
+              </AppButton>
             </XStack>
           )}
           {(showHistory || showRefresh || showCheckNfc) && (
             <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
               {showRefresh && (
-                <Button size="$3" chromeless disabled={state.locked} onPress={nfcFlow.refresh}>
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  disabled={state.locked}
+                  onPress={nfcFlow.refresh}
+                >
                   Refresh status
-                </Button>
+                </AppButton>
               )}
               {showCheckNfc && (
-                <Button size="$3" chromeless disabled={state.locked} onPress={nfcFlow.retry}>
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  disabled={state.locked}
+                  onPress={nfcFlow.retry}
+                >
                   Check NFC
-                </Button>
+                </AppButton>
               )}
               {showHistory && (
-                <Button
-                  size="$3"
-                  chromeless
-                  color="$color11"
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
                   disabled={state.locked}
                   onPress={viewHistory}
                 >
                   View History
-                </Button>
+                </AppButton>
               )}
             </XStack>
           )}

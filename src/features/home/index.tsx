@@ -1,5 +1,5 @@
 import { RefreshControl, Animated, Easing } from 'react-native';
-import { YStack, ScrollView, Button, XStack, Text, View } from 'tamagui';
+import { YStack, ScrollView, XStack, Text, View } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';

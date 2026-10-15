@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, Button, H1, View, Switch, Separator } from 'tamagui';
+import { YStack, XStack, Text, H1, View, Switch, Separator } from 'tamagui';
 import {
   ChevronRight,
   Fingerprint,
@@ -268,19 +269,16 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
         )}
 
         {/* Finish Button */}
-        <Button
-          size="$5"
-          theme="accent"
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          iconAfter={<ChevronRight size={18} />}
           width="100%"
           onPress={handleFinish}
-          iconAfter={<ChevronRight size={18} />}
-          fontSize="$5"
-          fontWeight="700"
-          rounded="$6"
-          pressStyle={{ scale: 0.98, opacity: 0.9 }}
         >
           Finish & Open Wallet
-        </Button>
+        </AppButton>
       </YStack>
 
       {/* Premium Biometrics Bottom Sheet */}
@@ -304,22 +302,22 @@ export function PermissionsStep({ initialUsername, npub, onComplete }: Permissio
 
           {/* Actions */}
           <YStack gap="$3" width="100%">
-            <Button
-              size="$5"
-              theme="accent"
-              fontWeight="700"
-              rounded="$4"
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               onPress={handleEnableFromSheet}
             >
               Enable Biometrics
-            </Button>
-            <Button
-              size="$5"
-
+            </AppButton>
+            <AppButton
+              variant="default"
+              emphasis="text-only"
+              size="large"
               onPress={handleSkipFromSheet}
             >
-              <Text fontWeight="600">Skip & Finish</Text>
-            </Button>
+              Skip & Finish
+            </AppButton>
           </YStack>
         </YStack>
       </AppBottomSheet>

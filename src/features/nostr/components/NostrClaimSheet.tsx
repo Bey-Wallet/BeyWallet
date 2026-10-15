@@ -1,7 +1,8 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
-import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { Image, Separator, Text, View, XStack, YStack } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -303,29 +304,29 @@ export function NostrClaimSheet() {
               </>
             )}
             <XStack width="100%" gap="$3">
-              <Button
+              <AppButton
+                variant={claimStatus === 'success' ? 'default' : 'critical'}
+                emphasis={claimStatus === 'success' ? 'primary' : 'secondary'}
+                size="large"
                 flex={1}
-                size="$5"
-                fontSize="$4"
-                rounded="$6"
-                theme="red"
                 onPress={handleClose}
                 disabled={claimStatus === 'claiming'}
               >
                 {claimStatus === 'success' ? 'Done' : 'Delete'}
-              </Button>
+              </AppButton>
               {claimStatus !== 'success' && (
-                <Button
+                <AppButton
+                  variant="branded"
+                  emphasis="primary"
+                  size="large"
                   flex={1}
-                  size="$5"
-                  fontSize="$4"
-                  rounded="$6"
-                  themeInverse
                   onPress={handleClaim}
+                  loading={claimStatus === 'claiming'}
+                  loadingText="Claiming..."
                   disabled={claimStatus === 'claiming'}
                 >
                   {mintTrusted === false ? 'Trust & Claim' : 'Try Again'}
-                </Button>
+                </AppButton>
               )}
             </XStack>
           </YStack>

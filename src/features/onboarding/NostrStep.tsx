@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Button, View, Input, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, Input, ScrollView } from 'tamagui';
 import { AtSign, CheckCircle, XCircle, Globe, Check } from '@tamagui/lucide-icons';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -182,11 +183,9 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
           {/* Top spacer / Skip */}
           <XStack justify="flex-end" width="100%">
             {!isDone && (
-              <Button chromeless size="$3" onPress={onSkip} pressStyle={{ opacity: 0.5 }}>
-                <Text color="$gray10" fontWeight="600">
-                  Skip
-                </Text>
-              </Button>
+              <AppButton variant="default" emphasis="text-only" size="xsmall" onPress={onSkip}>
+                Skip
+              </AppButton>
             )}
           </XStack>
 
@@ -292,13 +291,11 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
             )}
 
             {!isDone && (
-              <Button
-                size="$5"
-                theme="accent"
-                width="100%"
-                disabled={checkState !== 'available' || isRegistering}
-                onPress={handleClaim}
-                opacity={isRegistering || checkState !== 'available' ? 0.7 : 1}
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
+                loading={isRegistering}
                 icon={
                   isRegistering ? (
                     <ActivityIndicator size="small" color="white" />
@@ -306,13 +303,12 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
                     <Globe size={20} />
                   )
                 }
-                fontSize="$5"
-                fontWeight="700"
-                rounded="$4"
-                pressStyle={{ scale: 0.98, opacity: 0.9 }}
+                width="100%"
+                disabled={checkState !== 'available' || isRegistering}
+                onPress={handleClaim}
               >
                 {isRegistering ? 'Claiming...' : 'Claim Username'}
-              </Button>
+              </AppButton>
             )}
 
             {!isDone && (

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, Button, Separator, ScrollView, Circle } from 'tamagui';
+import { YStack, XStack, Text, Separator, ScrollView, Circle } from 'tamagui';
 import { Check, XCircle } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -77,11 +78,20 @@ export function MeltResultStage({
           </Text>
         </YStack>
         {(status === 'pending' || status === 'unresolved') && onRefresh && (
-          <Button onPress={onRefresh}>Refresh status</Button>
+          <AppButton variant="default" emphasis="secondary" size="medium" onPress={onRefresh}>
+            Refresh status
+          </AppButton>
         )}
-        <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
+          width="100%"
+          onPress={onClose}
+          mt="$4"
+        >
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -149,19 +159,17 @@ export function MeltResultStage({
         bg="$background"
         borderTopWidth={0}
       >
-        <Button
-          theme="accent"
-          size="$5"
-          height={55}
-          rounded="$4"
-          fontWeight="800"
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onClose();
           }}
         >
           Done
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );

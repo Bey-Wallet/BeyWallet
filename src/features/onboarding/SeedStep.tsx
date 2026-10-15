@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, Button, H2, View, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, H2, View, ScrollView } from 'tamagui';
 import { Copy, Check, AlertTriangle, ChevronRight } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -93,15 +94,15 @@ export function SeedStep({ mnemonic, onContinue }: SeedStepProps) {
 
           {/* Copy Button */}
           <XStack items="center" justify="center">
-            <Button
-              size="$3"
-              rounded="$10"
-
-              onPress={handleCopy}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
               icon={copied ? <Check color="$green10" /> : <Copy />}
+              onPress={handleCopy}
             >
               {copied ? 'Copied!' : 'Copy '}
-            </Button>
+            </AppButton>
           </XStack>
         </YStack>
       </ScrollView>
@@ -137,19 +138,16 @@ export function SeedStep({ mnemonic, onContinue }: SeedStepProps) {
             I have saved my recovery phrase securely
           </Text>
         </XStack>
-        <Button
-          size="$5"
-          theme="accent"
-          disabled={!confirmed}
-          opacity={confirmed ? 1 : 0.5}
-          onPress={handleContinue}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
           iconAfter={<ChevronRight size={20} />}
-          fontSize="$5"
-          fontWeight="700"
-          rounded="$4"
+          disabled={!confirmed}
+          onPress={handleContinue}
         >
           Continue
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );

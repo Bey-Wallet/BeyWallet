@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
-import { Button, Input, Text, YStack, XStack, Paragraph, useTheme } from 'tamagui';
+import { Input, Text, YStack, XStack, Paragraph, useTheme } from 'tamagui';
 import { Edit3, Check, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -87,25 +88,28 @@ const EditNicknameModal = forwardRef<EditNicknameModalRef>((_, ref) => {
         </YStack>
 
         <XStack gap="$3" mt="$2">
-          <Button
-            flex={1}
-            size="$4"
-            theme="gray"
-            onPress={() => sheetRef.current?.dismiss()}
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="medium"
             icon={<X size={18} />}
+            flex={1}
+            onPress={() => sheetRef.current?.dismiss()}
           >
             Cancel
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="medium"
+            loading={isLoading}
+            icon={isLoading ? undefined : <Check size={18} />}
             flex={1}
-            size="$4"
-            themeInverse
             onPress={handleSave}
             disabled={isLoading}
-            icon={isLoading ? undefined : <Check size={18} />}
           >
             {isLoading ? 'Saving...' : 'Save'}
-          </Button>
+          </AppButton>
         </XStack>
       </BottomSheetScrollView>
     </AppBottomSheet>

@@ -1,3 +1,5 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import {
   ChevronDown,
   Sprout,
@@ -8,7 +10,7 @@ import {
   Landmark,
   X,
 } from '@tamagui/lucide-icons';
-import { Button, Text, YStack, XStack, View, Image, Avatar, Square } from 'tamagui';
+import { Text, YStack, XStack, View, Image, Avatar, Square } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
@@ -20,6 +22,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
 
 export interface MintSelectorSheetProps {
+  onOpenChange?: (open: boolean) => void;
   onSelect?: (mintUrl: string) => void;
   activeMintUrl?: string;
   showAllOption?: boolean;
@@ -28,7 +31,13 @@ export interface MintSelectorSheetProps {
 
 export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelectorSheetProps>(
   (
-    { onSelect, activeMintUrl: propActiveMintUrl, showAllOption, changeGlobalActiveMint = true },
+    {
+      onSelect,
+      onOpenChange,
+      activeMintUrl: propActiveMintUrl,
+      showAllOption,
+      changeGlobalActiveMint = true,
+    },
     ref,
   ) => {
     const storeActiveMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -91,16 +100,23 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
 
     return (
       <>
-        <AppBottomSheet ref={ref} snapPoints={snapPoints} backgroundColor="$gray2">
+        <AppBottomSheet
+          ref={ref}
+          snapPoints={snapPoints}
+          backgroundColor="$gray2"
+          onOpenChange={onOpenChange}
+        >
           <YStack p="$4" pt="$2" gap="$4" flex={1}>
             {/* Custom Header matching ActionSelectorSheet */}
             <XStack items="center" justify="space-between" width="100%" pb="$2">
               <XStack items="center" justify="center" gap="$3">
-                <Button
-                  circular
-                  size="$4"
-                  bg="$gray5"
-                  pressStyle={{ scale: 0.95, bg: '$gray5' }}
+                <AppButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="medium"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel="Close"
                   icon={<X size={20} color="$color" strokeWidth={3} />}
                   onPress={handleClose}
                 />
@@ -108,18 +124,15 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                   Select Mint
                 </Text>
               </XStack>
-              <Button
-                rounded="$10"
-                size="$4"
-                fontSize="$5"
-                fontWeight="800"
-                bg="$gray5"
-                pressStyle={{ scale: 0.95, bg: '$gray5' }}
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="medium"
                 icon={<Plus size={20} color="$color" strokeWidth={3} />}
                 onPress={handleAddMint}
               >
                 Add
-              </Button>
+              </AppButton>
             </XStack>
 
             <BottomSheetScrollView showsVerticalScrollIndicator={false}>
@@ -242,10 +255,13 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                                 mint.name ||
                                 mint.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                             </Text>
-                            <Button
-                              size="$1.5"
-                              circular
-                              chromeless
+                            <AppButton
+                              variant="default"
+                              emphasis="tertiary"
+                              size="xxsmall"
+                              iconOnly
+                              shape="circular"
+                              accessibilityLabel="Edit nickname"
                               icon={<Edit3 size={12} color="$gray10" />}
                               onPress={(e) => {
                                 e.stopPropagation();
@@ -297,6 +313,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
 );
 
 export default function HomeHeaderMintSelector() {
+  const [expanded, setExpanded] = useState(false);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const mints = useWalletStore((s) => s.mints);
   const refreshMintList = useWalletStore((s) => s.refreshMintList);
@@ -342,11 +359,11 @@ export default function HomeHeaderMintSelector() {
 
   return (
     <>
-      <Button
-        size="$3"
+      <AppPressable
+        py={4}
+        accessibilityState={{ expanded, busy: isLoading }}
         rounded="$4"
         bg={isOffline ? '$red10' : '$blue10'}
-        color="white"
         px={isLoading ? '$3' : '$1.5'}
         borderWidth={0}
         disabled={isLoading}
@@ -357,48 +374,53 @@ export default function HomeHeaderMintSelector() {
         }}
         maxW={170}
         pressStyle={{ scale: 0.97, opacity: 0.95, bg: isOffline ? '$red11' : '$blue11' }}
-        icon={
-          isLoading ? (
-            <Spinner size={14} color="white" />
-          ) : (
-            <Avatar rounded="$3" size="$2">
-              <Avatar.Image src={activeMint?.icon} />
-              <Avatar.Fallback
-                backgroundColor="rgba(255,255,255,0.2)"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Sprout size={14} color="white" />
-              </Avatar.Fallback>
-            </Avatar>
-          )
-        }
-        iconAfter={
-          isLoading ? undefined : (
-            <Square
-              size="$2"
-              borderWidth={0.5}
-              borderColor="rgba(255,255,255,0.2)"
-              bg="rgba(255,255,255,0.15)"
-              rounded="$3"
-            >
-              <ChevronDown size={16} strokeWidth={3} color="white" />
-            </Square>
-          )
-        }
-        textProps={{
-          fontSize: '$3',
-          fontWeight: '700',
-          maxW: 110,
-          numberOfLines: 1,
-          color: 'white',
-        }}
-        ellipse
+        minHeight={36}
+        flexDirection="row"
+        items="center"
+        justify="center"
+        gap={8}
       >
-        {isLoading ? 'Loading...' : displayName}
-      </Button>
+        {isLoading ? (
+          <Spinner size={14} color="white" />
+        ) : (
+          <Avatar rounded="$3" size="$2">
+            <Avatar.Image src={activeMint?.icon} />
+            <Avatar.Fallback
+              backgroundColor="rgba(255,255,255,0.2)"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Sprout size={14} color="white" />
+            </Avatar.Fallback>
+          </Avatar>
+        )}
 
-      <MintSelectorSheet ref={sheetRef} />
+        <Text
+          {...{
+            fontSize: '$3',
+            fontWeight: '700',
+            maxW: 110,
+            numberOfLines: 1,
+            color: 'white',
+          }}
+        >
+          {isLoading ? 'Loading...' : displayName}
+        </Text>
+
+        {isLoading ? undefined : (
+          <Square
+            size="$2"
+            borderWidth={0.5}
+            borderColor="rgba(255,255,255,0.2)"
+            bg="rgba(255,255,255,0.15)"
+            rounded="$3"
+          >
+            <ChevronDown size={16} strokeWidth={3} color="white" />
+          </Square>
+        )}
+      </AppPressable>
+
+      <MintSelectorSheet ref={sheetRef} onOpenChange={setExpanded} />
     </>
   );
 }

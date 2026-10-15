@@ -1,5 +1,6 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, Button, Avatar, Square, Input } from 'tamagui';
+import { YStack, XStack, Text, H1, Avatar, Square, Input } from 'tamagui';
 import { ArrowUpDown, Key, KeyRound, User } from '@tamagui/lucide-icons';
 import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
@@ -295,16 +296,24 @@ export function P2PKAmountStage({
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
             />
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray5"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
-              {conversionValue}
-            </Button>
+              <Text color="$color" fontSize="$3" fontWeight="600">
+                {conversionValue}
+              </Text>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
 

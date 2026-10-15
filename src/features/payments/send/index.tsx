@@ -1,3 +1,4 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback } from 'react';
 import { InteractionManager, Switch, Alert } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -23,7 +24,7 @@ import {
 import { seedService } from '~/services/platform/seedService';
 import { ProcessingSheet } from '~/shared/ui/ProcessingSheet';
 import * as Haptics from 'expo-haptics';
-import { Text, YStack, XStack, Button, Separator, View, H2, H4 } from 'tamagui';
+import { Text, YStack, XStack, Separator, View, H2, H4 } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -682,10 +683,14 @@ export function SendModalScreen() {
           headerTitle: () => <H4 fontWeight="bold">{headerTitle}</H4>,
 
           headerRight: () => (
-            <Button
-              size="$3"
-              circular
-
+            <AppPressable
+              px={12}
+              py={4}
+              rounded={8}
+              bg="$background"
+              accessibilityLabel={isOffline ? 'Switch to online mode' : 'Switch to offline mode'}
+              accessibilityState={{ checked: isOffline }}
+              accessibilityRole="switch"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 const nextForceOffline = !forceOffline;
@@ -703,6 +708,11 @@ export function SendModalScreen() {
               disabled={isHardwareOffline}
               disabledStyle={{ opacity: 0.8 }}
               pressStyle={{ scale: 0.95 }}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <XStack items="center">
                 {isOffline ? (
@@ -715,7 +725,7 @@ export function SendModalScreen() {
                   </>
                 )}
               </XStack>
-            </Button>
+            </AppPressable>
           ),
         }}
       />

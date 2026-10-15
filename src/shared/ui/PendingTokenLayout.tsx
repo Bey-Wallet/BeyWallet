@@ -1,15 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  Separator,
-  View,
-  ScrollView,
-  useTheme,
-  YGroup,
-} from 'tamagui';
+import { YStack, XStack, Text, Separator, View, ScrollView, useTheme, YGroup } from 'tamagui';
 import {
   Copy,
   Share2,
@@ -542,90 +533,62 @@ export function PendingTokenLayout({
 
       {/* Action Buttons: Share / Send & Copy */}
       <XStack gap="$3" width="100%">
-        <Button
-          flex={1}
-
-          bg={copied ? '$green3' : '$color2'}
-          hoverStyle={{ bg: copied ? '$green4' : '$color3' }}
-          color={copied ? '$green11' : '$color'}
-          size="$6"
-          height={65}
-          rounded="$6"
-          onPress={handleCopy}
-          pressStyle={{ scale: 0.97 }}
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="large"
           icon={copied ? <Check size={20} color="$green11" /> : <Copy size={20} color="$accent5" />}
-          fontWeight="800"
+          flex={1}
+          onPress={handleCopy}
         >
           {copied ? 'Copied!' : 'Copy'}
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          icon={<Send size={20} />}
           flex={1}
-          bg="$color2"
-          size="$6"
-
-          height={65}
-          rounded="$6"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             shareSheetRef.current?.present();
           }}
-          pressStyle={{ scale: 0.97 }}
-          icon={<Send size={20} />}
-          fontWeight="800"
         >
           Send
-        </Button>
+        </AppButton>
       </XStack>
 
       {/* Reclaim Button (separated for visibility outside details list) */}
       {onReclaim && !onClaim && (
         <YStack>
-          <Button
-            chromeless
-            color="$orange10"
-            hoverStyle={{ bg: '$orange4' }}
-            size="$5"
-            height={55}
-            rounded="$4"
+          <AppButton
+            variant="warning"
+            emphasis="secondary"
+            size="large"
+            loading={isReclaiming}
+            icon={<RotateCcw size={18} color="$orange10" />}
             onPress={onReclaim}
             disabled={isReclaiming}
-            icon={
-              isReclaiming ? (
-                <Spinner size="small" color="$orange10" />
-              ) : (
-                <RotateCcw size={18} color="$orange10" />
-              )
-            }
-            fontWeight="700"
           >
             Reclaim Token
-          </Button>
+          </AppButton>
         </YStack>
       )}
 
       {/* Primary Action Button (Claim Now) */}
       {!hideActions && onClaim && (
         <YStack mt="auto" pb="$8">
-          <Button
-            chromeless
-            hoverStyle={{ bg: '$accent11' }}
-            color="$accent3"
-            size="$5"
-            height={60}
-            rounded="$12"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isClaiming}
+            icon={<ArrowDownLeft size={20} color="$accent3" />}
             onPress={onClaim}
             disabled={isClaiming}
-            icon={
-              isClaiming ? (
-                <Spinner size="small" color="$accent3" />
-              ) : (
-                <ArrowDownLeft size={20} color="$accent3" />
-              )
-            }
-            fontWeight="800"
           >
             Claim Now
-          </Button>
+          </AppButton>
         </YStack>
       )}
 
@@ -644,11 +607,13 @@ export function PendingTokenLayout({
             <Text fontSize="$6" fontWeight="800" color="$color">
               Share / Send
             </Text>
-            <Button
-              circular
-              size="$3"
-              bg="$gray4"
-              pressStyle={{ scale: 0.95, bg: '$gray5' }}
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Close"
               icon={<X size={20} color="$color11" strokeWidth={3} />}
               onPress={() => shareSheetRef.current?.dismiss()}
             />
@@ -776,7 +741,15 @@ function DetailRowItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

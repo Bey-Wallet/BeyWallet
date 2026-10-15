@@ -1,9 +1,11 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router } from 'expo-router';
-import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, TextArea, ScrollView } from 'tamagui';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
-import { Spinner } from '~/shared/ui/Spinner';
+
 import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 
@@ -83,15 +85,15 @@ export function InputStage({
               <Text color="$gray10" fontSize="$4" fontWeight="600">
                 Enter Token
               </Text>
-              <Button
-                size="$2.5"
-                theme="gray"
-                onPress={handlePaste}
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<ClipboardPaste size={14} />}
-                scaleIcon={1.2}
+                onPress={handlePaste}
               >
                 Paste
-              </Button>
+              </AppButton>
             </XStack>
             <TextArea
               value={token}
@@ -125,13 +127,19 @@ export function InputStage({
 
           {/* Scanning Options */}
           <XStack gap="$3">
-            <Button
+            <AppPressable
+              px={12}
+              py={4}
               flex={1}
               height={100}
               bg="$gray2"
               rounded="$4"
               onPress={handleScanPress}
               pressStyle={{ bg: '$gray3' }}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
@@ -141,9 +149,11 @@ export function InputStage({
                   QR Code
                 </Text>
               </YStack>
-            </Button>
+            </AppPressable>
 
-            <Button
+            <AppPressable
+              px={12}
+              py={4}
               flex={1}
               height={100}
               bg="$gray2"
@@ -153,6 +163,10 @@ export function InputStage({
                 nfcFlow.openReader();
               }}
               pressStyle={{ bg: '$gray3' }}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
@@ -162,7 +176,7 @@ export function InputStage({
                   NFC
                 </Text>
               </YStack>
-            </Button>
+            </AppPressable>
           </XStack>
         </YStack>
       </ScrollView>
@@ -170,33 +184,26 @@ export function InputStage({
       {/* Action Button at the Bottom */}
       <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
         {isValidToken ? (
-          <Button
-            bg="$green9"
-            color="white"
-            size="$5"
-            fontWeight="700"
-            rounded="$4"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isLoading}
             disabled={isLoading}
-            icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
             onPress={onContinue}
-            pressStyle={{ opacity: 0.9, scale: 0.98 }}
           >
             {isLoading ? 'Decoding...' : 'Preview Token'}
-          </Button>
+          </AppButton>
         ) : (
-          <Button
-            theme="gray"
-
-            color="$color"
-            size="$5"
-            fontWeight="700"
-            rounded="$4"
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="large"
             icon={<ClipboardPaste size={18} />}
             onPress={handlePaste}
-            pressStyle={{ opacity: 0.9, scale: 0.98 }}
           >
             Paste from Clipboard
-          </Button>
+          </AppButton>
         )}
       </View>
     </YStack>

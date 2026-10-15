@@ -1,3 +1,5 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppButton } from '~/shared/ui/AppButton';
 /**
  * NostrSendStage
  *
@@ -8,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { YStack, XStack, Text, Button, Input } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import { Search, ClipboardPaste, User, ArrowUpDown } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -418,16 +420,24 @@ export function NostrSendStage({
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
             />
 
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray5"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
-              {conversionValue}
-            </Button>
+              <Text color="$color" fontSize="$3" fontWeight="600">
+                {conversionValue}
+              </Text>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
 
@@ -485,9 +495,12 @@ export function NostrSendStage({
             {isSearching || isResolvingRecipient ? (
               <Spinner size="small" />
             ) : (
-              <Button
-                size="$2"
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xxsmall"
+                iconOnly
+                accessibilityLabel="Paste"
                 icon={<ClipboardPaste size={18} />}
                 onPress={handlePaste}
               />

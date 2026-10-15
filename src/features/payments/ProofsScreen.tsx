@@ -1,10 +1,11 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   YStack,
   XStack,
   Text,
   ScrollView,
-  Button,
   View,
   Separator,
   Avatar,
@@ -119,15 +120,26 @@ function DetailItem({
           {value}
         </Text>
         {onShare && (
-          <Button
-            size="$2"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Share"
             icon={<Share2 size={14} color="$gray10" />}
             onPress={onShare}
           />
         )}
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={14} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={14} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>
@@ -243,6 +255,7 @@ export default function ProofsModal() {
 
   // Refs
   const mintFilterSheetRef = useRef<AppBottomSheetRef>(null);
+  const [mintFilterExpanded, setMintFilterExpanded] = useState(false);
   const proofActionSheetRef = useRef<AppBottomSheetRef>(null);
 
   // ── Invalidate on screen focus so ecash.tsx changes reflect here ───────────
@@ -509,9 +522,12 @@ export default function ProofsModal() {
         const isActive = activeTab === tab;
         const Icon = meta.icon;
         return (
-          <Button
+          <AppPressable
+            px={12}
+            py={4}
+            rounded={8}
+            accessibilityState={{ selected: isActive }}
             key={tab}
-            size="$2.5"
             flex={1}
             bg={isActive ? (meta.bg as any) : '$gray3'}
             borderWidth={isActive ? 1 : 0}
@@ -522,8 +538,13 @@ export default function ProofsModal() {
             }}
             pressStyle={{ scale: 0.97 }}
             animation="quick"
-            icon={<Icon size={13} color={isActive ? (meta.color as any) : '$gray9'} />}
+            minHeight={32}
+            flexDirection="row"
+            items="center"
+            justify="center"
+            gap={8}
           >
+            <Icon size={13} color={isActive ? (meta.color as any) : '$gray9'} />
             <Text fontSize="$2" fontWeight="800" color={isActive ? (meta.color as any) : '$gray9'}>
               {meta.label}
             </Text>
@@ -534,7 +555,7 @@ export default function ProofsModal() {
                 </Text>
               </Circle>
             )}
-          </Button>
+          </AppPressable>
         );
       })}
     </XStack>
@@ -680,20 +701,17 @@ export default function ProofsModal() {
           {/* ── Primary action: Create Ecash Token ── */}
           {isReady && (
             <YStack gap="$2">
-              <Button
-                theme="accent"
-                size="$5"
-                height={54}
-                fontWeight="900"
-                fontSize="$4"
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
+                loading={isCreatingToken}
+                icon={<Zap size={20} />}
                 onPress={openSendStage}
                 disabled={isCreatingToken}
-                icon={<Zap size={20} />}
-                pressStyle={{ scale: 0.97 }}
-                animation="quick"
               >
                 {isCreatingToken ? 'Creating Token…' : 'Create Ecash Token'}
-              </Button>
+              </AppButton>
               <Text fontSize="$2" color="$gray10" text="center">
                 Encodes this proof as an offline Cashu token. The proof is locked immediately.
               </Text>
@@ -702,29 +720,27 @@ export default function ProofsModal() {
 
           {/* ── Destructive: delete ── */}
           {(isReady || selectedProof.state === 'spent') && (
-            <Button
-              bg="$red2"
-              size="$4"
-              fontWeight="800"
+            <AppButton
+              variant="critical"
+              emphasis="primary"
+              size="medium"
+              loading={isDeleting}
+              icon={<Trash2 size={16} color="$red10" />}
               onPress={handleDeleteProof}
               disabled={isDeleting}
-              icon={<Trash2 size={16} color="$red10" />}
             >
-              <Text fontWeight="800" color="$red10">
-                {isDeleting ? 'Deleting…' : 'Delete Proof from Device'}
-              </Text>
-            </Button>
+              {isDeleting ? 'Deleting…' : 'Delete Proof from Device'}
+            </AppButton>
           )}
 
-          <Button
-            chromeless
-            size="$4"
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="medium"
             onPress={() => proofActionSheetRef.current?.dismiss()}
-            fontWeight="700"
-            color="$gray10"
           >
             Close
-          </Button>
+          </AppButton>
         </YStack>
       </BottomSheetScrollView>
     );
@@ -740,17 +756,16 @@ export default function ProofsModal() {
       >
         <YStack px="$4" pt="$2" pb="$4" gap="$4">
           {/* Back button */}
-          <Button
-            chromeless
-            size="$3"
-            alignSelf="flex-start"
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="xsmall"
             icon={<ArrowLeft size={16} />}
+            alignSelf="flex-start"
             onPress={() => setSheetStage('details')}
-            color="$gray10"
-            pressStyle={{ opacity: 0.7 }}
           >
             Back to Details
-          </Button>
+          </AppButton>
 
           {/* Header */}
           <YStack items="center" gap="$1">
@@ -782,9 +797,13 @@ export default function ProofsModal() {
         options={{
           headerTitle: 'Proof Manager',
           headerLeft: () => (
-            <Button
-              circular
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Go back"
               icon={<ChevronLeft size={24} />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -793,13 +812,16 @@ export default function ProofsModal() {
             />
           ),
           headerRight: () => (
-            <Button
-              circular
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="medium"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Refresh"
               icon={<RefreshCw size={20} />}
               onPress={refetchAll}
               disabled={isFetching}
-              opacity={isFetching ? 0.5 : 1}
             />
           ),
         }}
@@ -813,8 +835,9 @@ export default function ProofsModal() {
         <YStack px="$4" pt="$4" gap="$4">
           {/* ── Top filter row ── */}
           <XStack justify="space-between" items="center">
-            <Button
-              size="$2.5"
+            <AppPressable
+              py={4}
+              accessibilityState={{ expanded: mintFilterExpanded }}
               theme="gray"
               px="$2"
               bg="$color5"
@@ -825,26 +848,29 @@ export default function ProofsModal() {
                 mintFilterSheetRef.current?.present();
               }}
               pressStyle={{ scale: 0.97, opacity: 0.9 }}
-              icon={
-                <Avatar rounded="$3" size="$1.5">
-                  <Avatar.Image src={activeMintInfo?.icon} />
-                  <Avatar.Fallback bg="$color5" items="center" justify="center">
-                    <Landmark size={12} color="$color10" />
-                  </Avatar.Fallback>
-                </Avatar>
-              }
-              iconAfter={
-                <Square size="$1.5" bg="$color2" rounded="$3">
-                  <ChevronDown size={12} strokeWidth={2.5} color="$color" />
-                </Square>
-              }
+              minHeight={32}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
+              <Avatar rounded="$3" size="$1.5">
+                <Avatar.Image src={activeMintInfo?.icon} />
+                <Avatar.Fallback bg="$color5" items="center" justify="center">
+                  <Landmark size={12} color="$color10" />
+                </Avatar.Fallback>
+              </Avatar>
+
               <Text fontWeight="700" fontSize="$2" numberOfLines={1} style={{ maxWidth: 100 }}>
                 {mintFilter === 'all'
                   ? 'All Mints'
                   : activeMintInfo?.nickname || activeMintInfo?.name || getMintLabel(mintFilter)}
               </Text>
-            </Button>
+
+              <Square size="$1.5" bg="$color2" rounded="$3">
+                <ChevronDown size={12} strokeWidth={2.5} color="$color" />
+              </Square>
+            </AppPressable>
 
             <XStack gap="$2" items="center">
               <Text fontSize="$2" color="$gray10" fontWeight="600">
@@ -868,36 +894,29 @@ export default function ProofsModal() {
 
           {/* ── Bulk actions ── */}
           {activeTab === 'unspent' && filteredProofs.length > 0 && (
-            <Button
-              size="$3"
-              bg="$green2"
-              borderWidth={1}
-              borderColor="$green5"
-              onPress={handleExportAllUnspent}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
               icon={<Share2 size={14} color="$green10" />}
-              pressStyle={{ scale: 0.97 }}
+              onPress={handleExportAllUnspent}
             >
-              <Text fontSize="$2" fontWeight="800" color="$green10">
-                Export All ({filteredProofs.length})
-              </Text>
-            </Button>
+              {`Export All (${filteredProofs.length})`}
+            </AppButton>
           )}
 
           {activeTab === 'spent' && filteredProofs.length > 0 && (
-            <Button
-              size="$3"
-              bg="$red2"
-              borderWidth={1}
-              borderColor="$red4"
+            <AppButton
+              variant="critical"
+              emphasis="primary"
+              size="xsmall"
+              loading={isDeleting}
+              icon={<Trash2 size={14} color="$red10" />}
               onPress={handleDeleteAllSpent}
               disabled={isDeleting}
-              icon={<Trash2 size={14} color="$red10" />}
-              pressStyle={{ scale: 0.97 }}
             >
-              <Text fontSize="$2" fontWeight="800" color="$red10">
-                {isDeleting ? 'Erasing…' : `Erase All Spent (${filteredProofs.length})`}
-              </Text>
-            </Button>
+              {isDeleting ? 'Erasing…' : `Erase All Spent (${filteredProofs.length})`}
+            </AppButton>
           )}
 
           {/* ── Section header ── */}
@@ -941,7 +960,11 @@ export default function ProofsModal() {
       </ScrollView>
 
       {/* ── Mint filter bottom sheet ── */}
-      <AppBottomSheet ref={mintFilterSheetRef} snapPoints={['50%', '80%']}>
+      <AppBottomSheet
+        ref={mintFilterSheetRef}
+        snapPoints={['50%', '80%']}
+        onOpenChange={setMintFilterExpanded}
+      >
         <YStack p="$4" gap="$3" pb={insets.bottom + 40}>
           <Text fontSize="$6" fontWeight="700">
             Filter by Mint

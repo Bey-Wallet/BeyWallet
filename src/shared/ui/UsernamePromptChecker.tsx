@@ -1,6 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef, useState } from 'react';
 
-import { Button, Text, YStack, useTheme, XStack, View } from 'tamagui';
+import { Text, YStack, useTheme, XStack, View } from 'tamagui';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AtSign } from '@tamagui/lucide-icons';
@@ -73,22 +74,23 @@ export function UsernamePromptChecker() {
           for friends to send you money!
         </Text>
         <XStack space="$3" width="100%" justifyContent="center" marginTop="auto">
-          <Button
+          <AppButton
+            variant="default"
+            emphasis="text-only"
+            size="medium"
             flex={1}
-            size="$4"
             onPress={() => {
               setUsernameClaimDismissedAt(Date.now());
               sheetRef.current?.dismiss();
             }}
           >
             Maybe Later
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="medium"
             flex={1}
-            size="$4"
-            bg="$blue9"
-            color="white"
-            fontWeight="500"
             onPress={() => {
               sheetRef.current?.dismiss();
               setTimeout(() => {
@@ -97,7 +99,7 @@ export function UsernamePromptChecker() {
             }}
           >
             Claim Now
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
     </AppBottomSheet>

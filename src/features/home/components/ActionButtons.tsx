@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useRef, useCallback } from 'react';
-import { Button, XStack } from 'tamagui';
+import { XStack } from 'tamagui';
 import { Scan, ArrowLeftRight, Shuffle, RefreshCcw, ScanLine, Repeat } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -37,37 +38,44 @@ export default React.memo(function ActionButtons() {
   return (
     <>
       <XStack gap="$3" items="center" justify="space-between" width="100%">
-        <Button
-          bg="$color2"
-          flex={1}
-          height={58}
-          rounded="$6"
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="large"
+          iconOnly
+          accessibilityLabel="Scan QR code"
           icon={<Scan size={28} strokeWidth={3} />}
+          flex={1}
           onPress={handleScan}
         />
-        <Button
-          bg="$color2"
-          flex={1}
-          height={58}
-          rounded="$6"
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="large"
+          iconOnly
+          accessibilityLabel="Swap"
           icon={<Repeat size={28} strokeWidth={2.5} />}
+          flex={1}
           onPress={handleSwap}
         />
-        <Button
-          bg="$color2"
-          flex={1}
-          height={58}
-          rounded="$6"
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="large"
+          iconOnly
+          accessibilityLabel="Receive"
           icon={<ArrowDownIcon size={32} />}
+          flex={1}
           onPress={handleReceive}
         />
-        <Button
-          theme="accent"
-          bg="$color1"
-          flex={1}
-          height={58}
-          rounded="$6"
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          iconOnly
+          accessibilityLabel="Send"
           icon={<SendIcon size={30} />}
+          flex={1}
           onPress={handleSend}
         />
       </XStack>

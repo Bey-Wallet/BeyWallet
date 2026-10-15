@@ -20,6 +20,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
 }));
 jest.mock('~/shared/icons/NfcIcon', () => 'Icon');
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/AppBottomSheet', () => {
   const React = require('react');
   return {
@@ -79,11 +80,11 @@ it('offers delivery retry, settlement refresh and History when delivery is uncon
     sheet = create(<NfcSheetHost walletReady />);
   });
   const buttons = sheet.root.findAllByType('Button' as any);
-  const retry = buttons.find((button) => button.props.children === 'Retry delivery');
-  const refresh = buttons.find((button) => button.props.children === 'Refresh status');
+  const retry = buttons.find((button) => button.props.accessibilityLabel === 'Retry delivery');
+  const refresh = buttons.find((button) => button.props.accessibilityLabel === 'Refresh status');
   expect(retry).toBeDefined();
   expect(refresh).toBeDefined();
-  expect(buttons.some((button) => button.props.children === 'View History')).toBe(true);
+  expect(buttons.some((button) => button.props.accessibilityLabel === 'View History')).toBe(true);
   await act(async () => {
     retry!.props.onPress();
     refresh!.props.onPress();
@@ -100,6 +101,21 @@ it('offers settlement refresh without delivery retry after acknowledged publicat
     sheet = create(<NfcSheetHost walletReady />);
   });
   const buttons = sheet.root.findAllByType('Button' as any);
-  expect(buttons.map((button) => button.props.children)).toEqual(['Refresh status']);
+  expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Refresh status']);
+  await act(async () => sheet.unmount());
+});
+
+it('keeps NFC retry and refresh blocked while the session is locked', async () => {
+  mockState = { ...mockState, locked: true };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  for (const button of sheet.root.findAllByType('Button' as any)) {
+    expect(button.props.disabled).toBe(true);
+    button.props.onPress({});
+  }
+  expect(nfcFlow.retry).not.toHaveBeenCalled();
+  expect(nfcFlow.refresh).not.toHaveBeenCalled();
   await act(async () => sheet.unmount());
 });

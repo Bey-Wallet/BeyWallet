@@ -1,8 +1,13 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useMemo } from 'react';
-import { YStack, XStack, Text, Button, H1, Separator, Avatar, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, H1, Separator, Avatar, ScrollView } from 'tamagui';
 import { Check, XCircle, AlertCircle, Sprout, Zap } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useQuery } from '@tanstack/react-query';
@@ -89,9 +94,16 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
             {error || 'An error occurred while depositing.'}
           </Text>
         </YStack>
-        <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
+          width="100%"
+          onPress={onClose}
+          mt="$4"
+        >
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -162,18 +174,17 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
       </ScrollView>
 
       <YStack position="absolute" b={0} l={0} r={0} py="$4" bg="$background" borderTopWidth={0}>
-        <Button
-          size="$5"
-          height={55}
-          rounded="$6"
-          fontWeight="800"
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onClose();
           }}
         >
           Done
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );

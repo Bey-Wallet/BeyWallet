@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, Button, ScrollView, Separator, Spinner, View } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, Separator, View } from 'tamagui';
 import QRCode from 'react-native-qrcode-svg';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -128,14 +129,10 @@ export function PendingMintInvoiceLayout({
 
       <YStack position="absolute" b={0} l={0} r={0} py="$2" pb="$4" bg="$background" px="$4">
         <XStack width="100%" justify="space-evenly" gap="$3">
-          <Button
-            theme="red"
-            size="$5"
-            height={55}
-            rounded="$4"
-            fontWeight="800"
-            bg="$red3"
-            color="$red10"
+          <AppButton
+            variant="critical"
+            emphasis="secondary"
+            size="large"
             flex={1}
             onPress={async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -143,23 +140,21 @@ export function PendingMintInvoiceLayout({
             }}
           >
             Cancel
-          </Button>
-          <Button
-            theme="accent"
-            size="$5"
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isCheckingPaid}
             flex={1}
-            height={55}
-            rounded="$4"
-            fontWeight="800"
             disabled={isCheckingPaid || (timeLeft !== null && timeLeft <= 0)}
-            icon={isCheckingPaid ? <Spinner size="small" color="white" /> : undefined}
             onPress={async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               await onPaid();
             }}
           >
             {isCheckingPaid ? '...' : 'I Paid'}
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
     </YStack>

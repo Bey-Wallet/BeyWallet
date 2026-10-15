@@ -1,8 +1,9 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
-import { YStack, XStack, Text, Button, View, ZStack, Spinner, Theme } from 'tamagui';
+import { YStack, XStack, Text, View, ZStack, Spinner, Theme } from 'tamagui';
 import { X, Zap, ZapOff, RefreshCcw } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -197,12 +198,17 @@ export default function ScannerScreen() {
         <Text color="$gray10" style={{ textAlign: 'center' }}>
           We need your permission to show the camera to scan QR codes.
         </Text>
-        <Button theme="accent" onPress={requestPermission}>
+        <AppButton variant="branded" emphasis="primary" size="medium" onPress={requestPermission}>
           Grant Permission
-        </Button>
-        <Button chromeless color="white" onPress={() => router.back()}>
+        </AppButton>
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="medium"
+          onPress={() => router.back()}
+        >
           Cancel
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -354,25 +360,34 @@ export default function ScannerScreen() {
           <YStack flex={1} justify="space-between" p="$4">
             {/* Header */}
             <XStack justify="space-between" items="center">
-              <Button
-                circular
-                size="$4"
-                bg="rgba(0,0,0,0.5)"
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="medium"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Close"
                 icon={<X size={24} color="white" />}
                 onPress={() => router.back()}
               />
               <XStack gap="$2">
-                <Button
-                  circular
-                  size="$4"
-                  bg="rgba(0,0,0,0.5)"
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="medium"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel="Paste"
                   icon={<ClipboardIcon size={20} color="white" />}
                   onPress={handlePaste}
                 />
-                <Button
-                  circular
-                  size="$4"
-                  bg="rgba(0,0,0,0.5)"
+                <AppButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="medium"
+                  iconOnly
+                  shape="circular"
+                  accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
                   icon={
                     flash === 'on' ? (
                       <Zap size={24} color="#FFD700" />
@@ -432,9 +447,14 @@ export default function ScannerScreen() {
               )}
 
               {scanned && (
-                <Button theme="accent" size="$5" onPress={() => setScanned(false)}>
+                <AppButton
+                  variant="branded"
+                  emphasis="primary"
+                  size="large"
+                  onPress={() => setScanned(false)}
+                >
                   Scan Again
-                </Button>
+                </AppButton>
               )}
             </YStack>
           </YStack>

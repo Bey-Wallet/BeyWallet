@@ -20,6 +20,7 @@ interface AppBottomSheetProps {
   children: React.ReactNode;
   snapPoints?: (string | number)[];
   onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   enablePanDownToClose?: boolean;
   canDismiss?: boolean;
   backgroundColor?: string;
@@ -38,6 +39,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       children,
       snapPoints,
       onClose,
+      onOpenChange,
       enablePanDownToClose = true,
       canDismiss = true,
       backgroundColor,
@@ -57,13 +59,14 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           return;
         }
         setIsOpen(index >= 0);
+        onOpenChange?.(index >= 0);
         if (index === -1) {
           onClose?.();
         } else {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       },
-      [onClose, canDismiss],
+      [onClose, onOpenChange, canDismiss],
     );
 
     const renderBackdrop = useCallback(

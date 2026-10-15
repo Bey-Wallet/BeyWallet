@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Button, H2, View, ScrollView, Circle } from 'tamagui';
+import { YStack, XStack, Text, H2, View, ScrollView, Circle } from 'tamagui';
 import { Animated, Easing } from 'react-native';
 import { CheckCircle2, AlertCircle, Clock, Zap } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -261,40 +262,35 @@ export function RestoreProgressStep({
 
       {/* Done button */}
       <YStack gap="$2" width="100%">
-        <Button
-          size="$5"
-          theme={allDone ? 'accent' : 'gray'}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
+          loading={isRestoring}
+          icon={allDone ? <CheckCircle2 size={22} /> : undefined}
           width="100%"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onDone();
           }}
           disabled={isRestoring}
-          opacity={isRestoring ? 0.5 : 1}
-          fontWeight="700"
-          fontSize="$5"
-          rounded="$4"
-          pressStyle={{ scale: 0.98, opacity: 0.9 }}
-          icon={allDone ? <CheckCircle2 size={22} /> : undefined}
         >
           {isRestoring ? `Scanning ${doneMints}/${totalMints}…` : 'Go to Wallet'}
-        </Button>
+        </AppButton>
 
         {isRestoring && (
-          <Button
-            size="$4"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="text-only"
+            size="medium"
             width="100%"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               onDone();
             }}
-            color="$gray10"
-            fontWeight="600"
-            pressStyle={{ opacity: 0.7 }}
           >
             Skip and Go to Wallet
-          </Button>
+          </AppButton>
         )}
       </YStack>
     </YStack>

@@ -1,15 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  View,
-  Paragraph,
-  Separator,
-  ScrollView,
-  Spinner,
-} from 'tamagui';
+import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView } from 'tamagui';
 import { Copy, Check, Clock, ShieldCheck, Sprout, Building2, Zap } from '@tamagui/lucide-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as Haptics from 'expo-haptics';
@@ -146,12 +137,10 @@ export function PaymentStage({
 
       <YStack position="absolute" b={0} l={0} r={0} py="$2" bg="$background">
         <XStack width="100%" justify="space-evenly" gap="$3">
-          <Button
-            size="$5"
-            height={55}
-            rounded="$6"
-            fontWeight="800"
-
+          <AppButton
+            variant="critical"
+            emphasis="secondary"
+            size="large"
             flex={1}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -159,16 +148,14 @@ export function PaymentStage({
             }}
           >
             Cancel
-          </Button>
-          <Button
-            theme="accent"
-            size="$5"
+          </AppButton>
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isChecking}
             flex={1}
-            height={55}
-            rounded="$6"
-            fontWeight="800"
             disabled={isExpired || isChecking}
-            icon={isChecking ? <Spinner size="small" color="white" /> : undefined}
             onPress={async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               setIsChecking(true);
@@ -186,7 +173,7 @@ export function PaymentStage({
             }}
           >
             {isChecking ? '...' : 'I Paid'}
-          </Button>
+          </AppButton>
         </XStack>
       </YStack>
     </YStack>
@@ -220,7 +207,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

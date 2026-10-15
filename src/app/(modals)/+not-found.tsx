@@ -1,6 +1,7 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import { Link, Stack } from 'expo-router';
 import React from 'react';
-import { YStack, Text, Button, useTheme } from 'tamagui';
+import { YStack, Text, useTheme } from 'tamagui';
 import { AlertCircle } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -18,21 +19,18 @@ export default function NotFoundScreen() {
         />
 
         <Link href="/" asChild>
-          <Button
-            size="$5"
-            theme="accent"
-            fontWeight="700"
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
-            rounded="$10"
             mt="$4"
-            fontSize="$4"
-
             maxWidth={300}
           >
             Go to Home
-          </Button>
+          </AppButton>
         </Link>
       </YStack>
     </>

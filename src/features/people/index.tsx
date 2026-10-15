@@ -1,3 +1,5 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -8,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { AlertTriangle, ClipboardPaste, Search, Star, Users, X } from '@tamagui/lucide-icons';
-import { Button, Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
+import { Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -299,15 +301,17 @@ export default function PeopleScreen() {
           {isSearching ? (
             <Spinner size="small" />
           ) : (
-            <Button
-              circular
-              chromeless
-              size="$2.5"
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel={isSearchActive ? 'Clear search' : 'Paste Nostr identifier'}
               icon={
                 isSearchActive ? <X size={17} /> : <ClipboardPaste strokeWidth={2.5} size={17} />
               }
               onPress={isSearchActive ? () => setSearch('') : paste}
-              accessibilityLabel={isSearchActive ? 'Clear search' : 'Paste Nostr identifier'}
             />
           )}
         </XStack>
@@ -435,24 +439,41 @@ function ViewTab({
   onPress: () => void;
 }) {
   return (
-    <Button
+    <AppPressable
+      px={12}
+      py={4}
+      bg={active === false ? 'transparent' : '$gray4'}
+      accessibilityState={{ selected: active }}
       theme="gray"
-      fontWeight={800}
-      size="$3"
       rounded="$12"
-      color={active ? '$color' : '$gray8'}
-      chromeless={active === false}
       pressStyle={{ opacity: 0.75 }}
       onPress={onPress}
+      minHeight={36}
+      flexDirection="row"
+      items="center"
+      justify="center"
+      gap={8}
     >
-      {label}
-    </Button>
+      <Text color={active ? '$color' : '$gray8'} fontSize="$3" fontWeight={800}>
+        {label}
+      </Text>
+    </AppPressable>
   );
 }
 
 function AttentionRow({ item, onPress }: { item: NostrInboxItem; onPress: () => void }) {
   return (
-    <Button unstyled width="100%" py="$3" onPress={onPress} pressStyle={{ opacity: 0.72 }}>
+    <AppPressable
+      width="100%"
+      py="$3"
+      onPress={onPress}
+      pressStyle={{ opacity: 0.72 }}
+      minHeight={48}
+      flexDirection="row"
+      items="center"
+      justify="center"
+      gap={8}
+    >
       <XStack items="center" gap="$3">
         <View width={44} height={44} rounded={22} bg="$yellow3" items="center" justify="center">
           <AlertTriangle size={20} color="$yellow11" />
@@ -469,7 +490,7 @@ function AttentionRow({ item, onPress }: { item: NostrInboxItem; onPress: () => 
         </YStack>
         <Text fontWeight="900">{item.amount.toLocaleString()} sats</Text>
       </XStack>
-    </Button>
+    </AppPressable>
   );
 }
 

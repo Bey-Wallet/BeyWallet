@@ -1,3 +1,5 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   YStack,
@@ -5,7 +7,6 @@ import {
   Text,
   H1,
   Input,
-  Button,
   Separator,
   ScrollView,
   View,
@@ -487,16 +488,14 @@ export function OnchainMeltFlow() {
             {errorMsg || 'An error occurred during payment.'}
           </Text>
         </YStack>
-        <Button
-          theme="accent"
-          size="$5"
-          height={55}
-          rounded="$4"
-          fontWeight="800"
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="large"
           onPress={() => setStep('input')}
         >
           Try Again
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -596,9 +595,14 @@ export function OnchainMeltFlow() {
           </YStack>
         </ScrollView>
         <YStack py="$4" bg="$background">
-          <Button size="$5" height={55} rounded="$6" fontWeight="800" onPress={() => router.back()}>
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
+            onPress={() => router.back()}
+          >
             Done
-          </Button>
+          </AppButton>
         </YStack>
       </YStack>
     );
@@ -769,26 +773,17 @@ export function OnchainMeltFlow() {
 
         {/* Confirm and Pay Actions */}
         <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-          <Button
-            size="$5"
-            chromeless
-            height={55}
-            rounded="$6"
-            fontWeight="800"
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
             onPress={() => setStep('input')}
           >
             Go Back
-          </Button>
-          <Button
-            theme="accent"
-            size="$5"
-            height={55}
-            rounded="$6"
-            fontWeight="800"
-            onPress={handlePayMelt}
-          >
+          </AppButton>
+          <AppButton variant="branded" emphasis="primary" size="large" onPress={handlePayMelt}>
             Confirm & Send
-          </Button>
+          </AppButton>
         </YStack>
       </YStack>
     );
@@ -829,18 +824,24 @@ export function OnchainMeltFlow() {
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
             />
 
-            <Button
-              size="$3"
+            <AppPressable
+              px={12}
+              py={4}
               rounded="$10"
               bg="$gray4"
               pressStyle={{ scale: 0.96, bg: '$gray5' }}
               onPress={toggleMode}
-              iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+              minHeight={36}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <Text fontSize="$3" fontWeight="600" color="$accent10">
                 {conversionValue}
               </Text>
-            </Button>
+              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+            </AppPressable>
           </YStack>
         </YStack>
 

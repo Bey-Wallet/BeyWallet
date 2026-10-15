@@ -1,5 +1,6 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { Moon, Sun, Monitor } from '@tamagui/lucide-icons';
-import { Button, XStack, YStack, Text, useTheme } from 'tamagui';
+import { XStack, YStack, Text, useTheme } from 'tamagui';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
@@ -29,7 +30,9 @@ export function ThemeSelector() {
           const Icon = mode.icon;
 
           return (
-            <Button
+            <AppPressable
+              rounded={8}
+              accessibilityState={{ selected: isActive }}
               key={mode.id}
               flex={1}
               flexDirection="column"
@@ -41,6 +44,9 @@ export function ThemeSelector() {
               onPress={() => handleThemeChange(mode.id)}
               hoverStyle={{ bg: isActive ? '$blue6' : '$backgroundHover' }}
               pressStyle={{ bg: isActive ? '$blue4' : '$backgroundPress' }}
+              items="center"
+              justify="center"
+              gap={8}
             >
               <YStack items="center" gap="$1">
                 <Icon size={24} color={isActive ? '$blue10' : '$color'} />
@@ -52,7 +58,7 @@ export function ThemeSelector() {
                   {mode.label}
                 </Text>
               </YStack>
-            </Button>
+            </AppPressable>
           );
         })}
       </XStack>

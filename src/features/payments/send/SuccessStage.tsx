@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, Button, Separator, ScrollView, View, YGroup } from 'tamagui';
+import { YStack, XStack, Text, Separator, ScrollView, View, YGroup } from 'tamagui';
 import { Check, Copy } from '@tamagui/lucide-icons';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -46,13 +47,10 @@ export function SuccessStage({ amount, mintUrl, fee = 0, onClose }: SuccessStage
     toast.show('Copied!', { message: `${label} copied to clipboard` });
   };
 
-  
-
   const mintDomain = mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown';
 
   return (
     <YStack flex={1} bg="$background">
-      
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 } as any}
@@ -117,9 +115,9 @@ export function SuccessStage({ amount, mintUrl, fee = 0, onClose }: SuccessStage
 
       {/* Final Done Button */}
       <YStack position="absolute" b="$4" l="$1" r="$1">
-        <Button size="$5" height={55} onPress={onClose} fontWeight="800" rounded="$6">
+        <AppButton variant="default" emphasis="primary" size="large" onPress={onClose}>
           Done
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );
@@ -152,7 +150,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

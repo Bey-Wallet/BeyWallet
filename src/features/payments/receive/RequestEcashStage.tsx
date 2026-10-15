@@ -1,3 +1,5 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Buffer } from 'buffer';
@@ -6,7 +8,6 @@ import {
   XStack,
   Text,
   H1,
-  Button,
   Separator,
   ScrollView,
   View,
@@ -108,15 +109,26 @@ function DetailItem({
           {value}
         </Text>
         {onShare && (
-          <Button
-            size="$2"
-            chromeless
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Share"
             icon={<Share2 size={16} color="$gray10" />}
             onPress={onShare}
           />
         )}
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>
@@ -708,16 +720,24 @@ export function RequestEcashStage({
                     prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
                     suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
                   />
-                  <Button
-                    size="$3"
+                  <AppPressable
+                    px={12}
+                    py={4}
                     rounded="$10"
                     bg="$gray5"
                     pressStyle={{ scale: 0.96, bg: '$gray5' }}
                     onPress={toggleMode}
-                    iconAfter={<ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />}
+                    minHeight={36}
+                    flexDirection="row"
+                    items="center"
+                    justify="center"
+                    gap={8}
                   >
-                    {conversionValue}
-                  </Button>
+                    <Text color="$color" fontSize="$3" fontWeight="600">
+                      {conversionValue}
+                    </Text>
+                    <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+                  </AppPressable>
                 </>
               )}
             </YStack>
@@ -760,10 +780,13 @@ export function RequestEcashStage({
             </XStack>
 
             {note.length > 0 && (
-              <Button
-                size="$3"
-                circular
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xsmall"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Clear input"
                 icon={<XIcon size="$1.5" color="$accent5" strokeWidth={2.5} />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -899,78 +922,63 @@ export function RequestEcashStage({
           {/* ── Action Buttons ────────────────────────────────────── */}
           <YStack gap="$3" mt="auto">
             <XStack gap="$3">
-              <Button
-                flex={1}
-                size="$5"
-                theme="gray"
-                fontWeight="800"
-                rounded="$6"
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="large"
                 icon={<Share2 size={20} />}
+                flex={1}
                 onPress={handleShare}
-                pressStyle={{ scale: 0.97 }}
               >
                 Share
-              </Button>
-              <Button
-                flex={2}
-                size="$5"
-                theme="accent"
-                fontWeight="800"
-                rounded="$6"
+              </AppButton>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="large"
                 icon={copied ? <Check size={20} /> : <Copy size={20} />}
+                flex={2}
                 onPress={handleCopy}
-                pressStyle={{ scale: 0.97 }}
               >
                 {copied ? 'Copied!' : 'Copy Request'}
-              </Button>
+              </AppButton>
             </XStack>
 
             {!publishedLink && (
-              <Button
-                size="$5"
-                bg="$purple10"
-                color="white"
-                fontWeight="800"
-                rounded="$6"
-                icon={isPublishing ? <Spinner size="small" color="white" /> : <Globe size={20} />}
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
+                loading={isPublishing}
+                icon={<Globe size={20} />}
                 onPress={handlePublish}
                 disabled={isPublishing}
-                pressStyle={{ scale: 0.97, bg: '$purple11' }}
               >
                 {isPublishing ? 'Publishing...' : 'Publish on bey.cash'}
-              </Button>
+              </AppButton>
             )}
 
             <XStack justify="center" gap="$4">
-              <Button
-                chromeless
-                size="$3"
-                icon={
-                  isChecking ? (
-                    <Spinner size="small" color="$accent9" />
-                  ) : (
-                    <RefreshCw size={14} color="$accent9" />
-                  )
-                }
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xsmall"
+                loading={isChecking}
+                icon={<RefreshCw size={14} color="$accent9" />}
                 onPress={handleCheckStatus}
                 disabled={isChecking}
-                pressStyle={{ opacity: 0.7 }}
               >
-                <Text fontSize="$2" color="$accent10" fontWeight="700">
-                  Check Status
-                </Text>
-              </Button>
-              <Button
-                chromeless
-                size="$3"
+                Check Status
+              </AppButton>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xsmall"
                 icon={<RefreshCw size={14} color="$gray10" />}
                 onPress={handleReset}
-                pressStyle={{ opacity: 0.7 }}
               >
-                <Text fontSize="$2" color="$gray10">
-                  New Request
-                </Text>
-              </Button>
+                New Request
+              </AppButton>
             </XStack>
           </YStack>
         </YStack>

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo } from 'react';
-import { YStack, Text, Button, ScrollView, View, XStack, Separator, YGroup } from 'tamagui';
+import { YStack, Text, ScrollView, View, XStack, Separator, YGroup } from 'tamagui';
 import { XCircle, Check, Copy } from '@tamagui/lucide-icons';
 import { Stack } from 'expo-router';
 
@@ -146,9 +147,16 @@ export function ResultStage({
               {error || 'An error occurred while creating the token.'}
             </Text>
           </YStack>
-          <Button theme="accent" size="$5" width="100%" onPress={onClose} mt="$4">
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
+            width="100%"
+            onPress={onClose}
+            mt="$4"
+          >
             Go Back
-          </Button>
+          </AppButton>
         </YStack>
       </YStack>
     );
@@ -247,9 +255,9 @@ export function ResultStage({
           borderTopWidth={1}
           borderColor="$gray3"
         >
-          <Button size="$5" height={55} onPress={onClose} fontWeight="800" rounded="$12">
+          <AppButton variant="default" emphasis="primary" size="large" onPress={onClose}>
             Done
-          </Button>
+          </AppButton>
         </YStack>
       )}
     </YStack>
@@ -283,7 +291,15 @@ function DetailItem({
           {value}
         </Text>
         {isCopyable && (
-          <Button size="$2" chromeless icon={<Copy size={16} color="$gray10" />} onPress={onCopy} />
+          <AppButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            iconOnly
+            accessibilityLabel="Copy"
+            icon={<Copy size={16} color="$gray10" />}
+            onPress={onCopy}
+          />
         )}
       </XStack>
     </XStack>

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, Button, Separator, ScrollView, Circle } from 'tamagui';
+import { YStack, XStack, Text, Separator, ScrollView, Circle } from 'tamagui';
 import { Check, XCircle, AlertCircle } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -71,9 +72,16 @@ export function ResultStage({
             {error || 'An error occurred while swapping.'}
           </Text>
         </YStack>
-        <Button theme="gray" size="$5" rounded="$6" width="100%" onPress={onClose} mt="$4">
+        <AppButton
+          variant="default"
+          emphasis="primary"
+          size="large"
+          width="100%"
+          onPress={onClose}
+          mt="$4"
+        >
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -137,17 +145,9 @@ export function ResultStage({
         bg="$background"
         borderTopWidth={0}
       >
-        <Button
-          theme="accent"
-          size="$5"
-          height={55}
-          rounded="$4"
-
-          fontWeight="800"
-          onPress={onClose}
-        >
+        <AppButton variant="default" emphasis="primary" size="large" onPress={onClose}>
           Done
-        </Button>
+        </AppButton>
       </YStack>
     </YStack>
   );

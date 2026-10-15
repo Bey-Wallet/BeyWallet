@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, {
   useImperativeHandle,
   forwardRef,
@@ -7,7 +8,7 @@ import React, {
   useCallback,
 } from 'react';
 import { useRouter } from 'expo-router';
-import { YStack, XStack, Text, View, Button } from 'tamagui';
+import { YStack, XStack, Text, View } from 'tamagui';
 import {
   Send,
   Lock,
@@ -321,20 +322,24 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
           {/* Header configuration */}
           <XStack items="center" justify="space-between" width="100%" pb="$0">
             {stage === 'ecash' ? (
-              <Button
-                circular
-                size="$3"
-                bg="$gray4"
-                pressStyle={{ scale: 0.95, bg: '$gray5' }}
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xsmall"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Go back"
                 icon={<ChevronLeft size={20} color="$color11" strokeWidth={3} />}
                 onPress={() => transitionTo('main')}
               />
             ) : (
-              <Button
-                circular
-                size="$3"
-                bg="$gray4"
-                pressStyle={{ scale: 0.95, bg: '$gray5' }}
+              <AppButton
+                variant="default"
+                emphasis="tertiary"
+                size="xsmall"
+                iconOnly
+                shape="circular"
+                accessibilityLabel="Close"
                 icon={<X size={20} color="$color11" strokeWidth={3} />}
                 onPress={handleClose}
               />

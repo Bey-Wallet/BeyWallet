@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, Text, View, XStack, Button } from 'tamagui';
+import { YStack, Text, View, XStack } from 'tamagui';
 import { AlertTriangle, Copy, Check, Trash2 } from '@tamagui/lucide-icons';
 import { ActivityIndicator } from 'react-native';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -58,14 +59,15 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
             <Text fontWeight="700" fontSize="$5">
               Recovery Phrase
             </Text>
-            <Button
-              size="$3"
-              chromeless
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
               icon={copied ? <Check size={18} color="$green9" /> : <Copy size={18} />}
               onPress={handleCopy}
             >
               {copied ? 'Copied' : 'Copy'}
-            </Button>
+            </AppButton>
           </XStack>
 
           <View bg="$gray3" p="$3" rounded="$4" borderWidth={1} borderColor="$borderColor">
@@ -105,21 +107,18 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
             </YStack>
           ) : (
             <>
-              <Button
-                size="$5"
-                bg="$red9"
-                color="white"
-                fontWeight="700"
-                rounded="$4"
-                onPress={onDelete}
-                pressStyle={{ scale: 0.98, bg: '$red10' }}
+              <AppButton
+                variant="critical"
+                emphasis="primary"
+                size="large"
                 icon={<Trash2 size={20} color="white" />}
+                onPress={onDelete}
               >
                 I've Backed Up, Delete Everything
-              </Button>
-              <Button size="$5" theme="gray" fontWeight="700" rounded="$4" onPress={onCancel}>
+              </AppButton>
+              <AppButton variant="default" emphasis="secondary" size="large" onPress={onCancel}>
                 Cancel
-              </Button>
+              </AppButton>
             </>
           )}
         </YStack>

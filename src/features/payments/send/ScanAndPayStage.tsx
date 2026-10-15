@@ -1,9 +1,11 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
-import { YStack, XStack, Text, Button, View, TextArea, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, TextArea, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
-import { Spinner } from '~/shared/ui/Spinner';
+
 import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -70,17 +72,15 @@ export function ScanAndPayStage({
               <Text color="$gray10" fontSize="$4" fontWeight="600">
                 Enter Payment Request
               </Text>
-              <Button
-                size="$2.5"
-                bg="$gray4"
-                onPress={handlePaste}
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<ClipboardPaste size={14} color="$gray10" />}
-                scaleIcon={1.2}
+                onPress={handlePaste}
               >
-                <Text color="$gray10" fontWeight="600">
-                  Paste
-                </Text>
-              </Button>
+                Paste
+              </AppButton>
             </XStack>
             <TextArea
               value={input}
@@ -114,13 +114,19 @@ export function ScanAndPayStage({
 
           {/* Scanning Options */}
           <XStack gap="$3">
-            <Button
+            <AppPressable
+              px={12}
+              py={4}
               flex={1}
               height={100}
               bg="$gray2"
               rounded="$6"
               onPress={handleScanPress}
               pressStyle={{ bg: '$gray3' }}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
             >
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
@@ -130,9 +136,21 @@ export function ScanAndPayStage({
                   QR Code
                 </Text>
               </YStack>
-            </Button>
+            </AppPressable>
 
-            <Button flex={1} height={100} bg="$gray2" rounded="$6" onPress={nfcFlow.openReader}>
+            <AppPressable
+              px={12}
+              py={4}
+              flex={1}
+              height={100}
+              bg="$gray2"
+              rounded="$6"
+              onPress={nfcFlow.openReader}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
               <YStack items="center" gap="$2">
                 <View bg="$gray4" p="$3" rounded="$10">
                   <Nfc size={24} color="$gray10" />
@@ -141,7 +159,7 @@ export function ScanAndPayStage({
                   NFC
                 </Text>
               </YStack>
-            </Button>
+            </AppPressable>
           </XStack>
         </YStack>
       </ScrollView>
@@ -149,19 +167,16 @@ export function ScanAndPayStage({
       {/* Continue Button */}
       {isLikelyValid && (
         <View position="absolute" px="$0" bottom="$4" left="$0" right="$0">
-          <Button
-            bg="$green9"
-            color="white"
-            size="$5"
-            fontWeight="700"
-            rounded="$6"
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isLoading}
             disabled={isLoading}
-            icon={isLoading ? <Spinner size="small" color="white" /> : undefined}
             onPress={() => onContinue()}
-            pressStyle={{ opacity: 0.9, scale: 0.98 }}
           >
             {isLoading ? 'Processing...' : 'Preview Payment'}
-          </Button>
+          </AppButton>
         </View>
       )}
     </YStack>

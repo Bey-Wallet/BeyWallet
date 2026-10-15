@@ -1,3 +1,4 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, {
   useState,
   useEffect,
@@ -6,7 +7,7 @@ import React, {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { YStack, XStack, Text, Button, Separator, View, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, Separator, View, ScrollView } from 'tamagui';
 import {
   AlertCircle,
   ArrowRight,
@@ -20,7 +21,11 @@ import { OfflineDenominationSelector } from '~/shared/ui/OfflineDenominationSele
 import { findClosestSubsetOptions, SubsetOption } from '~/shared/utils/offlineSendUtils';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  CurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import * as Haptics from 'expo-haptics';
 
@@ -170,15 +175,15 @@ export const OfflineOptimizationSheet = forwardRef<
         <YStack borderBottomWidth={1} borderBottomColor="$borderColor" pb="$3" gap="$1.5">
           <XStack items="center" justify="space-between">
             {viewMode === 'custom' ? (
-              <Button
-                size="$2"
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
                 icon={<ArrowLeft size={16} />}
                 onPress={() => setViewMode('closest')}
-                chromeless
-                p="$0"
               >
                 Back
-              </Button>
+              </AppButton>
             ) : (
               <XStack justify="space-between" width="100%">
                 <XStack gap="$2" items="center">
@@ -482,27 +487,28 @@ export const OfflineOptimizationSheet = forwardRef<
             </YStack>
 
             {/* Link to manual coin selection */}
-            <Button
+            <AppButton
+              variant="default"
+              emphasis="text-only"
+              size="medium"
               icon={<Coins size={16} />}
-              size="$4"
-              chromeless
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setViewMode('custom');
               }}
             >
               Select Coins Manually...
-            </Button>
+            </AppButton>
 
-            <Button
-              theme="accent"
-              size="$5"
-              rounded="$4"
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
               onPress={handleConfirm}
               disabled={!selectedOptionType}
             >
               Confirm & Continue
-            </Button>
+            </AppButton>
           </YStack>
         ) : (
           <YStack flex={1} minHeight={350} gap="$2">

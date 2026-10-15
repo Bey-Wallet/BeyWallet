@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect } from 'react';
-import { YStack, Text, Button, XStack, Paragraph } from 'tamagui';
+import { YStack, Text, XStack, Paragraph } from 'tamagui';
 import { Check, X, Clock, ArrowRight } from '@tamagui/lucide-icons';
 import Animated, {
   useSharedValue,
@@ -195,30 +196,32 @@ export default function StatusScreen({
 
         <AnimatedYStack style={contentAnimatedStyle} gap="$3" width="100%" maxW={400}>
           {onAction && (
-            <Button
-              size="$5"
-              themeInverse
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              iconAfter={<ArrowRight size={20} />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onAction();
               }}
-              iconAfter={<ArrowRight size={20} />}
             >
               {actionLabel}
-            </Button>
+            </AppButton>
           )}
 
           {onClose && (
-            <Button
-              size="$5"
-              theme="gray"
+            <AppButton
+              variant="default"
+              emphasis="primary"
+              size="large"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onClose();
               }}
             >
               Close
-            </Button>
+            </AppButton>
           )}
         </AnimatedYStack>
       </YStack>

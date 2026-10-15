@@ -1,7 +1,8 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useMemo } from 'react';
 import { AlertCircle, Check, Info } from '@tamagui/lucide-icons';
 import { Toast, useToastController, useToastState } from '@tamagui/toast';
-import { Button, Spinner, XStack, YStack } from 'tamagui';
+import { Spinner, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 
 type ToastKind = 'loading' | 'success' | 'error' | 'warning' | 'info';
@@ -156,21 +157,18 @@ export function AppToast() {
           {currentToast.title}
         </Toast.Title>
 
-        <Button
-          size="$2"
-          rounded={3000}
-          fontWeight="800"
-          pressStyle={{
-            opacity: 0.6,
-          }}
+        <AppButton
+          variant="default"
+          emphasis="secondary"
+          size="xxsmall"
           onPress={() => {
             actionData.onAction?.();
             controller.hide();
           }}
           accessibilityLabel={actionData.actionLabel}
         >
-          {actionData.actionLabel}
-        </Button>
+          {actionData.actionLabel ?? 'View'}
+        </AppButton>
       </XStack>
     </Toast>
   );

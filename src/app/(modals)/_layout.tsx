@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import { Stack, useRouter } from 'expo-router';
-import { Button, useTheme, Text } from 'tamagui';
+import { useTheme, Text } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
@@ -34,10 +35,13 @@ export default function ModalLayout() {
         headerShadowVisible: false,
         headerTitle: ({ children }) => <DefaultHeaderTitle>{children}</DefaultHeaderTitle>,
         headerLeft: () => (
-          <Button
-            circular
-            size="$3"
-            rounded="$10"
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="xsmall"
+            iconOnly
+            shape="circular"
+            accessibilityLabel="Close"
             icon={<X size={24} color="$color" />}
             onPress={() => {
               if (router.canGoBack()) {

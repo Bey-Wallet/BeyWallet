@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, Button, View, ScrollView, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView, Spinner } from 'tamagui';
 import {
   ShieldCheck,
   ShieldOff,
@@ -22,10 +23,7 @@ import {
 } from '~/services/api/mintRecommendationService';
 import { useWalletStore } from '~/state/walletStore';
 import { MintIcon } from '~/features/explore/components/MintIcon';
-import {
-  fetchMintMeta,
-  type MintMetadata,
-} from '~/features/explore/components/mintMeta';
+import { fetchMintMeta, type MintMetadata } from '~/features/explore/components/mintMeta';
 
 const PAGE_SIZE = 10;
 
@@ -117,9 +115,9 @@ export default function DiscoverMintsScreen() {
           <Text color="$gray10" textAlign="center">
             Check your connection or try again later.
           </Text>
-          <Button theme="accent" onPress={() => refetch()}>
+          <AppButton variant="branded" emphasis="primary" size="medium" onPress={() => refetch()}>
             Retry
-          </Button>
+          </AppButton>
         </YStack>
       ) : allMints.length === 0 ? (
         <YStack flex={1} items="center" justify="center" px="$4">
@@ -209,22 +207,19 @@ function MintCard({ mint, status, actionLabel, actionTheme, onAction }: MintCard
           <MintIcon url={mint.url} hintIcon={mint.icon} size={50} />
         </View>
 
-        <Button
-          size="$3"
-          theme={actionTheme as any}
+        <AppButton
+          variant="branded"
+          emphasis="primary"
+          size="xsmall"
           disabled={status === 'trusted'}
           onPress={(e) => {
             e.stopPropagation?.();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onAction(mint.url, status);
           }}
-          px="$3"
-          rounded="$10"
-          fontWeight="700"
-          fontSize="$3"
         >
           {actionLabel}
-        </Button>
+        </AppButton>
       </XStack>
 
       {/* Content */}

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, Button, H6, View } from 'tamagui';
+import { YStack, XStack, Text, H6, View } from 'tamagui';
 import { AtSign, X } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -59,12 +60,15 @@ export default function ClaimUsernameCard() {
             </Text>
           </YStack>
         </XStack>
-        <Button
-          size="$2.5"
-          circular
+        <AppButton
+          variant="default"
+          emphasis="tertiary"
+          size="xxsmall"
+          iconOnly
+          shape="circular"
+          accessibilityLabel="Dismiss notice"
           icon={<X size={18} />}
           onPress={handleDismiss}
-          pressStyle={{ opacity: 0.7 }}
         />
       </XStack>
     </YStack>

@@ -18,8 +18,10 @@
     "test": "jest --watchAll",
     "typecheck": "tsc --noEmit",
     "test:ci": "jest --watchAll=false",
+    "test:web:buttons": "jest --preset jest-expo/web --runInBand --watchAll=false --setupFilesAfterEnv ./tests/unit/setupButtonsWeb.ts --runTestsByPath tests/unit/app-controls.test.web.tsx",
     "check:structure": "node scripts/check-structure.mjs",
-    "validate": "yarn typecheck && yarn test:ci && yarn check:structure",
+    "check:buttons": "node scripts/check-buttons.mjs",
+    "validate": "yarn typecheck && yarn test:ci && yarn check:structure && yarn check:buttons",
     "postinstall": "npx patch-package",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\""

@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Button, View, ScrollView, Input, Separator } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView, Input, Separator } from 'tamagui';
 import { ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
@@ -375,45 +376,42 @@ export function NostrUsernameScreen() {
               </XStack>
               <Separator borderColor="$borderColor" opacity={0.5} />
               <XStack>
-                <Button
-                  flex={1}
-                  size="$4"
-                  chromeless
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="medium"
                   icon={<Copy size={16} color="$gray10" />}
+                  flex={1}
                   onPress={handleCopyIdentifier}
                 >
-                  <Text color="$gray10" fontWeight="600">
-                    Copy
-                  </Text>
-                </Button>
+                  Copy
+                </AppButton>
 
                 <Separator vertical borderColor="$borderColor" opacity={0.5} />
 
-                <Button
-                  flex={1}
-                  size="$4"
-                  chromeless
+                <AppButton
+                  variant="default"
+                  emphasis="text-only"
+                  size="medium"
                   icon={<Edit3 size={16} color="$blue10" />}
+                  flex={1}
                   onPress={handleEditStart}
                 >
-                  <Text color="$blue10" fontWeight="600">
-                    Edit
-                  </Text>
-                </Button>
+                  Edit
+                </AppButton>
 
                 <Separator vertical borderColor="$borderColor" opacity={0.5} />
 
-                <Button
-                  flex={1}
-                  size="$4"
-                  chromeless
+                <AppButton
+                  variant="critical"
+                  emphasis="secondary"
+                  size="medium"
                   icon={<Trash2 size={16} color="$red10" />}
+                  flex={1}
                   onPress={handleDelete}
                 >
-                  <Text color="$red10" fontWeight="600">
-                    Delete
-                  </Text>
-                </Button>
+                  Delete
+                </AppButton>
               </XStack>
             </YStack>
           </YStack>
@@ -480,20 +478,14 @@ export function NostrUsernameScreen() {
             </YStack>
 
             {/* Claim / Update button */}
-            <Button
-              size="$5"
-              themeInverse
-              fontWeight="800"
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              loading={isRegistering}
+              icon={<Globe size={20} />}
               disabled={checkState !== 'available' || isRegistering}
               onPress={handleClaim}
-              opacity={isRegistering ? 0.7 : 1}
-              icon={
-                isRegistering ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Globe size={20} />
-                )
-              }
             >
               {isRegistering
                 ? isEditing
@@ -502,13 +494,14 @@ export function NostrUsernameScreen() {
                 : isEditing
                   ? 'Update Username'
                   : 'Claim Username'}
-            </Button>
+            </AppButton>
 
             {/* Cancel Edit Button */}
             {isEditing && (
-              <Button
-                size="$4"
-                chromeless
+              <AppButton
+                variant="default"
+                emphasis="text-only"
+                size="medium"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setInput('');
@@ -516,10 +509,8 @@ export function NostrUsernameScreen() {
                   setIsEditing(false);
                 }}
               >
-                <Text color="$gray10" fontWeight="600">
-                  Cancel Edit
-                </Text>
-              </Button>
+                Cancel Edit
+              </AppButton>
             )}
 
             {/* Info box */}

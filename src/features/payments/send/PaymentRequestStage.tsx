@@ -1,16 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  Button,
-  Separator,
-  View,
-  Spinner as TamaguiSpinner,
-  Avatar,
-  H1,
-  ScrollView,
-} from 'tamagui';
+import { YStack, XStack, Text, Separator, View, Avatar, H1, ScrollView } from 'tamagui';
 import {
   AlertCircle,
   Building2,
@@ -326,7 +316,14 @@ export function PaymentRequestStage({
                 {receipt === 'awaiting' ? 'Awaiting recipient' : 'Receipt unconfirmed'}
               </Text>
               <Text>The payment remains pending in History. Do not pay this request again.</Text>
-              <Button onPress={refreshReceipt}>Refresh status</Button>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="medium"
+                onPress={refreshReceipt}
+              >
+                Refresh status
+              </AppButton>
             </YStack>
           )}
           <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
@@ -422,33 +419,28 @@ export function PaymentRequestStage({
         />
 
         <XStack gap="$3">
-          <Button
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="large"
             flex={1}
-            bg="$gray3"
-            color="$color"
-            height={60}
-            rounded="$6"
             disabled={isSending}
-            fontWeight="700"
-            fontSize="$5"
             onPress={onCancel}
           >
             Cancel
-          </Button>
+          </AppButton>
           {(!autoPay || hasOperation) && (
-            <Button
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              loading={isSending}
               flex={1}
-              theme="accent"
-              height={60}
-              rounded="$6"
               disabled={!!receipt || (!hasOperation && (!isCompatible || !isEnough)) || isSending}
-              icon={isSending ? <TamaguiSpinner size="small" color="white" /> : undefined}
-              fontWeight="700"
-              fontSize="$5"
               onPress={handlePay}
             >
               {isSending ? 'Sending…' : hasOperation ? 'Retry delivery' : 'Pay'}
-            </Button>
+            </AppButton>
           )}
         </XStack>
       </YStack>

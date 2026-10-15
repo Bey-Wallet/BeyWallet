@@ -1,16 +1,16 @@
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
   YStack,
   XStack,
   Text,
   ScrollView,
-  Button,
   View,
   Separator,
   Avatar,
   ListItem,
   YGroup,
-  Spinner,
 } from 'tamagui';
 import {
   ChevronLeft,
@@ -292,9 +292,9 @@ export default function MintDetailsModal() {
         <Text color="$color" fontSize="$5" fontWeight="600">
           Mint not found
         </Text>
-        <Button mt="$4" onPress={safeGoBack}>
+        <AppButton variant="default" emphasis="primary" size="medium" mt="$4" onPress={safeGoBack}>
           Go Back
-        </Button>
+        </AppButton>
       </YStack>
     );
   }
@@ -391,11 +391,13 @@ export default function MintDetailsModal() {
             </YStack>
           ),
           headerLeft: () => (
-            <Button
-              circular
-              size="$3"
-              bg="$gray3"
-              pressStyle={{ scale: 0.95, bg: '$gray4' }}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Go back"
               icon={<ChevronLeft size={20} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -404,11 +406,13 @@ export default function MintDetailsModal() {
             />
           ),
           headerRight: () => (
-            <Button
-              circular
-              size="$3"
-              bg="$gray3"
-              pressStyle={{ scale: 0.95, bg: '$gray4' }}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
+              accessibilityLabel="Share"
               icon={<Share2 size={18} color="$color" />}
               onPress={handleShare}
             />
@@ -449,18 +453,24 @@ export default function MintDetailsModal() {
                 {/* Trust badges */}
                 <XStack mt="$2" gap="$2" items="center">
                   {isTrusted ? (
-                    <Button size="$2" theme="green" disabled fontWeight={800}>
-                      Trusted
-                    </Button>
+                    <View bg="$green3" px="$2" py="$1" rounded="$3">
+                      <Text color="$green11" fontWeight="600">
+                        Trusted
+                      </Text>
+                    </View>
                   ) : (
-                    <Button size="$2" theme="red" disabled fontWeight={800}>
-                      Untrusted
-                    </Button>
+                    <View bg="$red3" px="$2" py="$1" rounded="$3">
+                      <Text color="$red11" fontWeight="600">
+                        Untrusted
+                      </Text>
+                    </View>
                   )}
                   {isActive && (
-                    <Button size="$2" bg="blue" color="white" disabled fontWeight={800}>
-                      Active
-                    </Button>
+                    <View bg="$blue3" px="$2" py="$1" rounded="$3">
+                      <Text color="$blue11" fontWeight="600">
+                        Active
+                      </Text>
+                    </View>
                   )}
                 </XStack>
               </YStack>
@@ -519,20 +529,25 @@ export default function MintDetailsModal() {
 
             {/* Collapsible About Section */}
             <YStack gap="$2">
-              <Button
-                size="$4"
+              <AppPressable
+                py={4}
+                accessibilityState={{ expanded: isAboutExpanded }}
                 bg="$gray3"
                 pressStyle={{ bg: '$gray4' }}
                 onPress={() => setIsAboutExpanded(!isAboutExpanded)}
-                iconAfter={isAboutExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 justify="space-between"
                 px="$4"
                 rounded="$5"
+                minHeight={44}
+                flexDirection="row"
+                items="center"
+                gap={8}
               >
                 <Text fontSize="$4" fontWeight="800" color="$color">
                   About Mint
                 </Text>
-              </Button>
+                {isAboutExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </AppPressable>
 
               {isAboutExpanded && (
                 <YStack gap="$4" pt="$2">
@@ -708,37 +723,32 @@ export default function MintDetailsModal() {
           borderColor="$borderColor"
           gap="$2.5"
         >
-          <Button
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isRestoring && restoringMintUrl === mintUrl}
+            icon={<RefreshCw size={18} />}
             flex={1}
-            size="$5"
-            variant="outlined"
             onPress={handleRestoreProofs}
             disabled={isRestoring}
-            fontWeight="800"
-            icon={
-              isRestoring && restoringMintUrl === mintUrl ? (
-                <Spinner size="small" color="$accent10" />
-              ) : (
-                <RefreshCw size={18} />
-              )
-            }
           >
             {isRestoring && restoringMintUrl === mintUrl ? 'Restoring...' : 'Restore'}
-          </Button>
+          </AppButton>
 
-          <Button
+          <AppButton
+            variant="critical"
+            emphasis="secondary"
+            size="large"
+            icon={<Trash2 strokeWidth={2.5} />}
             flex={1}
-            size="$5"
-            theme="red"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               removeMintSheetRef.current?.present();
             }}
-            fontWeight="800"
-            icon={<Trash2 strokeWidth={2.5} />}
           >
             Remove
-          </Button>
+          </AppButton>
         </XStack>
         {/* Remove Mint Confirmation Bottom Sheet */}
         <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
@@ -781,26 +791,22 @@ export default function MintDetailsModal() {
             )}
 
             <YStack gap="$3" mt="$2">
-              <Button
-                size="$5"
-                bg="$red9"
-                color="white"
-                fontWeight="700"
-                rounded="$4"
+              <AppButton
+                variant="critical"
+                emphasis="primary"
+                size="large"
                 onPress={handleRemoveMint}
-                pressStyle={{ scale: 0.98, bg: '$red10' }}
               >
                 Confirm Remove
-              </Button>
-              <Button
-                size="$5"
-                theme="gray"
-                fontWeight="700"
-                rounded="$4"
+              </AppButton>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="large"
                 onPress={() => removeMintSheetRef.current?.dismiss()}
               >
                 Cancel
-              </Button>
+              </AppButton>
             </YStack>
           </YStack>
         </AppBottomSheet>

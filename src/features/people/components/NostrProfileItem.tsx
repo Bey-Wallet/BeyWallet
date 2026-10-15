@@ -1,7 +1,8 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Send } from '@tamagui/lucide-icons';
-import { Button, Image, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { Image, Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
@@ -100,12 +101,14 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
             </YStack>
           </TouchableOpacity>
           <XStack items="center" gap="$1.5">
-            <Button
-              circular
-              size="$3"
-              bg="$gray3"
-              icon={<Send size={17} color="$color" />}
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="xsmall"
+              iconOnly
+              shape="circular"
               accessibilityLabel={`Send eCash to ${label}`}
+              icon={<Send size={17} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onSend(profile);

@@ -1,5 +1,7 @@
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
-import { YStack, XStack, Button, Text, Spinner, View } from 'tamagui';
+import { YStack, XStack, Text, View } from 'tamagui';
 import { ChevronLeft } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -15,7 +17,7 @@ interface NumericKeypadProps {
   showAmountDisplay?: boolean;
   showConfirmButton?: boolean;
   confirmDisabled?: boolean;
-  confirmIcon?: any;
+  confirmIcon?: AppButtonIcon;
 }
 
 // Keypad grid — defined once, never recreated
@@ -32,29 +34,37 @@ const KEYPAD_ROWS = [
  */
 const NumButton = React.memo(
   ({ digit, onPress }: { digit: string; onPress: (d: string) => void }) => (
-    <Button
+    <AppPressable
       flex={1}
       height={55}
-      chromeless
       onPress={() => onPress(digit)}
       pressStyle={{ bg: '$colorTransparent', borderColor: '$colorTransparent', scale: 1.5 }}
+      flexDirection="row"
+      items="center"
+      justify="center"
+      gap={8}
     >
       <Text fontSize={32} fontVariant={['tabular-nums']} fontWeight="800" color="$color">
         {digit}
       </Text>
-    </Button>
+    </AppPressable>
   ),
 );
 
 const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
-  <Button
+  <AppPressable
+    accessibilityLabel="Delete last digit"
     flex={1}
     height={55}
-    chromeless
     onPress={onPress}
     pressStyle={{ bg: 'transparent', borderColor: '$colorTransparent', scale: 1.5 }}
-    icon={<ChevronLeft size={32} color="$color" />}
-  />
+    flexDirection="row"
+    items="center"
+    justify="center"
+    gap={8}
+  >
+    <ChevronLeft size={32} color="$color" />
+  </AppPressable>
 ));
 
 export function NumericKeypad({
@@ -138,20 +148,17 @@ export function NumericKeypad({
           ))}
         </YStack>
         {showConfirmButton && (
-          <Button
-            size="$5"
-            height={60}
-            rounded="$6"
-            fontSize="$5"
-            fontWeight={800}
-            theme={canContinue && !confirmDisabled ? 'accent' : 'gray'}
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isLoading}
+            icon={confirmIcon || null}
             onPress={handleConfirm}
             disabled={!canContinue || confirmDisabled}
-            opacity={!canContinue || confirmDisabled ? 0.5 : 1}
-            icon={isLoading ? <Spinner color="$color" /> : confirmIcon || null}
           >
             {isLoading ? 'Processing...' : confirmLabel}
-          </Button>
+          </AppButton>
         )}
       </YStack>
     </YStack>

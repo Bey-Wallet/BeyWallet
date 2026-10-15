@@ -1,5 +1,6 @@
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef } from 'react';
-import { YStack, XStack, Text, View, Button, Theme, useTheme, Separator, YGroup } from 'tamagui';
+import { YStack, XStack, Text, View, Theme, useTheme, Separator, YGroup } from 'tamagui';
 import {
   Check,
   CheckCircle2,
@@ -295,28 +296,18 @@ export function ProcessingSheet({
 
               {/* Action Button */}
               <YStack width="100%" gap="$2" pt="$2">
-                <Button
-                  bg="$green10"
-                  color="white"
-                  size="$5"
-                  height={50}
-                  onPress={onClose}
-                  fontWeight="800"
-                  rounded="$4"
-                >
+                <AppButton variant="default" emphasis="primary" size="medium" onPress={onClose}>
                   DONE
-                </Button>
+                </AppButton>
                 {onViewDetails && (
-                  <Button
-                    theme="accent"
-                    size="$5"
-                    height={50}
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="medium"
                     onPress={onViewDetails}
-                    fontWeight="800"
-                    rounded="$4"
                   >
                     DETAILS
-                  </Button>
+                  </AppButton>
                 )}
               </YStack>
             </YStack>
@@ -353,43 +344,24 @@ export function ProcessingSheet({
               {/* Actions */}
               <YStack width="100%" gap="$2">
                 {isOfflineSaved ? (
-                  <Button
-                    bg="$orange10"
-                    color="white"
-                    size="$5"
-                    height={50}
-                    onPress={onClose}
-                    fontWeight="800"
-                    rounded="$4"
-                  >
+                  <AppButton variant="default" emphasis="primary" size="medium" onPress={onClose}>
                     GOT IT
-                  </Button>
+                  </AppButton>
                 ) : (
                   <>
                     {onRetry && (
-                      <Button
-                        bg="$red10"
-                        color="white"
-                        size="$5"
-                        height={50}
+                      <AppButton
+                        variant="branded"
+                        emphasis="primary"
+                        size="medium"
                         onPress={onRetry}
-                        fontWeight="800"
-                        rounded="$4"
                       >
                         TRY AGAIN
-                      </Button>
+                      </AppButton>
                     )}
-                    <Button
-                      bg="$gray3"
-                      color="$color"
-                      size="$5"
-                      height={50}
-                      onPress={onClose}
-                      fontWeight="800"
-                      rounded="$4"
-                    >
+                    <AppButton variant="default" emphasis="primary" size="medium" onPress={onClose}>
                       CLOSE
-                    </Button>
+                    </AppButton>
                   </>
                 )}
               </YStack>
