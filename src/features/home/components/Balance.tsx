@@ -91,8 +91,8 @@ export default function Balance() {
             }
             letterSpacing={-1}
             fontSize={42}
-            fontWeight={800}
-            color="$accent3"
+            fontWeight={500}
+            color="$accent4"
 
             decimalOpacity={0.4}
             showDecimals={false}
@@ -116,8 +116,8 @@ export default function Balance() {
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
             letterSpacing={-1}
             fontSize={42}
-            fontWeight={800}
-            color="$accent3"
+            fontWeight={500}
+            color="$accent4"
 
             decimalOpacity={0.4}
             showDecimals={true}

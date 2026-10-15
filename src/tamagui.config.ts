@@ -177,6 +177,89 @@ const surfaceColors = {
   surface900: '#181818',
 };
 
+const blend = (background: string, foreground: string, amount: number) =>
+  `#${[1, 3, 5]
+    .map((offset) =>
+      Math.round(
+        parseInt(background.slice(offset, offset + 2), 16) * (1 - amount) +
+          parseInt(foreground.slice(offset, offset + 2), 16) * amount,
+      )
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+
+function createButtonTheme(dark: boolean) {
+  const foreground = dark ? '#FFFFFF' : '#181818';
+  const neutral = dark ? ['#242424', '#303030', '#3A3A3A'] : ['#F1F1F1', '#E5E5E5', '#D6D6D6'];
+  const semantic = (background: string, color: string) => [
+    background,
+    blend(background, color, 0.08),
+    blend(background, color, 0.14),
+  ];
+  const criticalColor = dark ? '#FCA5A5' : '#991B1B';
+  const warningColor = dark ? '#FCD34D' : '#92400E';
+  const palette = (
+    name: string,
+    primary: string[],
+    primaryText: string,
+    secondary: string[],
+    secondaryText: string,
+    text: string,
+  ) => ({
+    [`button${name}Primary`]: primary[0],
+    [`button${name}PrimaryHover`]: primary[1],
+    [`button${name}PrimaryPress`]: primary[2],
+    [`button${name}PrimaryText`]: primaryText,
+    [`button${name}Secondary`]: secondary[0],
+    [`button${name}SecondaryHover`]: secondary[1],
+    [`button${name}SecondaryPress`]: secondary[2],
+    [`button${name}SecondaryText`]: secondaryText,
+    [`button${name}Text`]: text,
+  });
+  return {
+    ...palette(
+      'Default',
+      dark ? ['#FFFFFF', '#EBEBEB', '#D6D6D6'] : ['#181818', '#282828', '#383838'],
+      dark ? '#181818' : '#FFFFFF',
+      neutral,
+      foreground,
+      foreground,
+    ),
+    ...palette(
+      'Branded',
+      [defaultConfig.themes[dark ? 'dark' : 'light'].blue10, '#1E4BB5', '#173A8C'],
+      '#FFFFFF',
+      neutral,
+      foreground,
+      dark ? '#9DBAFF' : '#2660E8',
+    ),
+    ...palette(
+      'Critical',
+      ['#B91C1C', '#991B1B', '#7F1D1D'],
+      '#FFFFFF',
+      semantic(dark ? '#450A0A' : '#FEE2E2', criticalColor),
+      criticalColor,
+      criticalColor,
+    ),
+    ...palette(
+      'Warning',
+      ['#FBBF24', '#F59E0B', '#D97706'],
+      '#181818',
+      semantic(dark ? '#451A03' : '#FEF3C7', warningColor),
+      warningColor,
+      warningColor,
+    ),
+    buttonDisabled: dark ? '#1F2937' : '#E5E7EB',
+    buttonDisabledText: dark ? '#9CA3AF' : '#6B7280',
+    buttonFocus: '#2660E8',
+    buttonBrandedTextHover: dark ? '#9DBAFF' : '#1E4BB5',
+    buttonBrandedTextPress: dark ? '#9DBAFF' : '#173A8C',
+  };
+}
+
+export const buttonThemes = { light: createButtonTheme(false), dark: createButtonTheme(true) };
+
 export const config = createTamagui({
   ...defaultConfig,
   animations,
@@ -199,6 +282,7 @@ export const config = createTamagui({
       ...superblueColors,
       ...beyblueColors,
       ...surfaceColors,
+      ...buttonThemes.light,
     },
     dark: {
       ...defaultConfig.themes.dark,
@@ -206,6 +290,7 @@ export const config = createTamagui({
       ...superblueColors,
       ...beyblueColors,
       ...surfaceColors,
+      ...buttonThemes.dark,
     },
   },
 });

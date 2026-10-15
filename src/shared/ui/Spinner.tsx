@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Loader, LoaderCircle } from '@tamagui/lucide-icons';
+import { Loader } from '@tamagui/lucide-icons';
+import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { YStack, YStackProps, useTheme, variableToString } from 'tamagui';
 import Animated, {
   useSharedValue,
@@ -13,10 +14,13 @@ import Animated, {
 export type SpinnerProps = Omit<YStackProps, 'children'> & {
   size?: number | 'small' | 'large' | 'xlarge' | 'xxlarge';
   color?: string;
+  reduceMotion?: boolean;
 };
 
 export const Spinner = (props: SpinnerProps) => {
-  const { size = 'small', color: colorProp, ...stackProps } = props;
+  const { size = 'small', color: colorProp, reduceMotion, ...stackProps } = props;
+  const systemReducedMotion = useReducedMotion();
+  const isStatic = reduceMotion ?? systemReducedMotion;
   const theme = useTheme();
   const rotation = useSharedValue(0);
 
@@ -39,6 +43,8 @@ export const Spinner = (props: SpinnerProps) => {
             : size;
 
   useEffect(() => {
+    rotation.value = 0;
+    if (isStatic) return;
     rotation.value = withRepeat(
       withTiming(360, {
         duration: 1000,
@@ -48,17 +54,22 @@ export const Spinner = (props: SpinnerProps) => {
       false, // Don't reverse
     );
     return () => cancelAnimation(rotation);
-  }, []);
+  }, [isStatic, rotation]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ rotate: `${rotation.value}deg` }],
+      transform: [{ rotate: `${isStatic ? 0 : rotation.value}deg` }],
     };
   });
 
   return (
     <YStack items="center" justify="center" {...stackProps}>
-      <Animated.View style={animatedStyle}>
+      <Animated.View
+        style={[
+          animatedStyle,
+          { width: iconSize, height: iconSize, alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
         <Loader size={iconSize} color={color} />
       </Animated.View>
     </YStack>

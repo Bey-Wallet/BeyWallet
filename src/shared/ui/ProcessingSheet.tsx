@@ -25,6 +25,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
+import { ActivityIndicator } from 'react-native';
 
 const nostrIconWhite = require('~/assets/images/nostr-icon-white-transparent.png');
 
@@ -159,6 +160,8 @@ export function ProcessingSheet({
     return s;
   };
 
+  const theme = useTheme();
+
   return (
     <Theme inverse>
       <AppBottomSheet ref={sheetRef} onClose={onClose} enablePanDownToClose={!isProcessing}>
@@ -166,7 +169,7 @@ export function ProcessingSheet({
           {/* ── Processing State UI ────────────────────────────────────── */}
           {isProcessing && (
             <YStack items="center" gap="$4" py="$6" width="100%">
-              {variant === 'standard' && <Spinner size="large" color="$color1" />}
+              {variant === 'standard' && <ActivityIndicator size={56} color={theme.color1?.val} />}
               {variant === 'nostr' && (
                 <XStack items="center" gap="$3">
                   <View
