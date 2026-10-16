@@ -25,6 +25,9 @@ import {
   type NostrDiagnosticSnapshot,
 } from '~/services/wallet/nostrDiagnosticsService';
 import { RELAYS } from '~/services/wallet/nostrService';
+import { AppButton } from '~/shared/ui/AppButton';
+import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
+import { usePeopleStore } from '~/state/peopleStore';
 
 export default function NostrSettingsScreen() {
   const toast = useToastController();
@@ -32,6 +35,9 @@ export default function NostrSettingsScreen() {
   const npub = useSettingsStore((state) => state.npub);
   const nsec = useSettingsStore((state) => state.nsec);
   const [isNsecVisible, setIsNsecVisible] = useState(false);
+  const policy = useNostrReceiveSettingsStore((state) => state.policy);
+  const setPolicy = useNostrReceiveSettingsStore((state) => state.setPolicy);
+  const people = usePeopleStore((state) => state.people);
 
   const [diagnostics, setDiagnostics] = useState<NostrDiagnosticSnapshot | null>(null);
 
@@ -83,6 +89,44 @@ export default function NostrSettingsScreen() {
         contentContainerStyle={{ paddingBottom: 60 }}
       >
         <YStack p="$4" gap="$5">
+          <YStack gap="$3">
+            <Text fontWeight="800" fontSize="$5">
+              Receiving from people
+            </Text>
+            <AppButton
+              emphasis={policy === 'ask' ? 'primary' : 'secondary'}
+              onPress={() => setPolicy('ask')}
+            >
+              Ask before receiving from unknown people
+            </AppButton>
+            <AppButton
+              emphasis={policy === 'everyone' ? 'primary' : 'secondary'}
+              onPress={() => setPolicy('everyone')}
+            >
+              Accept everyone
+            </AppButton>
+            <Text color="$gray10">
+              Accept everyone also accepts waiting requests. Mint approval is always separate.
+            </Text>
+            <Text fontWeight="800">Blocked people</Text>
+            {Object.values(people)
+              .filter((person) => person.contactStatus === 'blocked')
+              .map((person) => (
+                <YStack key={person.npub} gap="$2">
+                  <Text numberOfLines={1}>
+                    {person.displayName || person.username || person.npub}
+                  </Text>
+                  <AppButton
+                    emphasis="secondary"
+                    onPress={() =>
+                      usePeopleStore.getState().setContactStatus(person.npub, 'unaccepted')
+                    }
+                  >
+                    Unblock
+                  </AppButton>
+                </YStack>
+              ))}
+          </YStack>
           {/* Header */}
           <XStack items="center" gap="$3" py="$2">
             <View p="$2" bg="white" rounded="$5">

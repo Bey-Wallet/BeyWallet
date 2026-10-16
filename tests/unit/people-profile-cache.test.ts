@@ -23,9 +23,9 @@ describe('People profile cache', () => {
   });
 
   it('refreshes npub-only and placeholder identities', () => {
-    expect(needsNostrProfileRefresh({ npub: NPUB, isFavorite: false })).toBe(true);
+    expect(needsNostrProfileRefresh({ npub: NPUB, contactStatus: 'unaccepted' })).toBe(true);
     expect(
-      needsNostrProfileRefresh({ npub: NPUB, username: 'Nostr user', isFavorite: false }),
+      needsNostrProfileRefresh({ npub: NPUB, username: 'Nostr user', contactStatus: 'unaccepted' }),
     ).toBe(true);
   });
 
@@ -38,7 +38,7 @@ describe('People profile cache', () => {
           nip05: 'gloomywidow@minibits.cash',
           nip05Verified: true,
           profileUpdatedAt: 1_000,
-          isFavorite: false,
+          contactStatus: 'unaccepted',
         },
         2_000,
       ),
@@ -79,7 +79,7 @@ describe('People profile cache', () => {
           npub: NPUB,
           displayName: 'Gloomy Widow',
           profileUpdatedAt: Date.now(),
-          isFavorite: false,
+          contactStatus: 'unaccepted',
         },
       ],
       { forceRefresh: true },

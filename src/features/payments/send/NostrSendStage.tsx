@@ -131,12 +131,12 @@ export function NostrSendStage({
         .filter((profile): profile is NostrProfile => !!profile),
     [people],
   );
-  const favoriteProfiles = useMemo(
-    () => savedProfiles.filter((profile) => people[profile.npub]?.isFavorite),
+  const acceptedProfiles = useMemo(
+    () => savedProfiles.filter((profile) => people[profile.npub]?.contactStatus === 'accepted'),
     [people, savedProfiles],
   );
   const otherProfiles = useMemo(
-    () => savedProfiles.filter((profile) => !people[profile.npub]?.isFavorite),
+    () => savedProfiles.filter((profile) => people[profile.npub]?.contactStatus !== 'accepted'),
     [people, savedProfiles],
   );
   const searchResults = useMemo(
@@ -521,12 +521,12 @@ export function NostrSendStage({
                 ))
               ) : (
                 <>
-                  {favoriteProfiles.length > 0 && (
+                  {acceptedProfiles.length > 0 && (
                     <YStack gap="$1">
                       <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
-                        Favorites
+                        Contacts
                       </Text>
-                      {favoriteProfiles.map((profile, index) => (
+                      {acceptedProfiles.map((profile, index) => (
                         <NostrProfileItem
                           key={profile.pubkeyHex}
                           profile={profile}

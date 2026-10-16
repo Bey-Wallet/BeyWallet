@@ -1,3 +1,4 @@
+import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
 /**
  * NostrActivity
@@ -161,9 +162,14 @@ export default function NostrActivity() {
   const unclaimed = useMemo(
     () =>
       items.filter(
-        (i) => i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+        (i) =>
+          people[normalizeNpub(i.senderPubkey)]?.contactStatus !== 'blocked' &&
+          (i.status === 'contact_required' ||
+            i.status === 'pending' ||
+            i.status === 'failed' ||
+            i.status === 'approval_required'),
       ),
-    [items],
+    [items, people],
   );
 
   const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
@@ -176,6 +182,13 @@ export default function NostrActivity() {
     (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
 
   const handleOpenClaim = (item: NostrInboxItem) => {
+    if (people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted') {
+      router.push({
+        pathname: '/(modals)/conversation',
+        params: { npub: normalizeNpub(item.senderPubkey) },
+      });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (item.type === 'request') {
       setSelectedRequest(item);
@@ -272,7 +285,13 @@ export default function NostrActivity() {
                     </Text>
                   ) : null}
                   <Text fontSize="$2" color="$gray9">
-                    {item.type === 'request' ? 'Payment request · ' : ''}
+                    {people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted'
+                      ? 'Contact acceptance needed · '
+                      : item.status === 'approval_required'
+                        ? 'Mint approval needed · '
+                        : item.type === 'request'
+                          ? 'Payment request · '
+                          : ''}
                     {timeAgo(item.receivedAt)}
                   </Text>
                 </YStack>

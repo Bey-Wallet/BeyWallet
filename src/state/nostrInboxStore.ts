@@ -14,7 +14,13 @@ import { DeviceEventEmitter } from 'react-native';
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export type NostrInboxStatus =
-  'pending' | 'claiming' | 'claimed' | 'failed' | 'approval_required' | 'dismissed';
+  | 'pending'
+  | 'contact_required'
+  | 'claiming'
+  | 'claimed'
+  | 'failed'
+  | 'approval_required'
+  | 'dismissed';
 
 export type NostrClaimErrorCode =
   | 'offline'
@@ -63,6 +69,7 @@ interface NostrInboxState {
   markClaimed: (id: string) => void;
   markFailed: (id: string, error: string, failure?: NostrClaimFailure) => void;
   markApprovalRequired: (id: string) => void;
+  markContactRequired: (id: string) => void;
   recordAttempt: (id: string, nextRetryAt?: number) => void;
   dismiss: (id: string) => void;
   markSeen: (id: string) => void;
@@ -102,6 +109,7 @@ export const useNostrInboxStore = create<NostrInboxState>()(
           usePeopleStore.getState().savePerson({
             npub: item.senderPubkey,
             username: item.senderUsername,
+            hasIncomingActivity: true,
           });
         } catch {
           // The payment is already persisted; contact hydration can retry later.
@@ -155,6 +163,21 @@ export const useNostrInboxStore = create<NostrInboxState>()(
           activeClaimId: null,
         }));
       },
+
+      markContactRequired: (id) =>
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  status: 'contact_required',
+                  error: undefined,
+                  failure: undefined,
+                  nextRetryAt: undefined,
+                }
+              : item,
+          ),
+        })),
 
       markApprovalRequired: (id) => {
         const failure: NostrClaimFailure = {
@@ -217,7 +240,10 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       getUnclaimed: () => {
         return get().items.filter(
           (i) =>
-            i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+            i.status === 'contact_required' ||
+            i.status === 'pending' ||
+            i.status === 'failed' ||
+            i.status === 'approval_required',
         );
       },
 
@@ -225,7 +251,10 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         return get().items.filter(
           (i) =>
             !i.seen &&
-            (i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required'),
+            (i.status === 'contact_required' ||
+              i.status === 'pending' ||
+              i.status === 'failed' ||
+              i.status === 'approval_required'),
         ).length;
       },
 
@@ -234,15 +263,22 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       },
 
       refreshPendingStates: async () => {
-        const pending = get().items.filter((i) => i.status === 'pending' || i.status === 'failed');
+        const pending = get().items.filter(
+          (i) => i.status === 'contact_required' || i.status === 'pending' || i.status === 'failed',
+        );
         if (pending.length === 0) return 0;
 
         let markedCount = 0;
         try {
-          const { proofService } = await import('~/services/wallet');
+          const { proofService } =
+            require('~/services/wallet') as typeof import('~/services/wallet');
           for (const item of pending) {
             try {
+              const { canReceiveFrom } =
+                require('~/services/wallet/contactPolicy') as typeof import('~/services/wallet/contactPolicy');
+              if (!canReceiveFrom(item.senderPubkey) || item.type === 'request') continue;
               const states = await proofService.checkProofStates(item.tokenString);
+              if (!canReceiveFrom(item.senderPubkey)) continue;
               if (states.length > 0 && states.every((s: any) => s.state === 'SPENT')) {
                 console.log(
                   `[NostrInboxStore] Token ${item.id.slice(0, 8)} already spent — marking claimed`,

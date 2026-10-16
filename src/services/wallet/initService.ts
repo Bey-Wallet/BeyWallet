@@ -556,6 +556,18 @@ export const initService = {
   destroyWallet: async (): Promise<void> => {
     console.log('[InitService] Destroying wallet...');
 
+    // These account-scoped stores must not carry acceptance or messages into
+    // the next wallet in the same process. Clear while storage is still open.
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    const { useNostrInboxStore } =
+      require('~/state/nostrInboxStore') as typeof import('~/state/nostrInboxStore');
+    const { useNostrReceiveSettingsStore } =
+      require('~/state/nostrReceiveSettingsStore') as typeof import('~/state/nostrReceiveSettingsStore');
+    usePeopleStore.setState({ people: {} });
+    useNostrInboxStore.setState({ items: [], activeClaimId: null });
+    useNostrReceiveSettingsStore.setState({ policy: 'ask' });
+
     // 1. Cleanup watchers and manager
     await initService.cleanup();
 

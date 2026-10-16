@@ -119,7 +119,7 @@ const MintRowItem = React.memo(
             <XStack items="center" gap="$1.5" flexWrap="wrap">
               <Text
                 fontSize="$5"
-                fontWeight="600"
+                fontWeight="500"
                 color="$color"
                 numberOfLines={1}
                 style={{ maxWidth: 140 }}
@@ -134,7 +134,7 @@ const MintRowItem = React.memo(
           <YStack items="flex-end" justify="center">
             <RollingNumber
               fontSize={16}
-              fontWeight="900"
+              fontWeight="500"
               color="$color"
               decimalOpacity={0.4}
               showDecimals={!displayAsSats}
@@ -197,7 +197,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           )}
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
-          <Text fontSize="$5" fontWeight="600" color="$color" numberOfLines={1}>
+          <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1}>
             {mint.name}
           </Text>
           <Text fontSize="$2" color="$gray10" numberOfLines={1}>

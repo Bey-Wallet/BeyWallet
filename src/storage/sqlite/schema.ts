@@ -370,6 +370,27 @@ const MIGRATIONS: readonly Migration[] = [
         ON coco_cashu_nostr_receive_requests(createdAt DESC);
     `,
   },
+  {
+    id: '016_messages',
+    sql: `
+      CREATE TABLE IF NOT EXISTS bey_messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        conversation TEXT NOT NULL,
+        direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+        createdAt INTEGER NOT NULL,
+        receivedAt INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        read INTEGER NOT NULL DEFAULT 0,
+        publication TEXT NOT NULL CHECK (publication IN ('sending', 'sent', 'failed')),
+        transport TEXT NOT NULL,
+        envelopes TEXT,
+        paymentId TEXT,
+        paymentAmount INTEGER,
+        paymentType TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_bey_messages_conversation ON bey_messages(conversation, createdAt DESC, id DESC);
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

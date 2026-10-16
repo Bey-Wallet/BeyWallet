@@ -3,7 +3,9 @@ import {
   migrateLegacyPeople,
   selectPeopleByRecency,
   selectPendingActionCount,
+  usePeopleStore,
 } from '~/state/peopleStore';
+import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: jest.fn(() => null), setItem: jest.fn(), removeItem: jest.fn() },
@@ -27,8 +29,29 @@ describe('unified People state', () => {
     expect(people[first]).toMatchObject({
       displayName: 'Alice',
       nip05: 'alice@example.com',
-      isFavorite: true,
+      contactStatus: 'unaccepted',
     });
+    expect(JSON.stringify(people)).not.toContain('isFavorite');
+  });
+
+  it('normalizes hex, npub and nprofile and preserves valid relay hints separately', () => {
+    usePeopleStore.setState({ people: {} });
+    usePeopleStore.getState().savePerson({ npub: '01'.repeat(32), displayName: 'Alice' });
+    usePeopleStore.getState().savePerson({
+      npub: nip19.nprofileEncode({
+        pubkey: '01'.repeat(32),
+        relays: ['wss://relay.example', 'https://invalid.example'],
+      }),
+    });
+    usePeopleStore.getState().setContactStatus(first, 'accepted');
+    expect(Object.keys(usePeopleStore.getState().people)).toEqual([first]);
+    expect(usePeopleStore.getState().people[first]).toMatchObject({
+      displayName: 'Alice',
+      contactStatus: 'accepted',
+      relayHints: ['wss://relay.example'],
+    });
+    const serialized = (sqliteStorage.setItem as jest.Mock).mock.calls.at(-1)[1];
+    expect(serialized).not.toMatch(/isFavorite|favorites|contacts"/);
   });
 
   it('sorts strictly by derived interaction time regardless of favorite state', () => {

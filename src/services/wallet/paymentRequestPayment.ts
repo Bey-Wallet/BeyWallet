@@ -106,6 +106,18 @@ export class PaymentRequestPayment {
     let stage = 'validation';
     try {
       let privateKey: string | undefined;
+      if (this.request.delivery === 'nip17') {
+        const { usePeopleStore } =
+          require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+        const { normalizeNpub } =
+          require('~/shared/utils/nostr') as typeof import('~/shared/utils/nostr');
+        if (
+          usePeopleStore.getState().people[normalizeNpub(this.request.nostrTarget!)]
+            ?.contactStatus === 'blocked'
+        ) {
+          throw new Error('Unblock this person in Nostr Settings first.');
+        }
+      }
       if (!this.publication && this.request.delivery === 'nip17') {
         const recipient = resolveNostrRecipient(this.request.nostrTarget!);
         const mnemonic = await seedService.getMnemonic();
@@ -177,6 +189,16 @@ export class PaymentRequestPayment {
         onPublishing?.();
         await publishPaymentRequest(this.publication);
         this.publicationState = 'published';
+        const { usePeopleStore } =
+          require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+        const { normalizeNpub } =
+          require('~/shared/utils/nostr') as typeof import('~/shared/utils/nostr');
+        if (
+          usePeopleStore.getState().people[normalizeNpub(this.request.nostrTarget!)]
+            ?.contactStatus !== 'blocked'
+        ) {
+          usePeopleStore.getState().setContactStatus(this.request.nostrTarget!, 'accepted');
+        }
       } else {
         stage = 'nfc_write';
         await writeNfc!(this.encoded!);

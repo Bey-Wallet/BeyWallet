@@ -1,3 +1,5 @@
+import { useMessageStore } from '~/state/messageStore';
+import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,12 +11,13 @@ import {
   ScrollView as NativeScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { AlertTriangle, ClipboardPaste, Search, Star, Users, X } from '@tamagui/lucide-icons';
+import { AlertTriangle, ClipboardPaste, Search, Users, X } from '@tamagui/lucide-icons';
 import { Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';
+import { useQuery } from '@tanstack/react-query';
 import { selectPeopleByRecency, type Person, usePeopleStore } from '~/state/peopleStore';
 import { type NostrInboxItem, useNostrInboxStore } from '~/state/nostrInboxStore';
 import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
@@ -26,8 +29,8 @@ import {
 } from '~/features/people/components/NostrProfileItem';
 import { hydrateSavedPeople } from '~/features/people/peopleProfileCache';
 
-type PeopleView = 'recents' | 'favorites' | 'attention';
-const VIEWS: PeopleView[] = ['recents', 'favorites', 'attention'];
+type PeopleView = 'recents' | 'requests';
+const VIEWS: PeopleView[] = ['recents', 'requests'];
 
 function personToProfile(person: Person): NostrProfile | null {
   const pubkeyHex = decodeNostrPublicKey(person.npub);
@@ -88,10 +91,15 @@ export default function PeopleScreen() {
   const { width } = useWindowDimensions();
   const pagerRef = useRef<NativeScrollView>(null);
   const people = usePeopleStore((state) => state.people);
-  const toggleFavorite = usePeopleStore((state) => state.toggleFavorite);
-  const removePerson = usePeopleStore((state) => state.removePerson);
+
+  const messages = useMessageStore((state) => state.recent);
+  const unread = useMessageStore((state) => state.unread);
+  const [visibleCount, setVisibleCount] = useState(50);
   const inboxItems = useNostrInboxStore((state) => state.items);
-  const [historyInteractions, setHistoryInteractions] = useState<Record<string, number>>({});
+  const { data: paymentHistory = [] } = useQuery({
+    queryKey: ['history', 'people'],
+    queryFn: () => historyService.getHistory(500, 0),
+  });
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<PeopleView>('recents');
   const [refreshing, setRefreshing] = useState(false);
@@ -101,29 +109,20 @@ export default function PeopleScreen() {
     void hydrateSavedPeople(Object.values(people));
   }, [people]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void historyService
-      .getHistory(500, 0)
-      .then((entries: any[]) => {
-        if (cancelled) return;
-        const interactions: Record<string, number> = {};
-        for (const entry of entries) {
-          const metadata = readMetadata(entry);
-          if (metadata.via !== 'nostr' || !metadata.nostrPubkey) continue;
-          const timestamp = Number(entry.createdAt) || Date.parse(entry.createdAt) || 0;
-          interactions[metadata.nostrPubkey] = Math.max(
-            interactions[metadata.nostrPubkey] || 0,
-            timestamp,
-          );
-        }
-        setHistoryInteractions(interactions);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const historyInteractions = useMemo(() => {
+    const interactions: Record<string, number> = {};
+    for (const entry of paymentHistory) {
+      const metadata = readMetadata(entry);
+      if (metadata.via !== 'nostr' || !metadata.nostrPubkey) continue;
+      const timestamp = Number(entry.createdAt) || Date.parse(String(entry.createdAt)) || 0;
+      const npub = normalizeNpub(metadata.nostrPubkey);
+      interactions[npub] = Math.max(
+        interactions[npub] || 0,
+        timestamp < 1e10 ? timestamp * 1000 : timestamp,
+      );
+    }
+    return interactions;
+  }, [paymentHistory]);
 
   const interactions = useMemo(() => {
     const result = { ...historyInteractions };
@@ -133,8 +132,10 @@ export default function PeopleScreen() {
       const npub = nip19.npubEncode(pubkey);
       result[npub] = Math.max(result[npub] || 0, item.receivedAt);
     }
+    for (const message of messages)
+      result[message.conversation] = Math.max(result[message.conversation] || 0, message.createdAt);
     return result;
-  }, [historyInteractions, inboxItems]);
+  }, [historyInteractions, inboxItems, messages]);
 
   const sortedPeople = useMemo(
     () => selectPeopleByRecency({ people } as any, interactions),
@@ -144,21 +145,26 @@ export default function PeopleScreen() {
     () => sortedPeople.map(personToProfile).filter((profile): profile is NostrProfile => !!profile),
     [sortedPeople],
   );
-  // People with interaction timestamps are already sorted first; saved people
-  // without transaction activity remain discoverable at the end of Recents.
-  const recentProfiles = localProfiles;
-  const favoriteProfiles = useMemo(
-    () => localProfiles.filter((profile) => people[profile.npub]?.isFavorite),
-    [localProfiles, people],
+  const recentProfiles = localProfiles.filter(
+    (profile) => people[profile.npub]?.contactStatus === 'accepted',
   );
-  const attentionItems = useMemo(
-    () =>
-      inboxItems.filter(
-        (item) =>
-          item.status === 'approval_required' ||
-          (item.status === 'failed' && item.failure?.retryable === false),
-      ),
-    [inboxItems],
+  const requestIdentities = new Set([
+    ...inboxItems
+      .filter((item) => item.status !== 'dismissed' && item.status !== 'claimed')
+      .map((item) => normalizeNpub(item.senderPubkey)),
+    ...messages
+      .filter((message) => message.direction === 'incoming')
+      .map((message) => message.conversation),
+  ]);
+  const requestProfiles = localProfiles.filter(
+    (profile) =>
+      people[profile.npub]?.contactStatus === 'unaccepted' && requestIdentities.has(profile.npub),
+  );
+  const attentionItems = inboxItems.filter(
+    (item) =>
+      people[normalizeNpub(item.senderPubkey)]?.contactStatus === 'accepted' &&
+      (item.status === 'approval_required' ||
+        (item.status === 'failed' && item.failure?.retryable === false)),
   );
   const isSearchActive = !!search.trim();
   const searchResults = useMemo(
@@ -173,17 +179,21 @@ export default function PeopleScreen() {
   );
 
   const openProfile = useCallback(
-    (profile: NostrProfile) =>
+    (profile: NostrProfile) => {
+      if (search.trim().startsWith('nprofile1') && normalizeNpub(search.trim()) === profile.npub) {
+        usePeopleStore.getState().savePerson({ npub: search.trim() });
+      }
       router.push({
-        pathname: '/(modals)/person-details',
+        pathname: '/(modals)/conversation',
         params: {
           npub: profile.npub,
           username: profile.name || '',
           displayName: profile.displayName || '',
           nip05: profile.nip05 || '',
         },
-      }),
-    [router],
+      });
+    },
+    [router, search],
   );
   const send = useCallback(
     (profile: NostrProfile) =>
@@ -196,21 +206,6 @@ export default function PeopleScreen() {
         },
       }),
     [router],
-  );
-  const showActions = useCallback(
-    (profile: NostrProfile) => {
-      const person = people[profile.npub];
-      if (!person) return;
-      Alert.alert(getNostrProfileLabel(profile), undefined, [
-        {
-          text: person.isFavorite ? 'Unfavorite' : 'Favorite',
-          onPress: () => toggleFavorite(profile.npub),
-        },
-        { text: 'Remove', style: 'destructive', onPress: () => removePerson(profile.npub) },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    },
-    [people, removePerson, toggleFavorite],
   );
   const paste = useCallback(async () => {
     const value = (await Clipboard.getStringAsync()).trim();
@@ -258,22 +253,47 @@ export default function PeopleScreen() {
       refreshControl={peopleRefreshControl}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
     >
-      {profiles.map((profile, index) => {
+      {profiles.slice(0, visibleCount).map((profile, index) => {
         const timestamp = interactions[profile.npub];
+        const message = messages.find((entry) => entry.conversation === profile.npub);
+        const payment = inboxItems
+          .filter((item) => normalizeNpub(item.senderPubkey) === profile.npub)
+          .sort((a, b) => b.receivedAt - a.receivedAt)[0];
+        const paymentIsLatest = payment && (!message || payment.receivedAt >= message.createdAt);
+        const hasUnread =
+          unread[profile.npub] ||
+          inboxItems.some(
+            (item) =>
+              normalizeNpub(item.senderPubkey) === profile.npub &&
+              !item.seen &&
+              item.status !== 'dismissed',
+          );
         return (
           <NostrProfileItem
             key={profile.pubkeyHex}
             profile={profile}
-            context={
-              timestamp ? `Last interaction ${new Date(timestamp).toLocaleDateString()}` : undefined
-            }
+            context={[
+              hasUnread ? 'Unread' : '',
+              paymentIsLatest
+                ? `${payment.type === 'request' ? 'Request' : 'Payment'} · ${payment.amount.toLocaleString()} sats`
+                : message?.paymentId
+                  ? `${message.paymentType === 'request' ? 'Request sent' : 'Payment sent'} · ${message.paymentAmount?.toLocaleString()} sats`
+                  : message?.text || 'Payment conversation',
+              timestamp ? new Date(timestamp).toLocaleString() : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             onPress={openProfile}
-            onLongPress={showActions}
             onSend={send}
             showTopSeparator={index === 0}
           />
         );
       })}
+      {profiles.length > visibleCount && (
+        <AppPressable minHeight={48} onPress={() => setVisibleCount((count) => count + 50)}>
+          <Text>Load more</Text>
+        </AppPressable>
+      )}
       {!profiles.length && <EmptyState title={emptyTitle} body={emptyBody} />}
     </NativeScrollView>
   );
@@ -319,24 +339,16 @@ export default function PeopleScreen() {
         {!isSearchActive && (
           <XStack gap="$1">
             <ViewTab
-              label="Recents"
+              label="Recent"
               active={activeView === 'recents'}
               count={recentProfiles.length}
               onPress={() => selectView('recents')}
             />
             <ViewTab
-              label="Favorites"
-              active={activeView === 'favorites'}
-              count={favoriteProfiles.length}
-              icon={<Star size={13} color="#ca8a04" />}
-              onPress={() => selectView('favorites')}
-            />
-            <ViewTab
-              label="Attention"
-              active={activeView === 'attention'}
-              count={attentionItems.length}
-              alert={attentionItems.length > 0}
-              onPress={() => selectView('attention')}
+              label="Requests"
+              active={activeView === 'requests'}
+              count={requestProfiles.length + attentionItems.length}
+              onPress={() => selectView('requests')}
             />
           </XStack>
         )}
@@ -356,7 +368,6 @@ export default function PeopleScreen() {
               key={profile.pubkeyHex}
               profile={profile}
               onPress={openProfile}
-              onLongPress={showActions}
               onSend={send}
               showTopSeparator={index === 0}
             />
@@ -389,19 +400,29 @@ export default function PeopleScreen() {
             )}
           </View>
           <View width={width} flex={1}>
-            {renderProfiles(
-              favoriteProfiles,
-              'No favorites yet',
-              'Long-press a person or open their profile to pin them here.',
-            )}
-          </View>
-          <View width={width} flex={1}>
             <NativeScrollView
               showsVerticalScrollIndicator={false}
               alwaysBounceVertical
               refreshControl={peopleRefreshControl}
               contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
             >
+              {requestProfiles.map((profile) => (
+                <NostrProfileItem
+                  key={profile.npub}
+                  profile={profile}
+                  context={
+                    messages.find((message) => message.conversation === profile.npub)?.text ||
+                    `${inboxItems.filter((item) => normalizeNpub(item.senderPubkey) === profile.npub && item.status !== 'dismissed' && item.status !== 'claimed').length} waiting payment offers or requests`
+                  }
+                  onPress={openProfile}
+                  onSend={send}
+                />
+              ))}
+              {!!attentionItems.length && (
+                <Text fontWeight="800" py="$3">
+                  Payment issues
+                </Text>
+              )}
               {attentionItems.map((item) => (
                 <AttentionRow
                   key={item.id}
@@ -409,7 +430,7 @@ export default function PeopleScreen() {
                   onPress={() => DeviceEventEmitter.emit('nostr:openClaim', item)}
                 />
               ))}
-              {!attentionItems.length && (
+              {!attentionItems.length && !requestProfiles.length && (
                 <EmptyState
                   title="You're all caught up"
                   body="Payments that need mint approval or manual action will appear here."
@@ -456,6 +477,7 @@ function ViewTab({
     >
       <Text color={active ? '$color' : '$gray8'} fontSize="$3" fontWeight={800}>
         {label}
+        {count > 0 ? ` (${count})` : ''}
       </Text>
     </AppPressable>
   );

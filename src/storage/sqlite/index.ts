@@ -12,7 +12,13 @@ import type {
   RepositoryTransactionScope,
 } from 'coco-cashu-core';
 import { ExpoSqliteDb, type ExpoSqliteDbOptions } from '~/storage/sqlite/db';
-import { ensureSchema, ensureSchemaUpTo, MIGRATIONS, seedMockData, type Migration } from '~/storage/sqlite/schema';
+import {
+  ensureSchema,
+  ensureSchemaUpTo,
+  MIGRATIONS,
+  seedMockData,
+  type Migration,
+} from '~/storage/sqlite/schema';
 import { ExpoMintRepository } from '~/storage/sqlite/repositories/MintRepository';
 import { ExpoKeysetRepository } from '~/storage/sqlite/repositories/KeysetRepository';
 import { ExpoKeyRingRepository } from '~/storage/sqlite/repositories/KeyRingRepository';
@@ -24,6 +30,7 @@ import { ExpoHistoryRepository } from '~/storage/sqlite/repositories/HistoryRepo
 import { ExpoSendOperationRepository } from '~/storage/sqlite/repositories/SendOperationRepository';
 import { ExpoMeltOperationRepository } from '~/storage/sqlite/repositories/MeltOperationRepository';
 import { ExpoSettingsRepository } from '~/storage/sqlite/repositories/SettingsRepository';
+import { MessageRepository } from '~/storage/sqlite/repositories/MessageRepository';
 import { ExpoMintRecommendationRepository } from '~/storage/sqlite/repositories/MintRecommendationRepository';
 
 export interface ExpoSqliteRepositoriesOptions extends ExpoSqliteDbOptions {}
@@ -40,6 +47,7 @@ export class ExpoSqliteRepositories implements Repositories {
   readonly sendOperationRepository: SendOperationRepository;
   readonly meltOperationRepository: MeltOperationRepository;
   readonly settingsRepository: ExpoSettingsRepository;
+  readonly messageRepository: MessageRepository;
   readonly mintRecommendationRepository: ExpoMintRecommendationRepository;
   readonly db: ExpoSqliteDb;
 
@@ -56,6 +64,7 @@ export class ExpoSqliteRepositories implements Repositories {
     this.sendOperationRepository = new ExpoSendOperationRepository(this.db);
     this.meltOperationRepository = new ExpoMeltOperationRepository(this.db);
     this.settingsRepository = new ExpoSettingsRepository(this.db);
+    this.messageRepository = new MessageRepository(this.db);
     this.mintRecommendationRepository = new ExpoMintRecommendationRepository(this.db);
   }
 
