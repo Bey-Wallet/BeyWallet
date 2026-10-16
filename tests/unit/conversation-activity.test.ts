@@ -16,6 +16,31 @@ const base: ChatMessage = {
   transport: 'nip17',
 };
 
+it('classifies persisted text independently from nullable or zero payment amounts', () => {
+  const text = {
+    ...base,
+    paymentId: null,
+    paymentAmount: null,
+    paymentType: null,
+  } as unknown as ChatMessage;
+  expect(buildConversationActivity(npub, [text], [], [], true)[0]).toMatchObject({
+    kind: 'text',
+    text: 'First',
+  });
+  expect(
+    buildConversationActivity(
+      npub,
+      [{ ...base, paymentId: 'payment', paymentAmount: 0 }],
+      [],
+      [],
+      true,
+    )[0],
+  ).toMatchObject({ kind: 'payment', amount: 0, text: '' });
+  expect(
+    buildConversationActivity(npub, [{ ...base, paymentId: 'payment' }], [], [], true)[0].kind,
+  ).toBe('payment');
+});
+
 it('keeps rapid messages in local send order even when rumor timestamps share a second', () => {
   const second = { ...base, id: 'a-second', text: 'Second', receivedAt: 1002 };
   expect(

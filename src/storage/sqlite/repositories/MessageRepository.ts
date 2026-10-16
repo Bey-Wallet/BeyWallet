@@ -22,14 +22,23 @@ export interface ChatMessage {
   paymentType?: 'token' | 'request';
 }
 
-type MessageRow = Omit<ChatMessage, 'read' | 'envelopes'> & {
+type MessageRow = Omit<
+  ChatMessage,
+  'read' | 'envelopes' | 'paymentId' | 'paymentAmount' | 'paymentType'
+> & {
   read: number;
   envelopes: string | null;
+  paymentId: string | null;
+  paymentAmount: number | null;
+  paymentType: ChatMessage['paymentType'] | null;
 };
 const decode = (row: MessageRow): ChatMessage => ({
   ...row,
   read: !!row.read,
   envelopes: row.envelopes ? JSON.parse(row.envelopes) : undefined,
+  paymentId: row.paymentId ?? undefined,
+  paymentAmount: row.paymentAmount ?? undefined,
+  paymentType: row.paymentType ?? undefined,
 });
 
 export class MessageRepository {

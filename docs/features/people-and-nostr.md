@@ -13,22 +13,30 @@ The People tab has two views:
   payment issues. Invitations count once per person. Blocked people do not create invitations.
   Retryable failures remain queued. Legacy unaccepted profiles remain searchable.
 
-Opening a person shows one conversation containing text and payment cards. The header has Back,
-avatar, username and Added/Not added status. Tapping the identity opens a contact bottom sheet with
+Opening a person shows one conversation containing text and payment cards. The header has the
+standard modal close control, avatar, username, contact-status icon and Info action. Verified NIP-05
+identities display their verification badge. Both the identity and Info open a contact bottom sheet with
 a large avatar, full address, tap-to-copy npub, copy/share, Check and sync, Delete contact and Block
 contact. Sync verifies the address against the saved public key and refreshes profile metadata;
 it never retargets the identity. Delete removes accepted status while keeping conversation history
 and requiring explicit reacceptance, including in Everyone mode. No QR screen is used here. Legacy
-person-details links open the same conversation.
+person-details links open the same conversation. The public key and contact actions use ListTable
+rows, with an inline copy icon for the full npub and disabled rows while syncing or when an action
+does not apply.
 
 The composer grows to four scaled lines and then scrolls internally, with a secondary icon-only
-Send button beside it. **Request** and **Pay** sit below. Sent text is white on dark; received text
+Send button beside it. **Request** and **Pay** float above it at their natural widths. Sent text uses branded primary; received text
 uses the secondary surface. Sent payment cards use branded secondary, received cards secondary,
 and actionable incoming cards warning colors. Cards show type, primary and secondary currency,
 then status. Detailed dates/times appear only in the message/payment details bottom sheet, which
 also offers safe copy and relevant retry, acceptance or payment review actions. Tokens/proofs are
-never copied as message text. Unknown conversations show **Accept** and **Reject and block** in
-place of an enabled composer.
+never copied as message text. New conversations initiated by the user offer **Add contact**;
+incoming invitations show **Accept** and **Reject and block** in place of an enabled composer.
+
+Payment types use banknote (ecash), bolt (Lightning), and hand-with-coins (ecash request) icons.
+Incoming actionable payment requests have an adjacent secondary Pay button. It opens the existing
+review/confirmation flow, stays disabled before acceptance or when blocked, and is hidden for
+completed/dismissed requests. Paying is never triggered by opening or displaying a card.
 
 ## Contact acceptance and receipt policy
 
@@ -129,10 +137,31 @@ for manual retry. Subscriptions stop and message memory clears on wallet shutdow
 removes the message database. Chat is encrypted in transit; local text uses existing database
 protection. Chat backup/export and push integration are outside this version.
 
-Sending persists encrypted envelopes and queues the visible bubble before inbox-relay discovery.
-The composer clears and becomes available after that local save, while discovery/publication runs
-in the background. Discovered relay destinations are saved with the same encrypted envelopes for
+Sending immediately displays a temporary Sending bubble and clears the composer, before encryption
+or local storage completes. Local persistence replaces that temporary bubble with the saved message
+and enables the next send while discovery/publication runs in the background. A failure before
+persistence removes the temporary bubble and restores its draft, preserving newly typed text.
+Discovered relay destinations are saved with the same encrypted envelopes for
 retry. Discovery failure leaves a failed message that can be retried without creating a new rumor.
+
+The timeline uses explicit text/payment activity kinds. Nullable payment columns are normalized on
+database reads; ordinary text never becomes a zero-amount card. Missing payment amounts display
+“Amount unavailable”, while genuine zero amounts remain zero. Sent text uses branded primary;
+received text uses secondary. Compact payment cards use neutral secondary surfaces, with warning
+secondary for actionable incoming items. All corners are equally rounded at 16px. Payment type,
+primary currency, secondary currency and status remain visible; timestamps live in the details sheet.
+
+The conversation uses the standard circular modal close control, an added-contact icon and an Info
+button for the contact sheet. A conversation opened without incoming activity offers Add contact;
+Accept / Reject and block are reserved for incoming invitations. Pay and Request use their natural
+widths in a floating row above the composer. Payment cards also size to their contents.
+
+The latest 50 mixed activities load at the bottom. Scrolling upward loads older local messages and
+payments while preserving the visible position. Centered calendar-date pills separate days.
+Standalone Lightning invoices, LNURL, Lightning addresses, Bitcoin URIs and Cashu requests are
+recognized as payment content. Recognition does not fetch or redeem anything; an explicit review
+action opens the existing payment flow for validation and confirmation. Unsupported BOLT12 offers
+remain labeled unsupported. No playground or development preview is included.
 
 Automated checks include actual SQLite restart/pagination, authenticated transport and relay retry.
 Real Bey↔Bey and Bey↔Minibits message/payment tests remain required before declaring interoperability

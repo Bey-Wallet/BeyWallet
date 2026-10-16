@@ -74,11 +74,22 @@ notifications, and complete payment flows.
 - [ ] Scroll through more than 50 messages and inspect older local messages beyond the seven-day relay window.
 - [ ] Verify Recent ordering, preview/time/unread, grouped Requests and payment issue badges without duplicate invitations.
 - [ ] Verify keyboard/composer layout, screen-reader labels, large text and light/dark themes on Android and iOS.
-- [ ] Type past four lines: the composer stops growing and scrolls internally; Request and Pay remain below it.
-- [ ] Send while relay discovery is slow: the message appears after local save, the composer clears, and another message can be drafted/sent while publication is pending.
+- [ ] Type past four lines: the composer stops growing and scrolls internally; Request and Pay float above it with natural widths.
+- [ ] Slow encryption/storage and relay discovery: a Sending bubble appears immediately and the composer clears; local persistence replaces it once and enables another send while publication remains pending.
+- [ ] Fail before local persistence: the temporary bubble disappears, the draft returns without losing newly typed text, and the error is visible.
 - [ ] Tap a text or payment body: details/copy/time appear in a bottom sheet; detailed timestamps stay out of the timeline and payment secrets never appear in copied text.
-- [ ] Confirm sent text is white on dark, sent payments branded secondary, received items secondary, and actionable incoming payments warning-colored; amounts follow primary/secondary currency settings.
-- [ ] Tap the contact header: inspect full avatar/address and npub; copy, share, sync, delete and block work without a QR screen.
+- [ ] Confirm sent text is branded primary, sent payments branded secondary, received items secondary, and actionable incoming items warning-colored; all corners have equal rounding.
+- [ ] Restart and load ordinary messages from SQLite: they remain text, never zero-amount cards. Inspect missing and genuine zero payment amounts separately.
+- [ ] Confirm there is no playground. Check natural-width payment cards, long words, emoji, large amounts and missing exchange rates without clipping in light/dark and large text.
+- [ ] Open a new conversation without incoming activity: Add contact appears instead of Accept / Reject and block; adding enables text and payment controls. Real incoming invitations still show acceptance controls.
+- [ ] Verify the standard modal close button, added/blocked contact icons and Info action for the profile sheet.
+- [ ] Verify banknote, bolt and hand-with-coins payment icons; adjacent secondary Pay opens request confirmation, remains disabled before contact acceptance/when blocked, and disappears for completed requests.
+- [ ] Verify the NIP-05 badge appears in the header only for a verified address. Both name/avatar and Info open the same profile sheet.
+- [ ] Inspect ListTable profile rows: full npub/copy icon, Share, Check and sync, Delete and Block. Check disabled/loading rows, large text and destructive confirmations.
+- [ ] Confirm the latest 50 mixed activities appear at the bottom; scrolling to the top loads older messages/payments without jumping. Check Today/Yesterday/date pills around midnight.
+- [ ] Receive Lightning invoice, LNURL, Lightning address and Bitcoin URI text: recognize compact payment content without background network activity or redemption. Explicit Review payment opens confirmation; malformed inputs and unsupported BOLT12 never become successful payments.
+- [ ] Confirm compact payment amounts follow primary/secondary currency settings and type/status remain legible at the largest device text size.
+- [ ] Tap Info in the contact header: inspect full avatar/address and npub; copy, share, sync, delete and block work without a QR screen.
 - [ ] Change the contact's profile picture and sync; change address resolution to another pubkey and confirm the saved contact key never changes.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.

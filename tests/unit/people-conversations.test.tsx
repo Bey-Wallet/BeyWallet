@@ -12,6 +12,9 @@ import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepositor
 import { useSettingsStore } from '~/state/settingsStore';
 import { Alert } from 'react-native';
 import { applyIncomingContactPolicy } from '~/services/wallet/contactPolicy';
+import { useWalletStore } from '~/state/walletStore';
+import * as Clipboard from 'expo-clipboard';
+import { ListTableRow } from '~/shared/ui/ListTable';
 
 const alice = nip19.npubEncode('01'.repeat(32));
 const bob = nip19.npubEncode('02'.repeat(32));
@@ -19,6 +22,7 @@ const eve = nip19.npubEncode('03'.repeat(32));
 const mockPush = jest.fn();
 const mockParams = { npub: bob };
 let mockSavedMessages: ChatMessage[] = [];
+let mockHistory: any[] = [];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -27,15 +31,22 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('tamagui', () =>
   Object.fromEntries(
-    ['Input', 'Image', 'ScrollView', 'Text', 'View', 'XStack', 'YStack', 'Spinner'].map((name) => [
-      name,
-      name,
-    ]),
+    ['Input', 'Image', 'ScrollView', 'Text', 'View', 'XStack', 'YStack', 'Spinner', 'Theme'].map(
+      (name) => [name, name],
+    ),
   ),
 );
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
-jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ...jest.requireActual('~/shared/ui/ListTable'),
+  ListTable: ({ children }: any) => require('react').createElement('ListTable', {}, children),
+}));
+jest.mock('~/shared/ui/AppIconButton', () => ({
+  AppIconButton: ({ icon: _icon, ...props }: any) =>
+    require('react').createElement('AppIconButton', props),
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     [
@@ -58,7 +69,13 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Clock3',
       'Zap',
       'WalletCards',
-    ].map((name) => [name, () => null]),
+      'Info',
+      'UserCheck',
+      'UserPlus',
+      'Banknote',
+      'HandCoins',
+      'ChevronRight',
+    ].map((name) => [name, (props: any) => require('react').createElement(`Icon${name}`, props)]),
   ),
 );
 jest.mock('~/shared/ui/Blockies', () => 'Blockies');
@@ -85,10 +102,13 @@ jest.mock('~/state/settingsStore', () => ({
     showBitcoinSymbol: false,
   })),
 }));
+jest.mock('~/state/walletStore', () => ({
+  useWalletStore: require('zustand').create(() => ({ setScannerResult: jest.fn() })),
+}));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: any) => ({
-    data: queryKey[0] === 'bitcoinPrice' ? { price: 60000 } : [],
+    data: queryKey[0] === 'bitcoinPrice' ? { price: 60000 } : mockHistory,
   }),
 }));
 jest.mock('~/features/people/hooks/useNostrProfileSearch', () => ({
@@ -116,7 +136,7 @@ jest.mock('~/services/wallet/initService', () => ({
   initService: {
     getRepo: () => ({
       messageRepository: {
-        page: jest.fn(async () => mockSavedMessages),
+        page: jest.fn(async (_npub, offset = 0) => mockSavedMessages.slice(offset, offset + 50)),
         markRead: jest.fn(async () => undefined),
       },
     }),
@@ -131,6 +151,8 @@ describe('People conversations and invitations', () => {
   beforeEach(() => {
     useSettingsStore.setState({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' });
     mockSavedMessages = [];
+    mockHistory = [];
+    mockPush.mockClear();
     jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
@@ -215,15 +237,21 @@ describe('People conversations and invitations', () => {
     await act(async () => {
       tree = create(<ConversationScreen />);
     });
+    expect(tree!.root.findAllByType('VerifiedBadge' as any)).toHaveLength(1);
     const header = tree!.root
-      .findAllByType('AppPressable' as any)
+      .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel === 'Contact details for Bob')!;
-    await act(async () => header.props.onPress());
+    const name = tree!.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel === 'Open profile for Bob')!;
+    expect(name.props.onPress).toBe(header.props.onPress);
+    await act(async () => name.props.onPress());
     expect(JSON.stringify(tree!.toJSON())).toContain('bob@example.com');
-    const labels = tree!.root.findAllByType('AppButton' as any).map((node) => node.props.children);
+    expect(tree!.root.findAllByType('ListTable' as any)).toHaveLength(1);
+    const labels = tree!.root.findAllByType(ListTableRow).map((node) => node.props.label);
     expect(labels).toEqual(
       expect.arrayContaining([
-        'Copy npub',
+        bob,
         'Share contact',
         'Check and sync',
         'Delete contact',
@@ -231,6 +259,19 @@ describe('People conversations and invitations', () => {
       ]),
     );
     expect(labels.join(' ')).not.toMatch(/QR/i);
+    const copy = jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true);
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Copy')!
+        .props.onPress(),
+    );
+    expect(copy).toHaveBeenCalledWith(bob);
+    expect(
+      tree!.root
+        .findAllByType('AppButton' as any)
+        .some((node) => node.props.children === 'Share contact'),
+    ).toBe(false);
   });
 
   it('keeps detailed timestamps in the message sheet and uses a warning card for an invitation', async () => {
@@ -314,7 +355,7 @@ describe('People conversations and invitations', () => {
     expect(JSON.stringify(tree!.toJSON())).toContain('100,000 SATS');
   });
 
-  it('uses branded secondary for sent payments and white-on-dark for sent text', async () => {
+  it('uses branded secondary for sent payments and branded primary for sent text with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [
       {
@@ -348,7 +389,10 @@ describe('People conversations and invitations', () => {
     });
     const cards = tree!.root.findAllByType('AppPressable' as any);
     const text = cards.find((node) => node.props.accessibilityLabel?.startsWith('Text bubble.'))!;
-    expect(text.props.bg).toBe('$surface10');
+    expect(text.props.bg).toBe('$buttonBrandedPrimary');
+    expect(text.props.rounded).toBe(16);
+    expect(text.props.borderBottomRightRadius).toBeUndefined();
+    expect(text.props.borderBottomLeftRadius).toBeUndefined();
     expect(cards.some((node) => node.props.bg === '$buttonBrandedSecondary')).toBe(true);
     expect(
       cards.some(
@@ -359,6 +403,197 @@ describe('People conversations and invitations', () => {
     ).toBe(true);
   });
 
+  it('shows text immediately before encryption finishes, reconciles once, and restores an unsaved draft on failure', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    let queue!: () => void;
+    let reject!: (error: Error) => void;
+    jest.mocked(nostrService.sendChat).mockImplementation(
+      (conversation, text, onQueued) =>
+        new Promise<void>((resolve, fail) => {
+          reject = fail;
+          queue = () => {
+            onQueued?.({
+              id: 'persisted',
+              conversation,
+              text,
+              direction: 'outgoing',
+              publication: 'sending',
+              createdAt: Date.now(),
+              receivedAt: Date.now(),
+              read: true,
+              transport: 'nip17',
+            });
+            resolve();
+          };
+        }),
+    );
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const input = () => tree!.root.findByType('Input' as any);
+    const send = () =>
+      tree!.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Send message')!;
+    const bubbles = () =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .filter((node) => node.props.accessibilityLabel?.startsWith('Before encryption.'));
+    await act(async () => input().props.onChangeText('Before encryption'));
+    await act(async () => send().props.onPress());
+    expect(bubbles()).toHaveLength(1);
+    expect(bubbles()[0].props.accessibilityLabel).toContain('Sending');
+    expect(input().props.value).toBe('');
+    await act(async () => queue());
+    expect(bubbles()).toHaveLength(1);
+    await act(async () => input().props.onChangeText('Unsaved'));
+    await act(async () => send().props.onPress());
+    await act(async () => input().props.onChangeText('New draft'));
+    await act(async () => reject(new Error('Storage unavailable')));
+    expect(input().props.value).toBe('Unsaved\nNew draft');
+    expect(
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .some((node) => node.props.accessibilityLabel?.startsWith('Unsaved.')),
+    ).toBe(false);
+  });
+
+  it('offers Add contact instead of Accept/Block when initiating a new conversation', async () => {
+    useNostrInboxStore.setState({ items: [] });
+    usePeopleStore.getState().savePerson({ npub: bob, hasIncomingActivity: false });
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const buttons = () => tree!.root.findAllByType('AppButton' as any);
+    expect(buttons().some((node) => node.props.children === 'Accept')).toBe(false);
+    expect(buttons().some((node) => node.props.children === 'Reject and block')).toBe(false);
+    expect(
+      tree!.root
+        .findAllByType('AppIconButton' as any)
+        .some((node) => node.props.accessibilityLabel === 'Conversation state preview'),
+    ).toBe(false);
+    const close = tree!.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Close')!;
+    expect(close.props).toMatchObject({ size: 'xsmall', shape: 'circular', emphasis: 'secondary' });
+    await act(async () =>
+      buttons()
+        .find((node) => node.props.children === 'Add contact')!
+        .props.onPress(),
+    );
+    expect(usePeopleStore.getState().people[bob].contactStatus).toBe('accepted');
+    expect(tree!.root.findAllByType('Input' as any)).toHaveLength(1);
+    const pay = buttons().find((node) => node.props.children === 'Pay')!;
+    expect(pay.props.disabled).toBe(false);
+    expect(pay.props.flex).toBeUndefined();
+  });
+
+  it('loads the latest 50 mixed activities first and loads older items on upward scroll', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    const scrollTo = jest.fn();
+    const frames: FrameRequestCallback[] = [];
+    jest.mocked(requestAnimationFrame).mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const noon = new Date().setHours(12, 0, 0, 0);
+    useNostrInboxStore.setState((state) => ({
+      items: state.items.map((item) => ({ ...item, receivedAt: noon - 80000 })),
+    }));
+    mockHistory = Array.from({ length: 60 }, (_, index) => ({
+      id: `history-${index}`,
+      type: 'send',
+      amount: index,
+      createdAt: noon - (60 - index) * 1000,
+      metadata: { nostrPubkey: bob },
+    }));
+    await act(async () => {
+      tree = create(<ConversationScreen />, {
+        createNodeMock: (element) =>
+          element.type === 'ScrollView' ? { scrollTo, scrollToEnd: jest.fn() } : null,
+      });
+    });
+    const cards = () =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .filter((node) => node.props.accessibilityLabel?.includes('Show payment details'));
+    expect(cards()).toHaveLength(50);
+    expect(cards()[0].props.accessibilityLabel).toContain('10 SATS');
+    expect(cards()[49].props.accessibilityLabel).toContain('59 SATS');
+    expect(cards()[0].props.width).toBeUndefined();
+    expect(cards()[0].props.minWidth).toBeUndefined();
+    const scroll = tree!.root.findByType('ScrollView' as any);
+    await act(async () =>
+      scroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 3000 },
+          layoutMeasurement: { height: 600 },
+        },
+      }),
+    );
+    expect(cards()).toHaveLength(50);
+    await act(async () => scroll.props.onScrollBeginDrag());
+    await act(async () =>
+      scroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 20 },
+          contentSize: { height: 3000 },
+          layoutMeasurement: { height: 600 },
+        },
+      }),
+    );
+    expect(cards()).toHaveLength(62);
+    await act(async () =>
+      tree!.root.findByType('ScrollView' as any).props.onContentSizeChange(320, 3500),
+    );
+    await act(async () => {
+      for (const frame of frames) frame(0);
+    });
+    expect(scrollTo).toHaveBeenCalledWith({ y: 520, animated: false });
+    const labels = tree!.root
+      .findAllByType('Text' as any)
+      .filter((node) => node.props.children === 'Today');
+    expect(labels).toHaveLength(1);
+  });
+
+  it('recognizes a Lightning invoice as an auto-width payment card and opens review only on explicit action', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    mockSavedMessages = [
+      {
+        id: 'invoice',
+        conversation: bob,
+        direction: 'incoming',
+        text: 'lightning:lnbc210n1ptestinvoice',
+        createdAt: Date.now(),
+        receivedAt: Date.now(),
+        read: true,
+        publication: 'sent',
+        transport: 'nip17',
+      },
+    ];
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const card = tree!.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith('Lightning'))!;
+    expect(card.props.width).toBeUndefined();
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('lnbc210n1ptestinvoice');
+    expect(card.props.bg).toBe('$buttonWarningSecondary');
+    await act(async () => card.props.onPress());
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppButton' as any)
+        .find((node) => node.props.children === 'Review payment')!
+        .props.onPress(),
+    );
+    expect(useWalletStore.getState().setScannerResult).toHaveBeenCalledWith(
+      'lnbc210n1ptestinvoice',
+    );
+    expect(mockPush).toHaveBeenCalledWith('/(modals)/melt');
+  });
+
   it('deleting a contact preserves activity and requires acceptance again, even in Everyone mode', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     useNostrReceiveSettingsStore.getState().setPolicy('everyone');
@@ -367,12 +602,12 @@ describe('People conversations and invitations', () => {
       tree = create(<ConversationScreen />);
     });
     const header = tree!.root
-      .findAllByType('AppPressable' as any)
+      .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel === 'Contact details for Bob')!;
     await act(async () => header.props.onPress());
     const remove = tree!.root
-      .findAllByType('AppButton' as any)
-      .find((node) => node.props.children === 'Delete contact')!;
+      .findAllByType(ListTableRow)
+      .find((node) => node.props.label === 'Delete contact')!;
     await act(async () => remove.props.onPress());
     const confirm = alert.mock.calls[0][2]!.find((button) => button.text === 'Delete contact')!;
     await act(async () => confirm.onPress!());
@@ -383,5 +618,55 @@ describe('People conversations and invitations', () => {
     });
     expect(useNostrInboxStore.getState().items).toHaveLength(2);
     expect(tree!.root.findAllByType('Input' as any)).toHaveLength(0);
+  });
+
+  it('uses distinct payment icons and an adjacent secondary Pay action for incoming requests', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    useNostrInboxStore.setState((state) => ({
+      items: state.items.map((item) =>
+        item.id === 'offer-1' ? { ...item, type: 'request', tokenString: 'creq-synthetic' } : item,
+      ),
+    }));
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    expect(tree!.root.findAllByType('IconHandCoins' as any)).toHaveLength(1);
+    expect(tree!.root.findAllByType('IconBanknote' as any)).toHaveLength(1);
+    const pay = tree!.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Pay Ecash request')!;
+    expect(pay.props).toMatchObject({ emphasis: 'secondary', disabled: false });
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => pay.props.onPress());
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(modals)/send',
+      params: { paymentRequest: 'creq-synthetic', inboxItemId: 'offer-1' },
+    });
+    expect(useNostrInboxStore.getState().items[0].status).not.toBe('claimed');
+  });
+
+  it('does not enable adjacent Pay before acceptance or show it on completed requests', async () => {
+    useNostrInboxStore.setState((state) => ({
+      items: state.items.map((item) => ({ ...item, type: 'request' })),
+    }));
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const pay = tree!.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Pay Ecash request')!;
+    expect(pay.props.disabled).toBe(true);
+    await act(async () => pay.props.onPress());
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => {
+      useNostrInboxStore.setState((state) => ({
+        items: state.items.map((item) => ({ ...item, status: 'claimed' })),
+      }));
+    });
+    expect(
+      tree!.root
+        .findAllByType('AppButton' as any)
+        .some((node) => node.props.accessibilityLabel === 'Pay Ecash request'),
+    ).toBe(false);
   });
 });

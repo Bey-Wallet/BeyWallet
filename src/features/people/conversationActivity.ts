@@ -2,13 +2,17 @@ import type { NostrInboxItem } from '~/state/nostrInboxStore';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import {
+  conversationPaymentInput,
+  type ConversationPaymentInput,
+} from './conversationPaymentInput';
+import {
   filterPersonHistory,
   getPersonPaymentStatus,
   parsePersonHistoryMetadata,
   type PersonHistoryEntry,
 } from './personHistory';
 
-export interface ConversationActivity {
+interface ConversationActivityBase {
   id: string;
   time: number;
   direction: 'incoming' | 'outgoing';
@@ -21,7 +25,11 @@ export interface ConversationActivity {
   payment?: NostrInboxItem;
   history?: PersonHistoryEntry;
   mintUrl?: string;
+  paymentInput?: ConversationPaymentInput;
 }
+
+export type ConversationActivity = ConversationActivityBase &
+  ({ kind: 'text'; text: string } | { kind: 'payment' });
 
 export function buildConversationActivity(
   npub: string,
@@ -40,30 +48,41 @@ export function buildConversationActivity(
     return typeof id !== 'string' || !paymentIds.has(id);
   });
   return [
-    ...messages.map((message): ConversationActivity => ({
-      id: `m-${message.id}`,
-      time: message.createdAt,
-      direction: message.direction,
-      text: message.paymentId ? undefined : message.text,
-      amount: message.paymentAmount,
-      type: message.paymentId
-        ? message.paymentType === 'request'
-          ? 'Ecash request'
-          : 'Ecash'
-        : undefined,
-      status:
-        message.direction === 'outgoing'
-          ? message.publication === 'sent'
-            ? 'Sent to relay'
-            : message.publication === 'sending'
-              ? 'Sending'
-              : 'Failed'
-          : 'Received',
-      requiresAction: message.direction === 'incoming' && !accepted,
-      message,
-    })),
+    ...messages.map((message): ConversationActivity => {
+      const input = message.paymentId ? undefined : conversationPaymentInput(message.text);
+      return {
+        id: `m-${message.id}`,
+        kind: message.paymentId || input ? 'payment' : 'text',
+        time: message.createdAt,
+        direction: message.direction,
+        text: message.paymentId || input ? '' : message.text,
+        paymentInput: input,
+        amount: message.paymentAmount,
+        type: message.paymentId
+          ? message.paymentType === 'request'
+            ? 'Ecash request'
+            : 'Ecash'
+          : input?.type,
+        status: input?.error
+          ? input.error
+          : message.direction === 'outgoing'
+            ? message.publication === 'sent'
+              ? 'Sent to relay'
+              : message.publication === 'sending'
+                ? 'Sending'
+                : 'Failed'
+            : input
+              ? !accepted
+                ? 'Pending contact acceptance'
+                : 'Payment requested'
+              : 'Received',
+        requiresAction: message.direction === 'incoming' && (!accepted || !!input?.route),
+        message,
+      };
+    }),
     ...payments.map((payment): ConversationActivity => ({
       id: `p-${payment.id}`,
+      kind: 'payment',
       time: payment.receivedAt,
       direction: 'incoming',
       amount: payment.amount,
@@ -99,6 +118,7 @@ export function buildConversationActivity(
       const lightning = metadata.via === 'lightning' || metadata.type === 'lightning';
       return {
         id: `h-${entry.id}`,
+        kind: 'payment',
         time: entry.createdAt < 1e10 ? entry.createdAt * 1000 : entry.createdAt,
         direction: entry.type === 'send' ? 'outgoing' : 'incoming',
         amount: entry.amount,

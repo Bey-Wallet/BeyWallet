@@ -43,6 +43,11 @@ describe('persistent message repository', () => {
         ],
       };
       await repo.insert(message);
+      const storedText = (await repo.page('alice'))[0];
+      expect(storedText.paymentId).toBeUndefined();
+      expect(storedText.paymentAmount).toBeUndefined();
+      expect(storedText.paymentType).toBeUndefined();
+      expect((await repo.recent())[0].paymentAmount).toBeUndefined();
       await repo.insert({
         ...message,
         text: 'Duplicate must not overwrite',

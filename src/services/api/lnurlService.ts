@@ -7,6 +7,30 @@
 
 // ─── Regexes ──────────────────────────────────────────────────
 
+import { bech32 } from 'bech32';
+
+/** Decode LNURL locally. Resolution and payment still require an explicit user action. */
+export function normalizeLightningInput(input: string): string {
+  const value = input
+    .trim()
+    .replace(/^lightning:/i, '')
+    .trim();
+  if (!/^lnurl1/i.test(value)) return value;
+  const decoded = bech32.decode(value, 32000);
+  if (decoded.prefix !== 'lnurl') throw new Error('Invalid LNURL');
+  const bytes = bech32.fromWords(decoded.words);
+  if (bytes.some((byte) => byte < 33 || byte > 126)) throw new Error('Invalid LNURL URL');
+  const url = new URL(String.fromCharCode(...bytes));
+  if (
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.hostname.endsWith('.onion'))) ||
+    url.username ||
+    url.password ||
+    url.hash
+  )
+    throw new Error('Invalid LNURL URL');
+  return `lnurlp://${url.host}${url.pathname}${url.search}`;
+}
+
 const LN_ADDRESS_REGEX =
   /^((?:[^<>()[\]\\.,;:\s@"]+(?:\.[^<>()[\]\\.,;:\s@"]+)*)|(?:".+"))@((?:\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(?:(?:[a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
@@ -46,7 +70,12 @@ export type LightningInputType = 'bolt11' | 'address' | 'lnurlp' | 'unknown';
 
 export function detectLightningInputType(input: string): LightningInputType {
   if (!input) return 'unknown';
-  const cleaned = input.trim();
+  let cleaned: string;
+  try {
+    cleaned = normalizeLightningInput(input);
+  } catch {
+    return 'unknown';
+  }
   if (isBolt11Invoice(cleaned)) return 'bolt11';
   if (isLightningAddress(cleaned)) return 'address';
   if (isLnurlp(cleaned)) return 'lnurlp';
@@ -71,7 +100,8 @@ function parseLnurlpUrl(url: string): string | null {
   if (!LNURLP_REGEX.test(url.toLowerCase())) return null;
   const withoutProtocol = url.replace(/^lnurlp:\/\//i, '');
   const slashIndex = withoutProtocol.indexOf('/');
-  const protocol = withoutProtocol.toLowerCase().includes('.onion') ? 'http://' : 'https://';
+  const hostname = withoutProtocol.split('/')[0].split(':')[0].toLowerCase();
+  const protocol = hostname.endsWith('.onion') ? 'http://' : 'https://';
   if (slashIndex === -1) {
     return `${protocol}${withoutProtocol.toLowerCase()}`;
   }
@@ -102,7 +132,7 @@ interface LnUrlPayParams {
  * Returns min/max sendable amounts (in millisats), callback URL, etc.
  */
 export async function getLnurlPayParams(lnUrlOrAddress: string): Promise<LnUrlPayParams | null> {
-  const url = decodeUrlOrAddress(lnUrlOrAddress);
+  const url = decodeUrlOrAddress(normalizeLightningInput(lnUrlOrAddress));
   if (!url) return null;
 
   const response = await fetch(url);

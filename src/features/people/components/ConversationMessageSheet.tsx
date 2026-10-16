@@ -7,6 +7,7 @@ import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomShe
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import type { ConversationActivity } from '../conversationActivity';
+import { ConversationItemCard } from './ConversationItemCard';
 
 export const ConversationMessageSheet = forwardRef<
   AppBottomSheetRef,
@@ -31,7 +32,11 @@ export const ConversationMessageSheet = forwardRef<
   const copy = async () => {
     if (!item) return;
     try {
-      await Clipboard.setStringAsync(item.text ?? `${item.type}\n${primaryAmount}\n${item.status}`);
+      await Clipboard.setStringAsync(
+        item.kind === 'text'
+          ? item.text
+          : `${item.type}\n${primaryAmount ?? 'Amount unavailable'}\n${item.status}`,
+      );
       setCopied(true);
       setCopyError('');
     } catch {
@@ -47,37 +52,23 @@ export const ConversationMessageSheet = forwardRef<
           <YStack gap="$4">
             <XStack items="center" justify="space-between" gap="$3">
               <Text fontSize="$6" fontWeight="800">
-                {item.amount === undefined ? 'Message details' : 'Payment details'}
+                {item.kind === 'text' ? 'Message details' : 'Payment details'}
               </Text>
               <AppIconButton
                 variant="default"
                 emphasis="secondary"
                 accessibilityLabel={
-                  copied
-                    ? 'Copied'
-                    : item.amount === undefined
-                      ? 'Copy message'
-                      : 'Copy payment details'
+                  copied ? 'Copied' : item.kind === 'text' ? 'Copy message' : 'Copy payment details'
                 }
                 icon={Copy}
                 onPress={() => void copy()}
               />
             </XStack>
-            <YStack bg="$buttonDefaultSecondary" p="$4" rounded="$5" gap="$2">
-              {item.text !== undefined ? (
-                <Text selectable fontSize="$5" lineHeight={23}>
-                  {item.text}
-                </Text>
-              ) : (
-                <>
-                  <Text color="$gray10">{item.type}</Text>
-                  <Text fontSize="$8" fontWeight="800">
-                    {primaryAmount}
-                  </Text>
-                  {!!secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
-                </>
-              )}
-            </YStack>
+            <ConversationItemCard
+              item={item}
+              primaryAmount={primaryAmount}
+              secondaryAmount={secondaryAmount}
+            />
             {copied && (
               <Text accessibilityLiveRegion="polite" color="$gray10">
                 Copied

@@ -3,15 +3,16 @@ import { Alert, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Copy, RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
+import { RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { AppButton } from '~/shared/ui/AppButton';
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { Spinner } from '~/shared/ui/Spinner';
 import { usePeopleStore } from '~/state/peopleStore';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { ConversationAvatar } from './ConversationAvatar';
 import { syncConversationContact } from '../syncConversationContact';
+import { hasVerifiedNip05 } from '../nip05';
 
 export const ConversationContactSheet = forwardRef<
   AppBottomSheetRef,
@@ -61,111 +62,85 @@ export const ConversationContactSheet = forwardRef<
               <Text fontSize="$6" fontWeight="800" textAlign="center">
                 {address || label}
               </Text>
-              {person?.nip05Verified && <Nip05VerifiedBadge />}
+              {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
             </XStack>
             {address && label !== address && <Text color="$gray10">{label}</Text>}
           </YStack>
-          <AppPressable
-            accessibilityLabel="Copy public key"
-            minHeight={48}
-            bg="$buttonDefaultSecondary"
-            p="$3"
-            rounded="$4"
-            onPress={() => void copy()}
-          >
-            <Text fontFamily="$mono" fontSize="$2" color="$buttonDefaultSecondaryText">
-              {npub}
-            </Text>
-          </AppPressable>
+          <ListTable>
+            <ListTableRow
+              label={npub}
+              labelColor="$color"
+              multiline
+              isCopyable
+              onCopy={() => void copy()}
+              onPress={() => void copy()}
+            />
+            <ListTableRow label="Share contact" icon={Share2} onPress={() => void share()} />
+            <ListTableRow
+              label={syncing ? 'Checking contact…' : 'Check and sync'}
+              icon={RefreshCw}
+              disabled={syncing}
+              rightContent={syncing ? <Spinner size="small" /> : undefined}
+              onPress={() => void sync()}
+            />
+            <ListTableRow
+              label="Delete contact"
+              icon={Trash2}
+              iconColor="$red10"
+              labelColor="$red10"
+              disabled={person?.contactStatus !== 'accepted'}
+              onPress={() =>
+                Alert.alert(
+                  'Delete contact?',
+                  'Remove this person from your accepted contacts. Messages and payment history stay. Accept them again to receive payments.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete contact',
+                      style: 'destructive',
+                      onPress: () => {
+                        usePeopleStore.getState().savePerson({
+                          npub,
+                          contactStatus: 'unaccepted',
+                          requiresAcceptance: true,
+                        });
+                        setFeedback('Contact removed. Conversation history kept.');
+                      },
+                    },
+                  ],
+                )
+              }
+            />
+            <ListTableRow
+              label="Block contact"
+              icon={UserX}
+              iconColor="$red10"
+              labelColor="$red10"
+              disabled={person?.contactStatus === 'blocked'}
+              onPress={() =>
+                Alert.alert(
+                  'Block contact?',
+                  'Waiting payments remain unclaimed. Unblock this person in Nostr Settings.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Block contact',
+                      style: 'destructive',
+                      onPress: () => {
+                        usePeopleStore.getState().setContactStatus(npub, 'blocked');
+                        setFeedback('Contact blocked');
+                      },
+                    },
+                  ],
+                )
+              }
+            />
+          </ListTable>
           {!!feedback && (
             <Text accessibilityLiveRegion="polite" color="$gray11">
               {feedback}
             </Text>
           )}
-          <XStack gap="$2">
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              flex={1}
-              icon={Copy}
-              onPress={() => void copy()}
-            >
-              Copy npub
-            </AppButton>
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              flex={1}
-              icon={Share2}
-              onPress={() => void share()}
-            >
-              Share contact
-            </AppButton>
-          </XStack>
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            icon={RefreshCw}
-            loading={syncing}
-            loadingText="Checking contact…"
-            onPress={() => void sync()}
-          >
-            Check and sync
-          </AppButton>
-          <AppButton
-            variant="critical"
-            emphasis="secondary"
-            icon={Trash2}
-            disabled={person?.contactStatus !== 'accepted'}
-            onPress={() =>
-              Alert.alert(
-                'Delete contact?',
-                'Remove this person from your accepted contacts. Messages and payment history stay. Accept them again to receive payments.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete contact',
-                    style: 'destructive',
-                    onPress: () => {
-                      usePeopleStore.getState().savePerson({
-                        npub,
-                        contactStatus: 'unaccepted',
-                        requiresAcceptance: true,
-                      });
-                      setFeedback('Contact removed. Conversation history kept.');
-                    },
-                  },
-                ],
-              )
-            }
-          >
-            Delete contact
-          </AppButton>
-          <AppButton
-            variant="critical"
-            emphasis="secondary"
-            icon={UserX}
-            disabled={person?.contactStatus === 'blocked'}
-            onPress={() =>
-              Alert.alert(
-                'Block contact?',
-                'Waiting payments remain unclaimed. Unblock this person in Nostr Settings.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Block contact',
-                    style: 'destructive',
-                    onPress: () => {
-                      usePeopleStore.getState().setContactStatus(npub, 'blocked');
-                      setFeedback('Contact blocked');
-                    },
-                  },
-                ],
-              )
-            }
-          >
-            Block contact
-          </AppButton>
         </YStack>
       </BottomSheetScrollView>
     </AppBottomSheet>
