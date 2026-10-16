@@ -20,11 +20,7 @@ function Examples() {
   const [state, setState] = useState('normal');
   const [manualLoading, setManualLoading] = useState(false);
   const [automaticLoading, setAutomaticLoading] = useState(false);
-  usePendingOperationToast({
-    active: automaticLoading,
-    title: 'Creating payment request…',
-    description: 'Automatic operation preview. Stop it with the control below.',
-  });
+  usePendingOperationToast({ active: automaticLoading, title: 'Creating payment request…' });
   const [presses, setPresses] = useState(0);
   const [selected, setSelected] = useState(false);
   const disabled = state.includes('disabled');

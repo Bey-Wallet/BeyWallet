@@ -60,7 +60,7 @@ export function ResultStage({
   const handleCopyText = async (text: string, label: string) => {
     await ExpoClipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied!', { message: `${label} copied to clipboard` });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
 
   const { data: btcData } = useQuery({

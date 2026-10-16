@@ -211,7 +211,7 @@ export default function TokenDetailsModal() {
       await Clipboard.setStringAsync(currentToken);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setCopied(true);
-      toast.show('Copied!', { message: 'Token copied to clipboard' });
+      toast.show('Token copied to clipboard', { kind: 'success' });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -221,7 +221,7 @@ export default function TokenDetailsModal() {
       const peanut = encodePeanut(cleanToken(currentToken));
       await Clipboard.setStringAsync(peanut);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show('Copied as Emoji!', { message: 'Peanut token copied to clipboard' });
+      toast.show('Peanut token copied to clipboard', { kind: 'success' });
     }
   };
 
@@ -235,16 +235,16 @@ export default function TokenDetailsModal() {
         const encodedV4 = encodeTokenV4(decoded);
         setCurrentToken(encodedV4);
         setTokenVersion('V4');
-        toast.show('Switched to V4', { message: 'Using compact CBOR encoding' });
+        toast.show('Switched to V4 (compact CBOR)', { kind: 'info' });
       } else {
         const encodedV3 = encodeTokenV3(decoded);
         setCurrentToken(encodedV3);
         setTokenVersion('V3');
-        toast.show('Switched to V3', { message: 'Using standard JSON encoding' });
+        toast.show('Switched to V3 (standard JSON)', { kind: 'info' });
       }
     } catch (e) {
       console.error('Failed to toggle token version:', e);
-      toast.show('Error', { message: 'Failed to switch token version' });
+      toast.show('Failed to switch token version', { kind: 'error' });
     }
   };
 

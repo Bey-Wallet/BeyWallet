@@ -112,7 +112,7 @@ export function ReceiveResultStage({
       await ExpoClipboard.setStringAsync(currentToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCopied(true);
-      toast.show('Copied!', { message: 'Token copied to clipboard' });
+      toast.show('Token copied to clipboard', { kind: 'success' });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -120,7 +120,7 @@ export function ReceiveResultStage({
   const handleCopyText = async (text: string, label: string) => {
     await ExpoClipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied!', { message: `${label} copied to clipboard` });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
 
   const isOfflineSaved =

@@ -48,7 +48,7 @@ export function PendingMintInvoiceLayout({
     await Clipboard.setStringAsync(savedInvoice);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Copied!', { message: 'Invoice copied to clipboard' });
+    toast.show('Invoice copied to clipboard', { kind: 'success' });
     setTimeout(() => setCopied(false), 2000);
   };
 

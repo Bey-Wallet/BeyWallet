@@ -54,7 +54,7 @@ export default function BitcoinPriceCard() {
 
   React.useEffect(() => {
     if (isError && error) {
-      toast.show('Error', { message: error.message });
+      toast.show(error.message, { kind: 'error' });
     }
   }, [isError, error]);
 

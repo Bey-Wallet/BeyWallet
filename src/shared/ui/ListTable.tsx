@@ -67,7 +67,7 @@ export function ListTableRow({
     if (textToCopy) {
       await Clipboard.setStringAsync(textToCopy);
       Haptics.selectionAsync();
-      toast.show('Copied!', { message: 'Copied to clipboard' });
+      toast.show('Copied to clipboard', { kind: 'success' });
     }
   };
 

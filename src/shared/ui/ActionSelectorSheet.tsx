@@ -239,7 +239,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
                       pathname: '/(modals)/receive',
                       params: { mode: 'receive' },
                     });
-                    toast.show('Clipboard Empty', { message: 'No text found in clipboard.' });
+                    toast.show('Clipboard is empty', { kind: 'info' });
                   }
                 } catch (e) {
                   router.push({
@@ -286,9 +286,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef, ActionSelectorShe
     const handleOptionPress = (option: OptionConfig) => {
       if (option.disabled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        toast.show('In Development', {
-          message: 'This feature is in development and will be available soon.',
-        });
+        toast.show('This feature is coming soon', { kind: 'info' });
         return;
       }
 

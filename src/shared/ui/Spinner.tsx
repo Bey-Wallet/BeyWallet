@@ -15,10 +15,11 @@ export type SpinnerProps = Omit<YStackProps, 'children'> & {
   size?: number | 'small' | 'large' | 'xlarge' | 'xxlarge';
   color?: string;
   reduceMotion?: boolean;
+  strokeWidth?: number;
 };
 
 export const Spinner = (props: SpinnerProps) => {
-  const { size = 'small', color: colorProp, reduceMotion, ...stackProps } = props;
+  const { size = 'small', color: colorProp, reduceMotion, strokeWidth = 2, ...stackProps } = props;
   const systemReducedMotion = useReducedMotion();
   const isStatic = reduceMotion ?? systemReducedMotion;
   const theme = useTheme();
@@ -70,7 +71,7 @@ export const Spinner = (props: SpinnerProps) => {
           { width: iconSize, height: iconSize, alignItems: 'center', justifyContent: 'center' },
         ]}
       >
-        <Loader size={iconSize} color={color} />
+        <Loader size={iconSize} color={color} strokeWidth={strokeWidth} />
       </Animated.View>
     </YStack>
   );

@@ -105,9 +105,9 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
           try {
             safeGoBack();
             await removeMint(url);
-            toast.show('Mint Removed', { message: 'Mint was removed successfully.' });
+            toast.show('Mint removed', { kind: 'success' });
           } catch (e: any) {
-            toast.show('Error', { message: e.message || 'Failed to remove mint.' });
+            toast.show(e.message || 'Failed to remove mint.', { kind: 'error' });
           }
         },
       },
@@ -254,9 +254,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const handleCopy = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied', {
-      message: `${label} copied to clipboard`,
-    });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
 
   if (isLoading) {

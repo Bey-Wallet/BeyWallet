@@ -71,11 +71,7 @@ export function PaymentRequestStage({
   const [receipt, setReceipt] = useState<'awaiting' | 'unconfirmed' | null>(null);
   const [hasOperation, setHasOperation] = useState(false);
   const toast = useToastController();
-  usePendingOperationToast({
-    active: isSending && automaticDelivery,
-    title: 'Sending payment…',
-    description: 'Delivering your payment request.',
-  });
+  usePendingOperationToast({ active: isSending && automaticDelivery, title: 'Sending payment…' });
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -191,10 +187,7 @@ export function PaymentRequestStage({
       paymentRef.current ??= new PaymentRequestPayment(request, cost!);
       await paymentRef.current.deliver(writeNfc);
       setReceipt('awaiting');
-      toast.show('Payment sent; awaiting receipt', {
-        message: 'The payment remains pending in History.',
-        kind: 'info',
-      });
+      toast.show('Payment sent; awaiting receipt', { kind: 'info' });
     } catch (err: any) {
       const operationId = paymentRef.current?.operationId;
       const msg = operationId
@@ -202,7 +195,7 @@ export function PaymentRequestStage({
         : err?.message || 'Payment failed';
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setLocalError(msg);
-      toast.show('Payment delivery failed', { message: msg, kind: 'error' });
+      toast.show('Payment delivery failed: ' + msg, { kind: 'error' });
     } finally {
       setHasOperation(!!paymentRef.current?.operationId);
       setIsSending(false);
@@ -225,15 +218,11 @@ export function PaymentRequestStage({
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onSuccess(amountSats, payment.operationId!, payment.encoded!);
       } else if (manual) {
-        toast.show('Payment pending', {
-          message: 'Receipt has not been confirmed yet.',
-          kind: 'info',
-        });
+        toast.show('Receipt has not been confirmed yet.', { kind: 'info' });
       }
     } catch {
       if (manual)
-        toast.show('Receipt check unavailable', {
-          message: 'The existing payment remains pending in History.',
+        toast.show('Receipt check unavailable; payment remains pending in History', {
           kind: 'error',
         });
       if (mounted.current)

@@ -63,7 +63,6 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     usePendingOperationToast({
       active: isValidating && automaticProcessing,
       title: 'Reading payment…',
-      description: 'Finding the payment or recipient.',
     });
     const [detectedType, setDetectedType] = useState<UniversalInputType | null>(null);
 
@@ -129,7 +128,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           setHasText(true);
           await processInput(text.trim(), true);
         } else {
-          toast.show('Clipboard Empty', { message: 'No text found in clipboard.' });
+          toast.show('Clipboard is empty', { kind: 'info' });
         }
       } catch (e) {
         console.error('[UniversalInputCard] Failed to read clipboard:', e);

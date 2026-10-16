@@ -4,7 +4,6 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
-import ButtonPlayground from '~/features/home/components/ButtonPlayground';
 import BackupWarningCard from '~/features/home/components/BackupWarningCard';
 import ClaimUsernameCard from '~/features/home/components/ClaimUsernameCard';
 import RestoreProgressCard from '~/features/home/components/RestoreProgressCard';
@@ -80,7 +79,7 @@ export function HomeTabScreen() {
 
   React.useEffect(() => {
     if (error) {
-      toast.show('Error', { message: error });
+      toast.show(error, { kind: 'error' });
     }
   }, [error]);
 

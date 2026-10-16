@@ -202,7 +202,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
     try {
       await addMint(previewInfo.mintUrl, { trusted: true });
       await refreshMintList();
-      toast.show('Mint Added', { message: `${previewInfo.name} is now trusted`, duration: 3000 });
+      toast.show(`${previewInfo.name} is now trusted`, { duration: 3000, kind: 'success' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       sheetRef.current?.dismiss();
       resetState();
@@ -210,7 +210,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
       setError(err.message || 'Failed to trust mint');
       setStage('preview');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show('Error', { message: err.message || 'Failed to add mint', duration: 3000 });
+      toast.show(err.message || 'Failed to add mint', { duration: 3000, kind: 'error' });
     }
   };
 
@@ -242,6 +242,7 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
             borderWidth: 1,
             borderColor: error ? theme.red10.val : theme.borderColor.val,
             fontSize: 16,
+            fontVariant: ['tabular-nums'],
             height: 56,
           }}
           placeholderTextColor={theme.gray10.val}

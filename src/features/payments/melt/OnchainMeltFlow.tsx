@@ -71,11 +71,7 @@ export function OnchainMeltFlow() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
   const [step, setStep] = useState<'input' | 'confirm' | 'paying' | 'success' | 'error'>('input');
-  usePendingOperationToast({
-    active: step === 'paying',
-    title: 'Sending on-chain payment…',
-    description: 'Submitting your transaction to the mint.',
-  });
+  usePendingOperationToast({ active: step === 'paying', title: 'Sending on-chain payment…' });
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('0');
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
@@ -324,7 +320,7 @@ export function OnchainMeltFlow() {
         setAddress(text);
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show('Pasted!', { message: 'Address pasted from clipboard' });
+      toast.show('Address pasted from clipboard', { kind: 'info' });
     } catch (e) {
       console.warn('[OnchainMeltFlow] Clipboard read failed:', e);
     } finally {

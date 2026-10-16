@@ -257,27 +257,27 @@ export const HistoryItem = React.memo<HistoryItemProps>(
             if (repo?.historyRepository) {
               await (repo.historyRepository as any).updateHistoryEntryState(id, 'claimed');
             }
-            toast.show('Claimed!', { message: 'Token has been claimed' });
+            toast.show('Token has been claimed', { kind: 'success' });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             queryClient.invalidateQueries({ queryKey: ['history'] });
           } else {
-            toast.show('Still Pending', { message: 'Token has not been claimed yet' });
+            toast.show('Token has not been claimed yet', { kind: 'info' });
           }
         } else if (type === 'mint' && quoteId && mintUrl) {
           try {
             await quotesService.redeemMintQuote(mintUrl, quoteId);
-            toast.show('Deposit Successful!', { message: 'Funds have been received' });
+            toast.show('Funds have been received', { kind: 'success' });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             queryClient.invalidateQueries({ queryKey: ['history'] });
           } catch (err: any) {
-            toast.show('Still Pending', { message: err?.message || 'Invoice is not paid yet' });
+            toast.show(err?.message || 'Invoice is not paid yet', { kind: 'info' });
           }
         } else {
-          toast.show('Pending', { message: 'Waiting for transaction to complete' });
+          toast.show('Waiting for transaction to complete', { kind: 'info' });
         }
       } catch (e: any) {
         console.warn('[HistoryItem] Status check failed:', e);
-        toast.show('Check Failed', { message: e?.message || 'Could not verify status' });
+        toast.show('Check Failed: ' + (e?.message || 'Could not verify status'), { kind: 'error' });
       } finally {
         setIsChecking(false);
       }

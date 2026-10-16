@@ -171,7 +171,6 @@ export default function ScannerScreen() {
   usePendingOperationToast({
     active: isResolving && resolutionOrigin === 'scan',
     title: 'Reading QR code…',
-    description: 'Finding the payment or recipient.',
   });
   const [flash, setFlash] = useState<'off' | 'on'>('off');
   const [progress, setProgress] = useState(0);
@@ -349,8 +348,7 @@ export default function ScannerScreen() {
         router.back();
       }
     } catch (error: any) {
-      toast.show('Unable to read QR code', {
-        message: error?.message || 'Please try again.',
+      toast.show('Unable to read QR code: ' + (error?.message || 'Please try again.'), {
         kind: 'error',
       });
       setScanned(false);

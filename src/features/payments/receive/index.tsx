@@ -40,11 +40,7 @@ export function ReceiveModalScreen() {
   const [automaticDecode, setAutomaticDecode] = useState(false);
   const decodeLock = React.useRef(false);
   const [isReceiving, setIsReceiving] = useState(false);
-  usePendingOperationToast({
-    active: isDecoding && automaticDecode,
-    title: 'Reading ecash…',
-    description: 'Opening the token or shared link.',
-  });
+  usePendingOperationToast({ active: isDecoding && automaticDecode, title: 'Reading ecash…' });
   const [status, setStatus] = useState<'success' | 'error'>('success');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();

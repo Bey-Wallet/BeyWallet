@@ -125,13 +125,13 @@ export function useCocoEvents() {
         'Payment Received',
         `You received ₿${payload.amount} sats via Nostr.`,
       );
-      toast.show('Payment Received! 🎉', {
-        message: `₿${payload.amount} sats added to your wallet via Nostr`,
+      toast.show(`Received ${payload.amount} sats via Nostr`, {
         customData: {
           variant: 'action',
           actionLabel: 'View',
           onAction: () => router.push('/(tabs)/history'),
         },
+        kind: 'success',
       });
       handleBalanceUpdate();
     });
@@ -167,7 +167,7 @@ export function useCocoEvents() {
       (payload: { npub: string }) => {
         const shortAddress =
           payload.npub.substring(0, 10) + '...' + payload.npub.substring(payload.npub.length - 4);
-        toast.show('Success', { message: `Mint is nostr sync with address ${shortAddress}` });
+        toast.show(`Nostr sync complete (${shortAddress})`, { kind: 'success' });
       },
     );
 

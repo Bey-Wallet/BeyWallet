@@ -91,15 +91,11 @@ export default function MintDetailsModal() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeGoBack();
       await removeMint(mintUrl || '');
-      toast.show('Mint Removed', {
-        message: 'The mint has been successfully removed.',
-      });
+      toast.show('Mint removed', { kind: 'success' });
     } catch (e: any) {
       isRemovingRef.current = false;
       console.error('Failed to remove mint:', e);
-      toast.show('Error', {
-        message: e.message || 'Failed to remove mint.',
-      });
+      toast.show(e.message || 'Failed to remove mint.', { kind: 'error' });
     }
   };
 
@@ -107,14 +103,16 @@ export default function MintDetailsModal() {
     if (!mintUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      toast.show('Restoring...', { message: 'Checking for unspent proofs on this mint...' });
+      toast.show('Checking for unspent proofs on this mint...', { kind: 'loading' });
       await restoreFromSeed(mintUrl);
-      toast.show('Restore Complete', { message: 'Finished checking for proofs.' });
+      toast.show('Mint restore check complete', { kind: 'success' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['history'] });
     } catch (e: any) {
       console.error('[MintDetails] Restore failed:', e);
-      toast.show('Restore Failed', { message: e.message || 'Error occurred during restore.' });
+      toast.show('Restore Failed: ' + (e.message || 'Error occurred during restore.'), {
+        kind: 'error',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -331,9 +329,7 @@ export default function MintDetailsModal() {
   const handleCopy = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied', {
-      message: `${label} copied to clipboard`,
-    });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
 
   const handleShare = async () => {
@@ -350,7 +346,7 @@ export default function MintDetailsModal() {
     try {
       await WebBrowser.openBrowserAsync(url);
     } catch (e) {
-      toast.show('Error', { message: 'Could not open link' });
+      toast.show('Could not open link', { kind: 'error' });
     }
   };
 

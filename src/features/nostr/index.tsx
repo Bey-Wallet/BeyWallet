@@ -176,7 +176,7 @@ export function NostrUsernameScreen() {
 
   const handleClaim = async () => {
     if (!npub || !nsec) {
-      toast.show('Error', { message: 'Missing keys. Please re-authenticate.', duration: 3000 });
+      toast.show('Missing keys. Please re-authenticate.', { duration: 3000, kind: 'error' });
       return;
     }
 
@@ -190,7 +190,7 @@ export function NostrUsernameScreen() {
     const hexPub = npubToHex(npub);
     const hexSec = nsecToHex(nsec);
     if (!hexPub || !hexSec) {
-      toast.show('Error', { message: 'Could not decode keys', duration: 3000 });
+      toast.show('Could not decode keys', { duration: 3000, kind: 'error' });
       return;
     }
 
@@ -212,14 +212,14 @@ export function NostrUsernameScreen() {
 
         await setNip05(identifier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.show('Username Updated! 🎉', {
-          message: oldUsernameReleaseError
+        toast.show(
+          oldUsernameReleaseError
             ? `${identifier} is active, but ${oldUsername}@${DOMAIN} could not be released: ${oldUsernameReleaseError}`
             : result.profilePublished
               ? `You are now ${identifier}`
               : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
-          duration: oldUsernameReleaseError ? 6000 : 4000,
-        });
+          { duration: oldUsernameReleaseError ? 6000 : 4000, kind: 'success' },
+        );
         setInput('');
         setCheckState('idle');
         setIsEditing(false);
@@ -227,7 +227,7 @@ export function NostrUsernameScreen() {
           router.back();
         }, 1500);
       } else {
-        toast.show('Failed', { message: result.error || 'Registration failed', duration: 4000 });
+        toast.show(result.error || 'Registration failed', { duration: 4000, kind: 'error' });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
@@ -254,7 +254,7 @@ export function NostrUsernameScreen() {
             const hexPub = npubToHex(npub);
             const hexSec = nsecToHex(nsec);
             if (!hexPub || !hexSec) {
-              toast.show('Error', { message: 'Could not decode keys', duration: 3000 });
+              toast.show('Could not decode keys', { duration: 3000, kind: 'error' });
               return;
             }
 
@@ -287,7 +287,7 @@ export function NostrUsernameScreen() {
                 );
               }
             } catch (err: any) {
-              toast.show('Error', { message: err?.message || 'Deletion failed', duration: 3000 });
+              toast.show(err?.message || 'Deletion failed', { duration: 3000, kind: 'error' });
             } finally {
               setIsDeleting(false);
             }
@@ -309,7 +309,7 @@ export function NostrUsernameScreen() {
     if (!nip05) return;
     await Clipboard.setStringAsync(nip05);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied!', { message: nip05, duration: 2000 });
+    toast.show('Copied ' + nip05, { duration: 2000, kind: 'success' });
   };
 
   // ─── Check icon ─────────────────────────────────────────────────────────

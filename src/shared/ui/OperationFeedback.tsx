@@ -13,7 +13,7 @@ import { XStack, YStack } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 
-type PendingOperation = { title: string; description: string };
+type PendingOperation = { title: string };
 type Registry = {
   update: (id: string, operation: PendingOperation) => void;
   remove: (id: string) => void;
@@ -25,11 +25,7 @@ export function OperationFeedbackProvider({ children }: { children: React.ReactN
   const reducedMotion = useReducedMotion();
   const update = useCallback((id: string, operation: PendingOperation) => {
     setOperations((previous) => {
-      if (
-        previous[id]?.title === operation.title &&
-        previous[id]?.description === operation.description
-      )
-        return previous;
+      if (previous[id]?.title === operation.title) return previous;
       return { ...previous, [id]: operation };
     });
   }, []);
@@ -66,17 +62,18 @@ export function OperationFeedbackProvider({ children }: { children: React.ReactN
           maxW={360}
           alignSelf="center"
         >
-          <XStack items="center" gap="$3">
+          <XStack items="center" gap="$2">
             <XStack
               aria-hidden
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <Spinner size={20} reduceMotion={reducedMotion} />
+              <Spinner size={16} strokeWidth={3} color="$color" reduceMotion={reducedMotion} />
             </XStack>
             <YStack flexShrink={1} accessibilityLiveRegion="polite" aria-live="polite" aria-atomic>
-              <Toast.Title>{operation.title}</Toast.Title>
-              <Toast.Description>{operation.description}</Toast.Description>
+              <Toast.Title fontSize={16} lineHeight={22} fontWeight="800" color="$color">
+                {operation.title}
+              </Toast.Title>
             </YStack>
           </XStack>
         </Toast>
@@ -88,7 +85,6 @@ export function OperationFeedbackProvider({ children }: { children: React.ReactN
 export function usePendingOperationToast({
   active,
   title,
-  description,
 }: PendingOperation & { active: boolean }) {
   const registry = useContext(OperationContext);
   const id = useId();
@@ -108,8 +104,8 @@ export function usePendingOperationToast({
     };
   }, [navigation, registry, id]);
   useEffect(() => {
-    if (active && focused) registry?.update(id, { title, description });
+    if (active && focused) registry?.update(id, { title });
     else registry?.remove(id);
-  }, [registry, id, active, focused, title, description]);
+  }, [registry, id, active, focused, title]);
   useEffect(() => () => registry?.remove(id), [registry, id]);
 }

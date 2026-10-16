@@ -1,5 +1,5 @@
 import React, { act } from 'react';
-import { Popover, TamaguiProvider, Text } from 'tamagui';
+import { H1, Input, Popover, TamaguiProvider, Text } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -13,6 +13,27 @@ const { createRoot } = require('react-dom/client') as {
 };
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+
+it('applies tabular numerals to body text, headings and inputs on web', async () => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <TamaguiProvider config={config} defaultTheme="light">
+        <Text testID="tabular-text">123</Text>
+        <H1 testID="tabular-heading">123</H1>
+        <Input testID="tabular-input" value="123" />
+      </TamaguiProvider>,
+    ),
+  );
+  for (const id of ['tabular-text', 'tabular-heading', 'tabular-input']) {
+    const element = container.querySelector(`[data-testid="${id}"]`)!;
+    expect(getComputedStyle(element).fontVariant).toContain('tabular-nums');
+  }
+  await act(async () => root.unmount());
+  container.remove();
+});
 
 it('renders native keyboard-accessible controls and suppresses disabled interaction', async () => {
   const container = document.createElement('div');

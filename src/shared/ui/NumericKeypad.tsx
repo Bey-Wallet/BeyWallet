@@ -37,8 +37,8 @@ const KEYPAD_ROWS = [
 const NumButton = React.memo(
   ({ digit, onPress }: { digit: string; onPress: (d: string) => void }) => (
     <AppPressable
-      flex={1}
-      height={55}
+      width="100%"
+      height={56}
       onPress={() => onPress(digit)}
       pressStyle={{ bg: '$colorTransparent', borderColor: '$colorTransparent', scale: 1.5 }}
       flexDirection="row"
@@ -46,7 +46,7 @@ const NumButton = React.memo(
       justify="center"
       gap={8}
     >
-      <Text fontSize={32} fontVariant={['tabular-nums']} fontWeight="800" color="$color">
+      <Text fontSize={32} fontVariant={['tabular-nums']} fontWeight="500" color="$color">
         {digit}
       </Text>
     </AppPressable>
@@ -60,7 +60,6 @@ const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
     size="large"
     icon={ChevronLeft}
     accessibilityLabel="Delete last digit"
-    flex={1}
     onPress={onPress}
   />
 ));
@@ -119,15 +118,15 @@ export function NumericKeypad({
       {showAmountDisplay && (
         <YStack items="center" py="$6" gap="$1">
           <XStack items="baseline" gap="$2">
-            <Text fontSize={56} fontWeight="700" color={amountColor}>
+            <Text fontSize={56} fontWeight="500" color={amountColor}>
               {value}
             </Text>
-            <Text fontSize={20} fontWeight="600" color="$gray10" mb="$2">
+            <Text fontSize={20} fontWeight="500" color="$gray10" mb="$2">
               {currency}
             </Text>
           </XStack>
           {showBalance && maxAmount !== undefined && (
-            <Text color="$gray10" fontSize="$3">
+            <Text color="$gray10" fontSize="$3" fontWeight="500">
               Balance: {maxAmount} {currency}
             </Text>
           )}
@@ -140,12 +139,23 @@ export function NumericKeypad({
         <YStack width="100%" gap="$0" pb="$4">
           {KEYPAD_ROWS.map((row, i) => (
             <XStack key={i} gap="$10">
-              {row.map((digit) => {
-                if (digit === 'delete') {
-                  return <DeleteButton key="delete" onPress={handleDelete} />;
-                }
-                return <NumButton key={digit} digit={digit} onPress={handlePress} />;
-              })}
+              {row.map((digit) => (
+                <YStack
+                  key={digit}
+                  flex={1}
+                  flexBasis={0}
+                  minWidth={0}
+                  height={56}
+                  items="center"
+                  justify="center"
+                >
+                  {digit === 'delete' ? (
+                    <DeleteButton onPress={handleDelete} />
+                  ) : (
+                    <NumButton digit={digit} onPress={handlePress} />
+                  )}
+                </YStack>
+              ))}
             </XStack>
           ))}
         </YStack>

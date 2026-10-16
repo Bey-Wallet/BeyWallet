@@ -395,7 +395,7 @@ export default function ProofsModal() {
     if (!createdToken) return;
     await Clipboard.setStringAsync(createdToken);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied!', { message: 'Token copied to clipboard' });
+    toast.show('Token copied to clipboard', { kind: 'success' });
   };
 
   const handleShareToken = async () => {
@@ -411,7 +411,7 @@ export default function ProofsModal() {
   const handleCopyField = async (val: string, label: string) => {
     await Clipboard.setStringAsync(val);
     Haptics.selectionAsync();
-    toast.show('Copied!', { message: `${label} copied` });
+    toast.show(`${label} copied`, { kind: 'success' });
   };
 
   const handleShareField = async (val: string) => {
@@ -511,7 +511,7 @@ export default function ProofsModal() {
       await RNShare.share({ message: combined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      toast.show('Nothing to share', { message: 'Share cancelled or unavailable' });
+      toast.show('Nothing to share', { kind: 'info' });
     }
   };
 

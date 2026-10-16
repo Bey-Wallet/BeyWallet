@@ -93,13 +93,13 @@ export function AppToast() {
    */
   const statusIcon =
     kind === 'loading' ? (
-      <Spinner size={16} color="$color" reduceMotion={reducedMotion} />
+      <Spinner size={16} strokeWidth={3} color="$color" reduceMotion={reducedMotion} />
     ) : kind === 'success' ? (
-      <Check size={16} strokeWidth={2.75} color="$color" />
+      <Check size={16} strokeWidth={3} color="$color" />
     ) : kind === 'error' || kind === 'warning' ? (
-      <AlertCircle size={16} strokeWidth={2.5} color="$color" />
+      <AlertCircle size={16} strokeWidth={3} color="$color" />
     ) : (
-      <Info size={16} strokeWidth={2.5} color="$color" />
+      <Info size={16} strokeWidth={3} color="$color" />
     );
 
   /*
@@ -129,14 +129,13 @@ export function AppToast() {
           <YStack flexShrink={1} minW={0} justify="center">
             <Toast.Title
               flexShrink={1}
-              fontSize="$4"
+              fontSize={16}
               fontWeight="800"
               color="$color"
-              lineHeight={18}
+              lineHeight={22}
             >
               {currentToast.title}
             </Toast.Title>
-            {currentToast.message && <Toast.Description>{currentToast.message}</Toast.Description>}
           </YStack>
         </XStack>
       </Toast>
@@ -168,10 +167,9 @@ export function AppToast() {
         {statusIcon}
 
         <YStack flexShrink={1}>
-          <Toast.Title flexShrink={1} fontSize="$4" fontWeight="800" color="$color" lineHeight={18}>
+          <Toast.Title flexShrink={1} fontSize={16} fontWeight="800" color="$color" lineHeight={22}>
             {currentToast.title}
           </Toast.Title>
-          {currentToast.message && <Toast.Description>{currentToast.message}</Toast.Description>}
         </YStack>
 
         <AppButton

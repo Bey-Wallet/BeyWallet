@@ -38,11 +38,7 @@ export function OnchainMintFlow() {
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
 
   const [step, setStep] = useState<'loading' | 'deposit' | 'success' | 'error'>('loading');
-  usePendingOperationToast({
-    active: step === 'loading',
-    title: 'Preparing deposit address…',
-    description: 'Requesting an on-chain address from your mint.',
-  });
+  usePendingOperationToast({ active: step === 'loading', title: 'Preparing deposit address…' });
   const [quoteData, setQuoteData] = useState<{
     quote: string;
     request: string;
@@ -152,7 +148,7 @@ export function OnchainMintFlow() {
     await Clipboard.setStringAsync(quoteData.request);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Copied!', { message: 'Address copied to clipboard' });
+    toast.show('Address copied to clipboard', { kind: 'success' });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -197,17 +193,14 @@ export function OnchainMintFlow() {
           refreshBalance();
         } else {
           if (showToast) {
-            toast.show('Payment pending', {
-              message: 'No new payments detected yet.',
-              kind: 'info',
-            });
+            toast.show('No new payments detected yet.', { kind: 'info' });
           }
         }
       } catch (err: any) {
         console.error('[OnchainMintFlow] Check payment error:', err);
         if (showToast) {
-          toast.show('Error checking payment', {
-            message: err.message || 'Failed to check status',
+          toast.show('Error checking payment: ' + (err.message || 'Failed to check status'), {
+            kind: 'error',
           });
         }
       } finally {

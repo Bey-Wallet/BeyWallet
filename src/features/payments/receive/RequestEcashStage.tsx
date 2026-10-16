@@ -461,8 +461,7 @@ export function RequestEcashStage({
     } catch (err: any) {
       console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
       setGenerateError(err?.message || 'Failed to generate request');
-      toast.show('Request failed', {
-        message: err?.message || 'Failed to generate request',
+      toast.show('Request failed: ' + (err?.message || 'Failed to generate request'), {
         kind: 'error',
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -488,7 +487,7 @@ export function RequestEcashStage({
     await Clipboard.setStringAsync(creqString);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Copied!', { message: 'Payment request copied to clipboard' });
+    toast.show('Payment request copied to clipboard', { kind: 'success' });
     setTimeout(() => setCopied(false), 2000);
   }, [creqString]);
 
@@ -533,11 +532,13 @@ export function RequestEcashStage({
       const shareLink = `${websiteUrl}#${secretKeyHex}`;
       setPublishedLink(shareLink);
 
-      toast.show('Published!', { message: 'Request published on bey.cash' });
+      toast.show('Request published on bey.cash', { kind: 'success' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       console.error('[RequestEcashStage] Failed to publish request:', err);
-      toast.show('Publish Failed', { message: err?.message || 'Could not publish to relays' });
+      toast.show('Publish Failed: ' + (err?.message || 'Could not publish to relays'), {
+        kind: 'error',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsPublishing(false);
@@ -635,11 +636,11 @@ export function RequestEcashStage({
         }
         setStep('success');
       } else {
-        toast.show('Still Pending', { message: 'No payment received yet.' });
+        toast.show('No payment received yet.', { kind: 'info' });
       }
     } catch (e) {
       console.warn('[RequestEcashStage] check status error:', e);
-      toast.show('Unable to check payment', { message: 'Please try again.', kind: 'error' });
+      toast.show('Unable to check payment. Please try again.', { kind: 'error' });
     } finally {
       setIsChecking(false);
     }
@@ -927,7 +928,7 @@ export function RequestEcashStage({
                 onCopy={() => {
                   Clipboard.setStringAsync(publishedLink);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Copied!', { message: 'Web request link copied to clipboard' });
+                  toast.show('Web request link copied to clipboard', { kind: 'success' });
                 }}
                 onShare={() => Share.share({ message: publishedLink })}
               />

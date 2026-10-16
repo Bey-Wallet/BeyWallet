@@ -64,9 +64,7 @@ export function OnboardingScreen() {
   const [tempNpub, setTempNpub] = useState('');
   const [isImportingFlow, setIsImportingFlow] = useState(false);
   const [tempBackupState, setTempBackupState] = useState<any>(null);
-  const [finishingStatus, setFinishingStatus] = useState(
-    'Preparing your secure wallet. This may take a few moments.',
-  );
+  const [finishingStatus, setFinishingStatus] = useState('Setting up wallet…');
   // Extra mints from a backup file
   const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([]);
   const [hasSavedWallet, setHasSavedWallet] = useState(false);
@@ -82,13 +80,7 @@ export function OnboardingScreen() {
       currentStep === 'creating'
         ? 'Creating wallet…'
         : isImporting
-          ? 'Importing wallet…'
-          : 'Setting up wallet…',
-    description:
-      currentStep === 'creating'
-        ? 'Preparing your secure wallet.'
-        : isImporting
-          ? importStatus
+          ? importStatus || 'Importing wallet…'
           : finishingStatus,
   });
 
@@ -142,7 +134,7 @@ export function OnboardingScreen() {
       setStep('restoring');
     } catch (err) {
       console.error('[Onboarding] Failed to resume wallet:', err);
-      toast.show('Wallet setup failed', { message: 'Failed to open saved wallet.', kind: 'error' });
+      toast.show('Failed to open saved wallet.', { kind: 'error' });
       Alert.alert(
         'Resume Failed',
         'Failed to open saved wallet. You may need to delete it and start over.',
@@ -166,10 +158,7 @@ export function OnboardingScreen() {
       toast.show('Wallet deleted', { kind: 'success' });
     } catch (err) {
       console.error('[Onboarding] Failed to delete wallet:', err);
-      toast.show('Wallet deletion failed', {
-        message: 'Failed to completely delete the wallet.',
-        kind: 'error',
-      });
+      toast.show('Failed to completely delete the wallet.', { kind: 'error' });
       Alert.alert('Error', 'Failed to completely delete the wallet.');
     } finally {
       setIsFinishing(false);
@@ -292,10 +281,10 @@ export function OnboardingScreen() {
       }
     } catch (err) {
       console.error('[Onboarding] Onboarding completion failed:', err);
-      toast.show('Setup could not finish', {
-        message: err instanceof Error ? err.message : 'Please try again.',
-        kind: 'error',
-      });
+      toast.show(
+        'Setup could not finish: ' + (err instanceof Error ? err.message : 'Please try again.'),
+        { kind: 'error' },
+      );
       Alert.alert(
         'Setup could not finish',
         err instanceof Error ? err.message : 'Please try again.',
@@ -384,7 +373,7 @@ export function OnboardingScreen() {
     } catch (err) {
       console.error('[Onboarding] Import failed:', err);
       setImportStatus('Import failed. Please try again.');
-      toast.show('Import failed', { message: 'Please try again.', kind: 'error' });
+      toast.show('Import failed. Please try again.', { kind: 'error' });
       setIsImporting(false);
     }
   };
@@ -472,10 +461,7 @@ export function OnboardingScreen() {
             <WalletCreationTask
               open={currentStep === 'creating'}
               onError={() => {
-                toast.show('Wallet creation failed', {
-                  message: 'Please try again.',
-                  kind: 'error',
-                });
+                toast.show('Wallet creation failed. Please try again.', { kind: 'error' });
                 setStep('welcome');
               }}
               onComplete={handleCreatingComplete}

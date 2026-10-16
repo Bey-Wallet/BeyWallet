@@ -236,7 +236,7 @@ export function PendingTokenLayout({
       await Clipboard.setStringAsync(currentToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCopied(true);
-      toast.show('Copied!', { message: 'Token copied to clipboard' });
+      toast.show('Token copied to clipboard', { kind: 'success' });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -286,11 +286,13 @@ export function PendingTokenLayout({
       const shareLink = `${websiteUrl}#${secretKeyHex}`;
 
       setCurrentToken(shareLink);
-      toast.show('Published!', { message: 'Token published on bey.cash' });
+      toast.show('Token published on bey.cash', { kind: 'success' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       console.error('[PendingTokenLayout] Publish to web failed:', e);
-      toast.show('Publish Failed', { message: e?.message || 'Could not publish to Nostr relays' });
+      toast.show('Publish Failed: ' + (e?.message || 'Could not publish to Nostr relays'), {
+        kind: 'error',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsPublishing(false);
@@ -305,16 +307,16 @@ export function PendingTokenLayout({
         const encodedV4 = encodeTokenV4(decoded);
         setCurrentToken(encodedV4);
         setTokenVersion('V4');
-        toast.show('Switched to V4', { message: 'Compact CBOR encoding enabled' });
+        toast.show('Switched to V4 (compact CBOR)', { kind: 'info' });
       } else {
         const encodedV3 = encodeTokenV3(decoded);
         setCurrentToken(encodedV3);
         setTokenVersion('V3');
-        toast.show('Switched to V3', { message: 'Standard JSON encoding enabled' });
+        toast.show('Switched to V3 (standard JSON)', { kind: 'info' });
       }
     } catch (e) {
       console.error('[PendingTokenLayout] Failed to toggle version:', e);
-      toast.show('Error', { message: 'Cannot convert this token format' });
+      toast.show('Cannot convert this token format', { kind: 'error' });
     }
   };
 
@@ -496,7 +498,7 @@ export function PendingTokenLayout({
                 onCopy={async () => {
                   await Clipboard.setStringAsync(currentToken);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Copied!', { message: 'Web share link copied' });
+                  toast.show('Web share link copied', { kind: 'success' });
                 }}
               />
             )}
@@ -518,7 +520,7 @@ export function PendingTokenLayout({
                     onCopy={async () => {
                       await Clipboard.setStringAsync(displayNpub);
                       Haptics.selectionAsync();
-                      toast.show('Copied!', { message: 'NPUB copied' });
+                      toast.show('NPUB copied', { kind: 'success' });
                     }}
                   />
                 )}
@@ -670,7 +672,7 @@ export function PendingTokenLayout({
                 if (currentToken.startsWith('http')) {
                   Clipboard.setStringAsync(currentToken);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Copied!', { message: 'Web share link copied' });
+                  toast.show('Web share link copied', { kind: 'success' });
                 } else {
                   handlePublishToWeb();
                 }

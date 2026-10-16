@@ -207,8 +207,8 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
       </XStack>
 
       <AppButton
-        variant="branded"
-        emphasis="primary"
+        variant="default"
+        emphasis="secondary"
         size="xsmall"
         icon={<Plus size={14} strokeWidth={3} />}
         onPress={() => onAdd(mint.mintUrl)}
@@ -319,8 +319,8 @@ export const ConnectedMintsCard = () => {
       <XStack gap="$2">
         {/* Add Mint Button at bottom */}
         <AppButton
-          variant="branded"
-          emphasis="primary"
+          variant="default"
+          emphasis="secondary"
           size="medium"
           icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
           onPress={handleAddMint}

@@ -170,7 +170,7 @@ export function ConfirmStage({
 
   const handleCopy = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
-    toast.show('Copied!', { message: `${label} copied to clipboard` });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
     Haptics.selectionAsync();
   };
 

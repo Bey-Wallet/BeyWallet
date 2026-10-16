@@ -153,8 +153,8 @@ it('keeps manual progress on Pay and reuses the existing payment for a failed de
   const pay = tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
   await act(async () => pay.props.onPress());
   expect(mockToast.show).toHaveBeenCalledWith(
-    'Payment delivery failed',
-    expect.objectContaining({ kind: 'error', message: 'Relay unavailable' }),
+    'Payment delivery failed: Relay unavailable',
+    expect.objectContaining({ kind: 'error' }),
   );
   await act(async () => pay.props.onPress());
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);

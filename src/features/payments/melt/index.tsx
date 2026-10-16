@@ -76,7 +76,6 @@ export default function MeltScreen() {
   usePendingOperationToast({
     active: isGettingQuote && !isManualQuote,
     title: 'Preparing Lightning payment…',
-    description: 'Fetching the invoice amount and fees.',
   });
   const [quoteAmount, setQuoteAmount] = useState(0);
   const [feeReserve, setFeeReserve] = useState(0);

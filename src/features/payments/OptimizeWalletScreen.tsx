@@ -119,7 +119,7 @@ export default function OptimizeWalletScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!canOptimize) {
-      toast.show('Already Optimized', { message: 'Your wallet structure is already optimal.' });
+      toast.show('Wallet already optimized', { kind: 'info' });
       return;
     }
 

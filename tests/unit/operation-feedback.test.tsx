@@ -24,7 +24,7 @@ function Operation({
   active?: boolean;
   title?: string;
 }) {
-  usePendingOperationToast({ active, title, description: 'Please wait.' });
+  usePendingOperationToast({ active, title });
   return null;
 }
 let tree: ReactTestRenderer;
@@ -47,6 +47,15 @@ it('keeps concurrent operations visible beyond timeouts and updates only the own
   });
   const second = tree.root.findAllByType('Toast' as any)[1];
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(2);
+  expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
+  expect(tree.root.findAllByType('ToastTitle' as any)[0].props).toMatchObject({
+    fontSize: 16,
+    fontWeight: '800',
+  });
+  expect(tree.root.findAllByType('Spinner' as any)[0].props).toMatchObject({
+    size: 16,
+    strokeWidth: 3,
+  });
   await act(async () => jest.advanceTimersByTime(120_000));
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(2);
   await act(async () => tree.update(render(true, 'Sending via Nostr…')));
@@ -79,7 +88,6 @@ it('hands progress from a disappearing button to a parent toast and cleans up on
     usePendingOperationToast({
       active: working && stage !== 'confirm',
       title: 'Sending via Nostr…',
-      description: 'Delivering your payment.',
     });
     return stage === 'confirm' ? React.createElement('button-progress', { active: working }) : null;
   }

@@ -45,7 +45,7 @@ export function SuccessStage({ amount, mintUrl, fee = 0, onClose }: SuccessStage
   const handleCopyText = async (text: string, label: string) => {
     await ExpoClipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied!', { message: `${label} copied to clipboard` });
+    toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
 
   const mintDomain = mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown';

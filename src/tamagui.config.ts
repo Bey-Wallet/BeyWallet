@@ -1,6 +1,44 @@
 import { createAnimations } from '@tamagui/animations-react-native';
-import { createFont, createTamagui } from 'tamagui';
+import { Text, createFont, createTamagui } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v5';
+import type { TextStyle } from 'react-native';
+
+const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
+
+// Base Text is unnamed in Tamagui, so named config defaults do not reach it.
+// Update its existing defaults before configuring the named text variants below.
+const baseText = Text as unknown as { staticConfig?: { defaultProps?: Record<string, unknown> } };
+Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers);
+
+// Keep this type independent of TamaguiCustomConfig, which is inferred from config below.
+const textDefaults: Record<string, Pick<TextStyle, 'fontVariant'>> = Object.fromEntries(
+  [
+    'Text',
+    'SizableText',
+    'Paragraph',
+    'Heading',
+    'H1',
+    'H2',
+    'H3',
+    'H4',
+    'H5',
+    'H6',
+    'Label',
+    'Input',
+    'TextArea',
+    'Button',
+    'ToastTitle',
+    'ToastDescription',
+    'DialogTitle',
+    'DialogDescription',
+    'AlertDialogTitle',
+    'AlertDialogDescription',
+    'ListItemText',
+    'ListItemTitle',
+    'ListItemSubtitle',
+    'SelectItemText',
+  ].map((name) => [name, tabularNumbers]),
+);
 
 const animations = createAnimations({
   bouncy: {
@@ -262,6 +300,8 @@ export const buttonThemes = { light: createButtonTheme(false), dark: createButto
 
 export const config = createTamagui({
   ...defaultConfig,
+  // Styled text components have their own names; Text defaults alone do not cover them.
+  defaultProps: textDefaults,
   animations,
   settings: {
     ...defaultConfig.settings,

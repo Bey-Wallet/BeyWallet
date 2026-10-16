@@ -74,8 +74,8 @@ it('keeps a request-generation error inline on the amount stage and leaves retry
   await act(async () => tree.root.findByType('NumericKeypad' as any).props.onValueChange('10'));
   await act(async () => tree.root.findByType('NumericKeypad' as any).props.onConfirm());
   expect(mockToast.show).toHaveBeenCalledWith(
-    'Request failed',
-    expect.objectContaining({ message: 'Cannot encode request', kind: 'error' }),
+    'Request failed: Cannot encode request',
+    expect.objectContaining({ kind: 'error' }),
   );
   expect(
     tree.root

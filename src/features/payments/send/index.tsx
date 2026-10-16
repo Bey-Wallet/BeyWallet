@@ -552,10 +552,7 @@ export function SendModalScreen() {
         .catch(() => {});
 
       setStep('result');
-      toast.show('Payment sent; awaiting receipt', {
-        message: 'Receipt will be confirmed when the ecash is claimed.',
-        kind: 'info',
-      });
+      toast.show('Payment sent; awaiting receipt', { kind: 'info' });
     } catch (err: any) {
       console.error('[SendModal] Nostr send failed:', err);
       setError(err.message || 'Failed to send via Nostr');
@@ -696,13 +693,9 @@ export function SendModalScreen() {
                 const nextForceOffline = !forceOffline;
                 setForceOffline(nextForceOffline);
                 if (nextForceOffline) {
-                  toast.show('Offline Mode Enabled', {
-                    message: 'Using local ecash proofs for sends.',
-                  });
+                  toast.show('Offline mode enabled; using local ecash', { kind: 'info' });
                 } else {
-                  toast.show('Online Mode Enabled', {
-                    message: 'Reconnected for standard online payments.',
-                  });
+                  toast.show('Online mode enabled', { kind: 'info' });
                 }
               }}
               disabled={isHardwareOffline || isProcessing || nostrSending}

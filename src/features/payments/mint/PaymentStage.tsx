@@ -77,7 +77,7 @@ export function PaymentStage({
     await Clipboard.setStringAsync(invoice);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Copied!', { message: 'Invoice copied to clipboard' });
+    toast.show('Invoice copied to clipboard', { kind: 'success' });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -166,9 +166,7 @@ export function PaymentStage({
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } catch (err: any) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                toast.show('Not Paid Yet', {
-                  message: 'The invoice has not been paid yet. Please wait or try again.',
-                });
+                toast.show('Invoice not paid yet. Try again shortly.', { kind: 'info' });
               } finally {
                 setIsChecking(false);
               }

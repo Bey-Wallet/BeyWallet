@@ -46,10 +46,7 @@ const EditNicknameModal = forwardRef<EditNicknameModalRef>((_, ref) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       sheetRef.current?.dismiss();
     } catch (err: any) {
-      toast.show('Error', {
-        message: err.message || 'Failed to update nickname',
-        duration: 3000,
-      });
+      toast.show(err.message || 'Failed to update nickname', { duration: 3000, kind: 'error' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
@@ -81,6 +78,7 @@ const EditNicknameModal = forwardRef<EditNicknameModalRef>((_, ref) => {
               borderWidth: 1,
               borderColor: theme.borderColor.val,
               fontSize: 16,
+              fontVariant: ['tabular-nums'],
               height: 56,
             }}
             placeholderTextColor={theme.gray10.val}
