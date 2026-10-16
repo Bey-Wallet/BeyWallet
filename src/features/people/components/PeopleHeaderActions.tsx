@@ -2,12 +2,12 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Activity, Clock, Radio, Settings, Signal } from '@tamagui/lucide-icons';
+import { Signal, SlidersHorizontal } from '@tamagui/lucide-icons';
 import { XStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
 
-export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
+export const PeopleConnectionStatus = React.memo(function PeopleConnectionStatus() {
   const router = useRouter();
   const [connectionPercent, setConnectionPercent] = useState<number | null>(null);
 
@@ -35,46 +35,39 @@ export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
     }, []),
   );
 
-  const open = (
-    route: '/(modals)/nostr-diagnostics' | '/(modals)/nostr-activity' | '/(modals)/nostr-settings',
-  ) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(route);
-  };
+  return (
+    <AppButton
+      variant="default"
+      emphasis="tertiary"
+      size="xsmall"
+      icon={<Signal strokeWidth={2.5} size={16} />}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/(modals)/nostr-diagnostics');
+      }}
+      accessibilityLabel="Open Nostr diagnostics"
+    >
+      {connectionPercent === null ? '···' : `${connectionPercent}%`}
+    </AppButton>
+  );
+});
 
-  const healthy = connectionPercent !== null && connectionPercent >= 75;
+export const PeopleHeaderActions = React.memo(function PeopleHeaderActions() {
+  const router = useRouter();
 
   return (
-    <XStack mr="$3" gap="$1" items="center" bg="$gray4" rounded="$12" p="$2">
-      <AppButton
-        variant="default"
-        emphasis="tertiary"
-        size="xsmall"
-        icon={<Signal strokeWidth={2.5} size={16} />}
-        onPress={() => open('/(modals)/nostr-diagnostics')}
-        accessibilityLabel="Open Nostr diagnostics"
-      >
-        {connectionPercent === null ? '···' : `${connectionPercent}%`}
-      </AppButton>
+    <XStack pr="$4" items="center">
       <AppIconButton
         variant="default"
         emphasis="tertiary"
         size="xsmall"
-
-        shape="circular"
-        accessibilityLabel="Open Nostr activity"
-        icon={<Clock size={19} color="$color" />}
-        onPress={() => open('/(modals)/nostr-activity')}
-      />
-      <AppIconButton
-        variant="default"
-        emphasis="tertiary"
-        size="xsmall"
-
         shape="circular"
         accessibilityLabel="Open Nostr settings"
-        icon={<Settings size={19} color="$color" />}
-        onPress={() => open('/(modals)/nostr-settings')}
+        icon={<SlidersHorizontal />}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/(modals)/nostr-settings');
+        }}
       />
     </XStack>
   );
