@@ -127,8 +127,17 @@ same event is not processed concurrently.
 - Offline and transient network failures are retried with a persisted delay.
 - Non-retryable validation or P2PK failures appear as payment issues under Requests.
 - Automatic claims are rate-limited to avoid processing an unbounded burst.
-- An already-spent response is treated idempotently so a previously completed claim is not shown
-  as a new failure.
+- An already-spent response requires an exact successful local receive record before it is treated
+  as received. Matching checks the complete original proof set, mint, unit, and amount; neither
+  mint proof state alone nor an unrelated same-amount transaction proves receipt ownership.
+- Missing evidence is shown as **Receipt unverified**, with no received notification or request
+  completion. Verify receipt checks history and proof state without submitting another redemption.
+- Recovered receipts retain their actual redemption time. Replaying an old token cannot satisfy
+  a newer request or reassign an existing receipt's sender/event metadata.
+- Inbox upgrades move older unverified claimed offers into receipt review. Exact local receipts
+  restore verified status without duplicate receipt notifications. Fresh successful redemptions
+  persist their verification. Previously saved request outcomes are preserved rather than guessed
+  or reversed from amount matching.
 
 After a successful claim, the wallet balance refreshes, matching payment requests are updated,
 history is tagged as Nostr activity, and a local notification is sent when notifications are

@@ -594,9 +594,11 @@ function PendingTab({
                       ? ' · Contact acceptance needed'
                       : item.status === 'approval_required'
                         ? ' · Mint approval needed'
-                        : item.status === 'failed'
-                          ? ' · Failed — tap to retry'
-                          : ''}
+                        : item.failure?.code === 'receipt_unverified'
+                          ? 'Receipt unverified'
+                          : item.status === 'failed'
+                            ? ' · Failed — tap to retry'
+                            : ''}
                   </Text>
                 </YStack>
               </XStack>

@@ -37,6 +37,7 @@ export const historyService = {
    * @param via        - Channel: 'qr' | 'nfc' | 'nostr' | 'lightning'
    * @param extra      - Extra fields merged into metadata (e.g. nostrUsername, nostrPubkey)
    * @param operationId - Optional operationId to target a specific row
+   * @param historyId - Exact receipt row ID, when recovering a verified receive
    */
   tagHistoryVia: async (
     mintUrl: string,
@@ -44,6 +45,7 @@ export const historyService = {
     via: string,
     extra?: Record<string, any>,
     operationId?: string,
+    historyId?: string,
   ): Promise<void> => {
     try {
       const normalized = mintUrl.trim().replace(/\/+$/, '');
@@ -58,7 +60,12 @@ export const historyService = {
 
       // Fetch the current metadata on the target row
       let row: any;
-      if (operationId) {
+      if (historyId) {
+        row = await db.get(
+          'SELECT id, metadata FROM coco_cashu_history WHERE id = ? AND type = ?',
+          [historyId, type],
+        );
+      } else if (operationId) {
         row = await db.get(
           `SELECT id, metadata FROM coco_cashu_history
                      WHERE (mintUrl = ? OR mintUrl = ?) AND type = ? AND operationId = ?
@@ -83,6 +90,9 @@ export const historyService = {
 
       // Merge new via info with any pre-existing metadata
       const existing = row.metadata ? JSON.parse(row.metadata) : {};
+      // A replay must not reassign an existing receipt to a different sender/event.
+      if (historyId && existing.nostrEventId && existing.nostrEventId !== extra?.nostrEventId)
+        return;
       const updated = JSON.stringify({ ...existing, via, ...extra });
       await db.run(`UPDATE coco_cashu_history SET metadata = ? WHERE id = ?`, [updated, row.id]);
     } catch (err) {

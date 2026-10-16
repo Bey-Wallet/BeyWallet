@@ -11,6 +11,7 @@ import { isDuplicateOutputsError } from '~/services/wallet/cashuReceiveRecovery'
 import { applyIncomingContactPolicy, canReceiveFrom, contactPolicyReady } from './contactPolicy';
 import { usePeopleStore } from '~/state/peopleStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
+import { findReceiveReceipt, unverifiedReceiptFailure } from './nostrReceiptService';
 import {
   type NostrClaimErrorCode,
   type NostrClaimFailure,
@@ -179,8 +180,77 @@ class NostrClaimService {
     return this.enqueueTask(() => this.claim(eventId, { ...options, force: true }));
   }
 
+  /** Read-only receipt recovery: spent proofs alone never prove receipt ownership. */
+  public reconcileReceipt(eventId: string, checkSpent = false): Promise<NostrClaimResult> {
+    return this.enqueueTask(async () => {
+      const generation = this.generation;
+      const store = useNostrInboxStore.getState();
+      const item = store.items.find((item) => item.id === eventId);
+      if (!item || item.type === 'request' || item.status === 'dismissed')
+        return { eventId, status: 'deferred' };
+      if (item.status === 'claimed' && item.receiptVerified)
+        return { eventId, status: 'claimed', amount: item.amount };
+      const allowed = () => {
+        const current = useNostrInboxStore.getState().items.find((entry) => entry.id === eventId);
+        return (
+          !!current &&
+          current.status !== 'dismissed' &&
+          generation === this.generation &&
+          contactPolicyReady() &&
+          canReceiveFrom(item.senderPubkey) &&
+          !this.canUseWallet()
+        );
+      };
+      if (!allowed()) return { eventId, status: 'deferred' };
+      try {
+        const receipt = await findReceiveReceipt(item);
+        if (!allowed()) return { eventId, status: 'deferred' };
+        if (receipt) {
+          store.markClaimed(eventId, receipt.createdAt);
+          await this.afterClaim(item, true, receipt.id);
+          return { eventId, status: 'claimed', amount: item.amount };
+        }
+        if (checkSpent && (await mintManager.isMintTrusted(item.mintUrl))) {
+          const { proofService } =
+            require('~/services/wallet/proofService') as typeof import('~/services/wallet/proofService');
+          const states = await proofService.checkProofStates(item.tokenString);
+          if (!allowed()) return { eventId, status: 'deferred' };
+          const count = getTokenMetadata(item.tokenString).incompleteProofs.length;
+          if (
+            count > 0 &&
+            states.length === count &&
+            states.every((state) => state.state === 'SPENT')
+          ) {
+            // Recheck history in case a receive completed while the mint was queried.
+            const completed = await findReceiveReceipt(item);
+            if (!allowed()) return { eventId, status: 'deferred' };
+            if (completed) {
+              store.markClaimed(eventId, completed.createdAt);
+              await this.afterClaim(item, true, completed.id);
+              return { eventId, status: 'claimed', amount: item.amount };
+            }
+            store.markFailed(eventId, unverifiedReceiptFailure.message, unverifiedReceiptFailure);
+          }
+        } else if (item.status === 'claimed') {
+          store.markFailed(eventId, unverifiedReceiptFailure.message, unverifiedReceiptFailure);
+        }
+      } catch {
+        /* Unavailable local history or mint: leave receipt uncertainty intact. */
+      }
+      return { eventId, status: 'deferred' };
+    });
+  }
+
   public async processPending(): Promise<void> {
     if (!this.running || !this.privateKeyHex || !contactPolicyReady()) return;
+    for (const item of useNostrInboxStore.getState().items) {
+      if (
+        item.type !== 'request' &&
+        ((item.status === 'claimed' && !item.receiptVerified) ||
+          item.failure?.code === 'receipt_unverified')
+      )
+        await this.reconcileReceipt(item.id);
+    }
     const { useMessageStore } =
       require('~/state/messageStore') as typeof import('~/state/messageStore');
     for (const message of useMessageStore.getState().recent) {
@@ -275,7 +345,7 @@ class NostrClaimService {
     const store = useNostrInboxStore.getState();
     const item = store.items.find((candidate) => candidate.id === eventId);
     if (!item || item.type === 'request') return { eventId, status: 'failed' };
-    if (item.status === 'claimed') {
+    if (item.status === 'claimed' && item.receiptVerified) {
       return { eventId, status: 'claimed', amount: item.amount };
     }
     // Dismissal is a durable user decision. A replayed relay event must never
@@ -294,6 +364,18 @@ class NostrClaimService {
     if (walletFailure) return this.defer(item, walletFailure);
     this.processing.add(eventId);
     try {
+      const previousReceipt = await findReceiveReceipt(item);
+      if (generation !== this.generation || this.canUseWallet())
+        return { eventId, status: 'deferred' };
+      if (!canReceiveFrom(item.senderPubkey)) {
+        store.markContactRequired(eventId);
+        return { eventId, status: 'contact_required' };
+      }
+      if (previousReceipt) {
+        store.markClaimed(eventId, previousReceipt.createdAt);
+        await this.afterClaim(item, true, previousReceipt.id);
+        return { eventId, status: 'claimed', amount: item.amount };
+      }
       if (await networkService.isOffline()) {
         return this.defer(item, {
           code: 'offline',
@@ -344,9 +426,28 @@ class NostrClaimService {
       return { eventId, status: 'claimed', amount: item.amount };
     } catch (error) {
       if (isAlreadySpent(error)) {
-        store.markClaimed(eventId);
-        await this.afterClaim(item);
-        return { eventId, status: 'claimed', amount: item.amount };
+        try {
+          const receipt = await findReceiveReceipt(item);
+          if (generation !== this.generation) return { eventId, status: 'deferred' };
+          if (receipt) {
+            store.markClaimed(eventId, receipt.createdAt);
+            await this.afterClaim(item, true, receipt.id);
+            return { eventId, status: 'claimed', amount: item.amount };
+          }
+        } catch {
+          return this.defer(
+            item,
+            {
+              code: 'wallet_unavailable',
+              message: 'Receipt history is unavailable. Verification will retry.',
+              retryable: true,
+            },
+            true,
+          );
+        }
+        const result = this.defer(item, unverifiedReceiptFailure, true);
+        DeviceEventEmitter.emit('nostr:claim-result', result);
+        return result;
       }
       const failure = classifyFailure(error);
       console.warn('[NostrClaimService] Claim deferred or failed', {
@@ -420,7 +521,11 @@ class NostrClaimService {
     this.retryTimer = setTimeout(() => void this.processPending(), Math.max(0, next - Date.now()));
   }
 
-  private async afterClaim(item: NostrInboxItem): Promise<void> {
+  private async afterClaim(
+    item: NostrInboxItem,
+    recovered = false,
+    historyId?: string,
+  ): Promise<void> {
     try {
       const { useWalletStore } = require('~/state/walletStore');
       await useWalletStore.getState().refreshBalance();
@@ -429,19 +534,41 @@ class NostrClaimService {
     try {
       const { recordRequestReceipt } =
         require('./requestLifecycleService') as typeof import('./requestLifecycleService');
-      await recordRequestReceipt({ ...item, status: 'claimed' });
+      const verifiedItem = useNostrInboxStore
+        .getState()
+        .items.find((entry) => entry.id === item.id);
+      if (verifiedItem) await recordRequestReceipt(verifiedItem);
     } catch {}
 
-    await historyService.tagHistoryVia(item.mintUrl, 'receive', 'nostr', {
-      nostrPubkey: toNpub(item.senderPubkey),
-      nostrUsername: item.senderUsername?.replace(/@bey\.cash$/i, ''),
-      nostrEventId: item.id,
-      requestId: item.requestId,
-    });
+    try {
+      historyId ??= (await findReceiveReceipt(item))?.id;
+      const receiptTime = useNostrInboxStore
+        .getState()
+        .items.find((entry) => entry.id === item.id)?.receiptCreatedAt;
+      if (
+        historyId &&
+        (!recovered || (receiptTime !== undefined && receiptTime >= item.receivedAt))
+      )
+        await historyService.tagHistoryVia(
+          item.mintUrl,
+          'receive',
+          'nostr',
+          {
+            nostrPubkey: toNpub(item.senderPubkey),
+            nostrUsername: item.senderUsername?.replace(/@bey\.cash$/i, ''),
+            nostrEventId: item.id,
+            requestId: item.requestId,
+          },
+          undefined,
+          historyId,
+        );
+    } catch {
+      /* Metadata failure cannot undo a verified receipt. */
+    }
 
     try {
       const { useSettingsStore } = require('~/state/settingsStore');
-      if (useSettingsStore.getState().notificationsEnabled) {
+      if (!recovered && useSettingsStore.getState().notificationsEnabled) {
         await notificationService.sendLocalNotification(
           'Nostr payment received',
           `${item.amount.toLocaleString()} sats were added to your wallet.`,
@@ -455,13 +582,14 @@ class NostrClaimService {
       status: 'claimed',
       amount: item.amount,
     };
-    DeviceEventEmitter.emit('nostr:received', {
-      amount: item.amount,
-      mintUrl: item.mintUrl,
-      eventId: item.id,
-      senderPubkey: item.senderPubkey,
-      requestId: item.requestId,
-    });
+    if (!recovered)
+      DeviceEventEmitter.emit('nostr:received', {
+        amount: item.amount,
+        mintUrl: item.mintUrl,
+        eventId: item.id,
+        senderPubkey: item.senderPubkey,
+        requestId: item.requestId,
+      });
     DeviceEventEmitter.emit('nostr:claim-result', result);
   }
 }

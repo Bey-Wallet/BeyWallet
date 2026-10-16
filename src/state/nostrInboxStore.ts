@@ -10,6 +10,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { DeviceEventEmitter } from 'react-native';
+import { unverifiedReceiptFailure } from '~/services/wallet/nostrReceiptService';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ export type NostrInboxStatus =
   | 'dismissed';
 
 export type NostrClaimErrorCode =
+  | 'receipt_unverified'
   | 'offline'
   | 'wallet_locked'
   | 'wallet_unavailable'
@@ -57,6 +59,8 @@ export interface NostrInboxItem {
   lastAttemptAt?: number;
   nextRetryAt?: number;
   seen: boolean; // Whether user has seen this notification
+  receiptVerified?: boolean; // Set only after successful redemption or exact local receipt verification.
+  receiptCreatedAt?: number; // Actual redemption time, never the relay replay time.
 }
 
 interface NostrInboxState {
@@ -65,9 +69,14 @@ interface NostrInboxState {
 
   // Actions
   /** Returns false when this persisted Nostr event is already known. */
-  addIncoming: (item: Omit<NostrInboxItem, 'status' | 'receivedAt' | 'seen'>) => boolean;
+  addIncoming: (
+    item: Omit<
+      NostrInboxItem,
+      'status' | 'receivedAt' | 'seen' | 'receiptVerified' | 'receiptCreatedAt'
+    >,
+  ) => boolean;
   markClaiming: (id: string) => void;
-  markClaimed: (id: string) => void;
+  markClaimed: (id: string, receiptCreatedAt?: number) => void;
   markFailed: (id: string, error: string, failure?: NostrClaimFailure) => void;
   markApprovalRequired: (id: string) => void;
   markContactRequired: (id: string) => void;
@@ -101,6 +110,8 @@ export const useNostrInboxStore = create<NostrInboxState>()(
           status: 'pending',
           receivedAt: Date.now(),
           seen: false,
+          receiptVerified: undefined,
+          receiptCreatedAt: undefined,
         };
 
         set((s) => ({ items: [newItem, ...s.items] }));
@@ -138,13 +149,15 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         }));
       },
 
-      markClaimed: (id) => {
+      markClaimed: (id, receiptCreatedAt = Date.now()) => {
         set((s) => ({
           items: s.items.map((i) =>
             i.id === id
               ? {
                   ...i,
                   status: 'claimed' as NostrInboxStatus,
+                  receiptVerified: true,
+                  receiptCreatedAt,
                   seen: true,
                   error: undefined,
                   failure: undefined,
@@ -265,56 +278,44 @@ export const useNostrInboxStore = create<NostrInboxState>()(
 
       refreshPendingStates: async () => {
         const pending = get().items.filter(
-          (i) => i.status === 'contact_required' || i.status === 'pending' || i.status === 'failed',
+          (item) =>
+            item.type !== 'request' &&
+            (item.status === 'contact_required' ||
+              item.status === 'pending' ||
+              item.status === 'failed'),
         );
-        if (pending.length === 0) return 0;
-
-        let markedCount = 0;
-        try {
-          const { proofService } =
-            require('~/services/wallet') as typeof import('~/services/wallet');
-          for (const item of pending) {
-            try {
-              const { canReceiveFrom } =
-                require('~/services/wallet/contactPolicy') as typeof import('~/services/wallet/contactPolicy');
-              if (!canReceiveFrom(item.senderPubkey) || item.type === 'request') continue;
-              const states = await proofService.checkProofStates(item.tokenString);
-              if (!canReceiveFrom(item.senderPubkey)) continue;
-              if (states.length > 0 && states.every((s: any) => s.state === 'SPENT')) {
-                console.log(
-                  `[NostrInboxStore] Token ${item.id.slice(0, 8)} already spent — marking claimed`,
-                );
-                set((s) => ({
-                  items: s.items.map((i) =>
-                    i.id === item.id
-                      ? { ...i, status: 'claimed' as NostrInboxStatus, seen: true }
-                      : i,
-                  ),
-                }));
-                markedCount++;
-              }
-            } catch (err) {
-              // Non-fatal — skip this item
-              console.warn(
-                `[NostrInboxStore] Failed to check state for ${item.id.slice(0, 8)}:`,
-                err,
-              );
-            }
-          }
-        } catch (importErr) {
-          console.warn('[NostrInboxStore] Could not import proofService:', importErr);
+        const { nostrClaimService } =
+          require('~/services/wallet/nostrClaimService') as typeof import('~/services/wallet/nostrClaimService');
+        let verified = 0;
+        for (const item of pending) {
+          const result = await nostrClaimService.reconcileReceipt(item.id, true);
+          if (result.status === 'claimed') verified++;
         }
-        if (markedCount > 0) {
-          console.log(
-            `[NostrInboxStore] Refreshed: ${markedCount} pending items marked as claimed`,
-          );
-        }
-        return markedCount;
+        return verified;
       },
     }),
     {
       name: 'bey-nostr-inbox-storage',
       storage: createJSONStorage(() => sqliteStorage),
+      version: 1,
+      migrate: (persisted) => migrateNostrInbox(persisted) as NostrInboxState,
     },
   ),
 );
+
+export function migrateNostrInbox(persisted: unknown): { items: NostrInboxItem[] } {
+  const state = persisted as { items?: NostrInboxItem[] } | undefined;
+  return {
+    items: (Array.isArray(state?.items) ? state.items : []).map((item) =>
+      item.type !== 'request' && item.status === 'claimed' && !item.receiptVerified
+        ? {
+            ...item,
+            status: 'failed' as const,
+            error: unverifiedReceiptFailure.message,
+            failure: unverifiedReceiptFailure,
+            nextRetryAt: undefined,
+          }
+        : item,
+    ),
+  };
+}

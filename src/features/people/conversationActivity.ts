@@ -108,7 +108,9 @@ export function buildConversationActivity(
                 : payment.status === 'claiming'
                   ? 'Receiving'
                   : payment.status === 'failed'
-                    ? 'Claim failed'
+                    ? payment.failure?.code === 'receipt_unverified'
+                      ? 'Receipt unverified'
+                      : 'Claim failed'
                     : payment.type === 'request'
                       ? 'Payment requested'
                       : 'Pending',
@@ -167,7 +169,9 @@ export function buildConversationActivity(
                         : response?.status === 'claiming'
                           ? 'Receiving'
                           : response?.status === 'failed'
-                            ? 'Claim failed'
+                            ? response.failure?.code === 'receipt_unverified'
+                              ? 'Receipt unverified'
+                              : 'Claim failed'
                             : 'Awaiting payment';
         return { ...activity, status, mintUrl: request?.mintUrl };
       }
