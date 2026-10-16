@@ -154,7 +154,7 @@ export default function Balance() {
             `_${showBitcoinSymbol}`
           }
           fontSize={20}
-          fontWeight={800}
+          fontWeight={500}
           color="$accent7"
 
           decimalOpacity={0.4}

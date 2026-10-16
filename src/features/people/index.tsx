@@ -1,511 +1,333 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { AppPressable } from '~/shared/ui/AppPressable';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  DeviceEventEmitter,
-  Keyboard,
-  RefreshControl,
-  ScrollView as NativeScrollView,
-  useWindowDimensions,
-} from 'react-native';
-import { AlertTriangle, ClipboardPaste, Search, Star, Users, X } from '@tamagui/lucide-icons';
-import { Input, Spinner, Text, View, XStack, YStack } from 'tamagui';
+import React, { useCallback, useRef, useState } from 'react';
+import { DeviceEventEmitter, FlatList, Keyboard } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClipboardPaste, Search, X } from '@tamagui/lucide-icons';
+import { Input, Spinner, Text, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { nip19 } from 'nostr-tools';
-import { selectPeopleByRecency, type Person, usePeopleStore } from '~/state/peopleStore';
-import { type NostrInboxItem, useNostrInboxStore } from '~/state/nostrInboxStore';
-import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
-import { historyService } from '~/services/wallet/historyService';
-import { useNostrProfileSearch } from '~/features/people/hooks/useNostrProfileSearch';
-import {
-  getNostrProfileLabel,
-  NostrProfileItem,
-} from '~/features/people/components/NostrProfileItem';
-import { hydrateSavedPeople } from '~/features/people/peopleProfileCache';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { normalizeNpub } from '~/shared/utils/nostr';
+import { usePeopleStore } from '~/state/peopleStore';
+import { useNostrInboxStore } from '~/state/nostrInboxStore';
+import { usePeopleList } from './hooks/usePeopleList';
+import { PeopleListRow } from './components/PeopleListRow';
+import { peopleListEntries, type PeopleListEntry, type PeopleListItem } from './peopleListModel';
 
-type PeopleView = 'recents' | 'favorites' | 'attention';
-const VIEWS: PeopleView[] = ['recents', 'favorites', 'attention'];
+type PeopleView = 'recents' | 'requests';
+type ListMode = PeopleView | 'search';
 
-function personToProfile(person: Person): NostrProfile | null {
-  const pubkeyHex = decodeNostrPublicKey(person.npub);
-  if (!pubkeyHex) return null;
-  return {
-    pubkeyHex,
-    npub: person.npub,
-    name: person.username || undefined,
-    displayName: person.displayName || undefined,
-    nip05: person.nip05 || undefined,
-    nip05Verified: person.nip05Verified,
-    picture: person.picture || undefined,
-    about: person.about || undefined,
-    source: 'identifier',
-  };
-}
-
-function matches(profile: NostrProfile, query: string): boolean {
-  return [profile.displayName, profile.name, profile.nip05, profile.npub]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-    .includes(query.toLowerCase());
-}
-
-function mergeProfiles(local: NostrProfile[], remote: NostrProfile[]): NostrProfile[] {
-  const byPubkey = new Map<string, NostrProfile>();
-  for (const profile of [...local, ...remote]) {
-    const current = byPubkey.get(profile.pubkeyHex);
-    byPubkey.set(profile.pubkeyHex, current ? { ...current, ...profile } : profile);
-  }
-  return [...byPubkey.values()];
-}
-
-function readMetadata(entry: any): Record<string, any> {
-  if (entry?.metadata && typeof entry.metadata === 'object') return entry.metadata;
-  try {
-    return JSON.parse(entry?.metadata || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function shortSender(item: NostrInboxItem): string {
-  if (item.senderUsername) return item.senderUsername;
-  try {
-    const npub = item.senderPubkey.startsWith('npub1')
-      ? item.senderPubkey
-      : nip19.npubEncode(item.senderPubkey);
-    return `${npub.slice(0, 10)}…${npub.slice(-6)}`;
-  } catch {
-    return 'Unknown sender';
-  }
+function PeopleVirtualList({
+  data,
+  initialOffset,
+  onOffset,
+  onPress,
+  now,
+  bottomInset,
+  ...props
+}: {
+  data: PeopleListEntry[];
+  initialOffset: number;
+  onOffset: (offset: number) => void;
+  onPress: (item: PeopleListItem) => void;
+  now: Date;
+  bottomInset: number;
+  refreshing: boolean;
+  onRefresh: () => void;
+  onEndReached: () => void;
+  ListEmptyComponent: React.ReactElement | null;
+  ListFooterComponent: React.ReactElement;
+}) {
+  const list = useRef<FlatList<PeopleListEntry>>(null);
+  const initial = useRef(initialOffset);
+  const restored = useRef(false);
+  return (
+    <FlatList
+      {...props}
+      ref={list}
+      data={data}
+      contentOffset={{ x: 0, y: initial.current }}
+      keyExtractor={(item) => item.id}
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+      onEndReachedThreshold={0.4}
+      contentContainerStyle={{
+        paddingHorizontal: 16,
+        paddingBottom: bottomInset + 72,
+        flexGrow: 1,
+      }}
+      onContentSizeChange={(_width, height) => {
+        if (restored.current || !height) return;
+        restored.current = true;
+        list.current?.scrollToOffset({ offset: initial.current, animated: false });
+      }}
+      onScroll={(event) => {
+        if (restored.current) onOffset(event.nativeEvent.contentOffset.y);
+      }}
+      scrollEventThrottle={100}
+      renderItem={({ item }) =>
+        item.kind === 'heading' ? (
+          <Text
+            accessibilityRole="header"
+            fontSize={12}
+            fontWeight="600"
+            color="$gray10"
+            pt="$4"
+            pb="$1"
+          >
+            {item.title}
+          </Text>
+        ) : (
+          <YStack>
+            <PeopleListRow item={item} now={now} onPress={() => onPress(item)} />
+            <YStack ml={60} height={0.5} bg="$borderColor" opacity={0.5} />
+          </YStack>
+        )
+      }
+    />
+  );
 }
 
 export default function PeopleScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const pagerRef = useRef<NativeScrollView>(null);
-  const people = usePeopleStore((state) => state.people);
-  const toggleFavorite = usePeopleStore((state) => state.toggleFavorite);
-  const removePerson = usePeopleStore((state) => state.removePerson);
-  const inboxItems = useNostrInboxStore((state) => state.items);
-  const [historyInteractions, setHistoryInteractions] = useState<Record<string, number>>({});
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<PeopleView>('recents');
-  const [refreshing, setRefreshing] = useState(false);
-  const { results: remoteResults, isSearching, error } = useNostrProfileSearch(search);
-
-  useEffect(() => {
-    void hydrateSavedPeople(Object.values(people));
-  }, [people]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void historyService
-      .getHistory(500, 0)
-      .then((entries: any[]) => {
-        if (cancelled) return;
-        const interactions: Record<string, number> = {};
-        for (const entry of entries) {
-          const metadata = readMetadata(entry);
-          if (metadata.via !== 'nostr' || !metadata.nostrPubkey) continue;
-          const timestamp = Number(entry.createdAt) || Date.parse(entry.createdAt) || 0;
-          interactions[metadata.nostrPubkey] = Math.max(
-            interactions[metadata.nostrPubkey] || 0,
-            timestamp,
-          );
-        }
-        setHistoryInteractions(interactions);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const interactions = useMemo(() => {
-    const result = { ...historyInteractions };
-    for (const item of inboxItems) {
-      const pubkey = decodeNostrPublicKey(item.senderPubkey);
-      if (!pubkey) continue;
-      const npub = nip19.npubEncode(pubkey);
-      result[npub] = Math.max(result[npub] || 0, item.receivedAt);
+  const [limits, setLimits] = useState({ recents: 50, requests: 50, search: 50 });
+  const [error, setError] = useState('');
+  const [now, setNow] = useState(() => new Date());
+  const input = useRef<React.ElementRef<typeof Input>>(null);
+  const offsets = useRef({ recents: 0, requests: 0, search: 0 });
+  const model = usePeopleList(search);
+  const searching = !!search.trim();
+  const mode: ListMode = searching ? 'search' : activeView;
+  useFocusEffect(
+    useCallback(() => {
+      setNow(new Date());
+      const timer = setInterval(() => setNow(new Date()), 60_000);
+      return () => clearInterval(timer);
+    }, []),
+  );
+  const changeSearch = (value: string) => {
+    offsets.current.search = 0;
+    setLimits((previous) => ({ ...previous, search: 50 }));
+    setSearch(value);
+    setError('');
+  };
+  const groups = searching
+    ? [
+        { title: 'On this wallet', items: model.localSearch },
+        { title: 'Other people', items: model.remoteSearch },
+      ]
+    : activeView === 'recents'
+      ? [{ items: model.conversations }]
+      : [
+          { title: 'People requests', items: model.invitations },
+          { title: 'Payment issues', items: model.issues },
+        ];
+  const total = groups.reduce((count, group) => count + group.items.length, 0);
+  const loadMore = () => {
+    if (total > limits[mode])
+      setLimits((previous) => ({ ...previous, [mode]: previous[mode] + 50 }));
+  };
+  const open = (item: PeopleListItem) => {
+    Keyboard.dismiss();
+    if (item.kind === 'issue') {
+      const payment = useNostrInboxStore
+        .getState()
+        .items.find((entry) => entry.id === item.issueId);
+      if (
+        payment &&
+        usePeopleStore.getState().people[normalizeNpub(payment.senderPubkey)]?.contactStatus ===
+          'accepted'
+      )
+        DeviceEventEmitter.emit('nostr:openClaim', payment);
+      return;
     }
-    return result;
-  }, [historyInteractions, inboxItems]);
-
-  const sortedPeople = useMemo(
-    () => selectPeopleByRecency({ people } as any, interactions),
-    [interactions, people],
-  );
-  const localProfiles = useMemo(
-    () => sortedPeople.map(personToProfile).filter((profile): profile is NostrProfile => !!profile),
-    [sortedPeople],
-  );
-  // People with interaction timestamps are already sorted first; saved people
-  // without transaction activity remain discoverable at the end of Recents.
-  const recentProfiles = localProfiles;
-  const favoriteProfiles = useMemo(
-    () => localProfiles.filter((profile) => people[profile.npub]?.isFavorite),
-    [localProfiles, people],
-  );
-  const attentionItems = useMemo(
-    () =>
-      inboxItems.filter(
-        (item) =>
-          item.status === 'approval_required' ||
-          (item.status === 'failed' && item.failure?.retryable === false),
-      ),
-    [inboxItems],
-  );
-  const isSearchActive = !!search.trim();
-  const searchResults = useMemo(
-    () =>
-      isSearchActive
-        ? mergeProfiles(
-            localProfiles.filter((profile) => matches(profile, search.trim())),
-            remoteResults,
-          )
-        : [],
-    [isSearchActive, localProfiles, remoteResults, search],
-  );
-
-  const openProfile = useCallback(
-    (profile: NostrProfile) =>
-      router.push({
-        pathname: '/(modals)/person-details',
-        params: {
-          npub: profile.npub,
-          username: profile.name || '',
-          displayName: profile.displayName || '',
-          nip05: profile.nip05 || '',
-        },
-      }),
-    [router],
-  );
-  const send = useCallback(
-    (profile: NostrProfile) =>
-      router.push({
-        pathname: '/(modals)/send',
-        params: {
-          to: profile.npub,
-          username: profile.nip05 || getNostrProfileLabel(profile),
-          mode: 'nostr',
-        },
-      }),
-    [router],
-  );
-  const showActions = useCallback(
-    (profile: NostrProfile) => {
-      const person = people[profile.npub];
-      if (!person) return;
-      Alert.alert(getNostrProfileLabel(profile), undefined, [
-        {
-          text: person.isFavorite ? 'Unfavorite' : 'Favorite',
-          onPress: () => toggleFavorite(profile.npub),
-        },
-        { text: 'Remove', style: 'destructive', onPress: () => removePerson(profile.npub) },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    },
-    [people, removePerson, toggleFavorite],
-  );
-  const paste = useCallback(async () => {
-    const value = (await Clipboard.getStringAsync()).trim();
-    if (value) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setSearch(value);
-    }
-  }, []);
-  const selectView = useCallback(
-    (view: PeopleView) => {
-      Haptics.selectionAsync();
-      setActiveView(view);
-      pagerRef.current?.scrollTo({ x: VIEWS.indexOf(view) * width, animated: true });
-    },
-    [width],
-  );
-
-  const refreshPeople = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (/^nprofile1/i.test(search.trim()) && normalizeNpub(search.trim()) === item.npub)
+      usePeopleStore.getState().savePerson({ npub: search.trim() });
+    router.push({
+      pathname: '/(modals)/conversation',
+      params: {
+        npub: item.npub,
+        username: item.profile.name || '',
+        displayName: item.profile.displayName || '',
+      },
+    });
+  };
+  const paste = async () => {
     try {
-      await hydrateSavedPeople(Object.values(usePeopleStore.getState().people), {
-        forceRefresh: true,
-      });
-    } finally {
-      setRefreshing(false);
+      const value = (await Clipboard.getStringAsync()).trim();
+      if (value) changeSearch(value);
+    } catch {
+      setError('Could not read the clipboard. Try again.');
     }
-  }, [refreshing]);
-
-  const peopleRefreshControl = (
-    <RefreshControl
-      refreshing={refreshing}
-      onRefresh={refreshPeople}
-      tintColor="#ca8a04"
-      colors={['#ca8a04']}
-    />
-  );
-
-  const renderProfiles = (profiles: NostrProfile[], emptyTitle: string, emptyBody: string) => (
-    <NativeScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical
-      refreshControl={peopleRefreshControl}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-    >
-      {profiles.map((profile, index) => {
-        const timestamp = interactions[profile.npub];
-        return (
-          <NostrProfileItem
-            key={profile.pubkeyHex}
-            profile={profile}
-            context={
-              timestamp ? `Last interaction ${new Date(timestamp).toLocaleDateString()}` : undefined
-            }
-            onPress={openProfile}
-            onLongPress={showActions}
-            onSend={send}
-            showTopSeparator={index === 0}
-          />
-        );
-      })}
-      {!profiles.length && <EmptyState title={emptyTitle} body={emptyBody} />}
-    </NativeScrollView>
-  );
-
+  };
+  const empty =
+    searching && model.isSearching ? null : (
+      <YStack px="$4" py="$8" items="center" gap="$2">
+        <Text fontSize={17} fontWeight="600" textAlign="center">
+          {searching
+            ? 'No people found'
+            : activeView === 'recents'
+              ? 'No conversations yet'
+              : 'No requests'}
+        </Text>
+        <Text fontSize={14} color="$gray10" textAlign="center">
+          {searching
+            ? 'Try a name, address, or public key.'
+            : activeView === 'recents'
+              ? 'Find someone to start a conversation.'
+              : 'Contact requests and payments needing attention appear here.'}
+        </Text>
+        {!searching && activeView === 'recents' && (
+          <AppButton
+            size="small"
+            variant="default"
+            emphasis="secondary"
+            onPress={() => input.current?.focus()}
+          >
+            Find someone
+          </AppButton>
+        )}
+      </YStack>
+    );
   return (
     <YStack flex={1} bg="$background">
-      <YStack px="$3" pt="$0" pb="$2" gap="$2.5">
-        <XStack height={50} bg="$gray4" rounded="$6" px="$3" items="center" gap="$2">
-          <Search size={19} strokeWidth={2.5} color="$gray10" />
+      <YStack px="$4" pt="$2" gap="$2">
+        <XStack
+          minHeight={44}
+          bg="$buttonDefaultSecondary"
+          rounded={16}
+          px="$3"
+          items="center"
+          gap="$2"
+        >
+          <Search size={18} color="$gray10" />
           <Input
+            ref={input}
             flex={1}
-            height={42}
+            minWidth={0}
+            height={44}
             borderWidth={0}
             bg="transparent"
             px={0}
-            fontWeight={800}
-            placeholder="Search Nostr"
+            fontSize={16}
+            fontWeight="400"
+            placeholder="Search people"
+            accessibilityLabel="Search people"
             value={search}
-            onChangeText={setSearch}
+            onChangeText={changeSearch}
             onSubmitEditing={Keyboard.dismiss}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
           />
-          {isSearching ? (
-            <Spinner size="small" />
-          ) : (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xxsmall"
-
-              shape="circular"
-              accessibilityLabel={isSearchActive ? 'Clear search' : 'Paste Nostr identifier'}
-              icon={
-                isSearchActive ? <X size={17} /> : <ClipboardPaste strokeWidth={2.5} size={17} />
-              }
-              onPress={isSearchActive ? () => setSearch('') : paste}
-            />
-          )}
+          <AppIconButton
+            variant="default"
+            emphasis="tertiary"
+            size="xxsmall"
+            accessibilityLabel={searching ? 'Clear search' : 'Paste identifier'}
+            icon={searching ? X : ClipboardPaste}
+            onPress={searching ? () => changeSearch('') : () => void paste()}
+          />
         </XStack>
-
-        {!isSearchActive && (
-          <XStack gap="$1">
-            <ViewTab
-              label="Recents"
-              active={activeView === 'recents'}
-              count={recentProfiles.length}
-              onPress={() => selectView('recents')}
-            />
-            <ViewTab
-              label="Favorites"
-              active={activeView === 'favorites'}
-              count={favoriteProfiles.length}
-              icon={<Star size={13} color="#ca8a04" />}
-              onPress={() => selectView('favorites')}
-            />
-            <ViewTab
-              label="Attention"
-              active={activeView === 'attention'}
-              count={attentionItems.length}
-              alert={attentionItems.length > 0}
-              onPress={() => selectView('attention')}
-            />
+        {!searching && (
+          <XStack>
+            {(['recents', 'requests'] as const).map((view) => (
+              <AppPressable
+                key={view}
+                flex={1}
+                minHeight={48}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap="$2"
+                accessibilityRole="tab"
+                accessibilityLabel={
+                  view === 'recents' ? 'Recent' : `Requests, ${model.requestCount} pending`
+                }
+                accessibilityState={{ selected: activeView === view }}
+                borderBottomWidth={2}
+                borderColor={activeView === view ? '$color' : 'transparent'}
+                onPress={() => setActiveView(view)}
+              >
+                <Text
+                  fontSize={14}
+                  fontWeight={activeView === view ? '600' : '400'}
+                  color={activeView === view ? '$color' : '$gray10'}
+                >
+                  {view === 'recents' ? 'Recent' : 'Requests'}
+                </Text>
+                {view === 'requests' && model.requestCount > 0 && (
+                  <YStack bg="$buttonWarningSecondary" rounded={10} px={6} py={2}>
+                    <Text fontSize={11} color="$buttonWarningSecondaryText">
+                      {model.requestCount > 99 ? '99+' : String(model.requestCount)}
+                    </Text>
+                  </YStack>
+                )}
+              </AppPressable>
+            ))}
           </XStack>
         )}
+        {!!(error || model.activityError) && (
+          <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+            {error || model.activityError}
+          </Text>
+        )}
       </YStack>
-
-      {isSearchActive ? (
-        <NativeScrollView
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-          alwaysBounceVertical
-          refreshControl={peopleRefreshControl}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-        >
-          {searchResults.map((profile, index) => (
-            <NostrProfileItem
-              key={profile.pubkeyHex}
-              profile={profile}
-              onPress={openProfile}
-              onLongPress={showActions}
-              onSend={send}
-              showTopSeparator={index === 0}
-            />
-          ))}
-          {!isSearching && !searchResults.length && (
-            <EmptyState
-              title="No people found"
-              body={error || 'Try a display name, NIP-05 address, npub, or nprofile.'}
-            />
-          )}
-        </NativeScrollView>
-      ) : (
-        <NativeScrollView
-          ref={pagerRef}
-          horizontal
-          pagingEnabled
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onMomentumScrollEnd={(event) => {
-            const index = Math.round(event.nativeEvent.contentOffset.x / width);
-            setActiveView(VIEWS[index] || 'recents');
-          }}
-        >
-          <View width={width} flex={1}>
-            {renderProfiles(
-              recentProfiles,
-              'No recent people',
-              'People appear here after you send, request, or receive over Nostr.',
+      <PeopleVirtualList
+        key={searching ? `search-${search.trim()}` : mode}
+        data={peopleListEntries(groups, limits[mode])}
+        initialOffset={offsets.current[mode]}
+        onOffset={(offset) => {
+          offsets.current[mode] = offset;
+        }}
+        onPress={open}
+        now={now}
+        bottomInset={insets.bottom}
+        refreshing={model.refreshing}
+        onRefresh={() => void model.refresh()}
+        onEndReached={loadMore}
+        ListEmptyComponent={empty}
+        ListFooterComponent={
+          <YStack gap="$2" py="$3">
+            {searching && model.isSearching && (
+              <XStack items="center" justify="center" gap="$2">
+                <Spinner size="small" />
+                <Text color="$gray10" fontSize={13}>
+                  Searching…
+                </Text>
+              </XStack>
             )}
-          </View>
-          <View width={width} flex={1}>
-            {renderProfiles(
-              favoriteProfiles,
-              'No favorites yet',
-              'Long-press a person or open their profile to pin them here.',
+            {searching && !!model.searchError && (
+              <YStack gap="$2">
+                <Text color="$gray10" accessibilityRole="alert" fontSize={13}>
+                  Search is unavailable. Your saved people are still available.
+                </Text>
+                <AppButton
+                  size="small"
+                  variant="default"
+                  emphasis="tertiary"
+                  onPress={model.retrySearch}
+                >
+                  Retry search
+                </AppButton>
+              </YStack>
             )}
-          </View>
-          <View width={width} flex={1}>
-            <NativeScrollView
-              showsVerticalScrollIndicator={false}
-              alwaysBounceVertical
-              refreshControl={peopleRefreshControl}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-            >
-              {attentionItems.map((item) => (
-                <AttentionRow
-                  key={item.id}
-                  item={item}
-                  onPress={() => DeviceEventEmitter.emit('nostr:openClaim', item)}
-                />
-              ))}
-              {!attentionItems.length && (
-                <EmptyState
-                  title="You're all caught up"
-                  body="Payments that need mint approval or manual action will appear here."
-                />
-              )}
-            </NativeScrollView>
-          </View>
-        </NativeScrollView>
-      )}
-    </YStack>
-  );
-}
-
-function ViewTab({
-  label,
-  count,
-  active,
-  alert,
-  icon,
-  onPress,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  alert?: boolean;
-  icon?: React.ReactNode;
-  onPress: () => void;
-}) {
-  return (
-    <AppPressable
-      px={12}
-      py={4}
-      bg={active === false ? 'transparent' : '$gray4'}
-      accessibilityState={{ selected: active }}
-      theme="gray"
-      rounded="$12"
-      pressStyle={{ opacity: 0.75 }}
-      onPress={onPress}
-      minHeight={36}
-      flexDirection="row"
-      items="center"
-      justify="center"
-      gap={8}
-    >
-      <Text color={active ? '$color' : '$gray8'} fontSize="$3" fontWeight={800}>
-        {label}
-      </Text>
-    </AppPressable>
-  );
-}
-
-function AttentionRow({ item, onPress }: { item: NostrInboxItem; onPress: () => void }) {
-  return (
-    <AppPressable
-      width="100%"
-      py="$3"
-      onPress={onPress}
-      pressStyle={{ opacity: 0.72 }}
-      minHeight={48}
-      flexDirection="row"
-      items="center"
-      justify="center"
-      gap={8}
-    >
-      <XStack items="center" gap="$3">
-        <View width={44} height={44} rounded={22} bg="$yellow3" items="center" justify="center">
-          <AlertTriangle size={20} color="$yellow11" />
-        </View>
-        <YStack flex={1} gap={2}>
-          <Text fontWeight="800" numberOfLines={1}>
-            {shortSender(item)}
-          </Text>
-          <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-            {item.failure?.code === 'unknown_mint'
-              ? 'Mint approval required'
-              : item.error || 'Action required'}
-          </Text>
-        </YStack>
-        <Text fontWeight="900">{item.amount.toLocaleString()} sats</Text>
-      </XStack>
-    </AppPressable>
-  );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <YStack items="center" gap="$2" pt="$8" px="$6">
-      <View width={58} height={58} rounded={29} bg="$gray3" items="center" justify="center">
-        <Users size={26} color="$gray8" />
-      </View>
-      <Text fontSize="$5" fontWeight="800" style={{ textAlign: 'center' }}>
-        {title}
-      </Text>
-      <Text fontSize="$3" color="$gray9" lineHeight={20} style={{ textAlign: 'center' }}>
-        {body}
-      </Text>
+            {total > limits[mode] && (
+              <AppButton size="small" variant="default" emphasis="tertiary" onPress={loadMore}>
+                Load more
+              </AppButton>
+            )}
+          </YStack>
+        }
+      />
     </YStack>
   );
 }

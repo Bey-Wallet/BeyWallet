@@ -41,6 +41,7 @@ export function ListTableRow({
   iconAfter,
   rightContent,
   multiline,
+  disabled = false,
 }: {
   label: string;
   value?: React.ReactNode;
@@ -55,10 +56,12 @@ export function ListTableRow({
   iconAfter?: React.ReactNode;
   rightContent?: React.ReactNode;
   multiline?: boolean;
+  disabled?: boolean;
 }) {
   const toast = useToastController();
 
   const handleCopy = async () => {
+    if (disabled) return;
     if (onCopy) {
       onCopy();
       return;
@@ -128,6 +131,7 @@ export function ListTableRow({
               size="xxsmall"
 
               accessibilityLabel="Copy"
+              disabled={disabled}
               icon={<Copy size={16} color="$gray10" />}
               onPress={handleCopy}
             />
@@ -140,7 +144,16 @@ export function ListTableRow({
 
   if (onPress) {
     return (
-      <YStack pressStyle={{ opacity: 0.7, backgroundColor: '$gray3' }} onPress={onPress}>
+      <YStack
+        accessibilityLabel={label}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        minHeight={48}
+        disabled={disabled}
+        opacity={disabled ? 0.5 : 1}
+        pressStyle={{ opacity: 0.7, backgroundColor: '$gray3' }}
+        onPress={disabled ? undefined : onPress}
+      >
         {content}
       </YStack>
     );

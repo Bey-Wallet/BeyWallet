@@ -370,6 +370,45 @@ const MIGRATIONS: readonly Migration[] = [
         ON coco_cashu_nostr_receive_requests(createdAt DESC);
     `,
   },
+  {
+    id: '016_messages',
+    sql: `
+      CREATE TABLE IF NOT EXISTS bey_messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        conversation TEXT NOT NULL,
+        direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+        createdAt INTEGER NOT NULL,
+        receivedAt INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        read INTEGER NOT NULL DEFAULT 0,
+        publication TEXT NOT NULL CHECK (publication IN ('sending', 'sent', 'failed')),
+        transport TEXT NOT NULL,
+        envelopes TEXT,
+        paymentId TEXT,
+        paymentAmount INTEGER,
+        paymentType TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_bey_messages_conversation ON bey_messages(conversation, createdAt DESC, id DESC);
+    `,
+  },
+  {
+    id: '017_request_lifecycle',
+    sql: `
+      ALTER TABLE coco_cashu_nostr_receive_requests ADD COLUMN recipient TEXT;
+      ALTER TABLE bey_messages ADD COLUMN requestId TEXT;
+      CREATE INDEX idx_bey_messages_request ON bey_messages(conversation, requestId);
+      CREATE TABLE bey_request_payments (
+        id TEXT PRIMARY KEY NOT NULL,
+        requestId TEXT,
+        conversation TEXT,
+        inboxId TEXT,
+        operationId TEXT UNIQUE,
+        state TEXT NOT NULL CHECK (state IN ('preparing', 'pending', 'paid', 'rolled_back')),
+        publication TEXT,
+        published INTEGER NOT NULL DEFAULT 0
+      );
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

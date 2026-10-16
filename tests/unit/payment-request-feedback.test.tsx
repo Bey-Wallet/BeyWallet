@@ -20,6 +20,7 @@ const mockPayment = {
 };
 const mockConstruct = jest.fn();
 jest.mock('~/services/wallet/paymentRequestPayment', () => ({
+  requestPaymentKey: () => 'request-key',
   PaymentRequestPayment: function () {
     mockConstruct();
     return mockPayment;
@@ -31,6 +32,13 @@ jest.mock('~/services/wallet/paymentRequestPayment', () => ({
     senderFee: 0,
   }),
 }));
+jest.mock('~/services/wallet/requestLifecycleService', () => ({
+  requestLifecycleService: { reconcile: jest.fn() },
+}));
+jest.mock('~/state/nostrRequestStore', () => ({
+  useNostrRequestStore: require('zustand').create(() => ({ payments: [] })),
+}));
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
 jest.mock('~/services/wallet/paymentRequestModel', () => ({ isPaymentMintAllowed: () => true }));
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: () => ({
@@ -93,6 +101,7 @@ const request = {
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  useNostrRequestStore.setState({ payments: [] });
   mockPayment.operationId = undefined;
   mockRefresh.mockResolvedValue(false);
   mockDeliver.mockImplementation(
@@ -142,8 +151,13 @@ it('uses an automatic toast with no Pay button, then clears it while awaiting co
   await act(async () => jest.advanceTimersByTime(9000));
   expect(onSuccess).not.toHaveBeenCalled();
   expect(tree.root.findAllByType('AppButton' as any).some((n) => n.props.loading)).toBe(false);
-  mockRefresh.mockResolvedValue(true);
-  await act(async () => jest.advanceTimersByTime(3000));
+  await act(async () =>
+    useNostrRequestStore.setState({
+      payments: [
+        { id: 'request-key', state: 'paid', operationId: 'existing-operation', published: true },
+      ],
+    }),
+  );
   expect(onSuccess).toHaveBeenCalledWith(10, 'existing-operation', 'encoded');
 });
 

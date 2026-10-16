@@ -65,7 +65,7 @@ describe('Nostr receive service', () => {
     service.privkeyBytes = recipientPrivateKey;
     service.pubkeyHex = recipientPublicKey;
 
-    await expect(service._decrypt(giftWrap)).resolves.toEqual({
+    await expect(service._decrypt(giftWrap)).resolves.toMatchObject({
       text: 'cashuAtest-token',
       senderPubkey: getPublicKey(senderPrivateKey),
     });
@@ -181,7 +181,12 @@ describe('Nostr receive service', () => {
     jest
       .spyOn(service, '_decrypt')
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ text: 'not a payment', senderPubkey: event.pubkey });
+      .mockResolvedValueOnce({
+        id: event.id,
+        recipients: [service.pubkeyHex],
+        text: 'cashuAtest',
+        senderPubkey: event.pubkey,
+      });
     const handle = jest.spyOn(service, '_handleDecrypted').mockResolvedValue(undefined);
 
     await service._processEvent(event);
@@ -226,7 +231,7 @@ describe('Nostr receive service', () => {
     expect(usePeopleStore.getState().people[nip19.npubEncode(senderPubkey)]).toMatchObject({
       npub: nip19.npubEncode(senderPubkey),
       username: null,
-      isFavorite: false,
+      contactStatus: 'unaccepted',
     });
   });
 

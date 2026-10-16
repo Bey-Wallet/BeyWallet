@@ -4,26 +4,7 @@ import React from 'react';
 import { router, Tabs } from 'expo-router';
 import { XStack, Text, useTheme, H1 } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Clock,
-  Settings,
-  Home,
-  Scan,
-  Lock,
-  HelpCircle,
-  Filter,
-  ChevronDown,
-  Sprout,
-  Globe,
-  ArrowLeft,
-  Compass,
-  Nfc,
-  Bitcoin,
-  Square,
-  CopySlash,
-  RectangleHorizontal,
-  Users,
-} from '@tamagui/lucide-icons';
+import { Clock, Nfc, AtSign } from '@tamagui/lucide-icons';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import { useAuthStore } from '~/state/authStore';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
@@ -141,8 +122,10 @@ export default function TabLayout() {
         }}
         options={{
           title: 'People',
+          headerTitleAlign: 'center',
+          headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerRight: () => <PeopleHeaderActions />,
-          tabBarIcon: ({ color }) => <Users size={24} strokeWidth={2.5} color={color as any} />,
+          tabBarIcon: ({ color }) => <AtSign size={24} strokeWidth={2.5} color={color as any} />,
         }}
       />
 

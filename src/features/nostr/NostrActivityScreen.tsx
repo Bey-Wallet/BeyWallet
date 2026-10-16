@@ -1,3 +1,4 @@
+import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
 /**
  * Nostr Activity Modal
@@ -11,6 +12,7 @@ import { AppButton } from '~/shared/ui/AppButton';
  */
 
 import React, { useMemo, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, Text, View, Separator, H6, Theme, Spinner } from 'tamagui';
 import {
@@ -29,6 +31,7 @@ import {
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
+import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';
 import { usePeopleStore } from '~/state/peopleStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/wallet';
@@ -135,6 +138,8 @@ function useResolveUsername(pubkey: string): string | undefined {
 // ─── Component ────────────────────────────────────────────────────────────
 
 export default function NostrActivityModal() {
+  const router = useRouter();
+  const people = usePeopleStore((state) => state.people);
   const [activeTab, setActiveTab] = useState<Tab>('pending');
   const [refreshing, setRefreshing] = useState(false);
   const [detailItem, setDetailItem] = useState<DetailItem | null>(null);
@@ -167,17 +172,30 @@ export default function NostrActivityModal() {
     gcTime: 5 * 60_000,
   });
 
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const unclaimed = useMemo(
     () =>
       items.filter(
-        (i) => i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+        (i) =>
+          !findRequestPayment(i, requestPayments) &&
+          (i.status === 'contact_required' ||
+            i.status === 'pending' ||
+            i.status === 'failed' ||
+            i.status === 'approval_required'),
       ),
-    [items],
+    [items, requestPayments],
   );
 
   const claimed = useMemo(() => items.filter((i) => i.status === 'claimed'), [items]);
 
   const handleOpenClaim = (item: NostrInboxItem) => {
+    if (people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted') {
+      router.push({
+        pathname: '/(modals)/conversation',
+        params: { npub: normalizeNpub(item.senderPubkey) },
+      });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     DeviceEventEmitter.emit('nostr:openClaim', item);
   };
@@ -204,6 +222,13 @@ export default function NostrActivityModal() {
 
   const openInboxDetail = useCallback(
     (item: NostrInboxItem) => {
+      if (people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted') {
+        router.push({
+          pathname: '/(modals)/conversation',
+          params: { npub: normalizeNpub(item.senderPubkey) },
+        });
+        return;
+      }
       openDetail({
         type: 'incoming',
         amount: item.amount,
@@ -215,7 +240,7 @@ export default function NostrActivityModal() {
         tokenString: item.tokenString,
       });
     },
-    [openDetail],
+    [openDetail, people, router],
   );
 
   const openHistoryDetail = useCallback(
@@ -507,6 +532,7 @@ function PendingTab({
   secondaryCurrency: string;
 }) {
   const { showBitcoinSymbol } = useSettingsStore();
+  const people = usePeopleStore((state) => state.people);
   if (items.length === 0) {
     return (
       <EmptyState
@@ -564,7 +590,13 @@ function PendingTab({
                   <PendingRowName pubkey={item.senderPubkey} storedUsername={item.senderUsername} />
                   <Text fontSize="$1" color="$gray10">
                     {timeAgo(item.receivedAt)}
-                    {item.status === 'failed' ? ' · Failed — tap to retry' : ''}
+                    {people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted'
+                      ? ' · Contact acceptance needed'
+                      : item.status === 'approval_required'
+                        ? ' · Mint approval needed'
+                        : item.status === 'failed'
+                          ? ' · Failed — tap to retry'
+                          : ''}
                   </Text>
                 </YStack>
               </XStack>

@@ -18,6 +18,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
 import { personUpdateFromProfile } from '~/features/people/peopleProfileCache';
 import { usePeopleStore } from '~/state/peopleStore';
+import { acceptContact } from '~/services/wallet/contactPolicy';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
@@ -47,6 +48,7 @@ export function NostrClaimSheet() {
   const [pictureFailed, setPictureFailed] = useState(false);
   const [claimStatus, setClaimStatus] = useState<'idle' | 'claiming' | 'success' | 'error'>('idle');
   const items = useNostrInboxStore((state) => state.items);
+  const people = usePeopleStore((state) => state.people);
   const dismiss = useNostrInboxStore((state) => state.dismiss);
   const { biometricEnabled, primaryCurrency, secondaryCurrency } = useSettingsStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -56,6 +58,10 @@ export function NostrClaimSheet() {
     () => items.find((item) => item.id === activeId) || null,
     [activeId, items],
   );
+  const contactAccepted =
+    !!activeItem && people[safeNpub(activeItem.senderPubkey)]?.contactStatus === 'accepted';
+  const contactBlocked =
+    !!activeItem && people[safeNpub(activeItem.senderPubkey)]?.contactStatus === 'blocked';
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -78,6 +84,7 @@ export function NostrClaimSheet() {
             .getState()
             .items.find((candidate) => candidate.id === eventId);
           if (!item || !canPresent || presented.current.has(eventId)) return;
+          if (people[safeNpub(item.senderPubkey)]?.contactStatus === 'blocked') return;
           if (item.status === 'approval_required' || item.failure?.retryable === false)
             present(item);
         }, 100);
@@ -98,19 +105,20 @@ export function NostrClaimSheet() {
       open.remove();
       result.remove();
     };
-  }, [activeId, canPresent, present]);
+  }, [activeId, canPresent, present, people]);
 
   useEffect(() => {
     if (!canPresent || activeItem) return;
     const next = items.find(
       (item) =>
         item.type !== 'request' &&
+        people[safeNpub(item.senderPubkey)]?.contactStatus !== 'blocked' &&
         !presented.current.has(item.id) &&
         (item.status === 'approval_required' ||
           (item.status === 'failed' && item.failure?.retryable === false)),
     );
     if (next) present(next);
-  }, [activeItem, canPresent, items, present]);
+  }, [activeItem, canPresent, items, present, people]);
 
   useEffect(() => {
     if (!activeItem || !canPresent) return;
@@ -143,6 +151,12 @@ export function NostrClaimSheet() {
 
   const handleClaim = useCallback(async () => {
     if (!activeItem || claimStatus === 'claiming') return;
+    if (!contactAccepted) {
+      if (contactBlocked) return;
+      await acceptContact(activeItem.senderPubkey);
+      setClaimStatus('idle');
+      return;
+    }
     setClaimStatus('claiming');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const result = await nostrClaimService.retry(activeItem.id, {
@@ -155,7 +169,7 @@ export function NostrClaimSheet() {
       setClaimStatus('error');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [activeItem, mintTrusted, claimStatus]);
+  }, [activeItem, mintTrusted, claimStatus, contactAccepted, contactBlocked]);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.dismiss();
@@ -284,7 +298,14 @@ export function NostrClaimSheet() {
                     value={senderProfile?.nip05Verified === true ? 'Nostr · NIP-05' : 'Nostr'}
                   />
                 </YStack>
-                {mintTrusted === false && (
+                {!contactAccepted && (
+                  <Text color="$gray10">
+                    {contactBlocked
+                      ? 'This person is blocked. Unblock them in Nostr Settings first.'
+                      : 'Contact acceptance needed. Accepting this person does not approve their mint.'}
+                  </Text>
+                )}
+                {contactAccepted && mintTrusted === false && (
                   <YStack width="100%" bg="$orange2" rounded="$4" p="$3">
                     <Text color="$orange10" fontWeight="800">
                       Unknown mint
@@ -322,9 +343,13 @@ export function NostrClaimSheet() {
                   onPress={handleClaim}
                   loading={claimStatus === 'claiming'}
                   loadingText="Receiving ecash…"
-                  disabled={claimStatus === 'claiming'}
+                  disabled={claimStatus === 'claiming' || contactBlocked}
                 >
-                  {mintTrusted === false ? 'Trust & Claim' : 'Try Again'}
+                  {!contactAccepted
+                    ? 'Accept contact'
+                    : mintTrusted === false
+                      ? 'Trust & Claim'
+                      : 'Try Again'}
                 </AppButton>
               )}
             </XStack>

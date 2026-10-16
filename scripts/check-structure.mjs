@@ -9,6 +9,7 @@ const expectedRoutes = [
   '(modals)/_layout.tsx',
   '(modals)/add-mint.tsx',
   '(modals)/backup-seed.tsx',
+  '(modals)/conversation.tsx',
   '(modals)/person-details.tsx',
   '(modals)/people-search.tsx',
   '(modals)/discover-mints.tsx',

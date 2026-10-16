@@ -2,7 +2,6 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback, useRef } from 'react';
-import { useRouter } from 'expo-router';
 import { Buffer } from 'buffer';
 import {
   YStack,
@@ -16,7 +15,6 @@ import {
   Avatar,
   Square,
 } from 'tamagui';
-import { DeviceEventEmitter } from 'react-native';
 import {
   QrCode,
   Copy,
@@ -54,12 +52,9 @@ import {
   CurrencyCode,
   SUPPORTED_CURRENCIES,
 } from '~/services/wallet/currencyService';
-import { walletService, historyService } from '~/services/wallet';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '~/features/payments/send/ResultStage';
-import { sendNostrToken } from '~/services/wallet/nostrService';
-import { seedService } from '~/services/platform/seedService';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
@@ -143,7 +138,6 @@ export function RequestEcashStage({
   targetNpub,
   targetUsername,
 }: RequestEcashStageProps) {
-  const router = useRouter();
   const [step, setStep] = useState<RequestStep>('amount');
   const [amount, setAmount] = useState('0');
   const [localInputValue, setLocalInputValue] = useState('0');
@@ -163,6 +157,7 @@ export function RequestEcashStage({
   const [publishedLink, setPublishedLink] = useState<string | null>(null);
 
   const sheetRef = useRef<AppBottomSheetRef>(null);
+  const generationLock = useRef(false);
   const toast = useToastController();
 
   const {
@@ -175,16 +170,14 @@ export function RequestEcashStage({
     balance,
   } = useWalletStore();
   const { secondaryCurrency, npub, primaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const { addRequest, pendingRequests, loadPendingRequests } = useNostrRequestStore();
+  const { addRequest, loadPendingRequests } = useNostrRequestStore();
 
   // ── Restore from History (initialRequestId) ───────────────────────────────
   React.useEffect(() => {
     if (initialRequestId) {
       // Wait for store to be loaded just in case
       loadPendingRequests().then(() => {
-        const req = useNostrRequestStore
-          .getState()
-          .pendingRequests.find((r) => r.id === initialRequestId);
+        const req = useNostrRequestStore.getState().requests.find((r) => r.id === initialRequestId);
         if (req) {
           console.log('[RequestEcashStage] Restored request from history:', initialRequestId);
           setAmount(req.amount.toString());
@@ -366,11 +359,20 @@ export function RequestEcashStage({
 
   // ── Generate NUT-18 Cashu Payment Request ─────────────────────────────────
   const handleGenerate = useCallback(async () => {
-    if (isGenerating || !isValidAmount || !activeMintUrl) return;
+    if (
+      generationLock.current ||
+      isGenerating ||
+      currentRequestId ||
+      !isValidAmount ||
+      !activeMintUrl
+    )
+      return;
+    generationLock.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsGenerating(true);
     setGenerateError(null);
 
+    let savedRequestId: string | undefined;
     try {
       const reqId = makeRequestId();
       // NUT-18: PaymentRequest(transport, id, amount, unit, mints, description)
@@ -415,14 +417,24 @@ export function RequestEcashStage({
 
       const encoded = pr.toEncodedRequest();
 
+      if (!npub) throw new Error('Wallet identity is unavailable.');
+      await addRequest({
+        id: reqId,
+        mintUrl: activeMintUrl,
+        amount: amtNum,
+        unit: 'sat',
+        creqString: encoded,
+        nostrPubkey: npub,
+        recipient: targetNpub,
+        description: note.trim() || undefined,
+      });
+      savedRequestId = reqId;
+      setCurrentRequestId(reqId);
+      setCreqString(encoded);
+
       if (targetNpub) {
-        const mnemonic = await seedService.getMnemonic();
-        if (!mnemonic) throw new Error('Wallet seed not found.');
-        const keys = await seedService.getNostrKeys(mnemonic);
-        const published = await sendNostrToken(encoded, targetNpub, keys.privkey);
-        if (!published) {
-          throw new Error('Failed to send request via Nostr.');
-        }
+        const { nostrService } = await import('~/services/wallet/nostrService');
+        await nostrService.sendRequest(targetNpub, encoded, reqId, amtNum);
         const { usePeopleStore } = await import('~/state/peopleStore');
         const recipientLabel = targetUsername?.trim() || '';
         usePeopleStore.getState().savePerson({
@@ -439,26 +451,10 @@ export function RequestEcashStage({
       // ── Persist request to local DB so E-Cash screen shows it ──────────
       setCurrentRequestId(reqId);
 
-      if (npub && activeMintUrl) {
-        try {
-          await addRequest({
-            id: reqId,
-            mintUrl: activeMintUrl,
-            amount: amtNum,
-            unit: 'sat',
-            creqString: encoded,
-            nostrPubkey: npub,
-            description: note.trim() || undefined,
-          });
-          console.log('[RequestEcashStage] Request persisted to DB:', reqId);
-        } catch (dbErr) {
-          console.warn('[RequestEcashStage] Could not persist request to DB:', dbErr);
-        }
-      }
-
       setCreqString(encoded);
       setStep('result');
     } catch (err: any) {
+      if (savedRequestId) setStep('result');
       console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
       setGenerateError(err?.message || 'Failed to generate request');
       toast.show('Request failed: ' + (err?.message || 'Failed to generate request'), {
@@ -466,6 +462,7 @@ export function RequestEcashStage({
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
+      generationLock.current = false;
       setIsGenerating(false);
     }
   }, [
@@ -478,6 +475,7 @@ export function RequestEcashStage({
     targetNpub,
     targetUsername,
     isGenerating,
+    currentRequestId,
     toast,
   ]);
 
@@ -500,6 +498,7 @@ export function RequestEcashStage({
 
   const handleReset = () => {
     setStep('amount');
+    setCurrentRequestId(null);
     setCreqString(null);
     setGenerateError(null);
     setCopied(false);
@@ -547,53 +546,17 @@ export function RequestEcashStage({
 
   // ── Real-Time Nostr Listener ──────────────────────────────────────────────
   React.useEffect(() => {
-    if (step !== 'result') return;
-
-    const subReceived = DeviceEventEmitter.addListener('nostr:received', (data: any) => {
-      console.log('[RequestEcashStage] Received nostr:received event:', data);
-
-      // Check if this payment matches our current request
-      const isMatch =
-        (data.requestId && data.requestId === currentRequestId) ||
-        (data.amount === amtNum &&
-          data.mintUrl?.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''));
-
-      if (isMatch) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        // Search history after a short delay to get the transaction ID and redirect
-        setTimeout(async () => {
-          try {
-            const history = await historyService.getHistory(10, 0);
-            const entry = history.find(
-              (e: any) =>
-                e.type === 'receive' &&
-                Number(e.amount) === amtNum &&
-                e.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
-            );
-            if (entry) {
-              onClose?.(); // Close the receive modal
-              router.push({
-                pathname: '/(modals)/txn-details',
-                params: { id: entry.id },
-              });
-            } else {
-              setStep('success');
-            }
-          } catch (err) {
-            console.warn('[RequestEcashStage] failed to check history for redirect:', err);
-            setStep('success');
-          }
-        }, 800);
-      }
-    });
-
-    return () => {
-      subReceived.remove();
+    if (!currentRequestId) return;
+    const check = () => {
+      const request = useNostrRequestStore
+        .getState()
+        .requests.find((r) => r.id === currentRequestId);
+      if (request?.state === 'received') setStep('success');
     };
-  }, [step, currentRequestId, amtNum, activeMintUrl, onClose, router]);
+    check();
+    return useNostrRequestStore.subscribe(check);
+  }, [currentRequestId]);
 
-  // ── Manual Check Status ───────────────────────────────────────────────────
   const handleCheckStatus = useCallback(async () => {
     setIsChecking(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -603,40 +566,24 @@ export function RequestEcashStage({
       const { nostrService } = require('~/services/wallet/nostrService');
       nostrService.refresh();
 
-      // Wait 2.5 seconds for relay sync to complete
-      await new Promise((r) => setTimeout(r, 2500));
-
+      const { requestLifecycleService } = await import('~/services/wallet/requestLifecycleService');
+      await requestLifecycleService.reconcile();
       await loadPendingRequests();
-      const reqs = useNostrRequestStore.getState().pendingRequests;
-      const stillPending = reqs.find((r) => r.id === currentRequestId);
-
-      if (!stillPending) {
-        // It was removed from pending, meaning it was received!
+      const request = useNostrRequestStore
+        .getState()
+        .requests.find((r) => r.id === currentRequestId);
+      if (request?.state === 'received') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        // Search history to redirect to txn details
-        try {
-          const history = await historyService.getHistory(10, 0);
-          const entry = history.find(
-            (e: any) =>
-              e.type === 'receive' &&
-              Number(e.amount) === amtNum &&
-              e.mintUrl.replace(/\/$/, '') === activeMintUrl?.replace(/\/$/, ''),
-          );
-          if (entry) {
-            onClose?.(); // Close receive modal
-            router.push({
-              pathname: '/(modals)/txn-details',
-              params: { id: entry.id },
-            });
-            return;
-          }
-        } catch (err) {
-          console.warn('[RequestEcashStage] check status redirect query error:', err);
-        }
         setStep('success');
       } else {
-        toast.show('No payment received yet.', { kind: 'info' });
+        toast.show(
+          request?.state === 'cancelled'
+            ? 'Request cancelled.'
+            : request?.state === 'expired'
+              ? 'Request expired.'
+              : 'No payment received yet.',
+          { kind: 'info' },
+        );
       }
     } catch (e) {
       console.warn('[RequestEcashStage] check status error:', e);
@@ -644,7 +591,7 @@ export function RequestEcashStage({
     } finally {
       setIsChecking(false);
     }
-  }, [currentRequestId, loadPendingRequests, toast, amtNum, activeMintUrl, onClose, router]);
+  }, [currentRequestId, loadPendingRequests, toast]);
 
   // ────────────────────────────────────────────────────────────────────────
   // AMOUNT STAGE
@@ -863,6 +810,11 @@ export function RequestEcashStage({
     <YStack flex={1} bg="$background">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
         <YStack flex={1} px="$4" pb="$8" pt="$4" gap="$4">
+          {generateError && (
+            <Text accessibilityRole="alert" color="$buttonWarningSecondaryText">
+              {generateError} Your request is saved. Retry sending from its conversation.
+            </Text>
+          )}
           {/* ── Hint banner ────────────────────────────────────────── */}
           {/* <XStack
             mt="$4"

@@ -1,3 +1,4 @@
+import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
 /**
  * NostrActivity
@@ -17,6 +18,7 @@ import { YStack, XStack, H6, Text, View, styled, Image } from 'tamagui';
 import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
+import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -134,6 +136,7 @@ function SenderAvatar({
 }
 
 export default function NostrActivity() {
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const items = useNostrInboxStore((s) => s.items);
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
   const router = useRouter();
@@ -161,9 +164,15 @@ export default function NostrActivity() {
   const unclaimed = useMemo(
     () =>
       items.filter(
-        (i) => i.status === 'pending' || i.status === 'failed' || i.status === 'approval_required',
+        (i) =>
+          people[normalizeNpub(i.senderPubkey)]?.contactStatus !== 'blocked' &&
+          !findRequestPayment(i, requestPayments) &&
+          (i.status === 'contact_required' ||
+            i.status === 'pending' ||
+            i.status === 'failed' ||
+            i.status === 'approval_required'),
       ),
-    [items],
+    [items, people, requestPayments],
   );
 
   const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);
@@ -176,6 +185,13 @@ export default function NostrActivity() {
     (selectedRequest?.senderPubkey ? formatNpub(selectedRequest.senderPubkey) : 'Someone');
 
   const handleOpenClaim = (item: NostrInboxItem) => {
+    if (people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted') {
+      router.push({
+        pathname: '/(modals)/conversation',
+        params: { npub: normalizeNpub(item.senderPubkey) },
+      });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (item.type === 'request') {
       setSelectedRequest(item);
@@ -272,7 +288,13 @@ export default function NostrActivity() {
                     </Text>
                   ) : null}
                   <Text fontSize="$2" color="$gray9">
-                    {item.type === 'request' ? 'Payment request · ' : ''}
+                    {people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted'
+                      ? 'Contact acceptance needed · '
+                      : item.status === 'approval_required'
+                        ? 'Mint approval needed · '
+                        : item.type === 'request'
+                          ? 'Payment request · '
+                          : ''}
                     {timeAgo(item.receivedAt)}
                   </Text>
                 </YStack>

@@ -1,6 +1,22 @@
 jest.mock('~/services/platform/seedService', () => ({
   seedService: { getMnemonic: jest.fn(), getNostrKeys: jest.fn() },
 }));
+jest.mock('~/state/nostrRequestStore', () => {
+  const { create } = require('zustand');
+  return {
+    useNostrRequestStore: create((set: any) => ({
+      payments: [],
+      loadPendingRequests: async () => {},
+      savePayment: async (payment: any) =>
+        set((state: any) => ({
+          payments: [...state.payments.filter((p: any) => p.id !== payment.id), payment],
+        })),
+      clear: () => set({ payments: [] }),
+    })),
+  };
+});
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
+beforeEach(() => useNostrRequestStore.getState().clear());
 jest.mock('~/services/wallet/initService', () => ({
   initService: { getManager: jest.fn(), getRepo: jest.fn() },
 }));
@@ -59,6 +75,48 @@ it('pending, empty, and partial proof states never produce success', () => {
   expect(areAllPaymentProofsSpent([{ state: 'SPENT' }], 2)).toBe(false);
   expect(areAllPaymentProofsSpent([{ state: 'SPENT' }, { state: 'UNSPENT' }], 2)).toBe(false);
   expect(areAllPaymentProofsSpent([{ state: 'SPENT' }], 1)).toBe(true);
+});
+
+it('reopening an unresolved request reuses its saved encrypted delivery without reserving funds', async () => {
+  const { payment: original, prepareSend, executePreparedSend } = harness();
+  jest.mocked(seedService.getMnemonic).mockResolvedValue('synthetic mnemonic');
+  jest.mocked(seedService.getNostrKeys).mockResolvedValue({ privkey: '34'.repeat(32) } as any);
+  jest
+    .mocked(publishPaymentRequest)
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce({ eventId: 'event', acceptedRelays: [] });
+  const request = {
+    ...original.request,
+    id: 'restart-request',
+    delivery: 'nip17' as const,
+    nostrTarget: '12'.repeat(32),
+  };
+  const first = new PaymentRequestPayment(request, original.cost, 'inbox');
+  await expect(first.deliver()).rejects.toThrow('offline');
+  const savedPublication = useNostrRequestStore.getState().payments[0].publication;
+  const reopened = new PaymentRequestPayment(request, original.cost, 'inbox');
+  await reopened.deliver();
+  expect(publishPaymentRequest).toHaveBeenLastCalledWith(savedPublication);
+  expect(prepareSend).toHaveBeenCalledTimes(1);
+  expect(executePreparedSend).toHaveBeenCalledTimes(1);
+});
+
+it('blocks a second controller while the same request is reserving funds', async () => {
+  const { payment, prepareSend } = harness();
+  let finish!: () => void;
+  prepareSend.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ id: 'operation', fee: 0 });
+      }),
+  );
+  const first = payment.deliver(async () => {});
+  for (let i = 0; i < 40 && !finish; i++) await Promise.resolve();
+  const second = new PaymentRequestPayment(payment.request, payment.cost);
+  await expect(second.deliver(async () => {})).rejects.toThrow('already has a payment');
+  finish();
+  await first;
+  expect(prepareSend).toHaveBeenCalledTimes(1);
 });
 
 function harness() {

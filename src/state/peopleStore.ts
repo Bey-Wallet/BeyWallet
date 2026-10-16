@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import type { NostrInboxItem } from '~/state/nostrInboxStore';
+import { nip19 } from 'nostr-tools';
 
 export interface Person {
   npub: string;
@@ -13,7 +14,10 @@ export interface Person {
   picture?: string | null;
   about?: string | null;
   profileUpdatedAt?: number;
-  isFavorite: boolean;
+  contactStatus: 'unaccepted' | 'accepted' | 'blocked';
+  relayHints?: string[];
+  hasIncomingActivity?: boolean;
+  requiresAcceptance?: boolean;
 }
 
 type PersonInput = Pick<Person, 'npub'> & Partial<Omit<Person, 'npub'>>;
@@ -22,7 +26,7 @@ interface PeopleState {
   people: Record<string, Person>;
   savePerson: (person: PersonInput) => void;
   updatePerson: (person: PersonInput) => void;
-  toggleFavorite: (npub: string, person?: PersonInput) => void;
+  setContactStatus: (npub: string, status: Person['contactStatus']) => void;
   removePerson: (npub: string) => void;
 }
 
@@ -39,6 +43,11 @@ function normalizeUsername(username?: string | null): string | null {
 
 function mergePerson(existing: Person | undefined, input: PersonInput): Person {
   const npub = normalizeNpub(input.npub);
+  let relayHints = input.relayHints ?? existing?.relayHints;
+  try {
+    const decoded = nip19.decode(input.npub);
+    if (decoded.type === 'nprofile') relayHints = decoded.data.relays;
+  } catch {}
   return {
     npub,
     username: normalizeUsername(input.username) ?? existing?.username ?? null,
@@ -48,26 +57,38 @@ function mergePerson(existing: Person | undefined, input: PersonInput): Person {
     picture: normalizeOptionalText(input.picture) ?? existing?.picture ?? null,
     about: normalizeOptionalText(input.about) ?? existing?.about ?? null,
     profileUpdatedAt: input.profileUpdatedAt ?? existing?.profileUpdatedAt,
-    isFavorite: input.isFavorite ?? existing?.isFavorite ?? false,
+    contactStatus: input.contactStatus ?? existing?.contactStatus ?? 'unaccepted',
+    relayHints: relayHints?.filter((relay) => {
+      try {
+        const url = new URL(relay);
+        return (
+          url.protocol === 'wss:' && !!url.hostname && !url.username && !url.password && !url.hash
+        );
+      } catch {
+        return false;
+      }
+    }),
+    hasIncomingActivity: input.hasIncomingActivity ?? existing?.hasIncomingActivity,
+    requiresAcceptance: input.requiresAcceptance ?? existing?.requiresAcceptance,
   };
 }
 
 export function migrateLegacyPeople(persisted: any): Record<string, Person> {
   const people: Record<string, Person> = {};
-  const mergeMap = (records: Record<string, any> | undefined, favorite?: boolean) => {
+  const mergeMap = (records: Record<string, any> | undefined) => {
     for (const [key, value] of Object.entries(records || {})) {
       const npub = normalizeNpub(value.npub || key);
       if (!npub) continue;
       people[npub] = mergePerson(people[npub], {
         ...value,
-        npub,
-        isFavorite: favorite === true || value.isFavorite === true || people[npub]?.isFavorite,
+        npub: value.npub || key,
+        contactStatus: value.contactStatus ?? people[npub]?.contactStatus ?? 'unaccepted',
       });
     }
   };
   mergeMap(persisted?.people);
-  mergeMap(persisted?.contacts, false);
-  mergeMap(persisted?.favorites, true);
+  mergeMap(persisted?.contacts);
+  mergeMap(persisted?.favorites);
   return people;
 }
 
@@ -87,16 +108,22 @@ export const usePeopleStore = create<PeopleState>()(
           if (!npub || !state.people[npub]) return state;
           return { people: { ...state.people, [npub]: mergePerson(state.people[npub], person) } };
         }),
-      toggleFavorite: (npubValue, person) =>
+      setContactStatus: (npubValue, contactStatus) =>
         set((state) => {
           const npub = normalizeNpub(npubValue);
           if (!npub) return state;
           const current = state.people[npub];
-          const merged = mergePerson(current, person || { npub });
+          const merged = mergePerson(current, { npub });
           return {
             people: {
               ...state.people,
-              [npub]: { ...merged, isFavorite: !current?.isFavorite },
+              [npub]: {
+                ...merged,
+                contactStatus,
+                requiresAcceptance:
+                  contactStatus === 'unaccepted' &&
+                  (current?.contactStatus === 'blocked' || current?.requiresAcceptance === true),
+              },
             },
           };
         }),
@@ -111,11 +138,14 @@ export const usePeopleStore = create<PeopleState>()(
       // Keep the legacy key so upgrading users retain their saved people.
       name: 'bey-contacts-storage',
       storage: createJSONStorage(() => sqliteStorage),
-      version: 2,
+      version: 3,
+      partialize: (state) => ({ people: state.people }),
       migrate: (persisted) => ({ people: migrateLegacyPeople(persisted) }),
       merge: (persisted, current) => ({
         ...current,
-        people: migrateLegacyPeople(persisted),
+        people: migrateLegacyPeople({
+          people: (persisted as { people?: Record<string, Person> })?.people,
+        }),
       }),
     },
   ),
@@ -130,7 +160,6 @@ export function selectSortedPeople(
   interactionByNpub: Record<string, number> = {},
 ): Person[] {
   return Object.values(state.people).sort((a, b) => {
-    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
     const aTime = interactionByNpub[a.npub] || 0;
     const bTime = interactionByNpub[b.npub] || 0;
     if (aTime !== bTime) return bTime - aTime;

@@ -1,6 +1,16 @@
+import {
+  decryptAuthenticated,
+  createChatCopies,
+  isPaymentShaped,
+  validRelay,
+} from './nostrChatTransport';
+import { applyIncomingContactPolicy, contactPolicyReady } from './contactPolicy';
+import { normalizeNpub } from '~/shared/utils/nostr';
+import { useMessageStore } from '~/state/messageStore';
+import type { ChatEnvelope, ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { SimplePool, type Filter, type Event, nip04, nip44, finalizeEvent } from 'nostr-tools';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
-import { unwrapEvent, wrapEvent } from 'nostr-tools/nip59';
+import { wrapEvent } from 'nostr-tools/nip59';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { decode as nip19Decode } from 'nostr-tools/nip19';
 import { Buffer } from 'buffer';
@@ -55,7 +65,7 @@ export const NIP17_INBOX_RELAYS: string[] = [
 // Kind 14   — NIP-17 Private DM  (inner event, encrypted with NIP-44)
 // Kind 1059 — NIP-59 Gift-Wrap outer event (wraps Kind 13/14)
 //
-const LISTENED_KINDS = [4, 13, 14, 1059];
+const LISTENED_KINDS = [4, 1059];
 
 // How many seconds back to fetch on first connection
 const SINCE_SECONDS = 7 * 24 * 60 * 60; // Recover messages after several days offline
@@ -64,8 +74,31 @@ const MAX_NOSTR_PAYMENT_MESSAGE_LENGTH = 64 * 1024;
 export async function hasSuccessfulRelayPublish(
   publishAttempts: Promise<unknown>[],
 ): Promise<boolean> {
-  const results = await Promise.allSettled(publishAttempts);
+  const results = await Promise.allSettled(publishAttempts.map(requireRelayAcknowledgement));
   return results.some((result) => result.status === 'fulfilled');
+}
+
+function requireRelayAcknowledgement(attempt: Promise<unknown>): Promise<unknown> {
+  return attempt.then((result) => {
+    if (typeof result === 'string' && result.startsWith('connection failure: ')) {
+      throw new Error('Relay connection failed');
+    }
+    return result;
+  });
+}
+
+async function publishChatEnvelope(pool: SimplePool, envelope: ChatEnvelope): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.any(pool.publish(envelope.relays, envelope.event).map(requireRelayAcknowledgement)),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Relay acknowledgement timed out')), 10_000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function resolveNostrRecipient(identifier: string): {
@@ -120,11 +153,6 @@ export function createNip17GiftWrap(
   );
 }
 
-interface DecryptedNostrMessage {
-  text: string;
-  senderPubkey: string;
-}
-
 // Reconnect interval when the pool drops
 const RECONNECT_INTERVAL_MS = 30_000;
 
@@ -134,11 +162,247 @@ const RECONNECT_INTERVAL_MS = 30_000;
  * Supports:
  * - NIP-04 Kind 4  (legacy, used by older wallets)
  * - NIP-17 Kind 14 in Kind 1059 gift-wrap (used by minibits ≥ v0.1.5)
- * - NIP-44 Kind 1059 direct (used by some cashu.me variants)
  *
  * Both V3 (cashuA) and V4 (cashuB) token patterns are recognized.
  */
 class NostrService {
+  private subscription: { close: () => void } | null = null;
+  private generation = 0;
+  private chatPublishing = new Set<string>();
+
+  private async initializeChat(): Promise<void> {
+    try {
+      const { initService } =
+        require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+      await initService.getRepo().messageRepository.recover();
+      if (this.isRunning) await useMessageStore.getState().refresh();
+    } catch {
+      console.warn('[NostrService] Chat storage is not ready.');
+    }
+  }
+
+  private async inboxRelays(pubkey: string, relayHints: string[] = []): Promise<string[]> {
+    if (!this.pool) throw new Error('Open and unlock your wallet to send a message.');
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    const hints = [
+      ...(usePeopleStore.getState().people[normalizeNpub(pubkey)]?.relayHints || []),
+      ...relayHints,
+    ].filter(validRelay);
+    const events = await this.pool.querySync([...new Set([...RELAYS, ...hints])], {
+      kinds: [10050],
+      authors: [pubkey],
+      limit: 5,
+    });
+    const { verifyEvent } = require('nostr-tools') as typeof import('nostr-tools');
+    const newest = events
+      .filter((event) => event.pubkey === pubkey && event.kind === 10050 && verifyEvent(event))
+      .sort((a, b) => b.created_at - a.created_at)[0];
+    const relays = [
+      ...new Set(
+        (newest?.tags || [])
+          .filter((tag) => tag[0] === 'relay' && validRelay(tag[1]))
+          .map((tag) => tag[1]),
+      ),
+    ];
+    if (!relays.length)
+      throw new Error(
+        'This person has no NIP-17 inbox relays. Ask them to open a compatible chat client and publish their inbox relay list.',
+      );
+    return relays;
+  }
+
+  public async sendChat(
+    identifier: string,
+    text: string,
+    onQueued?: (message: ChatMessage) => void,
+  ): Promise<void> {
+    if (!contactPolicyReady()) throw new Error('Contacts are still loading. Try again.');
+    const generation = this.generation;
+    text = text.trim();
+    if (!text || text.length > 16000)
+      throw new Error('Enter a message of up to 16,000 characters.');
+    if (isPaymentShaped(text)) throw new Error('Use Send money or Request to share payments.');
+    if (!this.privkeyBytes || !this.pubkeyHex)
+      throw new Error('Open and unlock your wallet first.');
+    const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
+    const { useSettingsStore } =
+      require('~/state/settingsStore') as typeof import('~/state/settingsStore');
+    if (useSettingsStore.getState().biometricEnabled && !useAuthStore.getState().isAuthenticated) {
+      throw new Error('Unlock your wallet first.');
+    }
+    const recipient = resolveNostrRecipient(identifier);
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    if (usePeopleStore.getState().people[normalizeNpub(identifier)]?.contactStatus === 'blocked') {
+      throw new Error('Unblock this person in Nostr Settings first.');
+    }
+    if (recipient.relayHints.length) usePeopleStore.getState().savePerson({ npub: identifier });
+    if (!this.privkeyBytes || !this.isRunning || generation !== this.generation)
+      throw new Error('Wallet is closed.');
+    const copies = createChatCopies(text, recipient.pubkey, this.privkeyBytes);
+    const message: ChatMessage = {
+      id: copies.rumor.id,
+      conversation: normalizeNpub(identifier),
+      direction: 'outgoing',
+      createdAt: copies.rumor.created_at * 1000,
+      receivedAt: Date.now(),
+      text,
+      read: true,
+      publication: 'sending',
+      transport: 'nip17',
+      envelopes: [
+        { event: copies.recipient, relays: [] },
+        { event: copies.sender, relays: NIP17_INBOX_RELAYS },
+      ],
+    };
+    const { initService } =
+      require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+    await initService.getRepo().messageRepository.insert(message);
+    if (generation !== this.generation) throw new Error('Wallet is closed.');
+    onQueued?.(message);
+    await useMessageStore.getState().refresh();
+    if (generation !== this.generation) throw new Error('Wallet is closed.');
+    await this.retryChat(message);
+  }
+
+  public async sendRequest(
+    identifier: string,
+    encoded: string,
+    requestId: string,
+    amount: number,
+    privateKey = this.privkeyHex || '',
+  ): Promise<void> {
+    const recipient = resolveNostrRecipient(identifier);
+    const relays = [...new Set([...recipient.relayHints, ...RELAYS])];
+    const now = Date.now();
+    const message: ChatMessage = {
+      id: `request-${requestId}`,
+      conversation: normalizeNpub(identifier),
+      direction: 'outgoing',
+      createdAt: now,
+      receivedAt: now,
+      text: '',
+      read: true,
+      publication: 'sending',
+      transport: 'nip17',
+      paymentId: `request-${requestId}`,
+      paymentAmount: amount,
+      paymentType: 'request',
+      requestId,
+    };
+    const { initService } = require('./initService') as typeof import('./initService');
+    const repository = initService.getRepo().messageRepository;
+    await repository.insert(message);
+    await useMessageStore.getState().refresh();
+    try {
+      if (!privateKey) throw new Error('Open and unlock your wallet to send this request.');
+      const legacy = finalizeEvent(
+        {
+          kind: 4,
+          created_at: Math.floor(now / 1000),
+          tags: [['p', recipient.pubkey]],
+          content: await nip04.encrypt(privateKey, recipient.pubkey, encoded),
+        },
+        hexToBytes(privateKey),
+      );
+      message.envelopes = [
+        { event: legacy, relays },
+        { event: createNip17GiftWrap(encoded, recipient.pubkey, privateKey), relays },
+      ];
+      await repository.setEnvelopes(message.id, message.envelopes);
+      await this.retryChat(message);
+    } catch (error) {
+      await repository.setPublication(message.id, 'failed');
+      await useMessageStore.getState().refresh();
+      throw error;
+    }
+  }
+
+  public async retryChat(message: ChatMessage): Promise<void> {
+    if (!contactPolicyReady()) throw new Error('Contacts are still loading. Try again.');
+    if (message.requestId && !message.envelopes?.length && this.privkeyHex) {
+      const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+      await useNostrRequestStore.getState().loadPendingRequests();
+      const request = useNostrRequestStore
+        .getState()
+        .requests.find((request) => request.id === message.requestId);
+      if (!request || request.state !== 'pending')
+        throw new Error('This request is no longer pending.');
+      return this.sendRequest(
+        message.conversation,
+        request.creqString,
+        request.id,
+        request.amount,
+        this.privkeyHex,
+      );
+    }
+    const generation = this.generation;
+    if (this.chatPublishing.has(message.id) || message.publication === 'sent') return;
+    if (!this.isRunning || !this.pool || !message.envelopes?.length) {
+      throw new Error('Open and unlock your wallet to retry this message.');
+    }
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    if (usePeopleStore.getState().people[message.conversation]?.contactStatus === 'blocked') {
+      throw new Error('Unblock this person in Nostr Settings first.');
+    }
+    const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
+    const { useSettingsStore } =
+      require('~/state/settingsStore') as typeof import('~/state/settingsStore');
+    if (useSettingsStore.getState().biometricEnabled && !useAuthStore.getState().isAuthenticated) {
+      throw new Error('Unlock your wallet first.');
+    }
+    const { initService } =
+      require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+    const repository = initService.getRepo().messageRepository;
+    this.chatPublishing.add(message.id);
+    try {
+      await repository.setPublication(message.id, 'sending');
+      await useMessageStore.getState().refresh();
+      // Recipient acknowledgement determines success. Sender backup failure must not
+      // misreport a successful recipient publication as a failed message.
+      let [recipient, ...senderCopies] = message.envelopes;
+      if (!recipient.relays.length) {
+        const target = resolveNostrRecipient(message.conversation);
+        const relays = await this.inboxRelays(target.pubkey);
+        if (generation !== this.generation) return;
+        recipient = { ...recipient, relays };
+        await repository.setEnvelopes(message.id, [recipient, ...senderCopies]);
+      }
+      if (
+        !this.pool ||
+        generation !== this.generation ||
+        usePeopleStore.getState().people[message.conversation]?.contactStatus === 'blocked' ||
+        (useSettingsStore.getState().biometricEnabled && !useAuthStore.getState().isAuthenticated)
+      ) {
+        throw new Error('Wallet or contact permission changed.');
+      }
+      if (message.requestId && message.paymentType === 'request') {
+        // Existing payment transports are alternatives, both addressed to the recipient.
+        await Promise.any(
+          message.envelopes.map((envelope) => publishChatEnvelope(this.pool!, envelope)),
+        );
+        senderCopies = [];
+      } else await publishChatEnvelope(this.pool, recipient);
+      if (generation !== this.generation) return;
+      await repository.setPublication(message.id, 'sent');
+      if (generation !== this.generation) return;
+      if (usePeopleStore.getState().people[message.conversation]?.contactStatus !== 'blocked') {
+        usePeopleStore.getState().setContactStatus(message.conversation, 'accepted');
+      }
+      if (this.pool)
+        await Promise.allSettled(senderCopies.map((copy) => publishChatEnvelope(this.pool!, copy)));
+    } catch (cause) {
+      await repository.setPublication(message.id, 'failed');
+      if (cause instanceof Error && cause.message.includes('no NIP-17 inbox relays')) throw cause;
+      throw new Error('Message publication failed. Retry from this conversation when online.');
+    } finally {
+      this.chatPublishing.delete(message.id);
+      if (this.isRunning && generation === this.generation)
+        await useMessageStore.getState().refresh();
+    }
+  }
   private pool: SimplePool | null = null;
   private isRunning = false;
   private privkeyHex: string | null = null;
@@ -174,6 +438,7 @@ class NostrService {
       `[NostrService] Starting on ${RELAYS.length} relays for pubkey: ${pubkeyHex.slice(0, 8)}…`,
     );
 
+    void this.initializeChat();
     this._subscribe();
     void this._publishInboxRelayList();
     if (nip05) {
@@ -190,6 +455,9 @@ class NostrService {
 
   public refresh(): void {
     if (!this.isRunning) return;
+    void import('./requestLifecycleService')
+      .then(({ requestLifecycleService }) => requestLifecycleService.reconcile())
+      .catch(() => undefined);
     console.log('[NostrService] Manual refresh requested.');
     if (this.pool) {
       try {
@@ -205,6 +473,9 @@ class NostrService {
   // ── Internal ───────────────────────────────────────────────────────────────
 
   private _teardown(): void {
+    this.generation++;
+    this.subscription?.close();
+    this.subscription = null;
     if (this.reconnectTimer) {
       clearInterval(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -221,6 +492,7 @@ class NostrService {
       }
       this.pool = null;
     }
+    useMessageStore.getState().clear();
     this.processedEvents.clear();
     this.processingEvents.clear();
     this.isRunning = false;
@@ -231,6 +503,7 @@ class NostrService {
 
   private _subscribe(): void {
     if (!this.pubkeyHex) return;
+    this.subscription?.close();
 
     this.pool = new SimplePool();
 
@@ -241,7 +514,7 @@ class NostrService {
       since: Math.floor(Date.now() / 1000) - SINCE_SECONDS,
     };
 
-    this.pool.subscribeMany(RELAYS, filter, {
+    this.subscription = this.pool.subscribeMany(RELAYS, filter, {
       onevent: (event: Event) => {
         this._processEvent(event).catch((error) => {
           console.warn(
@@ -313,6 +586,7 @@ class NostrService {
 
   private async _processEvent(event: Event): Promise<void> {
     if (!this.privkeyHex || !this.pubkeyHex || !this.privkeyBytes) return;
+    const generation = this.generation;
     if (this.processedEvents.has(event.id) || this.processingEvents.has(event.id)) return;
     this.processingEvents.add(event.id);
 
@@ -343,8 +617,47 @@ class NostrService {
         );
         return;
       }
+      if (!this.privkeyHex || !this.pubkeyHex || generation !== this.generation) return;
 
-      await this._handleDecrypted(decrypted.text, event, decrypted.senderPubkey);
+      const outgoing =
+        decrypted.senderPubkey === this.pubkeyHex && decrypted.recipients[0] !== this.pubkeyHex;
+      const conversation = normalizeNpub(
+        outgoing ? decrypted.recipients[0] : decrypted.senderPubkey,
+      );
+      if (isPaymentShaped(decrypted.text)) {
+        // Sender copies of payments must never become incoming claims.
+        await this._handleDecrypted(
+          decrypted.text,
+          { ...event, id: decrypted.id, created_at: decrypted.createdAt },
+          decrypted.senderPubkey,
+          generation,
+          outgoing ? conversation : undefined,
+        );
+      } else if (decrypted.text.trim() && decrypted.text.length <= 16000) {
+        const { initService } =
+          require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+        if (generation !== this.generation) return;
+        await initService.getRepo().messageRepository.insert({
+          id: decrypted.id,
+          conversation,
+          direction: outgoing ? 'outgoing' : 'incoming',
+          createdAt: decrypted.createdAt * 1000,
+          receivedAt: Date.now(),
+          text: decrypted.text,
+          read: outgoing,
+          publication: 'sent',
+          transport: decrypted.transport,
+        });
+        if (generation !== this.generation) return;
+        if (outgoing) {
+          const { usePeopleStore } =
+            require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+          if (usePeopleStore.getState().people[conversation]?.contactStatus !== 'blocked') {
+            usePeopleStore.getState().setContactStatus(conversation, 'accepted');
+          }
+        } else applyIncomingContactPolicy(decrypted.senderPubkey);
+        await useMessageStore.getState().refresh();
+      }
       this.processedEvents.add(event.id);
     } catch (error) {
       console.warn(
@@ -359,64 +672,8 @@ class NostrService {
   /**
    * Attempt to decrypt an event and retain the authenticated sender identity.
    */
-  private async _decrypt(event: Event): Promise<DecryptedNostrMessage | null> {
-    if (!this.privkeyHex || !this.privkeyBytes) return null;
-
-    // ── Kind 4: NIP-04 legacy encrypted DM ──────────────────────────────
-    if (event.kind === 4) {
-      try {
-        return {
-          text: await nip04.decrypt(this.privkeyHex, event.pubkey, event.content),
-          senderPubkey: event.pubkey,
-        };
-      } catch {
-        return null;
-      }
-    }
-
-    // ── Kind 1059: NIP-59 Gift-Wrap (outer) ──────────────────────────────
-    // Unwrap using NIP-59 to get the inner sealed event (Kind 13 or 14)
-    if (event.kind === 1059) {
-      try {
-        const rumor = unwrapEvent(event, this.privkeyBytes);
-        // unwrapEvent verifies/decrypts the seal and returns the kind 14 rumor.
-        // Its pubkey is the real sender; the outer event uses a throwaway key.
-        if (rumor.kind === 14) {
-          return { text: rumor.content, senderPubkey: rumor.pubkey };
-        }
-        // Fallback for non-standard wraps that expose another encrypted event.
-        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, rumor.pubkey);
-        return {
-          text: nip44.v2.decrypt(rumor.content, convKey),
-          senderPubkey: rumor.pubkey,
-        };
-      } catch {
-        return null;
-      }
-    }
-
-    // ── Kind 14: NIP-17 Private DM (direct, no outer gift-wrap) ─────────
-    if (event.kind === 14 || event.kind === 13) {
-      try {
-        const convKey = nip44.v2.utils.getConversationKey(this.privkeyBytes, event.pubkey);
-        return {
-          text: nip44.v2.decrypt(event.content, convKey),
-          senderPubkey: event.pubkey,
-        };
-      } catch {
-        // Also try NIP-04 as fallback
-        try {
-          return {
-            text: await nip04.decrypt(this.privkeyHex, event.pubkey, event.content),
-            senderPubkey: event.pubkey,
-          };
-        } catch {
-          return null;
-        }
-      }
-    }
-
-    return null;
+  private async _decrypt(event: Event) {
+    return this.privkeyHex ? decryptAuthenticated(event, this.privkeyHex) : null;
   }
 
   /**
@@ -427,6 +684,8 @@ class NostrService {
     text: string,
     sourceEvent: Event,
     senderPubkey: string,
+    generation = this.generation,
+    outgoingConversation?: string,
   ): Promise<void> {
     if (text.length > MAX_NOSTR_PAYMENT_MESSAGE_LENGTH) {
       console.warn('[NostrService] Ignoring oversized payment message');
@@ -441,24 +700,61 @@ class NostrService {
         `[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`,
       );
       try {
-        const { PaymentRequest } = await import('@cashu/cashu-ts');
+        const { PaymentRequest } = require('@cashu/cashu-ts') as typeof import('@cashu/cashu-ts');
         const pr = PaymentRequest.fromEncodedRequest(creqString);
         if (pr.amount && pr.mints && pr.mints.length > 0) {
+          if (outgoingConversation) {
+            if (Number.isSafeInteger(pr.amount) && pr.amount > 0) {
+              const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+              if (pr.id)
+                await useNostrRequestStore.getState().addRequest({
+                  id: pr.id,
+                  mintUrl: pr.mints[0],
+                  amount: pr.amount,
+                  unit: pr.unit || 'sat',
+                  creqString,
+                  nostrPubkey: normalizeNpub(senderPubkey),
+                  recipient: outgoingConversation,
+                  description: pr.description,
+                });
+              await this.recordPaymentCopy(
+                sourceEvent,
+                outgoingConversation,
+                pr.amount,
+                'request',
+                pr.id,
+              );
+            }
+            return;
+          }
           const { useNostrInboxStore } = require('~/state/nostrInboxStore');
           const senderUsername = await this.getSenderUsername(senderPubkey);
+          if (generation !== this.generation) return;
 
+          const duplicate = useNostrInboxStore
+            .getState()
+            .items.some(
+              (item: import('~/state/nostrInboxStore').NostrInboxItem) =>
+                item.type === 'request' &&
+                normalizeNpub(item.senderPubkey) === normalizeNpub(senderPubkey) &&
+                ((!!pr.id && item.requestId === pr.id) || item.tokenString === creqString),
+            );
+          if (duplicate) return;
           useNostrInboxStore.getState().addIncoming({
             id: sourceEvent.id,
             type: 'request',
+            requestId: pr.id,
+            unit: pr.unit || 'sat',
             tokenString: creqString,
             amount: pr.amount,
             mintUrl: pr.mints[0],
             senderPubkey,
             senderUsername,
           });
+          applyIncomingContactPolicy(senderPubkey);
         }
-      } catch (e) {
-        console.warn(`[NostrService] Failed to parse creq string:`, e);
+      } catch {
+        console.warn('[NostrService] Ignoring invalid payment request');
       }
       return; // Skip token parsing since it's a request
     }
@@ -467,6 +763,7 @@ class NostrService {
     let amount = 0;
     let mintUrl = '';
     let requestIdFromPayload: string | undefined = undefined;
+    let unit = 'sat';
 
     // First try to parse a NUT-18 PaymentRequestPayload used by interoperable wallets.
     try {
@@ -512,6 +809,7 @@ class NostrService {
       const decoded = decodeToken(tokenString);
       mintUrl = decoded.mint;
       amount = decoded.amount;
+      unit = decoded.unit || 'sat';
     } catch {
       console.warn(
         `[NostrService] Event ${sourceEvent.id.slice(0, 8)}… contained an invalid token`,
@@ -531,8 +829,14 @@ class NostrService {
 
     console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
 
+    if (outgoingConversation) {
+      await this.recordPaymentCopy(sourceEvent, outgoingConversation, amount, 'token');
+      return;
+    }
+
     // Resolve sender username from local contacts or directory
     const senderUsername = await this.getSenderUsername(senderPubkey);
+    if (generation !== this.generation) return;
 
     // Persist before emitting the UI event. DeviceEventEmitter is ephemeral,
     // so without this handoff a payment received off the Home tab can vanish.
@@ -546,6 +850,7 @@ class NostrService {
       senderPubkey,
       senderUsername,
       requestId: requestIdFromPayload,
+      unit,
     });
 
     // Relays replay recent events whenever the app reconnects. A claimed or
@@ -572,6 +877,45 @@ class NostrService {
       eventId: sourceEvent.id,
       category: claimResult?.status || 'saved',
     });
+  }
+
+  private async recordPaymentCopy(
+    event: Event,
+    conversation: string,
+    amount: number,
+    type: 'token' | 'request',
+    requestId?: string,
+  ): Promise<void> {
+    const generation = this.generation;
+    const { initService } =
+      require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+    if (
+      requestId &&
+      (await initService.getRepo().messageRepository.findRequest(conversation, requestId))
+    )
+      return;
+    await initService.getRepo().messageRepository.insert({
+      id: event.id,
+      conversation,
+      direction: 'outgoing',
+      createdAt: event.created_at * 1000,
+      receivedAt: Date.now(),
+      text: '',
+      read: true,
+      publication: 'sent',
+      transport: 'nip17',
+      paymentId: event.id,
+      paymentAmount: amount,
+      paymentType: type,
+      requestId,
+    });
+    if (generation !== this.generation) return;
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    if (usePeopleStore.getState().people[conversation]?.contactStatus !== 'blocked') {
+      usePeopleStore.getState().setContactStatus(conversation, 'accepted');
+    }
+    await useMessageStore.getState().refresh();
   }
 
   /** Advertise the relays where other NIP-17 clients should deliver gift wraps. */
@@ -726,8 +1070,9 @@ class NostrService {
 
   private async getSenderUsername(pubkeyHex: string): Promise<string | undefined> {
     try {
-      const { usePeopleStore } = await import('~/state/peopleStore');
-      const { nip19 } = await import('nostr-tools');
+      const { usePeopleStore } =
+        require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+      const { nip19 } = require('nostr-tools') as typeof import('nostr-tools');
 
       const npub = nip19.npubEncode(pubkeyHex);
 
@@ -783,6 +1128,15 @@ class NostrService {
     recipientPubkeyHexOrNpub: string,
     senderPrivkeyHex: string,
   ): Promise<boolean> {
+    if (!contactPolicyReady()) throw new Error('Contacts are still loading. Try again.');
+    const { usePeopleStore } =
+      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+    if (
+      usePeopleStore.getState().people[normalizeNpub(recipientPubkeyHexOrNpub)]?.contactStatus ===
+      'blocked'
+    ) {
+      throw new Error('Unblock this person in Nostr Settings first.');
+    }
     // Resolve npub/nprofile → hex
     let recipient: ReturnType<typeof resolveNostrRecipient>;
     try {
@@ -824,10 +1178,12 @@ class NostrService {
 
     try {
       const publishAttempts: Promise<unknown>[] = [
-        Promise.any(pool.publish(publishRelays, nip04Event)),
+        Promise.any(pool.publish(publishRelays, nip04Event).map(requireRelayAcknowledgement)),
       ];
       if (nip17Event) {
-        publishAttempts.push(Promise.any(pool.publish(publishRelays, nip17Event)));
+        publishAttempts.push(
+          Promise.any(pool.publish(publishRelays, nip17Event).map(requireRelayAcknowledgement)),
+        );
       }
 
       const published = await hasSuccessfulRelayPublish(publishAttempts);
@@ -837,6 +1193,17 @@ class NostrService {
       }
 
       console.log(`[NostrService] ✅ Token published via Nostr.`);
+
+      // Publication is the acceptance boundary; do not let later claim work
+      // turn a successfully published payment into a reported send failure.
+      const { usePeopleStore } =
+        require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+      if (
+        usePeopleStore.getState().people[normalizeNpub(recipientPubkeyHex)]?.contactStatus !==
+        'blocked'
+      ) {
+        usePeopleStore.getState().setContactStatus(recipientPubkeyHex, 'accepted');
+      }
 
       // Emit event for UI
       DeviceEventEmitter.emit('nostr:sent', {

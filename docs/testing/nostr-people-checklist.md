@@ -18,11 +18,20 @@ notifications, and complete payment flows.
 
 ## People and profiles
 
+- [ ] Verify the People title, profile avatar and Settings action; diagnostics remain available in Settings with no percentage or polling in the header.
+- [ ] Verify the permanent Search people field and Paste/Clear actions; Recent has no contact count and Requests has only its actionable badge.
+- [ ] Inspect circular avatars, name/verified badge, one-line safe activity preview, compact time, unread dot and inset separators. Whole rows open conversations without a separate Send action.
+- [ ] Mix recent text, inbox payments and wallet history: ordering, preview and timestamp must describe the same latest activity. Contacts without activity sort alphabetically afterward.
+- [ ] Check People requests and Payment issues sections, grouped invitation counts, and blocked identities. Issue rows open claim review without redemption.
+- [ ] Scroll past 50 people; switch tabs, search, and clear search. Each tab returns to its previous position without nested scroll gestures or rows hidden behind the bottom bar.
+- [ ] Simulate slow/offline remote search: local matches remain visible, Retry works, identities appear once, and no contact becomes accepted from search/opening a result.
+- [ ] Check empty, loading and refresh-failure states; test large text, narrow screens, screen-reader labels, keyboard operation and both themes. Capture device screenshots with test identities.
 - [ ] Search for a valid npub and open the returned profile.
 - [ ] Search for a valid NIP-05 identifier outside the `bey.cash` domain.
 - [ ] Confirm an invalid npub or unresolved NIP-05 produces a safe error state.
 - [ ] Confirm the verified badge appears only when NIP-05 resolves to the displayed npub.
-- [ ] Favorite and unfavorite a person, restart the app, and confirm persistence.
+- [ ] Accept a person, restart the app, and confirm accepted status persists.
+- [ ] Open/search/share unknown profiles and confirm they remain unaccepted.
 - [ ] Pull to refresh and confirm stale profile metadata updates.
 - [ ] Confirm Recents ordering changes after a payment interaction.
 - [ ] Confirm the person detail screen only shows Nostr payments associated with that person.
@@ -31,7 +40,8 @@ notifications, and complete payment flows.
 
 - [ ] Upgrade an installation containing legacy contacts and favorites.
 - [ ] Confirm contacts appear in People without duplicates.
-- [ ] Confirm legacy favorites remain favorites.
+- [ ] Confirm legacy contacts/favorites are unaccepted and remain searchable, with metadata/history intact.
+- [ ] Inspect rewritten People storage: no favorite maps or fields remain.
 - [ ] Restart the upgraded app and confirm the migrated state remains stable.
 
 ## Sending
@@ -43,14 +53,67 @@ notifications, and complete payment flows.
 
 ## Receiving and claims
 
-- [ ] Receive a payment from a trusted mint and confirm it is claimed once.
+- [ ] In Ask mode, receive from an unknown person at a trusted mint: no redemption, balance change or receipt notification.
+- [ ] Accept the invitation and confirm all eligible waiting payments are claimed once.
+- [ ] Repeat using a payment responding to a request created by this wallet; acceptance is still required.
 - [ ] Confirm the balance, history, and optional notification update after the claim.
 - [ ] Receive a payment from an unknown mint and confirm approval is required before trust or claim.
 - [ ] Reject or leave the unknown-mint payment pending and confirm no mint is silently trusted.
 - [ ] Lock the wallet before receipt, then unlock it and confirm the deferred claim resumes.
 - [ ] Receive while offline, restore connectivity, and confirm the persisted retry completes.
-- [ ] Exercise a non-retryable invalid or P2PK failure and confirm it appears under Attention.
+- [ ] Exercise a non-retryable invalid or P2PK failure and confirm it appears under Requests as a payment issue.
 - [ ] Reopen or redeliver the same event and confirm it is not credited twice.
+- [ ] Switch to Accept everyone with waiting invitations: contacts become accepted, eligible offers claim, unknown mints still require approval.
+- [ ] Switch back to Ask and confirm accepted contacts remain accepted.
+- [ ] Reject and block, replay events, restart and retry with mint approval: blocked payments remain unclaimed.
+- [ ] Unblock in Nostr Settings: status becomes unaccepted and requires explicit acceptance, including in Everyone mode.
+- [ ] Block during a slow pre-redemption lookup; confirm no new redemption starts. A submitted redemption may finish.
+
+## Persistent text conversations
+
+- [ ] Exchange text Bey↔Bey and Bey↔Minibits using published kind 10050 inbox lists; verify both directions.
+- [ ] Confirm missing inbox lists give an actionable error without falling back to legacy outgoing chat.
+- [ ] Receive signed legacy kind 4 text; reject invalid seals, signatures and wrong recipients.
+- [ ] Confirm sender copies appear as outgoing and never trigger payment claims.
+- [ ] Replay the same rumor in multiple wraps: one message remains after restart.
+- [ ] Mix payments and text, confirm chronological order and contact/mint/claim statuses; tokens/proofs never appear as chat text.
+- [ ] Disconnect during publication: Failed persists after restart; retry reuses the logical message and does not create duplicate bubbles.
+- [ ] Interrupt a Sending message by closing the app: reopen and manually retry the persisted item.
+- [ ] Scroll through more than 50 messages and inspect older local messages beyond the seven-day relay window.
+- [ ] Verify Recent ordering, preview/time/unread, grouped Requests and payment issue badges without duplicate invitations.
+- [ ] Verify keyboard/composer layout, screen-reader labels, large text and light/dark themes on Android and iOS.
+- [ ] Type past four lines: the composer stops growing and scrolls internally; Request and Pay float above it with natural widths.
+- [ ] Slow encryption/storage and relay discovery: a Sending bubble appears immediately and the composer clears; local persistence replaces it once and enables another send while publication remains pending.
+- [ ] Fail before local persistence: the temporary bubble disappears, the draft returns without losing newly typed text, and the error is visible.
+- [ ] Tap a text or payment body: details/copy/time appear in a bottom sheet; detailed timestamps stay out of the timeline and payment secrets never appear in copied text.
+- [ ] Confirm sent text is branded primary, sent payments branded secondary, received items secondary, and actionable incoming items warning-colored; all corners have equal rounding.
+- [ ] Restart and load ordinary messages from SQLite: they remain text, never zero-amount cards. Inspect missing and genuine zero payment amounts separately.
+- [ ] Confirm there is no playground. Check natural-width payment cards, long words, emoji, large amounts and missing exchange rates without clipping in light/dark and large text.
+- [ ] Open a new conversation without incoming activity: Add contact appears instead of Accept / Reject and block; adding enables text and payment controls. Real incoming invitations still show acceptance controls.
+- [ ] Verify the standard modal close button, added/blocked contact icons and Info action for the profile sheet.
+- [ ] Verify banknote, bolt and hand-with-coins payment icons; adjacent secondary Pay opens request confirmation, remains disabled before contact acceptance/when blocked, and disappears for completed requests.
+- [ ] Verify the NIP-05 badge appears in the header only for a verified address. Both name/avatar and Info open the same profile sheet.
+- [ ] Inspect ListTable profile rows: full npub/copy icon, Share, Check and sync, Delete and Block. Check disabled/loading rows, large text and destructive confirmations.
+- [ ] Confirm the latest 50 mixed activities appear at the bottom; scrolling to the top loads older messages/payments without jumping. Check Today/Yesterday/date pills around midnight.
+- [ ] Receive Lightning invoice, LNURL, Lightning address and Bitcoin URI text: recognize compact payment content without background network activity or redemption. Explicit Review payment opens confirmation; malformed inputs and unsupported BOLT12 never become successful payments.
+- [ ] Confirm compact payment amounts follow primary/secondary currency settings and type/status remain legible at the largest device text size.
+- [ ] Tap Info in the contact header: inspect full avatar/address and npub; copy, share, sync, delete and block work without a QR screen.
+- [ ] Change the contact's profile picture and sync; change address resolution to another pubkey and confirm the saved contact key never changes.
+- [ ] Open an old person-details link and confirm it opens the unified conversation.
+- [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
+
+## Request visibility and receipts
+
+- [ ] Send a request to a contact: its card appears immediately, shows Sending, then Awaiting payment. Verify offline failure and retry preserve one card and request ID.
+- [ ] Receive both kind 4 and gift-wrap copies of one request: only one request card and Pay action appear.
+- [ ] Pay, then close the payment screen before redemption: the request card shows Awaiting claim, then Paid after proof confirmation; Pay stays hidden throughout.
+- [ ] Force-stop and reopen both wallets during payment. Confirm persisted cards recover and the existing operation is reused rather than paying twice.
+- [ ] Test delivery failure followed by Retry delivery from request details after restart. Confirm the same encrypted event and operation are used.
+- [ ] Test two requests with the same amount and mint: paying one must not complete the other. A mismatched explicit response ID must never use amount fallback.
+- [ ] Test a mint with input fees: a response covering receiver fees must complete the correct request after successful redemption.
+- [ ] Verify requester Received follows successful claiming; contact acceptance and mint approval remain separate waiting states. Test blocking and biometric locking before retry.
+- [ ] Cancel a request, reopen it, and Check status: it must never report receipt success because it disappeared from the pending list.
+- [ ] Repeat the request/payment cycle Bey↔Bey and Bey↔Minibits with reconnects, large text, and both themes. These device checks remain required.
 
 ## Diagnostics and repair
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { nostrProfileService, type NostrProfile } from '~/services/api/nostrProfileService';
 
 export function useNostrProfileSearch(query: string) {
@@ -6,6 +6,8 @@ export function useNostrProfileSearch(query: string) {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
   useEffect(() => {
     const cleaned = query.trim();
@@ -37,7 +39,7 @@ export function useNostrProfileSearch(query: string) {
     }, 350);
 
     return () => clearTimeout(timeout);
-  }, [query]);
+  }, [query, attempt]);
 
-  return { results, isSearching, error };
+  return { results, isSearching, error, retry };
 }

@@ -8,6 +8,9 @@ import { walletService } from '~/services/wallet/walletService';
 import { networkService } from '~/services/platform/networkService';
 import { notificationService } from '~/services/platform/notificationService';
 import { isDuplicateOutputsError } from '~/services/wallet/cashuReceiveRecovery';
+import { applyIncomingContactPolicy, canReceiveFrom, contactPolicyReady } from './contactPolicy';
+import { usePeopleStore } from '~/state/peopleStore';
+import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import {
   type NostrClaimErrorCode,
   type NostrClaimFailure,
@@ -17,7 +20,8 @@ import {
 
 export interface NostrClaimResult {
   eventId: string;
-  status: 'claimed' | 'approval_required' | 'deferred' | 'failed' | 'dismissed';
+  status:
+    'claimed' | 'contact_required' | 'approval_required' | 'deferred' | 'failed' | 'dismissed';
   amount?: number;
   failure?: NostrClaimFailure;
 }
@@ -94,11 +98,37 @@ class NostrClaimService {
   private connectivityTimer: ReturnType<typeof setInterval> | null = null;
   private appStateSubscription: { remove: () => void } | null = null;
   private unsubscribeAuth: (() => void) | null = null;
+  private unsubscribePolicy: (() => void)[] = [];
+  private policyWorkQueued = false;
+  private generation = 0;
 
   public start(privateKeyHex: string): void {
     this.stop();
     this.privateKeyHex = privateKeyHex;
     this.running = true;
+    const policyChanged = () => {
+      if (this.policyWorkQueued) return;
+      this.policyWorkQueued = true;
+      void Promise.resolve().then(async () => {
+        this.policyWorkQueued = false;
+        await this.processPending();
+      });
+    };
+    this.unsubscribePolicy = [
+      usePeopleStore.subscribe((state, previous) => {
+        if (
+          Object.values(state.people).some(
+            (person) =>
+              person.contactStatus === 'accepted' &&
+              previous.people[person.npub]?.contactStatus !== 'accepted',
+          )
+        )
+          policyChanged();
+      }),
+      useNostrReceiveSettingsStore.subscribe(policyChanged),
+      usePeopleStore.persist.onFinishHydration(policyChanged),
+      useNostrReceiveSettingsStore.persist.onFinishHydration(policyChanged),
+    ];
     // A process can stop between markClaiming and the mint response. Persisted
     // claims must resume; the mint still validates and rejects already-spent inputs.
     const store = useNostrInboxStore.getState();
@@ -125,6 +155,7 @@ class NostrClaimService {
   }
 
   public stop(): void {
+    this.generation++;
     this.running = false;
     this.privateKeyHex = null;
     this.processing.clear();
@@ -136,6 +167,8 @@ class NostrClaimService {
     this.appStateSubscription = null;
     this.unsubscribeAuth?.();
     this.unsubscribeAuth = null;
+    this.unsubscribePolicy.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribePolicy = [];
   }
 
   public enqueue(eventId: string): Promise<NostrClaimResult> {
@@ -147,14 +180,30 @@ class NostrClaimService {
   }
 
   public async processPending(): Promise<void> {
-    if (!this.running || !this.privateKeyHex) return;
+    if (!this.running || !this.privateKeyHex || !contactPolicyReady()) return;
+    const { useMessageStore } =
+      require('~/state/messageStore') as typeof import('~/state/messageStore');
+    for (const message of useMessageStore.getState().recent) {
+      if (message.direction === 'incoming') applyIncomingContactPolicy(message.conversation);
+    }
+    for (const item of useNostrInboxStore.getState().items) {
+      if (item.status !== 'claimed' && item.status !== 'dismissed')
+        applyIncomingContactPolicy(item.senderPubkey);
+    }
+    // Includes text-only invitations when the receive policy changes.
+    for (const person of Object.values(usePeopleStore.getState().people)) {
+      if (person.contactStatus === 'unaccepted' && person.hasIncomingActivity)
+        applyIncomingContactPolicy(person.npub);
+    }
     const now = Date.now();
     const items = useNostrInboxStore
       .getState()
       .items.filter(
         (item) =>
           item.type !== 'request' &&
-          (item.status === 'pending' || item.status === 'failed') &&
+          (item.status === 'pending' ||
+            item.status === 'contact_required' ||
+            item.status === 'failed') &&
           (!item.nextRetryAt || item.nextRetryAt <= now) &&
           item.failure?.retryable !== false,
       )
@@ -197,6 +246,13 @@ class NostrClaimService {
       const { useSettingsStore } = require('~/state/settingsStore');
       const { useAuthStore } = require('~/state/authStore');
       const settings = useSettingsStore.getState();
+      if (settings.initialized === false) {
+        return {
+          code: 'wallet_unavailable',
+          message: 'Wallet settings are still loading.',
+          retryable: true,
+        };
+      }
       if (settings.biometricEnabled && !useAuthStore.getState().isAuthenticated) {
         return {
           code: 'wallet_locked',
@@ -205,12 +261,17 @@ class NostrClaimService {
         };
       }
     } catch {
-      // Stores may not be hydrated during very early startup; wallet readiness is enough.
+      return {
+        code: 'wallet_unavailable',
+        message: 'Wallet settings are unavailable.',
+        retryable: true,
+      };
     }
     return null;
   }
 
   private async claim(eventId: string, options: NostrClaimRetryOptions): Promise<NostrClaimResult> {
+    const generation = this.generation;
     const store = useNostrInboxStore.getState();
     const item = store.items.find((candidate) => candidate.id === eventId);
     if (!item || item.type === 'request') return { eventId, status: 'failed' };
@@ -221,6 +282,13 @@ class NostrClaimService {
     // move it back to pending/approval_required or attempt to spend it.
     if (item.status === 'dismissed') return { eventId, status: 'dismissed' };
     if (this.processing.has(eventId)) return { eventId, status: 'deferred' };
+
+    if (!contactPolicyReady()) return { eventId, status: 'deferred' };
+    applyIncomingContactPolicy(item.senderPubkey);
+    if (!canReceiveFrom(item.senderPubkey)) {
+      store.markContactRequired(eventId);
+      return { eventId, status: 'contact_required' };
+    }
 
     const walletFailure = this.canUseWallet();
     if (walletFailure) return this.defer(item, walletFailure);
@@ -234,6 +302,10 @@ class NostrClaimService {
         });
       }
       const trusted = await mintManager.isMintTrusted(item.mintUrl);
+      if (!canReceiveFrom(item.senderPubkey)) {
+        store.markContactRequired(eventId);
+        return { eventId, status: 'contact_required' };
+      }
       if (!trusted && !options.trustMint) {
         store.markApprovalRequired(eventId);
         return {
@@ -250,8 +322,20 @@ class NostrClaimService {
         });
       }
       if (!trusted && options.trustMint) {
+        if (!canReceiveFrom(item.senderPubkey)) {
+          store.markContactRequired(eventId);
+          return { eventId, status: 'contact_required' };
+        }
         await mintManager.addMint(item.mintUrl, { trusted: true });
       }
+      // No async boundary between this permission check and redemption submission.
+      if (!canReceiveFrom(item.senderPubkey)) {
+        store.markContactRequired(eventId);
+        return { eventId, status: 'contact_required' };
+      }
+      const finalWalletFailure = this.canUseWallet();
+      if (finalWalletFailure) return this.defer(item, finalWalletFailure);
+      if (generation !== this.generation) return { eventId, status: 'deferred' };
       store.markClaiming(eventId);
       store.recordAttempt(eventId);
       await this.receive(item);
@@ -343,23 +427,16 @@ class NostrClaimService {
     } catch {}
 
     try {
-      const { useNostrRequestStore } = require('~/state/nostrRequestStore');
-      await useNostrRequestStore.getState().loadPendingRequests();
-      const pending = useNostrRequestStore.getState().pendingRequests;
-      const match = pending.find(
-        (request: any) =>
-          request.state === 'pending' &&
-          ((item.requestId && request.id === item.requestId) ||
-            (Number(request.amount) === Number(item.amount) &&
-              normalizeMintUrl(request.mintUrl) === normalizeMintUrl(item.mintUrl))),
-      );
-      if (match) await useNostrRequestStore.getState().markReceived(match.id);
+      const { recordRequestReceipt } =
+        require('./requestLifecycleService') as typeof import('./requestLifecycleService');
+      await recordRequestReceipt({ ...item, status: 'claimed' });
     } catch {}
 
     await historyService.tagHistoryVia(item.mintUrl, 'receive', 'nostr', {
       nostrPubkey: toNpub(item.senderPubkey),
       nostrUsername: item.senderUsername?.replace(/@bey\.cash$/i, ''),
       nostrEventId: item.id,
+      requestId: item.requestId,
     });
 
     try {

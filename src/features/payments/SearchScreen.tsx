@@ -101,17 +101,17 @@ export default function UniversalSearchScreen() {
       const lowerQuery = query.toLowerCase().trim();
       const found: SearchResultItem[] = [];
 
-      // 1. Search People (Directory & Favorites)
+      // 1. Search People (directory and saved profiles)
       const peopleResults: SearchResultItem[] = [];
 
-      // Check favorites first
+      // Check saved profiles first
       Object.values(people).forEach((contact: any) => {
         if (
           contact.username?.toLowerCase().includes(lowerQuery) ||
           contact.npub?.toLowerCase().includes(lowerQuery)
         ) {
           peopleResults.push({
-            id: `fav-${contact.npub}`,
+            id: `person-${contact.npub}`,
             type: 'people',
             title: contact.username ? `${contact.username}@bey.cash` : 'Unknown User',
             subtitle: contact.npub,
@@ -260,7 +260,7 @@ export default function UniversalSearchScreen() {
 
     if (item.type === 'people' || item.type === 'address') {
       router.push({
-        pathname: '/(modals)/person-details',
+        pathname: '/(modals)/conversation',
         params: {
           npub: item.subtitle || item.title,
           username: item.title.includes('@bey.cash') ? item.title.replace('@bey.cash', '') : '',

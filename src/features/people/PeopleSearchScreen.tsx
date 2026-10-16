@@ -17,7 +17,9 @@ function getPersonLabel(person: any): string {
 
 export default function PeopleSearchScreen() {
   const people = usePeopleStore((state) => state.people);
-  const favoritePeople = Object.values(people).filter((person) => person.isFavorite);
+  const acceptedPeople = Object.values(people).filter(
+    (person) => person.contactStatus === 'accepted',
+  );
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [directory, setDirectory] = useState<Record<string, string>>({});
@@ -54,7 +56,13 @@ export default function PeopleSearchScreen() {
     }
 
     const lowerQuery = query.toLowerCase().trim();
-    const found: any[] = [];
+    const found: any[] = Object.values(people).filter((person) =>
+      [person.displayName, person.username, person.nip05, person.npub]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(lowerQuery),
+    );
 
     // Check if query is npub
     if (lowerQuery.startsWith('npub1')) {
@@ -106,7 +114,7 @@ export default function PeopleSearchScreen() {
       }
     }
 
-    setResults(found);
+    setResults([...new Map(found.map((person) => [person.npub, person])).values()]);
   };
 
   const handleSearchChange = (text: string) => {
@@ -116,7 +124,7 @@ export default function PeopleSearchScreen() {
 
   const onSelectPerson = (person: any) => {
     router.push({
-      pathname: '/(modals)/person-details',
+      pathname: '/(modals)/conversation',
       params: {
         npub: person.npub,
         username: person.username || '',
@@ -217,12 +225,12 @@ export default function PeopleSearchScreen() {
             </Text>
           )}
 
-          {favoritePeople.length > 0 && (
+          {acceptedPeople.length > 0 && (
             <YStack mt="$4" gap="$2">
               <Text fontSize="$4" fontWeight="600" color="$gray10" px="$2">
-                Favorites
+                Contacts
               </Text>
-              {favoritePeople.map((person, i) => (
+              {acceptedPeople.map((person, i) => (
                 <XStack
                   key={`fav-${i}`}
                   bg="$gray3"
