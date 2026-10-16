@@ -13,6 +13,29 @@ The People tab has two views:
   payment issues. Invitations count once per person. Blocked people do not create invitations.
   Retryable failures remain queued. Legacy unaccepted profiles remain searchable.
 
+The header displays **People**, the wallet's profile avatar, and Nostr Settings. Connection
+diagnostics remain in Settings; the People header does not poll diagnostics or show a relay
+percentage. A permanent **Search people** field offers Paste/Clear. Recent and Requests are
+tap-based, equal-width tabs; only Requests has an actionable-count badge.
+
+People rows use circular 48px avatars, verified badges, a name and latest-activity preview, compact
+timestamps, and an unread dot. Tapping anywhere on a row opens its conversation. Pay/Request live
+in that conversation rather than as competing row actions. Accepted people without activity sort
+alphabetically after active conversations. Requests separates People requests and Payment issues;
+issue rows open the existing claim review sheet without starting a claim.
+
+The active view uses a virtualized list, loading rows in batches of 50 and retaining each tab's
+scroll position across tab switches and search. Search shows **On this wallet** before **Other
+people**, deduplicated by normalized identity. Local matches remain visible during remote loading
+or failure, and remote search can be retried. Clearing search restores the prior tab. Pull-to-refresh
+reloads saved profiles, messages, and payment history, with an inline error if part of it fails.
+
+`peopleListModel` groups sources once per identity and derives ordering and previews from the same
+latest conversation activity. Preview models contain display metadata and IDs, never payment
+tokens/proofs. Wallet history loads beyond the first page so older tagged activity is not mistaken
+for an unused contact. Monetary previews follow the primary currency setting, falling back to sats
+when no fiat rate is available. The shared profile picker used by Send is unchanged.
+
 Opening a person shows one conversation containing text and payment cards. The header has the
 standard modal close control, avatar, username, contact-status icon and Info action. Verified NIP-05
 identities display their verification badge. Both the identity and Info open a contact bottom sheet with

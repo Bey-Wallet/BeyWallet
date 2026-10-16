@@ -18,6 +18,14 @@ notifications, and complete payment flows.
 
 ## People and profiles
 
+- [ ] Verify the People title, profile avatar and Settings action; diagnostics remain available in Settings with no percentage or polling in the header.
+- [ ] Verify the permanent Search people field and Paste/Clear actions; Recent has no contact count and Requests has only its actionable badge.
+- [ ] Inspect circular avatars, name/verified badge, one-line safe activity preview, compact time, unread dot and inset separators. Whole rows open conversations without a separate Send action.
+- [ ] Mix recent text, inbox payments and wallet history: ordering, preview and timestamp must describe the same latest activity. Contacts without activity sort alphabetically afterward.
+- [ ] Check People requests and Payment issues sections, grouped invitation counts, and blocked identities. Issue rows open claim review without redemption.
+- [ ] Scroll past 50 people; switch tabs, search, and clear search. Each tab returns to its previous position without nested scroll gestures or rows hidden behind the bottom bar.
+- [ ] Simulate slow/offline remote search: local matches remain visible, Retry works, identities appear once, and no contact becomes accepted from search/opening a result.
+- [ ] Check empty, loading and refresh-failure states; test large text, narrow screens, screen-reader labels, keyboard operation and both themes. Capture device screenshots with test identities.
 - [ ] Search for a valid npub and open the returned profile.
 - [ ] Search for a valid NIP-05 identifier outside the `bey.cash` domain.
 - [ ] Confirm an invalid npub or unresolved NIP-05 produces a safe error state.

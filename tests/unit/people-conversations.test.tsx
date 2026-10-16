@@ -10,11 +10,13 @@ import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore'
 import { nostrService } from '~/services/wallet/nostrService';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { useSettingsStore } from '~/state/settingsStore';
-import { Alert } from 'react-native';
+import { Alert, DeviceEventEmitter, FlatList } from 'react-native';
 import { applyIncomingContactPolicy } from '~/services/wallet/contactPolicy';
 import { useWalletStore } from '~/state/walletStore';
 import * as Clipboard from 'expo-clipboard';
 import { ListTableRow } from '~/shared/ui/ListTable';
+import { loadPeopleHistory } from '~/features/people/hooks/usePeopleList';
+import { historyService } from '~/services/wallet/historyService';
 
 const alice = nip19.npubEncode('01'.repeat(32));
 const bob = nip19.npubEncode('02'.repeat(32));
@@ -23,10 +25,16 @@ const mockPush = jest.fn();
 const mockParams = { npub: bob };
 let mockSavedMessages: ChatMessage[] = [];
 let mockHistory: any[] = [];
+let mockRemoteResults: any[] = [];
+let mockSearchError: string | null = null;
+let mockSearching = false;
+const mockRetrySearch = jest.fn();
+const mockRefetch = jest.fn(async () => ({ data: [] }));
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => mockParams,
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
   Stack: { Screen: () => null },
 }));
 jest.mock('tamagui', () =>
@@ -79,6 +87,7 @@ jest.mock('@tamagui/lucide-icons', () =>
   ),
 );
 jest.mock('~/shared/ui/Blockies', () => 'Blockies');
+jest.mock('~/features/people/components/PeopleListRow', () => ({ PeopleListRow: 'PeopleRow' }));
 jest.mock('~/shared/icons/Nip05VerifiedBadge', () => 'VerifiedBadge');
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'SheetScrollView' }));
 jest.mock('~/shared/ui/AppBottomSheet', () => {
@@ -109,10 +118,16 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: any) => ({
     data: queryKey[0] === 'bitcoinPrice' ? { price: 60000 } : mockHistory,
+    refetch: mockRefetch,
   }),
 }));
 jest.mock('~/features/people/hooks/useNostrProfileSearch', () => ({
-  useNostrProfileSearch: () => ({ results: [], isSearching: false }),
+  useNostrProfileSearch: () => ({
+    results: mockRemoteResults,
+    isSearching: mockSearching,
+    error: mockSearchError,
+    retry: mockRetrySearch,
+  }),
 }));
 jest.mock('~/features/people/peopleProfileCache', () => ({
   hydrateSavedPeople: jest.fn(async () => undefined),
@@ -138,6 +153,8 @@ jest.mock('~/services/wallet/initService', () => ({
       messageRepository: {
         page: jest.fn(async (_npub, offset = 0) => mockSavedMessages.slice(offset, offset + 50)),
         markRead: jest.fn(async () => undefined),
+        recent: jest.fn(async () => mockSavedMessages),
+        unread: jest.fn(async () => ({})),
       },
     }),
   },
@@ -152,6 +169,11 @@ describe('People conversations and invitations', () => {
     useSettingsStore.setState({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' });
     mockSavedMessages = [];
     mockHistory = [];
+    mockRemoteResults = [];
+    mockSearchError = null;
+    mockSearching = false;
+    mockRetrySearch.mockClear();
+    mockRefetch.mockClear();
     mockPush.mockClear();
     jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
@@ -191,11 +213,150 @@ describe('People conversations and invitations', () => {
     const text = tree!.root
       .findAllByType('Text' as any)
       .map((node) => node.children.filter((child) => typeof child === 'string').join(''));
-    expect(text).toContain('Recent (1)');
-    expect(text).toContain('Requests (1)');
+    expect(text).toContain('Recent');
+    expect(text).toContain('Requests');
     expect(text).not.toContain('Favorites');
-    const rows = tree!.root.findAllByType('ProfileRow' as any);
-    expect(rows.map((row) => row.props.profile.npub)).toEqual([alice, bob]);
+    expect(tree!.root.findAllByType('PeopleRow' as any).map((row) => row.props.item.npub)).toEqual([
+      alice,
+    ]);
+    const requests = tree!.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel === 'Requests, 1 pending')!;
+    await act(async () => requests.props.onPress());
+    expect(tree!.root.findAllByType('PeopleRow' as any).map((row) => row.props.item.npub)).toEqual([
+      bob,
+    ]);
+  });
+
+  it('keeps local search results during remote failure, retries, and restores tab/scroll after clearing search', async () => {
+    mockSearchError = 'Unavailable';
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    const requests = () =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .find((node) => node.props.accessibilityLabel === 'Requests, 1 pending')!;
+    await act(async () => requests().props.onPress());
+    const list = () => tree!.root.findByType(FlatList);
+    await act(async () => list().props.onContentSizeChange!(320, 2000));
+    await act(async () =>
+      list().props.onScroll!({ nativeEvent: { contentOffset: { y: 320 } } } as any),
+    );
+    await act(async () => tree!.root.findByType('Input' as any).props.onChangeText('Alice'));
+    expect(tree!.root.findAllByType('PeopleRow' as any).map((row) => row.props.item.npub)).toEqual([
+      alice,
+    ]);
+    expect(
+      tree!.root
+        .findAllByType('Text' as any)
+        .some(
+          (node) =>
+            typeof node.props.children === 'string' &&
+            node.props.children.includes('Your saved people are still available'),
+        ),
+    ).toBe(true);
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppButton' as any)
+        .find((node) => node.props.children === 'Retry search')!
+        .props.onPress(),
+    );
+    expect(mockRetrySearch).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Clear search')!
+        .props.onPress(),
+    );
+    expect(requests().props.accessibilityState.selected).toBe(true);
+    expect(list().props.contentOffset?.y).toBe(320);
+  });
+
+  it('opens conversations from people rows and claim review from payment issue rows', async () => {
+    useNostrInboxStore.getState().addIncoming({
+      id: 'issue',
+      tokenString: 'cashuBsecret',
+      amount: 4,
+      mintUrl: 'https://mint.example',
+      senderPubkey: '01'.repeat(32),
+    });
+    useNostrInboxStore.getState().markApprovalRequired('issue');
+    const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    await act(async () => tree!.root.findAllByType('PeopleRow' as any)[0].props.onPress());
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/(modals)/conversation',
+        params: expect.objectContaining({ npub: alice }),
+      }),
+    );
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .find(
+          (node) =>
+            node.props.accessibilityRole === 'tab' &&
+            node.props.accessibilityLabel.startsWith('Requests'),
+        )!
+        .props.onPress(),
+    );
+    const issue = tree!.root
+      .findAllByType('PeopleRow' as any)
+      .find((node) => node.props.item.kind === 'issue')!;
+    await act(async () => issue.props.onPress());
+    expect(emit).toHaveBeenCalledWith('nostr:openClaim', expect.objectContaining({ id: 'issue' }));
+    expect(useNostrInboxStore.getState().items.find((item) => item.id === 'issue')?.status).toBe(
+      'approval_required',
+    );
+  });
+
+  it('paginates the active list in batches of 50 and refreshes its data sources', async () => {
+    const people = Object.fromEntries(
+      Array.from({ length: 120 }, (_, index) => {
+        const npub = nip19.npubEncode((index + 10).toString(16).padStart(64, '0'));
+        return [npub, { npub, displayName: `Person ${index}`, contactStatus: 'accepted' as const }];
+      }),
+    );
+    usePeopleStore.setState({ people });
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    const list = () => tree!.root.findByType(FlatList);
+    expect(list().props.data).toHaveLength(50);
+    await act(async () => list().props.onEndReached!({ distanceFromEnd: 0 }));
+    expect(list().props.data).toHaveLength(100);
+    await act(async () => {
+      list().props.onRefresh!();
+    });
+    expect(mockRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads tagged history beyond the first wallet page and deduplicates overlapping pages', async () => {
+    const tagged = {
+      id: 'tagged',
+      type: 'receive',
+      amount: 5,
+      createdAt: Date.now(),
+      metadata: { nostrPubkey: alice },
+    };
+    const older = { ...tagged, id: 'older', createdAt: tagged.createdAt - 5000 };
+    jest
+      .mocked(historyService.getHistory)
+      .mockResolvedValueOnce([
+        tagged,
+        ...Array.from({ length: 499 }, (_, index) => ({
+          id: `unrelated-${index}`,
+          type: 'send',
+          metadata: {},
+        })),
+      ] as any)
+      .mockResolvedValueOnce([tagged, older] as any);
+    const entries = await loadPeopleHistory();
+    expect(entries.map((entry) => entry.id)).toEqual(['tagged', 'older']);
+    expect(historyService.getHistory).toHaveBeenCalledWith(500, 500);
   });
 
   it('shows unknown payments as pending acceptance and enables the composer only after accepting', async () => {
