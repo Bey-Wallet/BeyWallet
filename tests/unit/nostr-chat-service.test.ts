@@ -5,7 +5,8 @@ import { createChatCopies } from '~/services/wallet/nostrChatTransport';
 import { usePeopleStore } from '~/state/peopleStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
-import { getEncodedTokenV3 } from '@cashu/cashu-ts';
+import { getEncodedTokenV3, PaymentRequest } from '@cashu/cashu-ts';
+import { useNostrInboxStore } from '~/state/nostrInboxStore';
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 
 const mockMessages = new Map<string, ChatMessage>();
@@ -93,6 +94,53 @@ describe('persistent chat publication and sender copies', () => {
     expect(usePeopleStore.getState().people[normalizeNpub(recipient)].contactStatus).toBe(
       'accepted',
     );
+  });
+
+  it('saves outgoing requests before acknowledgement and retries the same encrypted events', async () => {
+    const encoded = new PaymentRequest([], 'request-id', 10, 'sat', [
+      'https://mint.example',
+    ]).toEncodedRequest();
+    publish.mockImplementation(() => [Promise.reject(new Error('offline'))]);
+    await expect(
+      nostrService.sendRequest(recipient, encoded, 'request-id', 10, bytesToHex(sender)),
+    ).rejects.toThrow('publication failed');
+    const message = [...mockMessages.values()][0];
+    expect(message).toMatchObject({
+      paymentType: 'request',
+      requestId: 'request-id',
+      publication: 'failed',
+      text: '',
+      paymentAmount: 10,
+    });
+    const ids = message.envelopes!.map((envelope) => envelope.event.id);
+    expect(message.envelopes!.map((envelope) => envelope.event.kind)).toEqual([4, 1059]);
+    publish.mockImplementation(() => [Promise.resolve('accepted')]);
+    await nostrService.retryChat(message);
+    expect([...mockMessages.values()]).toHaveLength(1);
+    expect(mockMessages.get(message.id)?.publication).toBe('sent');
+    expect(publish.mock.calls.slice(-2).map((call) => call[1].id)).toEqual(ids);
+  });
+
+  it('deduplicates a request received concurrently through the legacy and gift-wrap transports', async () => {
+    const encoded = new PaymentRequest([], 'duplicate-request', 10, 'sat', [
+      'https://mint.example',
+    ]).toEncodedRequest();
+    useNostrInboxStore.setState({ items: [] });
+    const lookup = jest.spyOn(service, 'getSenderUsername').mockResolvedValue('alice');
+    try {
+      await Promise.all([
+        service._handleDecrypted(encoded, { id: 'legacy' }, recipient),
+        service._handleDecrypted(encoded, { id: 'wrap' }, recipient),
+      ]);
+      expect(useNostrInboxStore.getState().items).toHaveLength(1);
+      expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+        requestId: 'duplicate-request',
+        type: 'request',
+      });
+    } finally {
+      lookup.mockRestore();
+      useNostrInboxStore.setState({ items: [] });
+    }
   });
 
   it('preserves failed encrypted envelopes and retries the same logical message', async () => {

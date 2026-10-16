@@ -1,21 +1,10 @@
-/**
- * NostrRequestStore
- *
- * Persists NUT-18 Cashu Payment Requests (creqA strings) to SQLite so
- * they appear in the E-Cash pending list as soon as the user generates
- * them, and can be updated to 'received' when ecash lands via Nostr.
- *
- * Uses expo-sqlite directly (bypasses Coco SDK) since this is our own
- * application-level table (migration 015).
- */
-
 import { create } from 'zustand';
-import * as SQLite from 'expo-sqlite';
-
-// ─── Types ────────────────────────────────────────────────────────────────
+import type * as SQLite from 'expo-sqlite';
+import type { PaymentRequestPublication } from '~/services/wallet/paymentRequestPublisher';
+import { normalizeNpub } from '~/shared/utils/nostr';
+import type { NostrInboxItem } from './nostrInboxStore';
 
 export type NostrRequestState = 'pending' | 'received' | 'expired' | 'cancelled';
-
 export interface NostrReceiveRequest {
   id: string;
   mintUrl: string;
@@ -23,208 +12,165 @@ export interface NostrReceiveRequest {
   unit: string;
   creqString: string;
   nostrPubkey: string;
+  recipient?: string;
   description?: string;
   state: NostrRequestState;
   createdAt: number;
   updatedAt: number;
 }
 
-interface NostrRequestStoreState {
-  pendingRequests: NostrReceiveRequest[];
+export interface RequestPayment {
+  id: string;
+  requestId?: string;
+  conversation?: string;
+  inboxId?: string;
+  operationId?: string;
+  state: 'preparing' | 'pending' | 'paid' | 'rolled_back';
+  publication?: PaymentRequestPublication;
+  published: boolean;
+}
 
-  // Actions
+export function findRequestPayment(
+  item: NostrInboxItem,
+  payments: RequestPayment[],
+): RequestPayment | undefined {
+  if (item.type !== 'request') return;
+  return payments.find(
+    (payment) =>
+      payment.inboxId === item.id ||
+      (!!item.requestId &&
+        payment.requestId === item.requestId &&
+        payment.conversation === normalizeNpub(item.senderPubkey)),
+  );
+}
+
+// Deferred access avoids a static dependency on wallet initialization.
+function getDb(): SQLite.SQLiteDatabase {
+  const { getSharedDb } =
+    require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+  const shared = getSharedDb?.();
+  if (shared) return shared;
+  const { getDb: getSqliteDb } =
+    require('~/storage/sqlite/sqliteStorage') as typeof import('~/storage/sqlite/sqliteStorage');
+  return getSqliteDb();
+}
+
+const TABLE = 'coco_cashu_nostr_receive_requests';
+let generation = 0;
+let loadQueue: Promise<void> = Promise.resolve();
+interface RequestStore {
+  requests: NostrReceiveRequest[];
+  pendingRequests: NostrReceiveRequest[];
+  payments: RequestPayment[];
   addRequest: (
-    req: Omit<NostrReceiveRequest, 'state' | 'createdAt' | 'updatedAt'>,
+    request: Omit<NostrReceiveRequest, 'state' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   markReceived: (id: string) => Promise<void>;
   markCancelled: (id: string) => Promise<void>;
   loadPendingRequests: () => Promise<void>;
   clearExpiredRequests: (olderThanMs?: number) => Promise<void>;
+  savePayment: (payment: RequestPayment) => Promise<void>;
+  clear: () => void;
 }
 
-// ─── DB Helpers ───────────────────────────────────────────────────────────
-
-const TABLE = 'coco_cashu_nostr_receive_requests';
-
-/**
- * Lazy getter — reuses the single shared db connection opened by initService.
- * We use require() inside the function (not a top-level import) to avoid the
- * circular dependency: initService → nostrService → nostrRequestStore → initService.
- */
-function getDb(): SQLite.SQLiteDatabase {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getSharedDb } = require('~/services/wallet/initService') as {
-      getSharedDb: () => SQLite.SQLiteDatabase | null;
-    };
-    const shared = getSharedDb();
-    if (shared) return shared;
-  } catch {
-    // initService not yet loaded — fall through to own connection
-  }
-  // Use the shared getDb from sqliteStorage to avoid multi-connection deadlocks
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { getDb: getSqliteDb } = require('~/storage/sqlite/sqliteStorage') as {
-    getDb: () => SQLite.SQLiteDatabase;
+export const useNostrRequestStore = create<RequestStore>((set, get) => {
+  const updateState = async (id: string, state: NostrRequestState) => {
+    await getDb().runAsync(
+      `UPDATE ${TABLE} SET state = ?, updatedAt = ? WHERE id = ?`,
+      state,
+      Date.now(),
+      id,
+    );
+    await get().loadPendingRequests();
   };
-  return getSqliteDb();
-}
-
-function rowToRequest(row: any): NostrReceiveRequest {
   return {
-    id: row.id,
-    mintUrl: row.mintUrl,
-    amount: row.amount,
-    unit: row.unit ?? 'sat',
-    creqString: row.creqString,
-    nostrPubkey: row.nostrPubkey,
-    description: row.description ?? undefined,
-    state: row.state as NostrRequestState,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
-// ─── Store ────────────────────────────────────────────────────────────────
-
-export const useNostrRequestStore = create<NostrRequestStoreState>((set, get) => ({
-  pendingRequests: [],
-
-  addRequest: async (req) => {
-    const now = Date.now();
-    const db = getDb();
-
-    try {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO ${TABLE}
-           (id, mintUrl, amount, unit, creqString, nostrPubkey, description, state, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-        req.id,
-        req.mintUrl,
-        req.amount,
-        req.unit ?? 'sat',
-        req.creqString,
-        req.nostrPubkey,
-        req.description ?? null,
+    requests: [],
+    pendingRequests: [],
+    payments: [],
+    addRequest: async (request) => {
+      const now = Date.now();
+      await getDb().runAsync(
+        `INSERT OR IGNORE INTO ${TABLE}
+        (id, mintUrl, amount, unit, creqString, nostrPubkey, recipient, description, state, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+        ON CONFLICT(id) DO UPDATE SET recipient = COALESCE(${TABLE}.recipient, excluded.recipient)
+        WHERE ${TABLE}.creqString = excluded.creqString`,
+        request.id,
+        request.mintUrl,
+        request.amount,
+        request.unit,
+        request.creqString,
+        request.nostrPubkey,
+        request.recipient ? normalizeNpub(request.recipient) : null,
+        request.description ?? null,
         now,
         now,
       );
-
-      const newRequest: NostrReceiveRequest = {
-        ...req,
-        unit: req.unit ?? 'sat',
-        state: 'pending',
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      set((s) => {
-        // Deduplicate in-memory — DB handles it via INSERT OR REPLACE,
-        // but the Zustand state also needs to avoid duplicates.
-        if (s.pendingRequests.some((existing) => existing.id === req.id)) {
-          return s;
-        }
-        return { pendingRequests: [newRequest, ...s.pendingRequests] };
-      });
-      console.log(`[NostrRequestStore] Request saved: ${req.id} (${req.amount} sats)`);
-    } catch (err) {
-      console.error('[NostrRequestStore] Failed to save request:', err);
-    }
-  },
-
-  markReceived: async (id: string) => {
-    const now = Date.now();
-    const db = getDb();
-
-    try {
-      await db.runAsync(
-        `UPDATE ${TABLE} SET state = 'received', updatedAt = ? WHERE id = ?`,
-        now,
-        id,
-      );
-
-      set((s) => ({
-        pendingRequests: s.pendingRequests.map((r) =>
-          r.id === id ? { ...r, state: 'received' as NostrRequestState, updatedAt: now } : r,
-        ),
-      }));
-      console.log(`[NostrRequestStore] Request marked received: ${id}`);
-    } catch (err) {
-      console.error('[NostrRequestStore] Failed to mark received:', err);
-    }
-  },
-
-  markCancelled: async (id: string) => {
-    const now = Date.now();
-    const db = getDb();
-
-    try {
-      await db.runAsync(
-        `UPDATE ${TABLE} SET state = 'cancelled', updatedAt = ? WHERE id = ?`,
-        now,
-        id,
-      );
-
-      set((s) => ({
-        pendingRequests: s.pendingRequests.filter((r) => r.id !== id),
-      }));
-    } catch (err) {
-      console.error('[NostrRequestStore] Failed to cancel request:', err);
-    }
-  },
-
-  loadPendingRequests: async () => {
-    const db = getDb();
-
-    try {
-      const rows = await db.getAllAsync<any>(
-        `SELECT * FROM ${TABLE} WHERE state = 'pending' ORDER BY createdAt DESC LIMIT 100`,
-      );
-      set({ pendingRequests: rows.map(rowToRequest) });
-      console.log(`[NostrRequestStore] Loaded ${rows.length} pending requests`);
-    } catch (err) {
-      // Table may not exist yet (first load before migration runs) — safe to ignore
-      console.warn(
-        '[NostrRequestStore] Could not load pending requests (table may not exist yet):',
-        err,
-      );
-      set({ pendingRequests: [] });
-    }
-  },
-
-  clearExpiredRequests: async (olderThanMs = 24 * 60 * 60 * 1000) => {
-    const cutoff = Date.now() - olderThanMs;
-    const db = getDb();
-
-    try {
-      await db.runAsync(
-        `UPDATE ${TABLE} SET state = 'expired', updatedAt = ? WHERE state = 'pending' AND createdAt < ?`,
-        Date.now(),
-        cutoff,
-      );
-      // Re-load after expiry sweep
       await get().loadPendingRequests();
-    } catch (err) {
-      console.warn('[NostrRequestStore] clearExpiredRequests failed:', err);
-    }
-  },
-}));
-
-// ─── Singleton helpers (for use outside React) ────────────────────────────
+    },
+    markReceived: (id) => updateState(id, 'received'),
+    markCancelled: (id) => updateState(id, 'cancelled'),
+    loadPendingRequests: async () => {
+      const currentGeneration = generation;
+      // Each caller must await its own fresh read, including payment controllers
+      // checking for an existing operation before reserving any funds.
+      const load = loadQueue.then(async () => {
+        if (generation !== currentGeneration) return;
+        const db = getDb();
+        const requests = await db.getAllAsync<NostrReceiveRequest>(
+          `SELECT * FROM ${TABLE} ORDER BY createdAt DESC`,
+        );
+        const rows = await db.getAllAsync<
+          Omit<RequestPayment, 'publication' | 'published'> & {
+            publication: string | null;
+            published: number;
+          }
+        >('SELECT * FROM bey_request_payments');
+        if (generation !== currentGeneration) return;
+        set({
+          requests,
+          pendingRequests: requests.filter((request) => request.state === 'pending'),
+          payments: rows.map((row) => ({
+            ...row,
+            published: !!row.published,
+            publication: row.publication ? JSON.parse(row.publication) : undefined,
+          })),
+        });
+      });
+      loadQueue = load.catch(() => undefined);
+      await load;
+    },
+    // NUT-18 requests created here have no expiry. Age alone is not an expiry signal.
+    clearExpiredRequests: async () => {
+      await get().loadPendingRequests();
+    },
+    savePayment: async (payment) => {
+      await getDb().runAsync(
+        `INSERT INTO bey_request_payments (id, requestId, conversation, inboxId, operationId, state, publication, published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET operationId = COALESCE(bey_request_payments.operationId, excluded.operationId),
+           state = CASE WHEN bey_request_payments.state IN ('paid', 'rolled_back') THEN bey_request_payments.state ELSE excluded.state END,
+           publication = COALESCE(excluded.publication, bey_request_payments.publication),
+           published = MAX(excluded.published, bey_request_payments.published)`,
+        payment.id,
+        payment.requestId ?? null,
+        payment.conversation ?? null,
+        payment.inboxId ?? null,
+        payment.operationId ?? null,
+        payment.state,
+        payment.publication ? JSON.stringify(payment.publication) : null,
+        payment.published ? 1 : 0,
+      );
+      await get().loadPendingRequests();
+    },
+    clear: () => {
+      generation++;
+      set({ requests: [], pendingRequests: [], payments: [] });
+    },
+  };
+});
 
 export const nostrRequestStore = {
-  /**
-   * Mark a request as received. Called from NostrService when ecash lands.
-   * Uses the store's state setter directly (works outside React).
-   */
-  markReceived: (id: string): Promise<void> => {
-    return useNostrRequestStore.getState().markReceived(id);
-  },
-
-  /**
-   * Get all pending requests (for NostrService to reference when matching claims).
-   */
-  getPending: (): NostrReceiveRequest[] => {
-    return useNostrRequestStore.getState().pendingRequests;
-  },
+  markReceived: (id: string) => useNostrRequestStore.getState().markReceived(id),
+  getPending: () => useNostrRequestStore.getState().pendingRequests,
 };

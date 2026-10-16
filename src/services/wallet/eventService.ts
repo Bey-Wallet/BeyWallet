@@ -81,6 +81,9 @@ export const CORE_EVENT_NAMES: EventName[] = [
   'melt-quote:state-changed',
   'melt-quote:paid',
   'send:created',
+  'send:pending',
+  'send:finalized',
+  'send:rolled-back',
   'receive:created',
   'history:updated',
 ];

@@ -18,6 +18,7 @@ import { YStack, XStack, H6, Text, View, styled, Image } from 'tamagui';
 import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
+import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -135,6 +136,7 @@ function SenderAvatar({
 }
 
 export default function NostrActivity() {
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const items = useNostrInboxStore((s) => s.items);
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
   const router = useRouter();
@@ -164,12 +166,13 @@ export default function NostrActivity() {
       items.filter(
         (i) =>
           people[normalizeNpub(i.senderPubkey)]?.contactStatus !== 'blocked' &&
+          !findRequestPayment(i, requestPayments) &&
           (i.status === 'contact_required' ||
             i.status === 'pending' ||
             i.status === 'failed' ||
             i.status === 'approval_required'),
       ),
-    [items, people],
+    [items, people, requestPayments],
   );
 
   const [selectedRequest, setSelectedRequest] = React.useState<NostrInboxItem | null>(null);

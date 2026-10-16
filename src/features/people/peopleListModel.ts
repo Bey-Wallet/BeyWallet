@@ -1,6 +1,7 @@
 import type { Person } from '~/state/peopleStore';
 import type { NostrInboxItem } from '~/state/nostrInboxStore';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
+import type { NostrReceiveRequest, RequestPayment } from '~/state/nostrRequestStore';
 import { decodeNostrPublicKey, type NostrProfile } from '~/services/api/nostrProfileService';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { buildConversationActivity, type ConversationActivity } from './conversationActivity';
@@ -84,6 +85,8 @@ export function buildPeopleListModel({
   query = '',
   remote = [],
   formatAmount,
+  requests = [],
+  requestPayments = [],
 }: {
   people: Record<string, Person>;
   messages: ChatMessage[];
@@ -93,6 +96,8 @@ export function buildPeopleListModel({
   query?: string;
   remote?: NostrProfile[];
   formatAmount: (amount: number) => string;
+  requests?: NostrReceiveRequest[];
+  requestPayments?: RequestPayment[];
 }) {
   const profiles = new Map<string, NostrProfile>();
   const messageGroups = new Map<string, ChatMessage[]>();
@@ -171,6 +176,7 @@ export function buildPeopleListModel({
       payments,
       historyGroups.get(npub) || [],
       accepted,
+      { requests, payments: requestPayments },
     );
     const latest = activity[activity.length - 1];
     const identity = identityRow(profile);

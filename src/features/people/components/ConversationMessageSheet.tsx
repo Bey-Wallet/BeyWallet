@@ -1,11 +1,9 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Copy } from '@tamagui/lucide-icons';
-import { Text, XStack, YStack } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { AppButton } from '~/shared/ui/AppButton';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import type { ConversationActivity } from '../conversationActivity';
 import { ConversationItemCard } from './ConversationItemCard';
 
@@ -50,20 +48,9 @@ export const ConversationMessageSheet = forwardRef<
       >
         {item && (
           <YStack gap="$4">
-            <XStack items="center" justify="space-between" gap="$3">
-              <Text fontSize="$6" fontWeight="800">
-                {item.kind === 'text' ? 'Message details' : 'Payment details'}
-              </Text>
-              <AppIconButton
-                variant="default"
-                emphasis="secondary"
-                accessibilityLabel={
-                  copied ? 'Copied' : item.kind === 'text' ? 'Copy message' : 'Copy payment details'
-                }
-                icon={Copy}
-                onPress={() => void copy()}
-              />
-            </XStack>
+            <Text fontSize="$6" fontWeight="800">
+              {item.kind === 'text' ? 'Message details' : 'Payment details'}
+            </Text>
             <ConversationItemCard
               item={item}
               primaryAmount={primaryAmount}
@@ -79,52 +66,53 @@ export const ConversationMessageSheet = forwardRef<
                 {copyError}
               </Text>
             )}
-            <Detail label="Status" value={item.status} />
-            <Detail
-              label="Direction"
-              value={item.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}
-            />
-            <Detail label="Time" value={new Date(item.time).toLocaleString()} />
-            {item.message?.direction === 'incoming' && (
-              <Detail
-                label="Saved on device"
-                value={new Date(item.message.receivedAt).toLocaleString()}
-              />
-            )}
-            {item.message && (
-              <Detail
-                label="Transport"
-                value={
-                  item.message.transport === 'nip17'
-                    ? 'NIP-17 encrypted chat'
-                    : 'Legacy encrypted message'
+            <ListTable>
+              <ListTableRow
+                label={
+                  copied ? 'Copied' : item.kind === 'text' ? 'Copy message' : 'Copy payment details'
                 }
+                labelColor="$color"
+                isCopyable
+                onCopy={() => void copy()}
+                onPress={() => void copy()}
               />
-            )}
-            {item.mintUrl && <Detail label="Mint" value={item.mintUrl} />}
-            {item.message && (
-              <YStack gap="$1">
-                <Text color="$gray10" fontSize="$2">
-                  Message ID
-                </Text>
-                <Text selectable fontFamily="$mono" fontSize="$2">
-                  {item.message.id}
-                </Text>
-              </YStack>
-            )}
+              <Detail label="Status" value={item.status} />
+              <Detail
+                label="Direction"
+                value={item.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}
+              />
+              <Detail label="Time" value={new Date(item.time).toLocaleString()} />
+              {item.message?.direction === 'incoming' && (
+                <Detail
+                  label="Saved on device"
+                  value={new Date(item.message.receivedAt).toLocaleString()}
+                />
+              )}
+              {item.message && (
+                <Detail
+                  label="Transport"
+                  value={
+                    item.message.transport === 'nip17'
+                      ? 'NIP-17 encrypted chat'
+                      : 'Legacy encrypted message'
+                  }
+                />
+              )}
+              {item.mintUrl && <Detail label="Mint" value={item.mintUrl} />}
+              {item.message && <Detail label="Message ID" value={item.message.id} />}
+              {actionLabel && onAction && (
+                <ListTableRow
+                  label={actionLabel}
+                  labelColor={item.requiresAction ? '$buttonWarningSecondaryText' : '$color'}
+                  onPress={onAction}
+                  multiline
+                />
+              )}
+            </ListTable>
             {item.direction === 'outgoing' && item.message && (
               <Text color="$gray10" fontSize="$2">
                 Sent to relay confirms relay publication. It does not confirm delivery or reading.
               </Text>
-            )}
-            {actionLabel && onAction && (
-              <AppButton
-                variant={item.requiresAction ? 'warning' : 'default'}
-                emphasis="secondary"
-                onPress={onAction}
-              >
-                {actionLabel}
-              </AppButton>
             )}
           </YStack>
         )}
@@ -135,11 +123,14 @@ export const ConversationMessageSheet = forwardRef<
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <YStack gap="$1">
-      <Text color="$gray10" fontSize="$2">
-        {label}
-      </Text>
-      <Text selectable>{value}</Text>
-    </YStack>
+    <ListTableRow
+      label={label}
+      multiline
+      value={
+        <Text selectable maxWidth={200} textAlign="right" fontSize="$3" color="$color">
+          {value}
+        </Text>
+      }
+    />
   );
 }

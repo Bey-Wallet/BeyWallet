@@ -19,8 +19,6 @@ function palette(item: ConversationActivity) {
     return { background: '$buttonWarningSecondary', color: '$buttonWarningSecondaryText' } as const;
   if (item.direction === 'incoming')
     return { background: '$buttonDefaultSecondary', color: '$buttonDefaultSecondaryText' } as const;
-  if (item.kind === 'payment')
-    return { background: '$buttonBrandedSecondary', color: '$buttonBrandedSecondaryText' } as const;
   return { background: '$buttonBrandedPrimary', color: '$buttonBrandedPrimaryText' } as const;
 }
 

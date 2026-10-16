@@ -516,7 +516,7 @@ describe('People conversations and invitations', () => {
     expect(JSON.stringify(tree!.toJSON())).toContain('100,000 SATS');
   });
 
-  it('uses branded secondary for sent payments and branded primary for sent text with equal corners', async () => {
+  it('uses branded primary for sent payments and text with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [
       {
@@ -554,7 +554,9 @@ describe('People conversations and invitations', () => {
     expect(text.props.rounded).toBe(16);
     expect(text.props.borderBottomRightRadius).toBeUndefined();
     expect(text.props.borderBottomLeftRadius).toBeUndefined();
-    expect(cards.some((node) => node.props.bg === '$buttonBrandedSecondary')).toBe(true);
+    expect(
+      cards.find((node) => node.props.accessibilityLabel?.startsWith('Ecash,'))?.props.bg,
+    ).toBe('$buttonBrandedPrimary');
     expect(
       cards.some(
         (node) =>
@@ -745,8 +747,8 @@ describe('People conversations and invitations', () => {
     await act(async () => card.props.onPress());
     await act(async () =>
       tree!.root
-        .findAllByType('AppButton' as any)
-        .find((node) => node.props.children === 'Review payment')!
+        .findAllByType(ListTableRow)
+        .find((node) => node.props.label === 'Review payment')!
         .props.onPress(),
     );
     expect(useWalletStore.getState().setScannerResult).toHaveBeenCalledWith(

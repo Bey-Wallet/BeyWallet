@@ -102,6 +102,19 @@ notifications, and complete payment flows.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
 
+## Request visibility and receipts
+
+- [ ] Send a request to a contact: its card appears immediately, shows Sending, then Awaiting payment. Verify offline failure and retry preserve one card and request ID.
+- [ ] Receive both kind 4 and gift-wrap copies of one request: only one request card and Pay action appear.
+- [ ] Pay, then close the payment screen before redemption: the request card shows Awaiting claim, then Paid after proof confirmation; Pay stays hidden throughout.
+- [ ] Force-stop and reopen both wallets during payment. Confirm persisted cards recover and the existing operation is reused rather than paying twice.
+- [ ] Test delivery failure followed by Retry delivery from request details after restart. Confirm the same encrypted event and operation are used.
+- [ ] Test two requests with the same amount and mint: paying one must not complete the other. A mismatched explicit response ID must never use amount fallback.
+- [ ] Test a mint with input fees: a response covering receiver fees must complete the correct request after successful redemption.
+- [ ] Verify requester Received follows successful claiming; contact acceptance and mint approval remain separate waiting states. Test blocking and biometric locking before retry.
+- [ ] Cancel a request, reopen it, and Check status: it must never report receipt success because it disappeared from the pending list.
+- [ ] Repeat the request/payment cycle Bey↔Bey and Bey↔Minibits with reconnects, large text, and both themes. These device checks remain required.
+
 ## Diagnostics and repair
 
 - [ ] Confirm a healthy identity reports matching NIP-05, profile, inbox relays, and reachable relays.

@@ -427,23 +427,16 @@ class NostrClaimService {
     } catch {}
 
     try {
-      const { useNostrRequestStore } = require('~/state/nostrRequestStore');
-      await useNostrRequestStore.getState().loadPendingRequests();
-      const pending = useNostrRequestStore.getState().pendingRequests;
-      const match = pending.find(
-        (request: any) =>
-          request.state === 'pending' &&
-          ((item.requestId && request.id === item.requestId) ||
-            (Number(request.amount) === Number(item.amount) &&
-              normalizeMintUrl(request.mintUrl) === normalizeMintUrl(item.mintUrl))),
-      );
-      if (match) await useNostrRequestStore.getState().markReceived(match.id);
+      const { recordRequestReceipt } =
+        require('./requestLifecycleService') as typeof import('./requestLifecycleService');
+      await recordRequestReceipt({ ...item, status: 'claimed' });
     } catch {}
 
     await historyService.tagHistoryVia(item.mintUrl, 'receive', 'nostr', {
       nostrPubkey: toNpub(item.senderPubkey),
       nostrUsername: item.senderUsername?.replace(/@bey\.cash$/i, ''),
       nostrEventId: item.id,
+      requestId: item.requestId,
     });
 
     try {

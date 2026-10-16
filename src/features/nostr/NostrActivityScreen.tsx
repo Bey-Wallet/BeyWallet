@@ -31,6 +31,7 @@ import {
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
+import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';
 import { usePeopleStore } from '~/state/peopleStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/wallet';
@@ -171,16 +172,18 @@ export default function NostrActivityModal() {
     gcTime: 5 * 60_000,
   });
 
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const unclaimed = useMemo(
     () =>
       items.filter(
         (i) =>
-          i.status === 'contact_required' ||
-          i.status === 'pending' ||
-          i.status === 'failed' ||
-          i.status === 'approval_required',
+          !findRequestPayment(i, requestPayments) &&
+          (i.status === 'contact_required' ||
+            i.status === 'pending' ||
+            i.status === 'failed' ||
+            i.status === 'approval_required'),
       ),
-    [items],
+    [items, requestPayments],
   );
 
   const claimed = useMemo(() => items.filter((i) => i.status === 'claimed'), [items]);

@@ -41,6 +41,7 @@ import { currencyService, type CurrencyCode } from '~/services/wallet/currencySe
 import { filterPersonHistory, type PersonHistoryEntry } from './personHistory';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { buildConversationActivity, type ConversationActivity } from './conversationActivity';
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { ConversationAvatar } from './components/ConversationAvatar';
 import { ConversationContactSheet } from './components/ConversationContactSheet';
 import { ConversationMessageSheet } from './components/ConversationMessageSheet';
@@ -179,6 +180,8 @@ export default function ConversationScreen() {
     };
   }, [npub, revision, limit, inbox]);
 
+  const requests = useNostrRequestStore((state) => state.requests);
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const activity = useMemo(() => {
     const byId = new Map([...queued, ...messages].map((message) => [message.id, message]));
     for (const message of recent) if (byId.has(message.id)) byId.set(message.id, message);
@@ -188,8 +191,9 @@ export default function ConversationScreen() {
       inbox,
       history as PersonHistoryEntry[],
       accepted,
+      { requests, payments: requestPayments },
     );
-  }, [npub, queued, messages, recent, inbox, history, accepted]);
+  }, [npub, queued, messages, recent, inbox, history, accepted, requests, requestPayments]);
   const visibleActivity = activity.slice(-limit);
   const moreActivity = hasMore || activity.length > limit;
   const incomingInvitation =
@@ -304,6 +308,7 @@ export default function ConversationScreen() {
   };
   const reviewRequest = (item: ConversationActivity) => {
     if (!accepted || blocked) return;
+    if (item.requestPayment) return;
     if (item.payment?.type === 'request') {
       router.push({
         pathname: '/(modals)/send',
@@ -323,6 +328,7 @@ export default function ConversationScreen() {
     }
   };
   const isPayableRequest = (item: ConversationActivity) =>
+    !item.requestPayment &&
     item.direction === 'incoming' &&
     ((item.payment?.type === 'request' &&
       !['claimed', 'dismissed', 'claiming'].includes(item.payment.status)) ||
@@ -331,12 +337,30 @@ export default function ConversationScreen() {
         !item.paymentInput.error));
   let actionLabel: string | undefined;
   let onAction: (() => void) | undefined;
-  if (selected?.message?.publication === 'failed' && !blocked) {
+  if (
+    selected?.requestPayment &&
+    !blocked &&
+    selected.requestPayment.state === 'pending' &&
+    !selected.requestPayment.published &&
+    selected.requestPayment.publication
+  ) {
+    actionLabel = 'Retry delivery';
+    onAction = () =>
+      void run(async () => {
+        const { retryRequestPayment } = await import('~/services/wallet/requestLifecycleService');
+        await retryRequestPayment(selected.requestPayment!.id);
+      });
+  } else if (
+    selected?.message?.publication === 'failed' &&
+    !blocked &&
+    !['Received', 'Expired', 'Cancelled'].includes(selected.status)
+  ) {
     actionLabel = 'Retry message';
     onAction = () => void run(() => nostrService.retryChat(selected.message!));
   } else if (
     selected?.payment &&
     !blocked &&
+    !selected.requestPayment &&
     selected.payment.status !== 'claimed' &&
     selected.payment.status !== 'dismissed'
   ) {
@@ -616,11 +640,16 @@ export default function ConversationScreen() {
                   blurOnSubmit={false}
                 />
                 <AppIconButton
-                  variant="default"
-                  emphasis="secondary"
+                  variant="branded"
+                  emphasis="primary"
+                  size="small"
+                  shape="circular"
+                  mb={2}
                   accessibilityLabel="Send message"
-                  icon={ArrowUp}
-                  disabled={!text.trim() || queueing}
+                  icon={({ color }) => <ArrowUp size={20} color={color} />}
+                  loading={queueing}
+                  loadingText="Sending message"
+                  disabled={!text.trim() || queueing || blocked}
                   onPress={send}
                 />
               </XStack>

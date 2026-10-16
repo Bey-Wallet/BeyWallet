@@ -48,6 +48,7 @@ export interface NostrInboxItem {
   senderPubkey: string;
   senderUsername?: string; // Resolved from bey.cash directory
   requestId?: string; // Optional Cashu payment-request correlation ID
+  unit?: string; // Legacy inbox records default to sat.
   receivedAt: number;
   status: NostrInboxStatus;
   error?: string;

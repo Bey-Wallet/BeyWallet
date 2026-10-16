@@ -20,17 +20,19 @@ export interface ChatMessage {
   paymentId?: string;
   paymentAmount?: number;
   paymentType?: 'token' | 'request';
+  requestId?: string;
 }
 
 type MessageRow = Omit<
   ChatMessage,
-  'read' | 'envelopes' | 'paymentId' | 'paymentAmount' | 'paymentType'
+  'read' | 'envelopes' | 'paymentId' | 'paymentAmount' | 'paymentType' | 'requestId'
 > & {
   read: number;
   envelopes: string | null;
   paymentId: string | null;
   paymentAmount: number | null;
   paymentType: ChatMessage['paymentType'] | null;
+  requestId: string | null;
 };
 const decode = (row: MessageRow): ChatMessage => ({
   ...row,
@@ -39,6 +41,7 @@ const decode = (row: MessageRow): ChatMessage => ({
   paymentId: row.paymentId ?? undefined,
   paymentAmount: row.paymentAmount ?? undefined,
   paymentType: row.paymentType ?? undefined,
+  requestId: row.requestId ?? undefined,
 });
 
 export class MessageRepository {
@@ -47,8 +50,8 @@ export class MessageRepository {
   async insert(message: ChatMessage): Promise<void> {
     await this.db.run(
       `INSERT OR IGNORE INTO bey_messages
-      (id, conversation, direction, createdAt, receivedAt, text, read, publication, transport, envelopes, paymentId, paymentAmount, paymentType)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, conversation, direction, createdAt, receivedAt, text, read, publication, transport, envelopes, paymentId, paymentAmount, paymentType, requestId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         message.id,
         message.conversation,
@@ -63,6 +66,7 @@ export class MessageRepository {
         message.paymentId ?? null,
         message.paymentAmount ?? null,
         message.paymentType ?? null,
+        message.requestId ?? null,
       ],
     );
   }
@@ -73,6 +77,14 @@ export class MessageRepository {
       [conversation, offset],
     );
     return rows.map(decode);
+  }
+
+  async findRequest(conversation: string, requestId: string): Promise<ChatMessage | undefined> {
+    const rows = await this.db.all<MessageRow>(
+      'SELECT * FROM bey_messages WHERE conversation = ? AND requestId = ? LIMIT 1',
+      [conversation, requestId],
+    );
+    return rows[0] ? decode(rows[0]) : undefined;
   }
 
   async recent(): Promise<ChatMessage[]> {

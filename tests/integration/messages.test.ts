@@ -24,6 +24,8 @@ describe('persistent message repository', () => {
         "CREATE TABLE legacy_test (value TEXT); INSERT INTO legacy_test VALUES ('preserved');",
       );
       raw.exec(MIGRATIONS.find((migration) => migration.id === '016_messages')!.sql);
+      raw.exec(MIGRATIONS.find((migration) => migration.id === '015_nostr_receive_requests')!.sql);
+      raw.exec(MIGRATIONS.find((migration) => migration.id === '017_request_lifecycle')!.sql);
       let repo = new MessageRepository(db as any);
       const message: ChatMessage = {
         id: 'logical-1',

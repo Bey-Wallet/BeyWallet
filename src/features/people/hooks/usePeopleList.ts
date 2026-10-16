@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePeopleStore } from '~/state/peopleStore';
 import { useMessageStore } from '~/state/messageStore';
 import { useNostrInboxStore } from '~/state/nostrInboxStore';
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { historyService } from '~/services/wallet/historyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -34,6 +35,8 @@ export function usePeopleList(search: string) {
   const messages = useMessageStore((state) => state.recent);
   const unread = useMessageStore((state) => state.unread);
   const inbox = useNostrInboxStore((state) => state.items);
+  const requests = useNostrRequestStore((state) => state.requests);
+  const requestPayments = useNostrRequestStore((state) => state.payments);
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
   const remote = useNostrProfileSearch(search);
   const history = useQuery({
@@ -82,8 +85,21 @@ export function usePeopleList(search: string) {
         query: search,
         remote: remote.results,
         formatAmount,
+        requests,
+        requestPayments,
       }),
-    [people, messages, inbox, unread, history.data, search, remote.results, formatAmount],
+    [
+      people,
+      messages,
+      inbox,
+      unread,
+      history.data,
+      search,
+      remote.results,
+      formatAmount,
+      requests,
+      requestPayments,
+    ],
   );
   const refresh = async () => {
     if (refreshingRef.current) return;

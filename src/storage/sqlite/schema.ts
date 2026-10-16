@@ -391,6 +391,24 @@ const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_bey_messages_conversation ON bey_messages(conversation, createdAt DESC, id DESC);
     `,
   },
+  {
+    id: '017_request_lifecycle',
+    sql: `
+      ALTER TABLE coco_cashu_nostr_receive_requests ADD COLUMN recipient TEXT;
+      ALTER TABLE bey_messages ADD COLUMN requestId TEXT;
+      CREATE INDEX idx_bey_messages_request ON bey_messages(conversation, requestId);
+      CREATE TABLE bey_request_payments (
+        id TEXT PRIMARY KEY NOT NULL,
+        requestId TEXT,
+        conversation TEXT,
+        inboxId TEXT,
+        operationId TEXT UNIQUE,
+        state TEXT NOT NULL CHECK (state IN ('preparing', 'pending', 'paid', 'rolled_back')),
+        publication TEXT,
+        published INTEGER NOT NULL DEFAULT 0
+      );
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

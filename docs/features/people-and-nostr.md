@@ -190,6 +190,24 @@ Automated checks include actual SQLite restart/pagination, authenticated transpo
 Real Bey↔Bey and Bey↔Minibits message/payment tests remain required before declaring interoperability
 complete. Follow `docs/testing/nostr-people-checklist.md` for native verification.
 
+## Request lifecycle
+
+Addressed ecash requests are saved as conversation cards before relay publication. A card shows
+Sending, Send failed (with retry), or Awaiting payment. Retry reuses the request ID and saved
+encrypted events. Generic QR/copy requests remain outside conversations until addressed.
+
+Incoming requests retain their NUT-18 ID. Paying persists a link to the Coco send operation before
+delivery. The wallet tracks completion after the payment screen closes and reconciles on startup,
+foreground, and relay refresh. Awaiting claim means publication succeeded; Paid requires Coco to
+confirm the payment proofs spent. An unresolved operation suppresses Pay; failed encrypted delivery
+can be retried from payment details without creating another operation. Reclaimed is separate from Paid.
+
+On the requester side, Received requires a successful claim. Responses waiting for contact acceptance
+or mint approval remain waiting. Explicit response IDs never fall back to a different same-amount
+request; ID-less legacy responses must have exactly one matching amount, mint, unit, and known payer.
+Terminal requests survive reload, and local age alone does not expire a request. Old unlinked
+records are not guessed into conversations or marked paid from their amount alone.
+
 ## Diagnostics
 
 Nostr Settings links to a diagnostics screen that checks these concerns independently:

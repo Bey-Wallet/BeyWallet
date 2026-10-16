@@ -1,5 +1,7 @@
 import type { NostrInboxItem } from '~/state/nostrInboxStore';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
+import type { NostrReceiveRequest, RequestPayment } from '~/state/nostrRequestStore';
+import { findRequestPayment } from '~/state/nostrRequestStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import {
   conversationPaymentInput,
@@ -26,6 +28,7 @@ interface ConversationActivityBase {
   history?: PersonHistoryEntry;
   mintUrl?: string;
   paymentInput?: ConversationPaymentInput;
+  requestPayment?: RequestPayment;
 }
 
 export type ConversationActivity = ConversationActivityBase &
@@ -37,6 +40,10 @@ export function buildConversationActivity(
   inbox: NostrInboxItem[],
   history: PersonHistoryEntry[],
   accepted: boolean,
+  lifecycle: { requests: NostrReceiveRequest[]; payments: RequestPayment[] } = {
+    requests: [],
+    payments: [],
+  },
 ): ConversationActivity[] {
   const payments = inbox.filter((item) => normalizeNpub(item.senderPubkey) === npub);
   const paymentIds = new Set([
@@ -128,10 +135,70 @@ export function buildConversationActivity(
         history: entry,
       };
     }),
-  ].sort(
-    (a, b) =>
-      a.time - b.time ||
-      (a.message?.receivedAt ?? a.time) - (b.message?.receivedAt ?? b.time) ||
-      a.id.localeCompare(b.id),
-  );
+  ]
+    .map((activity): ConversationActivity => {
+      if (activity.message?.paymentType === 'request' && activity.message.requestId) {
+        const request = lifecycle.requests.find(
+          (request) => request.id === activity.message!.requestId,
+        );
+        const response =
+          request &&
+          inbox.find(
+            (item) =>
+              item.type !== 'request' &&
+              item.requestId === request.id &&
+              normalizeNpub(item.senderPubkey) === npub,
+          );
+        const status =
+          request?.state === 'received'
+            ? 'Received'
+            : request?.state === 'cancelled'
+              ? 'Cancelled'
+              : request?.state === 'expired'
+                ? 'Expired'
+                : activity.message.publication === 'sending'
+                  ? 'Sending'
+                  : activity.message.publication === 'failed'
+                    ? 'Send failed'
+                    : response?.status === 'contact_required'
+                      ? 'Pending contact acceptance'
+                      : response?.status === 'approval_required'
+                        ? 'Mint approval needed'
+                        : response?.status === 'claiming'
+                          ? 'Receiving'
+                          : response?.status === 'failed'
+                            ? 'Claim failed'
+                            : 'Awaiting payment';
+        return { ...activity, status, mintUrl: request?.mintUrl };
+      }
+      if (activity.payment?.type === 'request') {
+        const item = activity.payment;
+        const payment = findRequestPayment(item, lifecycle.payments);
+        if (payment)
+          return {
+            ...activity,
+            requestPayment: payment,
+            requiresAction: false,
+            status:
+              payment.state === 'paid'
+                ? 'Paid'
+                : payment.state === 'rolled_back'
+                  ? 'Reclaimed'
+                  : payment.state === 'preparing'
+                    ? 'Preparing payment'
+                    : payment.published
+                      ? 'Awaiting claim'
+                      : 'Delivery unconfirmed',
+          };
+        if (item.status === 'claimed')
+          return { ...activity, status: 'Paid', requiresAction: false };
+      }
+      return activity;
+    })
+    .sort(
+      (a, b) =>
+        a.time - b.time ||
+        (a.message?.receivedAt ?? a.time) - (b.message?.receivedAt ?? b.time) ||
+        a.id.localeCompare(b.id),
+    );
 }

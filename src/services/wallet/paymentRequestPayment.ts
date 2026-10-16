@@ -11,6 +11,16 @@ import {
 } from './paymentRequestPublisher';
 import { resolveNostrRecipient } from './nostrService';
 import { seedService } from '~/services/platform/seedService';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { useNostrRequestStore, type RequestPayment } from '~/state/nostrRequestStore';
+import { normalizeNpub } from '~/shared/utils/nostr';
+
+export function requestPaymentKey(request: ParsedPaymentRequest): string {
+  const target = request.nostrTarget ? normalizeNpub(request.nostrTarget) : 'nfc';
+  return bytesToHex(sha256(new TextEncoder().encode(`${target}:${request.id || request.raw}`)));
+}
+const activePayments = new Set<string>();
 
 export interface PaymentRequestCost {
   mintUrl: string;
@@ -98,12 +108,17 @@ export class PaymentRequestPayment {
   constructor(
     readonly request: ParsedPaymentRequest,
     readonly cost: PaymentRequestCost,
+    readonly inboxId?: string,
   ) {}
 
   async deliver(writeNfc?: (token: string) => Promise<void>, onPublishing?: () => void) {
+    const key = requestPaymentKey(this.request);
     if (this.busy) return;
+    if (activePayments.has(key)) throw new Error('This request already has a payment in progress.');
     this.busy = true;
+    activePayments.add(key);
     let stage = 'validation';
+    let saved: RequestPayment | undefined;
     try {
       let privateKey: string | undefined;
       if (this.request.delivery === 'nip17') {
@@ -126,6 +141,33 @@ export class PaymentRequestPayment {
         // Validate both curve keys before any proof reservation or token creation.
         nip44.v2.utils.getConversationKey(hexToBytes(privateKey), recipient.pubkey);
       }
+      await useNostrRequestStore.getState().loadPendingRequests();
+      saved = useNostrRequestStore.getState().payments.find((payment) => payment.id === key);
+      if (saved?.state === 'paid' || saved?.state === 'rolled_back')
+        throw new Error(
+          saved.state === 'paid'
+            ? 'This request has already been paid.'
+            : 'This payment was reclaimed. Check History.',
+        );
+      if (saved && !this.operationId) {
+        this.operationId = saved.operationId;
+        this.started = true;
+        if (!saved.publication || !saved.operationId)
+          throw new Error('Existing payment is unresolved. Check History before continuing.');
+        // A restart can retry the saved encrypted delivery without restoring plaintext proofs.
+        this.publication = saved.publication;
+        const { initService } = require('./initService') as typeof import('./initService');
+        const operation = await initService.getManager().send.getOperation(saved.operationId);
+        if (operation?.state !== 'pending')
+          throw new Error('Existing payment is unresolved. Check History before continuing.');
+        stage = 'relay_publication';
+        this.publicationState = 'publishing';
+        onPublishing?.();
+        await publishPaymentRequest(this.publication);
+        this.publicationState = 'published';
+        await useNostrRequestStore.getState().savePayment({ ...saved, published: true });
+        return;
+      }
       if (!this.token) {
         if (this.started)
           throw new Error('Existing payment is unresolved. Check History before continuing.');
@@ -140,10 +182,23 @@ export class PaymentRequestPayment {
         }
         const { initService } = require('./initService') as typeof import('./initService');
         const manager = initService.getManager();
+        saved = {
+          id: key,
+          requestId: this.request.id,
+          inboxId: this.inboxId,
+          conversation: this.request.nostrTarget
+            ? normalizeNpub(this.request.nostrTarget)
+            : undefined,
+          state: 'preparing',
+          published: false,
+        };
+        await useNostrRequestStore.getState().savePayment(saved);
         this.started = true;
         stage = 'preparation';
         const operation = await manager.send.prepareSend(this.cost.mintUrl, this.cost.grossAmount);
         this.operationId = operation.id;
+        saved = { ...saved, operationId: operation.id };
+        await useNostrRequestStore.getState().savePayment(saved);
         if (operation.fee !== this.cost.senderFee) {
           await manager.send.rollback(operation.id);
           throw new Error('Payment fees changed. Review the amount again before paying.');
@@ -151,6 +206,8 @@ export class PaymentRequestPayment {
         stage = 'execution';
         const result = await manager.send.executePreparedSend(operation.id);
         this.token = result.token;
+        saved = { ...saved, state: 'pending' };
+        await useNostrRequestStore.getState().savePayment(saved);
       }
       // Retry post-execution work with the saved token, never reserve another payment.
       if (!this.deliverable) {
@@ -181,6 +238,10 @@ export class PaymentRequestPayment {
         );
       }
       if (!this.deliverable) throw new Error('Existing payment is unresolved. Check History.');
+      if (saved) {
+        saved = { ...saved, publication: this.publication };
+        await useNostrRequestStore.getState().savePayment(saved);
+      }
       if (this.request.delivery === 'nip17') {
         if (!this.publication)
           throw new Error('Existing payment delivery is unresolved. Check History.');
@@ -203,6 +264,7 @@ export class PaymentRequestPayment {
         stage = 'nfc_write';
         await writeNfc!(this.encoded!);
       }
+      if (saved) await useNostrRequestStore.getState().savePayment({ ...saved, published: true });
       this.failureMessage = undefined;
     } catch (error) {
       if (stage === 'relay_publication') this.publicationState = 'unconfirmed';
@@ -224,16 +286,19 @@ export class PaymentRequestPayment {
       throw error;
     } finally {
       this.busy = false;
+      activePayments.delete(key);
     }
   }
 
   async refresh(): Promise<boolean> {
-    if (!this.token || !this.operationId) return false;
+    if (!this.operationId) return false;
     const { initService } = require('./initService') as typeof import('./initService');
     const manager = initService.getManager();
-    const wallet = await wallets(manager).getWallet(this.cost.mintUrl);
-    const states = await wallet.checkProofsStates(this.token.proofs);
-    if (!areAllPaymentProofsSpent(states, this.token.proofs.length)) return false;
+    if (this.token) {
+      const wallet = await wallets(manager).getWallet(this.cost.mintUrl);
+      const states = await wallet.checkProofsStates(this.token.proofs);
+      if (!areAllPaymentProofsSpent(states, this.token.proofs.length)) return false;
+    }
     const operation = await manager.send.getOperation(this.operationId);
     if (operation?.state === 'finalized') return true;
     if (operation?.state !== 'pending') return false;

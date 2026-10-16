@@ -27,7 +27,10 @@ import {
   PaymentRequestPayment,
   previewPaymentRequest,
   type PaymentRequestCost,
+  requestPaymentKey,
 } from '~/services/wallet/paymentRequestPayment';
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
+import { requestLifecycleService } from '~/services/wallet/requestLifecycleService';
 import Blockies from '~/shared/ui/Blockies';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -65,6 +68,11 @@ export function PaymentRequestStage({
   const [selectedMintUrl, setSelectedMintUrl] = useState<string | null>(null);
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const paymentRef = useRef<PaymentRequestPayment | null>(null);
+  const requestKey = requestPaymentKey(request);
+  const savedPayment = useNostrRequestStore((state) =>
+    state.payments.find((payment) => payment.id === requestKey),
+  );
+  const completed = useRef(false);
   const actionLock = useRef(false);
   const automaticPaymentStarted = useRef(false);
   const [cost, setCost] = useState<PaymentRequestCost | null>(null);
@@ -184,7 +192,7 @@ export function PaymentRequestStage({
     setLocalError(null);
 
     try {
-      paymentRef.current ??= new PaymentRequestPayment(request, cost!);
+      paymentRef.current ??= new PaymentRequestPayment(request, cost!, inboxItemId);
       await paymentRef.current.deliver(writeNfc);
       setReceipt('awaiting');
       toast.show('Payment sent; awaiting receipt', { kind: 'info' });
@@ -204,20 +212,16 @@ export function PaymentRequestStage({
   };
 
   const refreshReceipt = async (manual = false) => {
-    if (actionLock.current || !paymentRef.current) return;
+    if (actionLock.current) return;
     actionLock.current = true;
     if (manual) setIsRefreshingReceipt(true);
     try {
-      const payment = paymentRef.current;
-      if (await payment.refresh()) {
-        if (!mounted.current) return;
-        if (inboxItemId) {
-          const { useNostrInboxStore } = await import('~/state/nostrInboxStore');
-          useNostrInboxStore.getState().markClaimed(inboxItemId);
-        }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onSuccess(amountSats, payment.operationId!, payment.encoded!);
-      } else if (manual) {
+      await requestLifecycleService.reconcile();
+      if (
+        useNostrRequestStore.getState().payments.find((payment) => payment.id === requestKey)
+          ?.state !== 'paid' &&
+        manual
+      ) {
         toast.show('Receipt has not been confirmed yet.', { kind: 'info' });
       }
     } catch {
@@ -242,18 +246,16 @@ export function PaymentRequestStage({
   }, [autoPay, cost, isCompatible, isEnough]);
 
   useEffect(() => {
-    if (receipt !== 'awaiting') return;
-    const poll = setInterval(() => {
-      void refreshReceipt();
-    }, 3000);
-    const timeout = setTimeout(() => {
-      setReceipt('unconfirmed');
-    }, 60_000);
-    return () => {
-      clearInterval(poll);
-      clearTimeout(timeout);
-    };
-  }, [receipt]);
+    if (!savedPayment) return;
+    setHasOperation(true);
+    if (savedPayment.state === 'paid' && savedPayment.operationId && !completed.current) {
+      completed.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSuccess(amountSats, savedPayment.operationId, paymentRef.current?.encoded || '');
+    } else if (savedPayment.state === 'rolled_back') {
+      setLocalError('This payment was reclaimed. Check History.');
+    } else setReceipt(savedPayment.published ? 'awaiting' : 'unconfirmed');
+  }, [savedPayment, amountSats, onSuccess]);
 
   const truncateTarget = (s?: string) => {
     if (!s) return undefined;

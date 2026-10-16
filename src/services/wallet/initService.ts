@@ -315,6 +315,8 @@ async function initializeWithMnemonic(
     // Deferred import keeps claim orchestration below the wallet lifecycle boundary.
     const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
     nostrClaimService.start(privkey);
+    const { requestLifecycleService } = await import('./requestLifecycleService');
+    requestLifecycleService.start(manager);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -388,6 +390,9 @@ export const initService = {
    * Useful for background syncs where we just need to refresh proof/counter state.
    */
   reinitFast: async (): Promise<Manager> => {
+    const { requestLifecycleService: previousRequestLifecycle } =
+      await import('./requestLifecycleService');
+    previousRequestLifecycle.stop();
     console.log('[InitService] Performing fast-path re-initialization...');
     const mnemonic = await seedService.getMnemonic();
     if (!mnemonic) throw new Error('No mnemonic found');
@@ -440,6 +445,8 @@ export const initService = {
     nostrService.start(privkey, pubkey, nip05 || undefined);
     const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
     nostrClaimService.start(privkey);
+    const { requestLifecycleService } = await import('./requestLifecycleService');
+    requestLifecycleService.start(manager);
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -493,6 +500,10 @@ export const initService = {
    * Properly cleanup watchers and reset state.
    */
   cleanup: async (): Promise<void> => {
+    const { requestLifecycleService } = await import('./requestLifecycleService');
+    requestLifecycleService.stop();
+    const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+    useNostrRequestStore.getState().clear();
     nostrService.stop();
     const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
     nostrClaimService.stop();
@@ -517,6 +528,10 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
+    const { requestLifecycleService } = await import('./requestLifecycleService');
+    requestLifecycleService.stop();
+    const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+    useNostrRequestStore.getState().clear();
     nostrService.stop();
     const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
     nostrClaimService.stop();
