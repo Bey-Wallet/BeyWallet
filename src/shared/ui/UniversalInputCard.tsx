@@ -213,7 +213,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         borderWidth={1}
         items="center"
         borderColor={validationError ? '$red8' : '$gray4'}
-        bg="$gray2"
+        bg="$gray3"
       >
         <XStack justify="space-between" items="center" gap="$2" mb={compact ? 0 : '$2'}>
           {compact ? (

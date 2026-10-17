@@ -18,7 +18,6 @@ import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { ListTable } from '~/shared/ui/ListTable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
@@ -202,7 +201,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     return (
       <AppBottomSheet
         ref={sheetRef}
-        snapPoints={type === 'mint' ? ['60%'] : ['50%']}
+        snapPoints={type === 'mint' ? ['50%'] : ['45%']}
         backgroundColor="$background"
         onClose={() => {
           ++generation.current;
@@ -261,13 +260,15 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                 placeholder="Paste payment details"
                 onBeforeRedirect={dismiss}
               />
-              <ListTable>
+              <YStack gap="$3">
                 {options.map((option) => (
                   <AppPressable
                     key={option.label}
                     minHeight={64}
                     px="$4"
                     py="$3"
+                    bg="$gray3"
+                    rounded="$6"
                     flexDirection="row"
                     items="center"
                     gap="$3"
@@ -275,22 +276,17 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                     accessibilityHint={option.description}
                     accessibilityState={{ busy: pasting && !!option.paste }}
                     disabled={pasting}
-                    pressStyle={{ bg: '$gray3' }}
+                    pressStyle={{ bg: '$gray4', opacity: 0.85 }}
                     onPress={() => void handleOption(option)}
                   >
                     <option.icon size={20} color="$color" />
-                    <YStack flex={1} gap="$1">
-                      <Text fontSize="$5" fontWeight="500" color="$color">
-                        {pasting && option.paste ? 'Reading clipboard…' : option.label}
-                      </Text>
-                      <Text fontSize="$3" color="$gray10">
-                        {option.description}
-                      </Text>
-                    </YStack>
+                    <Text flex={1} fontSize="$5" fontWeight="700" color="$color">
+                      {pasting && option.paste ? 'Reading clipboard…' : option.label}
+                    </Text>
                     <ChevronRight size={18} color="$gray10" />
                   </AppPressable>
                 ))}
-              </ListTable>
+              </YStack>
             </YStack>
           </BottomSheetScrollView>
         </YStack>

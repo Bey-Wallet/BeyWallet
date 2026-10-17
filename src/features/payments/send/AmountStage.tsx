@@ -236,11 +236,11 @@ export function AmountStage({
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
             {error || isOverBalance ? (
-              <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
+              <Text color="$red10" fontSize="$3" fontWeight="400" text="center">
                 {error || 'Exceeds available balance'}
               </Text>
             ) : (
-              <Text color="$gray10" fontSize="$3" fontWeight="500">
+              <Text color="$gray10" fontSize="$3" fontWeight="400">
                 How much to send?
               </Text>
             )}
@@ -265,7 +265,7 @@ export function AmountStage({
               justify="center"
               gap={8}
             >
-              <Text color="$color" fontSize="$3" fontWeight="600">
+              <Text color="$color" fontSize="$3" fontWeight="400">
                 {conversionValue}
               </Text>
               <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />

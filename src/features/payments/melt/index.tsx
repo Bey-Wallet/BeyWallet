@@ -19,6 +19,7 @@ import { OnchainMeltFlow } from '~/features/payments/melt/OnchainMeltFlow';
 
 import {
   detectLightningInputType,
+  normalizeLightningInput,
   requestInvoiceFromLnurl,
   getLnurlPayParams,
 } from '~/services/api/lnurlService';
@@ -92,12 +93,13 @@ export default function MeltScreen() {
   const mints = useWalletStore((s) => s.mints);
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
-  // Auto-fetch quote for bolt11 invoice to display its amount immediately
+  // Fixed invoices go straight to review once their mint quote is ready.
   useEffect(() => {
     const generation = ++quoteGeneration.current;
     const reviewing = stepRef.current === 'confirm';
     const previousInvoice = resolvedInvoice;
     setIsGettingQuote(false);
+    setError(null);
     setQuoteId(null);
     if (!reviewing) setQuoteAmount(0);
     setFeeReserve(0);
@@ -105,40 +107,67 @@ export default function MeltScreen() {
     if (!reviewing) setStep('invoice');
     const old = paymentRef.current;
     paymentRef.current = null;
-    const release = old?.dispose() ?? Promise.resolve();
-    const cleaned = invoice.trim();
+    const release = old
+      ? old.dispose().then(
+          () => true,
+          () => false,
+        )
+      : Promise.resolve(true);
+    const inputType = detectLightningInputType(invoice);
+    const cleaned = inputType === 'unknown' ? invoice.trim() : normalizeLightningInput(invoice);
     if (!cleaned) {
       setLnAddressAmount('0');
       return;
     }
 
-    const inputType = detectLightningInputType(cleaned);
     const previewInvoice = inputType === 'bolt11' ? cleaned : reviewing ? previousInvoice : null;
+    if (inputType === 'bolt11') setLnAddress(null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (previewInvoice && activeMintUrl) {
       setIsGettingQuote(true);
       setError(null);
-      release
-        .then(() => {
-          if (generation !== quoteGeneration.current) throw new Error('Invoice changed');
-          return paymentFor(activeMintUrl, previewInvoice).preview();
-        })
-        .then((quote) => {
-          if (generation !== quoteGeneration.current) return;
-          console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
-          setQuoteAmount(quote.amount);
-          setFeeReserve(quote.fee_reserve);
-          setQuoteId(quote.quote);
-          setLnAddressAmount(quote.amount.toString());
-        })
-        .catch((err) => {
-          if (generation !== quoteGeneration.current) return;
-          setError(err.message || 'Failed to parse invoice amount');
-        })
-        .finally(() => {
-          if (generation === quoteGeneration.current) setIsGettingQuote(false);
-        });
+      let payment: LightningPayment | undefined;
+      // Avoid preparing a replacement operation for every character while typing.
+      timer = setTimeout(() => {
+        release
+          .then(async (released) => {
+            if (generation !== quoteGeneration.current) throw new Error('Invoice changed');
+            if (!released) throw new Error('Could not release the previous payment. Try again.');
+            if (await networkService.isOffline())
+              throw new Error('You are offline. Please check your internet connection.');
+            if (generation !== quoteGeneration.current) throw new Error('Invoice changed');
+            payment = paymentFor(activeMintUrl, previewInvoice);
+            return payment.preview();
+          })
+          .then((quote) => {
+            if (generation !== quoteGeneration.current) return;
+            if (quote.expiry && quote.expiry <= Date.now() / 1000)
+              throw new Error('Invoice or quote expired. Ask for a new invoice.');
+            if (!Number.isFinite(quote.amount) || quote.amount <= 0)
+              throw new Error(
+                'This invoice needs a payable amount. Ask for an invoice with an amount.',
+              );
+            console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
+            setQuoteAmount(quote.amount);
+            setFeeReserve(quote.fee_reserve);
+            setQuoteId(quote.quote);
+            setLnAddressAmount(quote.amount.toString());
+            setStep('confirm');
+          })
+          .catch(async (err) => {
+            if (generation !== quoteGeneration.current) return;
+            await payment?.dispose().catch(() => {});
+            if (generation !== quoteGeneration.current) return;
+            if (paymentRef.current === payment) paymentRef.current = null;
+            setError(err.message || 'Failed to parse invoice amount');
+          })
+          .finally(() => {
+            if (generation === quoteGeneration.current) setIsGettingQuote(false);
+          });
+      }, 300);
     }
     return () => {
+      clearTimeout(timer);
       ++quoteGeneration.current;
     };
   }, [invoice, activeMintUrl]);
@@ -194,13 +223,14 @@ export default function MeltScreen() {
         return;
       }
 
-      const cleaned = invoice.trim();
+      let cleaned = invoice.trim();
       if (!cleaned) {
         setError('Please enter a Lightning invoice or address');
         return;
       }
 
       const inputType = detectLightningInputType(cleaned);
+      if (inputType !== 'unknown') cleaned = normalizeLightningInput(cleaned);
       console.log('[MeltScreen] Input type:', inputType);
 
       if (inputType === 'bolt11') {
@@ -317,9 +347,18 @@ export default function MeltScreen() {
           setQuoteId(null);
           throw new Error('Quote expired. Continue again to review a fresh quote.');
         }
+        if (!Number.isFinite(quote.amount) || quote.amount <= 0) {
+          await payment.dispose();
+          paymentRef.current = null;
+          setQuoteId(null);
+          throw new Error(
+            'This invoice needs a payable amount. Ask for an invoice with an amount.',
+          );
+        }
         setQuoteAmount(quote.amount);
         setFeeReserve(quote.fee_reserve);
         setQuoteId(quote.quote);
+        setStep('confirm');
 
         // Check balance sufficiency
         if (quote.amount + quote.fee_reserve > balance) {
@@ -429,7 +468,7 @@ export default function MeltScreen() {
             setInvoice={setInvoice}
             onContinue={handleInvoiceContinue}
             balance={balance}
-            isLoading={isResolvingAddress || isManualQuote}
+            isLoading={isResolvingAddress || isManualQuote || isGettingQuote}
             disabled={isGettingQuote || isManualQuote}
             error={error}
           />
@@ -443,8 +482,11 @@ export default function MeltScreen() {
             title="Confirm payment"
             disabled={isPaying || isAuthenticating}
             onBack={async () => {
+              ++quoteGeneration.current;
               await paymentRef.current?.dispose();
               paymentRef.current = null;
+              setQuoteId(null);
+              setIsGettingQuote(false);
               setStep('invoice');
             }}
           />
@@ -483,7 +525,12 @@ export default function MeltScreen() {
               <ListTableRow label="Maximum total" value={currencyService.formatSats(totalCost)} />
               {lnAddress && <ListTableRow label="Recipient" value={lnAddress} />}
             </ListTable>
-            {totalCost > balance && (
+            {error && (
+              <Text color="$red10" p="$3">
+                {error}
+              </Text>
+            )}
+            {totalCost > balance && !error && (
               <Text color="$red10" p="$3">
                 Insufficient balance ({balance} sats available)
               </Text>
