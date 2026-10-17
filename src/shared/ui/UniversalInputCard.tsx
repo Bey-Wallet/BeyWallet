@@ -31,6 +31,8 @@ export interface UniversalInputCardRef {
 }
 
 export interface UniversalInputCardProps {
+  compact?: boolean;
+  label?: string;
   placeholder?: string;
   onBeforeRedirect?: () => void;
   onResolved?: (result: UniversalInputResult) => void;
@@ -42,6 +44,8 @@ export interface UniversalInputCardProps {
 export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInputCardProps>(
   (
     {
+      compact = false,
+      label = 'Enter Token, Address or Username',
       placeholder = 'Paste or type Cashu token, LN invoice/address, Bitcoin address, Npub, or username...',
       onBeforeRedirect,
       onResolved,
@@ -176,28 +180,58 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
 
     const badge = showBadge && detectedType ? getTypeBadge(detectedType) : null;
 
+    const input = (
+      <Input
+        ref={inputRef}
+        accessibilityLabel={label}
+        onChangeText={handleInputChange}
+        placeholder={placeholder}
+        bg="transparent"
+        borderWidth={0}
+        fontSize={compact ? '$3' : '$4'}
+        color="$color"
+        p={0}
+        flex={1}
+        minWidth={0}
+        textAlignVertical={compact ? 'center' : 'top'}
+        placeholderTextColor="$gray8"
+        multiline={!compact}
+        numberOfLines={compact ? 1 : 3}
+        style={{ padding: 0 }}
+        height={compact ? 40 : height}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoFocus={autoFocus}
+      />
+    );
+
     return (
       <YStack
-        rounded="$5"
-        p="$3"
-        minHeight={120}
+        rounded="$6"
+        p={compact ? '$2' : '$3'}
+        minHeight={compact ? 64 : 120}
         borderWidth={1}
+        items="center"
         borderColor={validationError ? '$red8' : '$gray4'}
-        bg="$background"
+        bg="$gray2"
       >
-        <XStack justify="space-between" items="center" mb="$2">
-          <XStack gap="$2" items="center">
-            <Text color="$gray10" fontSize="$2" fontWeight="600">
-              Enter Token, Address or Username
-            </Text>
-            {badge && (
-              <XStack gap="$1" items="center" bg="$gray3" px="$2" py="$0.5" rounded="$3">
-                <Text color={badge.color} fontSize="$1" fontWeight="700">
-                  {badge.label}
-                </Text>
-              </XStack>
-            )}
-          </XStack>
+        <XStack justify="space-between" items="center" gap="$2" mb={compact ? 0 : '$2'}>
+          {compact ? (
+            input
+          ) : (
+            <XStack gap="$2" items="center">
+              <Text color="$gray10" fontSize="$2" fontWeight="600">
+                {label}
+              </Text>
+              {badge && (
+                <XStack gap="$1" items="center" bg="$gray3" px="$2" py="$0.5" rounded="$3">
+                  <Text color={badge.color} fontSize="$1" fontWeight="700">
+                    {badge.label}
+                  </Text>
+                </XStack>
+              )}
+            </XStack>
+          )}
           <XStack gap="$1.5" items="center">
             {hasText ? (
               <>
@@ -228,7 +262,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
             ) : (
               <AppButton
                 variant="default"
-                emphasis="secondary"
+                emphasis="tertiary"
                 size="xxsmall"
                 icon={<Clipboard size={12} />}
                 onPress={handlePaste}
@@ -238,26 +272,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
             )}
           </XStack>
         </XStack>
-        <Input
-          ref={inputRef}
-          onChangeText={handleInputChange}
-          placeholder={placeholder}
-          bg="transparent"
-          borderWidth={0}
-          fontSize="$4"
-          color="$color"
-          p={0}
-          flex={1}
-          textAlignVertical="top"
-          placeholderTextColor="$gray8"
-          multiline
-          numberOfLines={3}
-          style={{ padding: 0 }}
-          height={height}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus={autoFocus}
-        />
+        {!compact && input}
         {validationError && (
           <Text color="$red10" fontSize="$2" fontWeight="600" mt="$1.5" px="$1">
             {validationError}
