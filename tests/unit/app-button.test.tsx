@@ -54,17 +54,28 @@ it.each([{ disabled: true }, { loading: true }, { loading: true, disabled: true 
   },
 );
 
-it('shows the label alongside the loading spinner and restores aligned icons when loading ends', async () => {
+it('centers only the loader, preserves label geometry, and restores icons after loading', async () => {
   const Icon = () => null;
   const onPress = jest.fn();
   const tree = await render({ icon: Icon, iconAfter: Icon, loading: true, onPress });
   expect(tree.root.findByType('Text' as any).props.children).toBe('Submit example');
+  expect(tree.root.findByType('Text' as any).parent!.props).toMatchObject({
+    opacity: 0,
+    'aria-hidden': true,
+    accessibilityElementsHidden: true,
+  });
   expect(tree.root.findAllByType(Icon)).toHaveLength(0);
   expect(tree.root.findByType('Spinner' as any).props).toMatchObject({
     width: 20,
     height: 20,
   });
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(1);
+  expect(tree.root.findByType('Spinner' as any).parent!.props).toMatchObject({
+    position: 'absolute',
+    inset: 0,
+    items: 'center',
+    justify: 'center',
+  });
   await act(async () =>
     tree.update(
       <AppButton loading loadingText="Preparing…">
@@ -72,7 +83,7 @@ it('shows the label alongside the loading spinner and restores aligned icons whe
       </AppButton>,
     ),
   );
-  expect(tree.root.findByType('Text' as any).props.children).toBe('Preparing…');
+  expect(tree.root.findByType('Text' as any).props.children).toBe('Submit example');
   expect(tree.root.findByType('Button' as any).props.accessibilityLabel).toBe('Preparing…');
   await act(async () =>
     tree.update(
@@ -82,6 +93,7 @@ it('shows the label alongside the loading spinner and restores aligned icons whe
     ),
   );
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);
+  expect(tree.root.findByType('Text' as any).parent!.props.opacity).toBe(1);
   expect(tree.root.findAllByType(Icon)).toHaveLength(2);
   for (const icon of tree.root.findAllByType(Icon)) {
     expect(icon.parent!.props).toMatchObject({
