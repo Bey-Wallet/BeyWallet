@@ -1,3 +1,5 @@
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import React, { useMemo } from 'react';
@@ -11,6 +13,7 @@ import { currencyService, type CurrencyCode } from '~/services/wallet/currencySe
 import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
+  onMintChange?: (url: string) => void;
   amount: string;
   mintUrl: string;
   isLoading?: boolean;
@@ -18,7 +21,14 @@ interface ConfirmStageProps {
   onBack: () => void;
 }
 
-export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm }: ConfirmStageProps) {
+export function ConfirmStage({
+  amount,
+  mintUrl,
+  isLoading,
+  onConfirm,
+  onMintChange,
+  onBack,
+}: ConfirmStageProps) {
   const sats = parseInt(amount, 10) || 0;
   const { mints } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
@@ -59,6 +69,7 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm }: ConfirmS
 
   return (
     <YStack flex={1} bg="$background">
+      <PaymentFlowHeader title="Confirm top-up" onBack={onBack} disabled={isLoading} />
       <ScrollView
         flex={1}
         pointerEvents={isLoading ? 'none' : 'auto'}
@@ -96,7 +107,16 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm }: ConfirmS
           </YStack>
 
           <ListTable>
-            <ListTableRow label="Mint" value={mintDisplayName} />
+            {onMintChange ? (
+              <PaymentMintRow
+                method="mint-lightning"
+                mintUrl={mintUrl}
+                onSelect={onMintChange}
+                disabled={isLoading}
+              />
+            ) : (
+              <ListTableRow label="Mint" value={mintDisplayName} />
+            )}
             <ListTableRow label="Method" value="Lightning" />
             <ListTableRow label="Lightning fee" value="Set by paying wallet" />
           </ListTable>

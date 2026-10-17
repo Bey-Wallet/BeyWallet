@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentRequestStage } from '~/features/payments/send/PaymentRequestStage';
@@ -44,7 +45,7 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: () => ({
     balance: 100,
     activeMintUrl: 'https://mint.test',
-    mints: [{ mintUrl: 'https://mint.test', name: 'Mint' }],
+    mints: [{ mintUrl: 'https://mint.test', name: 'Mint', trusted: true }],
     balances: { 'https://mint.test': 100 },
     refreshMintList: jest.fn(),
   }),
@@ -56,6 +57,7 @@ jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: { price: 10
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: {
+    formatValue: () => '$0.01',
     convertSatsToCurrency: () => 0.01,
     formatSats: (value: number) => `${value} sats`,
   },

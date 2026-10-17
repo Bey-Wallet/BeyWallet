@@ -1,3 +1,8 @@
+jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'PaymentAmount' }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'ListTable',
+  ListTableRow: 'ListTableRow',
+}));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BackHandler } from 'react-native';

@@ -1,0 +1,179 @@
+import React from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { SendModalScreen } from '~/features/payments/send';
+import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
+
+const mockWallet = {
+  activeMintUrl: 'mint-a',
+  balance: 100,
+  balances: { 'mint-a': 100, 'mint-b': 10 },
+  mints: [
+    { mintUrl: 'mint-a', trusted: true },
+    { mintUrl: 'mint-b', trusted: true },
+  ],
+  refreshBalance: jest.fn(),
+};
+const mockParams = {};
+jest.mock('~/state/walletStore', () => ({
+  useWalletStore: (select: (s: typeof mockWallet) => unknown) => select(mockWallet),
+}));
+jest.mock('~/state/settingsStore', () => ({
+  useSettingsStore: () => ({ secondaryCurrency: 'USD' }),
+}));
+jest.mock('~/services/wallet/ecashPayment', () => ({ prepareEcash: jest.fn() }));
+jest.mock('~/services/wallet', () => ({
+  walletService: {},
+  mintManager: { getMintInfo: async () => ({ nuts: {} }) },
+  nostrService: {},
+  historyService: { tagHistoryVia: async () => {} },
+  initService: {},
+  eventService: { on: () => () => {} },
+  proofService: { checkProofStates: async () => [] },
+}));
+jest.mock('~/services/platform/seedService', () => ({ seedService: {} }));
+jest.mock('~/services/wallet/paymentRequestModel', () => ({ parsePaymentRequest: jest.fn() }));
+jest.mock('~/shared/utils/paymentInputParser', () => ({ parsePaymentInput: jest.fn() }));
+jest.mock('~/features/payments/send/AmountStage', () => ({ AmountStage: 'AmountStage' }));
+jest.mock('~/features/payments/send/P2PKAmountStage', () => ({
+  P2PKAmountStage: 'P2PKAmountStage',
+}));
+jest.mock('~/features/payments/send/NostrSendStage', () => ({ NostrSendStage: 'NostrSendStage' }));
+jest.mock('~/features/payments/send/ConfirmStage', () => ({ ConfirmStage: 'ConfirmStage' }));
+jest.mock('~/features/payments/send/ResultStage', () => ({ ResultStage: 'ResultStage' }));
+jest.mock('~/features/payments/send/SuccessStage', () => ({ SuccessStage: 'SuccessStage' }));
+jest.mock('~/features/payments/send/PaymentRequestStage', () => ({
+  PaymentRequestStage: 'PaymentRequestStage',
+}));
+jest.mock('~/features/payments/send/ScanAndPayStage', () => ({
+  ScanAndPayStage: 'ScanAndPayStage',
+}));
+jest.mock('~/shared/ui/OfflineOptimizationSheet', () => ({
+  OfflineOptimizationSheet: 'OfflineOptimizationSheet',
+}));
+jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
+jest.mock('~/shared/ui/Blockies', () => 'Blockies');
+jest.mock('~/shared/ui/SendMethodSelector', () => 'SendMethodSelector');
+jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', H4: 'H4' }));
+jest.mock('@tamagui/lucide-icons', () => ({ Cloud: 'Cloud', CloudOff: 'CloudOff' }));
+jest.mock('expo-router', () => ({
+  useRouter: () => ({}),
+  useLocalSearchParams: () => mockParams,
+  Stack: { Screen: 'Screen' },
+}));
+jest.mock('expo-network', () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
+}));
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
+jest.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: undefined }),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
+jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
+jest.mock('nostr-tools', () => ({ nip19: {} }));
+
+const prepare = prepareEcash as jest.Mock;
+function review(fee = 0): EcashReview {
+  return {
+    fee,
+    execute: jest.fn().mockResolvedValue({ encoded: 'token', id: 'op' }),
+    dispose: jest.fn().mockResolvedValue(undefined),
+  };
+}
+async function open() {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<SendModalScreen />);
+  });
+  await act(async () => tree.root.findByType('AmountStage' as any).props.setAmount('20'));
+  await act(async () => tree.root.findByType('AmountStage' as any).props.onContinue());
+  return tree;
+}
+const confirm = (tree: ReactTestRenderer) => tree.root.findByType('ConfirmStage' as any).props;
+beforeEach(() => jest.clearAllMocks());
+
+it('releases an obsolete review, recalculates for the local mint, and cleans up on back', async () => {
+  const first = review(0),
+    second = review(2);
+  prepare.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+  const tree = await open();
+  expect(confirm(tree).estimatedFee).toBe(0);
+  expect(confirm(tree).ready).toBe(true);
+  await act(async () => confirm(tree).onMintChange('mint-b'));
+  expect(first.dispose).toHaveBeenCalledTimes(1);
+  expect(prepare).toHaveBeenLastCalledWith('mint-b', 20);
+  expect(mockWallet.activeMintUrl).toBe('mint-a');
+  expect(confirm(tree).estimatedFee).toBe(2);
+  await act(async () => confirm(tree).onBack());
+  expect(second.dispose).toHaveBeenCalledTimes(1);
+  expect(tree.root.findByType('AmountStage' as any).props.balance).toBe(10);
+  await act(async () => tree.unmount());
+});
+
+it('discards stale preparation and releases it before preparing the next mint', async () => {
+  let resolve!: (value: EcashReview) => void;
+  const first = review(9),
+    second = review(1);
+  prepare
+    .mockImplementationOnce(
+      () =>
+        new Promise<EcashReview>((r) => {
+          resolve = r;
+        }),
+    )
+    .mockImplementationOnce(async () => {
+      expect(first.dispose).toHaveBeenCalledTimes(1);
+      return second;
+    });
+  const tree = await open();
+  await act(async () => confirm(tree).onMintChange('mint-b'));
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).estimatedFee).toBeNull();
+  await act(async () => resolve(first));
+  expect(confirm(tree).estimatedFee).toBe(1);
+  await act(async () => tree.unmount());
+  expect(second.dispose).toHaveBeenCalledTimes(1);
+});
+
+it('keeps an insufficient-balance review disabled rather than showing a free fee', async () => {
+  prepare.mockRejectedValueOnce(new Error('Insufficient balance'));
+  const tree = await open();
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).estimatedFee).toBeNull();
+  expect(confirm(tree).error).toBe('Insufficient balance');
+  await act(async () => tree.unmount());
+});
+
+it('blocks replacement when the previous reservation could not be released', async () => {
+  const first = review();
+  (first.dispose as jest.Mock).mockRejectedValueOnce(new Error('Release failed'));
+  prepare.mockResolvedValue(first);
+  const tree = await open();
+  await act(async () => confirm(tree).onMintChange('mint-b'));
+  expect(confirm(tree).ready).toBe(false);
+  await act(async () => confirm(tree).onMintChange('mint-a'));
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(confirm(tree).error).toContain('Could not release');
+  await act(async () => tree.unmount());
+});
+
+it('submits once on rapid taps and carries the prepared creation fee to the result', async () => {
+  const prepared = review(2);
+  let resolve!: (value: { encoded: string; id: string }) => void;
+  (prepared.execute as jest.Mock).mockImplementation(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  prepare.mockResolvedValueOnce(prepared);
+  const tree = await open();
+  await act(async () => {
+    void confirm(tree).onConfirm();
+    void confirm(tree).onConfirm();
+  });
+  expect(prepared.execute).toHaveBeenCalledTimes(1);
+  expect(confirm(tree).isLoading).toBe(true);
+  await act(async () => resolve({ encoded: 'token', id: 'operation' }));
+  expect(tree.root.findByType('ResultStage' as any).props.fee).toBe(2);
+  await act(async () => tree.unmount());
+});

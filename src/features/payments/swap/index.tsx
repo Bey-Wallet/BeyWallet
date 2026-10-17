@@ -1,14 +1,18 @@
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
-import { YStack, XStack, Text, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
-import { RefreshCw, ShieldCheck, Landmark, Zap, ArrowUpDown, Sprout } from '@tamagui/lucide-icons';
-import { Image } from 'react-native';
+import { YStack } from 'tamagui';
+
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
-import { walletService, mintManager, quotesService, initService } from '~/services/wallet';
-import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
+import { walletService, quotesService, initService } from '~/services/wallet';
+import { currencyService } from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -58,7 +62,7 @@ export default function SwapScreen() {
   });
 
   const fiatValue = React.useMemo(() => {
-    if (!btcData?.price) return '0.00';
+    if (!btcData?.price) return '—';
     const sats = Number(amount) || 0;
     const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
     return fiat.toFixed(2);
@@ -180,128 +184,48 @@ export default function SwapScreen() {
       )}
 
       {step === 'confirm' && (
-        <YStack flex={1}>
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: 180 } as any}
-            showsVerticalScrollIndicator={false}
-          >
-            <YStack gap="$4">
-              {/* Middle Amount Display */}
-              <YStack gap="$3" py="$6" items="center" justify="center">
-                <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
-                  {showBitcoinSymbol
-                    ? `₿${amountNum.toLocaleString()}`
-                    : `${amountNum.toLocaleString()} SATS`}
-                </Text>
-                <Text color="$accent5" fontWeight="600" fontSize={16}>
-                  ≈{' '}
-                  {currencyService.formatValue(
-                    Number(fiatValue),
-                    secondaryCurrency as CurrencyCode,
-                  )}{' '}
-                  {secondaryCurrency}
-                </Text>
-              </YStack>
-
-              {/* Badge */}
-              <XStack
-                self="center"
-                items="center"
-                gap="$2"
-                bg="$accent9"
-                px="$4"
-                py="$3"
-                rounded="$10"
+        <>
+          <PaymentFlowHeader
+            title="Confirm swap"
+            onBack={() => setStep('amount')}
+            disabled={isProcessing}
+          />
+          <PaymentStageLayout
+            disabled={isProcessing}
+            hero={<PaymentAmount amount={Number(amount)} label="You're swapping" />}
+            footer={
+              <AppButton
+                size="large"
+                fullWidth
+                loading={isProcessing}
+                loadingText="Swapping ecash…"
+                onPress={handleConfirmSubmit}
+                disabled={isProcessing}
               >
-                <ArrowUpDown size={16} color="white" />
-                <Text fontSize="$3" fontWeight="700" color="white">
-                  Ecash Mint Swap
-                </Text>
-              </XStack>
-
-              {/* Details List */}
-              <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3" mx="$4">
-                <View p="$3" px="$4">
-                  <Text fontSize="$3" fontWeight="700" color="$gray12">
-                    Details
-                  </Text>
-                </View>
-                <Separator borderColor="$borderColor" opacity={0.3} />
-                <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                  <DetailItem
-                    label="From Mint"
-                    value={
-                      sourceMint?.nickname ||
-                      sourceMint?.name ||
-                      sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]
-                    }
-                    icon={
-                      <Avatar rounded="$3" size="$1.5">
-                        <Avatar.Image src={sourceMint?.icon} />
-                        <Avatar.Fallback bg="$green3" items="center" justify="center">
-                          <Sprout size={12} color="$green10" />
-                        </Avatar.Fallback>
-                      </Avatar>
-                    }
-                  />
-                  <DetailItem
-                    label="To Mint"
-                    value={
-                      targetMint?.nickname ||
-                      targetMint?.name ||
-                      targetMintUrl.replace(/^https?:\/\//, '').split('/')[0]
-                    }
-                    icon={
-                      <Avatar rounded="$3" size="$1.5">
-                        <Avatar.Image src={targetMint?.icon} />
-                        <Avatar.Fallback bg="$green3" items="center" justify="center">
-                          <Sprout size={12} color="$green10" />
-                        </Avatar.Fallback>
-                      </Avatar>
-                    }
-                  />
-                  <DetailItem
-                    label="Method"
-                    value="Mint-to-Mint Swap"
-                    icon={<ArrowUpDown size={16} color="$yellow10" />}
-                  />
-                  <DetailItem
-                    label="Estimated Fee"
-                    value="0 SATS (Free)"
-                    valueColor="$green11"
-                    icon={<ShieldCheck size={16} color="$green11" />}
-                  />
-                </YGroup>
-              </YStack>
-            </YStack>
-          </ScrollView>
-
-          {/* Fixed Action Buttons */}
-          <XStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              size="large"
-              flex={1}
-              disabled={isProcessing}
-              onPress={() => setStep('amount')}
-            >
-              Back
-            </AppButton>
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              loading={isProcessing}
-              loadingText="Swapping ecash…"
-              flex={1}
-              onPress={handleConfirmSubmit}
-              disabled={isProcessing}
-            >
-              {isProcessing ? 'Swapping...' : 'Swap'}
-            </AppButton>
-          </XStack>
-        </YStack>
+                Swap
+              </AppButton>
+            }
+          >
+            <ListTable>
+              <PaymentMintRow
+                label="From mint"
+                mintUrl={sourceMintUrl}
+                onSelect={setSourceMintUrl}
+                disabled={isProcessing}
+                method="melt-lightning"
+              />
+              <PaymentMintRow
+                label="To mint"
+                mintUrl={targetMintUrl}
+                onSelect={setTargetMintUrl}
+                disabled={isProcessing}
+                method="mint-lightning"
+              />
+              <ListTableRow label="Method" value="Mint swap" />
+              <ListTableRow label="Fee" value="Calculated during swap" />
+            </ListTable>
+          </PaymentStageLayout>
+        </>
       )}
 
       {step === 'result' && (
@@ -317,37 +241,5 @@ export default function SwapScreen() {
         </YStack>
       )}
     </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  icon,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  valueColor?: string;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        {icon}
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color={valueColor || '$color'}
-          numberOfLines={1}
-          style={{ maxWidth: 220 }}
-        >
-          {value}
-        </Text>
-      </XStack>
-    </XStack>
   );
 }

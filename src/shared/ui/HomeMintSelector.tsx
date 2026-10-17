@@ -21,6 +21,8 @@ import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import EditNicknameModal, { EditNicknameModalRef } from '~/shared/ui/EditNicknameModal';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
+import { supportsPaymentMethod, type PaymentMintMethod } from '~/services/wallet/paymentMintPolicy';
+import { mintManager } from '~/services/wallet/mintManager';
 
 export interface MintSelectorSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -28,6 +30,9 @@ export interface MintSelectorSheetProps {
   activeMintUrl?: string;
   showAllOption?: boolean;
   changeGlobalActiveMint?: boolean;
+  trustedOnly?: boolean;
+  allowedMintUrls?: string[];
+  method?: PaymentMintMethod;
 }
 
 export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelectorSheetProps>(
@@ -38,12 +43,45 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       activeMintUrl: propActiveMintUrl,
       showAllOption,
       changeGlobalActiveMint = true,
+      trustedOnly = false,
+      allowedMintUrls,
+      method,
     },
     ref,
   ) => {
     const storeActiveMintUrl = useWalletStore((s) => s.activeMintUrl);
     const balances = useWalletStore((s) => s.balances);
-    const mints = useWalletStore((s) => s.mints);
+    const storedMints = useWalletStore((s) => s.mints);
+    const [compatibleUrls, setCompatibleUrls] = useState<string[]>([]);
+    useEffect(() => {
+      let cancelled = false;
+      setCompatibleUrls([]);
+      if (method)
+        void Promise.all(
+          storedMints
+            .filter((m) => m.trusted)
+            .map(async (m) => {
+              try {
+                return supportsPaymentMethod(await mintManager.getMintInfo(m.mintUrl), method)
+                  ? m.mintUrl
+                  : null;
+              } catch {
+                return null;
+              }
+            }),
+        ).then((urls) => {
+          if (!cancelled) setCompatibleUrls(urls.filter((u): u is string => u !== null));
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [storedMints, method]);
+    const mints = storedMints.filter(
+      (m) =>
+        (!trustedOnly || m.trusted) &&
+        (!allowedMintUrls || allowedMintUrls.includes(m.mintUrl)) &&
+        (!method || compatibleUrls.includes(m.mintUrl)),
+    );
     const setActiveMint = useWalletStore((s) => s.setActiveMint);
     const router = useRouter();
 

@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
@@ -13,7 +14,12 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   ScrollView: 'ScrollView',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({ Check: 'Check' }));
+jest.mock('@tamagui/lucide-icons', () => ({
+  Check: 'Check',
+  X: 'X',
+  Clock: 'Clock',
+  Minus: 'Minus',
+}));
 jest.mock('react-native-qrcode-svg', () => 'QRCode');
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/ListTable', () => ({

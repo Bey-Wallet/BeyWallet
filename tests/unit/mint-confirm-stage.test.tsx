@@ -1,3 +1,5 @@
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'PaymentMintRow' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ConfirmStage } from '~/features/payments/mint/ConfirmStage';

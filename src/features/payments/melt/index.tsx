@@ -1,3 +1,10 @@
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { useFlowMint } from '~/shared/hooks/useFlowMint';
+import { PaymentConfirmation } from '~/services/wallet/paymentConfirmation';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -9,7 +16,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { InvoiceStage } from '~/features/payments/melt/InvoiceStage';
 import { MeltResultStage } from '~/features/payments/melt/ResultStage';
 import { OnchainMeltFlow } from '~/features/payments/melt/OnchainMeltFlow';
-import { quotesService, mintManager } from '~/services/wallet';
+
 import {
   detectLightningInputType,
   requestInvoiceFromLnurl,
@@ -18,35 +25,10 @@ import {
 import { biometricService } from '~/services/platform/biometricService';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
-import {
-  Text,
-  YStack,
-  XStack,
-  Separator,
-  View,
-  H1,
-  Image,
-  YGroup,
-  ScrollView,
-  Avatar,
-} from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import {
-  currencyService,
-  SUPPORTED_CURRENCIES,
-  CurrencyCode,
-} from '~/services/wallet/currencyService';
-import {
-  Landmark,
-  Zap,
-  ShieldCheck,
-  ArrowDownCircle,
-  AlertCircle,
-  Sprout,
-} from '@tamagui/lucide-icons';
-
-import { NumericKeypad } from '~/shared/ui/NumericKeypad';
+import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
 
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
@@ -77,13 +59,19 @@ export default function MeltScreen() {
     active: isGettingQuote && !isManualQuote,
     title: 'Preparing Lightning payment…',
   });
+  const [resultTime, setResultTime] = useState<number>();
   const [quoteAmount, setQuoteAmount] = useState(0);
   const [feeReserve, setFeeReserve] = useState(0);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const router = useRouter();
   const paymentRef = useRef<LightningPayment | null>(null);
   const payLock = useRef(false);
+  const authLock = useRef(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const confirmation = useRef(new PaymentConfirmation());
   const quoteGeneration = useRef(0);
+  const stepRef = useRef(step);
+  stepRef.current = step;
 
   const paymentFor = (mintUrl: string, bolt11: string) => {
     const current = paymentRef.current;
@@ -99,8 +87,7 @@ export default function MeltScreen() {
     [],
   );
 
-  const balance = useWalletStore((s) => s.balance);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
+  const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const mints = useWalletStore((s) => s.mints);
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
@@ -108,12 +95,14 @@ export default function MeltScreen() {
   // Auto-fetch quote for bolt11 invoice to display its amount immediately
   useEffect(() => {
     const generation = ++quoteGeneration.current;
+    const reviewing = stepRef.current === 'confirm';
+    const previousInvoice = resolvedInvoice;
     setIsGettingQuote(false);
     setQuoteId(null);
-    setQuoteAmount(0);
+    if (!reviewing) setQuoteAmount(0);
     setFeeReserve(0);
-    setResolvedInvoice(null);
-    setStep('invoice');
+    if (!reviewing) setResolvedInvoice(null);
+    if (!reviewing) setStep('invoice');
     const old = paymentRef.current;
     paymentRef.current = null;
     const release = old?.dispose() ?? Promise.resolve();
@@ -124,13 +113,14 @@ export default function MeltScreen() {
     }
 
     const inputType = detectLightningInputType(cleaned);
-    if (inputType === 'bolt11' && activeMintUrl) {
+    const previewInvoice = inputType === 'bolt11' ? cleaned : reviewing ? previousInvoice : null;
+    if (previewInvoice && activeMintUrl) {
       setIsGettingQuote(true);
       setError(null);
       release
         .then(() => {
           if (generation !== quoteGeneration.current) throw new Error('Invoice changed');
-          return paymentFor(activeMintUrl, cleaned).preview();
+          return paymentFor(activeMintUrl, previewInvoice).preview();
         })
         .then((quote) => {
           if (generation !== quoteGeneration.current) return;
@@ -376,6 +366,7 @@ export default function MeltScreen() {
       const result = await payment.pay();
       if (paymentRef.current !== payment) return;
       if (result === 'paid') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setResultTime(Date.now());
       setStatus(result === 'paid' ? 'success' : result);
       refreshBalance();
       setStep('result');
@@ -392,23 +383,30 @@ export default function MeltScreen() {
 
   // ─── Auth Handler ─────────────────────────────────────────
   const handleAuthenticate = async () => {
+    if (authLock.current || payLock.current) return;
+    authLock.current = true;
+    setIsAuthenticating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const success = await biometricService.authenticateAsync(
-        `Pay Lightning ${currencyService.formatSats(quoteAmount)}`,
-      );
+      const success = await confirmation.current.confirm({
+        biometricEnabled: useSettingsStore.getState().biometricEnabled,
+        authenticate: () =>
+          biometricService.authenticateAsync(
+            `Pay Lightning ${currencyService.formatSats(quoteAmount)}`,
+          ),
+        execute: handlePay,
+      });
 
-      if (success) {
-        await handlePay();
-      } else {
+      if (!success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (err: any) {
       console.error('[MeltScreen] Auth error:', err);
       setError(err.message || 'Authentication failed');
-      setStatus('error');
-      setStep('result');
+    } finally {
+      authLock.current = false;
+      setIsAuthenticating(false);
     }
   };
 
@@ -423,6 +421,8 @@ export default function MeltScreen() {
       {step === 'invoice' && (
         <YStack flex={1} px="$4">
           <InvoiceStage
+            mintUrl={activeMintUrl}
+            onMintChange={setMintUrl}
             amount={lnAddressAmount}
             setAmount={setLnAddressAmount}
             invoice={invoice}
@@ -438,174 +438,82 @@ export default function MeltScreen() {
 
       {/* Step 2: Confirm */}
       {step === 'confirm' && (
-        <YStack flex={1}>
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: 180 } as any}
-            showsVerticalScrollIndicator={false}
-          >
-            <YStack gap="$4">
-              {/* Middle Amount Display */}
-              <YStack gap="$3" py="$6" items="center" justify="center">
-                <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
-                  -
-                  {showBitcoinSymbol
-                    ? `₿${quoteAmount.toLocaleString()}`
-                    : `${quoteAmount.toLocaleString()} SATS`}
-                </Text>
-                <Text color="$accent5" fontWeight="600" fontSize={16}>
-                  ≈ {fiatValue} {secondaryCurrency}
-                </Text>
-              </YStack>
-
-              {/* Badge */}
-              <XStack
-                self="center"
-                items="center"
-                gap="$2"
-                bg="$yellow9"
-                px="$4"
-                py="$3"
-                rounded="$10"
+        <>
+          <PaymentFlowHeader
+            title="Confirm payment"
+            disabled={isPaying || isAuthenticating}
+            onBack={async () => {
+              await paymentRef.current?.dispose();
+              paymentRef.current = null;
+              setStep('invoice');
+            }}
+          />
+          <PaymentStageLayout
+            disabled={isPaying || isAuthenticating}
+            hero={<PaymentAmount amount={quoteAmount} label="You're paying" />}
+            footer={
+              <AppButton
+                variant="branded"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                loading={isPaying}
+                loadingText="Paying Lightning invoice…"
+                onPress={handleAuthenticate}
+                disabled={
+                  isPaying || isAuthenticating || isGettingQuote || !quoteId || totalCost > balance
+                }
               >
-                <Zap size={16} color="black" />
-                <Text fontSize="$3" fontWeight="700" color="black">
-                  Lightning Payment Send
-                </Text>
-              </XStack>
-
-              {/* Details List */}
-              <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3" mx="$4">
-                <View p="$3" px="$4">
-                  <Text fontSize="$3" fontWeight="700" color="$gray12">
-                    Details
-                  </Text>
-                </View>
-                <Separator borderColor="$borderColor" opacity={0.3} />
-                <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                  <DetailItem
-                    label="Mint"
-                    value={mintName}
-                    icon={
-                      <Avatar rounded="$3" size="$1.5">
-                        <Avatar.Image src={activeMint?.icon} />
-                        <Avatar.Fallback bg="$green3" items="center" justify="center">
-                          <Sprout size={12} color="$green10" />
-                        </Avatar.Fallback>
-                      </Avatar>
-                    }
-                  />
-                  <DetailItem
-                    label="Method"
-                    value="Lightning Send"
-                    icon={<Zap size={16} color="$yellow10" />}
-                  />
-                  <DetailItem
-                    label="Fee Reserve"
-                    value={feeReserve > 0 ? `~${feeReserve} sats` : '0 sats'}
-                    valueColor={feeReserve > 0 ? '$orange10' : '$green11'}
-                    icon={
-                      <ShieldCheck size={16} color={feeReserve > 0 ? '$orange10' : '$green11'} />
-                    }
-                  />
-                  <DetailItem
-                    label="Total Cost"
-                    value={`${totalCost.toLocaleString()} sats (≈ ${totalFiatValue})`}
-                    valueColor="$accent10"
-                    icon={<ShieldCheck size={16} color="$accent10" />}
-                  />
-                  {lnAddress && <DetailItem label="Recipient" value={lnAddress} />}
-                </YGroup>
-              </YStack>
-
-              {/* Balance Warning */}
-              {totalCost > balance && (
-                <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center" mx="$4">
-                  <AlertCircle size={18} color="$red10" />
-                  <Text color="$red10" fontSize="$3">
-                    Insufficient balance ({balance} sats available)
-                  </Text>
-                </XStack>
-              )}
-            </YStack>
-          </ScrollView>
-
-          {/* Fixed Action Buttons */}
-          <XStack position="absolute" b="$4" l="$4" r="$4" gap="$2">
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              size="large"
-              flex={1}
-              disabled={isPaying}
-              onPress={() => setStep('invoice')}
-            >
-              Back
-            </AppButton>
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              loading={isPaying}
-              loadingText="Paying Lightning invoice…"
-              flex={1}
-              onPress={handleAuthenticate}
-              disabled={isPaying || totalCost > balance}
-            >
-              {isPaying ? 'Paying...' : 'Pay'}
-            </AppButton>
-          </XStack>
-        </YStack>
+                {isPaying ? 'Paying…' : 'Pay'}
+              </AppButton>
+            }
+          >
+            <ListTable>
+              <PaymentMintRow
+                method="melt-lightning"
+                mintUrl={activeMintUrl || ''}
+                onSelect={setMintUrl}
+                disabled={isPaying || isAuthenticating}
+              />
+              <ListTableRow label="Method" value="Lightning" />
+              <ListTableRow
+                label="Maximum fee"
+                value={isGettingQuote ? 'Calculating…' : currencyService.formatSats(feeReserve)}
+              />
+              <ListTableRow label="Maximum total" value={currencyService.formatSats(totalCost)} />
+              {lnAddress && <ListTableRow label="Recipient" value={lnAddress} />}
+            </ListTable>
+            {totalCost > balance && (
+              <Text color="$red10" p="$3">
+                Insufficient balance ({balance} sats available)
+              </Text>
+            )}
+          </PaymentStageLayout>
+        </>
       )}
 
       {/* Step 3: Result */}
       {step === 'result' && (
-        <YStack flex={1} p="$4">
+        <YStack flex={1}>
           <MeltResultStage
             status={status}
             amount={quoteAmount}
             feeReserve={feeReserve}
+            mintUrl={activeMintUrl || undefined}
+            time={resultTime}
             error={error}
             onClose={handleClose}
             onRefresh={async () => {
               const result = await paymentRef.current?.refresh();
-              if (result) setStatus(result === 'paid' ? 'success' : result);
+              if (result) {
+                if (result === 'paid' && status !== 'success') setResultTime(Date.now());
+                setStatus(result === 'paid' ? 'success' : result);
+              }
               refreshBalance();
             }}
           />
         </YStack>
       )}
     </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  icon,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  valueColor?: string;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        {icon}
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color={valueColor || '$color'}
-          numberOfLines={1}
-          style={{ maxWidth: 220 }}
-        >
-          {value}
-        </Text>
-      </XStack>
-    </XStack>
   );
 }

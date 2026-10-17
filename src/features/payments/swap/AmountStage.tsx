@@ -1,6 +1,6 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { YStack, XStack, Text, View } from 'tamagui';
+import { YStack, Text } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -280,12 +280,18 @@ export function AmountStage({
 
       <MintSelectorSheet
         ref={sourceSheetRef}
+        trustedOnly
+        showAllOption={false}
+        method="melt-lightning"
         activeMintUrl={sourceMintUrl}
         changeGlobalActiveMint={false}
         onSelect={setSourceMintUrl}
       />
       <MintSelectorSheet
         ref={targetSheetRef}
+        trustedOnly
+        showAllOption={false}
+        method="mint-lightning"
         activeMintUrl={targetMintUrl}
         changeGlobalActiveMint={false}
         onSelect={setTargetMintUrl}

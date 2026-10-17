@@ -38,6 +38,7 @@ export interface NfcPresentation {
   amount?: number;
   mintUrl?: string;
   fees?: number;
+  eventTime?: number;
   locked: boolean;
   hasPayment: boolean;
   canRetryDelivery: boolean;
@@ -86,6 +87,9 @@ export class NfcFlow {
   };
   getSnapshot = () => this.state;
   private update(change: Partial<NfcPresentation>) {
+    if (change.status === 'ready') change.eventTime = undefined;
+    if (change.status === 'confirmed' && this.state.status !== 'confirmed')
+      change.eventTime = Date.now();
     this.state = { ...this.state, ...change };
     this.listeners.forEach((listener) => listener());
   }

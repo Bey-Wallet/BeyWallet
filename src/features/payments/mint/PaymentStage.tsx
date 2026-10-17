@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, Text, ScrollView } from 'tamagui';
-import QRCode from 'react-native-qrcode-svg';
+import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
@@ -149,6 +150,12 @@ export function PaymentStage({
           <YStack width="100%" gap="$2">
             <ListTable>
               <ListTableRow label="Mint" value={mintDisplayName} />
+              <PaymentStatusRow
+                value={isExpired ? 'Expired' : 'Awaiting payment'}
+                onRefresh={handleCheckPayment}
+                checking={isChecking}
+                disabled={isExpired}
+              />
               <ListTableRow
                 label="Invoice"
                 value={
@@ -189,11 +196,10 @@ export function PaymentStage({
         <AppButton
           size="large"
           fullWidth
-          loading={isChecking}
-          loadingText="Checking payment…"
-          onPress={isExpired ? onCancel : handleCheckPayment}
+          disabled={isChecking}
+          onPress={isExpired ? onCancel : handleCopy}
         >
-          {isExpired ? 'Close invoice' : 'Check payment'}
+          {isExpired ? 'Close invoice' : 'Copy invoice'}
         </AppButton>
       </YStack>
     </YStack>

@@ -1,49 +1,19 @@
+import { PaymentStatusIcon, paymentReceiptStatus } from '~/shared/ui/PaymentStatusIcon';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { reclaimPayment } from '~/services/wallet/reclaimPayment';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { YStack, XStack, Text, ScrollView, Separator, YGroup } from 'tamagui';
 import {
-  YStack,
-  XStack,
-  Text,
-  ScrollView,
-  View,
-  Separator,
-  Circle,
-  Popover,
-  ListItem,
-  Adapt,
-  Sheet,
-  Square,
-  YGroup,
-} from 'tamagui';
-import {
-  ChevronLeft,
   RefreshCw,
   Copy,
   Share2,
-  ArrowUpRight,
   ArrowDownLeft,
-  Calendar,
-  Coins,
-  Zap,
-  ShieldCheck,
-  ExternalLink,
   AlertCircle,
   CheckCircle2,
-  Check,
-  RotateCcw,
-  Link,
-  Contact2,
-  Scan,
-  Gauge,
-  ZoomIn,
-  Hexagon,
-  History,
-  X,
   Ban,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
   Trash2,
 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -54,7 +24,7 @@ import { Share as RNShare } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { Buffer } from 'buffer';
-import { formatFullLocalTime, formatRelativeTime } from '~/shared/utils/time';
+import { formatFullLocalTime } from '~/shared/utils/time';
 import {
   historyService,
   initService,
@@ -66,7 +36,6 @@ import {
   encodeTokenV4,
   encodeTokenV3,
   walletService,
-  mintManager,
   quotesService,
 } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
@@ -82,7 +51,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { notificationService } from '~/services/platform/notificationService';
-import { StatusBadge, BadgeStatus } from '~/shared/ui/StatusBadge';
+import { BadgeStatus } from '~/shared/ui/StatusBadge';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 // Ensure Buffer is available globally
@@ -334,13 +303,21 @@ export function TransactionDetailsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsReclaiming(true);
     try {
-      await walletService.receive(token.trim());
+      const result = await reclaimPayment(token.trim(), metadata);
+      if (result === 'claimed') {
+        await initService.getRepo().historyRepository.updateHistoryEntryState(entry.id, 'claimed');
+        await handleRefresh();
+        return;
+      }
       toast.show('Funds reclaimed to your wallet', { kind: 'success' });
 
       // Update state in DB
       const repo = initService.getRepo();
       if (repo?.historyRepository) {
-        await (repo.historyRepository as any).updateHistoryEntryState(entry.id, 'expired');
+        await (repo.historyRepository as any).updateHistoryEntryState(
+          entry.id,
+          metadata?.reclaimAt ? 'refunded' : 'expired',
+        );
       }
 
       // Delete local inflight proofs if any
@@ -550,7 +527,15 @@ export function TransactionDetailsScreen() {
         label: 'Pending',
       };
     }
-    if (status === 'expired' || status === 'refunded') {
+    if (status === 'refunded')
+      return {
+        color: '$green10',
+        bg: '$green3',
+        headerBg: '$green10',
+        icon: CheckCircle2,
+        label: 'Reclaimed',
+      };
+    if (status === 'expired') {
       return {
         color: '$red10',
         bg: '$red3',
@@ -662,10 +647,10 @@ export function TransactionDetailsScreen() {
   const handleRefresh = async () => {
     if (!entry || isRefetching) return;
 
-    if (token) {
+    if (token && !['refunded', 'expired'].includes(status)) {
       try {
         const states = await proofService.checkProofStates(token);
-        const isSpent = states.some((s: any) => s.state === 'SPENT');
+        const isSpent = states.length > 0 && states.every((s: any) => s.state === 'SPENT');
         const isPending = states.some((s: any) => s.state === 'PENDING');
 
         let newState = entry?.state;
@@ -716,19 +701,8 @@ export function TransactionDetailsScreen() {
   };
 
   const [isClaiming, setIsClaiming] = useState(false);
-  const [mintFee, setMintFee] = useState(0);
-
-  // Fetch fee for this mint
-  useEffect(() => {
-    if (entry?.mintUrl) {
-      mintManager
-        .getFeePpk(entry.mintUrl)
-        .then((feePpk) => {
-          setMintFee(feePpk);
-        })
-        .catch(() => setMintFee(0));
-    }
-  }, [entry?.mintUrl]);
+  const mintFee =
+    metadata?.via !== 'onchain' && Number.isFinite(metadata?.fee) ? Number(metadata.fee) : 0;
 
   const handleClaimNow = async () => {
     if (!token || isClaiming) return;
@@ -977,30 +951,23 @@ export function TransactionDetailsScreen() {
     return (
       <>
         <Stack.Screen options={makeHeaderOptions()} />
-        <ScrollView
-          bg="$background"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            { flexGrow: 1, paddingBottom: 120, paddingHorizontal: 16, paddingTop: 16 } as any
-          }
-        >
-          <PendingTokenLayout
-            token={token}
-            operationId={entry.type === 'send' ? entry.operationId : undefined}
-            amount={entry.amount}
-            fee={mintFee}
-            mintUrl={entry.mintUrl}
-            lockedToNpub={lockedToNpub}
-            onClaim={entry.type === 'receive' ? handleClaimNow : undefined}
-            isClaiming={isClaiming}
-            onReclaim={entry.type === 'send' ? handleReclaim : undefined}
-            isReclaiming={isReclaiming}
-            expiresAt={expiresAt}
-            onCheckStatus={handleRefresh}
-            isCheckingStatus={isRefetching}
-            customHeaderRight={headerOptions.headerRight}
-          />
-        </ScrollView>
+        <PendingTokenLayout
+          token={token}
+          operationId={entry.type === 'send' ? entry.operationId : undefined}
+          amount={entry.amount}
+          fee={mintFee}
+          mintUrl={entry.mintUrl}
+          lockedToNpub={lockedToNpub}
+          onClaim={entry.type === 'receive' ? handleClaimNow : undefined}
+          isClaiming={isClaiming}
+          onReclaim={entry.type === 'send' ? handleReclaim : undefined}
+          isReclaiming={isReclaiming}
+          expiresAt={expiresAt}
+          reclaimAt={metadata?.reclaimAt ? Number(metadata.reclaimAt) : undefined}
+          onCheckStatus={handleRefresh}
+          isCheckingStatus={isRefetching}
+          customHeaderRight={headerOptions.headerRight}
+        />
         {renderDeleteBottomSheet()}
       </>
     );
@@ -1010,94 +977,47 @@ export function TransactionDetailsScreen() {
     return (
       <>
         <Stack.Screen options={headerOptions} />
+        <PaymentFlowHeader title="Transaction details" />
         <ScrollView
+          flex={1}
           bg="$background"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            { paddingBottom: 120, paddingHorizontal: 16, paddingTop: 16 } as any
-          }
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 24, paddingHorizontal: 16 } as any}
         >
-          <YStack bg="$background" gap="$4">
-            {/* Big Amount */}
-            <YStack gap="$2" items="center" justify="center" py="$5">
-              <Text fontSize="$4" fontWeight="600" color="$gray10">
-                {title}
+          <YStack flex={1} bg="$background" gap="$6">
+            <YStack flex={1} minHeight={280} gap="$3" py="$7" items="center" justify="center">
+              <PaymentStatusIcon
+                status={paymentReceiptStatus(
+                  status,
+                  entry.type === 'melt' && metadata?.via === 'onchain',
+                )}
+              />
+              <Text fontSize={16} fontWeight="500" color="$color" textAlign="center">
+                {entry.type === 'melt' &&
+                metadata?.via === 'onchain' &&
+                !['failed', 'error'].includes(status.toLowerCase())
+                  ? 'Payment broadcast'
+                  : statusConfig.label}
               </Text>
-              <Text
-                fontSize={52}
-                fontWeight="700"
-                letterSpacing={-1}
-                lineHeight={54}
-                color="$accent3"
-              >
-                {metadata?.via !== 'swap' ? amountSign : ''}
-                {headerPrimaryAmount}
-              </Text>
-              <Text color="$accent5" fontWeight="600" fontSize={16} mt="$1">
-                {metadata?.via !== 'swap' ? amountSign : ''}
-                {headerSecondaryAmount}
-              </Text>
+              <PaymentAmount amount={entry.amount} compact />
             </YStack>
 
-            {/* Status Badge */}
-            <XStack
-              self="center"
-              items="center"
-              gap="$2"
-              bg={statusConfig.headerBg}
-              px="$4"
-              py="$3"
-              rounded="$10"
-            >
-              {React.createElement(statusConfig.icon, { size: 16, color: 'white' })}
-              <Text fontSize="$3" fontWeight="700" color="white">
-                {statusConfig.label}
-              </Text>
-            </XStack>
-
-            {/* Compact status description */}
-            <YStack py="$2">
-              <Text color="$gray10" fontSize="$4" textAlign="center" lineHeight={20}>
-                {status === 'failed' || status === 'error'
-                  ? 'Funds were not transferred.'
-                  : status === 'expired' || status === 'refunded'
-                    ? 'Funds were returned to your wallet.'
-                    : status === 'pending' || status === 'unclaimed'
-                      ? 'Waiting for payment to be processed.'
-                      : metadata?.via === 'swap'
-                        ? 'Atomic transfer completed between mints.'
-                        : entry.type === 'send'
-                          ? 'The recipient has claimed your ecash.'
-                          : entry.type === 'receive'
-                            ? 'The ecash has been added to your wallet.'
-                            : entry.type === 'mint'
-                              ? 'Ecash added to your wallet.'
-                              : entry.type === 'melt'
-                                ? metadata?.via === 'onchain'
-                                  ? 'On-chain payment was broadcast successfully.'
-                                  : 'Lightning invoice was successfully paid.'
-                                : 'Transaction processed.'}
-              </Text>
-            </YStack>
             {/* Details table */}
-            <YStack bg="$gray2" rounded="$6" overflow="hidden">
-              <View p="$3" px="$4">
-                <Text fontSize="$3" fontWeight="700" color="$gray12">
-                  Details
-                </Text>
-              </View>
-              <Separator borderColor="$borderColor" opacity={0.3} />
+            <ListTable bg="$gray2" rounded="$6" overflow="hidden">
               <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                 <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
+                {metadata?.reclaimAt && (
+                  <DetailItem
+                    label="Reclaim eligible"
+                    value={formatFullLocalTime(Number(metadata.reclaimAt))}
+                  />
+                )}
                 <DetailItem
                   label="Mint"
                   value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
                 />
                 {mintFee > 0 && (
-                  <DetailItem
-                    label="Fee Rate"
-                    value={`${mintFee} ppk (${(mintFee / 10).toFixed(1)}%)`}
-                  />
+                  <DetailItem label="Fee" value={currencyService.formatSats(mintFee)} />
                 )}
                 {/* Via channel & contacts */}
                 {(() => {
@@ -1200,7 +1120,7 @@ export function TransactionDetailsScreen() {
 
                   const btcAddress =
                     'paymentRequest' in entry ? entry.paymentRequest : (meta as any)?.address;
-                  const onchainFee = (meta as any)?.fee;
+                  const onchainFee = (meta as any)?.actualFee;
 
                   return (
                     <>
@@ -1248,7 +1168,7 @@ export function TransactionDetailsScreen() {
                   />
                 )}
               </YGroup>
-            </YStack>
+            </ListTable>
 
             {/* Pending actions */}
             {token &&
@@ -1309,6 +1229,11 @@ export function TransactionDetailsScreen() {
             </XStack>
           </YStack>
         </ScrollView>
+        <YStack px="$4" pt="$3" pb="$4" bg="$background">
+          <AppButton size="large" fullWidth onPress={() => router.back()}>
+            Done
+          </AppButton>
+        </YStack>
         {renderDeleteBottomSheet()}
       </>
     );
@@ -1350,33 +1275,5 @@ function DetailItem({
   isCopyable?: boolean;
   onCopy?: () => void;
 }) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color="$color"
-          numberOfLines={1}
-          style={{ maxWidth: 200 }}
-        >
-          {value}
-        </Text>
-        {isCopyable && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Copy"
-            icon={<Copy size={16} color="$gray10" />}
-            onPress={onCopy}
-          />
-        )}
-      </XStack>
-    </XStack>
-  );
+  return <ListTableRow label={label} value={value} isCopyable={isCopyable} onCopy={onCopy} />;
 }

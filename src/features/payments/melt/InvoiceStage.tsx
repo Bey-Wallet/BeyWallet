@@ -1,16 +1,7 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, Input, Avatar } from 'tamagui';
-import {
-  Clipboard as ClipboardIcon,
-  ScanLine,
-  AlertCircle,
-  ChevronDown,
-  Sprout,
-  ArrowUpDown,
-  X,
-  Zap,
-} from '@tamagui/lucide-icons';
+import { YStack, Text } from 'tamagui';
+import { ArrowUpDown, Zap } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
@@ -32,6 +23,8 @@ import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
 interface InvoiceStageProps {
+  mintUrl?: string | null;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   invoice: string;
@@ -44,6 +37,8 @@ interface InvoiceStageProps {
 }
 
 export function InvoiceStage({
+  mintUrl,
+  onMintChange,
   amount,
   setAmount,
   invoice,
@@ -56,7 +51,7 @@ export function InvoiceStage({
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
   const {
-    activeMintUrl,
+    activeMintUrl: globalMintUrl,
     mints,
     refreshMintList,
     isInitializing,
@@ -64,6 +59,7 @@ export function InvoiceStage({
     scannerResult,
     setScannerResult,
   } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -381,7 +377,15 @@ export function InvoiceStage({
         confirmIcon={undefined}
       />
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        method="melt-lightning"
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </YStack>
   );
 }

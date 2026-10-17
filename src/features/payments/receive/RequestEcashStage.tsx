@@ -1,37 +1,19 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
+import { useFlowMint } from '~/shared/hooks/useFlowMint';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
+import { PaymentNote } from '~/shared/ui/PaymentNote';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback, useRef } from 'react';
 import { Buffer } from 'buffer';
-import {
-  YStack,
-  XStack,
-  Text,
-  H1,
-  Separator,
-  ScrollView,
-  View,
-  Input,
-  Avatar,
-  Square,
-} from 'tamagui';
-import {
-  QrCode,
-  Copy,
-  Share2,
-  Check,
-  RefreshCw,
-  Building2,
-  ChevronDown,
-  ChevronUp,
-  AlertCircle,
-  Zap,
-  Sprout,
-  ArrowUpDown,
-  Globe,
-  PenLine,
-  X as XIcon,
-} from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Separator } from 'tamagui';
+import { QrCode, AlertCircle, ArrowUpDown } from '@tamagui/lucide-icons';
 import { Spinner } from '~/shared/ui/Spinner';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -41,7 +23,7 @@ import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import { useToastController } from '@tamagui/toast';
-import QRCode from 'react-native-qrcode-svg';
+import QRCode from '~/shared/ui/PaymentQRCode';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
@@ -64,7 +46,7 @@ const makeRequestId = () =>
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type RequestStep = 'amount' | 'result' | 'success';
+type RequestStep = 'amount' | 'confirm' | 'result' | 'success';
 
 interface RequestEcashStageProps {
   onClose?: () => void;
@@ -89,44 +71,19 @@ function DetailItem({
   onShare?: () => void;
 }) {
   return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$4" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        <Text
-          fontSize="$4"
-          fontWeight="800"
-          color="$color"
-          numberOfLines={1}
-          style={{ maxWidth: 180 }}
-        >
-          {value}
-        </Text>
-        {onShare && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Share"
-            icon={<Share2 size={16} color="$gray10" />}
-            onPress={onShare}
-          />
-        )}
-        {isCopyable && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Copy"
-            icon={<Copy size={16} color="$gray10" />}
-            onPress={onCopy}
-          />
-        )}
-      </XStack>
-    </XStack>
+    <ListTableRow
+      label={label}
+      value={value}
+      isCopyable={isCopyable}
+      onCopy={onCopy}
+      rightContent={
+        onShare ? (
+          <AppButton size="small" emphasis="text-only" onPress={onShare}>
+            Share
+          </AppButton>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -160,15 +117,8 @@ export function RequestEcashStage({
   const generationLock = useRef(false);
   const toast = useToastController();
 
-  const {
-    activeMintUrl,
-    mints,
-    setActiveMint,
-    refreshMintList,
-    isInitializing,
-    isRefreshing,
-    balance,
-  } = useWalletStore();
+  const { mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+  const { mintUrl: activeMintUrl, setMintUrl: setActiveMint, balance } = useFlowMint();
   const { secondaryCurrency, npub, primaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const { addRequest, loadPendingRequests } = useNostrRequestStore();
 
@@ -598,9 +548,64 @@ export function RequestEcashStage({
   // ────────────────────────────────────────────────────────────────────────
   // AMOUNT STAGE
   // ────────────────────────────────────────────────────────────────────────
+  const header = (
+    <PaymentFlowHeader
+      title={
+        step === 'confirm'
+          ? 'Confirm request'
+          : step === 'result'
+            ? 'Request payment'
+            : step === 'success'
+              ? 'Payment received'
+              : 'Request ecash'
+      }
+      onBack={step === 'confirm' ? () => setStep('amount') : onClose}
+      disabled={isGenerating || isPublishing}
+    />
+  );
+  if (step === 'confirm') {
+    return (
+      <>
+        {header}
+        <PaymentStageLayout
+          disabled={isGenerating}
+          hero={<PaymentAmount amount={amtNum} label="You're requesting" />}
+          footer={
+            <AppButton
+              size="large"
+              fullWidth
+              disabled={!activeMintUrl || !isValidAmount || isGenerating}
+              loading={isGenerating}
+              loadingText="Creating request…"
+              onPress={handleGenerate}
+            >
+              Create request
+            </AppButton>
+          }
+        >
+          <ListTable>
+            <PaymentMintRow
+              mintUrl={activeMintUrl || ''}
+              onSelect={setActiveMint}
+              disabled={isGenerating}
+            />
+            {targetNpub && <ListTableRow label="From" value={targetUsername || targetNpub} />}
+            <PaymentNote value={note} onChange={setNote} disabled={isGenerating} />
+          </ListTable>
+          {generateError && (
+            <Text color="$red10" p="$3">
+              {generateError}
+            </Text>
+          )}
+        </PaymentStageLayout>
+      </>
+    );
+  }
+
   if (step === 'amount') {
     return (
       <YStack flex={1} px="$4" justify="space-between" bg="$background">
+        {header}
         <YStack gap="$1.5" pointerEvents={isGenerating ? 'none' : 'auto'}>
           {generateError && (
             <Text color="$red10" accessibilityRole="alert">
@@ -713,57 +718,6 @@ export function RequestEcashStage({
 
             {/* Standalone Note Card outside the amount card */}
           </YStack>
-          <XStack
-            justify="space-between"
-            items="center"
-            width="100%"
-            bg="$gray3"
-            p="$4"
-            rounded="$6"
-            minH={70}
-          >
-            <XStack gap="$3" items="center" flex={1} mr="$2">
-              <View items="center" justify="center">
-                <PenLine size="$1.5" color="$accent5" strokeWidth={2.5} />
-              </View>
-
-              <YStack flex={1} justify="center">
-                <Input
-                  value={note}
-                  onChangeText={setNote}
-                  placeholder="Add a note (optional)"
-                  size="$3"
-                  borderWidth={0}
-                  bg="transparent"
-                  autoCapitalize="sentences"
-                  autoCorrect={true}
-                  color="$color"
-                  fontSize="$5"
-                  fontWeight={800}
-                  p={0}
-                  height={30}
-                  style={{ outlineStyle: 'solid', outlineWidth: 0 }}
-                  maxLength={80}
-                />
-              </YStack>
-            </XStack>
-
-            {note.length > 0 && (
-              <AppIconButton
-                variant="default"
-                emphasis="tertiary"
-                size="xsmall"
-
-                shape="circular"
-                accessibilityLabel="Clear input"
-                icon={<XIcon size="$1.5" color="$accent5" strokeWidth={2.5} />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setNote('');
-                }}
-              />
-            )}
-          </XStack>
         </YStack>
 
         {/* ── Keypad ───────────────────────────────────────────────── */}
@@ -772,8 +726,8 @@ export function RequestEcashStage({
           showAmountDisplay={false}
           value={localInputValue}
           onValueChange={onKeypadChange}
-          onConfirm={handleGenerate}
-          confirmLabel="Generate Request"
+          onConfirm={() => setStep('confirm')}
+          confirmLabel="Continue"
           loadingText="Creating payment request…"
           confirmDisabled={!isValidAmount || isGenerating || !npub}
           confirmIcon={isGenerating ? <Spinner size="small" /> : <QrCode size={20} />}
@@ -781,7 +735,14 @@ export function RequestEcashStage({
         />
 
         {/* ── Mint bottom sheet ─────────────────────────────────────── */}
-        <MintSelectorSheet ref={sheetRef} />
+        <MintSelectorSheet
+          ref={sheetRef}
+          activeMintUrl={activeMintUrl || undefined}
+          onSelect={setActiveMint}
+          showAllOption={false}
+          changeGlobalActiveMint={false}
+          trustedOnly
+        />
       </YStack>
     );
   }
@@ -791,174 +752,111 @@ export function RequestEcashStage({
   // ────────────────────────────────────────────────────────────────────────
   if (step === 'success') {
     return (
-      <ResultStage
-        status="success"
-        amount={amtNum.toString()}
-        mintUrl={activeMintUrl!}
-        title="Request Claimed"
-        onClose={onClose || handleReset}
-      />
+      <>
+        {header}
+        <ResultStage
+          status="success"
+          amount={amtNum.toString()}
+          mintUrl={activeMintUrl!}
+          title="Request claimed"
+          onClose={onClose || handleReset}
+        />
+      </>
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────
-  // RESULT STAGE — NUT-18 creqA QR + detail table
-  // When sender scans this, their wallet pre-fills amount + mint
-  // and sends ecash directly to us
-  // ────────────────────────────────────────────────────────────────────────
   return (
-    <YStack flex={1} bg="$background">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
-        <YStack flex={1} px="$4" pb="$8" pt="$4" gap="$4">
-          {generateError && (
-            <Text accessibilityRole="alert" color="$buttonWarningSecondaryText">
-              {generateError} Your request is saved. Retry sending from its conversation.
+    <>
+      {header}
+      <PaymentStageLayout
+        variant="qr"
+        hero={
+          <>
+            <Text fontSize={14} fontWeight="500" color="$gray10">
+              Request payment
             </Text>
-          )}
-          {/* ── Hint banner ────────────────────────────────────────── */}
-          {/* <XStack
-            mt="$4"
-            px="$4"
-            py="$2"
-            rounded="$4"
-            items="center"
-            gap="$2"
-            bg="$color3"
-            borderWidth={0.5}
-            borderColor="$borderColor"
-          >
-            <Zap size={14} color="$accent9" />
-            <Text fontSize="$2" color="$gray10" flex={1}>
-              Share or display this QR. The sender's Cashu wallet will automatically fill in the
-              amount and mint.
-            </Text>
-          </XStack> */}
-
-          {/* ── QR Code ──────────────────────────────────────────── */}
-          <YStack items="center" gap="$4">
-            <View bg="white" borderWidth={1} borderColor="$borderColor" p="$3" rounded="$6">
-              {creqString ? (
-                <QRCode
-                  value={creqString}
-                  size={320}
-                  backgroundColor="white"
-                  color="black"
-                  quietZone={8}
-                />
-              ) : (
-                <YStack width={320} height={320} items="center" justify="center">
-                  <Spinner size={36} color="$accent9" />
-                </YStack>
-              )}
-            </View>
-          </YStack>
-
-          {/* ── Detail Table ─────────────────────────────────────── */}
-          <YStack
-            gap="$0"
-            bg="$gray2"
-            rounded="$6"
-            overflow="hidden"
-            separator={<Separator borderColor="$borderColor" opacity={0.5} />}
-          >
-            <DetailItem label="Amount" value={currencyService.formatSats(amtNum)} />
-            <DetailItem label="Fiat" value={fiatValueLabel} />
-            <DetailItem label="Unit" value="SATOSHIS" />
-            <DetailItem label="Mint" value={displayName} />
-            {note ? <DetailItem label="Note" value={note} /> : null}
-            {targetNpub ? (
-              <DetailItem
-                label="Sent To"
-                value={targetUsername || `${targetNpub.slice(0, 10)}...${targetNpub.slice(-6)}`}
-              />
-            ) : null}
-            {publishedLink ? (
-              <DetailItem
-                label="Web Link"
-                value={`${publishedLink.slice(0, 14)}…${publishedLink.slice(-6)}`}
-                isCopyable
-                onCopy={() => {
-                  Clipboard.setStringAsync(publishedLink);
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Web request link copied to clipboard', { kind: 'success' });
-                }}
-                onShare={() => Share.share({ message: publishedLink })}
-              />
-            ) : null}
+            <PaymentQRFrame accessibilityLabel="Payment request QR code">
+              {(size) =>
+                creqString ? (
+                  <QRCode value={creqString} size={size} backgroundColor="white" color="black" />
+                ) : (
+                  <YStack width={size} height={size} items="center" justify="center">
+                    <Spinner size="large" />
+                  </YStack>
+                )
+              }
+            </PaymentQRFrame>
+            <PaymentAmount amount={amtNum} compact />
+          </>
+        }
+        footer={
+          <AppButton size="large" fullWidth onPress={handleShare}>
+            Share request
+          </AppButton>
+        }
+      >
+        {generateError && (
+          <Text accessibilityRole="alert" color="$buttonWarningSecondaryText">
+            {generateError} Your request is saved. Retry sending from its conversation.
+          </Text>
+        )}
+        <ListTable
+          gap="$0"
+          bg="$gray2"
+          rounded="$6"
+          overflow="hidden"
+          separator={<Separator borderColor="$borderColor" opacity={0.5} />}
+        >
+          <DetailItem label="Mint" value={displayName} />
+          <PaymentStatusRow
+            value="Awaiting payment"
+            onRefresh={handleCheckStatus}
+            checking={isChecking}
+          />
+          {note ? <DetailItem label="Note" value={note} /> : null}
+          {targetNpub ? (
             <DetailItem
-              label="Request"
-              value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
-              isCopyable={!!creqString}
-              onCopy={handleCopy}
-              onShare={handleShare}
+              label="Sent To"
+              value={targetUsername || `${targetNpub.slice(0, 10)}...${targetNpub.slice(-6)}`}
             />
-          </YStack>
-
-          {/* ── Action Buttons ────────────────────────────────────── */}
-          <YStack gap="$3" mt="auto">
-            <XStack gap="$3">
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="large"
-                icon={<Share2 size={20} />}
-                flex={1}
-                onPress={handleShare}
-              >
-                Share
-              </AppButton>
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="large"
-                icon={copied ? <Check size={20} /> : <Copy size={20} />}
-                flex={2}
-                onPress={handleCopy}
-              >
-                {copied ? 'Copied!' : 'Copy Request'}
-              </AppButton>
-            </XStack>
-
-            {!publishedLink && (
-              <AppButton
-                variant="branded"
-                emphasis="primary"
-                size="large"
-                loading={isPublishing}
-                icon={<Globe size={20} />}
-                onPress={handlePublish}
-                disabled={isPublishing}
-              >
-                {isPublishing ? 'Publishing...' : 'Publish on bey.cash'}
-              </AppButton>
-            )}
-
-            <XStack justify="center" gap="$4">
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="xsmall"
-                loading={isChecking}
-                loadingText="Checking payment…"
-                icon={<RefreshCw size={14} color="$accent9" />}
-                onPress={handleCheckStatus}
-                disabled={isChecking}
-              >
-                Check Status
-              </AppButton>
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="xsmall"
-                icon={<RefreshCw size={14} color="$gray10" />}
-                onPress={handleReset}
-              >
-                New Request
-              </AppButton>
-            </XStack>
-          </YStack>
-        </YStack>
-      </ScrollView>
-    </YStack>
+          ) : null}
+          {publishedLink ? (
+            <DetailItem
+              label="Web Link"
+              value={`${publishedLink.slice(0, 14)}…${publishedLink.slice(-6)}`}
+              isCopyable
+              onCopy={() => {
+                Clipboard.setStringAsync(publishedLink);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                toast.show('Web request link copied to clipboard', { kind: 'success' });
+              }}
+              onShare={() => Share.share({ message: publishedLink })}
+            />
+          ) : null}
+          <DetailItem
+            label="Request"
+            value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
+            isCopyable={!!creqString}
+            onCopy={handleCopy}
+            onShare={handleShare}
+          />
+        </ListTable>
+        {!publishedLink && (
+          <AppButton
+            emphasis="text-only"
+            loading={isPublishing}
+            disabled={isPublishing}
+            onPress={handlePublish}
+          >
+            Publish on bey.cash
+          </AppButton>
+        )}
+        <XStack justify="center" gap="$3">
+          <AppButton size="small" emphasis="text-only" onPress={handleReset}>
+            New request
+          </AppButton>
+        </XStack>
+      </PaymentStageLayout>
+    </>
   );
 }

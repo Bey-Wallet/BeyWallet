@@ -1,8 +1,8 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, Avatar, Square, Input } from 'tamagui';
-import { ArrowUpDown, Key, KeyRound, User } from '@tamagui/lucide-icons';
-import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
+import { YStack, Text } from 'tamagui';
+import { ArrowUpDown, KeyRound } from '@tamagui/lucide-icons';
+
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useWalletStore } from '~/state/walletStore';
@@ -24,6 +24,8 @@ import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 
 interface P2PKAmountStageProps {
+  mintUrl?: string | null;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   receiverPubkey: string;
@@ -37,6 +39,8 @@ interface P2PKAmountStageProps {
 }
 
 export function P2PKAmountStage({
+  mintUrl,
+  onMintChange,
   amount,
   setAmount,
   receiverPubkey,
@@ -48,7 +52,7 @@ export function P2PKAmountStage({
   isOffline,
 }: P2PKAmountStageProps) {
   const {
-    activeMintUrl,
+    activeMintUrl: globalMintUrl,
     mints,
     refreshMintList,
     isInitializing,
@@ -56,6 +60,7 @@ export function P2PKAmountStage({
     scannerResult,
     setScannerResult,
   } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -339,7 +344,15 @@ export function P2PKAmountStage({
         confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
       />
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        method="p2pk"
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </YStack>
   );
 }

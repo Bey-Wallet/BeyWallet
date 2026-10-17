@@ -1,6 +1,8 @@
+import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React, { useEffect, useMemo, useState } from 'react';
 import { YStack, Text, ScrollView } from 'tamagui';
-import { Check } from '@tamagui/lucide-icons';
+
 import * as Haptics from 'expo-haptics';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -78,6 +80,7 @@ export function ResultStage({
 
   return (
     <YStack flex={1} bg="$background">
+      <PaymentFlowHeader title={title} onBack={onClose} />
       <ScrollView
         flex={1}
         showsVerticalScrollIndicator={false}
@@ -85,19 +88,11 @@ export function ResultStage({
       >
         <YStack flex={1} gap="$6">
           <YStack flex={1} minHeight={280} gap="$3" py="$7" items="center" justify="center">
-            {isSuccess && (
-              <YStack
-                width={60}
-                height={60}
-                rounded={1000}
-                bg="$green10"
-                items="center"
-                justify="center"
-                mb="$2"
-              >
-                <Check size={30} color="white" strokeWidth={3} />
-              </YStack>
-            )}
+            <PaymentStatusIcon
+              status={
+                status === 'success' ? 'success' : status === 'cancelled' ? 'cancelled' : 'error'
+              }
+            />
             <Text
               accessibilityRole="header"
               fontSize={16}
