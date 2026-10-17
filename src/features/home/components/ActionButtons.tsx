@@ -12,21 +12,15 @@ function HomeAction({
   label,
   accessibilityLabel = label,
   icon: Icon,
-  branded = false,
   onPress,
 }: {
   label: string;
   accessibilityLabel?: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
-  branded?: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const color = branded ? '$buttonBrandedPrimaryText' : '$buttonDefaultSecondaryText';
-  const iconColor = String(
-    (branded ? theme.buttonBrandedPrimaryText : theme.buttonDefaultSecondaryText)?.val ??
-      theme.color?.val,
-  );
+  const iconColor = String(theme.buttonDefaultSecondaryText?.val ?? theme.color?.val);
 
   return (
     <AppPressable
@@ -38,7 +32,7 @@ function HomeAction({
       gap={12}
       items="flex-start"
       justify="space-between"
-      bg={'$buttonDefaultSecondary'}
+      bg="$buttonDefaultSecondary"
       hoverStyle={{
         bg: '$buttonDefaultSecondaryHover',
       }}
@@ -52,7 +46,13 @@ function HomeAction({
       <View aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Icon size={24} color={iconColor} />
       </View>
-      <Text color={color} fontSize={14} lineHeight={20} fontWeight="600" flexShrink={1}>
+      <Text
+        color="$buttonDefaultSecondaryText"
+        fontSize={14}
+        lineHeight={20}
+        fontWeight="600"
+        flexShrink={1}
+      >
         {label}
       </Text>
     </AppPressable>
@@ -97,7 +97,7 @@ export default React.memo(function ActionButtons() {
         />
         {/* <HomeAction label="Swap" icon={Repeat} onPress={handleSwap} /> */}
         <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
-        <HomeAction label="Send" icon={SendIcon} branded onPress={handleSend} />
+        <HomeAction label="Send" icon={SendIcon} onPress={handleSend} />
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />

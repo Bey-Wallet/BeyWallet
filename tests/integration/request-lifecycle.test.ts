@@ -53,6 +53,7 @@ const response = {
   amount: 10,
   senderPubkey: sender,
   status: 'claimed',
+  receiptVerified: true,
   receivedAt: 10,
   tokenString: 'never-render-this',
 } as NostrInboxItem;
@@ -97,6 +98,16 @@ it('requires a successful claim and never falls back when an explicit ID differs
   const store = useNostrRequestStore.getState();
   await store.addRequest(request);
   const pending = useNostrRequestStore.getState().pendingRequests;
+  expect(
+    matchReceiveRequest([{ ...pending[0], createdAt: 1 }], {
+      ...response,
+      receiptCreatedAt: 5,
+      receivedAt: 10,
+    }),
+  ).toBeUndefined();
+  await recordRequestReceipt({ ...response, receiptVerified: undefined });
+  await recordRequestReceipt({ ...response, receiptCreatedAt: 1 });
+  expect(useNostrRequestStore.getState().requests[0].state).toBe('pending');
   expect(matchReceiveRequest(pending, { ...response, requestId: 'different' })).toBeUndefined();
   expect(
     matchReceiveRequest(pending, { ...response, senderPubkey: '34'.repeat(32) }),

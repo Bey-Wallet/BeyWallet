@@ -45,6 +45,7 @@ export function matchReceiveRequest(
   item: NostrInboxItem,
 ): NostrReceiveRequest | undefined {
   if (item.type === 'request') return;
+  if (item.receiptCreatedAt !== undefined && item.receiptCreatedAt < item.receivedAt) return;
   const matches = requests.filter((request) => {
     if (
       request.state !== 'pending' ||
@@ -53,6 +54,8 @@ export function matchReceiveRequest(
     )
       return false;
     if (item.requestId && request.id !== item.requestId) return false;
+    if (item.receiptCreatedAt !== undefined && item.receiptCreatedAt < request.createdAt)
+      return false;
     if (request.recipient && normalizeNpub(request.recipient) !== normalizeNpub(item.senderPubkey))
       return false;
     try {
@@ -70,7 +73,7 @@ export function matchReceiveRequest(
 }
 
 export async function recordRequestReceipt(item: NostrInboxItem): Promise<void> {
-  if (item.status !== 'claimed') return;
+  if (item.status !== 'claimed' || !item.receiptVerified) return;
   const store = useNostrRequestStore.getState();
   await store.loadPendingRequests();
   const match = matchReceiveRequest(useNostrRequestStore.getState().pendingRequests, item);
@@ -163,7 +166,7 @@ class RequestLifecycleService {
     }
     for (const item of useNostrInboxStore.getState().items) {
       if (generation !== this.generation) return;
-      if (item.status !== 'claimed' || item.type === 'request') continue;
+      if (item.status !== 'claimed' || !item.receiptVerified || item.type === 'request') continue;
       const request = matchReceiveRequest(useNostrRequestStore.getState().pendingRequests, item);
       if (request) await store.markReceived(request.id);
     }

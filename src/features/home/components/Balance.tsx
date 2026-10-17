@@ -55,7 +55,7 @@ export default function Balance() {
       py="$2"
       gap="$3"
       z={1000}
-      height={220}
+      height={200}
       justify="center"
       items="center"
       position="relative"

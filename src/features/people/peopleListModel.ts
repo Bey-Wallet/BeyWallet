@@ -212,7 +212,11 @@ export function buildPeopleListModel({
           kind: 'issue',
           issueId: item.id,
           preview: [
-            item.status === 'approval_required' ? 'Mint approval needed' : 'Payment needs review',
+            item.failure?.code === 'receipt_unverified'
+              ? 'Receipt unverified'
+              : item.status === 'approval_required'
+                ? 'Mint approval needed'
+                : 'Payment needs review',
             typeof item.amount === 'number' && Number.isFinite(item.amount)
               ? formatAmount(item.amount)
               : undefined,

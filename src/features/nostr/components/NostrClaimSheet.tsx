@@ -159,9 +159,10 @@ export function NostrClaimSheet() {
     }
     setClaimStatus('claiming');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const result = await nostrClaimService.retry(activeItem.id, {
-      trustMint: mintTrusted === false,
-    });
+    const result =
+      activeItem.failure?.code === 'receipt_unverified'
+        ? await nostrClaimService.reconcileReceipt(activeItem.id, true)
+        : await nostrClaimService.retry(activeItem.id, { trustMint: mintTrusted === false });
     if (result.status === 'claimed') {
       setClaimStatus('success');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -313,14 +314,15 @@ export function NostrClaimSheet() {
                     <Text color="$orange10">Only continue if you trust {mintDomain}.</Text>
                   </YStack>
                 )}
-                {claimStatus === 'error' && activeItem.error && (
-                  <XStack width="100%" bg="$red3" rounded="$4" p="$3" gap="$2">
-                    <XCircle size={18} color="$red10" />
-                    <Text color="$red10" flex={1}>
-                      {activeItem.error}
-                    </Text>
-                  </XStack>
-                )}
+                {(claimStatus === 'error' || activeItem.failure?.code === 'receipt_unverified') &&
+                  activeItem.error && (
+                    <XStack width="100%" bg="$red3" rounded="$4" p="$3" gap="$2">
+                      <XCircle size={18} color="$red10" />
+                      <Text color="$red10" flex={1}>
+                        {activeItem.error}
+                      </Text>
+                    </XStack>
+                  )}
               </>
             )}
             <XStack width="100%" gap="$3">
@@ -347,9 +349,11 @@ export function NostrClaimSheet() {
                 >
                   {!contactAccepted
                     ? 'Accept contact'
-                    : mintTrusted === false
-                      ? 'Trust & Claim'
-                      : 'Try Again'}
+                    : activeItem.failure?.code === 'receipt_unverified'
+                      ? 'Verify receipt'
+                      : mintTrusted === false
+                        ? 'Trust & Claim'
+                        : 'Try Again'}
                 </AppButton>
               )}
             </XStack>

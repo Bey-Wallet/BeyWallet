@@ -20,7 +20,7 @@ type AppButtonBaseProps = Omit<
   size?: AppButtonSize;
   loading?: boolean;
   disabled?: boolean;
-  /** Optional label shown beside the spinner while loading. */
+  /** Optional accessible status announced while the centered loader is shown. */
   loadingText?: string;
   iconAfter?: AppButtonIcon;
   fullWidth?: boolean;
@@ -166,8 +166,17 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
         outlineStyle: 'solid',
       }}
     >
-      <XStack items="center" justify="center" gap={8} flexShrink={1}>
-        {loading || icon ? (
+      <XStack
+        items="center"
+        justify="center"
+        gap={8}
+        flexShrink={1}
+        opacity={loading ? 0 : 1}
+        aria-hidden={loading || undefined}
+        accessibilityElementsHidden={loading}
+        importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'}
+      >
+        {icon ? (
           <XStack
             width={iconSize}
             height={iconSize}
@@ -178,17 +187,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            {loading ? (
-              <Spinner
-                size={iconSize}
-                width={iconSize}
-                height={iconSize}
-                color={color}
-                reduceMotion={reducedMotion}
-              />
-            ) : (
-              renderIcon(icon, { size: iconSize, color })
-            )}
+            {!loading && renderIcon(icon, { size: iconSize, color })}
           </XStack>
         ) : null}
         {!iconOnly && (
@@ -220,10 +219,10 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
                     : {}
             }
           >
-            {loading ? (loadingText ?? children) : children}
+            {children}
           </Text>
         )}
-        {!loading && !iconOnly && iconAfter ? (
+        {!iconOnly && iconAfter ? (
           <XStack
             width={iconSize}
             height={iconSize}
@@ -234,10 +233,30 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            {renderIcon(iconAfter, { size: iconSize, color })}
+            {!loading && renderIcon(iconAfter, { size: iconSize, color })}
           </XStack>
         ) : null}
       </XStack>
+      {loading && (
+        <XStack
+          position="absolute"
+          inset={0}
+          items="center"
+          justify="center"
+          pointerEvents="none"
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Spinner
+            size={iconSize}
+            width={iconSize}
+            height={iconSize}
+            color={color}
+            reduceMotion={reducedMotion}
+          />
+        </XStack>
+      )}
     </Button>
   );
 });

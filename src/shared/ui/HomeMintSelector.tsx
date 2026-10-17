@@ -107,28 +107,35 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           backgroundColor="$gray2"
           onOpenChange={onOpenChange}
         >
-          <YStack p="$4" pt="$2" gap="$4" flex={1}>
+          <YStack p="$4" pt="$2" gap="$4" flex={1} width="100%" minW={0}>
             {/* Custom Header matching ActionSelectorSheet */}
-            <XStack items="center" justify="space-between" width="100%" pb="$2">
-              <XStack items="center" justify="center" gap="$3">
+            <XStack items="center" justify="space-between" width="100%" pb="$2" gap="$2" minW={0}>
+              <XStack items="center" gap="$2" flex={1} minW={0}>
                 <AppIconButton
                   variant="default"
                   emphasis="tertiary"
-                  size="medium"
-
+                  size="xsmall"
+                  flexShrink={0}
                   shape="circular"
                   accessibilityLabel="Close"
                   icon={<X size={20} color="$color" strokeWidth={3} />}
                   onPress={handleClose}
                 />
-                <Text fontSize="$6" fontWeight="800" color="$accent1">
+                <Text
+                  fontSize="$6"
+                  fontWeight="800"
+                  color="$accent1"
+                  flexShrink={1}
+                  numberOfLines={2}
+                >
                   Select Mint
                 </Text>
               </XStack>
               <AppButton
                 variant="branded"
                 emphasis="primary"
-                size="medium"
+                size="small"
+                flexShrink={0}
                 icon={<Plus size={20} color="$color" strokeWidth={3} />}
                 onPress={handleAddMint}
               >
@@ -136,11 +143,16 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
               </AppButton>
             </XStack>
 
-            <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-              <YStack gap="$2" pb="$4">
+            <BottomSheetScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ flex: 1, width: '100%' }}
+            >
+              <YStack gap="$2" pb="$4" width="100%" minW={0}>
                 {showAllOption && (
                   <XStack
                     key="all-mints"
+                    width="100%"
+                    minW={0}
                     justify="space-between"
                     items="center"
                     onPress={() => handleSelectMint('all')}
@@ -151,7 +163,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                     borderColor={activeMintUrl === 'all' ? '$accentColor' : 'transparent'}
                     rounded="$6"
                   >
-                    <XStack gap="$3" items="center" flex={1}>
+                    <XStack gap="$3" items="center" flex={1} minW={0}>
                       <View
                         bg="$gray3"
                         p="$2.5"
@@ -159,12 +171,13 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                         overflow="hidden"
                         width={48}
                         height={48}
+                        flexShrink={0}
                         items="center"
                         justify="center"
                       >
                         <Landmark size={20} color="$gray10" />
                       </View>
-                      <YStack gap="$0.5" flex={1}>
+                      <YStack gap="$0.5" flex={1} minW={0}>
                         <Text fontWeight="700" fontSize="$5" color="$accent3" numberOfLines={1}>
                           All Mints
                         </Text>
@@ -173,7 +186,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                         </Text>
                       </YStack>
                     </XStack>
-                    <XStack items="center" justify="center" pl="$2">
+                    <XStack items="center" justify="center" pl="$2" flexShrink={0}>
                       {activeMintUrl === 'all' ? (
                         <View
                           width={22}
@@ -208,6 +221,8 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                   mints.map((mint) => (
                     <XStack
                       key={mint.mintUrl}
+                      width="100%"
+                      minW={0}
                       justify="space-between"
                       items="center"
                       onPress={() => handleSelectMint(mint.mintUrl)}
@@ -218,7 +233,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                       borderColor={activeMintUrl === mint.mintUrl ? '$accentColor' : 'transparent'}
                       rounded="$6"
                     >
-                      <XStack gap="$3" items="center" flex={1}>
+                      <XStack gap="$3" items="center" flex={1} minW={0}>
                         <View
                           bg={mint.trusted ? '$green3' : '$gray3'}
                           p={mint.icon ? '$0' : '$2'}
@@ -226,6 +241,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                           overflow="hidden"
                           width={48}
                           height={48}
+                          flexShrink={0}
                           items="center"
                           justify="center"
                         >
@@ -243,13 +259,15 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                             <ShieldOff size={20} color="$gray10" />
                           )}
                         </View>
-                        <YStack gap="$0.5" flex={1}>
-                          <XStack items="center" gap="$1.5">
+                        <YStack gap="$0.5" flex={1} minW={0}>
+                          <XStack items="center" gap="$1.5" minW={0}>
                             <Text
                               fontWeight="700"
                               fontSize="$5"
                               color="$accent3"
                               numberOfLines={1}
+                              flex={1}
+                              minW={0}
                               flexShrink={1}
                             >
                               {mint.nickname ||
@@ -260,7 +278,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                               variant="default"
                               emphasis="tertiary"
                               size="xxsmall"
-
+                              flexShrink={0}
                               shape="circular"
                               accessibilityLabel="Edit nickname"
                               icon={<Edit3 size={12} color="$gray10" />}
@@ -277,7 +295,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                           </Text>
                         </YStack>
                       </XStack>
-                      <XStack items="center" justify="center" pl="$2">
+                      <XStack items="center" justify="center" pl="$2" flexShrink={0}>
                         {activeMintUrl === mint.mintUrl ? (
                           <View
                             width={22}
@@ -374,6 +392,8 @@ export default function HomeHeaderMintSelector() {
           sheetRef.current?.present();
         }}
         maxW={170}
+        minW={0}
+        flexShrink={1}
         pressStyle={{ scale: 0.97, opacity: 0.95, bg: isOffline ? '$red11' : '$blue11' }}
         minHeight={36}
         flexDirection="row"
@@ -384,7 +404,7 @@ export default function HomeHeaderMintSelector() {
         {isLoading ? (
           <Spinner size={14} color="white" />
         ) : (
-          <Avatar rounded="$3" size="$2">
+          <Avatar rounded="$3" size="$2" flexShrink={0}>
             <Avatar.Image src={activeMint?.icon} />
             <Avatar.Fallback
               backgroundColor="rgba(255,255,255,0.2)"
@@ -400,7 +420,8 @@ export default function HomeHeaderMintSelector() {
           {...{
             fontSize: '$3',
             fontWeight: '700',
-            maxW: 110,
+            flexShrink: 1,
+            minWidth: 0,
             numberOfLines: 1,
             color: 'white',
           }}
@@ -411,6 +432,7 @@ export default function HomeHeaderMintSelector() {
         {isLoading ? undefined : (
           <Square
             size="$2"
+            flexShrink={0}
             borderWidth={0.5}
             borderColor="rgba(255,255,255,0.2)"
             bg="rgba(255,255,255,0.15)"

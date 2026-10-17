@@ -292,9 +292,11 @@ export default function NostrActivity() {
                       ? 'Contact acceptance needed · '
                       : item.status === 'approval_required'
                         ? 'Mint approval needed · '
-                        : item.type === 'request'
-                          ? 'Payment request · '
-                          : ''}
+                        : item.failure?.code === 'receipt_unverified'
+                          ? 'Receipt unverified · '
+                          : item.type === 'request'
+                            ? 'Payment request · '
+                            : ''}
                     {timeAgo(item.receivedAt)}
                   </Text>
                 </YStack>

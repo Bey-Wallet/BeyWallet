@@ -3,21 +3,30 @@ import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore'
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 import { mintManager } from '~/services/wallet/mintManager';
 import { walletService } from '~/services/wallet/walletService';
-import { useNostrInboxStore } from '~/state/nostrInboxStore';
-import { getEncodedTokenV3, getEncodedTokenV4 } from '@cashu/cashu-ts';
+import { useNostrInboxStore, migrateNostrInbox } from '~/state/nostrInboxStore';
+import { getEncodedTokenV3, getEncodedTokenV4, getTokenMetadata } from '@cashu/cashu-ts';
 import { networkService } from '~/services/platform/networkService';
 import { proofService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useAuthStore } from '~/state/authStore';
+import { initService } from '~/services/wallet/initService';
+import { DeviceEventEmitter } from 'react-native';
+import { notificationService } from '~/services/platform/notificationService';
+import { historyService } from '~/services/wallet/historyService';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: jest.fn(() => null), setItem: jest.fn(), removeItem: jest.fn() },
 }));
 
 jest.mock('~/services/wallet/initService', () => ({
-  initService: { isInitialized: jest.fn(() => true) },
+  initService: { isInitialized: jest.fn(() => true), getRepo: jest.fn() },
 }));
-jest.mock('~/services/wallet', () => ({ proofService: { checkProofStates: jest.fn() } }));
+jest.mock('~/services/wallet', () => ({
+  proofService: require('~/services/wallet/proofService').proofService,
+}));
+jest.mock('~/services/wallet/proofService', () => ({
+  proofService: { checkProofStates: jest.fn() },
+}));
 jest.mock('~/services/wallet/mintManager', () => ({
   mintManager: { isMintTrusted: jest.fn(), addMint: jest.fn() },
 }));
@@ -92,11 +101,147 @@ describe('nostrClaimService', () => {
     trusted.mockResolvedValue(true);
     receiveP2PK.mockResolvedValue(undefined);
     receive.mockResolvedValue(undefined);
+    jest.mocked(initService.getRepo).mockReturnValue({
+      historyRepository: {
+        getSuccessfulReceiveCandidates: jest.fn(async () => []),
+      },
+    } as any);
     (nostrClaimService as any).recentClaims = [];
     nostrClaimService.start('02'.repeat(32));
   });
 
-  afterEach(() => nostrClaimService.stop());
+  afterEach(() => {
+    nostrClaimService.stop();
+    jest.restoreAllMocks();
+  });
+
+  function receiptForCurrentItem() {
+    const metadata = getTokenMetadata(useNostrInboxStore.getState().items[0].tokenString);
+    return {
+      id: 'own-receipt',
+      createdAt: Date.now(),
+      type: 'receive',
+      mintUrl: metadata.mint,
+      unit: metadata.unit,
+      amount: metadata.amount,
+      token: {
+        mint: metadata.mint,
+        proofs: metadata.incompleteProofs.map((proof) => ({ ...proof, id: 'keyset' })),
+      },
+    };
+  }
+
+  it('does not report an already-spent token as received without an exact successful local receipt', async () => {
+    addPayment('spent-elsewhere');
+    const events = jest.spyOn(DeviceEventEmitter, 'emit');
+    jest
+      .spyOn(useSettingsStore, 'getState')
+      .mockReturnValue({ biometricEnabled: false, notificationsEnabled: true } as any);
+    receive.mockRejectedValue(Object.assign(new Error('Token already spent'), { code: 11001 }));
+    await expect(nostrClaimService.retry('spent-elsewhere')).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'receipt_unverified', retryable: false },
+    });
+    expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+      status: 'failed',
+      failure: { code: 'receipt_unverified' },
+    });
+    expect(useNostrInboxStore.getState().items[0].receiptVerified).not.toBe(true);
+    expect(events.mock.calls.some(([name]) => name === 'nostr:received')).toBe(false);
+    expect(notificationService.sendLocalNotification).not.toHaveBeenCalled();
+  });
+
+  it('recovers a completed receive after an interrupted claim without a new receipt notification', async () => {
+    addPayment('recovered', false, 4);
+    const events = jest.spyOn(DeviceEventEmitter, 'emit');
+    jest
+      .spyOn(useSettingsStore, 'getState')
+      .mockReturnValue({ biometricEnabled: false, notificationsEnabled: true } as any);
+    const candidates = initService.getRepo().historyRepository
+      .getSuccessfulReceiveCandidates as jest.Mock;
+    candidates.mockResolvedValueOnce([]).mockResolvedValueOnce([receiptForCurrentItem()]);
+    receive.mockRejectedValue(new Error('proofs already spent'));
+    await expect(nostrClaimService.retry('recovered')).resolves.toMatchObject({
+      status: 'claimed',
+    });
+    expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+      status: 'claimed',
+      receiptVerified: true,
+    });
+    expect(events.mock.calls.some(([name]) => name === 'nostr:received')).toBe(false);
+    expect(notificationService.sendLocalNotification).not.toHaveBeenCalled();
+    expect(receive).toHaveBeenCalledTimes(1);
+    nostrClaimService.stop();
+    nostrClaimService.start('02'.repeat(32));
+    await nostrClaimService.processPending();
+    expect(receive).toHaveBeenCalledTimes(1);
+  });
+
+  it('recognizes an exact previous receipt before attempting redemption again', async () => {
+    addPayment('previous-receipt');
+    const candidates = initService.getRepo().historyRepository
+      .getSuccessfulReceiveCandidates as jest.Mock;
+    candidates.mockResolvedValue([receiptForCurrentItem()]);
+    await expect(nostrClaimService.retry('previous-receipt')).resolves.toMatchObject({
+      status: 'claimed',
+    });
+    expect(receive).not.toHaveBeenCalled();
+    expect(receiveP2PK).not.toHaveBeenCalled();
+  });
+
+  it('preserves the original receipt time and attribution when an old token is replayed', async () => {
+    addPayment('old-replay');
+    const candidates = initService.getRepo().historyRepository
+      .getSuccessfulReceiveCandidates as jest.Mock;
+    candidates.mockResolvedValue([{ ...receiptForCurrentItem(), createdAt: 1 }]);
+    await nostrClaimService.retry('old-replay');
+    expect(useNostrInboxStore.getState().items[0].receiptCreatedAt).toBe(1);
+    expect(historyService.tagHistoryVia).not.toHaveBeenCalled();
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it('proof refresh leaves spent tokens unverified without a local receipt', async () => {
+    addPayment('spent-refresh');
+    jest.mocked(proofService.checkProofStates).mockResolvedValue([{ state: 'SPENT' }] as any);
+    expect(await useNostrInboxStore.getState().refreshPendingStates()).toBe(0);
+    expect(useNostrInboxStore.getState().items[0]).toMatchObject({
+      status: 'failed',
+      failure: { code: 'receipt_unverified' },
+    });
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { states: [] },
+    { states: [{ state: 'SPENT' }, { state: 'SPENT' }] },
+    { states: [{ state: 'PENDING' }] },
+  ])(
+    'does not infer success from incomplete or pending proof responses: %j',
+    async ({ states }) => {
+      addPayment('incomplete-refresh');
+      jest.mocked(proofService.checkProofStates).mockResolvedValue(states as any);
+      await useNostrInboxStore.getState().refreshPendingStates();
+      expect(useNostrInboxStore.getState().items[0].status).toBe('pending');
+    },
+  );
+
+  it('moves legacy unproven claims into verification while preserving verified claims and requests', () => {
+    addPayment('legacy');
+    const item = { ...useNostrInboxStore.getState().items[0], status: 'claimed' as const };
+    const migrated = migrateNostrInbox({
+      items: [
+        item,
+        { ...item, id: 'verified', receiptVerified: true },
+        { ...item, id: 'request', type: 'request' },
+      ],
+    });
+    expect(migrated.items[0]).toMatchObject({
+      status: 'failed',
+      failure: { code: 'receipt_unverified', retryable: false },
+    });
+    expect(migrated.items[1].status).toBe('claimed');
+    expect(migrated.items[2].status).toBe('claimed');
+  });
 
   it('does not claim an item after the user dismissed it', async () => {
     addPayment('dismissed');

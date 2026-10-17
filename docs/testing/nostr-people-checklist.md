@@ -53,6 +53,12 @@ notifications, and complete payment flows.
 
 ## Receiving and claims
 
+- [ ] Submit an already-spent token that was redeemed elsewhere: show Receipt unverified, with no receive notification, balance credit, or request completion.
+- [ ] Repeat with a token this wallet previously redeemed: match its exact successful receive history and restore verified status without a second receive notification.
+- [ ] Upgrade legacy claimed inbox records with and without matching successful history. Offline/unclaimed history and unrelated same-amount receipts must never count as evidence.
+- [ ] Refresh a pending token whose mint returns partial, empty, or pending proof states: never infer receipt success.
+- [ ] In the Home mint selector, use long mint names/URLs and large system text on a narrow phone. Check the header, sheet header, edit controls, balances, and selected indicators stay within the available width in both themes.
+
 - [ ] In Ask mode, receive from an unknown person at a trusted mint: no redemption, balance change or receipt notification.
 - [ ] Accept the invitation and confirm all eligible waiting payments are claimed once.
 - [ ] Repeat using a payment responding to a request created by this wallet; acceptance is still required.

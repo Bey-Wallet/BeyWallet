@@ -114,6 +114,25 @@ export class ExpoHistoryRepository {
     return this.rowToEntry(row);
   }
 
+  /** Coco writes successful receives with a null state; offline offers are unclaimed. */
+  async getSuccessfulReceiveCandidates(
+    amount: number,
+    unit: string,
+  ): Promise<ReceiveHistoryEntry[]> {
+    const rows = await this.db.all<Row>(
+      `SELECT * FROM coco_cashu_history
+       WHERE type = 'receive' AND state IS NULL AND amount = ? AND unit = ? AND tokenJson IS NOT NULL`,
+      [amount, unit],
+    );
+    return rows.flatMap((row) => {
+      try {
+        return [this.rowToEntry(row) as ReceiveHistoryEntry];
+      } catch {
+        return [];
+      } // A malformed old row is not receipt evidence.
+    });
+  }
+
   async addHistoryEntry(history: Omit<HistoryEntry, 'id'>): Promise<HistoryEntry>;
   async addHistoryEntry(history: NewHistoryEntry): Promise<HistoryEntry>;
   async addHistoryEntry(input: Omit<HistoryEntry, 'id'> | NewHistoryEntry): Promise<HistoryEntry> {
