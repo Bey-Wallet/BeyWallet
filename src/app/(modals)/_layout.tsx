@@ -96,7 +96,7 @@ export default function ModalLayout() {
       <Stack.Screen
         name="mint"
         options={{
-          title: 'Mint Cash',
+          title: 'Mint Ecash',
           presentation: 'fullScreenModal',
           animation: 'slide_from_bottom',
         }}

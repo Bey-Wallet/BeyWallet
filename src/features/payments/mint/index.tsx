@@ -158,7 +158,7 @@ export default function MintScreen() {
 
   return (
     <YStack flex={1} bg="$background" px="$4">
-      <Stack.Screen options={{ headerTitle: 'Mint Cash' }} />
+      <Stack.Screen />
       {step === 'amount' && (
         <AmountStage amount={amount} setAmount={setAmount} onContinue={handleNext} />
       )}

@@ -1,13 +1,10 @@
-import { AppButton } from '~/shared/ui/AppButton';
-import React, { useEffect, useMemo } from 'react';
-import { YStack, XStack, Text, H1, Separator, Avatar, ScrollView } from 'tamagui';
-import { Check, XCircle, AlertCircle, Sprout, Zap } from '@tamagui/lucide-icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { YStack, Text, ScrollView } from 'tamagui';
+import { Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import {
-  currencyService,
-  CurrencyCode,
-  SUPPORTED_CURRENCIES,
-} from '~/services/wallet/currencyService';
+import { AppButton } from '~/shared/ui/AppButton';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useQuery } from '@tanstack/react-query';
@@ -17,42 +14,51 @@ interface ResultStageProps {
   status: 'success' | 'error' | 'cancelled';
   amount: string;
   mintUrl?: string;
+  /** Confirmed fee in sats, when available; never an estimate or keyset fee. */
+  feeSats?: number;
   error?: string | null;
   onClose: () => void;
 }
 
-export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultStageProps) {
+export function ResultStage({
+  status,
+  amount,
+  mintUrl,
+  feeSats,
+  error,
+  onClose,
+}: ResultStageProps) {
   const isSuccess = status === 'success';
   const sats = parseInt(amount, 10) || 0;
-
+  const [showDetails, setShowDetails] = useState(false);
+  const [resultTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  );
+  const hasFee = typeof feeSats === 'number' && Number.isFinite(feeSats) && feeSats > 0;
   const { mints } = useWalletStore();
-  const { secondaryCurrency } = useSettingsStore();
-
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
   });
-
-  const fiatValue = useMemo(() => {
-    if (!btcData?.price) return '0.00';
-    const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
-    return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
-  }, [sats, btcData?.price, secondaryCurrency]);
-
-  const normalizeUrl = (url: string) => url.replace(/\/$/, '');
-
-  const activeMint = useMemo(() => {
-    if (!mintUrl) return null;
-    return mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl));
-  }, [mints, mintUrl]);
+  const fiatValue = btcData?.price
+    ? currencyService.formatValue(
+        currencyService.convertSatsToCurrency(sats, btcData.price),
+        secondaryCurrency as CurrencyCode,
+      )
+    : '—';
+  const formattedSats = sats.toLocaleString('en-US');
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} SATS`;
+  const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
+  const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
 
   const mintDisplayName = useMemo(() => {
-    if (!mintUrl) return 'Selected Mint';
-    if (activeMint?.nickname) return activeMint.nickname;
-    if (activeMint?.name) return activeMint.name;
-    return mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  }, [activeMint, mintUrl]);
+    if (!mintUrl) return 'Selected mint';
+    const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+    const mint = mints.find((item) => normalizeUrl(item.mintUrl) === normalizeUrl(mintUrl));
+    return mint?.nickname || mint?.name || mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  }, [mints, mintUrl]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -64,120 +70,105 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
     }
   }, [status, isSuccess]);
 
-  const timeString = useMemo(() => {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }, []);
-
-  if (!isSuccess) {
-    return (
-      <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
-        <YStack
-          width={100}
-          height={100}
-          rounded="$10"
-          bg={status === 'cancelled' ? '$orange4' : '$red4'}
-          items="center"
-          justify="center"
-          animation="bouncy"
-        >
-          {status === 'cancelled' ? (
-            <AlertCircle size={50} color="$orange10" strokeWidth={2.5} />
-          ) : (
-            <XCircle size={50} color="$red10" strokeWidth={2.5} />
-          )}
-        </YStack>
-        <YStack items="center" gap="$2">
-          <Text fontSize="$7" fontWeight="900" color="$color">
-            {status === 'cancelled' ? 'Deposit Cancelled' : 'Deposit Failed'}
-          </Text>
-          <Text color="$gray10" fontSize="$4" textAlign="center" px="$4">
-            {error || 'An error occurred while depositing.'}
-          </Text>
-        </YStack>
-        <AppButton
-          variant="default"
-          emphasis="primary"
-          size="large"
-          width="100%"
-          onPress={onClose}
-          mt="$4"
-        >
-          Go Back
-        </AppButton>
-      </YStack>
-    );
-  }
+  const title = isSuccess
+    ? 'Funds added'
+    : status === 'cancelled'
+      ? 'Top-up cancelled'
+      : 'Top-up not completed';
 
   return (
     <YStack flex={1} bg="$background">
       <ScrollView
+        flex={1}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
       >
-        <YStack gap="$4">
-          {/* Payment amount */}
-          <YStack gap="$3" py="$6" items="center" justify="center">
-            <Text fontSize={52} fontWeight="700" color="$green10" lineHeight={54}>
-              +{currencyService.formatSats(sats)}
+        <YStack flex={1} gap="$6">
+          <YStack flex={1} minHeight={280} gap="$3" py="$7" items="center" justify="center">
+            {isSuccess && (
+              <YStack
+                width={60}
+                height={60}
+                rounded={1000}
+                bg="$green10"
+                items="center"
+                justify="center"
+                mb="$2"
+              >
+                <Check size={30} color="white" strokeWidth={3} />
+              </YStack>
+            )}
+            <Text
+              accessibilityRole="header"
+              fontSize={16}
+              fontWeight="500"
+              color="$color"
+              textAlign="center"
+            >
+              {title}
             </Text>
-            <Text color="$accent5" fontWeight="600" fontSize={16}>
-              ≈ {fiatValue} {secondaryCurrency}
+            <Text
+              testID="mint-result-primary-amount"
+              fontSize={44}
+              lineHeight={64}
+              fontWeight="500"
+              letterSpacing={-1.5}
+              color="$color"
+              textAlign="center"
+              maxWidth="100%"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {primaryAmount}
             </Text>
+            <Text
+              testID="mint-result-secondary-amount"
+              fontSize={16}
+              color="$gray10"
+              textAlign="center"
+            >
+              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
+            </Text>
+            {/* <Text fontSize={14} lineHeight={21} color="$gray10" textAlign="center" px="$4">
+              {isSuccess
+                ? 'Ready to spend from your wallet.'
+                : status === 'cancelled'
+                  ? 'You can start a new top-up whenever you’re ready.'
+                  : 'Check your wallet activity before starting another top-up.'}
+            </Text> */}
+            {status === 'error' && !!error && (
+              <YStack gap="$2" width="100%" items="center">
+                <AppButton
+                  variant="default"
+                  emphasis="text-only"
+                  size="small"
+                  accessibilityState={{ expanded: showDetails }}
+                  onPress={() => setShowDetails((value) => !value)}
+                >
+                  {showDetails ? 'Hide details' : 'View details'}
+                </AppButton>
+                {showDetails && (
+                  <Text fontSize={13} lineHeight={20} color="$gray10" textAlign="center" selectable>
+                    {error}
+                  </Text>
+                )}
+              </YStack>
+            )}
           </YStack>
-
-          {/* Centered green badge */}
-          <XStack self="center" items="center" gap="$2" bg="$green9" px="$4" py="$3" rounded="$10">
-            <Check size={16} color="white" />
-            <Text fontSize="$3" fontWeight="700" color="white">
-              Deposit Successful
-            </Text>
-          </XStack>
-
-          {/* Description Text */}
-          <YStack px="$4" py="$2">
-            <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
-              Your deposit has been recognized and ecash minted successfully.
-            </Text>
-          </YStack>
-
-          {/* Details Table */}
-          <YStack
-            bg="$gray2"
-            rounded="$6"
-            overflow="hidden"
-            mb="$6"
-            separator={<Separator borderColor="$borderColor" opacity={0.4} />}
-          >
-            <DetailItem label="Status" value="Completed" valueColor="$green10" />
-            <DetailItem
-              label="Mint"
-              value={mintDisplayName}
-              icon={
-                <Avatar rounded="$3" size="$1.5">
-                  <Avatar.Image src={activeMint?.icon} />
-                  <Avatar.Fallback bg="$green3" items="center" justify="center">
-                    <Sprout size={12} color="$green10" />
-                  </Avatar.Fallback>
-                </Avatar>
-              }
-            />
-            <DetailItem
-              label="Method"
-              value="Top Up via Lightning"
-              icon={<Zap size={16} color="$yellow10" />}
-            />
-            <DetailItem label="Amount (SATS)" value={currencyService.formatSats(sats)} />
-            <DetailItem label="Amount (Fiat)" value={fiatValue} />
-            <DetailItem label="Time" value={timeString} />
-          </YStack>
+          {isSuccess && (
+            <ListTable>
+              {mintUrl && <ListTableRow label="Mint" value={mintDisplayName} />}
+              <ListTableRow label="Time" value={resultTime} />
+              {hasFee && <ListTableRow label="Fee" value={currencyService.formatSats(feeSats)} />}
+            </ListTable>
+          )}
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" b={0} l={0} r={0} py="$4" bg="$background" borderTopWidth={0}>
+      <YStack pt="$3" pb="$4" bg="$background">
         <AppButton
-          variant="default"
-          emphasis="primary"
           size="large"
+          fullWidth
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onClose();
@@ -187,37 +178,5 @@ export function ResultStage({ status, amount, mintUrl, error, onClose }: ResultS
         </AppButton>
       </YStack>
     </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  icon,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  valueColor?: string;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        {icon}
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color={valueColor || '$color'}
-          numberOfLines={1}
-          style={{ maxWidth: 220 }}
-        >
-          {value}
-        </Text>
-      </XStack>
-    </XStack>
   );
 }
