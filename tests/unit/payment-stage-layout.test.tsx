@@ -88,6 +88,12 @@ it('configures a disabled stack chevron with the local stage back action', async
 
 it.each([
   ['paid', false, 'success'],
+  ['ISSUED', false, 'success'],
+  [' issued ', false, 'success'],
+  ['COMPLETED', false, 'success'],
+  ['claimed', false, 'success'],
+  ['finalized', false, 'success'],
+  ['FINALIZED', false, 'success'],
   ['failed', false, 'error'],
   ['ERROR', false, 'error'],
   ['pending', false, 'pending'],
@@ -113,3 +119,16 @@ it.each([
     await act(async () => tree.unmount());
   },
 );
+
+it('updates both the receipt icon and its background when a mint finishes issuing', async () => {
+  const tree = await render(<PaymentStatusIcon status={paymentReceiptStatus('UNPAID')} />);
+  expect(tree.root.findByProps({ testID: 'payment-status-pending' }).props.bg).toBe('$orange10');
+  expect(tree.root.findByType('Clock' as any)).toBeTruthy();
+  await act(async () => {
+    tree.update(<PaymentStatusIcon status={paymentReceiptStatus('ISSUED')} />);
+  });
+  expect(tree.root.findByProps({ testID: 'payment-status-success' }).props.bg).toBe('$green10');
+  expect(tree.root.findByType('Check' as any).props.color).toBe('white');
+  expect(tree.root.findAllByType('Clock' as any)).toHaveLength(0);
+  await act(async () => tree.unmount());
+});

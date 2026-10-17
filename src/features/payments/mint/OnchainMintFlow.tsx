@@ -1,7 +1,6 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
-import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
+import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
-import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
@@ -12,7 +11,6 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, Text, Paragraph } from 'tamagui';
 
-import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
@@ -20,7 +18,6 @@ import { useToastController } from '@tamagui/toast';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService, initService } from '~/services/wallet';
-import { onchainNetworkDisplay } from '~/shared/utils/onchain';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -313,63 +310,15 @@ export function OnchainMintFlow() {
 
   // Render deposit state (displays Bitcoin address and QR code)
   return (
-    <>
-      <PaymentFlowHeader title="On-chain deposit" />
-      <PaymentStageLayout
-        variant="qr"
-        inset={false}
-        hero={
-          <>
-            <Text fontSize={14} fontWeight="500" color="$gray10">
-              Pay with Bitcoin
-            </Text>
-            {quoteData && (
-              <PaymentQRFrame accessibilityLabel="Bitcoin deposit QR code">
-                {(size) => (
-                  <QRCode
-                    value={quoteData.request}
-                    size={size}
-                    backgroundColor="white"
-                    color="black"
-                  />
-                )}
-              </PaymentQRFrame>
-            )}
-          </>
-        }
-        footer={
-          <AppButton size="large" fullWidth onPress={() => router.back()}>
-            Done
-          </AppButton>
-        }
-      >
-        <ListTable>
-          <ListTableRow
-            label="Network"
-            value={quoteData ? onchainNetworkDisplay(quoteData.request) : 'Bitcoin'}
-            valueColor="$orange10"
-          />
-          <PaymentStatusRow
-            value={amountPaid > 0 ? 'Payment detected' : 'Awaiting payment'}
-            checking={isChecking}
-            onRefresh={() => handleCheckPayment(true)}
-          />
-        </ListTable>
-        <ListTable>
-          <ListTableRow label="Mint" value={mintDisplayName} />
-          <ListTableRow
-            label="Address"
-            value={
-              quoteData?.request
-                ? quoteData.request.slice(0, 12) + '…' + quoteData.request.slice(-8)
-                : '—'
-            }
-            isCopyable
-            copyValue={quoteData?.request}
-            onCopy={handleCopy}
-          />
-        </ListTable>
-      </PaymentStageLayout>
-    </>
+    <PendingOnchainLayout
+      direction="deposit"
+      amount={amountPaid}
+      address={quoteData?.request || ''}
+      mint={mintDisplayName}
+      onRefresh={() => handleCheckPayment(true)}
+      checking={isChecking}
+      onClose={() => router.back()}
+      inset={false}
+    />
   );
 }

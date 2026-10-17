@@ -5,6 +5,8 @@ import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { onchainMeltOutcome } from '~/features/history/transactionPresentation';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -53,7 +55,9 @@ export function OnchainMeltFlow() {
 
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
-  const [step, setStep] = useState<'input' | 'confirm' | 'paying' | 'success' | 'error'>('input');
+  const [step, setStep] = useState<
+    'input' | 'confirm' | 'paying' | 'pending' | 'success' | 'error'
+  >('input');
   usePendingOperationToast({ active: step === 'paying', title: 'Sending on-chain payment…' });
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('0');
@@ -395,8 +399,6 @@ export function OnchainMeltFlow() {
         meltQuote,
         selectedFeeIndex,
       );
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       // Log outgoing transaction in history
       try {
         const repo = initService.getRepo();
@@ -441,14 +443,33 @@ export function OnchainMeltFlow() {
         console.warn('[OnchainMeltFlow] History injection failed (non-fatal):', histErr);
       }
 
-      setEventTime(Date.now());
-      setStep('success');
+      // Reconcile change and input proof states through the existing wallet boundary
+      // before presenting a terminal receipt. A POST acknowledgement can still be pending.
+      await refreshOnchainPayment().catch(() => setStep('pending'));
       refreshBalance();
     } catch (err: any) {
       console.error('[OnchainMeltFlow] Payment execution failed:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setErrorMsg(err.message || 'Failed to send payment');
       setStep('error');
+    }
+  };
+
+  const refreshOnchainPayment = async () => {
+    if (!activeMintUrl || !meltQuote) return;
+    await useWalletStore.getState().autoCheckPendingOnchainQuotes();
+    const history = await initService
+      .getRepo()
+      .historyRepository.getMeltHistoryEntry(activeMintUrl, meltQuote.quote);
+    const outcome = onchainMeltOutcome(history?.state);
+    if (outcome === 'paid') {
+      setEventTime((time) => time ?? Date.now());
+      setStep('success');
+    } else if (outcome === 'failed') {
+      setErrorMsg('The mint did not complete this on-chain payment.');
+      setStep('error');
+    } else {
+      setStep('pending');
     }
   };
 
@@ -486,19 +507,32 @@ export function OnchainMeltFlow() {
       />
     );
 
+  if (step === 'pending')
+    return (
+      <PendingOnchainLayout
+        direction="withdrawal"
+        amount={amountSats}
+        address={address}
+        mint={mintDisplayName}
+        onRefresh={refreshOnchainPayment}
+        onClose={() => router.back()}
+        inset={false}
+      />
+    );
+
   // Render success state
   if (step === 'success')
     return (
       <PaymentReceipt
         inset={false}
-        title="Payment broadcast"
+        title="Payment sent"
         amount={amountSats}
         mintUrl={activeMintUrl || undefined}
         time={eventTime}
-        completed={false}
+        completed
         onClose={() => router.back()}
       >
-        <ListTableRow label="Status" value="Awaiting confirmation" />
+        <ListTableRow label="Method" value="Bitcoin on-chain" />
         <ListTableRow label="Destination" value={address} isCopyable copyValue={address} />
       </PaymentReceipt>
     );

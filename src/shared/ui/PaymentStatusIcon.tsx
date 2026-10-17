@@ -11,10 +11,13 @@ export const paymentStatusColors = {
 } as const;
 
 export function paymentReceiptStatus(state: string, broadcast = false): PaymentStatus {
-  const value = state.toLowerCase();
+  const value = state.trim().toLowerCase();
   if (['failed', 'error'].includes(value)) return 'error';
   if (['expired', 'cancelled', 'canceled'].includes(value)) return 'cancelled';
-  if (!broadcast && ['success', 'claimed', 'completed', 'paid', 'refunded'].includes(value))
+  if (
+    !broadcast &&
+    ['success', 'claimed', 'completed', 'finalized', 'paid', 'issued', 'refunded'].includes(value)
+  )
     return 'success';
   return 'pending';
 }

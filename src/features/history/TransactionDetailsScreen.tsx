@@ -1,26 +1,19 @@
 import { PaymentStatusIcon, paymentReceiptStatus } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { getHistoryToken, getVerifiedTokenState } from '~/features/history/historyToken';
+import { historyPaymentLayout, isOnchainHistory } from '~/features/history/transactionPresentation';
+import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, ScrollView, Separator, YGroup } from 'tamagui';
-import {
-  RefreshCw,
-  Copy,
-  Share2,
-  ArrowDownLeft,
-  AlertCircle,
-  CheckCircle2,
-  Ban,
-  Trash2,
-} from '@tamagui/lucide-icons';
+import { ArrowDownLeft, AlertCircle, Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import * as Sharing from 'expo-sharing';
-import { Share as RNShare } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { Buffer } from 'buffer';
@@ -168,10 +161,11 @@ export function TransactionDetailsScreen() {
   });
 
   // Fetch corresponding mint quote from DB to get the actual expiry
+  const onchain = !!entry && isOnchainHistory(entry);
   const { data: mintQuote, refetch: refetchMintQuote } = useQuery({
     queryKey: ['mintQuote', entry?.mintUrl, (entry as any)?.quoteId],
     queryFn: async () => {
-      if (!entry || entry.type !== 'mint' || !(entry as any).quoteId) return null;
+      if (!entry || onchain || entry.type !== 'mint' || !(entry as any).quoteId) return null;
       try {
         const repo = initService.getRepo();
         if (repo?.mintQuoteRepository) {
@@ -187,7 +181,7 @@ export function TransactionDetailsScreen() {
       }
       return null;
     },
-    enabled: !!entry && entry.type === 'mint' && !!(entry as any).quoteId,
+    enabled: !!entry && !onchain && entry.type === 'mint' && !!(entry as any).quoteId,
   });
 
   const { data: btcData } = useQuery({
@@ -211,7 +205,10 @@ export function TransactionDetailsScreen() {
     }
   }, [entry, primaryCurrency, fiatAmount, secondaryCurrency]);
 
-  const [token, setToken] = useState<string>('');
+  const [token, setToken] = useState('');
+  useEffect(() => {
+    setToken(entry ? getHistoryToken(entry) : '');
+  }, [entry]);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   const isQuoteExpired = useMemo(() => {
@@ -220,7 +217,7 @@ export function TransactionDetailsScreen() {
   }, [mintQuote?.expiry]);
 
   useEffect(() => {
-    if (!mintQuote?.expiry) {
+    if (onchain || !mintQuote?.expiry) {
       setTimeLeft(null);
       return;
     }
@@ -265,12 +262,12 @@ export function TransactionDetailsScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [mintQuote?.expiry, entry?.id]);
+  }, [mintQuote?.expiry, entry?.id, onchain]);
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const [isReclaiming, setIsReclaiming] = useState(false);
   const [isCheckingPaid, setIsCheckingPaid] = useState(false);
 
-  const status = entry?.state || 'completed';
+  const status = (entry?.state || 'completed').trim().toLowerCase();
 
   const isPendingMint = useMemo(() => {
     if (!entry) return false;
@@ -344,59 +341,11 @@ export function TransactionDetailsScreen() {
     }
   };
 
-  useEffect(() => {
-    if (!entry) return;
-    console.log('[TransactionDetails] Entry loaded:', entry.id, 'Type:', entry.type);
-
-    // Extract metadata safely
-    let metadata = entry.metadata;
-    if (typeof entry.metadata === 'string' && entry.metadata.trim().startsWith('{')) {
-      try {
-        metadata = JSON.parse(entry.metadata);
-      } catch (e) {
-        console.warn('[TransactionDetails] Failed to parse metadata:', e);
-        metadata = {};
-      }
-    }
-
-    // Priority 1: Token in metadata (already encoded string)
-    if (metadata?.token) {
-      if (typeof metadata.token === 'string') {
-        setToken(metadata.token);
-      } else {
-        try {
-          const encoded = encodeToken(metadata.token);
-          setToken(encoded);
-        } catch (e) {
-          console.warn('[TransactionDetails] Failed to encode metadata token:', e);
-        }
-      }
-      return;
-    }
-
-    // Priority 2: Token object or string in entry
-    if (entry.token) {
-      try {
-        let tokenToEncode = entry.token;
-
-        // Handle legacy or nested formats if token is an array
-        if (Array.isArray(entry.token) && entry.token.length > 0) {
-          tokenToEncode = entry.token[0];
-        }
-
-        const encoded =
-          typeof tokenToEncode === 'string' ? tokenToEncode : encodeToken(tokenToEncode);
-
-        setToken(encoded);
-      } catch (e) {
-        console.warn('[TransactionDetails] Failed to encode token from entry:', e);
-      }
-    }
-  }, [entry]);
-
   // Check for saved invoice for pending mints
   const [savedInvoice, setSavedInvoice] = useState<string | null>(null);
   useEffect(() => {
+    setSavedInvoice(null);
+    if (onchain) return;
     if (isPendingMint) {
       if (!entry) return;
       try {
@@ -416,7 +365,7 @@ export function TransactionDetailsScreen() {
         console.error('[TransactionDetails] Failed to read saved invoice:', e);
       }
     }
-  }, [entry, isPendingMint]);
+  }, [entry, isPendingMint, onchain]);
 
   // Animated QR states
   const [qrCodeFragment, setQrCodeFragment] = useState<string>('');
@@ -504,58 +453,6 @@ export function TransactionDetailsScreen() {
     return () => clearInterval(interval);
   }, [showAnimatedQR, intervalMs]);
 
-  const statusConfig = useMemo(() => {
-    if (status === 'claimed' || status === 'completed' || entry?.type === 'receive') {
-      return {
-        color: '$green11',
-        bg: '$green3',
-        headerBg: '$green9',
-        icon: CheckCircle2,
-        label: 'Success',
-      };
-    }
-    if (status === 'pending' || status === 'unclaimed') {
-      const isExpired = expiresAt && Date.now() > expiresAt;
-      if (isExpired) {
-        return { color: '$red10', bg: '$red3', headerBg: '$red9', icon: Ban, label: 'Expired' };
-      }
-      return {
-        color: '$orange10',
-        bg: '$orange3',
-        headerBg: '$orange9',
-        icon: RefreshCw,
-        label: 'Pending',
-      };
-    }
-    if (status === 'refunded')
-      return {
-        color: '$green10',
-        bg: '$green3',
-        headerBg: '$green10',
-        icon: CheckCircle2,
-        label: 'Reclaimed',
-      };
-    if (status === 'expired') {
-      return {
-        color: '$red10',
-        bg: '$red3',
-        headerBg: '$red9',
-        icon: Ban,
-        label: 'Expired & Refunded',
-      };
-    }
-    if (status === 'failed' || status === 'error') {
-      return {
-        color: '$red10',
-        bg: '$red3',
-        headerBg: '$red9',
-        icon: AlertCircle,
-        label: 'Failed',
-      };
-    }
-    return { color: '$gray10', bg: '$gray3', headerBg: '$gray9', icon: AlertCircle, label: status };
-  }, [status, entry?.type, expiresAt]);
-
   const title = useMemo(() => {
     const type = entry?.type;
     const meta = entry?.metadata ?? {};
@@ -609,18 +506,6 @@ export function TransactionDetailsScreen() {
     }
   };
 
-  const handleShare = async () => {
-    if (!token) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const shareText = `cashu:${token}`;
-    try {
-      await RNShare.share({ message: shareText });
-    } catch (error) {
-      console.error('[TransactionDetails] Error sharing:', error);
-      handleCopyToken();
-    }
-  };
-
   const handleToggleVersion = () => {
     if (!token) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -647,16 +532,20 @@ export function TransactionDetailsScreen() {
   const handleRefresh = async () => {
     if (!entry || isRefetching) return;
 
-    if (token && !['refunded', 'expired'].includes(status)) {
+    if (onchain) {
+      await useWalletStore.getState().autoCheckPendingOnchainQuotes();
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+      return;
+    }
+
+    if (token && ['pending', 'unclaimed'].includes(status)) {
       try {
         const states = await proofService.checkProofStates(token);
-        const isSpent = states.length > 0 && states.every((s: any) => s.state === 'SPENT');
-        const isPending = states.some((s: any) => s.state === 'PENDING');
-
-        let newState = entry?.state;
-        if (isSpent) newState = 'claimed';
-        else if (isPending) newState = 'pending';
-        else newState = 'unclaimed';
+        const proofCount = decodeToken(cleanToken(token)).proofs.length;
+        let newState: string | undefined = getVerifiedTokenState(states, proofCount);
+        if (!newState) throw new Error('Token status could not be verified');
+        const isSpent = newState === 'claimed';
 
         // If pending and unspent but expired, trigger auto-sweep/refund
         if (!isSpent && expiresAt && Date.now() > expiresAt && newState !== 'claimed') {
@@ -753,10 +642,11 @@ export function TransactionDetailsScreen() {
       entry.type === 'mint' &&
       (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
 
-    if (!isPendingSend && !isPendingMint) return;
+    const isPendingOnchain = onchain && ['pending', 'unpaid', 'prepared'].includes(status);
+    if (!isPendingSend && !isPendingMint && !isPendingOnchain) return;
 
     const poll = async () => {
-      if (isPendingSend) {
+      if (isPendingOnchain || isPendingSend) {
         await handleRefresh();
       } else if (isPendingMint) {
         try {
@@ -778,7 +668,7 @@ export function TransactionDetailsScreen() {
     const interval = setInterval(poll, 3000);
 
     return () => clearInterval(interval);
-  }, [entry?.id, entry?.state, status]);
+  }, [entry?.id, entry?.state, status, token, onchain]);
   // Status text formatting
   const formattedStatus = useMemo(() => {
     if (!status || typeof status !== 'string') return 'Unknown';
@@ -796,10 +686,12 @@ export function TransactionDetailsScreen() {
   const sizeLabel = fragmentLength === 150 ? 'L' : fragmentLength === 100 ? 'M' : 'S';
 
   const showInvoiceLayout = useMemo(() => {
-    if (!savedInvoice) return false;
-    if (status.toUpperCase() !== 'UNPAID' && status.toUpperCase() !== 'PAID') return false;
-    return !isQuoteExpired;
-  }, [savedInvoice, status, isQuoteExpired]);
+    return (
+      !!entry &&
+      !isQuoteExpired &&
+      historyPaymentLayout(entry, savedInvoice) === 'lightning-invoice'
+    );
+  }, [entry, savedInvoice, isQuoteExpired]);
 
   // Shared header amount title (primary + secondary)
   const headerPrimaryAmount =
@@ -897,10 +789,48 @@ export function TransactionDetailsScreen() {
   const isOutgoing = entry.type === 'send' || entry.type === 'melt';
   const amountColor = isOutgoing ? '$red10' : '$green11';
   const amountSign = isOutgoing ? '-' : '+';
+  const receiptStatus = paymentReceiptStatus(status);
+  const statusLabel =
+    receiptStatus === 'success'
+      ? status === 'refunded'
+        ? 'Reclaimed'
+        : onchain && entry.type === 'melt'
+          ? 'Payment sent'
+          : 'Success'
+      : receiptStatus === 'error'
+        ? 'Failed'
+        : receiptStatus === 'cancelled'
+          ? status === 'expired'
+            ? 'Expired'
+            : 'Cancelled'
+          : 'Pending';
+
+  const paymentLayout = historyPaymentLayout(entry);
+  if (paymentLayout === 'onchain-deposit' || paymentLayout === 'onchain-withdrawal') {
+    const mints = useWalletStore.getState().mints;
+    const mint = mints.find(
+      (item) => item.mintUrl.replace(/\/$/, '') === entry.mintUrl.replace(/\/$/, ''),
+    );
+    return (
+      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
+        <PendingOnchainLayout
+          direction={paymentLayout === 'onchain-deposit' ? 'deposit' : 'withdrawal'}
+          amount={entry.amount}
+          address={metadata.address || (entry as any).paymentRequest || ''}
+          mint={mint?.nickname || mint?.name || entry.mintUrl.replace(/^https?:\/\//, '')}
+          onRefresh={handleRefresh}
+          checking={isRefetching}
+          onClose={() => router.back()}
+          headerRight={headerOptions.headerRight}
+        />
+        {renderDeleteBottomSheet()}
+      </SafeAreaView>
+    );
+  }
 
   if (showInvoiceLayout && savedInvoice) {
     return (
-      <>
+      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingMintInvoiceLayout
           savedInvoice={savedInvoice}
@@ -943,13 +873,13 @@ export function TransactionDetailsScreen() {
           }}
         />
         {renderDeleteBottomSheet()}
-      </>
+      </SafeAreaView>
     );
   }
 
   if (token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed')) {
     return (
-      <>
+      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingTokenLayout
           token={token}
@@ -969,13 +899,13 @@ export function TransactionDetailsScreen() {
           customHeaderRight={headerOptions.headerRight}
         />
         {renderDeleteBottomSheet()}
-      </>
+      </SafeAreaView>
     );
   }
 
   try {
     return (
-      <>
+      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={headerOptions} />
         <PaymentFlowHeader title="Transaction details" />
         <ScrollView
@@ -986,18 +916,9 @@ export function TransactionDetailsScreen() {
         >
           <YStack flex={1} bg="$background" gap="$6">
             <YStack flex={1} minHeight={280} gap="$3" py="$7" items="center" justify="center">
-              <PaymentStatusIcon
-                status={paymentReceiptStatus(
-                  status,
-                  entry.type === 'melt' && metadata?.via === 'onchain',
-                )}
-              />
+              <PaymentStatusIcon status={receiptStatus} />
               <Text fontSize={16} fontWeight="500" color="$color" textAlign="center">
-                {entry.type === 'melt' &&
-                metadata?.via === 'onchain' &&
-                !['failed', 'error'].includes(status.toLowerCase())
-                  ? 'Payment broadcast'
-                  : statusConfig.label}
+                {statusLabel}
               </Text>
               <PaymentAmount amount={entry.amount} compact />
             </YStack>
@@ -1116,10 +1037,11 @@ export function TransactionDetailsScreen() {
                     }
                   }
                   const via = (meta as any)?.via;
-                  if (via !== 'onchain') return null;
+                  if (!onchain) return null;
 
                   const btcAddress =
-                    'paymentRequest' in entry ? entry.paymentRequest : (meta as any)?.address;
+                    (meta as any)?.address ||
+                    ('paymentRequest' in entry ? entry.paymentRequest : undefined);
                   const onchainFee = (meta as any)?.actualFee;
 
                   return (
@@ -1146,7 +1068,7 @@ export function TransactionDetailsScreen() {
                   );
                 })()}
                 {/* Invoice for mint txns */}
-                {savedInvoice && (
+                {!onchain && savedInvoice && (
                   <DetailItem
                     label="Invoice"
                     value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
@@ -1159,11 +1081,15 @@ export function TransactionDetailsScreen() {
                   />
                 )}
                 {/* Token for send/receive txns */}
-                {token && typeof token === 'string' && (
+                {(entry.type === 'send' || entry.type === 'receive') && (
                   <DetailItem
                     label="Token"
-                    value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
-                    isCopyable
+                    value={
+                      token
+                        ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
+                        : 'Unavailable'
+                    }
+                    isCopyable={!!token}
                     onCopy={handleCopyToken}
                   />
                 )}
@@ -1203,30 +1129,6 @@ export function TransactionDetailsScreen() {
                   ) : null}
                 </YStack>
               )}
-
-            {/* Copy & Share buttons */}
-            <XStack gap="$2">
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="large"
-                icon={<Copy size={18} />}
-                flex={1}
-                onPress={handleCopyToken}
-              >
-                Copy
-              </AppButton>
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="large"
-                icon={<Share2 size={18} />}
-                flex={1}
-                onPress={handleShare}
-              >
-                Share
-              </AppButton>
-            </XStack>
           </YStack>
         </ScrollView>
         <YStack px="$4" pt="$3" pb="$4" bg="$background">
@@ -1235,7 +1137,7 @@ export function TransactionDetailsScreen() {
           </AppButton>
         </YStack>
         {renderDeleteBottomSheet()}
-      </>
+      </SafeAreaView>
     );
   } catch (e: any) {
     console.error('[TransactionDetails] Error during render:', e);
