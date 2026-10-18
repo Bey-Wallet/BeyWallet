@@ -1,5 +1,6 @@
 import { reclaimOptions, supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { seedService } from '~/services/platform/seedService';
+import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
 /**
  * Wallet service — send, receive, balances, restore.
  *
@@ -345,32 +346,7 @@ export const walletService = {
     const m = mgr();
     const unsafeManager = m as any;
 
-    // ── Convert Nostr identifiers (npub/nprofile) to compressed SEC1 pubkey ──
-    let lockPubkey = receiverPubkey;
-    if (lockPubkey.startsWith('npub1') || lockPubkey.startsWith('nprofile1')) {
-      try {
-        const { decode: nip19Decode } = require('nostr-tools/nip19');
-        const decoded = nip19Decode(lockPubkey);
-        // nprofile has .data.pubkey, npub has .data directly
-        const hexPubkey = decoded.type === 'nprofile' ? decoded.data.pubkey : decoded.data;
-        // Add 02 prefix for compressed SEC1 format (33 bytes)
-        lockPubkey = '02' + hexPubkey;
-        console.log(
-          `[WalletService] Converted Nostr pubkey to compressed SEC1: ${lockPubkey.substring(0, 10)}…`,
-        );
-      } catch (decodeErr: any) {
-        console.error('[WalletService] Failed to decode Nostr identifier:', decodeErr?.message);
-        throw new Error('Invalid Nostr public key format');
-      }
-    } else if (/^[0-9a-fA-F]{64}$/.test(lockPubkey)) {
-      // Raw 32-byte hex — add 02 prefix
-      lockPubkey = '02' + lockPubkey;
-      console.log(
-        `[WalletService] Added 02 prefix to raw hex pubkey: ${lockPubkey.substring(0, 10)}…`,
-      );
-    }
-
-    if (!/^(02|03)[a-f0-9]{64}$/i.test(lockPubkey)) throw new Error('Invalid recipient public key');
+    const lockPubkey = normalizeP2PKRecipient(receiverPubkey);
     // 1. Ensure mint is trusted and get internal cashu-ts wallet + proof repository
     if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
       throw new Error(`Mint ${mintUrl} is not trusted`);

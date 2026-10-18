@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '~/state/authStore';
 import { useWalletStore } from '~/state/walletStore';
+import { useP2PKScanStore } from '~/state/p2pkScanStore';
 import * as Clipboard from 'expo-clipboard';
 import { Clipboard as ClipboardIcon } from '@tamagui/lucide-icons';
 import { nip19 } from 'nostr-tools';
@@ -295,6 +296,14 @@ export default function ScannerScreen() {
 
       const trimmed = data.trim();
       if (!trimmed) return;
+
+      // A public-key scan belongs only to its key editor, not another open payment screen.
+      if (typeof params.p2pkScanId === 'string') {
+        useP2PKScanStore.getState().setResult({ id: params.p2pkScanId, value: trimmed });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+        return;
+      }
 
       // If explicitly asked to return to a path (e.g. from P2PK Send flow)
       if (params.returnTo) {

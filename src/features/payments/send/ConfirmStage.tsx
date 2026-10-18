@@ -10,6 +10,7 @@ import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { ReclaimSelector } from '~/shared/ui/ReclaimSelector';
 import type { SendMode } from '~/shared/ui/SendMethodSelector';
 import { currencyService } from '~/services/wallet/currencyService';
+import { P2PKLockCard } from './P2PKLockCard';
 
 interface ConfirmStageProps {
   amount: string;
@@ -24,6 +25,10 @@ interface ConfirmStageProps {
   nostrRecipientNpub?: string;
   nostrRecipientUsername?: string;
   receiverPubkey?: string;
+  lockEcash?: boolean;
+  setLockEcash?: (enabled: boolean) => void;
+  setReceiverPubkey?: (key: string) => void;
+  isOffline?: boolean;
   isLoading?: boolean;
   ready: boolean;
   error?: string | null;
@@ -59,10 +64,24 @@ export function ConfirmStage(props: ConfirmStageProps) {
           </AppButton>
         }
       >
+        {sendMode === 'standard' && props.setLockEcash && props.setReceiverPubkey && (
+          <P2PKLockCard
+            enabled={!!props.lockEcash}
+            onEnabledChange={props.setLockEcash}
+            publicKey={props.receiverPubkey || ''}
+            onKeyChange={props.setReceiverPubkey}
+            disabled={isLoading}
+            offline={props.isOffline}
+          />
+        )}
         <ListTable compact>
           <PaymentMintRow
             method={
-              sendMode === 'p2pk' || (sendMode === 'nostr' && props.useP2PK) ? 'p2pk' : undefined
+              sendMode === 'p2pk' ||
+              (sendMode === 'standard' && props.lockEcash) ||
+              (sendMode === 'nostr' && props.useP2PK)
+                ? 'p2pk'
+                : undefined
             }
             mintUrl={mintUrl}
             onSelect={props.onMintChange}

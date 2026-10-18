@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SendModalScreen } from '~/features/payments/send';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
+import { walletService } from '~/services/wallet';
 
 const mockWallet = {
   activeMintUrl: 'mint-a',
@@ -22,8 +23,8 @@ jest.mock('~/state/settingsStore', () => ({
 }));
 jest.mock('~/services/wallet/ecashPayment', () => ({ prepareEcash: jest.fn() }));
 jest.mock('~/services/wallet', () => ({
-  walletService: {},
-  mintManager: { getMintInfo: async () => ({ nuts: {} }) },
+  walletService: { prepareP2PK: jest.fn(), sendOffline: jest.fn() },
+  mintManager: { getMintInfo: async () => ({ nuts: { 11: { supported: true } } }) },
   nostrService: {},
   historyService: { tagHistoryVia: async () => {} },
   initService: {},
@@ -174,6 +175,79 @@ it('submits once on rapid taps and carries the prepared creation fee to the resu
   expect(prepared.execute).toHaveBeenCalledTimes(1);
   expect(confirm(tree).isLoading).toBe(true);
   await act(async () => resolve({ encoded: 'token', id: 'operation' }));
+  expect(tree.root.findByType('ResultStage' as any).props.fee).toBe(2);
+  await act(async () => tree.unmount());
+});
+
+it('requires a key for the optional standard ecash lock and replaces each obsolete review', async () => {
+  const bearer = review(),
+    locked = review(2),
+    replacement = review(3),
+    unlocked = review();
+  prepare.mockResolvedValueOnce(bearer).mockResolvedValueOnce(unlocked);
+  jest
+    .mocked(walletService.prepareP2PK)
+    .mockResolvedValueOnce(locked as any)
+    .mockResolvedValueOnce(replacement as any);
+  const tree = await open();
+  expect(confirm(tree).lockEcash).toBe(false);
+  await act(async () => confirm(tree).setLockEcash(true));
+  expect(bearer.dispose).toHaveBeenCalledTimes(1);
+  expect(confirm(tree).ready).toBe(false);
+  expect(walletService.prepareP2PK).not.toHaveBeenCalled();
+  await act(async () => confirm(tree).setReceiverPubkey('public-key-1'));
+  expect(walletService.prepareP2PK).toHaveBeenLastCalledWith(
+    'mint-a',
+    20,
+    'public-key-1',
+    undefined,
+  );
+  expect(confirm(tree).estimatedFee).toBe(2);
+  expect(confirm(tree).reclaimSupported).toBe(true);
+  await act(async () => confirm(tree).setReceiverPubkey('public-key-2'));
+  expect(locked.dispose).toHaveBeenCalledTimes(1);
+  expect(confirm(tree).estimatedFee).toBe(3);
+  await act(async () => confirm(tree).setLockEcash(false));
+  expect(replacement.dispose).toHaveBeenCalledTimes(1);
+  expect(confirm(tree).ready).toBe(true);
+  expect(confirm(tree).reclaimSupported).toBe(false);
+  await act(async () => tree.unmount());
+  expect(unlocked.dispose).toHaveBeenCalledTimes(1);
+});
+
+it('never falls back to bearer ecash when an enabled lock goes offline', async () => {
+  const bearer = review(),
+    locked = review(2);
+  prepare.mockResolvedValueOnce(bearer);
+  jest.mocked(walletService.prepareP2PK).mockResolvedValueOnce(locked as any);
+  const tree = await open();
+  await act(async () => confirm(tree).setReceiverPubkey('public-key'));
+  await act(async () => confirm(tree).setLockEcash(true));
+  const screen = tree.root.findByType('Screen' as any);
+  await act(async () => screen.props.options.headerRight().props.onPress());
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).error).toContain('Go online');
+  await act(async () => confirm(tree).onConfirm());
+  expect(locked.execute).not.toHaveBeenCalled();
+  expect(walletService.sendOffline).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('creates standard ecash from the locked review once and retains its fee', async () => {
+  const bearer = review(),
+    locked = review(2);
+  prepare.mockResolvedValueOnce(bearer);
+  jest.mocked(walletService.prepareP2PK).mockResolvedValueOnce(locked as any);
+  const tree = await open();
+  await act(async () => confirm(tree).setLockEcash(true));
+  await act(async () => confirm(tree).setReceiverPubkey('public-key'));
+  await act(async () => {
+    void confirm(tree).onConfirm();
+    void confirm(tree).onConfirm();
+  });
+  expect(locked.execute).toHaveBeenCalledTimes(1);
+  expect(bearer.execute).not.toHaveBeenCalled();
+  expect(walletService.sendOffline).not.toHaveBeenCalled();
   expect(tree.root.findByType('ResultStage' as any).props.fee).toBe(2);
   await act(async () => tree.unmount());
 });

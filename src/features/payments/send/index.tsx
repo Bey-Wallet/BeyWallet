@@ -88,6 +88,7 @@ export function SendModalScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [sendMode, setSendMode] = useState<SendMode>('standard');
   const [receiverPubkey, setReceiverPubkey] = useState('');
+  const [lockEcash, setLockEcash] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [manualParsedRequest, setManualParsedRequest] = useState<ParsedPaymentRequest | null>(null);
   // Nostr-specific state
@@ -214,9 +215,10 @@ export function SendModalScreen() {
       throw error;
     }
   };
+  const ecashLockEnabled = sendMode === 'p2pk' || (sendMode === 'standard' && lockEcash);
   const reclaimSupported =
     !isOffline &&
-    (sendMode === 'p2pk' || (sendMode === 'nostr' && useP2PK)) &&
+    (ecashLockEnabled || (sendMode === 'nostr' && useP2PK)) &&
     capability?.mint === activeMintUrl &&
     capability.supported;
   React.useEffect(() => {
@@ -251,6 +253,9 @@ export function SendModalScreen() {
           throw new Error('Could not release the previous review. Close this flow and try again.');
         if (cancelled || step !== 'confirm' || !activeMintUrl) return;
         setError(null);
+        if (ecashLockEnabled && isOffline) throw new Error('Go online to create locked ecash.');
+        if (ecashLockEnabled && !receiverPubkey)
+          throw new Error('Set a recipient public key before creating locked ecash.');
         if (isOffline) {
           setEstimatedFee(0);
           setReviewReady(true);
@@ -258,12 +263,11 @@ export function SendModalScreen() {
         }
         const reclaimAt =
           reclaimSupported && expiryHours > 0 ? Date.now() + expiryHours * 3600000 : undefined;
-        const lockedRecipient =
-          sendMode === 'p2pk'
-            ? receiverPubkey
-            : sendMode === 'nostr' && useP2PK
-              ? nostrRecipientNpub
-              : null;
+        const lockedRecipient = ecashLockEnabled
+          ? receiverPubkey
+          : sendMode === 'nostr' && useP2PK
+            ? nostrRecipientNpub
+            : null;
         const review = lockedRecipient
           ? await walletService.prepareP2PK(
               activeMintUrl,
@@ -302,6 +306,7 @@ export function SendModalScreen() {
     expiryHours,
     reclaimSupported,
     isOffline,
+    ecashLockEnabled,
   ]);
 
   const executeReview = async () => {
@@ -438,6 +443,7 @@ export function SendModalScreen() {
       // Send and get encoded token for sharing
       let result;
 
+      if (isOffline && ecashLockEnabled) throw new Error('Go online to create locked ecash.');
       if (isOffline) {
         let selected = selectedOfflineProofs;
         if (!selected || selected.length === 0) {
@@ -555,6 +561,7 @@ export function SendModalScreen() {
     receiverPubkey,
     isOffline,
     selectedOfflineProofs,
+    ecashLockEnabled,
   ]);
 
   // ── Nostr Send Handler ───────────────────────────────────────────────
@@ -936,6 +943,18 @@ export function SendModalScreen() {
           nostrRecipientNpub={nostrRecipientNpub}
           nostrRecipientUsername={nostrRecipientUsername}
           receiverPubkey={receiverPubkey}
+          lockEcash={lockEcash}
+          isOffline={isOffline}
+          setLockEcash={(enabled) => {
+            if (executionLock.current) return;
+            setReviewReady(false);
+            setLockEcash(enabled);
+          }}
+          setReceiverPubkey={(key) => {
+            if (executionLock.current) return;
+            setReviewReady(false);
+            setReceiverPubkey(key);
+          }}
           isLoading={isProcessing || nostrSending}
           onConfirm={handleExecuteSend}
           onBack={() => setStep('amount')}

@@ -24,6 +24,12 @@ Native acceptance below has not been performed in this workspace.
 - From People and a conversation, pay an accepted person with P2PK enabled, both with
   reclaim off and with a future reclaim deadline. Confirm the creation fee is shown and
   the recipient can claim the token. Back out before sending and verify reservations release.
+- In standard ecash confirmation, enable the P2PK card above the details. Type, paste,
+  and scan valid compressed/uncompressed/x-only hex keys, npubs, and nprofiles. Confirm
+  invalid keys block saving, canceling a key edit preserves the saved key, and returning
+  from the scanner reopens the draft sheet. Change the key or turn locking off and verify
+  the creation fee refreshes. Test going offline with locking enabled: no bearer token
+  may be created. Share a small locked token and verify only its intended recipient can claim it.
 - Pay a new Minibits Nostr request with **Exact amount for legacy wallets** enabled.
   Confirm the review shows the recipient's amount after receiving fees and Minibits accepts
   the requested face value. The option defaults off, is unavailable for automatic NFC payments,

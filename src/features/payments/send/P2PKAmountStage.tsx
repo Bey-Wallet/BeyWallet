@@ -22,6 +22,7 @@ import * as Clipboard from 'expo-clipboard';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
+import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
 
 interface P2PKAmountStageProps {
   mintUrl?: string | null;
@@ -106,10 +107,12 @@ export function P2PKAmountStage({
   const isInvalidPubkey = useMemo(() => {
     const val = receiverPubkey.trim();
     if (!val) return false;
-    const lower = val.toLowerCase();
-    const isNpub = lower.startsWith('npub1') && lower.length >= 50;
-    const isHex = /^[a-fA-F0-9]{64}$/.test(lower);
-    return !isNpub && !isHex;
+    try {
+      normalizeP2PKRecipient(val);
+      return false;
+    } catch {
+      return true;
+    }
   }, [receiverPubkey]);
 
   const isValidAmount =
@@ -326,7 +329,7 @@ export function P2PKAmountStage({
         <DestinationInputRow
           value={receiverPubkey}
           onChangeText={setReceiverPubkey}
-          placeholder="npub... or hex pubkey"
+          placeholder="Hex public key, npub, or nprofile"
           onPaste={handlePaste}
           onScan={handleOpenScanner}
           defaultIcon={<KeyRound size="$1.5" color="$accent5" strokeWidth={2.5} />}
