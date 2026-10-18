@@ -18,6 +18,37 @@ export function historyMetadata(entry: PaymentHistory): Record<string, any> {
   return entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {};
 }
 
+function nfcReceiveAmounts(entry: PaymentHistory & { amount: number }) {
+  const metadata = historyMetadata(entry);
+  if (
+    entry.type !== 'receive' ||
+    entry.state != null ||
+    metadata.via !== 'nfc' ||
+    !Number.isSafeInteger(metadata.netAmount) ||
+    metadata.netAmount <= 0 ||
+    !Number.isSafeInteger(metadata.fee) ||
+    metadata.fee < 0 ||
+    metadata.netAmount + metadata.fee !== entry.amount ||
+    !Number.isSafeInteger(metadata.requestedAmount) ||
+    metadata.requestedAmount <= 0 ||
+    entry.amount < metadata.requestedAmount ||
+    metadata.receivingFeeCovered !== metadata.netAmount >= metadata.requestedAmount
+  )
+    return;
+  return metadata;
+}
+
+export function historyDisplayAmount(entry: PaymentHistory & { amount: number }): number {
+  return nfcReceiveAmounts(entry)?.netAmount ?? entry.amount;
+}
+
+export function nfcReceivingFeeNotice(
+  entry: PaymentHistory & { amount: number },
+): string | undefined {
+  if (nfcReceiveAmounts(entry)?.receivingFeeCovered === false)
+    return 'The sender did not cover the receiving fee. It was deducted from this payment.';
+}
+
 /** Classifies display only; address validation for spending stays in the payment flow. */
 export function isOnchainHistory(entry: PaymentHistory): boolean {
   const metadata = historyMetadata(entry);

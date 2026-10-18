@@ -1,9 +1,10 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+let mockNfcIncoming: { status: string; requestId?: string; receiptId?: string; message?: string } =
+  { status: 'idle' };
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => {
-  const state = { status: 'idle' };
   return {
     nfcReceiveCoordinator: {
-      getSnapshot: () => state,
+      getSnapshot: () => mockNfcIncoming,
       subscribe: () => () => {},
       retry: jest.fn(),
     },
@@ -51,6 +52,7 @@ let mockPrimaryCurrency = 'SATS';
 let mockSecondaryCurrency = 'USD';
 let mockRequestArguments: any[][] = [];
 const mockToast = { show: jest.fn() };
+const mockRouter = { push: jest.fn(), replace: jest.fn() };
 const mockEnqueue = jest.fn(async (_id: string) => {});
 const mockReconcile = jest.fn(async () => {});
 const mockStopBroadcast = jest.fn();
@@ -73,7 +75,7 @@ jest.mock('~/services/wallet/requestLifecycleService', () => ({
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => mockToast }));
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => mockRouter,
   useFocusEffect: (callback: any) => require('react').useEffect(callback, [callback]),
 }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
@@ -172,6 +174,7 @@ jest.mock('tamagui', () => ({
 }));
 
 beforeEach(() => {
+  mockNfcIncoming = { status: 'idle' };
   jest.clearAllMocks();
   mockEncodingFails = true;
   mockPrice = 100000;
@@ -562,6 +565,55 @@ it('starts NFC for the created request and stops it when New request clears the 
   expect(mockStopBroadcast).toHaveBeenCalled();
   expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('Set amount');
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Tap to pay' })).toHaveLength(0);
+  await act(async () => tree.unmount());
+});
+
+it('allows a new QR request while preserving review of the original NFC payment', async () => {
+  const tree = await createRequestScreen();
+  const originalRequest = useNostrRequestStore.getState().requests[0];
+  mockNfcIncoming = { status: 'review', requestId: originalRequest.id, message: 'Payment saved.' };
+  await act(async () => tree.update(<RequestEcashStage />));
+  expect(tree.root.findByProps({ label: 'Amount' }).props.disabled).toBe(true);
+  await act(async () =>
+    tree.root
+      .findByProps({ testID: 'payment-stage-footer' })
+      .findByType('AppButton' as any)
+      .props.onPress(),
+  );
+  expect(tree.root.findByProps({ label: 'Amount' }).props.disabled).toBe(false);
+  expect(useNostrRequestStore.getState().requests).toContainEqual(originalRequest);
+  expect(mockNfcIncoming.status).toBe('review');
+  expect(
+    tree.root
+      .findAllByType('AppButton' as any)
+      .some((node) => node.props.children === 'Review NFC payment'),
+  ).toBe(true);
+  await act(async () => tree.unmount());
+});
+
+it('replaces the request with the exact verified NFC transaction once', async () => {
+  const tree = await createRequestScreen();
+  const request = useNostrRequestStore.getState().requests[0];
+  mockNfcIncoming = { status: 'idle', requestId: request.id, receiptId: 'verified-nfc-receipt' };
+  await act(async () => tree.update(<RequestEcashStage />));
+  expect(mockRouter.replace).toHaveBeenCalledWith({
+    pathname: '/(modals)/txn-details',
+    params: { id: 'verified-nfc-receipt' },
+  });
+  await act(async () => tree.update(<RequestEcashStage />));
+  expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('does not open transaction details for an unverified or unrelated NFC payment', async () => {
+  const tree = await createRequestScreen();
+  const request = useNostrRequestStore.getState().requests[0];
+  mockNfcIncoming = { status: 'review', requestId: request.id };
+  await act(async () => tree.update(<RequestEcashStage />));
+  expect(mockRouter.replace).not.toHaveBeenCalled();
+  mockNfcIncoming = { status: 'idle', requestId: 'unrelated-request', receiptId: 'other-receipt' };
+  await act(async () => tree.update(<RequestEcashStage />));
+  expect(mockRouter.replace).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });
 

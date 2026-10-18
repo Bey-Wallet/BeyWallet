@@ -12,6 +12,10 @@
         "buildType": "apk"
       }
     },
+    "nfc-diagnostics": {
+      "extends": "development",
+      "autoIncrement": true
+    },
     "preview": {
       "distribution": "internal",
       "channel": "preview",

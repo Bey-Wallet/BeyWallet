@@ -14,6 +14,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { DeviceEventEmitter } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useToastController } from '@tamagui/toast';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -74,6 +75,8 @@ export function RequestEcashStage({
   const generationLock = useRef(false);
   const failedDraft = useRef<Partial<RequestDraft>>({});
   const toast = useToastController();
+  const router = useRouter();
+  const openedNfcReceipt = useRef<string | undefined>(undefined);
 
   const { mintUrl: activeMintUrl, setMintUrl: setActiveMint } = useFlowMint();
   const { npub } = useSettingsStore();
@@ -120,6 +123,19 @@ export function RequestEcashStage({
     nfcReceiveCoordinator.getSnapshot,
     nfcReceiveCoordinator.getSnapshot,
   );
+  React.useEffect(() => {
+    const { status, requestId, receiptId } = nfcIncoming;
+    if (
+      status !== 'idle' ||
+      !receiptId ||
+      !requestId ||
+      openedNfcReceipt.current === receiptId ||
+      (requestId !== currentRequestId && !sessionRequestIds.current.has(requestId))
+    )
+      return;
+    openedNfcReceipt.current = receiptId;
+    router.replace({ pathname: '/(modals)/txn-details', params: { id: receiptId } });
+  }, [nfcIncoming, currentRequestId, router]);
   const nfcRequest = useMemo(() => {
     const request = useNostrRequestStore
       .getState()
@@ -406,13 +422,16 @@ export function RequestEcashStage({
     incomingPayment &&
     ['contact_required', 'approval_required', 'failed'].includes(incomingPayment.status);
 
+  const reviewingCurrentNfcRequest =
+    nfcIncoming.status === 'review' && nfcIncoming.requestId === currentRequestId;
   const editDisabled =
     restored ||
     isGenerating ||
     isSending ||
     !!incomingPayment ||
     requestState !== 'pending' ||
-    nfcIncoming.status !== 'idle';
+    nfcIncoming.status === 'receiving' ||
+    reviewingCurrentNfcRequest;
   useRequestNfc(
     step === 'result' && requestState === 'pending' && !isGenerating && !incomingPayment
       ? nfcRequest
@@ -518,7 +537,7 @@ export function RequestEcashStage({
               value={
                 nfcIncoming.status === 'receiving'
                   ? 'Receiving NFC payment…'
-                  : nfcIncoming.status === 'review'
+                  : reviewingCurrentNfcRequest
                     ? 'Review NFC payment'
                     : paymentStatus
               }
@@ -552,6 +571,11 @@ export function RequestEcashStage({
             <Text accessibilityRole="alert" fontSize={13} color="$gray10">
               {nfcIncoming.message}
             </Text>
+            {!reviewingCurrentNfcRequest && (
+              <Text fontSize={13} color="$gray10">
+                You can create a QR request. NFC is paused until the saved payment is resolved.
+              </Text>
+            )}
             <AppButton emphasis="secondary" onPress={() => void nfcReceiveCoordinator.retry()}>
               Review NFC payment
             </AppButton>

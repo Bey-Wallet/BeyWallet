@@ -2,6 +2,7 @@ import { AnimatedLegendList } from '@legendapp/list/animated';
 const HistoryList = AnimatedLegendList as typeof import('@legendapp/list/react-native').LegendList;
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
+import { historyDisplayAmount } from './transactionPresentation';
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   YStack,
@@ -310,7 +311,7 @@ export function HistoryScreen({
         <HistoryItem
           id={entry.id}
           type={entry.type}
-          amount={entry.amount}
+          amount={historyDisplayAmount(entry)}
           createdAt={entry.createdAt}
           status={entry.state || 'completed'}
           metadata={entry.metadata}

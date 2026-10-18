@@ -10,6 +10,7 @@ import { findTokenReceiveReceipt } from './nostrReceiptService';
 import {
   reserveNfcReceipt,
   completeNfcReceipt,
+  type NfcReceiptAmounts,
 } from '~/storage/sqlite/repositories/nfcRequestReceipts';
 
 export function nfcRequestAdvertisement(request: NostrReceiveRequest): string | undefined {
@@ -68,7 +69,24 @@ export function validateNfcOffer(request: NostrReceiveRequest, requestId: string
 interface ReceiveState {
   status: 'idle' | 'receiving' | 'review';
   requestId?: string;
+  receiptId?: string;
   message?: string;
+}
+
+function nfcReceiptAmounts(amount: number, fee: number, requested: number): NfcReceiptAmounts {
+  if (!Number.isSafeInteger(fee) || fee < 0)
+    throw new Error('NFC payment receiving fee is invalid');
+  const netAmount = amount - fee;
+  if (!Number.isSafeInteger(netAmount) || netAmount <= 0 || amount < requested)
+    throw new Error(
+      'NFC payment has no positive received value or underpays the request face value',
+    );
+  return {
+    requestedAmount: requested,
+    fee,
+    netAmount,
+    receivingFeeCovered: netAmount >= requested,
+  };
 }
 
 /** The native slot remains authoritative until an exact successful local receipt exists. */
@@ -138,10 +156,15 @@ export class NfcReceiveCoordinator {
   }
   private async process(force: boolean): Promise<void> {
     let requestId: string | undefined;
+    const previousState = this.state;
     try {
       if (!this.allowed()) return;
       const pending = await nfcService.getPendingPayment();
-      if (!pending || !this.allowed()) return;
+      if (!this.allowed()) return;
+      if (!pending) {
+        if (this.state.status !== 'idle') this.update({ status: 'idle' });
+        return;
+      }
       requestId = pending.requestId;
       // Synchronously stop advertising before any redemption work starts.
       this.update({ status: 'receiving', requestId });
@@ -155,6 +178,7 @@ export class NfcReceiveCoordinator {
       const { metadata, fingerprint } = validateNfcOffer(request, pending.requestId, token);
       await reserveNfcReceipt(fingerprint, request.id);
       let receipt = await findTokenReceiveReceipt(token);
+      let amounts: NfcReceiptAmounts | undefined;
       if (receipt) {
         const { initService } = require('./initService') as typeof import('./initService');
         const manager = initService.getManager();
@@ -163,14 +187,22 @@ export class NfcReceiveCoordinator {
           manager as unknown as { walletService: WalletService }
         ).walletService.getWallet(metadata.mint);
         const fee = wallet.getFeesForProofs(decoded.proofs);
-        if (!Number.isSafeInteger(fee) || fee < 0 || metadata.amount - fee !== request.amount)
-          throw new Error('Saved NFC receipt net amount does not match the request');
+        amounts = nfcReceiptAmounts(metadata.amount, fee, request.amount);
       }
       if (!receipt) {
         if (request.state !== 'pending')
           throw new Error('This request already has a different payment');
-        if (!force && this.attempted.has(fingerprint))
-          throw new Error('Review the saved NFC payment to retry');
+        if (!force && this.attempted.has(fingerprint)) {
+          this.update({
+            status: 'review',
+            requestId,
+            message:
+              previousState.status === 'review' && previousState.requestId === requestId
+                ? previousState.message
+                : 'NFC payment saved. Review its request, mint and connection, then retry.',
+          });
+          return;
+        }
         this.attempted.add(fingerprint);
         const { mintManager } = require('./mintManager') as typeof import('./mintManager');
         if (!(await mintManager.isMintTrusted(metadata.mint)))
@@ -190,8 +222,7 @@ export class NfcReceiveCoordinator {
           manager as unknown as { walletService: WalletService }
         ).walletService.getWallet(metadata.mint);
         const fee = wallet.getFeesForProofs(decoded.proofs);
-        if (!Number.isSafeInteger(fee) || fee < 0 || metadata.amount - fee !== request.amount)
-          throw new Error('NFC payment net amount does not match the request');
+        amounts = nfcReceiptAmounts(metadata.amount, fee, request.amount);
         // Recheck after network boundaries; QR may have completed in the meantime.
         await useNostrRequestStore.getState().loadPendingRequests();
         if (!this.allowed()) throw new Error('Unlock the wallet to review this NFC payment');
@@ -210,7 +241,7 @@ export class NfcReceiveCoordinator {
         }
         receipt = await findTokenReceiveReceipt(token);
       }
-      if (!receipt || receipt.createdAt < request.createdAt)
+      if (!receipt || !amounts || receipt.createdAt < request.createdAt)
         throw new Error('No matching successful local receipt is available');
       const receiptRequest = (receipt.metadata as Record<string, unknown> | undefined)?.requestId;
       if (receipt.createdAt < pending.receivedAt && receiptRequest !== request.id)
@@ -218,7 +249,7 @@ export class NfcReceiveCoordinator {
       if (receiptRequest && receiptRequest !== request.id)
         throw new Error('Receipt belongs to another request');
       if (!this.allowed()) throw new Error('Unlock the wallet to finish verifying this payment');
-      await completeNfcReceipt(fingerprint, request.id, receipt.id);
+      await completeNfcReceipt(fingerprint, request.id, receipt.id, amounts);
       await useNostrRequestStore.getState().markReceived(request.id);
       if (!(await nfcService.acknowledgePayment(pending.id)))
         throw new Error('Receipt verified; saved payment acknowledgement needs retry');
@@ -228,12 +259,19 @@ export class NfcReceiveCoordinator {
         .getState()
         .refreshBalance()
         .catch(() => undefined);
-      this.update({ status: 'idle', requestId: request.id });
-    } catch {
+      this.update({ status: 'idle', requestId: request.id, receiptId: receipt.id });
+    } catch (error) {
+      const unknownKeyset =
+        error instanceof Error &&
+        /^Unknown Keyset: token keyset is (not advertised by its mint|not uniquely advertised by its mint)$/.test(
+          error.message,
+        );
       this.update({
         status: 'review',
         requestId,
-        message: 'NFC payment saved. Review its request, mint and connection, then retry.',
+        message: unknownKeyset
+          ? 'NFC payment saved but not confirmed. Its keyset is not uniquely advertised by the mint. Check with the sender before retrying.'
+          : 'NFC payment saved. Review its request, mint and connection, then retry.',
       });
     }
   }

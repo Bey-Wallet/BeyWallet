@@ -2,10 +2,11 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 new file mode 100644
 --- /dev/null
 +++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/Type4File.java
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,92 @@
 +package com.reactnativehce.apps.nfc;
 +
 +import java.util.Arrays;
++import com.reactnativehce.Diagnostics;
 +import java.util.BitSet;
 +
 +/** Bounded Type 4 file transport; incoming writes never mutate the advertised request. */
@@ -31,6 +32,27 @@ new file mode 100644
 +  public void reset() { selected = 0; writing = false; received.clear(); }
 +
 +  public byte[] process(byte[] command) {
++    byte[] response = processInternal(command);
++    int instruction = command != null && command.length >= 5 ? command[1] & 255 : -1;
++    Diagnostics.Event event = Diagnostics.Event.UNKNOWN;
++    int offset = -1, length = -1;
++    if (instruction == 0xA4) {
++      event = command.length == 7 && command[5] == (byte)0xE1
++        ? command[6] == 3 ? Diagnostics.Event.SELECT_CC : command[6] == 4
++          ? Diagnostics.Event.SELECT_NDEF : Diagnostics.Event.SELECT_OTHER : Diagnostics.Event.SELECT_OTHER;
++    } else if (instruction == 0xB0 || instruction == 0xD6) {
++      event = instruction == 0xB0 ? Diagnostics.Event.READ : Diagnostics.Event.WRITE;
++      offset = ((command[2] & 255) << 8) | (command[3] & 255);
++      length = command[4] & 255;
++      if (instruction == 0xB0 && length == 0) length = 256;
++    }
++    int status = ((response[response.length - 2] & 255) << 8) | (response[response.length - 1] & 255);
++    Diagnostics.record(event, offset, length, status,
++      status == 0x9000 ? Diagnostics.Failure.NONE : Diagnostics.Failure.TRANSPORT_REJECTED);
++    return response;
++  }
++
++  private byte[] processInternal(byte[] command) {
 +    if (command == null || command.length < 5 || command[0] != 0) return ERROR;
 +    int instruction = command[1] & 255;
 +    if (instruction == 0xA4) {
@@ -76,26 +98,28 @@ new file mode 100644
 diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
 --- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
 +++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
-@@ -1,180 +1,45 @@
+@@ -1,180 +1,54 @@
 -/*
 - * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
 - * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
 - * Licensed under the MIT license. See LICENSE file in the project root for details.
 - */
 -
--package com.reactnativehce.apps.nfc;
--
+ package com.reactnativehce.apps.nfc;
+ 
 -import android.util.Log;
 -
 -import com.reactnativehce.utils.ApduHelper;
--import com.reactnativehce.managers.HceViewModel;
--import com.reactnativehce.managers.PrefManager;
++import com.reactnativehce.IHCEApplication;
+ import com.reactnativehce.managers.HceViewModel;
+ import com.reactnativehce.managers.PrefManager;
 -import com.reactnativehce.utils.BinaryUtils;
 -import com.reactnativehce.IHCEApplication;
 -
--import java.util.Arrays;
--
--public class NFCTagType4 implements IHCEApplication {
+ import java.util.Arrays;
++import com.reactnativehce.Diagnostics;
+ 
+ public class NFCTagType4 implements IHCEApplication {
 -  private static final String TAG = "NFCTag";
 -  private static final byte[] C_APDU_SELECT = BinaryUtils.HexStringToByteArray("00A4040007D276000085010100");
 -  private static final byte[] FILENAME_CC = BinaryUtils.HexStringToByteArray("E103");
@@ -141,9 +165,29 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 -      default:
 -        throw new Error("Unknown file");
 -    }
--  }
++  private final Type4File file;
++  private final HceViewModel model;
++  public NFCTagType4(PrefManager preferences, HceViewModel model) {
++    this.model = model;
++    final String requestId = preferences.getRequestId();
++    file = new Type4File(new NdefEntity(preferences.getType(), preferences.getContent()).getNdefContent(),
++      preferences.getWritable() && !requestId.isEmpty(), bytes -> {
++        try {
++          NdefEntity message = NdefEntity.fromBytes(bytes);
++          if (!preferences.savePending(requestId, message.getContent())) {
++            Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.WRITE_REJECTED);
++            return false;
++          }
++          model.getLastState().setValue(HceViewModel.HCE_STATE_WRITE_FULL);
++          return true;
++        } catch (Exception invalid) {
++          Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.WRITE_REJECTED);
++          return false;
++        }
++      });
+   }
 -
--  public boolean assertSelectCommand(byte[] command) {
+   public boolean assertSelectCommand(byte[] command) {
 -    Boolean result = ApduHelper.commandByRangeEquals(command, 0, 13, C_APDU_SELECT);
 -
 -    if (result) {
@@ -151,7 +195,18 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 -    }
 -
 -    return result;
--  }
++    byte[] aid = {(byte)0xD2,0x76,0,0, (byte)0x85,1,1};
++    boolean valid = command != null && (command.length == 12 || command.length == 13)
++      && command[0] == 0 && command[1] == (byte)0xA4 && command[2] == 4
++      && command[3] == 0 && command[4] == 7
++      && Arrays.equals(Arrays.copyOfRange(command, 5, 12), aid)
++      && (command.length == 12 || command[12] == 0);
++    Diagnostics.record(Diagnostics.Event.SELECT_APPLICATION, -1, -1, valid ? 0x9000 : 0x6A82,
++      valid ? Diagnostics.Failure.NONE : Diagnostics.Failure.APPLICATION_REJECTED);
++    file.reset();
++    if (valid) model.getLastState().setValue(HceViewModel.HCE_STATE_CONNECTED);
++    return valid;
+   }
 -
 -  private byte[] respondSelectFile(byte[] command) {
 -    byte[] file = Arrays.copyOfRange(command, 5, 7);
@@ -233,7 +288,7 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 -    return ApduHelper.R_APDU_OK;
 -  }
 -
--  public byte[] processCommand(byte[] command) {
+   public byte[] processCommand(byte[] command) {
 -    if (ApduHelper.commandByRangeEquals(command, 0, 5, ApduHelper.C_APDU_SELECT_FILE)) {
 -      return this.respondSelectFile(command);
 -    }
@@ -249,59 +304,20 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 -    Log.i(TAG, "Unknown command.");
 -
 -    return ApduHelper.R_APDU_ERROR;
--  }
--
--  @Override
--  public void onDestroy(int reason) {
--    this.hceModel.getLastState()
--      .setValue(HceViewModel.HCE_STATE_DISCONNECTED);
--  }
--}
-+package com.reactnativehce.apps.nfc;
-+
-+import com.reactnativehce.IHCEApplication;
-+import com.reactnativehce.managers.HceViewModel;
-+import com.reactnativehce.managers.PrefManager;
-+import java.util.Arrays;
-+
-+public class NFCTagType4 implements IHCEApplication {
-+  private final Type4File file;
-+  private final HceViewModel model;
-+  public NFCTagType4(PrefManager preferences, HceViewModel model) {
-+    this.model = model;
-+    final String requestId = preferences.getRequestId();
-+    file = new Type4File(new NdefEntity(preferences.getType(), preferences.getContent()).getNdefContent(),
-+      preferences.getWritable() && !requestId.isEmpty(), bytes -> {
-+        try {
-+          NdefEntity message = NdefEntity.fromBytes(bytes);
-+          if (!preferences.savePending(requestId, message.getContent())) return false;
-+          model.getLastState().setValue(HceViewModel.HCE_STATE_WRITE_FULL);
-+          return true;
-+        } catch (Exception invalid) { return false; }
-+      });
-+  }
-+  public boolean assertSelectCommand(byte[] command) {
-+    byte[] aid = {(byte)0xD2,0x76,0,0, (byte)0x85,1,1};
-+    boolean valid = command != null && (command.length == 12 || command.length == 13)
-+      && command[0] == 0 && command[1] == (byte)0xA4 && command[2] == 4
-+      && command[3] == 0 && command[4] == 7
-+      && Arrays.equals(Arrays.copyOfRange(command, 5, 12), aid)
-+      && (command.length == 12 || command[12] == 0);
-+    file.reset();
-+    if (valid) model.getLastState().setValue(HceViewModel.HCE_STATE_CONNECTED);
-+    return valid;
-+  }
-+  public byte[] processCommand(byte[] command) {
 +    byte[] response = file.process(command);
 +    if (command != null && command.length == 5 && command[1] == (byte)0xB0 && response.length > 2)
 +      model.getLastState().setValue(HceViewModel.HCE_STATE_READ);
 +    return response;
-+  }
-+  public void onDestroy(int reason) {
+   }
+-
+-  @Override
+   public void onDestroy(int reason) {
+-    this.hceModel.getLastState()
+-      .setValue(HceViewModel.HCE_STATE_DISCONNECTED);
 +    file.reset();
 +    model.getLastState().setValue(HceViewModel.HCE_STATE_DISCONNECTED);
-+  }
-+}
+   }
+ }
 diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
 --- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
 +++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
@@ -651,266 +667,88 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
 --- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
 +++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
-@@ -1,136 +1,171 @@
--/*
-- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
-- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
-- * Licensed under the MIT license. See LICENSE file in the project root for details.
-- */
--
--package com.reactnativehce;
--
--import android.content.ComponentName;
--import android.content.pm.PackageManager;
--
--import com.facebook.react.bridge.Arguments;
--import com.facebook.react.bridge.ReactApplicationContext;
--import com.facebook.react.bridge.ReactContextBaseJavaModule;
--import com.facebook.react.bridge.ReactMethod;
--import com.facebook.react.bridge.Promise;
--import com.facebook.react.bridge.ReadableMap;
--import com.facebook.react.bridge.WritableMap;
--import com.reactnativehce.managers.EventManager;
--import com.reactnativehce.managers.HceViewModel;
--import com.reactnativehce.managers.PrefManager;
--import com.reactnativehce.services.CardService;
--
--import androidx.annotation.NonNull;
--
--import java.util.HashMap;
--import java.util.Map;
--
+@@ -8,6 +8,9 @@ package com.reactnativehce;
+ 
+ import android.content.ComponentName;
+ import android.content.pm.PackageManager;
++import android.app.Activity;
++import android.nfc.NfcAdapter;
++import android.nfc.cardemulation.CardEmulation;
+ 
+ import com.facebook.react.bridge.Arguments;
+ import com.facebook.react.bridge.ReactApplicationContext;
+@@ -16,6 +19,8 @@ import com.facebook.react.bridge.ReactMethod;
+ import com.facebook.react.bridge.Promise;
+ import com.facebook.react.bridge.ReadableMap;
+ import com.facebook.react.bridge.WritableMap;
++import com.facebook.react.bridge.LifecycleEventListener;
++import com.facebook.react.bridge.UiThreadUtil;
+ import com.reactnativehce.managers.EventManager;
+ import com.reactnativehce.managers.HceViewModel;
+ import com.reactnativehce.managers.PrefManager;
+@@ -26,21 +31,26 @@ import androidx.annotation.NonNull;
+ import java.util.HashMap;
+ import java.util.Map;
+ 
 -public class HceModule extends ReactContextBaseJavaModule {
--  private static ReactApplicationContext reactContext;
--  private final EventManager eventManager;
--  private final PrefManager prefManager;
--  private final HceViewModel hceModel;
--
--  HceModule(ReactApplicationContext context) {
--    super(context);
--    reactContext = context;
--    eventManager = EventManager.getInstance(context);
--    prefManager = PrefManager.getInstance(context.getApplicationContext());
--    hceModel = HceViewModel.getInstance(context.getApplicationContext());
--
--    if (prefManager.exists()) {
++public class HceModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
+   private static ReactApplicationContext reactContext;
+   private final EventManager eventManager;
+   private final PrefManager prefManager;
+   private final HceViewModel hceModel;
++  private Activity preferredActivity;
++  private CardEmulation cardEmulation;
+ 
+   HceModule(ReactApplicationContext context) {
+     super(context);
+     reactContext = context;
++    Diagnostics.configure((context.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0);
+     eventManager = EventManager.getInstance(context);
+     prefManager = PrefManager.getInstance(context.getApplicationContext());
+     hceModel = HceViewModel.getInstance(context.getApplicationContext());
++    context.addLifecycleEventListener(this);
+ 
+     if (prefManager.exists()) {
 -      this.enableHceService(prefManager.getEnabled());
--    }
--  }
--
--  @NonNull
--  @Override
--  public String getName() {
--    return "Hce";
--  }
--
--  @Override
--  public Map<String, Object> getConstants() {
--    final Map<String, Object> constants = new HashMap<>();
--    constants.put("HCE_STATE_CONNECTED", HceViewModel.HCE_STATE_CONNECTED);
--    constants.put("HCE_STATE_DISCONNECTED", HceViewModel.HCE_STATE_DISCONNECTED);
--    constants.put("HCE_STATE_ENABLED", HceViewModel.HCE_STATE_ENABLED);
--    constants.put("HCE_STATE_DISABLED", HceViewModel.HCE_STATE_DISABLED);
--    constants.put("HCE_STATE_READ", HceViewModel.HCE_STATE_READ);
--    constants.put("HCE_STATE_WRITE_FULL", HceViewModel.HCE_STATE_WRITE_FULL);
--    constants.put("HCE_STATE_WRITE_PARTIAL", HceViewModel.HCE_STATE_WRITE_PARTIAL);
--    constants.put("HCE_STATE_UPDATE_APPLICATION", HceViewModel.HCE_STATE_UPDATE_APPLICATION);
--    return constants;
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void addListener(String eventName) throws Exception {
--    if (!eventName.equals(EventManager.EVENT_STATE)) {
--      throw new Exception("Event not supported: " + eventName);
--    }
--
--    this.eventManager.addListener(EventManager.EVENT_STATE);
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void removeListeners(Integer count) {
--    this.eventManager.clear();
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void setContent(ReadableMap properties, Promise promise) {
--    prefManager.setType(properties.getString("type"));
--    prefManager.setContent(properties.getString("content"));
--    prefManager.setWritable(properties.getBoolean("writable"));
--    this.hceModel.getLastState()
--      .postValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
--
--    promise.resolve(null);
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void getContent(Promise promise) {
--    if (!prefManager.exists()) {
--      promise.resolve(null);
--      return;
--    }
--
--    WritableMap properties = Arguments.createMap();
--    properties.putString("type", prefManager.getType());
--    properties.putString("content", prefManager.getContent());
--    properties.putBoolean("writable", prefManager.getWritable());
--
--    promise.resolve(properties);
--  }
--
--  private void enableHceService(Boolean enabled) {
--    reactContext.getApplicationContext().getPackageManager()
--      .setComponentEnabledSetting(
--        new ComponentName(reactContext.getApplicationContext(), CardService.class),
--        enabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
--        PackageManager.DONT_KILL_APP
--      );
--
--    this.hceModel.getLastState()
--      .postValue(enabled ? HceViewModel.HCE_STATE_ENABLED : HceViewModel.HCE_STATE_DISABLED);
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void getEnabled(Promise promise) {
--    promise.resolve(prefManager.getEnabled());
--  }
--
--  @ReactMethod
--  @SuppressWarnings("unused")
--  public void setEnabled(Boolean enabled, Promise promise) {
--    this.prefManager.setEnabled(enabled);
--    this.enableHceService(enabled);
--    promise.resolve(enabled);
--  }
--}
-+/*
-+ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
-+ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
-+ * Licensed under the MIT license. See LICENSE file in the project root for details.
-+ */
-+
-+package com.reactnativehce;
-+
-+import android.content.ComponentName;
-+import android.content.pm.PackageManager;
-+
-+import com.facebook.react.bridge.Arguments;
-+import com.facebook.react.bridge.ReactApplicationContext;
-+import com.facebook.react.bridge.ReactContextBaseJavaModule;
-+import com.facebook.react.bridge.ReactMethod;
-+import com.facebook.react.bridge.Promise;
-+import com.facebook.react.bridge.ReadableMap;
-+import com.facebook.react.bridge.WritableMap;
-+import com.reactnativehce.managers.EventManager;
-+import com.reactnativehce.managers.HceViewModel;
-+import com.reactnativehce.managers.PrefManager;
-+import com.reactnativehce.services.CardService;
-+
-+import androidx.annotation.NonNull;
-+
-+import java.util.HashMap;
-+import java.util.Map;
-+
-+public class HceModule extends ReactContextBaseJavaModule {
-+  private static ReactApplicationContext reactContext;
-+  private final EventManager eventManager;
-+  private final PrefManager prefManager;
-+  private final HceViewModel hceModel;
-+
-+  HceModule(ReactApplicationContext context) {
-+    super(context);
-+    reactContext = context;
-+    eventManager = EventManager.getInstance(context);
-+    prefManager = PrefManager.getInstance(context.getApplicationContext());
-+    hceModel = HceViewModel.getInstance(context.getApplicationContext());
-+
-+    if (prefManager.exists()) {
 +      prefManager.setEnabled(false);
 +      this.enableHceService(false);
-+    }
-+  }
-+
-+  @NonNull
-+  @Override
-+  public String getName() {
-+    return "Hce";
-+  }
-+
-+  @Override
-+  public Map<String, Object> getConstants() {
-+    final Map<String, Object> constants = new HashMap<>();
-+    constants.put("HCE_STATE_CONNECTED", HceViewModel.HCE_STATE_CONNECTED);
-+    constants.put("HCE_STATE_DISCONNECTED", HceViewModel.HCE_STATE_DISCONNECTED);
-+    constants.put("HCE_STATE_ENABLED", HceViewModel.HCE_STATE_ENABLED);
-+    constants.put("HCE_STATE_DISABLED", HceViewModel.HCE_STATE_DISABLED);
-+    constants.put("HCE_STATE_READ", HceViewModel.HCE_STATE_READ);
-+    constants.put("HCE_STATE_WRITE_FULL", HceViewModel.HCE_STATE_WRITE_FULL);
-+    constants.put("HCE_STATE_WRITE_PARTIAL", HceViewModel.HCE_STATE_WRITE_PARTIAL);
-+    constants.put("HCE_STATE_UPDATE_APPLICATION", HceViewModel.HCE_STATE_UPDATE_APPLICATION);
-+    return constants;
-+  }
-+
-+  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void addListener(String eventName) throws Exception {
-+    if (!eventName.equals(EventManager.EVENT_STATE)) {
-+      throw new Exception("Event not supported: " + eventName);
-+    }
-+
-+    this.eventManager.addListener(EventManager.EVENT_STATE);
-+  }
-+
-+  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void removeListeners(Integer count) {
-+    this.eventManager.clear();
-+  }
-+
-+  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void setContent(ReadableMap properties, Promise promise) {
+     }
+   }
+ 
+@@ -83,12 +93,25 @@ public class HceModule extends ReactContextBaseJavaModule {
+   @ReactMethod
+   @SuppressWarnings("unused")
+   public void setContent(ReadableMap properties, Promise promise) {
 +    try {
 +      byte[] encoded = new com.reactnativehce.apps.nfc.NdefEntity(properties.getString("type"), properties.getString("content")).getNdefContent();
 +      if (encoded.length > 0x7FFF) {
++        Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.CONTENT_CAPACITY);
 +        promise.reject("NFC_CAPACITY", "NFC message is too large");
 +        return;
 +      }
 +    } catch (Exception invalid) {
++      Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.CONTENT_FORMAT);
 +      promise.reject("NFC_FORMAT", "Invalid NFC message");
 +      return;
 +    }
-+    prefManager.setType(properties.getString("type"));
-+    prefManager.setContent(properties.getString("content"));
-+    prefManager.setWritable(properties.getBoolean("writable"));
-+    this.hceModel.getLastState()
-+      .postValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
-+
-+    promise.resolve(null);
-+  }
-+
-+  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void getContent(Promise promise) {
-+    if (!prefManager.exists()) {
-+      promise.resolve(null);
-+      return;
-+    }
-+
-+    WritableMap properties = Arguments.createMap();
-+    properties.putString("type", prefManager.getType());
-+    properties.putString("content", prefManager.getContent());
-+    properties.putBoolean("writable", prefManager.getWritable());
-+
-+    promise.resolve(properties);
-+  }
-+
+     prefManager.setType(properties.getString("type"));
+     prefManager.setContent(properties.getString("content"));
+     prefManager.setWritable(properties.getBoolean("writable"));
+     this.hceModel.getLastState()
+       .postValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
+ 
++    Diagnostics.record(Diagnostics.Event.CONTENT_READY);
+     promise.resolve(null);
+   }
+ 
+@@ -108,6 +131,43 @@ public class HceModule extends ReactContextBaseJavaModule {
+     promise.resolve(properties);
+   }
+ 
 +  @ReactMethod
 +  public void setRequestSession(String requestId, Promise promise) {
++    Diagnostics.clear();
++    if (requestId != null && !requestId.isEmpty()) Diagnostics.record(Diagnostics.Event.REQUEST_READY);
 +    prefManager.setRequestId(requestId == null ? "" : requestId);
 +    promise.resolve(null);
 +  }
@@ -933,160 +771,162 @@ diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnative
 +    catch (Exception failure) { promise.reject("NFC_STORAGE", "Cannot acknowledge NFC payment"); }
 +  }
 +
-+  private void enableHceService(Boolean enabled) {
-+    reactContext.getApplicationContext().getPackageManager()
-+      .setComponentEnabledSetting(
-+        new ComponentName(reactContext.getApplicationContext(), CardService.class),
-+        enabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-+        PackageManager.DONT_KILL_APP
-+      );
-+
-+    this.hceModel.getLastState()
-+      .postValue(enabled ? HceViewModel.HCE_STATE_ENABLED : HceViewModel.HCE_STATE_DISABLED);
-+  }
-+
 +  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void getEnabled(Promise promise) {
-+    promise.resolve(prefManager.getEnabled());
++  public void getDiagnostics(Promise promise) {
++    com.facebook.react.bridge.WritableMap result = Arguments.createMap();
++    result.putString("report", Diagnostics.report());
++    result.putString("androidVersion", android.os.Build.VERSION.RELEASE);
++    result.putString("deviceModel", android.os.Build.MODEL);
++    promise.resolve(result);
++  }
++  @ReactMethod
++  public void clearDiagnostics(Promise promise) { Diagnostics.clear(); promise.resolve(null); }
++
+   private void enableHceService(Boolean enabled) {
+     reactContext.getApplicationContext().getPackageManager()
+       .setComponentEnabledSetting(
+@@ -129,8 +189,60 @@ public class HceModule extends ReactContextBaseJavaModule {
+   @ReactMethod
+   @SuppressWarnings("unused")
+   public void setEnabled(Boolean enabled, Promise promise) {
+-    this.prefManager.setEnabled(enabled);
+-    this.enableHceService(enabled);
+-    promise.resolve(enabled);
++    UiThreadUtil.runOnUiThread(() -> {
++      if (!enabled) {
++        prefManager.setEnabled(false);
++        releaseForegroundPreference();
++        enableHceService(false);
++        Diagnostics.record(Diagnostics.Event.ADVERTISING_OFF);
++        promise.resolve(false);
++        return;
++      }
++      try {
++        releaseForegroundPreference();
++        enableHceService(true);
++        Activity activity = getCurrentActivity();
++        NfcAdapter adapter = NfcAdapter.getDefaultAdapter(reactContext);
++        if (activity == null || adapter == null) {
++          throw new IllegalStateException();
++        }
++        CardEmulation emulation = CardEmulation.getInstance(adapter);
++        if (!emulation.setPreferredService(activity, new ComponentName(reactContext, CardService.class))) {
++          throw new IllegalStateException();
++        }
++        preferredActivity = activity;
++        cardEmulation = emulation;
++        prefManager.setEnabled(true);
++        Diagnostics.record(Diagnostics.Event.FOREGROUND_PREFERRED);
++        Diagnostics.record(Diagnostics.Event.ADVERTISING_ON);
++        promise.resolve(true);
++      } catch (Exception unavailable) {
++        prefManager.setEnabled(false);
++        releaseForegroundPreference();
++        enableHceService(false);
++        Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.FOREGROUND_ROUTING);
++        promise.reject("NFC_ROUTING", "Cannot route NFC to the foreground wallet");
++      }
++    });
+   }
++
++  private void releaseForegroundPreference() {
++    if (preferredActivity == null || cardEmulation == null) return;
++    try {
++      if (cardEmulation.unsetPreferredService(preferredActivity)) {
++        Diagnostics.record(Diagnostics.Event.FOREGROUND_RELEASED);
++      } else {
++        Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.FOREGROUND_ROUTING);
++      }
++    } catch (Exception unavailable) {
++      Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, -1, Diagnostics.Failure.FOREGROUND_ROUTING);
++    } finally {
++      preferredActivity = null;
++      cardEmulation = null;
++    }
 +  }
 +
-+  @ReactMethod
-+  @SuppressWarnings("unused")
-+  public void setEnabled(Boolean enabled, Promise promise) {
-+    this.prefManager.setEnabled(enabled);
-+    this.enableHceService(enabled);
-+    promise.resolve(enabled);
-+  }
-+}
++  @Override public void onHostResume() { /* JS resumes advertising after wallet readiness checks. */ }
++  @Override public void onHostPause() { releaseForegroundPreference(); }
++  @Override public void onHostDestroy() { releaseForegroundPreference(); }
+ }
 diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
 --- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
 +++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
-@@ -1,62 +1,62 @@
--/*
-- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
-- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
-- * Licensed under the MIT license. See LICENSE file in the project root for details.
-- */
--
--package com.reactnativehce.services;
--
--import android.content.Context;
--import android.nfc.cardemulation.HostApduService;
--import android.os.Bundle;
--import android.util.Log;
--
--import com.reactnativehce.utils.ApduHelper;
--import com.reactnativehce.managers.HceViewModel;
--import com.reactnativehce.IHCEApplication;
--import com.reactnativehce.managers.PrefManager;
--import com.reactnativehce.apps.nfc.NFCTagType4;
--
--import java.util.ArrayList;
--
--public class CardService extends HostApduService {
--    private static final String TAG = "CardService";
--
--    private final ArrayList<IHCEApplication> registeredHCEApplications = new ArrayList<>();
--    private IHCEApplication currentHCEApplication = null;
--
--    @Override
--    public byte[] processCommandApdu(byte[] command, Bundle extras) {
+@@ -7,6 +7,7 @@
+ package com.reactnativehce.services;
+ 
+ import android.content.Context;
++import com.reactnativehce.Diagnostics;
+ import android.nfc.cardemulation.HostApduService;
+ import android.os.Bundle;
+ import android.util.Log;
+@@ -25,13 +26,23 @@ public class CardService extends HostApduService {
+     private final ArrayList<IHCEApplication> registeredHCEApplications = new ArrayList<>();
+     private IHCEApplication currentHCEApplication = null;
+ 
++    private boolean active;
++    private byte[] failure(Diagnostics.Failure failure) {
++      Diagnostics.record(Diagnostics.Event.FAILURE, -1, -1, 0x6A82, failure);
++      return ApduHelper.R_APDU_ERROR;
++    }
++
+     @Override
+     public byte[] processCommandApdu(byte[] command, Bundle extras) {
 -      if (currentHCEApplication != null) {
 -        return currentHCEApplication.processCommand(command);
 -      }
 -
 -      if (ApduHelper.commandByRangeEquals(command, 0, 4, ApduHelper.C_APDU_SELECT_APP)) {
--        for (IHCEApplication app : registeredHCEApplications) {
--          if (app.assertSelectCommand(command)) {
--            currentHCEApplication = app;
--            return ApduHelper.R_APDU_OK;
--          }
--        }
--      }
--
--      return ApduHelper.R_APDU_ERROR;
--    }
--
--    @Override
--    public void onCreate() {
--      Log.d(TAG, "Starting service");
--      Context context = getApplicationContext();
--
--      registeredHCEApplications.add(new NFCTagType4(
--        PrefManager.getInstance(context),
--        HceViewModel.getInstance(context)
--      ));
--    }
--
--    @Override
--    public void onDeactivated(int reason) {
--      Log.d(TAG, "Finishing service: " + reason);
--      this.currentHCEApplication.onDestroy(reason);
--    }
--}
-+/*
-+ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
-+ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
-+ * Licensed under the MIT license. See LICENSE file in the project root for details.
-+ */
-+
-+package com.reactnativehce.services;
-+
-+import android.content.Context;
-+import android.nfc.cardemulation.HostApduService;
-+import android.os.Bundle;
-+import android.util.Log;
-+
-+import com.reactnativehce.utils.ApduHelper;
-+import com.reactnativehce.managers.HceViewModel;
-+import com.reactnativehce.IHCEApplication;
-+import com.reactnativehce.managers.PrefManager;
-+import com.reactnativehce.apps.nfc.NFCTagType4;
-+
-+import java.util.ArrayList;
-+
-+public class CardService extends HostApduService {
-+    private static final String TAG = "CardService";
-+
-+    private final ArrayList<IHCEApplication> registeredHCEApplications = new ArrayList<>();
-+    private IHCEApplication currentHCEApplication = null;
-+
-+    @Override
-+    public byte[] processCommandApdu(byte[] command, Bundle extras) {
-+      if (!PrefManager.getInstance(getApplicationContext()).getEnabled()) return ApduHelper.R_APDU_ERROR;
-+      if (command == null || command.length < 4) return ApduHelper.R_APDU_ERROR;
++      if (!active) { active = true; Diagnostics.record(Diagnostics.Event.ACTIVATED); }
++      if (!PrefManager.getInstance(getApplicationContext()).getEnabled()) return failure(Diagnostics.Failure.DISABLED);
++      if (command == null || command.length < 4) return failure(Diagnostics.Failure.MALFORMED);
 +      if (command[0] == 0 && command[1] == (byte)0xA4 && command[2] == 4 && command[3] == 0) {
 +        currentHCEApplication = null;
 +        registeredHCEApplications.clear();
 +        try {
 +          registeredHCEApplications.add(new NFCTagType4(PrefManager.getInstance(getApplicationContext()), HceViewModel.getInstance(getApplicationContext())));
-+        } catch (Exception invalid) { return ApduHelper.R_APDU_ERROR; }
-+        for (IHCEApplication app : registeredHCEApplications) {
-+          if (app.assertSelectCommand(command)) {
-+            currentHCEApplication = app;
-+            return ApduHelper.R_APDU_OK;
-+          }
-+        }
-+      }
-+
-+      return currentHCEApplication == null ? ApduHelper.R_APDU_ERROR : currentHCEApplication.processCommand(command);
++        } catch (Exception invalid) { return failure(Diagnostics.Failure.APPLICATION_INIT); }
+         for (IHCEApplication app : registeredHCEApplications) {
+           if (app.assertSelectCommand(command)) {
+             currentHCEApplication = app;
+@@ -40,23 +51,29 @@ public class CardService extends HostApduService {
+         }
+       }
+ 
+-      return ApduHelper.R_APDU_ERROR;
++      return currentHCEApplication == null ? failure(Diagnostics.Failure.APPLICATION_NOT_SELECTED) : currentHCEApplication.processCommand(command);
+     }
+ 
+     @Override
+     public void onCreate() {
+-      Log.d(TAG, "Starting service");
++      super.onCreate();
++      Diagnostics.configure((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0);
++      Diagnostics.record(Diagnostics.Event.SERVICE_CREATED);
+       Context context = getApplicationContext();
+ 
+-      registeredHCEApplications.add(new NFCTagType4(
+-        PrefManager.getInstance(context),
+-        HceViewModel.getInstance(context)
+-      ));
 +    }
 +
 +    @Override
-+    public void onCreate() {
-+      Log.d(TAG, "Starting service");
-+      Context context = getApplicationContext();
-+
-+    }
-+
-+    @Override
-+    public void onDeactivated(int reason) {
-+      Log.d(TAG, "Finishing service: " + reason);
++    public void onDestroy() {
++      Diagnostics.record(Diagnostics.Event.SERVICE_DESTROYED);
++      super.onDestroy();
+     }
+ 
+     @Override
+     public void onDeactivated(int reason) {
+-      Log.d(TAG, "Finishing service: " + reason);
+-      this.currentHCEApplication.onDestroy(reason);
++      active = false;
++      Diagnostics.record(Diagnostics.Event.DEACTIVATED);
 +      if (this.currentHCEApplication != null) this.currentHCEApplication.onDestroy(reason);
 +      this.currentHCEApplication = null;
-+    }
-+}
+     }
+ }
 diff --git a/node_modules/react-native-hce/dist/index.js b/node_modules/react-native-hce/dist/index.js
 --- a/node_modules/react-native-hce/dist/index.js
 +++ b/node_modules/react-native-hce/dist/index.js
@@ -1599,3 +1439,41 @@ diff --git a/node_modules/react-native-hce/dist/index.js b/node_modules/react-na
 +  NFCTagType4,
 +  NFCTagType4NDEFContentType
 +};
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/Diagnostics.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/Diagnostics.java
+new file mode 100644
+--- /dev/null
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/Diagnostics.java
+@@ -0,0 +1,33 @@
++package com.reactnativehce;
++
++import java.util.ArrayDeque;
++
++/** Memory only, debug only. No API accepts payloads, identifiers or exception text. */
++public final class Diagnostics {
++  public static final int VERSION = 2;
++  public enum Event { SERVICE_CREATED, SERVICE_DESTROYED, ACTIVATED, DEACTIVATED,
++    ADVERTISING_ON, ADVERTISING_OFF, REQUEST_READY, CONTENT_READY,
++    FOREGROUND_PREFERRED, FOREGROUND_RELEASED,
++    SELECT_APPLICATION, SELECT_CC, SELECT_NDEF, SELECT_OTHER, READ, WRITE, UNKNOWN, FAILURE }
++  public enum Failure { NONE, DISABLED, MALFORMED, APPLICATION_INIT, APPLICATION_NOT_SELECTED,
++    APPLICATION_REJECTED, TRANSPORT_REJECTED, CONTENT_CAPACITY, CONTENT_FORMAT, WRITE_REJECTED,
++    FOREGROUND_ROUTING }
++  private static final ArrayDeque<String> events = new ArrayDeque<>();
++  private static boolean enabled;
++  private Diagnostics() {}
++  public static synchronized void configure(boolean debug) {
++    enabled = debug;
++    if (!debug) events.clear();
++  }
++  public static synchronized void clear() { events.clear(); }
++  public static synchronized void record(Event event) { record(event, -1, -1, -1, Failure.NONE); }
++  public static synchronized void record(Event event, int offset, int length, int status, Failure failure) {
++    if (!enabled) return;
++    if (events.size() == 256) events.removeFirst();
++    events.addLast(event.name() + " offset=" + offset + " length=" + length
++      + " status=" + status + " failure=" + failure.name());
++  }
++  public static synchronized String report() {
++    return "NFC diagnostics v" + VERSION + " enabled=" + enabled + "\n" + String.join("\n", events);
++  }
++}

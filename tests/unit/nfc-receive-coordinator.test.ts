@@ -7,6 +7,7 @@ import {
 } from '~/services/wallet/nfcReceiveCoordinator';
 import { nfcService } from '~/services/platform/nfcService';
 import { walletService } from '~/services/wallet/walletService';
+import { completeNfcReceipt } from '~/storage/sqlite/repositories/nfcRequestReceipts';
 
 let mockPending: any;
 let mockReceipt: any;
@@ -15,6 +16,7 @@ let mockReady = true;
 let mockAuthenticated = true;
 let mockFee = 0;
 let mockCreateReceipt = true;
+let mockAcknowledgeSuccess = true;
 const mockReservations = new Map<string, string>();
 const mockMarkReceived = jest.fn(async () => {
   mockRequest.state = 'received';
@@ -24,6 +26,7 @@ jest.mock('~/services/platform/nfcService', () => ({
     getPendingPayment: jest.fn(async () => mockPending),
     pauseRequestSession: jest.fn(async () => {}),
     acknowledgePayment: jest.fn(async () => {
+      if (!mockAcknowledgeSuccess) return false;
       mockPending = null;
       return true;
     }),
@@ -82,6 +85,7 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: { getState: () => ({ refreshBalance: async () => {} }) },
 }));
 import { mintManager } from '~/services/wallet/mintManager';
+import { refreshReceiveKeysets } from '~/services/wallet/cashuReceiveKeysets';
 
 function token(amount = 8, mint = 'https://mint.example', unit = 'sat') {
   return getEncodedTokenV3({
@@ -98,6 +102,7 @@ beforeEach(() => {
   mockAuthenticated = true;
   mockFee = 0;
   mockCreateReceipt = true;
+  mockAcknowledgeSuccess = true;
   AppState.currentState = 'active';
   mockReceipt = undefined;
   mockRequest = {
@@ -188,6 +193,11 @@ it('deduplicates concurrent work and acknowledges only after receipt and request
   expect(walletService.receive).toHaveBeenCalledTimes(1);
   expect(mockMarkReceived).toHaveBeenCalledTimes(1);
   expect(nfcService.acknowledgePayment).toHaveBeenCalledWith('native-slot');
+  expect(coordinator.getSnapshot()).toEqual({
+    status: 'idle',
+    requestId: 'request',
+    receiptId: 'receipt',
+  });
   expect(mockMarkReceived.mock.invocationCallOrder[0]).toBeLessThan(
     jest.mocked(nfcService.acknowledgePayment).mock.invocationCallOrder[0],
   );
@@ -212,14 +222,49 @@ it('does not succeed solely because receive resolved or proofs are spent', async
   mockCreateReceipt = false;
   const coordinator = await run();
   expect(coordinator.getSnapshot().status).toBe('review');
+  expect(coordinator.getSnapshot()).not.toHaveProperty('receiptId');
   expect(mockMarkReceived).not.toHaveBeenCalled();
   expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
+});
+it('releases stale review when the authoritative native slot is empty', async () => {
+  mockCreateReceipt = false;
+  const coordinator = await run();
+  expect(coordinator.getSnapshot().status).toBe('review');
+  mockPending = null;
+  await coordinator.processPending();
+  expect(coordinator.getSnapshot()).toEqual({ status: 'idle' });
+  expect(walletService.receive).toHaveBeenCalledTimes(1);
+  expect(mockMarkReceived).not.toHaveBeenCalled();
+  expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
+});
+it('retains a completed receipt when a later native-slot check is empty', async () => {
+  const coordinator = await run();
+  const completed = coordinator.getSnapshot();
+  await coordinator.processPending();
+  expect(coordinator.getSnapshot()).toBe(completed);
+  expect(completed).toMatchObject({ status: 'idle', requestId: 'request', receiptId: 'receipt' });
 });
 it('recovers a receipt after a crash without redeeming again', async () => {
   mockReceipt = { id: 'saved', createdAt: 2000 };
   await run();
   expect(walletService.receive).not.toHaveBeenCalled();
   expect(mockMarkReceived).toHaveBeenCalled();
+});
+it('publishes the same receipt only after acknowledgement succeeds without receiving twice', async () => {
+  mockAcknowledgeSuccess = false;
+  const coordinator = await run();
+  expect(coordinator.getSnapshot().status).toBe('review');
+  expect(coordinator.getSnapshot()).not.toHaveProperty('receiptId');
+  expect(mockPending).not.toBeNull();
+  mockAcknowledgeSuccess = true;
+  await coordinator.retry();
+  expect(coordinator.getSnapshot()).toEqual({
+    status: 'idle',
+    requestId: 'request',
+    receiptId: 'receipt',
+  });
+  expect(walletService.receive).toHaveBeenCalledTimes(1);
+  expect(mockPending).toBeNull();
 });
 it('does not settle a request with an unrelated receipt recorded before the NFC offer', async () => {
   mockReceipt = { id: 'older-receipt', createdAt: 1200 };
@@ -240,6 +285,23 @@ it('preserves untrusted mint offers', async () => {
   expect(walletService.receive).not.toHaveBeenCalled();
   expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
 });
+it('preserves an unknown keyset offer and explains why it cannot be confirmed', async () => {
+  jest
+    .mocked(refreshReceiveKeysets)
+    .mockRejectedValueOnce(
+      new Error('Unknown Keyset: token keyset is not uniquely advertised by its mint'),
+    );
+  const coordinator = await run();
+  expect(coordinator.getSnapshot()).toMatchObject({
+    status: 'review',
+    message:
+      'NFC payment saved but not confirmed. Its keyset is not uniquely advertised by the mint. Check with the sender before retrying.',
+  });
+  expect(walletService.receive).not.toHaveBeenCalled();
+  expect(mockMarkReceived).not.toHaveBeenCalled();
+  expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
+  expect(mockPending).not.toBeNull();
+});
 it('retains offline failures and recovers a concurrent QR receipt on retry', async () => {
   jest.mocked(walletService.receive).mockRejectedValue(new Error('offline'));
   const coordinator = await run();
@@ -254,16 +316,47 @@ it('does not receive while locked', async () => {
   await run();
   expect(nfcService.getPendingPayment).not.toHaveBeenCalled();
 });
-it('accepts fee-inclusive gross amounts only when the exact requested net amount is received', async () => {
+it('accepts sender-covered receiving fees and records the net received amount', async () => {
   mockPending.content = token(12);
   mockFee = 4;
   const coordinator = await run();
   expect(coordinator.getSnapshot().status).toBe('idle');
   expect(walletService.receive).toHaveBeenCalledTimes(1);
+  expect(completeNfcReceipt).toHaveBeenCalledWith(expect.any(String), 'request', 'receipt', {
+    requestedAmount: 8,
+    fee: 4,
+    netAmount: 8,
+    receivingFeeCovered: true,
+  });
 });
-it('retains a token whose input fees would underpay the request', async () => {
+it('receives the requested face value when the receiver covers the fee and records the shortfall', async () => {
   mockFee = 1;
-  await run();
+  const coordinator = await run();
+  expect(coordinator.getSnapshot()).toMatchObject({
+    status: 'idle',
+    receiptId: 'receipt',
+  });
+  expect(walletService.receive).toHaveBeenCalledTimes(1);
+  expect(completeNfcReceipt).toHaveBeenCalledWith(expect.any(String), 'request', 'receipt', {
+    requestedAmount: 8,
+    fee: 1,
+    netAmount: 7,
+    receivingFeeCovered: false,
+  });
+  expect(mockMarkReceived).toHaveBeenCalledTimes(1);
+  expect(nfcService.acknowledgePayment).toHaveBeenCalled();
+});
+it.each([8, 9])('retains a token whose fee %s leaves no positive received value', async (fee) => {
+  mockFee = fee;
+  const coordinator = await run();
+  expect(coordinator.getSnapshot().status).toBe('review');
+  expect(walletService.receive).not.toHaveBeenCalled();
+  expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
+});
+it.each([-1, 0.5, NaN, Infinity])('retains invalid fee %s without redemption', async (fee) => {
+  mockFee = fee;
+  const coordinator = await run();
+  expect(coordinator.getSnapshot().status).toBe('review');
   expect(walletService.receive).not.toHaveBeenCalled();
   expect(nfcService.acknowledgePayment).not.toHaveBeenCalled();
 });

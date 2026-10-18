@@ -1,7 +1,12 @@
 import { PaymentStatusIcon, paymentReceiptStatus } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { getHistoryToken, getVerifiedTokenState } from '~/features/history/historyToken';
-import { historyPaymentLayout, isOnchainHistory } from '~/features/history/transactionPresentation';
+import {
+  historyPaymentLayout,
+  isOnchainHistory,
+  historyDisplayAmount,
+  nfcReceivingFeeNotice,
+} from '~/features/history/transactionPresentation';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
@@ -190,20 +195,22 @@ export function TransactionDetailsScreen() {
     staleTime: 30000,
   });
 
+  const displayedAmount = entry ? historyDisplayAmount(entry) : 0;
+  const receivingFeeNotice = entry ? nfcReceivingFeeNotice(entry) : undefined;
   const fiatAmount = useMemo(() => {
     if (!btcData?.price || !entry?.amount) return 0;
-    return currencyService.convertSatsToCurrency(entry.amount, btcData.price);
-  }, [entry?.amount, btcData?.price]);
+    return currencyService.convertSatsToCurrency(displayedAmount, btcData.price);
+  }, [displayedAmount, btcData?.price]);
 
   const formattedAmountTitle = useMemo(() => {
     if (!entry) return '';
-    const amt = entry.amount;
+    const amt = displayedAmount;
     if (primaryCurrency === 'SATS') {
       return currencyService.formatSats(Number(amt));
     } else {
       return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
     }
-  }, [entry, primaryCurrency, fiatAmount, secondaryCurrency]);
+  }, [entry, displayedAmount, primaryCurrency, fiatAmount, secondaryCurrency]);
 
   const [token, setToken] = useState('');
   useEffect(() => {
@@ -920,7 +927,12 @@ export function TransactionDetailsScreen() {
               <Text fontSize={16} fontWeight="500" color="$color" textAlign="center">
                 {statusLabel}
               </Text>
-              <PaymentAmount amount={entry.amount} compact />
+              <PaymentAmount amount={displayedAmount} compact />
+              {receivingFeeNotice && (
+                <Text accessibilityRole="alert" fontSize={13} color="$gray11" textAlign="center">
+                  {receivingFeeNotice}
+                </Text>
+              )}
             </YStack>
 
             {/* Details table */}

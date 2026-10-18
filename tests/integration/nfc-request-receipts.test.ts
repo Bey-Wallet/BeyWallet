@@ -22,11 +22,11 @@ const sqlite = (() => {
     raw = new sqlite.DatabaseSync(':memory:');
     raw.exec(MIGRATIONS.find((migration) => migration.id === '018_nfc_request_receipts')!.sql);
     raw.exec(
-      'CREATE TABLE coco_cashu_history (id TEXT PRIMARY KEY, type TEXT, state TEXT, metadata TEXT)',
+      'CREATE TABLE coco_cashu_history (id TEXT PRIMARY KEY, type TEXT, state TEXT, metadata TEXT, amount INTEGER, unit TEXT)',
     );
     raw
-      .prepare('INSERT INTO coco_cashu_history VALUES (?, ?, NULL, ?)')
-      .run('receipt', 'receive', JSON.stringify({ note: 'keep' }));
+      .prepare('INSERT INTO coco_cashu_history VALUES (?, ?, NULL, ?, 8, ?)')
+      .run('receipt', 'receive', JSON.stringify({ note: 'keep' }), 'sat');
     mockDatabase = {
       runAsync: async (sql: string, ...params: any[]) => raw.prepare(sql).run(...params),
       getFirstAsync: async (sql: string, ...params: any[]) => raw.prepare(sql).get(...params),
@@ -81,6 +81,41 @@ const sqlite = (() => {
     raw.exec("UPDATE coco_cashu_history SET state = 'unclaimed'");
     await reserveNfcReceipt('fingerprint', 'request');
     await expect(completeNfcReceipt('fingerprint', 'request', 'receipt')).rejects.toThrow();
+    expect(
+      raw.prepare('SELECT receiptId FROM bey_nfc_request_receipts').get().receiptId,
+    ).toBeNull();
+  });
+
+  it('records the validated receiving fee and net amount on the same successful receipt', async () => {
+    await reserveNfcReceipt('fingerprint', 'request');
+    const amounts = { requestedAmount: 8, fee: 1, netAmount: 7, receivingFeeCovered: false };
+    await completeNfcReceipt('fingerprint', 'request', 'receipt', amounts);
+    expect(
+      JSON.parse(raw.prepare('SELECT metadata FROM coco_cashu_history').get().metadata),
+    ).toEqual({
+      note: 'keep',
+      requestId: 'request',
+      via: 'nfc',
+      ...amounts,
+    });
+    expect(
+      raw.prepare('SELECT COUNT(*) AS count, amount FROM coco_cashu_history').get(),
+    ).toMatchObject({ count: 1, amount: 8 });
+  });
+
+  it('rolls back tagging if the recorded gross amount differs from the validated amounts', async () => {
+    await reserveNfcReceipt('fingerprint', 'request');
+    await expect(
+      completeNfcReceipt('fingerprint', 'request', 'receipt', {
+        requestedAmount: 8,
+        fee: 1,
+        netAmount: 8,
+        receivingFeeCovered: true,
+      }),
+    ).rejects.toThrow();
+    expect(
+      JSON.parse(raw.prepare('SELECT metadata FROM coco_cashu_history').get().metadata),
+    ).toEqual({ note: 'keep' });
     expect(
       raw.prepare('SELECT receiptId FROM bey_nfc_request_receipts').get().receiptId,
     ).toBeNull();
