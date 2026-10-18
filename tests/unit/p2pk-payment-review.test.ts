@@ -1,5 +1,7 @@
 import { walletService } from '~/services/wallet/walletService';
 import { initService } from '~/services/wallet/initService';
+import type { OutputDataLike, SwapPreview } from '@cashu/cashu-ts';
+import { npubEncode } from 'nostr-tools/nip19';
 
 jest.mock('~/services/wallet/initService', () => ({
   initService: { getManager: jest.fn(), getRepo: jest.fn() },
@@ -18,11 +20,25 @@ jest.mock('@cashu/cashu-ts', () => ({}));
 
 const recipient = '02' + 'a'.repeat(64);
 function setup() {
-  const inputs = [{ secret: 'input', amount: 64 }];
+  const inputs = [{ id: 'keyset', C: 'signature', secret: 'input', amount: 64 }];
+  const unselected = { id: 'keyset', C: 'signature', secret: 'unselected', amount: 8 };
+  const output = (amount: number): OutputDataLike => ({
+    blindedMessage: { amount, id: 'keyset', B_: 'blinded' },
+    blindingFactor: 1n,
+    secret: new Uint8Array(),
+    toProof: jest.fn(),
+  });
+  const preview: SwapPreview = {
+    amount: 50,
+    fees: 2,
+    keysetId: 'keyset',
+    inputs,
+    sendOutputs: [output(32), output(16), output(2)],
+    keepOutputs: [output(8), output(4)],
+    unselectedProofs: [unselected],
+  };
   const wallet = {
-    prepareSwapToSend: jest
-      .fn()
-      .mockResolvedValue({ payload: { inputs, outputs: [{ amount: 62 }] } }),
+    prepareSwapToSend: jest.fn().mockResolvedValue(preview),
     completeSwap: jest
       .fn()
       .mockResolvedValue({ keep: [{ secret: 'change' }], send: [{ secret: 'locked' }] }),
@@ -38,12 +54,12 @@ function setup() {
     mintService: { isTrustedMint: async () => true },
     mint: { getMintInfo: jest.fn().mockResolvedValue({ nuts: { 11: { supported: true } } }) },
     walletService: { getWalletWithActiveKeysetId: async () => ({ wallet }) },
-    proofRepository: { getAvailableProofs: async () => inputs },
+    proofRepository: { getAvailableProofs: async () => [...inputs, unselected] },
     proofService,
   };
   (initService.getManager as jest.Mock).mockReturnValue(manager);
   (initService.getRepo as jest.Mock).mockReturnValue({ historyRepository });
-  return { wallet, proofService, manager, historyRepository };
+  return { wallet, proofService, manager, historyRepository, preview };
 }
 
 it('prepares SDK lock/refund conditions without swapping and releases selected inputs', async () => {
@@ -68,17 +84,24 @@ it('prepares SDK lock/refund conditions without swapping and releases selected i
     },
   );
   expect(wallet.completeSwap).not.toHaveBeenCalled();
+  expect(proofService.reserveProofs).toHaveBeenCalledWith(
+    'https://mint.test',
+    ['input'],
+    expect.any(String),
+  );
   await review.dispose();
   expect(proofService.releaseProofs).toHaveBeenCalledWith('https://mint.test', ['input']);
   await expect(review.execute()).rejects.toThrow('replaced');
 });
 
 it('executes a prepared swap once and persists public refund metadata and the actual fee', async () => {
-  const { wallet, historyRepository } = setup();
+  const { wallet, historyRepository, proofService, preview } = setup();
   const deadline = Date.now() + 3600000;
   const review = await walletService.prepareP2PK('https://mint.test', 50, recipient, deadline);
   await Promise.all([review.execute(), review.execute()]);
   expect(wallet.completeSwap).toHaveBeenCalledTimes(1);
+  expect(wallet.completeSwap).toHaveBeenCalledWith(preview);
+  expect(proofService.setProofState).toHaveBeenCalledWith('https://mint.test', ['input'], 'spent');
   expect(historyRepository.addHistoryEntry).toHaveBeenCalledWith(
     expect.objectContaining({
       metadata: {
@@ -90,6 +113,54 @@ it('executes a prepared swap once and persists public refund metadata and the ac
       },
     }),
   );
+});
+
+it('prepares a recipient lock without reclaim and keeps unrelated proofs available', async () => {
+  const { wallet, proofService } = setup();
+  const review = await walletService.prepareP2PK('https://mint.test', 50, recipient);
+  expect(review.fee).toBe(2);
+  expect(wallet.prepareSwapToSend.mock.calls[0][3]).toEqual({
+    send: { type: 'p2pk', options: { pubkey: recipient } },
+    keep: { type: 'random' },
+  });
+  await review.dispose();
+  await review.dispose();
+  expect(proofService.releaseProofs).toHaveBeenCalledTimes(1);
+  expect(proofService.releaseProofs).toHaveBeenCalledWith('https://mint.test', ['input']);
+});
+
+it('prepares the P2PK recipient from the npub used by people and conversations', async () => {
+  const { wallet } = setup();
+  const review = await walletService.prepareP2PK(
+    'https://mint.test',
+    50,
+    npubEncode(recipient.slice(2)),
+  );
+  expect(wallet.prepareSwapToSend.mock.calls[0][3].send.options).toEqual({ pubkey: recipient });
+  expect(review.fee).toBe(2);
+  await review.dispose();
+});
+
+it('retains input reservations after an ambiguous swap failure without submitting twice', async () => {
+  const { wallet, proofService } = setup();
+  wallet.completeSwap.mockRejectedValue(new Error('Network unavailable'));
+  const review = await walletService.prepareP2PK('https://mint.test', 50, recipient);
+  await expect(review.execute()).rejects.toThrow('Network unavailable');
+  await review.dispose();
+  await expect(review.execute()).rejects.toThrow('Network unavailable');
+  expect(wallet.completeSwap).toHaveBeenCalledTimes(1);
+  expect(proofService.releaseProofs).not.toHaveBeenCalled();
+  expect(proofService.setProofState).not.toHaveBeenCalled();
+});
+
+it('rejects an invalid creation fee before reserving inputs', async () => {
+  const { preview, proofService, wallet } = setup();
+  preview.sendOutputs![0].blindedMessage.amount = 128;
+  await expect(walletService.prepareP2PK('https://mint.test', 50, recipient)).rejects.toThrow(
+    'creation fee',
+  );
+  expect(proofService.reserveProofs).not.toHaveBeenCalled();
+  expect(wallet.completeSwap).not.toHaveBeenCalled();
 });
 
 it('rejects unknown mint capabilities before reserving or swapping proofs', async () => {

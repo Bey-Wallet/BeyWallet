@@ -21,6 +21,16 @@ Native acceptance below has not been performed in this workspace.
 - Scan QR codes and use native copy/share for complete invoices, addresses, tokens,
   requests, and links. Check expired invoices and pending/unconfirmed receipts.
 - Verify NFC reading, sending, request payment, cancellation, refresh, and delivery retry.
+- From People and a conversation, pay an accepted person with P2PK enabled, both with
+  reclaim off and with a future reclaim deadline. Confirm the creation fee is shown and
+  the recipient can claim the token. Back out before sending and verify reservations release.
+- Pay a new Minibits Nostr request with **Exact amount for legacy wallets** enabled.
+  Confirm the review shows the recipient's amount after receiving fees and Minibits accepts
+  the requested face value. The option defaults off, is unavailable for automatic NFC payments,
+  and locks when delivery starts. Default payments continue covering the receiver's input fees.
+- Interrupt legacy request delivery and retry or reopen it. Verify the same encrypted
+  payment is retried and only one send operation exists. An older rejected payment must be
+  resolved or reclaimed in History; enabling compatibility cannot replace its existing token.
 - On a mint advertising NUT-11, inspect a locked token's `locktime` and public `refund`
   conditions for every reclaim preset. Before eligibility the sender cannot refund;
   afterward verify receipt through the sender's existing signing identity. The recipient

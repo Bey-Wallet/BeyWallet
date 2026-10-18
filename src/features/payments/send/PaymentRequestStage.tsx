@@ -10,6 +10,7 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { useToastController } from '@tamagui/toast';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { Switch } from 'react-native';
 import { YStack, XStack, Text, Separator, Avatar } from 'tamagui';
 import { AlertCircle, Zap, ShieldCheck, Sprout } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +27,7 @@ import {
   PaymentRequestPayment,
   previewPaymentRequest,
   type PaymentRequestCost,
+  type PaymentRequestAmountMode,
   requestPaymentKey,
 } from '~/services/wallet/paymentRequestPayment';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
@@ -74,6 +76,7 @@ export function PaymentRequestStage({
   const actionLock = useRef(false);
   const automaticPaymentStarted = useRef(false);
   const [cost, setCost] = useState<PaymentRequestCost | null>(null);
+  const [amountMode, setAmountMode] = useState<PaymentRequestAmountMode>('net');
   const [receipt, setReceipt] = useState<'awaiting' | 'unconfirmed' | null>(null);
   const [hasOperation, setHasOperation] = useState(false);
   const toast = useToastController();
@@ -127,7 +130,7 @@ export function PaymentRequestStage({
     setCost(null);
     setLocalError(null);
     if (matchedMint) {
-      previewPaymentRequest(request, matchedMint)
+      previewPaymentRequest(request, matchedMint, amountMode)
         .then((preview) => {
           if (!cancelled) setCost(preview);
         })
@@ -140,7 +143,7 @@ export function PaymentRequestStage({
     return () => {
       cancelled = true;
     };
-  }, [matchedMint, request]);
+  }, [matchedMint, request, amountMode]);
 
   const activeMintInfo = useMemo(() => {
     if (!matchedMint) return null;
@@ -335,10 +338,34 @@ export function PaymentRequestStage({
         )}
 
         {/* Details List */}
+        {amountMode === 'exact' && (
+          <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+            Sends the exact requested amount for legacy wallets such as Minibits. The recipient pays
+            the receiving fee, which reduces the amount they receive.
+          </Text>
+        )}
         {(receipt || hasOperation) && (
           <Text color="$gray10">Payment pending. Do not pay this request again.</Text>
         )}
         <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+          {request.delivery === 'nip17' && !autoPay && (
+            <ListTableRow
+              label="Exact amount for legacy wallets"
+              rightContent={
+                <Switch
+                  accessibilityLabel="Exact amount for legacy wallets"
+                  value={amountMode === 'exact'}
+                  disabled={isSending || hasOperation || !!savedPayment || !!paymentRef.current}
+                  onValueChange={(enabled) => {
+                    if (actionLock.current || paymentRef.current || savedPayment || hasOperation)
+                      return;
+                    setCost(null);
+                    setAmountMode(enabled ? 'exact' : 'net');
+                  }}
+                />
+              }
+            />
+          )}
           {(receipt || hasOperation) && (
             <PaymentStatusRow
               value={receipt === 'awaiting' ? 'Awaiting recipient' : 'Unconfirmed'}
@@ -353,6 +380,12 @@ export function PaymentRequestStage({
             )}
             {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sats`} />}
             {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sats`} />}
+            {amountMode === 'exact' && cost && (
+              <DetailItem
+                label="Recipient receives after fees"
+                value={`${cost.grossAmount - cost.receiverFee} sats`}
+              />
+            )}
             <DetailItem
               label="Mint"
               value={mintDisplayName}

@@ -22,7 +22,10 @@ export function requestPaymentKey(request: ParsedPaymentRequest): string {
 }
 const activePayments = new Set<string>();
 
+export type PaymentRequestAmountMode = 'net' | 'exact';
+
 export interface PaymentRequestCost {
+  amountMode?: PaymentRequestAmountMode;
   mintUrl: string;
   amount: number;
   grossAmount: number;
@@ -44,6 +47,7 @@ export function calculatePaymentRequestCost(
   proofs: CoreProof[],
   keys: Parameters<typeof splitAmount>[1],
   keysetId: string,
+  amountMode: PaymentRequestAmountMode = 'net',
 ): PaymentRequestCost {
   let grossAmount = amount;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -56,7 +60,10 @@ export function calculatePaymentRequestCost(
     if (!Number.isSafeInteger(receiverFee) || receiverFee < 0) {
       throw new Error('Unsupported receiver fee requirements');
     }
-    if (grossAmount - receiverFee < amount) {
+    if (amountMode === 'exact' && grossAmount <= receiverFee) {
+      throw new Error('Receiving fees would consume the entire payment');
+    }
+    if (amountMode === 'net' && grossAmount - receiverFee < amount) {
       grossAmount = amount + receiverFee;
       continue;
     }
@@ -69,12 +76,18 @@ export function calculatePaymentRequestCost(
     ) {
       throw new Error('No compatible funded mint has enough balance including fees');
     }
-    return { mintUrl, amount, grossAmount, receiverFee, senderFee, totalDebit };
+    return { amountMode, mintUrl, amount, grossAmount, receiverFee, senderFee, totalDebit };
   }
   throw new Error('Unsupported receiver fee requirements');
 }
 
-export async function previewPaymentRequest(request: ParsedPaymentRequest, mintUrl: string) {
+export async function previewPaymentRequest(
+  request: ParsedPaymentRequest,
+  mintUrl: string,
+  amountMode: PaymentRequestAmountMode = 'net',
+) {
+  if (amountMode === 'exact' && request.delivery !== 'nip17')
+    throw new Error('Exact amount compatibility is only available for Nostr requests');
   if (!isPaymentMintAllowed(request, mintUrl))
     throw new Error('Mint is not accepted by the recipient');
   const { initService } = require('./initService') as typeof import('./initService');
@@ -82,7 +95,15 @@ export async function previewPaymentRequest(request: ParsedPaymentRequest, mintU
   if (!(await manager.mint.isTrustedMint(mintUrl))) throw new Error('Mint is not trusted');
   const { wallet, keys, keysetId } = await wallets(manager).getWalletWithActiveKeysetId(mintUrl);
   const proofs = await initService.getRepo().proofRepository.getAvailableProofs(mintUrl);
-  return calculatePaymentRequestCost(request.amount, mintUrl, wallet, proofs, keys.keys, keysetId);
+  return calculatePaymentRequestCost(
+    request.amount,
+    mintUrl,
+    wallet,
+    proofs,
+    keys.keys,
+    keysetId,
+    amountMode,
+  );
 }
 
 export function areAllPaymentProofsSpent(states: { state: string }[], proofCount: number): boolean {
@@ -173,10 +194,15 @@ export class PaymentRequestPayment {
           throw new Error('Existing payment is unresolved. Check History before continuing.');
         if (this.request.delivery === 'nfc' && !writeNfc)
           throw new Error('NFC session is unavailable');
-        const currentCost = await previewPaymentRequest(this.request, this.cost.mintUrl);
+        const currentCost = await previewPaymentRequest(
+          this.request,
+          this.cost.mintUrl,
+          this.cost.amountMode,
+        );
         if (
           currentCost.totalDebit !== this.cost.totalDebit ||
-          currentCost.grossAmount !== this.cost.grossAmount
+          currentCost.grossAmount !== this.cost.grossAmount ||
+          currentCost.receiverFee !== this.cost.receiverFee
         ) {
           throw new Error('Payment fees changed. Review the amount again before paying.');
         }
@@ -222,10 +248,23 @@ export class PaymentRequestPayment {
         });
         stage = 'net_value';
         const wallet = await wallets(manager).getWallet(this.cost.mintUrl);
-        const net =
-          this.token.proofs.reduce((sum, proof) => sum + proof.amount, 0) -
-          wallet.getFeesForProofs(this.token.proofs);
-        if (net < this.request.amount)
+        if ((this.token.unit ?? 'sat') !== this.request.unit)
+          throw new Error('Prepared payment unit does not match the request. Check History.');
+        const faceAmount = this.token.proofs.reduce((sum, proof) => sum + proof.amount, 0);
+        const receiverFee = wallet.getFeesForProofs(this.token.proofs);
+        const net = faceAmount - receiverFee;
+        if (!Number.isSafeInteger(receiverFee) || receiverFee < 0 || !Number.isSafeInteger(net))
+          throw new Error('Prepared payment fee could not be verified. Check History.');
+        if (this.cost.amountMode === 'exact') {
+          if (
+            faceAmount !== this.request.amount ||
+            receiverFee !== this.cost.receiverFee ||
+            net <= 0
+          )
+            throw new Error(
+              'Prepared payment does not match the exact amount review. Check History.',
+            );
+        } else if (net < this.request.amount)
           throw new Error('Prepared payment has insufficient net value. Check History.');
         this.deliverable = true;
       }

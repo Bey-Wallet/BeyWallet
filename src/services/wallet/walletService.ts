@@ -14,7 +14,7 @@ import { seedService } from '~/services/platform/seedService';
 import { initService } from '~/services/wallet/initService';
 import { purgeCorruptedKeysets } from '~/services/wallet/initService';
 import { cleanToken, encodeToken, decodeToken } from '~/services/wallet/tokenUtils';
-import type { Token } from '@cashu/cashu-ts';
+import type { SwapPreview, Token } from '@cashu/cashu-ts';
 import { getDecodedToken, Mint } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
 import {
@@ -395,7 +395,7 @@ export const walletService = {
       refundPubkey = '02' + (await seedService.getNostrKeys(mnemonic)).pubkey;
     }
     const options = reclaimOptions(lockPubkey, reclaimAt, refundPubkey);
-    const txn = await wallet.prepareSwapToSend(
+    const txn: SwapPreview = await wallet.prepareSwapToSend(
       amount,
       availableProofs,
       { includeFees: true },
@@ -404,10 +404,13 @@ export const walletService = {
         keep: { type: 'random' },
       },
     );
-    const inputSecrets = txn.payload.inputs.map((p: any) => p.secret);
+    const inputSecrets = txn.inputs.map((p) => p.secret);
     const fee =
-      txn.payload.inputs.reduce((sum: number, p: any) => sum + Number(p.amount), 0) -
-      txn.payload.outputs.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      txn.inputs.reduce((sum, p) => sum + Number(p.amount), 0) -
+      [...(txn.sendOutputs ?? []), ...(txn.keepOutputs ?? [])].reduce(
+        (sum, output) => sum + Number(output.blindedMessage.amount),
+        0,
+      );
     if (!Number.isSafeInteger(fee) || fee < 0)
       throw new Error('Could not calculate the creation fee');
     const operationId = generateSubId();
