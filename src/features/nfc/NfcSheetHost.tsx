@@ -72,8 +72,12 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     }
   }, [state.status, state.hasPayment, queryClient]);
   useEffect(() => {
+    // Remounting can stop the controller without another AppState event.
+    if (AppState.currentState === 'active') nfcFlow.foreground();
+    else if (AppState.currentState === 'background') void nfcFlow.background();
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'background') void nfcFlow.background();
+      else if (next === 'active') nfcFlow.foreground();
     });
     return () => {
       subscription.remove();

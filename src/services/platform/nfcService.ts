@@ -131,7 +131,7 @@ const stopListening = async () => {
 };
 
 const hceLocks = new WeakMap<HCESession, boolean>();
-const startHceSimulation = async (text: string) => {
+const startHceSimulation = async (text: string, { preventAutoLock = true } = {}) => {
   if (Platform.OS !== 'android') {
     throw new Error('HCE is only supported on Android');
   }
@@ -139,8 +139,9 @@ const startHceSimulation = async (text: string) => {
     require('react-native-hce') as typeof import('react-native-hce');
 
   const previousLock = useAuthStore.getState().isLockDisabled;
+  let startedSession: HCESession | undefined;
   try {
-    useAuthStore.getState().setLockDisabled(true);
+    if (preventAutoLock) useAuthStore.getState().setLockDisabled(true);
 
     // Cancel any active NfcManager reader mode / listeners before enabling HCE session
     await stopListening();
@@ -176,13 +177,18 @@ const startHceSimulation = async (text: string) => {
     if (!session) {
       throw new Error('Failed to get HCE session instance');
     }
+    startedSession = session;
 
-    hceLocks.set(session, previousLock);
+    if (preventAutoLock) hceLocks.set(session, previousLock);
     await session.setApplication(tag);
     await session.setEnabled(true);
     return session;
   } catch (e: any) {
-    useAuthStore.getState().setLockDisabled(previousLock);
+    if (startedSession) {
+      await startedSession.setEnabled(false).catch(() => {});
+      hceLocks.delete(startedSession);
+    }
+    if (preventAutoLock) useAuthStore.getState().setLockDisabled(previousLock);
     throw e;
   }
 };
@@ -194,7 +200,7 @@ const stopHceSimulation = async (session: any) => {
   } catch (e: any) {
     console.warn('[nfcService] Could not stop NFC broadcast');
   } finally {
-    useAuthStore.getState().setLockDisabled(hceLocks.get(session) ?? false);
+    if (hceLocks.has(session)) useAuthStore.getState().setLockDisabled(hceLocks.get(session)!);
     hceLocks.delete(session);
   }
 };

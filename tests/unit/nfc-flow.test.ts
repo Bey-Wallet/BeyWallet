@@ -141,6 +141,156 @@ it('automatically pays once and keeps same-session Numo write-back open', async 
   expect(deliver).toHaveBeenCalledTimes(1);
   expect(refresh).toHaveBeenCalled();
 });
+
+it('advertises a request inline without opening a sheet, paying, or claiming success on a tap', async () => {
+  const stop = flow.presentRequest('creq-request');
+  await flush();
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('creq-request', {
+    preventAutoLock: false,
+  });
+  expect(flow.getSnapshot()).toMatchObject({
+    visible: false,
+    requestStatus: 'ready',
+    status: 'ready',
+  });
+  expect(events.read).toBeUndefined();
+  expect(deliver).not.toHaveBeenCalled();
+  expect(walletService.receive).not.toHaveBeenCalled();
+  stop();
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(1);
+});
+
+it('serializes replaced requests and ignores stale owners disposing the current broadcast', async () => {
+  let resolve!: (value: any) => void;
+  const oldSession = { name: 'old' };
+  const newSession = { name: 'new' };
+  jest
+    .mocked(nfcService.startHceSimulation)
+    .mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    )
+    .mockResolvedValueOnce(newSession as any);
+  const stopOld = flow.presentRequest('old-request');
+  await flush();
+  const stopNew = flow.presentRequest('new-request');
+  await flush();
+  expect(nfcService.startHceSimulation).toHaveBeenCalledTimes(1);
+  resolve(oldSession);
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledWith(oldSession);
+  expect(nfcService.startHceSimulation).toHaveBeenLastCalledWith('new-request', {
+    preventAutoLock: false,
+  });
+  stopOld();
+  await flush();
+  expect(nfcService.stopHceSimulation).not.toHaveBeenCalledWith(newSession);
+  stopNew();
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledWith(newSession);
+});
+
+it('pauses request broadcasting while locked or backgrounded and resumes when ready', async () => {
+  flow.setReady(false);
+  flow.presentRequest('creq-request');
+  await flush();
+  expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
+  expect(flow.getSnapshot().requestStatus).toBe('paused');
+  flow.setReady(true);
+  await flush();
+  expect(flow.getSnapshot().requestStatus).toBe('ready');
+  await flow.background();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot().requestStatus).toBe('paused');
+  flow.dismiss();
+  flow.resumeRequest();
+  await flush();
+  expect(nfcService.startHceSimulation).toHaveBeenCalledTimes(1);
+  flow.foreground();
+  await flush();
+  expect(nfcService.startHceSimulation).toHaveBeenCalledTimes(2);
+  flow.setReady(false);
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(2);
+});
+
+it('leaves the QR available when NFC is disabled or the platform cannot advertise requests', async () => {
+  jest.mocked(nfcService.isEnabled).mockResolvedValueOnce(false);
+  flow.presentRequest('creq-request');
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ visible: false, requestStatus: 'disabled' });
+  expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  flow.resumeRequest();
+  await flush();
+  expect(flow.getSnapshot().requestStatus).toBe('unsupported');
+});
+
+it('releases an inline broadcast before using the NFC payment reader', async () => {
+  flow.presentRequest('creq-request');
+  await flush();
+  flow.openReader();
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(1);
+  expect(nfcService.openPaymentSession).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot().visible).toBe(true);
+});
+
+it('resumes a request after a cancelled reader finishes releasing its session', async () => {
+  let cancelRead!: (reason: Error) => void;
+  jest.mocked(nfcService.openPaymentSession).mockReturnValueOnce({
+    read: () =>
+      new Promise((_resolve, reject) => {
+        cancelRead = reject;
+      }),
+    close: async () => {
+      cancelRead(new Error('Cancelled'));
+    },
+    write,
+  });
+  flow.openReader();
+  await flush();
+  flow.dismiss();
+  flow.presentRequest('new-request');
+  expect(flow.getSnapshot()).toMatchObject({
+    requestStatus: 'paused',
+    requestPauseReason: 'session',
+  });
+  await flush();
+  expect(flow.getSnapshot().requestStatus).toBe('ready');
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('new-request', {
+    preventAutoLock: false,
+  });
+  expect(deliver).not.toHaveBeenCalled();
+});
+
+it('keeps a request paused until an existing payment is reviewed and confirmed', async () => {
+  flow.openReader();
+  await flush();
+  flow.dismiss();
+  flow.presentRequest('new-request');
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    requestStatus: 'paused',
+    requestPauseReason: 'payment',
+  });
+  expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
+  flow.openReader();
+  await flush();
+  expect(deliver).toHaveBeenCalledTimes(1);
+  refresh.mockResolvedValueOnce(true);
+  await flow.refresh();
+  flow.dismiss();
+  await flush();
+  expect(flow.getSnapshot().requestStatus).toBe('ready');
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('new-request', {
+    preventAutoLock: false,
+  });
+  expect(deliver).toHaveBeenCalledTimes(1);
+});
 it('shows publishing then awaiting redemption without writing Nostr requests back over NFC', async () => {
   jest
     .mocked(parsePaymentRequest)

@@ -42,6 +42,8 @@ export interface NfcPresentation {
   locked: boolean;
   hasPayment: boolean;
   canRetryDelivery: boolean;
+  requestStatus?: 'starting' | 'ready' | 'disabled' | 'unsupported' | 'paused' | 'error';
+  requestPauseReason?: 'locked' | 'background' | 'session' | 'payment';
 }
 export interface NfcSend {
   token: string;
@@ -64,6 +66,7 @@ export class NfcFlow {
   };
   private listeners = new Set<() => void>();
   private ready = false;
+  private appActive = true;
   private queued: NfcSend | 'reader' | undefined;
   private send?: NfcSend;
   private payment?: PaymentRequestPayment;
@@ -79,6 +82,7 @@ export class NfcFlow {
   private busy = false;
   private refreshing = false;
   private cleanup: Promise<void> = Promise.resolve();
+  private requestBroadcast?: { value: string };
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -87,6 +91,8 @@ export class NfcFlow {
   };
   getSnapshot = () => this.state;
   private update(change: Partial<NfcPresentation>) {
+    if ('requestStatus' in change && change.requestStatus !== 'paused')
+      change.requestPauseReason = undefined;
     if (change.status === 'ready') change.eventTime = undefined;
     if (change.status === 'confirmed' && this.state.status !== 'confirmed')
       change.eventTime = Date.now();
@@ -94,6 +100,7 @@ export class NfcFlow {
     this.listeners.forEach((listener) => listener());
   }
   setReady(ready: boolean) {
+    const changed = this.ready !== ready;
     this.ready = ready;
     if (ready && this.queued) {
       const queued = this.queued;
@@ -101,7 +108,92 @@ export class NfcFlow {
       if (queued === 'reader') this.openReader();
       else this.openSend(queued);
     }
+    if (changed && !this.state.visible && this.requestBroadcast) {
+      if (ready) this.resumeRequest();
+      else {
+        this.generation++;
+        this.update({ requestStatus: 'paused', requestPauseReason: 'locked' });
+        void this.stopSession();
+      }
+    }
   }
+  /** Advertise a public request inline; a read event is never payment evidence. */
+  presentRequest = (value: string): (() => void) => {
+    const request = { value };
+    this.requestBroadcast = request;
+    this.resumeRequest();
+    return () => {
+      if (this.requestBroadcast !== request) return;
+      this.requestBroadcast = undefined;
+      this.update({ requestStatus: undefined });
+      if (!this.state.visible) {
+        this.generation++;
+        void this.stopSession();
+      }
+    };
+  };
+  resumeRequest = () => {
+    const request = this.requestBroadcast;
+    if (!request) return;
+    if (
+      !this.ready ||
+      !this.appActive ||
+      this.state.visible ||
+      this.busy ||
+      this.payment ||
+      this.lightning ||
+      this.send
+    ) {
+      this.update({
+        requestStatus: 'paused',
+        requestPauseReason: !this.ready
+          ? 'locked'
+          : !this.appActive
+            ? 'background'
+            : this.state.visible || this.busy
+              ? 'session'
+              : 'payment',
+      });
+      return;
+    }
+    const generation = ++this.generation;
+    const active = () =>
+      this.generation === generation &&
+      this.requestBroadcast === request &&
+      this.ready &&
+      this.appActive &&
+      !this.state.visible;
+    this.update({ requestStatus: 'starting' });
+    void this.stopSession();
+    // Share the existing cleanup queue so replaced requests and reader mode cannot
+    // race a late HCE startup against the next NFC session.
+    this.cleanup = this.cleanup.then(async () => {
+      if (!active()) return;
+      try {
+        if (Platform.OS !== 'android' || !(await nfcService.init())) {
+          if (active()) this.update({ requestStatus: 'unsupported' });
+          return;
+        }
+        if (!active()) return;
+        if (!(await nfcService.isEnabled())) {
+          if (active()) this.update({ requestStatus: 'disabled' });
+          return;
+        }
+        if (!active()) return;
+        const session = await nfcService.startHceSimulation(request.value, {
+          preventAutoLock: false,
+        });
+        if (!active()) {
+          await nfcService.stopHceSimulation(session);
+          return;
+        }
+        this.hce = session;
+        this.update({ requestStatus: 'ready' });
+      } catch {
+        if (active()) this.update({ requestStatus: 'error' });
+      }
+    });
+  };
   openReader = () => this.open('reader');
   openSend = (send: NfcSend) => this.open(send);
   private open(input: NfcSend | 'reader') {
@@ -132,6 +224,8 @@ export class NfcFlow {
     this.send = input === 'reader' ? undefined : input;
     this.update({
       visible: true,
+      requestStatus: this.requestBroadcast ? 'paused' : undefined,
+      requestPauseReason: this.requestBroadcast ? 'session' : undefined,
       status: 'ready',
       direction: this.send ? 'send' : 'receive',
       amount: this.send?.amount,
@@ -170,6 +264,7 @@ export class NfcFlow {
       this.lightning = undefined;
       this.send = undefined;
     }
+    this.resumeRequest();
     return true;
   };
   private hide() {
@@ -178,10 +273,13 @@ export class NfcFlow {
     void this.stopSession();
   }
   background = () => {
+    this.appActive = false;
     this.queued = undefined;
     this.hide();
     this.update({
       locked: false,
+      requestStatus: this.requestBroadcast ? 'paused' : undefined,
+      requestPauseReason: this.requestBroadcast ? 'background' : undefined,
       ...(this.send && this.state.status === 'sending'
         ? {
             status: 'unconfirmed' as const,
@@ -191,6 +289,10 @@ export class NfcFlow {
     });
     void this.lightning?.dispose().catch(() => {});
     return this.cleanup;
+  };
+  foreground = () => {
+    this.appActive = true;
+    this.resumeRequest();
   };
   private async start() {
     if (this.busy) return;
@@ -409,6 +511,7 @@ export class NfcFlow {
             canRetryDelivery: !!this.payment?.encoded,
             message: 'The payment remains in History. Refresh status to check settlement.',
           });
+        this.resumeRequest();
       }
       void useWalletStore.getState().refreshBalance();
     }
