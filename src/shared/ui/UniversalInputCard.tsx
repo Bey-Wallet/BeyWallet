@@ -1,7 +1,7 @@
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { YStack, XStack, Text, Input } from 'tamagui';
 import {
   X,
@@ -32,6 +32,8 @@ export interface UniversalInputCardRef {
 
 export interface UniversalInputCardProps {
   compact?: boolean;
+  layout?: 'inline' | 'stacked';
+  onProcessingChange?: (processing: boolean) => void;
   label?: string;
   placeholder?: string;
   onBeforeRedirect?: () => void;
@@ -45,6 +47,8 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
   (
     {
       compact = false,
+      layout = 'inline',
+      onProcessingChange,
       label = 'Enter Token, Address or Username',
       placeholder = 'Paste or type Cashu token, LN invoice/address, Bitcoin address, Npub, or username...',
       onBeforeRedirect,
@@ -59,6 +63,17 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const toast = useToastController();
     const inputRef = useRef<any>(null);
     const inputTextRef = useRef('');
+    const generation = useRef(0);
+    const processing = useRef(false);
+    const navigating = useRef(false);
+    const stacked = layout === 'stacked';
+    useEffect(
+      () => () => {
+        ++generation.current;
+        processing.current = false;
+      },
+      [],
+    );
 
     const [hasText, setHasText] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -71,6 +86,11 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const [detectedType, setDetectedType] = useState<UniversalInputType | null>(null);
 
     const clearInput = () => {
+      ++generation.current;
+      navigating.current = false;
+      processing.current = false;
+      setIsValidating(false);
+      onProcessingChange?.(false);
       inputTextRef.current = '';
       inputRef.current?.clear();
       setHasText(false);
@@ -78,25 +98,15 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       setDetectedType(null);
     };
 
-    const processInput = async (textToProcess?: string, automatic = false): Promise<boolean> => {
-      const text = (textToProcess ?? inputTextRef.current).trim();
-      if (!text) {
-        setValidationError(null);
-        setDetectedType(null);
-        return false;
-      }
-
-      setAutomaticProcessing(automatic);
-      setIsValidating(true);
-      setValidationError(null);
-
+    const resolveInput = async (text: string, ticket: number): Promise<boolean> => {
       try {
         const result = await resolveUniversalInput(text);
-        setIsValidating(false);
+        if (ticket !== generation.current) return false;
 
         if (onResolved) {
           onResolved(result);
         }
+        if (ticket !== generation.current) return false;
 
         if (result.type === 'unknown' || result.error) {
           setValidationError(result.error || 'Unrecognized format');
@@ -111,35 +121,69 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           onBeforeRedirect: () => {
             clearInput();
             if (onBeforeRedirect) onBeforeRedirect();
+            navigating.current = true;
           },
         });
 
         return redirected;
-      } catch (err: any) {
-        setIsValidating(false);
-        setValidationError(err?.message || 'Processing failed');
+      } catch {
+        if (ticket === generation.current)
+          setValidationError('Could not read payment details. Try again.');
         return false;
+      } finally {
+        if (ticket === generation.current) {
+          processing.current = false;
+          setIsValidating(false);
+          onProcessingChange?.(false);
+        }
       }
     };
 
+    const startProcessing = (automatic: boolean) => {
+      processing.current = true;
+      setAutomaticProcessing(automatic);
+      setIsValidating(true);
+      setValidationError(null);
+      onProcessingChange?.(true);
+      return ++generation.current;
+    };
+
+    const processInput = async (textToProcess?: string, automatic = false): Promise<boolean> => {
+      if (processing.current || navigating.current) return false;
+      const text = (textToProcess ?? inputTextRef.current).trim();
+      if (!text) return false;
+      return resolveInput(text, startProcessing(automatic));
+    };
+
     const handlePaste = async () => {
+      if (processing.current || navigating.current) return;
+      const ticket = startProcessing(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       try {
         const text = await ClipboardAPI.getStringAsync();
+        if (ticket !== generation.current) return;
         if (text && text.trim()) {
           inputTextRef.current = text.trim();
           inputRef.current?.setNativeProps({ text: text.trim() });
           setHasText(true);
-          await processInput(text.trim(), true);
+          await resolveInput(text.trim(), ticket);
         } else {
           toast.show('Clipboard is empty', { kind: 'info' });
         }
-      } catch (e) {
-        console.error('[UniversalInputCard] Failed to read clipboard:', e);
+      } catch {
+        if (ticket === generation.current)
+          setValidationError('Could not read the clipboard. Paste or type payment details.');
+      } finally {
+        if (ticket === generation.current) {
+          processing.current = false;
+          setIsValidating(false);
+          onProcessingChange?.(false);
+        }
       }
     };
 
     const handleInputChange = (text: string) => {
+      if (processing.current) clearInput();
       inputTextRef.current = text;
       const empty = !text.trim();
       if (empty !== !hasText) {
@@ -188,22 +232,93 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         placeholder={placeholder}
         bg="transparent"
         borderWidth={0}
-        fontSize={compact ? '$3' : '$4'}
+        fontFamily="$body"
+        fontWeight="400"
+        fontSize={compact && !stacked ? '$3' : '$4'}
+        lineHeight={stacked ? 24 : undefined}
         color="$color"
         p={0}
-        flex={1}
+        flex={stacked ? undefined : 1}
         minWidth={0}
-        textAlignVertical={compact ? 'center' : 'top'}
+        width={stacked ? '100%' : undefined}
+        textAlignVertical={compact && !stacked ? 'center' : 'top'}
         placeholderTextColor="$gray8"
-        multiline={!compact}
-        numberOfLines={compact ? 1 : 3}
+        multiline={stacked || !compact}
+        numberOfLines={stacked ? 2 : compact ? 1 : 3}
         style={{ padding: 0 }}
-        height={compact ? 40 : height}
+        height={stacked ? 56 : compact ? 40 : height}
+        editable={!isValidating}
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus={autoFocus}
       />
     );
+
+    if (stacked)
+      return (
+        <YStack
+          rounded="$6"
+          p="$3"
+          gap="$3"
+          minHeight={132}
+          borderWidth={1}
+          borderColor={validationError ? '$red8' : '$borderColor'}
+          bg="$gray3"
+        >
+          {input}
+          <XStack width="100%" items="center" justify="space-between" gap="$2" flexWrap="wrap">
+            <AppButton
+              variant="default"
+              emphasis="tertiary"
+              size="small"
+              icon={<Clipboard size={18} />}
+              disabled={isValidating}
+              loading={isValidating && automaticProcessing}
+              loadingText="Reading payment"
+              onPress={handlePaste}
+            >
+              Paste
+            </AppButton>
+            <XStack gap="$2" items="center">
+              {hasText && (
+                <>
+                  <AppIconButton
+                    variant="default"
+                    emphasis="tertiary"
+                    size="small"
+                    accessibilityLabel="Clear input"
+                    icon={<X size={18} color="$color" />}
+                    disabled={isValidating}
+                    onPress={clearInput}
+                  />
+                  <AppButton
+                    variant="branded"
+                    emphasis="primary"
+                    size="small"
+                    disabled={isValidating}
+                    loading={isValidating && !automaticProcessing}
+                    loadingText="Reading payment"
+                    onPress={() => processInput()}
+                  >
+                    Continue
+                  </AppButton>
+                </>
+              )}
+            </XStack>
+          </XStack>
+          {validationError && (
+            <Text
+              fontFamily="$body"
+              fontSize="$3"
+              fontWeight="400"
+              color="$red10"
+              accessibilityRole="alert"
+            >
+              {validationError}
+            </Text>
+          )}
+        </YStack>
+      );
 
     return (
       <YStack

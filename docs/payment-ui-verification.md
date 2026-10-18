@@ -4,6 +4,17 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+- Open Send, Receive, and Fund & withdraw. Check the two-column action cards, icons above
+  wrapping labels, and larger input with controls below it in light/dark themes, on a small
+  screen, and with large text. Expand the sheet and open the keyboard; every action must
+  remain reachable without overlapping content.
+- Receive → Ecash must open request creation directly. Paste a token into the sheet input
+  and verify that it opens token claiming instead. Check typed input with Continue, Clear,
+  an empty/denied clipboard, invalid details, and Lightning/on-chain/Nostr routing.
+- Dismiss or swipe away the sheet while a clipboard read or payment lookup is pending.
+  No late result may navigate. Reopen it and verify the draft resets and each new action
+  navigates once, including after rapid repeated taps.
+
 - In Settings, open **Get change**, select a trusted mint, and review the whole available
   balance, mint fee, and resulting balance. Cancel or change mints and verify that reserved
   coins are released without changing the home mint. Empty balances, unsupported restore,

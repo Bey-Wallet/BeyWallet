@@ -1,19 +1,8 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import {
-  Banknote,
-  Bitcoin,
-  Zap,
-  Clipboard as ClipboardIcon,
-  HandCoins,
-  ChevronLeft,
-  ChevronRight,
-  X,
-} from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, ChevronLeft, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
-import { useToastController } from '@tamagui/toast';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -21,7 +10,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
-export type ActionSheetStage = 'main' | 'ecash' | 'bitcoin';
+export type ActionSheetStage = 'main' | 'bitcoin';
 
 export interface ActionSelectorSheetRef {
   present: (type: ActionSheetType) => void;
@@ -34,25 +23,20 @@ interface OptionConfig {
   description: string;
   path?: Href;
   stage?: ActionSheetStage;
-  paste?: boolean;
 }
 
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
   function ActionSelectorSheet(_, ref) {
     const router = useRouter();
-    const toast = useToastController();
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const inputRef = useRef<UniversalInputCardRef>(null);
-    const generation = useRef(0);
     const actionPending = useRef(false);
     const [type, setType] = useState<ActionSheetType>('send');
     const [stage, setStage] = useState<ActionSheetStage>('main');
-    const [pasting, setPasting] = useState(false);
+    const [processing, setProcessing] = useState(false);
 
     const dismiss = useCallback(() => {
-      ++generation.current;
-      actionPending.current = false;
-      setPasting(false);
+      actionPending.current = true;
       inputRef.current?.clear();
       sheetRef.current?.dismiss();
     }, []);
@@ -61,9 +45,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
       ref,
       () => ({
         present: (sheetType) => {
-          ++generation.current;
           actionPending.current = false;
-          setPasting(false);
           setType(sheetType);
           setStage('main');
           inputRef.current?.clear();
@@ -105,19 +87,16 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           ]
         : stage === 'main'
           ? [
-              type === 'send'
-                ? {
-                    label: 'Ecash',
-                    icon: Banknote,
-                    description: 'Create a token to share',
-                    path: '/(modals)/send?mode=standard',
-                  }
-                : {
-                    label: 'Ecash',
-                    icon: Banknote,
-                    description: 'Paste a token or request ecash',
-                    stage: 'ecash',
-                  },
+              {
+                label: 'Ecash',
+                icon: Banknote,
+                description:
+                  type === 'send' ? 'Create a token to share' : 'Create a request to share',
+                path:
+                  type === 'send'
+                    ? '/(modals)/send?mode=standard'
+                    : '/(modals)/receive?mode=request',
+              },
               {
                 label: 'Bitcoin',
                 icon: Bitcoin,
@@ -125,88 +104,51 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                 stage: 'bitcoin',
               },
             ]
-          : stage === 'bitcoin'
-            ? [
-                {
-                  label: 'Lightning',
-                  icon: Zap,
-                  description:
-                    type === 'send' ? 'Pay an invoice or Lightning address' : 'Create an invoice',
-                  path: type === 'send' ? '/(modals)/melt' : '/(modals)/mint',
-                },
-                {
-                  label: 'On-chain',
-                  icon: Bitcoin,
-                  description:
-                    type === 'send' ? 'Send to a Bitcoin address' : 'Create a deposit address',
-                  path:
-                    type === 'send' ? '/(modals)/melt?mode=onchain' : '/(modals)/mint?mode=onchain',
-                },
-              ]
-            : [
-                {
-                  label: 'Paste ecash',
-                  icon: ClipboardIcon,
-                  description: 'Claim a token from your clipboard',
-                  paste: true,
-                },
-                {
-                  label: 'Request ecash',
-                  icon: HandCoins,
-                  description: 'Create a request to share',
-                  path: '/(modals)/receive?mode=request',
-                },
-              ];
-
+          : [
+              {
+                label: 'Lightning',
+                icon: Zap,
+                description:
+                  type === 'send' ? 'Pay an invoice or Lightning address' : 'Create an invoice',
+                path: type === 'send' ? '/(modals)/melt' : '/(modals)/mint',
+              },
+              {
+                label: 'On-chain',
+                icon: Bitcoin,
+                description:
+                  type === 'send' ? 'Send to a Bitcoin address' : 'Create a deposit address',
+                path:
+                  type === 'send' ? '/(modals)/melt?mode=onchain' : '/(modals)/mint?mode=onchain',
+              },
+            ];
+    const rows = Array.from({ length: Math.ceil(options.length / 2) }, (_, index) =>
+      options.slice(index * 2, index * 2 + 2),
+    );
     const title =
       type === 'mint'
         ? 'Fund & withdraw'
-        : `${type === 'send' ? 'Send' : 'Receive'}${stage === 'main' ? '' : stage === 'bitcoin' ? ' Bitcoin' : ' ecash'}`;
+        : `${type === 'send' ? 'Send' : 'Receive'}${stage === 'bitcoin' ? ' Bitcoin' : ''}`;
 
-    const handleOption = async (option: OptionConfig) => {
-      if (actionPending.current) return;
+    const handleOption = (option: OptionConfig) => {
+      if (actionPending.current || processing) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (option.stage) {
         setStage(option.stage);
         return;
       }
-      actionPending.current = true;
       if (option.path) {
-        inputRef.current?.clear();
-        sheetRef.current?.dismiss();
+        dismiss();
         router.push(option.path);
-        return;
-      }
-      if (option.paste) {
-        const ticket = generation.current;
-        setPasting(true);
-        let token = '';
-        try {
-          token = (await Clipboard.getStringAsync()).trim();
-        } catch {
-          /* Open manual input below. */
-        }
-        if (ticket !== generation.current) return;
-        setPasting(false);
-        inputRef.current?.clear();
-        sheetRef.current?.dismiss();
-        router.push({
-          pathname: '/(modals)/receive',
-          params: { mode: 'receive', ...(token ? { scannedToken: token } : {}) },
-        });
-        if (!token) toast.show('Paste or type your ecash token', { kind: 'info' });
       }
     };
 
     return (
       <AppBottomSheet
         ref={sheetRef}
-        snapPoints={type === 'mint' ? ['50%'] : ['45%']}
-        backgroundColor="$background"
+        snapPoints={type === 'mint' ? ['75%', '90%'] : ['60%', '90%']}
         onClose={() => {
-          ++generation.current;
-          actionPending.current = false;
-          setPasting(false);
+          actionPending.current = true;
+          inputRef.current?.clear();
         }}
       >
         <YStack flex={1} px="$4" gap="$3">
@@ -218,9 +160,10 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                 size="xsmall"
                 shape="circular"
                 accessibilityLabel="Back"
-                disabled={pasting}
+                disabled={processing}
                 icon={<ChevronLeft size={20} color="$color" />}
                 onPress={() => {
+                  if (processing || actionPending.current) return;
                   Haptics.selectionAsync();
                   setStage('main');
                 }}
@@ -232,6 +175,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               accessibilityRole="header"
               flex={1}
               textAlign="center"
+              fontFamily="$heading"
               fontSize="$6"
               fontWeight="500"
               color="$color"
@@ -252,39 +196,58 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <YStack gap="$3" pb="$4">
+            <YStack gap="$4" pb="$4">
               <UniversalInputCard
                 ref={inputRef}
-                compact
+                layout="stacked"
                 label="Payment details"
-                placeholder="Paste payment details"
+                placeholder="Paste or type payment details"
                 onBeforeRedirect={dismiss}
+                onProcessingChange={setProcessing}
               />
-              <YStack gap="$3">
-                {options.map((option) => (
-                  <AppPressable
-                    key={option.label}
-                    minHeight={64}
-                    px="$4"
-                    py="$3"
-                    bg="$gray3"
-                    rounded="$6"
-                    flexDirection="row"
-                    items="center"
-                    gap="$3"
-                    accessibilityLabel={option.label}
-                    accessibilityHint={option.description}
-                    accessibilityState={{ busy: pasting && !!option.paste }}
-                    disabled={pasting}
-                    pressStyle={{ bg: '$gray4', opacity: 0.85 }}
-                    onPress={() => void handleOption(option)}
-                  >
-                    <option.icon size={20} color="$color" />
-                    <Text flex={1} fontSize="$5" fontWeight="700" color="$color">
-                      {pasting && option.paste ? 'Reading clipboard…' : option.label}
-                    </Text>
-                    <ChevronRight size={18} color="$gray10" />
-                  </AppPressable>
+              <YStack gap={12}>
+                {rows.map((row, index) => (
+                  <XStack key={index} gap={12} items="stretch">
+                    {row.map((option) => (
+                      <AppPressable
+                        key={option.label}
+                        flex={1}
+                        minWidth={0}
+                        minHeight={112}
+                        p={16}
+                        rounded="$6"
+                        gap={12}
+                        items="flex-start"
+                        justify="space-between"
+                        bg="$buttonDefaultSecondary"
+                        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                        pressStyle={{ bg: '$buttonDefaultSecondaryPress', scale: 0.98 }}
+                        accessibilityLabel={option.label}
+                        accessibilityHint={option.description}
+                        accessibilityState={{ disabled: processing }}
+                        disabled={processing}
+                        onPress={() => handleOption(option)}
+                      >
+                        <View
+                          aria-hidden
+                          accessibilityElementsHidden
+                          importantForAccessibility="no-hide-descendants"
+                        >
+                          <option.icon size={28} color="$buttonDefaultSecondaryText" />
+                        </View>
+                        <Text
+                          fontFamily="$body"
+                          fontSize={16}
+                          lineHeight={22}
+                          fontWeight="500"
+                          color="$buttonDefaultSecondaryText"
+                          flexShrink={1}
+                        >
+                          {option.label}
+                        </Text>
+                      </AppPressable>
+                    ))}
+                  </XStack>
                 ))}
               </YStack>
             </YStack>

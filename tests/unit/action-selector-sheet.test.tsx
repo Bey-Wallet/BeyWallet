@@ -7,11 +7,7 @@ import ActionSelectorSheet, {
 
 const mockPush = jest.fn();
 const mockDismiss = jest.fn();
-const mockClipboard = jest.fn();
-const mockToast = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }));
-jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: mockToast }) }));
 jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text', View: 'View' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   ChevronLeft: 'ChevronLeft',
@@ -65,7 +61,6 @@ async function press(label: string) {
 }
 beforeEach(() => {
   jest.clearAllMocks();
-  mockClipboard.mockResolvedValue('cashu-complete-token');
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -97,12 +92,11 @@ it.each([
   expect(mockPush).toHaveBeenCalledWith(path);
 });
 
-it('receives ecash through paste or request without extra method choices', async () => {
+it('opens an ecash request directly without a second selector', async () => {
   await open('receive');
   await press('Ecash');
-  expect(labels()).toEqual(['Paste ecash', 'Request ecash']);
-  await press('Request ecash');
   expect(mockPush).toHaveBeenCalledWith('/(modals)/receive?mode=request');
+  expect(mockDismiss).toHaveBeenCalledTimes(1);
 });
 
 it('keeps the input draft across choices and Back, then resets on reopening', async () => {
@@ -112,53 +106,10 @@ it('keeps the input draft across choices and Back, then resets on reopening', as
   expect(input().props.value).toBe('payment draft');
   await press('Back');
   expect(labels()).toEqual(['Ecash', 'Bitcoin']);
-  await press('Ecash');
   expect(input().props.value).toBe('payment draft');
   await act(async () => ref.current!.present('send'));
   expect(labels()).toEqual(['Ecash', 'Bitcoin']);
   expect(input().props.value).toBe('');
-});
-
-it('passes the complete trimmed clipboard value to receive', async () => {
-  mockClipboard.mockResolvedValue('  cashu-complete-token  ');
-  await open('receive');
-  await press('Ecash');
-  await press('Paste ecash');
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/receive',
-    params: { mode: 'receive', scannedToken: 'cashu-complete-token' },
-  });
-});
-
-it.each(['empty', 'denied'])('opens manual token input if the clipboard is %s', async (reason) => {
-  if (reason === 'empty') mockClipboard.mockResolvedValue('  ');
-  else mockClipboard.mockRejectedValue(new Error('Clipboard access denied'));
-  await open('receive');
-  await press('Ecash');
-  await press('Paste ecash');
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/receive',
-    params: { mode: 'receive' },
-  });
-  expect(mockToast).toHaveBeenCalled();
-});
-
-it('ignores duplicate paste taps and a clipboard result after closing the sheet', async () => {
-  let resolve!: (value: string) => void;
-  mockClipboard.mockReturnValue(
-    new Promise((done) => {
-      resolve = done;
-    }),
-  );
-  await open('receive');
-  await press('Ecash');
-  await press('Paste ecash');
-  await press('Paste ecash');
-  expect(mockClipboard).toHaveBeenCalledTimes(1);
-  expect(options().every((option) => option.props.disabled)).toBe(true);
-  await press('Close');
-  await act(async () => resolve('late-token'));
-  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('keeps automatic input routing available in the second step', async () => {
@@ -167,4 +118,60 @@ it('keeps automatic input routing available in the second step', async () => {
   expect(input().props.label).toBe('Payment details');
   await act(async () => input().props.onBeforeRedirect());
   expect(mockDismiss).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['Top up via Lightning', '/(modals)/mint'],
+  ['Top up on-chain', '/(modals)/mint?mode=onchain'],
+  ['Pay with Lightning', '/(modals)/melt'],
+  ['Pay on-chain', '/(modals)/melt?mode=onchain'],
+] as const)('keeps Fund & withdraw routing for %s', async (label, path) => {
+  await open('mint');
+  expect(options()).toHaveLength(4);
+  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['75%', '90%']);
+  await press(label);
+  expect(mockPush).toHaveBeenCalledWith(path);
+});
+
+it('uses large cards with an icon above a wrapping label and a stacked input', async () => {
+  await open('send');
+  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['60%', '90%']);
+  expect(input().props.layout).toBe('stacked');
+  for (const option of options()) {
+    expect(option.props).toMatchObject({
+      minHeight: 112,
+      flex: 1,
+      bg: '$buttonDefaultSecondary',
+      items: 'flex-start',
+    });
+    expect(option.findAllByProps({ size: 28 })).toHaveLength(1);
+    const label = option.findByType('Text' as any);
+    expect(label.props).toMatchObject({ fontSize: 16, fontWeight: '500' });
+    expect(label.props.numberOfLines).toBeUndefined();
+  }
+});
+
+it('blocks route choices while input resolves and ignores repeated route taps until reopening', async () => {
+  await open('receive');
+  await act(async () => input().props.onProcessingChange(true));
+  expect(options().every((option) => option.props.disabled)).toBe(true);
+  await press('Ecash');
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => input().props.onProcessingChange(false));
+  await act(async () => {
+    const option = tree.root.findByProps({ accessibilityLabel: 'Ecash' });
+    option.props.onPress();
+    option.props.onPress();
+  });
+  expect(mockPush).toHaveBeenCalledTimes(1);
+  await act(async () => ref.current!.present('send'));
+  await press('Ecash');
+  expect(mockPush).toHaveBeenCalledTimes(2);
+});
+
+it('clears input when closed by a swipe or backdrop', async () => {
+  await open('receive');
+  await act(async () => input().props.setValue('draft'));
+  await act(async () => tree.root.findByType('Sheet' as any).props.onClose());
+  expect(input().props.value).toBe('');
 });
