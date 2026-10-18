@@ -20,6 +20,8 @@ import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
 import { seedService } from '~/services/platform/seedService';
 import { AppState, type AppStateStatus } from 'react-native';
 import { HistoryWatcherPlugin } from '~/services/wallet/plugins/HistoryWatcherPlugin';
+import { OfflineChangePlugin } from '~/services/wallet/plugins/OfflineChangePlugin';
+import { LocalSendEventsPlugin } from '~/services/wallet/plugins/LocalSendEventsPlugin';
 import { NPCPlugin } from 'coco-cashu-plugin-npc';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
@@ -299,7 +301,12 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
+    [
+      OfflineChangePlugin,
+      LocalSendEventsPlugin,
+      HistoryWatcherPlugin,
+      npcPlugin as unknown as Plugin,
+    ],
   );
 
   repo = repositories;
@@ -431,7 +438,12 @@ export const initService = {
       async () => new Uint8Array(seed),
       customLogger as any,
       undefined,
-      [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
+      [
+        OfflineChangePlugin,
+        LocalSendEventsPlugin,
+        HistoryWatcherPlugin,
+        npcPlugin as unknown as Plugin,
+      ],
     );
 
     repo = repositories;

@@ -21,6 +21,21 @@ Native acceptance below has not been performed in this workspace.
 - Scan QR codes and use native copy/share for complete invoices, addresses, tokens,
   requests, and links. Check expired invoices and pending/unconfirmed receipts.
 - Verify NFC reading, sending, request payment, cancellation, refresh, and delivery retry.
+- In airplane mode, create standard ecash for an amount that the available coins can
+  compose exactly. Continue must open confirmation directly, show a zero creation fee,
+  and create exactly that amount without a denomination or nearby-value selector.
+  Confirm only one pending History entry exists, including after restarting the app.
+- While still offline, enter an amount the coins cannot compose. Creation must stay
+  disabled and ask to go online for change; it must not round the amount or alter signed
+  proof denominations. Reconnect and verify claim checking and reclaim of an unclaimed
+  offline token. Online mint operations now prepare a mix of smaller change coins;
+  existing large coins still require an online operation before they can be split.
+- With an exact local coin match, create ordinary ecash while connected to a slow or
+  unreachable mint. Review and creation must work locally with zero creation fees.
+  Cancel a review and confirm its reserved coins become available again. After an online
+  receive or swap produces change, enable airplane mode and create several exact small
+  amounts. Check that claimed local sends update History after reconnecting, including
+  after restarting the app. Preparing smaller coins can increase later input fees.
 - From People and a conversation, pay an accepted person with P2PK enabled, both with
   reclaim off and with a future reclaim deadline. Confirm the creation fee is shown and
   the recipient can claim the token. Back out before sending and verify reservations release.

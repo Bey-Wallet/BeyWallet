@@ -30,7 +30,6 @@ interface AmountStageProps {
   isLoading?: boolean;
   error?: string | null;
   isOffline?: boolean;
-  onSelectedProofsChange?: (proofs: any[]) => void;
 }
 
 export function AmountStage({

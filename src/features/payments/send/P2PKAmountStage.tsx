@@ -36,7 +36,6 @@ interface P2PKAmountStageProps {
   isLoading?: boolean;
   error?: string | null;
   isOffline?: boolean;
-  onSelectedProofsChange?: (proofs: any[]) => void;
 }
 
 export function P2PKAmountStage({

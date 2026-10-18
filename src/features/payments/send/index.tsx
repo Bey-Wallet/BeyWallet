@@ -41,10 +41,7 @@ import SendMethodSelector, { SendMode } from '~/shared/ui/SendMethodSelector';
 import { parsePaymentRequest as validatePaymentRequest } from '~/services/wallet/paymentRequestModel';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import Blockies from '~/shared/ui/Blockies';
-import {
-  OfflineOptimizationSheet,
-  type OfflineOptimizationSheetRef,
-} from '~/shared/ui/OfflineOptimizationSheet';
+import { findExactSubset, OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
 
 type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
@@ -107,21 +104,7 @@ export function SendModalScreen() {
   const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined);
   const [isHardwareOffline, setIsHardwareOffline] = useState(false);
   const [forceOffline, setForceOffline] = useState(false);
-  const [selectedOfflineProofs, setSelectedOfflineProofs] = useState<any[] | null>(null);
   const isOffline = isHardwareOffline || forceOffline;
-  const optimizationSheetRef = React.useRef<OfflineOptimizationSheetRef>(null);
-
-  const handleOfflineOptimizationConfirm = useCallback((optimizedAmount: number, proofs: any[]) => {
-    console.log(
-      '[SendModalScreen] Offline optimization confirmed amount:',
-      optimizedAmount,
-      'proofs:',
-      proofs.length,
-    );
-    setAmount(String(optimizedAmount));
-    setSelectedOfflineProofs(proofs);
-    setStep('confirm');
-  }, []);
 
   React.useEffect(() => {
     const checkNetwork = async () => {
@@ -224,7 +207,7 @@ export function SendModalScreen() {
   React.useEffect(() => {
     let cancelled = false;
     setCapability(null);
-    if (activeMintUrl)
+    if (activeMintUrl && !isOffline)
       mintManager
         .getMintInfo(activeMintUrl)
         .then((info) => {
@@ -234,7 +217,7 @@ export function SendModalScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activeMintUrl]);
+  }, [activeMintUrl, isOffline]);
   React.useEffect(() => {
     if (!reclaimSupported) setExpiryHours(0);
   }, [reclaimSupported]);
@@ -257,6 +240,11 @@ export function SendModalScreen() {
         if (ecashLockEnabled && !receiverPubkey)
           throw new Error('Set a recipient public key before creating locked ecash.');
         if (isOffline) {
+          const available = await initService
+            .getRepo()
+            .proofRepository.getAvailableProofs(activeMintUrl);
+          if (cancelled) return;
+          if (!findExactSubset(Number(amount), available)) throw new Error(OFFLINE_CHANGE_REQUIRED);
           setEstimatedFee(0);
           setReviewReady(true);
           return;
@@ -445,17 +433,8 @@ export function SendModalScreen() {
 
       if (isOffline && ecashLockEnabled) throw new Error('Go online to create locked ecash.');
       if (isOffline) {
-        let selected = selectedOfflineProofs;
-        if (!selected || selected.length === 0) {
-          const repo = initService.getRepo();
-          const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
-          const { findExactSubset } = require('~/shared/utils/offlineSendUtils');
-          selected = findExactSubset(amountSats, availableProofs);
-        }
-        if (!selected || selected.length === 0) {
-          throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
-        }
-        result = await walletService.sendOffline(activeMintUrl, amountSats, selected);
+        result = await walletService.sendOffline(activeMintUrl, amountSats);
+        setPaidCreationFee(0);
         rawTokenRef.current = result.encoded;
         setEncodedToken(result.encoded);
         setOperationId(result.id);
@@ -560,7 +539,6 @@ export function SendModalScreen() {
     sendMode,
     receiverPubkey,
     isOffline,
-    selectedOfflineProofs,
     ecashLockEnabled,
   ]);
 
@@ -704,12 +682,7 @@ export function SendModalScreen() {
   const handleNext = () => {
     if (step === 'amount') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (isOffline) {
-        optimizationSheetRef.current?.present();
-      } else {
-        setSelectedOfflineProofs(null);
-        setStep('confirm');
-      }
+      setStep('confirm');
     }
   };
 
@@ -855,7 +828,6 @@ export function SendModalScreen() {
               isLoading={isProcessing}
               error={error}
               isOffline={isOffline}
-              onSelectedProofsChange={setSelectedOfflineProofs}
             />
           )}
           {sendMode === 'p2pk' && (
@@ -871,7 +843,6 @@ export function SendModalScreen() {
               isLoading={isProcessing}
               error={error}
               isOffline={isOffline}
-              onSelectedProofsChange={setSelectedOfflineProofs}
             />
           )}
           {sendMode === 'scan' && (
@@ -960,14 +931,6 @@ export function SendModalScreen() {
           onBack={() => setStep('amount')}
         />
       )}
-
-      {/* Offline Optimization Selector */}
-      <OfflineOptimizationSheet
-        ref={optimizationSheetRef}
-        targetAmount={parseInt(amount, 10) || 0}
-        activeMintUrl={activeMintUrl}
-        onConfirm={handleOfflineOptimizationConfirm}
-      />
     </YStack>
   );
 }

@@ -15,6 +15,8 @@ const mockWallet = {
   refreshBalance: jest.fn(),
 };
 const mockParams = {};
+let mockOffline = false;
+const mockAvailableProofs = jest.fn();
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select: (s: typeof mockWallet) => unknown) => select(mockWallet),
 }));
@@ -27,7 +29,9 @@ jest.mock('~/services/wallet', () => ({
   mintManager: { getMintInfo: async () => ({ nuts: { 11: { supported: true } } }) },
   nostrService: {},
   historyService: { tagHistoryVia: async () => {} },
-  initService: {},
+  initService: {
+    getRepo: () => ({ proofRepository: { getAvailableProofs: mockAvailableProofs } }),
+  },
   eventService: { on: () => () => {} },
   proofService: { checkProofStates: async () => [] },
 }));
@@ -48,9 +52,6 @@ jest.mock('~/features/payments/send/PaymentRequestStage', () => ({
 jest.mock('~/features/payments/send/ScanAndPayStage', () => ({
   ScanAndPayStage: 'ScanAndPayStage',
 }));
-jest.mock('~/shared/ui/OfflineOptimizationSheet', () => ({
-  OfflineOptimizationSheet: 'OfflineOptimizationSheet',
-}));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('~/shared/ui/Blockies', () => 'Blockies');
 jest.mock('~/shared/ui/SendMethodSelector', () => 'SendMethodSelector');
@@ -62,7 +63,10 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('expo-network', () => ({
-  getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
+  getNetworkStateAsync: async () => ({
+    isConnected: !mockOffline,
+    isInternetReachable: !mockOffline,
+  }),
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('@tanstack/react-query', () => ({
@@ -90,7 +94,13 @@ async function open() {
   return tree;
 }
 const confirm = (tree: ReactTestRenderer) => tree.root.findByType('ConfirmStage' as any).props;
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockOffline = false;
+  mockAvailableProofs.mockResolvedValue([
+    { amount: 20, secret: 'fixture', C: 'signature', id: 'keyset' },
+  ]);
+});
 
 it('releases an obsolete review, recalculates for the local mint, and cleans up on back', async () => {
   const first = review(0),
@@ -249,5 +259,37 @@ it('creates standard ecash from the locked review once and retains its fee', asy
   expect(bearer.execute).not.toHaveBeenCalled();
   expect(walletService.sendOffline).not.toHaveBeenCalled();
   expect(tree.root.findByType('ResultStage' as any).props.fee).toBe(2);
+  await act(async () => tree.unmount());
+});
+
+it('goes straight to confirmation offline and creates the exact entered amount without a selector', async () => {
+  mockOffline = true;
+  jest
+    .mocked(walletService.sendOffline)
+    .mockResolvedValueOnce({ encoded: 'offline-token', id: 'offline-operation', token: {} } as any);
+  const tree = await open();
+  expect(confirm(tree).amount).toBe('20');
+  expect(confirm(tree).ready).toBe(true);
+  expect(confirm(tree).estimatedFee).toBe(0);
+  expect(prepare).not.toHaveBeenCalled();
+  await act(async () => confirm(tree).onConfirm());
+  expect(walletService.sendOffline).toHaveBeenCalledWith('mint-a', 20);
+  const result = tree.root.findByType('ResultStage' as any);
+  expect(result.props.amount).toBe('20');
+  expect(result.props.token).toBe('offline-token');
+  expect(result.props.fee).toBe(0);
+  await act(async () => tree.unmount());
+});
+
+it('keeps the requested amount unchanged and disables offline creation when exact coins are unavailable', async () => {
+  mockOffline = true;
+  mockAvailableProofs.mockResolvedValue([{ amount: 32, secret: 'fixture' }]);
+  const tree = await open();
+  expect(confirm(tree).amount).toBe('20');
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).error).toContain('Go online once to get change');
+  await act(async () => confirm(tree).onConfirm());
+  expect(walletService.sendOffline).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });

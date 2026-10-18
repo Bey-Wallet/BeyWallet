@@ -1,5 +1,7 @@
 import type { Manager } from 'coco-cashu-core';
 import { encodeToken } from '~/services/wallet/tokenUtils';
+import type { ExpoSqliteRepositories } from '~/storage/sqlite';
+import { prepareLocalEcash } from './offlineEcash';
 
 export interface EcashReview {
   fee: number;
@@ -14,11 +16,24 @@ async function getManager() {
   return initService.getManager();
 }
 
+function getRepositories() {
+  const { initService } = require('./initService') as typeof import('./initService');
+  return initService.getRepo();
+}
+
 export async function prepareEcash(
   mintUrl: string,
   amount: number,
   manager: () => Promise<Manager> = getManager,
+  repositories: () => Pick<ExpoSqliteRepositories, 'withTransaction'> = getRepositories,
 ): Promise<EcashReview> {
+  const local = await prepareLocalEcash(
+    mintUrl,
+    amount,
+    'local_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2),
+    repositories(),
+  );
+  if (local) return local;
   const m = await manager();
   const prepared = await m.send.prepareSend(mintUrl, amount);
   let disposed = false;

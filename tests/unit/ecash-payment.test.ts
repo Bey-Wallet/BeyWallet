@@ -1,5 +1,6 @@
 import { prepareEcash } from '~/services/wallet/ecashPayment';
 import type { Manager } from 'coco-cashu-core';
+import type { ExpoSqliteRepositories } from '~/storage/sqlite';
 
 jest.mock('~/services/wallet/tokenUtils', () => ({ encodeToken: () => 'complete-token' }));
 
@@ -12,7 +13,19 @@ function setup(fee = 0) {
   return {
     send,
     prepare: () =>
-      prepareEcash('https://mint.test', 50, async () => ({ send }) as unknown as Manager),
+      prepareEcash(
+        'https://mint.test',
+        50,
+        async () => ({ send }) as unknown as Manager,
+        () =>
+          ({
+            withTransaction: async (fn: any) =>
+              fn({
+                mintRepository: { isTrustedMint: async () => true },
+                proofRepository: { getAvailableProofs: async () => [] },
+              }),
+          }) as unknown as ExpoSqliteRepositories,
+      ),
   };
 }
 
