@@ -17,6 +17,8 @@ import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { walletService, decodeToken } from '~/services/wallet';
 import { proofService } from '~/services/wallet/proofService';
 import { useWalletStore } from '~/state/walletStore';
+import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
+import { PaymentRequest } from '@cashu/cashu-ts';
 
 export type NfcStatus =
   | 'ready'
@@ -135,6 +137,19 @@ export class NfcFlow {
   resumeRequest = () => {
     const request = this.requestBroadcast;
     if (!request) return;
+    const incoming = nfcReceiveCoordinator.getSnapshot();
+    if (
+      incoming.status === 'idle' &&
+      incoming.requestId &&
+      incoming.requestId === PaymentRequest.fromEncodedRequest(request.value).id
+    )
+      return;
+    if (nfcReceiveCoordinator.getSnapshot().status !== 'idle') {
+      this.generation++;
+      this.update({ requestStatus: 'paused', requestPauseReason: 'payment' });
+      void this.stopSession();
+      return;
+    }
     if (
       !this.ready ||
       !this.appActive ||
@@ -182,13 +197,22 @@ export class NfcFlow {
         if (!active()) return;
         const session = await nfcService.startHceSimulation(request.value, {
           preventAutoLock: false,
+          requestId: PaymentRequest.fromEncodedRequest(request.value).id,
         });
         if (!active()) {
           await nfcService.stopHceSimulation(session);
           return;
         }
         this.hce = session;
+        const { HCESession } = require('react-native-hce') as typeof import('react-native-hce');
+        this.unlisteners.push(
+          session.on(HCESession.Events.HCE_STATE_WRITE_FULL, () => {
+            if (active()) void nfcReceiveCoordinator.processPending();
+          }),
+        );
         this.update({ requestStatus: 'ready' });
+        // Recover a commit that arrived before the write listener was attached.
+        void nfcReceiveCoordinator.processPending();
       } catch {
         if (active()) this.update({ requestStatus: 'error' });
       }
@@ -197,6 +221,7 @@ export class NfcFlow {
   openReader = () => this.open('reader');
   openSend = (send: NfcSend) => this.open(send);
   private open(input: NfcSend | 'reader') {
+    if (nfcReceiveCoordinator.getSnapshot().status !== 'idle') return;
     if (!this.ready) {
       this.queued ??= input;
       return;

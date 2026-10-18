@@ -50,9 +50,19 @@ export async function findReceiveReceipt(
     normalizePaymentMint(metadata.mint) !== normalizePaymentMint(item.mintUrl)
   )
     return;
+  const receipt = await findTokenReceiveReceipt(item.tokenString);
+  const requestId = (receipt?.metadata as Record<string, unknown> | undefined)?.requestId;
+  if (requestId && requestId !== item.requestId) return;
+  return receipt;
+}
+
+export async function findTokenReceiveReceipt(
+  token: string,
+): Promise<ReceiveHistoryEntry | undefined> {
+  const metadata = getTokenMetadata(token);
   const { initService } = require('./initService') as typeof import('./initService');
   const candidates = await initService
     .getRepo()
     .historyRepository.getSuccessfulReceiveCandidates(metadata.amount, metadata.unit);
-  return candidates.find((entry) => matchesReceiveReceipt(item.tokenString, entry));
+  return candidates.find((entry) => matchesReceiveReceipt(token, entry));
 }

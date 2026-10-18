@@ -409,6 +409,16 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '018_nfc_request_receipts',
+    sql: `
+      CREATE TABLE bey_nfc_request_receipts (
+        fingerprint TEXT PRIMARY KEY NOT NULL,
+        requestId TEXT NOT NULL,
+        receiptId TEXT UNIQUE
+      );
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

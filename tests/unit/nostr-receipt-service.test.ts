@@ -1,6 +1,16 @@
 import { getEncodedTokenV3, getEncodedTokenV4 } from '@cashu/cashu-ts';
-import { matchesReceiveReceipt } from '~/services/wallet/nostrReceiptService';
+import { matchesReceiveReceipt, findReceiveReceipt } from '~/services/wallet/nostrReceiptService';
 import type { ReceiveHistoryEntry } from 'coco-cashu-core';
+const mockCandidates = jest.fn(async (): Promise<ReceiveHistoryEntry[]> => []);
+jest.mock('~/services/wallet/initService', () => ({
+  initService: {
+    getRepo: () => ({
+      historyRepository: {
+        getSuccessfulReceiveCandidates: () => mockCandidates(),
+      },
+    }),
+  },
+}));
 
 const proof = {
   id: '01' + 'ab'.repeat(32),
@@ -57,4 +67,19 @@ it('compares the complete proof set and ignores ordering or witness changes', ()
   expect(
     matchesReceiveReceipt(encoded, { ...matching, token: { ...token, proofs: [proof, proof] } }),
   ).toBe(false);
+});
+
+it('never reassigns an NFC-associated receipt to another QR request', async () => {
+  mockCandidates.mockResolvedValue([
+    { ...receipt, metadata: { requestId: 'nfc-request' } } as ReceiveHistoryEntry,
+  ]);
+  const item = {
+    tokenString: getEncodedTokenV3(token),
+    mintUrl: token.mint,
+    amount: 8,
+    unit: 'sat',
+    requestId: 'another-request',
+  } as any;
+  expect(await findReceiveReceipt(item)).toBeUndefined();
+  expect(await findReceiveReceipt({ ...item, requestId: 'nfc-request' })).toBeDefined();
 });

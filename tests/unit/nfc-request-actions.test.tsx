@@ -1,3 +1,12 @@
+jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
+  nfcReceiveCoordinator: {
+    getSnapshot: () => ({ status: 'idle' }),
+    subscribe: () => () => {},
+    setReady: jest.fn(),
+    processPending: jest.fn(async () => {}),
+    retry: jest.fn(),
+  },
+}));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'PaymentAmount' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'ListTable',

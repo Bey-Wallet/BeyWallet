@@ -1,3 +1,13 @@
+import { PaymentRequest } from '@cashu/cashu-ts';
+jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
+  nfcReceiveCoordinator: {
+    getSnapshot: () => ({ status: 'idle' }),
+    subscribe: () => () => {},
+    setReady: jest.fn(),
+    processPending: jest.fn(async () => {}),
+    retry: jest.fn(),
+  },
+}));
 jest.mock('react-native-hce', () => ({
   HCESession: {
     Events: {
@@ -72,7 +82,10 @@ import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { proofService } from '~/services/wallet/proofService';
 import { walletService } from '~/services/wallet';
 import { initService } from '~/services/wallet/initService';
+import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
+const requestString = (id: string) =>
+  new PaymentRequest([], id, 4, 'sat', ['https://mint.example']).toEncodedRequest();
 const flush = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
@@ -82,6 +95,20 @@ let write: jest.Mock;
 let deliver: jest.Mock;
 let refresh: jest.Mock;
 let events: Record<string, () => void>;
+it('keeps reader and send sessions closed while a saved request payment is processing', () => {
+  const snapshot = jest
+    .spyOn(nfcReceiveCoordinator, 'getSnapshot')
+    .mockReturnValue({ status: 'receiving' });
+  try {
+    flow.openReader();
+    flow.openSend({ token: 'token', amount: 4, mintUrl: 'mint' });
+    expect(nfcService.openPaymentSession).not.toHaveBeenCalled();
+    expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
+    expect(flow.getSnapshot().visible).toBe(false);
+  } finally {
+    snapshot.mockRestore();
+  }
+});
 beforeEach(() => {
   jest.clearAllMocks();
   jest
@@ -143,10 +170,11 @@ it('automatically pays once and keeps same-session Numo write-back open', async 
 });
 
 it('advertises a request inline without opening a sheet, paying, or claiming success on a tap', async () => {
-  const stop = flow.presentRequest('creq-request');
+  const stop = flow.presentRequest(requestString('creq-request'));
   await flush();
-  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('creq-request', {
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith(requestString('creq-request'), {
     preventAutoLock: false,
+    requestId: expect.any(String),
   });
   expect(flow.getSnapshot()).toMatchObject({
     visible: false,
@@ -174,16 +202,17 @@ it('serializes replaced requests and ignores stale owners disposing the current 
         }),
     )
     .mockResolvedValueOnce(newSession as any);
-  const stopOld = flow.presentRequest('old-request');
+  const stopOld = flow.presentRequest(requestString('old-request'));
   await flush();
-  const stopNew = flow.presentRequest('new-request');
+  const stopNew = flow.presentRequest(requestString('new-request'));
   await flush();
   expect(nfcService.startHceSimulation).toHaveBeenCalledTimes(1);
   resolve(oldSession);
   await flush();
   expect(nfcService.stopHceSimulation).toHaveBeenCalledWith(oldSession);
-  expect(nfcService.startHceSimulation).toHaveBeenLastCalledWith('new-request', {
+  expect(nfcService.startHceSimulation).toHaveBeenLastCalledWith(requestString('new-request'), {
     preventAutoLock: false,
+    requestId: expect.any(String),
   });
   stopOld();
   await flush();
@@ -195,7 +224,7 @@ it('serializes replaced requests and ignores stale owners disposing the current 
 
 it('pauses request broadcasting while locked or backgrounded and resumes when ready', async () => {
   flow.setReady(false);
-  flow.presentRequest('creq-request');
+  flow.presentRequest(requestString('creq-request'));
   await flush();
   expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
   expect(flow.getSnapshot().requestStatus).toBe('paused');
@@ -219,7 +248,7 @@ it('pauses request broadcasting while locked or backgrounded and resumes when re
 
 it('leaves the QR available when NFC is disabled or the platform cannot advertise requests', async () => {
   jest.mocked(nfcService.isEnabled).mockResolvedValueOnce(false);
-  flow.presentRequest('creq-request');
+  flow.presentRequest(requestString('creq-request'));
   await flush();
   expect(flow.getSnapshot()).toMatchObject({ visible: false, requestStatus: 'disabled' });
   expect(nfcService.startHceSimulation).not.toHaveBeenCalled();
@@ -230,7 +259,7 @@ it('leaves the QR available when NFC is disabled or the platform cannot advertis
 });
 
 it('releases an inline broadcast before using the NFC payment reader', async () => {
-  flow.presentRequest('creq-request');
+  flow.presentRequest(requestString('creq-request'));
   await flush();
   flow.openReader();
   await flush();
@@ -254,15 +283,16 @@ it('resumes a request after a cancelled reader finishes releasing its session', 
   flow.openReader();
   await flush();
   flow.dismiss();
-  flow.presentRequest('new-request');
+  flow.presentRequest(requestString('new-request'));
   expect(flow.getSnapshot()).toMatchObject({
     requestStatus: 'paused',
     requestPauseReason: 'session',
   });
   await flush();
   expect(flow.getSnapshot().requestStatus).toBe('ready');
-  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('new-request', {
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith(requestString('new-request'), {
     preventAutoLock: false,
+    requestId: expect.any(String),
   });
   expect(deliver).not.toHaveBeenCalled();
 });
@@ -271,7 +301,7 @@ it('keeps a request paused until an existing payment is reviewed and confirmed',
   flow.openReader();
   await flush();
   flow.dismiss();
-  flow.presentRequest('new-request');
+  flow.presentRequest(requestString('new-request'));
   await flush();
   expect(flow.getSnapshot()).toMatchObject({
     requestStatus: 'paused',
@@ -286,8 +316,9 @@ it('keeps a request paused until an existing payment is reviewed and confirmed',
   flow.dismiss();
   await flush();
   expect(flow.getSnapshot().requestStatus).toBe('ready');
-  expect(nfcService.startHceSimulation).toHaveBeenCalledWith('new-request', {
+  expect(nfcService.startHceSimulation).toHaveBeenCalledWith(requestString('new-request'), {
     preventAutoLock: false,
+    requestId: expect.any(String),
   });
   expect(deliver).toHaveBeenCalledTimes(1);
 });

@@ -1,3 +1,4 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -364,10 +365,12 @@ export function PaymentRequestStage({
               icon={
                 isCompatible ? (
                   <Avatar rounded="$3" size="$1.5">
-                    <Avatar.Image src={activeMintInfo?.icon} />
-                    <Avatar.Fallback bg="$green3" items="center" justify="center">
-                      <Sprout size={12} color="$green10" />
-                    </Avatar.Fallback>
+                    <MintImage
+                      mintUrl={activeMintInfo?.mintUrl}
+                      width="100%"
+                      height="100%"
+                      src={activeMintInfo?.icon}
+                    />
                   </Avatar>
                 ) : (
                   <AlertCircle size={16} color="$red10" />

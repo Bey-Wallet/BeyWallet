@@ -1,19 +1,8 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  H2,
-  H3,
-  H4,
-  Separator,
-  ScrollView,
-  View,
-  Image,
-  Card,
-} from 'tamagui';
+import { YStack, XStack, Text, H2, H3, H4, Separator, ScrollView, View, Card } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import {
   Link,
@@ -345,11 +334,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               borderWidth={1}
               borderColor="$color5"
             >
-              {iconToUse ? (
-                <Image source={{ uri: iconToUse, width: 100, height: 100 }} />
-              ) : (
-                <Sprout size={60} color="$accentColor" />
-              )}
+              <MintImage
+                mintUrl={url}
+                source={{ uri: iconToUse, width: 100, height: 100 }}
+                fallback={<Sprout size={60} color="$accentColor" />}
+              />
             </View>
             <XStack items="center" gap="$2">
               <H2 text="center">{name}</H2>

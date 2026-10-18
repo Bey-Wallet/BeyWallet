@@ -1,4 +1,16 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/services/wallet/nfcReceiveCoordinator', () => {
+  const state = { status: 'idle' };
+  return {
+    nfcReceiveCoordinator: {
+      getSnapshot: () => state,
+      subscribe: () => () => {},
+      retry: jest.fn(),
+    },
+    nfcRequestAdvertisement: (request: any) =>
+      request.recipient ? undefined : `nfc-${request.creqString}`,
+  };
+});
 jest.mock('~/shared/hooks/useFlowMint', () => ({
   useFlowMint: () => {
     const [mintUrl, setMintUrl] = require('react').useState('https://mint.test');
@@ -9,13 +21,16 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
   const React = require('react');
   return {
     __esModule: true,
-    default: React.forwardRef(({ children }: any, ref: any) => {
+    default: React.forwardRef(({ children, ...props }: any, ref: any) => {
       React.useImperativeHandle(ref, () => ({ present: jest.fn(), dismiss: jest.fn() }));
-      return React.createElement('AppBottomSheet', {}, children);
+      return React.createElement('AppBottomSheet', props, children);
     }),
   };
 });
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetTextInput: 'BottomSheetTextInput' }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 24 }),
+}));
 jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'PaymentMintRow' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'ListTable',
@@ -33,6 +48,7 @@ import { useNostrInboxStore } from '~/state/nostrInboxStore';
 let mockEncodingFails = true;
 let mockPrice: number | undefined = 100000;
 let mockPrimaryCurrency = 'SATS';
+let mockSecondaryCurrency = 'USD';
 let mockRequestArguments: any[][] = [];
 const mockToast = { show: jest.fn() };
 const mockEnqueue = jest.fn(async (_id: string) => {});
@@ -98,7 +114,7 @@ jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: Object.assign(
     () => ({
       primaryCurrency: mockPrimaryCurrency,
-      secondaryCurrency: 'USD',
+      secondaryCurrency: mockSecondaryCurrency,
       npub: 'test-public-key',
     }),
     { getState: () => ({ primaryCurrency: 'SATS' }) },
@@ -160,6 +176,7 @@ beforeEach(() => {
   mockEncodingFails = true;
   mockPrice = 100000;
   mockPrimaryCurrency = 'SATS';
+  mockSecondaryCurrency = 'USD';
   mockRequestArguments = [];
   useNostrRequestStore.setState({ requests: [], pendingRequests: [] });
   useNostrInboxStore.setState({ items: [] });
@@ -454,6 +471,58 @@ it('keeps reopened pending request details fixed and does not regenerate its QR'
   await act(async () => restored.unmount());
 });
 
+it('allows switching a zero request to fiat, shows its sats equivalent and saves whole sats', async () => {
+  const onChange = jest.fn();
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestAmountEditor amount={0} onChange={onChange} />);
+  });
+  await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
+  expect(tree.root.findByType('AppBottomSheet' as any).props.bottomInset).toBe(24);
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Switch amount currency' }).props.onPress(),
+  );
+  const keypad = () => tree.root.findByType('NumericKeypad' as any);
+  await act(async () => keypad().props.onValueChange('.'));
+  expect(keypad().props.value).toBe('0.');
+  await act(async () => keypad().props.onValueChange('1.25'));
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 1,250 SATS'),
+  ).toBe(true);
+  await act(async () => keypad().props.onConfirm());
+  expect(onChange).toHaveBeenCalledWith(1250);
+  await act(async () => tree.unmount());
+});
+
+it('opens in the preferred fiat currency and shows the other currency below', async () => {
+  mockPrimaryCurrency = 'FIAT';
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestAmountEditor amount={2000} onChange={jest.fn()} />);
+  });
+  await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
+  expect(tree.root.findByType('NumericKeypad' as any).props.value).toBe('2.00');
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 2,000 SATS'),
+  ).toBe(true);
+  await act(async () => tree.unmount());
+});
+
+it('keeps sats input when secondary currency is disabled', async () => {
+  mockSecondaryCurrency = 'NONE';
+  mockPrimaryCurrency = 'FIAT';
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestAmountEditor amount={11} onChange={jest.fn()} />);
+  });
+  await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
+  expect(tree.root.findByType('NumericKeypad' as any).props.value).toBe('11');
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Switch amount currency' })).toHaveLength(
+    0,
+  );
+  await act(async () => tree.unmount());
+});
+
 it('falls back to sats when the preferred fiat price is unavailable', async () => {
   mockPrice = undefined;
   mockPrimaryCurrency = 'FIAT';
@@ -474,7 +543,7 @@ it('falls back to sats when the preferred fiat price is unavailable', async () =
 
 it('starts NFC for the created request and stops it when New request clears the screen', async () => {
   const tree = await createRequestScreen();
-  expect(mockPresentRequest).toHaveBeenCalledWith('creq-complete-request');
+  expect(mockPresentRequest).toHaveBeenCalledWith('nfc-creq-complete-request');
   expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 SATS');
   expect(tree.root.findByProps({ label: 'Amount' }).props.rightContent.type).toBe('Pencil');
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Tap to pay' })).toHaveLength(1);

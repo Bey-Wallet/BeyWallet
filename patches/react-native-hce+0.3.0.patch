@@ -1,0 +1,1601 @@
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/Type4File.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/Type4File.java
+new file mode 100644
+--- /dev/null
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/Type4File.java
+@@ -0,0 +1,70 @@
++package com.reactnativehce.apps.nfc;
++
++import java.util.Arrays;
++import java.util.BitSet;
++
++/** Bounded Type 4 file transport; incoming writes never mutate the advertised request. */
++public final class Type4File {
++  public interface Commit { boolean save(byte[] message); }
++  private static final byte[] OK = {(byte)0x90, 0};
++  private static final byte[] ERROR = {(byte)0x6A, (byte)0x80};
++  private final byte[] outgoing;
++  private final boolean writable;
++  private final Commit commit;
++  private final byte[] incoming = new byte[0x7FFF];
++  private final BitSet received = new BitSet(0x7FFF);
++  private int selected;
++  private boolean writing;
++
++  public Type4File(byte[] outgoing, boolean writable, Commit commit) {
++    if (outgoing.length > incoming.length) throw new IllegalArgumentException("NDEF capacity exceeded");
++    this.outgoing = outgoing.clone();
++    this.writable = writable;
++    this.commit = commit;
++  }
++
++  public void reset() { selected = 0; writing = false; received.clear(); }
++
++  public byte[] process(byte[] command) {
++    if (command == null || command.length < 5 || command[0] != 0) return ERROR;
++    int instruction = command[1] & 255;
++    if (instruction == 0xA4) {
++      selected = 0;
++      if (command.length != 7 || command[2] != 0 || (command[3] != 0x0C && command[3] != 0) || command[4] != 2 || command[5] != (byte)0xE1) return ERROR;
++      selected = command[6] == 3 ? 3 : command[6] == 4 ? 4 : 0;
++      return selected == 0 ? ERROR : OK;
++    }
++    int offset = ((command[2] & 255) << 8) | (command[3] & 255);
++    int length = command[4] & 255;
++    if (instruction == 0xB0) {
++      if (command.length != 5 || selected == 0) return ERROR;
++      if (length == 0) length = 256;
++      byte[] cc = {0,15,0x20,1,0,0,(byte)255,4,6,(byte)0xE1,4,0x7F,(byte)255,0,(byte)(writable ? 0 : 255)};
++      byte[] source = selected == 3 ? cc : outgoing;
++      if (offset >= source.length) return ERROR;
++      int count = Math.min(length, source.length - offset);
++      byte[] result = Arrays.copyOfRange(source, offset, offset + count + 2);
++      result[count] = OK[0]; result[count + 1] = OK[1];
++      return result;
++    }
++    if (instruction != 0xD6 || !writable || selected != 4 || length == 0 || command.length != length + 5 || offset + length > incoming.length) return ERROR;
++    if (offset == 0 && length >= 2 && command[5] == 0 && command[6] == 0) {
++      writing = true;
++      received.clear();
++      Arrays.fill(incoming, (byte)0);
++    }
++    // Also accept a complete NDEF written in a single UPDATE BINARY.
++    if (!writing && offset == 0 && length >= 2) { writing = true; received.clear(); }
++    if (!writing) return ERROR;
++    System.arraycopy(command, 5, incoming, offset, length);
++    received.set(offset, offset + length);
++    int nlen = ((incoming[0] & 255) << 8) | (incoming[1] & 255);
++    if (nlen == 0) return OK;
++    if (nlen > incoming.length - 2) return ERROR;
++    if (received.nextClearBit(0) < nlen + 2) return OK;
++    boolean saved = commit.save(Arrays.copyOfRange(incoming, 2, nlen + 2));
++    writing = false;
++    received.clear();
++    return saved ? OK : ERROR;
++  }
++}
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
+@@ -1,180 +1,45 @@
+-/*
+- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
+- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
+- * Licensed under the MIT license. See LICENSE file in the project root for details.
+- */
+-
+-package com.reactnativehce.apps.nfc;
+-
+-import android.util.Log;
+-
+-import com.reactnativehce.utils.ApduHelper;
+-import com.reactnativehce.managers.HceViewModel;
+-import com.reactnativehce.managers.PrefManager;
+-import com.reactnativehce.utils.BinaryUtils;
+-import com.reactnativehce.IHCEApplication;
+-
+-import java.util.Arrays;
+-
+-public class NFCTagType4 implements IHCEApplication {
+-  private static final String TAG = "NFCTag";
+-  private static final byte[] C_APDU_SELECT = BinaryUtils.HexStringToByteArray("00A4040007D276000085010100");
+-  private static final byte[] FILENAME_CC = BinaryUtils.HexStringToByteArray("E103");
+-  private static final byte[] FILENAME_NDEF = BinaryUtils.HexStringToByteArray("E104");
+-  private static final byte[] CC_HEADER = BinaryUtils.HexStringToByteArray("000F20010000FF");
+-  private final PrefManager prefManager;
+-  private final HceViewModel hceModel;
+-
+-  private SelectedFile selectedFile = null;
+-  public final byte[] ndefDataBuffer = new byte[0x7FFF];
+-  public final byte[] ccDataBuffer = new byte[0x000F];
+-
+-  private enum SelectedFile {
+-    FILENAME_CC,
+-    FILENAME_NDEF
+-  }
+-
+-  public NFCTagType4(PrefManager prefManager, HceViewModel model) {
+-    this.prefManager = prefManager;
+-    this.hceModel = model;
+-
+-    this.setUpNdefContent();
+-    this.setUpCapabilityContainerContent();
+-  }
+-
+-  private void setUpNdefContent() {
+-    byte[] ndef = (new NdefEntity(prefManager.getType(), prefManager.getContent())).getNdefContent();
+-    System.arraycopy(ndef,0, this.ndefDataBuffer,0,ndef.length );
+-  }
+-
+-  private void setUpCapabilityContainerContent() {
+-    System.arraycopy(CC_HEADER, 0, this.ccDataBuffer, 0, CC_HEADER.length);
+-    byte[] controlTlv = BinaryUtils.HexStringToByteArray("0406E1047FFF00" + (prefManager.getWritable() ? "00":"FF"));
+-    System.arraycopy(controlTlv, 0, this.ccDataBuffer, CC_HEADER.length, controlTlv.length);
+-  }
+-
+-  private byte[] getFullResponseByFile() {
+-    switch (selectedFile) {
+-      case FILENAME_CC:
+-        return this.ccDataBuffer;
+-      case FILENAME_NDEF:
+-        return this.ndefDataBuffer;
+-      default:
+-        throw new Error("Unknown file");
+-    }
+-  }
+-
+-  public boolean assertSelectCommand(byte[] command) {
+-    Boolean result = ApduHelper.commandByRangeEquals(command, 0, 13, C_APDU_SELECT);
+-
+-    if (result) {
+-      this.hceModel.getLastState().setValue(HceViewModel.HCE_STATE_CONNECTED);
+-    }
+-
+-    return result;
+-  }
+-
+-  private byte[] respondSelectFile(byte[] command) {
+-    byte[] file = Arrays.copyOfRange(command, 5, 7);
+-
+-    if (Arrays.equals(file, FILENAME_CC)) {
+-      this.selectedFile = SelectedFile.FILENAME_CC;
+-    } else if (Arrays.equals(file, FILENAME_NDEF)) {
+-      this.selectedFile = SelectedFile.FILENAME_NDEF;
+-    }
+-
+-    if (this.selectedFile != null) {
+-      return ApduHelper.R_APDU_OK;
+-    }
+-
+-    return ApduHelper.R_APDU_ERROR;
+-  }
+-
+-  private byte[] respondRead(byte[] command) {
+-    if (this.selectedFile == null) {
+-      return ApduHelper.R_APDU_ERROR;
+-    }
+-
+-    int offset = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 2, 4)), 16);
+-    int length = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 4, 5)), 16);
+-
+-    byte[] fullResponse = getFullResponseByFile();
+-    byte[] slicedResponse = Arrays.copyOfRange(fullResponse, offset, fullResponse.length);
+-
+-    int realLength = Math.min(slicedResponse.length, length);
+-    byte[] response = new byte[realLength + ApduHelper.R_APDU_OK.length];
+-
+-    System.arraycopy(slicedResponse, 0, response, 0, realLength);
+-    System.arraycopy(ApduHelper.R_APDU_OK, 0, response, realLength, ApduHelper.R_APDU_OK.length);
+-
+-    this.hceModel.getLastState()
+-      .setValue(HceViewModel.HCE_STATE_READ);
+-
+-    return response;
+-  }
+-
+-  private NdefEntity tryHandleSavedTag() {
+-    NdefEntity nm;
+-
+-    try {
+-      int nlen = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(this.ndefDataBuffer, 0, 2)), 16);
+-      nm = NdefEntity.fromBytes(Arrays.copyOfRange(this.ndefDataBuffer, 2, 2 + nlen));
+-    } catch (Exception e) {
+-      return null;
+-    }
+-
+-    return nm;
+-  }
+-
+-  private byte[] respondWrite(byte[] command) {
+-    if (this.selectedFile != SelectedFile.FILENAME_NDEF) {
+-      return ApduHelper.R_APDU_ERROR;
+-    }
+-
+-    int offset = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 2, 4)), 16);
+-    int length = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 4, 5)), 16);
+-
+-    byte[] data = Arrays.copyOfRange(command, 5, 5 + length);
+-    System.arraycopy(data, 0, ndefDataBuffer, offset, length);
+-
+-    NdefEntity nm = this.tryHandleSavedTag();
+-
+-    if (nm != null) {
+-      this.prefManager.setContent(nm.getContent());
+-      this.prefManager.setType(nm.getType());
+-      this.hceModel.getLastState()
+-        .setValue(HceViewModel.HCE_STATE_WRITE_FULL);
+-      this.hceModel.getLastState()
+-        .setValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
+-    } else {
+-      this.hceModel.getLastState()
+-        .setValue(HceViewModel.HCE_STATE_WRITE_PARTIAL);
+-    }
+-
+-    return ApduHelper.R_APDU_OK;
+-  }
+-
+-  public byte[] processCommand(byte[] command) {
+-    if (ApduHelper.commandByRangeEquals(command, 0, 5, ApduHelper.C_APDU_SELECT_FILE)) {
+-      return this.respondSelectFile(command);
+-    }
+-
+-    if (ApduHelper.commandByRangeEquals(command, 0, 2, ApduHelper.C_APDU_READ)) {
+-      return this.respondRead(command);
+-    }
+-
+-    if (ApduHelper.commandByRangeEquals(command, 0, 2, ApduHelper.C_APDU_WRITE)) {
+-      return this.respondWrite(command);
+-    }
+-
+-    Log.i(TAG, "Unknown command.");
+-
+-    return ApduHelper.R_APDU_ERROR;
+-  }
+-
+-  @Override
+-  public void onDestroy(int reason) {
+-    this.hceModel.getLastState()
+-      .setValue(HceViewModel.HCE_STATE_DISCONNECTED);
+-  }
+-}
++package com.reactnativehce.apps.nfc;
++
++import com.reactnativehce.IHCEApplication;
++import com.reactnativehce.managers.HceViewModel;
++import com.reactnativehce.managers.PrefManager;
++import java.util.Arrays;
++
++public class NFCTagType4 implements IHCEApplication {
++  private final Type4File file;
++  private final HceViewModel model;
++  public NFCTagType4(PrefManager preferences, HceViewModel model) {
++    this.model = model;
++    final String requestId = preferences.getRequestId();
++    file = new Type4File(new NdefEntity(preferences.getType(), preferences.getContent()).getNdefContent(),
++      preferences.getWritable() && !requestId.isEmpty(), bytes -> {
++        try {
++          NdefEntity message = NdefEntity.fromBytes(bytes);
++          if (!preferences.savePending(requestId, message.getContent())) return false;
++          model.getLastState().setValue(HceViewModel.HCE_STATE_WRITE_FULL);
++          return true;
++        } catch (Exception invalid) { return false; }
++      });
++  }
++  public boolean assertSelectCommand(byte[] command) {
++    byte[] aid = {(byte)0xD2,0x76,0,0, (byte)0x85,1,1};
++    boolean valid = command != null && (command.length == 12 || command.length == 13)
++      && command[0] == 0 && command[1] == (byte)0xA4 && command[2] == 4
++      && command[3] == 0 && command[4] == 7
++      && Arrays.equals(Arrays.copyOfRange(command, 5, 12), aid)
++      && (command.length == 12 || command[12] == 0);
++    file.reset();
++    if (valid) model.getLastState().setValue(HceViewModel.HCE_STATE_CONNECTED);
++    return valid;
++  }
++  public byte[] processCommand(byte[] command) {
++    byte[] response = file.process(command);
++    if (command != null && command.length == 5 && command[1] == (byte)0xB0 && response.length > 2)
++      model.getLastState().setValue(HceViewModel.HCE_STATE_READ);
++    return response;
++  }
++  public void onDestroy(int reason) {
++    file.reset();
++    model.getLastState().setValue(HceViewModel.HCE_STATE_DISCONNECTED);
++  }
++}
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/managers/PrefManager.java
+@@ -1,67 +1,112 @@
+-/*
+- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
+- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
+- * Licensed under the MIT license. See LICENSE file in the project root for details.
+- */
+-
+-package com.reactnativehce.managers;
+-
+-import android.content.Context;
+-import android.content.SharedPreferences;
+-
+-public class PrefManager {
+-  private static PrefManager instance = null;
+-  private final static String PREF_LIB_SUFFIX = ".HCE_DATA";
+-  private final SharedPreferences preferences;
+-
+-  public PrefManager(Context applicationContext) {
+-    this.preferences = applicationContext.getSharedPreferences(
+-      applicationContext.getPackageName() + PREF_LIB_SUFFIX,
+-      Context.MODE_PRIVATE
+-    );
+-  }
+-
+-  public static PrefManager getInstance(Context applicationContext) {
+-    if (instance == null) {
+-      instance = new PrefManager(applicationContext);
+-    }
+-
+-    return instance;
+-  }
+-
+-  public Boolean exists() {
+-    return preferences.contains("type");
+-  }
+-
+-  public void setContent(String text) {
+-    preferences.edit().putString("content", text).apply();
+-  }
+-
+-  public String getContent() {
+-    return preferences.getString("content", "");
+-  }
+-
+-  public void setType(String text) {
+-    preferences.edit().putString("type", text).apply();
+-  }
+-
+-  public String getType() {
+-    return preferences.getString("type", "");
+-  }
+-
+-  public void setWritable(Boolean writable) {
+-    preferences.edit().putBoolean("writable", writable).apply();
+-  }
+-
+-  public Boolean getWritable() {
+-    return preferences.getBoolean("writable", false);
+-  }
+-
+-  public void setEnabled(Boolean enabled) {
+-    preferences.edit().putBoolean("enabled", enabled).apply();
+-  }
+-
+-  public Boolean getEnabled() {
+-    return preferences.getBoolean("enabled", false);
+-  }
+-}
++/*
++ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
++ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
++ * Licensed under the MIT license. See LICENSE file in the project root for details.
++ */
++
++package com.reactnativehce.managers;
++
++import android.content.Context;
++import android.content.SharedPreferences;
++import android.util.AtomicFile;
++import org.json.JSONObject;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++
++public class PrefManager {
++  private static PrefManager instance = null;
++  private final static String PREF_LIB_SUFFIX = ".HCE_DATA";
++  private final SharedPreferences preferences;
++  private volatile boolean sessionEnabled = false;
++  private final AtomicFile pendingFile;
++
++  public PrefManager(Context applicationContext) {
++    this.pendingFile = new AtomicFile(new File(applicationContext.getNoBackupFilesDir(), "nfc-payment.json"));
++    this.preferences = applicationContext.getSharedPreferences(
++      applicationContext.getPackageName() + PREF_LIB_SUFFIX,
++      Context.MODE_PRIVATE
++    );
++  }
++
++  public static synchronized PrefManager getInstance(Context applicationContext) {
++    if (instance == null) {
++      instance = new PrefManager(applicationContext);
++    }
++
++    return instance;
++  }
++
++  public void setRequestId(String id) { preferences.edit().putString("requestId", id).commit(); }
++  public String getRequestId() { return preferences.getString("requestId", ""); }
++
++  public synchronized JSONObject getPending() throws Exception {
++    if (!pendingFile.getBaseFile().exists() && !new File(pendingFile.getBaseFile().getPath() + ".bak").exists()) return null;
++    return new JSONObject(new String(pendingFile.readFully(), StandardCharsets.UTF_8));
++  }
++  public synchronized boolean savePending(String requestId, String content) {
++    FileOutputStream stream = null;
++    try {
++      JSONObject existing = getPending();
++      if (existing != null) return requestId.equals(existing.getString("requestId")) && content.equals(existing.getString("content"));
++      byte[] digest = MessageDigest.getInstance("SHA-256").digest((requestId + "\n" + content).getBytes(StandardCharsets.UTF_8));
++      StringBuilder id = new StringBuilder();
++      for (byte b : digest) id.append(String.format("%02x", b & 255));
++      JSONObject value = new JSONObject();
++      value.put("id", id.toString()); value.put("requestId", requestId);
++      value.put("content", content); value.put("receivedAt", System.currentTimeMillis());
++      stream = pendingFile.startWrite();
++      stream.write(value.toString().getBytes(StandardCharsets.UTF_8));
++      pendingFile.finishWrite(stream);
++      JSONObject saved = getPending();
++      return saved != null && id.toString().equals(saved.getString("id"));
++    } catch (Exception failure) {
++      if (stream != null) pendingFile.failWrite(stream);
++      return false;
++    }
++  }
++  public synchronized boolean acknowledgePending(String id) throws Exception {
++    JSONObject pending = getPending();
++    if (pending == null || !id.equals(pending.getString("id"))) return false;
++    pendingFile.delete();
++    return !pendingFile.getBaseFile().exists() && !new File(pendingFile.getBaseFile().getPath() + ".bak").exists();
++  }
++
++  public Boolean exists() {
++    return preferences.contains("type");
++  }
++
++  public void setContent(String text) {
++    preferences.edit().putString("content", text).apply();
++  }
++
++  public String getContent() {
++    return preferences.getString("content", "");
++  }
++
++  public void setType(String text) {
++    preferences.edit().putString("type", text).apply();
++  }
++
++  public String getType() {
++    return preferences.getString("type", "");
++  }
++
++  public void setWritable(Boolean writable) {
++    preferences.edit().putBoolean("writable", writable).apply();
++  }
++
++  public Boolean getWritable() {
++    return preferences.getBoolean("writable", false);
++  }
++
++  public void setEnabled(Boolean enabled) {
++    sessionEnabled = enabled;
++    preferences.edit().putBoolean("enabled", enabled).apply();
++  }
++
++  public Boolean getEnabled() {
++    return sessionEnabled;
++  }
++}
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NdefEntity.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NdefEntity.java
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NdefEntity.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NdefEntity.java
+@@ -1,77 +1,82 @@
+-/*
+- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
+- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
+- * Licensed under the MIT license. See LICENSE file in the project root for details.
+- */
+-
+-package com.reactnativehce.apps.nfc;
+-
+-import android.nfc.NdefMessage;
+-import android.nfc.NdefRecord;
+-
+-import java.math.BigInteger;
+-import java.util.Arrays;
+-
+-import com.reactnativehce.utils.ByteArrayOperations;
+-
+-public class NdefEntity {
+-  private final NdefMessage message;
+-  private final String type;
+-  private final String content;
+-
+-  public NdefEntity(String type, String content) {
+-    this.type = type;
+-    this.content = content;
+-
+-    NdefRecord record;
+-
+-    if (type.equals("text")) {
+-      record = NdefRecord.createTextRecord("en", content);
+-    } else if (type.equals("url")) {
+-      record = NdefRecord.createUri(content);
+-    } else {
+-      throw new IllegalArgumentException("Wrong NFC tag content type");
+-    }
+-
+-    this.message = new NdefMessage(record);
+-  }
+-
+-  public String getType() {
+-    return this.type;
+-  }
+-
+-  public String getContent() {
+-    return this.content;
+-  }
+-
+-  public byte[] getNdefContent() {
+-    byte[] payload = this.message.toByteArray();
+-    byte[] messageLength = ByteArrayOperations.fillByteArrayToFixedDimension(
+-      BigInteger.valueOf(this.message.getByteArrayLength()).toByteArray(),
+-      2
+-    );
+-
+-    byte[] fullResponse = new byte[messageLength.length + payload.length];
+-    System.arraycopy(messageLength, 0, fullResponse, 0, messageLength.length);
+-    System.arraycopy(payload,0, fullResponse, messageLength.length, payload.length);
+-
+-    return fullResponse;
+-  }
+-
+-  public static NdefEntity fromBytes(byte[] bytes) throws Exception {
+-    NdefMessage message = new NdefMessage(bytes);
+-    NdefRecord record = message.getRecords()[0];
+-
+-    byte[] payload = record.getPayload();
+-
+-    if (record.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(record.getType(), NdefRecord.RTD_TEXT)) {
+-      String content = new String(Arrays.copyOfRange(payload, 3, payload.length));
+-      return new NdefEntity("text", content);
+-    } else if (record.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(record.getType(), NdefRecord.RTD_URI)) {
+-      String content = record.toUri().toString();
+-      return new NdefEntity("url", content);
+-    }
+-
+-    throw new Exception("Unexpected NDEF type");
+-  }
+-}
++/*
++ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
++ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
++ * Licensed under the MIT license. See LICENSE file in the project root for details.
++ */
++
++package com.reactnativehce.apps.nfc;
++
++import android.nfc.NdefMessage;
++import android.nfc.NdefRecord;
++
++import java.math.BigInteger;
++import java.util.Arrays;
++
++import com.reactnativehce.utils.ByteArrayOperations;
++
++public class NdefEntity {
++  private final NdefMessage message;
++  private final String type;
++  private final String content;
++
++  public NdefEntity(String type, String content) {
++    this.type = type;
++    this.content = content;
++
++    NdefRecord record;
++
++    if (type.equals("text")) {
++      record = NdefRecord.createTextRecord("en", content);
++    } else if (type.equals("url")) {
++      record = NdefRecord.createUri(content);
++    } else {
++      throw new IllegalArgumentException("Wrong NFC tag content type");
++    }
++
++    this.message = new NdefMessage(record);
++  }
++
++  public String getType() {
++    return this.type;
++  }
++
++  public String getContent() {
++    return this.content;
++  }
++
++  public byte[] getNdefContent() {
++    byte[] payload = this.message.toByteArray();
++    byte[] messageLength = ByteArrayOperations.fillByteArrayToFixedDimension(
++      BigInteger.valueOf(this.message.getByteArrayLength()).toByteArray(),
++      2
++    );
++
++    byte[] fullResponse = new byte[messageLength.length + payload.length];
++    System.arraycopy(messageLength, 0, fullResponse, 0, messageLength.length);
++    System.arraycopy(payload,0, fullResponse, messageLength.length, payload.length);
++
++    return fullResponse;
++  }
++
++  public static NdefEntity fromBytes(byte[] bytes) throws Exception {
++    NdefMessage message = new NdefMessage(bytes);
++    if (message.getRecords().length != 1) throw new Exception("Expected one payment record");
++    NdefRecord record = message.getRecords()[0];
++
++    byte[] payload = record.getPayload();
++
++    if (record.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(record.getType(), NdefRecord.RTD_TEXT)) {
++      if (payload.length == 0 || (payload[0] & 0x40) != 0) throw new Exception("Invalid text status");
++      int start = 1 + (payload[0] & 0x3F);
++      if (start >= payload.length) throw new Exception("Invalid text payload");
++      java.nio.charset.Charset charset = (payload[0] & 0x80) == 0 ? java.nio.charset.StandardCharsets.UTF_8 : java.nio.charset.StandardCharsets.UTF_16;
++      String content = charset.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(payload, start, payload.length - start)).toString();
++      return new NdefEntity("text", content);
++    } else if (record.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(record.getType(), NdefRecord.RTD_URI)) {
++      String content = record.toUri().toString();
++      return new NdefEntity("url", content);
++    }
++
++    throw new Exception("Unexpected NDEF type");
++  }
++}
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/HceModule.java
+@@ -1,136 +1,171 @@
+-/*
+- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
+- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
+- * Licensed under the MIT license. See LICENSE file in the project root for details.
+- */
+-
+-package com.reactnativehce;
+-
+-import android.content.ComponentName;
+-import android.content.pm.PackageManager;
+-
+-import com.facebook.react.bridge.Arguments;
+-import com.facebook.react.bridge.ReactApplicationContext;
+-import com.facebook.react.bridge.ReactContextBaseJavaModule;
+-import com.facebook.react.bridge.ReactMethod;
+-import com.facebook.react.bridge.Promise;
+-import com.facebook.react.bridge.ReadableMap;
+-import com.facebook.react.bridge.WritableMap;
+-import com.reactnativehce.managers.EventManager;
+-import com.reactnativehce.managers.HceViewModel;
+-import com.reactnativehce.managers.PrefManager;
+-import com.reactnativehce.services.CardService;
+-
+-import androidx.annotation.NonNull;
+-
+-import java.util.HashMap;
+-import java.util.Map;
+-
+-public class HceModule extends ReactContextBaseJavaModule {
+-  private static ReactApplicationContext reactContext;
+-  private final EventManager eventManager;
+-  private final PrefManager prefManager;
+-  private final HceViewModel hceModel;
+-
+-  HceModule(ReactApplicationContext context) {
+-    super(context);
+-    reactContext = context;
+-    eventManager = EventManager.getInstance(context);
+-    prefManager = PrefManager.getInstance(context.getApplicationContext());
+-    hceModel = HceViewModel.getInstance(context.getApplicationContext());
+-
+-    if (prefManager.exists()) {
+-      this.enableHceService(prefManager.getEnabled());
+-    }
+-  }
+-
+-  @NonNull
+-  @Override
+-  public String getName() {
+-    return "Hce";
+-  }
+-
+-  @Override
+-  public Map<String, Object> getConstants() {
+-    final Map<String, Object> constants = new HashMap<>();
+-    constants.put("HCE_STATE_CONNECTED", HceViewModel.HCE_STATE_CONNECTED);
+-    constants.put("HCE_STATE_DISCONNECTED", HceViewModel.HCE_STATE_DISCONNECTED);
+-    constants.put("HCE_STATE_ENABLED", HceViewModel.HCE_STATE_ENABLED);
+-    constants.put("HCE_STATE_DISABLED", HceViewModel.HCE_STATE_DISABLED);
+-    constants.put("HCE_STATE_READ", HceViewModel.HCE_STATE_READ);
+-    constants.put("HCE_STATE_WRITE_FULL", HceViewModel.HCE_STATE_WRITE_FULL);
+-    constants.put("HCE_STATE_WRITE_PARTIAL", HceViewModel.HCE_STATE_WRITE_PARTIAL);
+-    constants.put("HCE_STATE_UPDATE_APPLICATION", HceViewModel.HCE_STATE_UPDATE_APPLICATION);
+-    return constants;
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void addListener(String eventName) throws Exception {
+-    if (!eventName.equals(EventManager.EVENT_STATE)) {
+-      throw new Exception("Event not supported: " + eventName);
+-    }
+-
+-    this.eventManager.addListener(EventManager.EVENT_STATE);
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void removeListeners(Integer count) {
+-    this.eventManager.clear();
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void setContent(ReadableMap properties, Promise promise) {
+-    prefManager.setType(properties.getString("type"));
+-    prefManager.setContent(properties.getString("content"));
+-    prefManager.setWritable(properties.getBoolean("writable"));
+-    this.hceModel.getLastState()
+-      .postValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
+-
+-    promise.resolve(null);
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void getContent(Promise promise) {
+-    if (!prefManager.exists()) {
+-      promise.resolve(null);
+-      return;
+-    }
+-
+-    WritableMap properties = Arguments.createMap();
+-    properties.putString("type", prefManager.getType());
+-    properties.putString("content", prefManager.getContent());
+-    properties.putBoolean("writable", prefManager.getWritable());
+-
+-    promise.resolve(properties);
+-  }
+-
+-  private void enableHceService(Boolean enabled) {
+-    reactContext.getApplicationContext().getPackageManager()
+-      .setComponentEnabledSetting(
+-        new ComponentName(reactContext.getApplicationContext(), CardService.class),
+-        enabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+-        PackageManager.DONT_KILL_APP
+-      );
+-
+-    this.hceModel.getLastState()
+-      .postValue(enabled ? HceViewModel.HCE_STATE_ENABLED : HceViewModel.HCE_STATE_DISABLED);
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void getEnabled(Promise promise) {
+-    promise.resolve(prefManager.getEnabled());
+-  }
+-
+-  @ReactMethod
+-  @SuppressWarnings("unused")
+-  public void setEnabled(Boolean enabled, Promise promise) {
+-    this.prefManager.setEnabled(enabled);
+-    this.enableHceService(enabled);
+-    promise.resolve(enabled);
+-  }
+-}
++/*
++ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
++ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
++ * Licensed under the MIT license. See LICENSE file in the project root for details.
++ */
++
++package com.reactnativehce;
++
++import android.content.ComponentName;
++import android.content.pm.PackageManager;
++
++import com.facebook.react.bridge.Arguments;
++import com.facebook.react.bridge.ReactApplicationContext;
++import com.facebook.react.bridge.ReactContextBaseJavaModule;
++import com.facebook.react.bridge.ReactMethod;
++import com.facebook.react.bridge.Promise;
++import com.facebook.react.bridge.ReadableMap;
++import com.facebook.react.bridge.WritableMap;
++import com.reactnativehce.managers.EventManager;
++import com.reactnativehce.managers.HceViewModel;
++import com.reactnativehce.managers.PrefManager;
++import com.reactnativehce.services.CardService;
++
++import androidx.annotation.NonNull;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class HceModule extends ReactContextBaseJavaModule {
++  private static ReactApplicationContext reactContext;
++  private final EventManager eventManager;
++  private final PrefManager prefManager;
++  private final HceViewModel hceModel;
++
++  HceModule(ReactApplicationContext context) {
++    super(context);
++    reactContext = context;
++    eventManager = EventManager.getInstance(context);
++    prefManager = PrefManager.getInstance(context.getApplicationContext());
++    hceModel = HceViewModel.getInstance(context.getApplicationContext());
++
++    if (prefManager.exists()) {
++      prefManager.setEnabled(false);
++      this.enableHceService(false);
++    }
++  }
++
++  @NonNull
++  @Override
++  public String getName() {
++    return "Hce";
++  }
++
++  @Override
++  public Map<String, Object> getConstants() {
++    final Map<String, Object> constants = new HashMap<>();
++    constants.put("HCE_STATE_CONNECTED", HceViewModel.HCE_STATE_CONNECTED);
++    constants.put("HCE_STATE_DISCONNECTED", HceViewModel.HCE_STATE_DISCONNECTED);
++    constants.put("HCE_STATE_ENABLED", HceViewModel.HCE_STATE_ENABLED);
++    constants.put("HCE_STATE_DISABLED", HceViewModel.HCE_STATE_DISABLED);
++    constants.put("HCE_STATE_READ", HceViewModel.HCE_STATE_READ);
++    constants.put("HCE_STATE_WRITE_FULL", HceViewModel.HCE_STATE_WRITE_FULL);
++    constants.put("HCE_STATE_WRITE_PARTIAL", HceViewModel.HCE_STATE_WRITE_PARTIAL);
++    constants.put("HCE_STATE_UPDATE_APPLICATION", HceViewModel.HCE_STATE_UPDATE_APPLICATION);
++    return constants;
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void addListener(String eventName) throws Exception {
++    if (!eventName.equals(EventManager.EVENT_STATE)) {
++      throw new Exception("Event not supported: " + eventName);
++    }
++
++    this.eventManager.addListener(EventManager.EVENT_STATE);
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void removeListeners(Integer count) {
++    this.eventManager.clear();
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void setContent(ReadableMap properties, Promise promise) {
++    try {
++      byte[] encoded = new com.reactnativehce.apps.nfc.NdefEntity(properties.getString("type"), properties.getString("content")).getNdefContent();
++      if (encoded.length > 0x7FFF) {
++        promise.reject("NFC_CAPACITY", "NFC message is too large");
++        return;
++      }
++    } catch (Exception invalid) {
++      promise.reject("NFC_FORMAT", "Invalid NFC message");
++      return;
++    }
++    prefManager.setType(properties.getString("type"));
++    prefManager.setContent(properties.getString("content"));
++    prefManager.setWritable(properties.getBoolean("writable"));
++    this.hceModel.getLastState()
++      .postValue(HceViewModel.HCE_STATE_UPDATE_APPLICATION);
++
++    promise.resolve(null);
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void getContent(Promise promise) {
++    if (!prefManager.exists()) {
++      promise.resolve(null);
++      return;
++    }
++
++    WritableMap properties = Arguments.createMap();
++    properties.putString("type", prefManager.getType());
++    properties.putString("content", prefManager.getContent());
++    properties.putBoolean("writable", prefManager.getWritable());
++
++    promise.resolve(properties);
++  }
++
++  @ReactMethod
++  public void setRequestSession(String requestId, Promise promise) {
++    prefManager.setRequestId(requestId == null ? "" : requestId);
++    promise.resolve(null);
++  }
++  @ReactMethod
++  public void getPendingPayment(Promise promise) {
++    try {
++      org.json.JSONObject pending = prefManager.getPending();
++      if (pending == null) { promise.resolve(null); return; }
++      WritableMap result = Arguments.createMap();
++      result.putString("id", pending.getString("id"));
++      result.putString("requestId", pending.getString("requestId"));
++      result.putString("content", pending.getString("content"));
++      result.putDouble("receivedAt", pending.getDouble("receivedAt"));
++      promise.resolve(result);
++    } catch (Exception failure) { promise.reject("NFC_STORAGE", "Cannot read saved NFC payment"); }
++  }
++  @ReactMethod
++  public void acknowledgePayment(String id, Promise promise) {
++    try { promise.resolve(prefManager.acknowledgePending(id)); }
++    catch (Exception failure) { promise.reject("NFC_STORAGE", "Cannot acknowledge NFC payment"); }
++  }
++
++  private void enableHceService(Boolean enabled) {
++    reactContext.getApplicationContext().getPackageManager()
++      .setComponentEnabledSetting(
++        new ComponentName(reactContext.getApplicationContext(), CardService.class),
++        enabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
++        PackageManager.DONT_KILL_APP
++      );
++
++    this.hceModel.getLastState()
++      .postValue(enabled ? HceViewModel.HCE_STATE_ENABLED : HceViewModel.HCE_STATE_DISABLED);
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void getEnabled(Promise promise) {
++    promise.resolve(prefManager.getEnabled());
++  }
++
++  @ReactMethod
++  @SuppressWarnings("unused")
++  public void setEnabled(Boolean enabled, Promise promise) {
++    this.prefManager.setEnabled(enabled);
++    this.enableHceService(enabled);
++    promise.resolve(enabled);
++  }
++}
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/services/CardService.java
+@@ -1,62 +1,62 @@
+-/*
+- * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
+- * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
+- * Licensed under the MIT license. See LICENSE file in the project root for details.
+- */
+-
+-package com.reactnativehce.services;
+-
+-import android.content.Context;
+-import android.nfc.cardemulation.HostApduService;
+-import android.os.Bundle;
+-import android.util.Log;
+-
+-import com.reactnativehce.utils.ApduHelper;
+-import com.reactnativehce.managers.HceViewModel;
+-import com.reactnativehce.IHCEApplication;
+-import com.reactnativehce.managers.PrefManager;
+-import com.reactnativehce.apps.nfc.NFCTagType4;
+-
+-import java.util.ArrayList;
+-
+-public class CardService extends HostApduService {
+-    private static final String TAG = "CardService";
+-
+-    private final ArrayList<IHCEApplication> registeredHCEApplications = new ArrayList<>();
+-    private IHCEApplication currentHCEApplication = null;
+-
+-    @Override
+-    public byte[] processCommandApdu(byte[] command, Bundle extras) {
+-      if (currentHCEApplication != null) {
+-        return currentHCEApplication.processCommand(command);
+-      }
+-
+-      if (ApduHelper.commandByRangeEquals(command, 0, 4, ApduHelper.C_APDU_SELECT_APP)) {
+-        for (IHCEApplication app : registeredHCEApplications) {
+-          if (app.assertSelectCommand(command)) {
+-            currentHCEApplication = app;
+-            return ApduHelper.R_APDU_OK;
+-          }
+-        }
+-      }
+-
+-      return ApduHelper.R_APDU_ERROR;
+-    }
+-
+-    @Override
+-    public void onCreate() {
+-      Log.d(TAG, "Starting service");
+-      Context context = getApplicationContext();
+-
+-      registeredHCEApplications.add(new NFCTagType4(
+-        PrefManager.getInstance(context),
+-        HceViewModel.getInstance(context)
+-      ));
+-    }
+-
+-    @Override
+-    public void onDeactivated(int reason) {
+-      Log.d(TAG, "Finishing service: " + reason);
+-      this.currentHCEApplication.onDestroy(reason);
+-    }
+-}
++/*
++ * Copyright (c) 2020-2022 Mateusz Falkowski (appidea.pl) and contributors. All rights reserved.
++ * This file is part of "react-native-hce" library: https://github.com/appidea/react-native-hce
++ * Licensed under the MIT license. See LICENSE file in the project root for details.
++ */
++
++package com.reactnativehce.services;
++
++import android.content.Context;
++import android.nfc.cardemulation.HostApduService;
++import android.os.Bundle;
++import android.util.Log;
++
++import com.reactnativehce.utils.ApduHelper;
++import com.reactnativehce.managers.HceViewModel;
++import com.reactnativehce.IHCEApplication;
++import com.reactnativehce.managers.PrefManager;
++import com.reactnativehce.apps.nfc.NFCTagType4;
++
++import java.util.ArrayList;
++
++public class CardService extends HostApduService {
++    private static final String TAG = "CardService";
++
++    private final ArrayList<IHCEApplication> registeredHCEApplications = new ArrayList<>();
++    private IHCEApplication currentHCEApplication = null;
++
++    @Override
++    public byte[] processCommandApdu(byte[] command, Bundle extras) {
++      if (!PrefManager.getInstance(getApplicationContext()).getEnabled()) return ApduHelper.R_APDU_ERROR;
++      if (command == null || command.length < 4) return ApduHelper.R_APDU_ERROR;
++      if (command[0] == 0 && command[1] == (byte)0xA4 && command[2] == 4 && command[3] == 0) {
++        currentHCEApplication = null;
++        registeredHCEApplications.clear();
++        try {
++          registeredHCEApplications.add(new NFCTagType4(PrefManager.getInstance(getApplicationContext()), HceViewModel.getInstance(getApplicationContext())));
++        } catch (Exception invalid) { return ApduHelper.R_APDU_ERROR; }
++        for (IHCEApplication app : registeredHCEApplications) {
++          if (app.assertSelectCommand(command)) {
++            currentHCEApplication = app;
++            return ApduHelper.R_APDU_OK;
++          }
++        }
++      }
++
++      return currentHCEApplication == null ? ApduHelper.R_APDU_ERROR : currentHCEApplication.processCommand(command);
++    }
++
++    @Override
++    public void onCreate() {
++      Log.d(TAG, "Starting service");
++      Context context = getApplicationContext();
++
++    }
++
++    @Override
++    public void onDeactivated(int reason) {
++      Log.d(TAG, "Finishing service: " + reason);
++      if (this.currentHCEApplication != null) this.currentHCEApplication.onDestroy(reason);
++      this.currentHCEApplication = null;
++    }
++}
+diff --git a/node_modules/react-native-hce/dist/index.js b/node_modules/react-native-hce/dist/index.js
+--- a/node_modules/react-native-hce/dist/index.js
++++ b/node_modules/react-native-hce/dist/index.js
+@@ -1,254 +1,254 @@
+-var __defProp = Object.defineProperty;
+-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+-var __hasOwnProp = Object.prototype.hasOwnProperty;
+-var __propIsEnum = Object.prototype.propertyIsEnumerable;
+-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+-var __spreadValues = (a, b) => {
+-  for (var prop in b || (b = {}))
+-    if (__hasOwnProp.call(b, prop))
+-      __defNormalProp(a, prop, b[prop]);
+-  if (__getOwnPropSymbols)
+-    for (var prop of __getOwnPropSymbols(b)) {
+-      if (__propIsEnum.call(b, prop))
+-        __defNormalProp(a, prop, b[prop]);
+-    }
+-  return a;
+-};
+-
+-// src/HCESession.ts
+-import { NativeEventEmitter, NativeModules, Platform } from "react-native";
+-
+-// src/NFCTagType4/index.ts
+-var NFCTagType4NDEFContentType = /* @__PURE__ */ ((NFCTagType4NDEFContentType2) => {
+-  NFCTagType4NDEFContentType2["Text"] = "text";
+-  NFCTagType4NDEFContentType2["URL"] = "url";
+-  return NFCTagType4NDEFContentType2;
+-})(NFCTagType4NDEFContentType || {});
+-var NFCTagType4 = class {
+-  /**
+-   * Creates a new instance of NFCTagType4 containing an NDEF message.
+-   * @param props Props of the tag
+-   *
+-   * @example
+-   * ```
+-   * const tag = new NFCTagType4({
+-   *   type: NFCTagType4NDEFContentType.Text,
+-   *   content: "Hello NFC World!",
+-   *   writable: false
+-   * });
+-   * ...
+-   * hceSession.setApplication(tag);
+-   * ```
+-   */
+-  constructor(props) {
+-    this.type = "NFCTag";
+-    this.content = __spreadValues({}, props);
+-  }
+-  /**
+-   * Maps the string to {@link NFCTagType4NDEFContentType}.
+-   *
+-   * @param type
+-   */
+-  static contentTypeFromString(type) {
+-    switch (type) {
+-      case "text":
+-        return "text" /* Text */;
+-      case "url":
+-        return "url" /* URL */;
+-      default:
+-        throw new Error("Unknown type");
+-    }
+-  }
+-  /**
+-   * Maps the {@link NFCTagType4NDEFContentType} to string.
+-   *
+-   * @param type
+-   */
+-  static stringFromContentType(type) {
+-    switch (type) {
+-      case "url" /* URL */:
+-        return "url";
+-      case "text" /* Text */:
+-        return "text";
+-      default:
+-        throw new Error("Unknown type");
+-    }
+-  }
+-};
+-
+-// src/HCESession.ts
+-var { Hce: NativeHce } = NativeModules;
+-var eventEmitter = new NativeEventEmitter(NativeHce);
+-var instance = null;
+-var checkPlatform = () => {
+-  if (Platform.OS !== "android") {
+-    throw new Error("react-native-hce does not support this platform");
+-  }
+-};
+-var _HCESession = class _HCESession {
+-  /**
+-   * Creates the instance of HCE Session class.
+-   *
+-   * __NOTE!!!: Do not use this constructor directly. Use {@link getInstance} to get the appropriate and synchronized instance.__
+-   */
+-  constructor() {
+-    /**
+-     * Adds the listener to an event.
+-     *
+-     * @internal
+-     */
+-    this.addListener = (eventName, callback) => {
+-      return eventEmitter.addListener(eventName, (eventProp) => {
+-        callback(eventProp);
+-      });
+-    };
+-    /**
+-     * Toggle the state of HCE service.
+-     *
+-     * This function allows to enable or disable the native component of HCE Service.
+-     * If enabled, the native HostApduService will be recognizable by platform's HCE router.
+-     * If not, service won't be recognized, thus all the interactions between HCE and reader won't be available.
+-     *
+-     * __NOTE:__ Before switching the service on, use the {@link setApplication}
+-     * first to register the content that You want to emulate using HCE.
+-     *
+-     * @param enable True to enable the service, false to disable.
+-     */
+-    this.setEnabled = async (enable) => {
+-      if (!this.application && enable) {
+-        throw new Error("No application set!");
+-      }
+-      await NativeHce.setEnabled(enable);
+-      this.enabled = enable;
+-    };
+-    this.enabled = false;
+-    this.application = null;
+-    this.stateListeners = [];
+-    this.addListener("hceState", this.handleStateUpdate.bind(this));
+-  }
+-  /**
+-   * Gets the instance of HCE Session.
+-   *
+-   * As there is only one HCE Session per application available,
+-   * use this function to get the instance instead of using the constructor.
+-   */
+-  static async getInstance() {
+-    checkPlatform();
+-    if (instance !== null) {
+-      return instance;
+-    }
+-    instance = new _HCESession();
+-    await instance.syncApplication();
+-    return instance;
+-  }
+-  /**
+-   * Internal method for synchronization with native module.
+-   *
+-   * @internal
+-   * @private
+-   * @param incomingEvent Native module event parameter
+-   */
+-  async handleStateUpdate(incomingEvent) {
+-    if (incomingEvent === _HCESession.Events.HCE_STATE_WRITE_FULL) {
+-      await this.syncApplication();
+-    }
+-    this.stateListeners.filter((i) => i !== null).forEach(({ event, listener }) => {
+-      if (event === null || event === incomingEvent) {
+-        listener();
+-      }
+-    });
+-  }
+-  /**
+-   * Adds event listener to the HCE Session.
+-   *
+-   * @param event The event that application should listen to. You should pass the constant from static {@link HCESession.Events} property.
+-   * If null, the listener will respond to all events - that can be usable for logging purposes.
+-   * @param listener The event listener.
+-   * @return Returns the reference to "stop listening" method. To stop listening the event, just call it.
+-   *
+-   * @example
+-   * ```
+-   * import { ToastAndroid } from "react-native"
+-   * import { HCESession } from "react-native-hce"
+-   * ...
+-   * const instance = await HCESession.getInstance();
+-   * const removeListener = instance.on(HCESession.Events.HCE_STATE_READ, () => {
+-   *   ToastAndroid.show("The tag has been read! Thank You.", ToastAndroid.LONG);
+-   *   removeListener();
+-   * };
+-   * ```
+-   */
+-  on(event, listener) {
+-    const index = this.stateListeners.push({ event, listener });
+-    return () => {
+-      this.stateListeners[index] = null;
+-    };
+-  }
+-  /**
+-   * Synchronize the class with current native state.
+-   *
+-   * __NOTE__: You should not use this function normally.
+-   * Internal implementation will call it for You, if needed.
+-   */
+-  async syncApplication() {
+-    const content = await NativeHce.getContent();
+-    if (!content) {
+-      return;
+-    }
+-    const enabled = await NativeHce.getEnabled();
+-    this.application = new NFCTagType4({
+-      type: NFCTagType4.contentTypeFromString(content.type),
+-      content: content.content,
+-      writable: content.writable
+-    });
+-    this.enabled = enabled;
+-  }
+-  /**
+-   * Update the subject application to emulate in HCE.
+-   *
+-   * @param application The application to set, must be instance of HCEApplication.
+-   */
+-  async setApplication(application) {
+-    await NativeHce.setContent(application.content);
+-    this.application = application;
+-  }
+-};
+-/**
+- * Object that contains the events that the application can listen to using ``HCESession.on(...)``.
+- *
+- * Check the {@link HCESessionEvents} interface to get the listing of availble events.
+- *
+- * @example Usage of the property in event listener:
+- * ```
+- * hceSession.on(HCESession.Events.HCE_CONNECTED)
+- * ```
+- */
+-_HCESession.Events = NativeHce.getConstants();
+-var HCESession = _HCESession;
+-
+-// src/HCESessionContext.tsx
+-import React, { createContext, useEffect, useState } from "react";
+-var HCESessionContext = createContext({
+-  session: new HCESession()
+-});
+-var HCESessionProvider = (props) => {
+-  const [session, setSession] = useState();
+-  useEffect(() => {
+-    if (!session) {
+-      HCESession.getInstance().then((instance2) => {
+-        setSession(instance2);
+-      });
+-    }
+-  }, [session, setSession]);
+-  if (!session) {
+-    return null;
+-  }
+-  return /* @__PURE__ */ React.createElement(HCESessionContext.Provider, __spreadValues({ value: { session } }, props));
+-};
+-export {
+-  HCESession,
+-  HCESessionContext,
+-  HCESessionProvider,
+-  NFCTagType4,
+-  NFCTagType4NDEFContentType
+-};
++var __defProp = Object.defineProperty;
++var __getOwnPropSymbols = Object.getOwnPropertySymbols;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __propIsEnum = Object.prototype.propertyIsEnumerable;
++var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
++var __spreadValues = (a, b) => {
++  for (var prop in b || (b = {}))
++    if (__hasOwnProp.call(b, prop))
++      __defNormalProp(a, prop, b[prop]);
++  if (__getOwnPropSymbols)
++    for (var prop of __getOwnPropSymbols(b)) {
++      if (__propIsEnum.call(b, prop))
++        __defNormalProp(a, prop, b[prop]);
++    }
++  return a;
++};
++
++// src/HCESession.ts
++import { NativeEventEmitter, NativeModules, Platform } from "react-native";
++
++// src/NFCTagType4/index.ts
++var NFCTagType4NDEFContentType = /* @__PURE__ */ ((NFCTagType4NDEFContentType2) => {
++  NFCTagType4NDEFContentType2["Text"] = "text";
++  NFCTagType4NDEFContentType2["URL"] = "url";
++  return NFCTagType4NDEFContentType2;
++})(NFCTagType4NDEFContentType || {});
++var NFCTagType4 = class {
++  /**
++   * Creates a new instance of NFCTagType4 containing an NDEF message.
++   * @param props Props of the tag
++   *
++   * @example
++   * ```
++   * const tag = new NFCTagType4({
++   *   type: NFCTagType4NDEFContentType.Text,
++   *   content: "Hello NFC World!",
++   *   writable: false
++   * });
++   * ...
++   * hceSession.setApplication(tag);
++   * ```
++   */
++  constructor(props) {
++    this.type = "NFCTag";
++    this.content = __spreadValues({}, props);
++  }
++  /**
++   * Maps the string to {@link NFCTagType4NDEFContentType}.
++   *
++   * @param type
++   */
++  static contentTypeFromString(type) {
++    switch (type) {
++      case "text":
++        return "text" /* Text */;
++      case "url":
++        return "url" /* URL */;
++      default:
++        throw new Error("Unknown type");
++    }
++  }
++  /**
++   * Maps the {@link NFCTagType4NDEFContentType} to string.
++   *
++   * @param type
++   */
++  static stringFromContentType(type) {
++    switch (type) {
++      case "url" /* URL */:
++        return "url";
++      case "text" /* Text */:
++        return "text";
++      default:
++        throw new Error("Unknown type");
++    }
++  }
++};
++
++// src/HCESession.ts
++var { Hce: NativeHce } = NativeModules;
++var eventEmitter = new NativeEventEmitter(NativeHce);
++var instance = null;
++var checkPlatform = () => {
++  if (Platform.OS !== "android") {
++    throw new Error("react-native-hce does not support this platform");
++  }
++};
++var _HCESession = class _HCESession {
++  /**
++   * Creates the instance of HCE Session class.
++   *
++   * __NOTE!!!: Do not use this constructor directly. Use {@link getInstance} to get the appropriate and synchronized instance.__
++   */
++  constructor() {
++    /**
++     * Adds the listener to an event.
++     *
++     * @internal
++     */
++    this.addListener = (eventName, callback) => {
++      return eventEmitter.addListener(eventName, (eventProp) => {
++        callback(eventProp);
++      });
++    };
++    /**
++     * Toggle the state of HCE service.
++     *
++     * This function allows to enable or disable the native component of HCE Service.
++     * If enabled, the native HostApduService will be recognizable by platform's HCE router.
++     * If not, service won't be recognized, thus all the interactions between HCE and reader won't be available.
++     *
++     * __NOTE:__ Before switching the service on, use the {@link setApplication}
++     * first to register the content that You want to emulate using HCE.
++     *
++     * @param enable True to enable the service, false to disable.
++     */
++    this.setEnabled = async (enable) => {
++      if (!this.application && enable) {
++        throw new Error("No application set!");
++      }
++      await NativeHce.setEnabled(enable);
++      this.enabled = enable;
++    };
++    this.enabled = false;
++    this.application = null;
++    this.stateListeners = [];
++    this.addListener("hceState", this.handleStateUpdate.bind(this));
++  }
++  /**
++   * Gets the instance of HCE Session.
++   *
++   * As there is only one HCE Session per application available,
++   * use this function to get the instance instead of using the constructor.
++   */
++  static async getInstance() {
++    checkPlatform();
++    if (instance !== null) {
++      return instance;
++    }
++    instance = new _HCESession();
++    await instance.syncApplication();
++    return instance;
++  }
++  /**
++   * Internal method for synchronization with native module.
++   *
++   * @internal
++   * @private
++   * @param incomingEvent Native module event parameter
++   */
++  async handleStateUpdate(incomingEvent) {
++    if (incomingEvent === _HCESession.Events.HCE_STATE_WRITE_FULL) {
++      await this.syncApplication();
++    }
++    this.stateListeners.filter((i) => i !== null).forEach(({ event, listener }) => {
++      if (event === null || event === incomingEvent) {
++        listener();
++      }
++    });
++  }
++  /**
++   * Adds event listener to the HCE Session.
++   *
++   * @param event The event that application should listen to. You should pass the constant from static {@link HCESession.Events} property.
++   * If null, the listener will respond to all events - that can be usable for logging purposes.
++   * @param listener The event listener.
++   * @return Returns the reference to "stop listening" method. To stop listening the event, just call it.
++   *
++   * @example
++   * ```
++   * import { ToastAndroid } from "react-native"
++   * import { HCESession } from "react-native-hce"
++   * ...
++   * const instance = await HCESession.getInstance();
++   * const removeListener = instance.on(HCESession.Events.HCE_STATE_READ, () => {
++   *   ToastAndroid.show("The tag has been read! Thank You.", ToastAndroid.LONG);
++   *   removeListener();
++   * };
++   * ```
++   */
++  on(event, listener) {
++    const index = this.stateListeners.push({ event, listener }) - 1;
++    return () => {
++      this.stateListeners[index] = null;
++    };
++  }
++  /**
++   * Synchronize the class with current native state.
++   *
++   * __NOTE__: You should not use this function normally.
++   * Internal implementation will call it for You, if needed.
++   */
++  async syncApplication() {
++    const content = await NativeHce.getContent();
++    if (!content) {
++      return;
++    }
++    const enabled = await NativeHce.getEnabled();
++    this.application = new NFCTagType4({
++      type: NFCTagType4.contentTypeFromString(content.type),
++      content: content.content,
++      writable: content.writable
++    });
++    this.enabled = enabled;
++  }
++  /**
++   * Update the subject application to emulate in HCE.
++   *
++   * @param application The application to set, must be instance of HCEApplication.
++   */
++  async setApplication(application) {
++    await NativeHce.setContent(application.content);
++    this.application = application;
++  }
++};
++/**
++ * Object that contains the events that the application can listen to using ``HCESession.on(...)``.
++ *
++ * Check the {@link HCESessionEvents} interface to get the listing of availble events.
++ *
++ * @example Usage of the property in event listener:
++ * ```
++ * hceSession.on(HCESession.Events.HCE_CONNECTED)
++ * ```
++ */
++_HCESession.Events = NativeHce.getConstants();
++var HCESession = _HCESession;
++
++// src/HCESessionContext.tsx
++import React, { createContext, useEffect, useState } from "react";
++var HCESessionContext = createContext({
++  session: new HCESession()
++});
++var HCESessionProvider = (props) => {
++  const [session, setSession] = useState();
++  useEffect(() => {
++    if (!session) {
++      HCESession.getInstance().then((instance2) => {
++        setSession(instance2);
++      });
++    }
++  }, [session, setSession]);
++  if (!session) {
++    return null;
++  }
++  return /* @__PURE__ */ React.createElement(HCESessionContext.Provider, __spreadValues({ value: { session } }, props));
++};
++export {
++  HCESession,
++  HCESessionContext,
++  HCESessionProvider,
++  NFCTagType4,
++  NFCTagType4NDEFContentType
++};

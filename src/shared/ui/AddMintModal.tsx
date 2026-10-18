@@ -1,6 +1,7 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Image, Text, YStack, XStack, Spinner, Paragraph, View, useTheme } from 'tamagui';
+import { Text, YStack, XStack, Spinner, Paragraph, View, useTheme } from 'tamagui';
 import {
   Check,
   AlertCircle,
@@ -303,8 +304,9 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
             borderWidth={1}
             borderColor="$borderColor"
           >
-            {previewInfo.icon && !previewIconFailed ? (
-              <Image
+            {!previewIconFailed ? (
+              <MintImage
+                mintUrl={previewInfo.mintUrl}
                 source={{ uri: previewInfo.icon }}
                 width={76}
                 height={76}

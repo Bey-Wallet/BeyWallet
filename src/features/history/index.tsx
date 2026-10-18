@@ -1,3 +1,5 @@
+import { AnimatedLegendList } from '@legendapp/list/animated';
+const HistoryList = AnimatedLegendList as typeof import('@legendapp/list/react-native').LegendList;
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
@@ -15,7 +17,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   View as RNView,
-  FlatList,
   ScrollView,
   Animated,
 } from 'react-native';
@@ -570,7 +571,8 @@ export function HistoryScreen({
           )}
         </YStack>
       ) : (
-        <Animated.FlatList
+        <HistoryList
+          recycleItems={false}
           data={flatItems}
           keyExtractor={(item, i) =>
             item.kind === 'header'

@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack, Separator } from 'tamagui';
 import { ChevronDown, Pencil, ArrowUpDown } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { InputSheet, type InputSheetRef } from '~/shared/ui/InputSheet';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -24,20 +25,23 @@ export function RequestAmountEditor({
   onChange: (amount: number) => void;
 }) {
   const sheet = useRef<AppBottomSheetRef>(null);
+  const insets = useSafeAreaInsets();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+  const fiatEnabled = secondaryCurrency !== 'NONE';
   const [mode, setMode] = useState<'SATS' | 'FIAT'>('SATS');
   const [draft, setDraft] = useState('0');
   const [draftSats, setDraftSats] = useState(0);
   const { data } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    enabled: fiatEnabled,
     staleTime: 30000,
   });
   const price = data?.price;
-  const hasPrice = !!price && Number.isFinite(price) && price > 0;
+  const hasPrice = fiatEnabled && !!price && Number.isFinite(price) && price > 0;
   const displayAmount = paymentAmounts(
     amount,
-    primaryCurrency,
+    fiatEnabled ? primaryCurrency : 'SATS',
     secondaryCurrency,
     showBitcoinSymbol,
     price,
@@ -57,7 +61,7 @@ export function RequestAmountEditor({
     sheet.current?.present();
   };
   const toggleMode = () => {
-    if (!hasPrice || !valid) return;
+    if (!hasPrice || !Number.isSafeInteger(sats) || sats < 0) return;
     setDraft(
       mode === 'SATS'
         ? currencyService.convertSatsToCurrency(sats, price!).toFixed(2)
@@ -66,6 +70,13 @@ export function RequestAmountEditor({
     setMode(mode === 'SATS' ? 'FIAT' : 'SATS');
   };
   const symbol = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '';
+  const equivalent = paymentAmounts(
+    sats,
+    mode,
+    secondaryCurrency,
+    showBitcoinSymbol,
+    hasPrice ? price : undefined,
+  ).secondary;
   const save = () => {
     if (!valid || disabled) return;
     sheet.current?.dismiss();
@@ -80,9 +91,9 @@ export function RequestAmountEditor({
         onPress={open}
         rightContent={!disabled ? <Pencil size={16} color="$gray10" /> : undefined}
       />
-      <AppBottomSheet ref={sheet}>
-        <YStack px="$4" pt="$3" gap="$3">
-          <Text fontSize={20} fontWeight="600" color="$color">
+      <AppBottomSheet ref={sheet} bottomInset={insets.bottom}>
+        <YStack px="$4" pt="$3" pb="$4" gap="$3">
+          <Text fontSize="$4" text="center" fontWeight="500" color="$color">
             Request amount
           </Text>
           <Text
@@ -93,23 +104,27 @@ export function RequestAmountEditor({
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {mode === 'FIAT' ? symbol : ''}
+            {mode === 'FIAT' ? symbol : showBitcoinSymbol ? '₿' : ''}
             {draft}
-            {mode === 'SATS' ? ' SATS' : ''}
+            {mode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
           </Text>
-          <AppPressable
-            accessibilityLabel="Switch amount currency"
-            onPress={toggleMode}
-            disabled={!hasPrice}
-            items="center"
-            minHeight={40}
-            justify="center"
-          >
-            <XStack gap="$2" items="center">
-              <Text color="$gray10">{mode === 'SATS' ? secondaryCurrency : 'SATS'}</Text>
-              <ArrowUpDown size={16} color="$gray10" />
-            </XStack>
-          </AppPressable>
+          {fiatEnabled && (
+            <AppPressable
+              accessibilityLabel="Switch amount currency"
+              onPress={toggleMode}
+              disabled={!hasPrice}
+              items="center"
+              minHeight={40}
+              justify="center"
+            >
+              <XStack gap="$2" items="center">
+                <Text color="$gray10">
+                  {equivalent ? `≈ ${equivalent}` : 'Conversion unavailable'}
+                </Text>
+                {hasPrice && <ArrowUpDown size={16} color="$gray10" />}
+              </XStack>
+            </AppPressable>
+          )}
           <NumericKeypad
             showAmountDisplay={false}
             showConfirmButton={false}

@@ -25,6 +25,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { nfcService } from '~/services/platform/nfcService';
 import { nfcFlow } from './nfcFlow';
+import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
 const stateIcons = {
   ready: NfcIcon,
@@ -60,7 +61,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const queryClient = useQueryClient();
   useEffect(() => {
     nfcFlow.setReady(walletReady && settingsReady && (!biometric || authenticated));
+    nfcReceiveCoordinator.setReady(walletReady && settingsReady && (!biometric || authenticated));
   }, [walletReady, settingsReady, biometric, authenticated]);
+  useEffect(() => {
+    const stop = nfcReceiveCoordinator.subscribe(() => nfcFlow.resumeRequest());
+    return () => {
+      stop();
+      nfcReceiveCoordinator.setReady(false);
+    };
+  }, []);
   useEffect(() => {
     if (state.visible) ref.current?.present();
     else ref.current?.dismiss();
@@ -77,7 +86,10 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     else if (AppState.currentState === 'background') void nfcFlow.background();
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'background') void nfcFlow.background();
-      else if (next === 'active') nfcFlow.foreground();
+      else if (next === 'active') {
+        nfcFlow.foreground();
+        void nfcReceiveCoordinator.processPending();
+      }
     });
     return () => {
       subscription.remove();

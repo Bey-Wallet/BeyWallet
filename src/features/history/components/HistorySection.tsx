@@ -8,7 +8,7 @@ interface HistorySectionProps {
 }
 
 export const HistorySection: React.FC<HistorySectionProps> = ({ title, children }) => {
-  // When used as a FlashList header (children = null), just render the label
+  // When used as a list header (children = null), just render the label
   if (!children) {
     return (
       <View style={styles.header}>

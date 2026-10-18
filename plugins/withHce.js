@@ -161,7 +161,7 @@ const withHce = (config) => {
 
       const aidListContent = `<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
                    android:description="@string/app_name"
-                   android:requireDeviceUnlock="false">
+                   android:requireDeviceUnlock="true">
   <aid-group android:category="other"
              android:description="@string/app_name">
     <aid-filter android:name="D2760000850101" />

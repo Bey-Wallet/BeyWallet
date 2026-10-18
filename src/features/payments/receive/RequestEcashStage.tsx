@@ -8,7 +8,7 @@ import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useSyncExternalStore, useMemo } from 'react';
 import { YStack, Text } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +23,10 @@ import { matchReceiveRequest } from '~/services/wallet/requestReceiptMatching';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '~/features/payments/send/ResultStage';
+import {
+  nfcReceiveCoordinator,
+  nfcRequestAdvertisement,
+} from '~/services/wallet/nfcReceiveCoordinator';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -111,6 +115,22 @@ export function RequestEcashStage({
   }, [initialRequestId]);
 
   const amtNum = Number(amount);
+  const nfcIncoming = useSyncExternalStore(
+    nfcReceiveCoordinator.subscribe,
+    nfcReceiveCoordinator.getSnapshot,
+    nfcReceiveCoordinator.getSnapshot,
+  );
+  const nfcRequest = useMemo(() => {
+    const request = useNostrRequestStore
+      .getState()
+      .requests.find((entry) => entry.id === currentRequestId);
+    if (!request || targetNpub) return null;
+    try {
+      return nfcRequestAdvertisement(request) ?? null;
+    } catch {
+      return null;
+    }
+  }, [currentRequestId, creqString, requestState, targetNpub]);
 
   const handleGenerate = useCallback(
     async (changes: Partial<RequestDraft> = {}) => {
@@ -387,10 +407,15 @@ export function RequestEcashStage({
     ['contact_required', 'approval_required', 'failed'].includes(incomingPayment.status);
 
   const editDisabled =
-    restored || isGenerating || isSending || !!incomingPayment || requestState !== 'pending';
+    restored ||
+    isGenerating ||
+    isSending ||
+    !!incomingPayment ||
+    requestState !== 'pending' ||
+    nfcIncoming.status !== 'idle';
   useRequestNfc(
     step === 'result' && requestState === 'pending' && !isGenerating && !incomingPayment
-      ? creqString
+      ? nfcRequest
       : null,
   );
   const header = (
@@ -443,14 +468,14 @@ export function RequestEcashStage({
                 )
               }
             </PaymentQRFrame>
-            {creqString && <RequestNfcBadge />}
+            {creqString && !targetNpub && <RequestNfcBadge />}
           </>
         }
         footer={
           <AppButton
             size="large"
             fullWidth
-            disabled={isGenerating || isSending}
+            disabled={isGenerating || isSending || nfcIncoming.status === 'receiving'}
             loading={isGenerating || isSending}
             onPress={handleReset}
           >
@@ -490,7 +515,13 @@ export function RequestEcashStage({
           />
           {creqString && (
             <PaymentStatusRow
-              value={paymentStatus}
+              value={
+                nfcIncoming.status === 'receiving'
+                  ? 'Receiving NFC payment…'
+                  : nfcIncoming.status === 'review'
+                    ? 'Review NFC payment'
+                    : paymentStatus
+              }
               onRefresh={handleCheckStatus}
               checking={isChecking}
             />
@@ -515,6 +546,16 @@ export function RequestEcashStage({
           >
             Review payment
           </AppButton>
+        )}
+        {nfcIncoming.status === 'review' && (
+          <YStack gap="$2">
+            <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+              {nfcIncoming.message}
+            </Text>
+            <AppButton emphasis="secondary" onPress={() => void nfcReceiveCoordinator.retry()}>
+              Review NFC payment
+            </AppButton>
+          </YStack>
         )}
         {!!generateError && !isGenerating && !restored && (
           <AppButton emphasis="secondary" onPress={() => handleGenerate(failedDraft.current)}>

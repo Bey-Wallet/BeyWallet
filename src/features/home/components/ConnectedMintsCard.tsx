@@ -1,7 +1,8 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, YStack, XStack, H6, Image, styled, Separator } from 'tamagui';
+import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
 import { Plus, Landmark } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
@@ -99,21 +100,17 @@ const MintRowItem = React.memo(
     return (
       <RowContainer onPress={() => onPress(mint.mintUrl)}>
         <XStack items="center" gap="$2.5" flex={1} mr="$0">
-          {!mint.icon ? (
-            <View width={40} height={40} justify="center" bg="$color5" rounded={8} items="center">
-              <Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />
-            </View>
-          ) : (
-            <Image
-              src={mint.icon}
-              width={40}
-              height={40}
-              alt={displayName}
-              borderRadius={8}
-              borderColor={isActive ? '$green10' : '$borderColor'}
-              borderWidth={isActive ? 2 : 1}
-            />
-          )}
+          <MintImage
+            mintUrl={mint.mintUrl}
+            src={mint.icon}
+            width={40}
+            height={40}
+            alt={displayName}
+            borderRadius={8}
+            borderColor={isActive ? '$green10' : '$borderColor'}
+            borderWidth={mint.icon ? (isActive ? 2 : 1) : 0}
+            fallback={<Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />}
+          />
 
           <YStack gap="$0.5" flex={1} theme="gray">
             <XStack items="center" gap="$1.5" flexWrap="wrap">
@@ -170,7 +167,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
     metadata?.icon ||
     `${new URL(mint.mintUrl).origin}/favicon.ico`;
 
-  useEffect(() => setIconFailed(false), [iconUrl]);
+  useEffect(() => setIconFailed(false), [mint.mintUrl, iconUrl]);
 
   return (
     <RowContainer>
@@ -185,7 +182,8 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           overflow="hidden"
         >
           {iconUrl && !iconFailed ? (
-            <Image
+            <MintImage
+              mintUrl={mint.mintUrl}
               src={iconUrl}
               width={40}
               height={40}

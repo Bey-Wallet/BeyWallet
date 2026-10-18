@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents, type TagEvent } from 'react-native-nfc-manager';
 import type { HCESession } from 'react-native-hce';
 import { useAuthStore } from '~/state/authStore';
@@ -131,16 +131,22 @@ const stopListening = async () => {
 };
 
 const hceLocks = new WeakMap<HCESession, boolean>();
-const startHceSimulation = async (text: string, { preventAutoLock = true } = {}) => {
+const startHceSimulation = async (
+  text: string,
+  { preventAutoLock = true, requestId = '' } = {},
+) => {
   if (Platform.OS !== 'android') {
     throw new Error('HCE is only supported on Android');
   }
+  if (!isStringSafeForNFC(text)) throw new Error('NFC message is too large');
   const { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } =
     require('react-native-hce') as typeof import('react-native-hce');
 
   const previousLock = useAuthStore.getState().isLockDisabled;
   let startedSession: HCESession | undefined;
   try {
+    if (requestId) await NativeModules.Hce.setRequestSession(requestId);
+    else await NativeModules.Hce?.setRequestSession?.('');
     if (preventAutoLock) useAuthStore.getState().setLockDisabled(true);
 
     // Cancel any active NfcManager reader mode / listeners before enabling HCE session
@@ -150,7 +156,10 @@ const startHceSimulation = async (text: string, { preventAutoLock = true } = {})
     let content = text;
     let contentType = NFCTagType4NDEFContentType.URL;
 
-    if (text.startsWith('http')) {
+    if (requestId) {
+      content = text;
+      contentType = NFCTagType4NDEFContentType.Text;
+    } else if (text.startsWith('http')) {
       content = text;
       contentType = NFCTagType4NDEFContentType.URL;
     } else {
@@ -170,7 +179,7 @@ const startHceSimulation = async (text: string, { preventAutoLock = true } = {})
     const tag = new NFCTagType4({
       type: contentType,
       content,
-      writable: false,
+      writable: !!requestId,
     });
 
     const session = await HCESession.getInstance();
@@ -218,6 +227,16 @@ const isStringSafeForNFC = function (str: string): boolean {
 };
 
 export const nfcService = {
+  pauseRequestSession: async () => {
+    if (Platform.OS === 'android') await NativeModules.Hce.setEnabled(false);
+  },
+  getPendingPayment: async (): Promise<PendingNfcPayment | null> => {
+    if (Platform.OS !== 'android') return null;
+    if (!NativeModules.Hce?.getPendingPayment) return null;
+    return NativeModules.Hce.getPendingPayment();
+  },
+  acknowledgePayment: async (id: string): Promise<boolean> =>
+    NativeModules.Hce.acknowledgePayment(id),
   openPaymentSession,
   init,
   isEnabled,
@@ -227,3 +246,10 @@ export const nfcService = {
   stopListening,
   isStringSafeForNFC,
 };
+
+export interface PendingNfcPayment {
+  id: string;
+  requestId: string;
+  content: string;
+  receivedAt: number;
+}

@@ -93,6 +93,7 @@ export const historyService = {
       // A replay must not reassign an existing receipt to a different sender/event.
       if (historyId && existing.nostrEventId && existing.nostrEventId !== extra?.nostrEventId)
         return;
+      if (historyId && existing.requestId && existing.requestId !== extra?.requestId) return;
       const updated = JSON.stringify({ ...existing, via, ...extra });
       await db.run(`UPDATE coco_cashu_history SET metadata = ? WHERE id = ?`, [updated, row.id]);
     } catch (err) {

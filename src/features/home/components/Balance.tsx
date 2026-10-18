@@ -137,7 +137,9 @@ export default function Balance() {
           >
             {hideBalance
               ? undefined
-              : currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)}
+              : btcData?.price
+                ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)
+                : '—'}
           </RollingNumber>
         )}
       </YStack>
@@ -162,7 +164,9 @@ export default function Balance() {
           style={{ marginTop: 4 }}
         >
           {!hideBalance && displayAsSats
-            ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)
+            ? btcData?.price
+              ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)
+              : '—'
             : undefined}
         </RollingNumber>
       )}

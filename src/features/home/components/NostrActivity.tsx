@@ -1,3 +1,4 @@
+import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
 /**
@@ -14,7 +15,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, H6, Text, View, styled, Image } from 'tamagui';
+import { YStack, XStack, H6, Text, View, styled } from 'tamagui';
 import { X, ArrowUpRight } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
@@ -102,13 +103,14 @@ function SenderAvatar({
 }) {
   const [pictureFailed, setPictureFailed] = useState(false);
 
-  useEffect(() => setPictureFailed(false), [person?.picture]);
+  useEffect(() => setPictureFailed(false), [pubkey, person?.picture]);
 
   return (
     <View position="relative">
       <View width={45} height={45} rounded="$3" overflow="hidden" bg="$gray4">
         {person?.picture && !pictureFailed ? (
-          <Image
+          <RemoteImage
+            identity={pubkey}
             source={{ uri: person.picture }}
             width={45}
             height={45}

@@ -1,8 +1,9 @@
+import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Send } from '@tamagui/lucide-icons';
-import { Image, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { Separator, Text, View, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
@@ -33,7 +34,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
     const subtitle =
       profile.nip05 && profile.nip05 !== label ? profile.nip05 : truncateNpub(profile.npub);
 
-    React.useEffect(() => setPictureFailed(false), [profile.picture]);
+    React.useEffect(() => setPictureFailed(false), [profile.npub, profile.picture]);
 
     return (
       <YStack>
@@ -59,7 +60,8 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               mr="$3"
             >
               {profile.picture && !pictureFailed ? (
-                <Image
+                <RemoteImage
+                  identity={profile.npub}
                   source={{ uri: profile.picture }}
                   width={50}
                   height={50}

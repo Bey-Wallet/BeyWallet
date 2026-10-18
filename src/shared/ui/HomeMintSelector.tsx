@@ -1,3 +1,4 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -11,7 +12,7 @@ import {
   Landmark,
   X,
 } from '@tamagui/lucide-icons';
-import { Text, YStack, XStack, View, Image, Avatar, Square } from 'tamagui';
+import { Text, YStack, XStack, View, Avatar, Square } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
@@ -274,7 +275,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                       <XStack gap="$3" items="center" flex={1} minW={0}>
                         <View
                           bg={mint.trusted ? '$green3' : '$gray3'}
-                          p={mint.icon ? '$0' : '$2'}
+                          p="$0"
                           rounded="$5"
                           overflow="hidden"
                           width={48}
@@ -283,19 +284,21 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
                           items="center"
                           justify="center"
                         >
-                          {mint.icon ? (
-                            <Image
-                              source={{ uri: mint.icon }}
-                              width={48}
-                              height={48}
-                              rounded="$5"
-                              resizeMode="cover"
-                            />
-                          ) : mint.trusted ? (
-                            <ShieldCheck size={20} color="$green10" />
-                          ) : (
-                            <ShieldOff size={20} color="$gray10" />
-                          )}
+                          <MintImage
+                            mintUrl={mint.mintUrl}
+                            source={{ uri: mint.icon }}
+                            width={48}
+                            height={48}
+                            rounded="$5"
+                            resizeMode="cover"
+                            fallback={
+                              mint.trusted ? (
+                                <ShieldCheck size={20} color="$green10" />
+                              ) : (
+                                <ShieldOff size={20} color="$gray10" />
+                              )
+                            }
+                          />
                         </View>
                         <YStack gap="$0.5" flex={1} minW={0}>
                           <XStack items="center" gap="$1.5" minW={0}>
@@ -443,14 +446,12 @@ export default function HomeHeaderMintSelector() {
           <Spinner size={14} color="white" />
         ) : (
           <Avatar rounded="$3" size="$2" flexShrink={0}>
-            <Avatar.Image src={activeMint?.icon} />
-            <Avatar.Fallback
-              backgroundColor="rgba(255,255,255,0.2)"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Sprout size={14} color="white" />
-            </Avatar.Fallback>
+            <MintImage
+              mintUrl={activeMint?.mintUrl}
+              width="100%"
+              height="100%"
+              src={activeMint?.icon}
+            />
           </Avatar>
         )}
 

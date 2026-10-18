@@ -1,9 +1,14 @@
+import { RemoteImage } from '~/shared/ui/RemoteImage';
 import React from 'react';
-import { View, Image } from 'tamagui';
+import { View } from 'tamagui';
 import { ActivityIndicator } from 'react-native';
 import { Sprout } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
-import { fetchMintMeta, deriveFavicon, type MintMetadata } from '~/features/explore/components/mintMeta';
+import {
+  fetchMintMeta,
+  deriveFavicon,
+  type MintMetadata,
+} from '~/features/explore/components/mintMeta';
 
 interface MintIconProps {
   url: string;
@@ -30,7 +35,7 @@ export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
   React.useEffect(() => {
     setImgError(false);
     setFaviconError(false);
-  }, [primaryIcon]);
+  }, [url, primaryIcon]);
 
   const showLoading = isLoading && !primaryIcon && !hintIcon;
   const showPrimary = !!primaryIcon && !imgError;
@@ -52,13 +57,13 @@ export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
       {showLoading ? (
         <ActivityIndicator size="small" color="#888" />
       ) : showPrimary ? (
-        <Image
+        <RemoteImage
           source={{ uri: primaryIcon, width: size, height: size }}
           style={{ width: size, height: size, borderRadius: radius }}
           onError={() => setImgError(true)}
         />
       ) : showFavicon ? (
-        <Image
+        <RemoteImage
           source={{ uri: favicon, width: size, height: size }}
           style={{ width: size, height: size, borderRadius: radius }}
           onError={() => setFaviconError(true)}
