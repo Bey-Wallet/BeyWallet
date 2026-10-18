@@ -396,7 +396,7 @@ export function PendingTokenLayout({
         }
       >
         {(!hideDetails || currentToken.startsWith('http')) && (
-          <ListTable>
+          <ListTable compact>
             <PaymentStatusRow
               value={
                 headerStatus === 'success'

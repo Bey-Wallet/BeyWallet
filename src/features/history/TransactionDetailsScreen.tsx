@@ -938,7 +938,7 @@ export function TransactionDetailsScreen() {
             </YStack>
 
             {/* Details table */}
-            <ListTable bg="$gray2" rounded="$6" overflow="hidden">
+            <ListTable compact bg="$gray2" rounded="$6" overflow="hidden">
               <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
                 <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
                 {metadata?.reclaimAt && (
@@ -1146,7 +1146,13 @@ export function TransactionDetailsScreen() {
           </YStack>
         </ScrollView>
         <YStack px="$4" pt="$3" pb="$4" bg="$background">
-          <AppButton size="large" fullWidth onPress={() => router.back()}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="large"
+            fullWidth
+            onPress={() => router.back()}
+          >
             Done
           </AppButton>
         </YStack>

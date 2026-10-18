@@ -254,7 +254,7 @@ export function OnchainMintFlow() {
             </AppButton>
           }
         >
-          <ListTable>
+          <ListTable compact>
             <PaymentMintRow
               mintUrl={activeMintUrl || ''}
               onSelect={setMintUrl}

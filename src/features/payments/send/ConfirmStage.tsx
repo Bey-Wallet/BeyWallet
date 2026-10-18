@@ -59,7 +59,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
           </AppButton>
         }
       >
-        <ListTable>
+        <ListTable compact>
           <PaymentMintRow
             method={
               sendMode === 'p2pk' || (sendMode === 'nostr' && props.useP2PK) ? 'p2pk' : undefined

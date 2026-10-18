@@ -507,7 +507,7 @@ export function RequestEcashStage({
             {generateError}
           </Text>
         )}
-        <ListTable>
+        <ListTable compact>
           <RequestAmountEditor
             amount={amtNum}
             disabled={editDisabled}

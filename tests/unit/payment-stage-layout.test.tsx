@@ -11,7 +11,7 @@ import {
 } from '~/shared/ui/PaymentStatusIcon';
 
 const mockRouter = { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn() };
-jest.mock('tamagui', () => ({ YStack: 'YStack', ScrollView: 'ScrollView' }));
+jest.mock('tamagui', () => ({ YStack: 'YStack', ScrollView: 'ScrollView', Text: 'Text' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   ChevronLeft: 'ChevronLeft',
@@ -74,7 +74,13 @@ it('configures a disabled stack chevron with the local stage back action', async
   const onBack = jest.fn();
   const tree = await render(<PaymentFlowHeader title="Confirm request" onBack={onBack} disabled />);
   const options = tree.root.findByType('StackScreen' as any).props.options;
-  expect(options.headerTitle).toBe('Confirm request');
+  expect(options.title).toBe('Confirm request');
+  const titleTree = await render(options.headerTitle());
+  const title = titleTree.root.findByType('Text' as any);
+  expect(title.props.children).toBe('Confirm request');
+  expect(title.props.fontFamily).toBe('$body');
+  expect(title.props.fontWeight).toBe('500');
+  await act(async () => titleTree.unmount());
   expect(options.headerBackVisible).toBe(false);
   const button = options.headerLeft();
   expect(button.props.disabled).toBe(true);

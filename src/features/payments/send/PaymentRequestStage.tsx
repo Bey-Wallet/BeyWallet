@@ -300,7 +300,7 @@ export function PaymentRequestStage({
         }
       >
         {request.description && (
-          <ListTable>
+          <ListTable compact>
             <ListTableRow label="Description" value={request.description} multiline />
           </ListTable>
         )}
@@ -338,7 +338,7 @@ export function PaymentRequestStage({
         {(receipt || hasOperation) && (
           <Text color="$gray10">Payment pending. Do not pay this request again.</Text>
         )}
-        <ListTable bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+        <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
           {(receipt || hasOperation) && (
             <PaymentStatusRow
               value={receipt === 'awaiting' ? 'Awaiting recipient' : 'Unconfirmed'}
@@ -385,7 +385,7 @@ export function PaymentRequestStage({
             />
             {request.nostrTarget && (
               <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontSize="$3" color="$gray10" fontWeight="600">
+                <Text fontFamily="$body" fontSize="$3" color="$gray10" fontWeight="400">
                   Recipient
                 </Text>
                 <XStack gap="$2" items="center">
@@ -397,7 +397,8 @@ export function PaymentRequestStage({
                   />
                   <Text
                     fontSize="$3"
-                    fontWeight="800"
+                    fontFamily="$body"
+                    fontWeight="500"
                     color="$color"
                     numberOfLines={1}
                     style={{ maxWidth: 180 }}

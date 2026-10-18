@@ -168,10 +168,11 @@ it('replaces payment controls and QR when the invoice expires', async () => {
 it('keeps the invoice available after an unsuccessful payment check', async () => {
   const onPaid = jest.fn().mockRejectedValue(new Error('Not paid'));
   const tree = await render(<PaymentStage {...paymentProps} onPaid={onPaid} />);
-  await act(async () => button(tree, 'Check payment').props.onPress());
+  const refresh = () => tree.root.findByProps({ label: 'Status' }).props.rightContent;
+  await act(async () => refresh().props.onPress());
   expect(onPaid).toHaveBeenCalledTimes(1);
   expect(mockToastShow).toHaveBeenCalledWith(expect.any(String), { kind: 'info' });
-  expect(button(tree, 'Check payment').props.loading).toBe(false);
+  expect(refresh().props.loading).toBe(false);
   expect(tree.root.findByProps({ label: 'Invoice' }).props.disabled).toBe(false);
   await act(async () => tree.unmount());
 });
@@ -189,6 +190,8 @@ it('keeps technical errors behind details and closes through the existing callba
   await act(async () => button(tree, 'View details').props.onPress());
   expect(errorNodes()).toHaveLength(1);
   expect(button(tree, 'Hide details').props.accessibilityState.expanded).toBe(true);
+  expect(button(tree, 'Done').props.emphasis).toBe('secondary');
+  expect(button(tree, 'Done').props.variant).toBe('default');
   await act(async () => button(tree, 'Done').props.onPress());
   expect(onClose).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());

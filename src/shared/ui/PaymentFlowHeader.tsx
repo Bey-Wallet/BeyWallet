@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft } from '@tamagui/lucide-icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
 
 export function PaymentFlowHeader({
   title,
@@ -18,7 +19,8 @@ export function PaymentFlowHeader({
   return (
     <Stack.Screen
       options={{
-        headerTitle: title,
+        title,
+        headerTitle: () => <ModalHeaderTitle>{title}</ModalHeaderTitle>,
         headerTitleAlign: 'center',
         headerBackVisible: false,
         headerLeft: () => (

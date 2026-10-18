@@ -65,12 +65,18 @@ export function PendingOnchainLayout({
           </>
         }
         footer={
-          <AppButton size="large" fullWidth onPress={onClose}>
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            size="large"
+            fullWidth
+            onPress={onClose}
+          >
             Done
           </AppButton>
         }
       >
-        <ListTable>
+        <ListTable compact>
           <ListTableRow label="Mint" value={mint} />
           <PaymentStatusRow
             value={deposit ? (amount > 0 ? 'Payment detected' : 'Awaiting payment') : 'Pending'}

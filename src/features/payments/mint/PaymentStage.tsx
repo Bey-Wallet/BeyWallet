@@ -148,7 +148,7 @@ export function PaymentStage({
           </YStack>
 
           <YStack width="100%" gap="$2">
-            <ListTable>
+            <ListTable compact>
               <ListTableRow label="Mint" value={mintDisplayName} />
               <PaymentStatusRow
                 value={isExpired ? 'Expired' : 'Awaiting payment'}
@@ -197,6 +197,8 @@ export function PaymentStage({
           size="large"
           fullWidth
           disabled={isChecking}
+          variant={isExpired ? 'default' : 'branded'}
+          emphasis={isExpired ? 'secondary' : 'primary'}
           onPress={isExpired ? onCancel : handleCopy}
         >
           {isExpired ? 'Close invoice' : 'Copy invoice'}

@@ -1,16 +1,10 @@
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { Stack, useRouter } from 'expo-router';
-import { useTheme, Text } from 'tamagui';
+import { useTheme } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
-
-// Extracted to module scope — never recreated on re-render
-const DefaultHeaderTitle = React.memo(({ children }: { children: string }) => (
-  <Text fontWeight="bold" fontSize={20} color="$color">
-    {children}
-  </Text>
-));
+import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
 
 export default function ModalLayout() {
   const theme = useTheme();
@@ -32,7 +26,7 @@ export default function ModalLayout() {
         headerTitleAlign: 'center',
         headerTintColor: theme.color?.val,
         headerShadowVisible: false,
-        headerTitle: ({ children }) => <DefaultHeaderTitle>{children}</DefaultHeaderTitle>,
+        headerTitle: ({ children }) => <ModalHeaderTitle>{children}</ModalHeaderTitle>,
         headerLeft: () => (
           <AppIconButton
             variant="default"

@@ -85,7 +85,7 @@ export function PendingMintInvoiceLayout({
           </>
         }
       >
-        <ListTable>
+        <ListTable compact>
           <PaymentStatusRow
             value={timeLeft === 0 ? 'Expired' : 'Awaiting payment'}
             checking={isCheckingPaid}

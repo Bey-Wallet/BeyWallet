@@ -206,7 +206,7 @@ export default function SwapScreen() {
               </AppButton>
             }
           >
-            <ListTable>
+            <ListTable compact>
               <PaymentMintRow
                 label="From mint"
                 mintUrl={sourceMintUrl}

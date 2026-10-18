@@ -503,6 +503,7 @@ export function OnchainMeltFlow() {
         completed={false}
         error={errorMsg}
         actionLabel="Try again"
+        actionEmphasis="primary"
         onClose={() => setStep('input')}
       />
     );
@@ -642,7 +643,7 @@ export function OnchainMeltFlow() {
           )}
 
           {/* Details List */}
-          <ListTable bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+          <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
             <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
               <PaymentMintRow
                 mintUrl={activeMintUrl || ''}

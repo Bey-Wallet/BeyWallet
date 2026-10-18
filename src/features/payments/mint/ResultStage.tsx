@@ -151,7 +151,7 @@ export function ResultStage({
             )}
           </YStack>
           {isSuccess && (
-            <ListTable>
+            <ListTable compact>
               {mintUrl && <ListTableRow label="Mint" value={mintDisplayName} />}
               <ListTableRow label="Time" value={resultTime} />
               {hasFee && <ListTableRow label="Fee" value={currencyService.formatSats(feeSats)} />}
@@ -162,6 +162,8 @@ export function ResultStage({
 
       <YStack pt="$3" pb="$4" bg="$background">
         <AppButton
+          variant="default"
+          emphasis="secondary"
           size="large"
           fullWidth
           onPress={() => {

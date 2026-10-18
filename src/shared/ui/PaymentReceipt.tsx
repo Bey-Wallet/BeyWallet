@@ -18,6 +18,7 @@ export function PaymentReceipt({
   status,
   inset,
   actionLabel = 'Done',
+  actionEmphasis = 'secondary',
   time,
   fee,
   error,
@@ -30,6 +31,7 @@ export function PaymentReceipt({
   completed: boolean;
   inset?: boolean;
   actionLabel?: string;
+  actionEmphasis?: 'primary' | 'secondary';
   status?: 'success' | 'error' | 'pending' | 'cancelled';
   time?: number;
   fee?: number;
@@ -78,13 +80,19 @@ export function PaymentReceipt({
         </>
       }
       footer={
-        <AppButton size="large" fullWidth onPress={onClose}>
+        <AppButton
+          variant={actionEmphasis === 'secondary' ? 'default' : 'branded'}
+          emphasis={actionEmphasis}
+          size="large"
+          fullWidth
+          onPress={onClose}
+        >
           {actionLabel}
         </AppButton>
       }
     >
       <PaymentFlowHeader title={title} onBack={onClose} />
-      <ListTable>
+      <ListTable compact>
         {mintUrl && (
           <ListTableRow
             label="Mint"

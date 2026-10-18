@@ -232,7 +232,7 @@ export function ConfirmStage({
         >
           {isSavingLater ? 'Saving...' : 'Claim Later'}
         </AppButton>
-        <ListTable>
+        <ListTable compact>
           <ListTableRow
             label="Mint"
             value={getMintDisplayName(tokenInfo.mint)}

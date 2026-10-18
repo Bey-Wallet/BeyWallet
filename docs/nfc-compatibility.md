@@ -59,6 +59,21 @@ The temporary diagnostics UI, native recorder and bridge methods, and dedicated 
 profile have been removed. The UI removal loads through Metro; removing the native
 recorder from an already installed APK requires a rebuilt development client.
 
+## Development APK without diagnostics
+
+[Download Bey 0.2.0 (9)](https://expo.dev/artifacts/eas/qBgJtwJ2j7FfpSYIIdNik4PsYOwk-0l_YKKC70KfT5A.apk)
+([EAS build](https://expo.dev/accounts/thehussein01/projects/bey-wallet/builds/ee1f985a-78af-4b47-8ec1-dd071e4edff9)).
+
+Built from the diagnostics-removal commit `f330e6b` with a clean EAS cache. APK
+inspection verified version code 9, absence of the NFC diagnostics class and bridge
+methods, compiled foreground-routing and durable pending-payment methods, and the
+NDEF AID and HCE registration. Signature verification passed and the signing
+certificate matches build 8, allowing an in-place update without uninstalling or
+clearing wallet data. This is a development client and still connects to Metro.
+
+APK SHA-256: `2d03b2b828774cb5b9f611227c4ea98cea0c86610043a58d32c26384f306139a`.
+Installation and NFC device acceptance of build 9 remain to be performed.
+
 Interrupted-contact/retry, duplicate-payment device acceptance, and other sender/device
 pairings still need device checks. No seeds, key derivation, or recovery semantics
 were changed.

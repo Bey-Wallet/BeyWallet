@@ -1,29 +1,35 @@
 import { AppIconButton } from '~/shared/ui/AppIconButton';
-import React from 'react';
-import { XStack, YStack, Text, Separator, Theme } from 'tamagui';
-import { Copy, ChevronRight, AlertCircle } from '@tamagui/lucide-icons';
+import React, { createContext, useContext } from 'react';
+import { XStack, YStack, Text, Separator } from 'tamagui';
+import { Copy, ChevronRight } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 
+const CompactTableContext = createContext(false);
+
 export function ListTable({
   children,
+  compact = false,
   ...props
 }: {
   children: React.ReactNode;
+  compact?: boolean;
   [key: string]: any;
 }) {
   return (
-    <YStack
-      gap="$0"
-      bg="$gray2"
-      rounded="$6"
-      overflow="hidden"
-      separator={<Separator borderColor="$borderColor" opacity={0.5} />}
-      {...props}
-    >
-      {children}
-    </YStack>
+    <CompactTableContext.Provider value={compact}>
+      <YStack
+        gap="$0"
+        bg="$gray2"
+        rounded="$6"
+        overflow="hidden"
+        separator={<Separator borderColor="$borderColor" opacity={0.5} />}
+        {...props}
+      >
+        {children}
+      </YStack>
+    </CompactTableContext.Provider>
   );
 }
 
@@ -41,6 +47,7 @@ export function ListTableRow({
   iconAfter,
   rightContent,
   multiline,
+  compact: compactProp,
   disabled = false,
 }: {
   label: string;
@@ -56,9 +63,13 @@ export function ListTableRow({
   iconAfter?: React.ReactNode;
   rightContent?: React.ReactNode;
   multiline?: boolean;
+  compact?: boolean;
   disabled?: boolean;
 }) {
   const toast = useToastController();
+  const inheritedCompact = useContext(CompactTableContext);
+  const compact = compactProp ?? inheritedCompact;
+  const wrap = compact || multiline;
 
   const handleCopy = async () => {
     if (disabled) return;
@@ -77,43 +88,41 @@ export function ListTableRow({
   const hasTrailing = value != null || rightContent || isCopyable || onPress;
 
   const content = (
-    <XStack
-      justify="space-between"
-      items={multiline ? 'flex-start' : 'center'}
-      py="$3"
-      px="$4"
-      gap="$2"
-    >
-      <XStack
-        items={multiline ? 'flex-start' : 'center'}
-        gap="$2"
-        flex={1}
-        flexShrink={1}
-        minWidth={0}
-      >
+    <XStack justify="space-between" items={wrap ? 'flex-start' : 'center'} py="$3" px="$4" gap="$2">
+      <XStack items={wrap ? 'flex-start' : 'center'} gap="$2" flex={1} flexShrink={1} minWidth={0}>
         {Icon && <Icon size={18} color={iconColor || '$gray10'} />}
         <Text
-          fontSize="$4"
+          fontFamily="$body"
+          fontSize={compact ? '$3' : '$4'}
           color={labelColor || '$gray10'}
-          fontWeight="600"
+          fontWeight={compact ? '400' : '600'}
           flex={1}
           flexShrink={1}
-          numberOfLines={multiline ? undefined : 1}
+          numberOfLines={wrap ? undefined : 1}
         >
           {label}
         </Text>
       </XStack>
 
       {hasTrailing && (
-        <XStack gap="$2" items="center" flexShrink={0} justify="flex-end">
+        <XStack
+          gap="$2"
+          items="center"
+          flex={compact ? 2 : undefined}
+          minWidth={compact ? 0 : undefined}
+          flexShrink={wrap ? 1 : 0}
+          justify="flex-end"
+        >
           {typeof value === 'string' || typeof value === 'number' ? (
             <Text
-              fontSize="$4"
+              fontFamily="$body"
+              fontSize={compact ? '$3' : '$4'}
               text="right"
-              fontWeight="600"
+              fontWeight={compact ? '500' : '600'}
               color={valueColor || '$color'}
-              numberOfLines={1}
-              style={{ maxWidth: 200 }}
+              numberOfLines={wrap ? undefined : 1}
+              flexShrink={wrap ? 1 : undefined}
+              style={wrap ? { minWidth: 0 } : { maxWidth: 200 }}
             >
               {value}
             </Text>

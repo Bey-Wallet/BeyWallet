@@ -737,7 +737,7 @@ export default function ProofsModal() {
 
           <AppButton
             variant="default"
-            emphasis="primary"
+            emphasis="secondary"
             size="medium"
             onPress={() => proofActionSheetRef.current?.dismiss()}
           >
@@ -797,7 +797,7 @@ export default function ProofsModal() {
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
-          headerTitle: 'Proof Manager',
+          title: 'Proof Manager',
           headerLeft: () => (
             <AppIconButton
               variant="default"

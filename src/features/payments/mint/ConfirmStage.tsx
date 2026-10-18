@@ -106,7 +106,7 @@ export function ConfirmStage({
             </Text>
           </YStack>
 
-          <ListTable>
+          <ListTable compact>
             {onMintChange ? (
               <PaymentMintRow
                 method="mint-lightning"

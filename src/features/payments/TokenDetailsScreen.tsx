@@ -296,7 +296,7 @@ export default function TokenDetailsModal() {
         </Text>
         <AppButton
           variant="default"
-          emphasis="primary"
+          emphasis="secondary"
           size="large"
           width="100%"
           onPress={() => router.back()}

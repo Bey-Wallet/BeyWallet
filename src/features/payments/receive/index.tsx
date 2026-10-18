@@ -482,7 +482,7 @@ export function ReceiveModalScreen() {
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
-          headerTitle: headerTitle,
+          title: headerTitle,
           headerBackTitle: 'Back',
         }}
       />

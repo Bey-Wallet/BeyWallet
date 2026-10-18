@@ -39,7 +39,7 @@ export default function MeltScreen() {
   if (mode === 'onchain') {
     return (
       <YStack flex={1} bg="$background" px="$4">
-        <Stack.Screen options={{ headerTitle: 'On-Chain Send' }} />
+        <Stack.Screen options={{ title: 'On-Chain Send' }} />
         <OnchainMeltFlow />
       </YStack>
     );
@@ -510,7 +510,7 @@ export default function MeltScreen() {
               </AppButton>
             }
           >
-            <ListTable>
+            <ListTable compact>
               <PaymentMintRow
                 method="melt-lightning"
                 mintUrl={activeMintUrl || ''}

@@ -26,7 +26,7 @@ import {
 } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
 import * as Haptics from 'expo-haptics';
-import { YStack, H4 } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -775,7 +775,7 @@ export function SendModalScreen() {
     <YStack flex={1} bg="$background" px={step === 'amount' ? '$4' : 0}>
       <Stack.Screen
         options={{
-          headerTitle: () => <H4 fontWeight="bold">{headerTitle}</H4>,
+          title: headerTitle,
 
           headerRight: () => (
             <AppIconButton
