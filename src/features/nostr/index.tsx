@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, ScrollView, Input, Separator } from 'tamagui';
-import { ActivityIndicator, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
 import { AtSign, CheckCircle, XCircle, Globe, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
@@ -315,7 +316,7 @@ export function NostrUsernameScreen() {
   // ─── Check icon ─────────────────────────────────────────────────────────
   const CheckIcon = () => {
     if (!input || !isValidFormat) return null;
-    if (checkState === 'checking') return <ActivityIndicator size="small" color="#888" />;
+    if (checkState === 'checking') return <Spinner size="small" color="#888" />;
     if (checkState === 'available') return <CheckCircle size={20} color="$green10" />;
     if (checkState === 'taken') return <XCircle size={20} color="$red10" />;
     return null;
@@ -347,7 +348,7 @@ export function NostrUsernameScreen() {
         {/* Processing Overlay loader */}
         {isDeleting && (
           <YStack bg="rgba(0,0,0,0.4)" p="$4" rounded="$4" items="center" gap="$2">
-            <ActivityIndicator size="large" color="#FFD700" />
+            <Spinner size="large" color="#FFD700" />
             <Text color="white" fontWeight="600">
               Deleting from Nostr Relays...
             </Text>

@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, H2, View, ScrollView, Circle } from 'tamagui';
-import { Animated, Easing } from 'react-native';
+import { Animated } from 'react-native';
 import { CheckCircle2, AlertCircle, Clock, Zap } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import type { MintRestoreEntry } from '~/state/walletStore';
@@ -11,41 +12,6 @@ interface RestoreProgressStepProps {
   isRestoring: boolean;
   totalRestoredSats: number;
   onDone: () => void;
-}
-
-// ── Spinner for active mint ──────────────────────────────────────────────────
-
-function SpinnerIcon() {
-  const rotation = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, []);
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <View
-        width={22}
-        height={22}
-        rounded={99999}
-        borderWidth={2.5}
-        borderColor="$blue9"
-        borderTopColor="transparent"
-      />
-    </Animated.View>
-  );
 }
 
 // ── Mint row card ────────────────────────────────────────────────────────────
@@ -91,7 +57,7 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
       >
         {/* Status icon */}
         <View width={28} items="center" justify="center">
-          {isActive && <SpinnerIcon />}
+          {isActive && <Spinner size={22} color="$blue9" />}
           {isDone && (
             <Animated.View style={{ transform: [{ scale: statusAnim }] }}>
               <CheckCircle2 size={22} color="$green9" />

@@ -6,7 +6,6 @@ import {
   Text,
   YStack,
   XStack,
-  Spinner,
   Paragraph,
   View,
   useTheme,

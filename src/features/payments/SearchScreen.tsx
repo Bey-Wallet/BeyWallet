@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';

@@ -1,8 +1,9 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, Input, ScrollView } from 'tamagui';
 import { AtSign, CheckCircle, XCircle, Globe, Check } from '@tamagui/lucide-icons';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '~/state/settingsStore';
 import { nip19 } from 'nostr-tools';
@@ -144,7 +145,7 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
 
   const CheckIcon = () => {
     if (!input || !isValidFormat) return null;
-    if (checkState === 'checking') return <ActivityIndicator size="small" color="#888" />;
+    if (checkState === 'checking') return <Spinner size="small" color="#888" />;
     if (checkState === 'available') return <CheckCircle size={20} color="$green10" />;
     if (checkState === 'taken') return <XCircle size={20} color="$red10" />;
     return null;
@@ -296,13 +297,7 @@ export function NostrStep({ onComplete, onSkip }: NostrStepProps) {
                 emphasis="primary"
                 size="large"
                 loading={isRegistering}
-                icon={
-                  isRegistering ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Globe size={20} />
-                  )
-                }
+                icon={isRegistering ? <Spinner size="small" color="white" /> : <Globe size={20} />}
                 width="100%"
                 disabled={checkState !== 'available' || isRegistering}
                 onPress={handleClaim}

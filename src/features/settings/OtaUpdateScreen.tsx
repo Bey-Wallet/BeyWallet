@@ -1,6 +1,7 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { YStack, XStack, Text, Spinner, useTheme, View, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, useTheme, View, ScrollView } from 'tamagui';
 import * as Updates from 'expo-updates';
 import {
   DownloadCloud,

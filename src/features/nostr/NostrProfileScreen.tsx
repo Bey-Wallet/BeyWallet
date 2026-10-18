@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, View, Spinner, Separator, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, Separator, ScrollView } from 'tamagui';
 import { Copy, AtSign, RefreshCw, Scan, Check } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';

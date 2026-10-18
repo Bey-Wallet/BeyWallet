@@ -1,3 +1,4 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
 /**
@@ -14,7 +15,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
-import { YStack, XStack, Text, View, Separator, H6, Theme, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, Separator, H6, Theme } from 'tamagui';
 import {
   CheckCircle2,
   AlertCircle,

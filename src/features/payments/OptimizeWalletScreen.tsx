@@ -1,3 +1,4 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -11,7 +12,6 @@ import {
   Separator,
   useTheme,
   H1,
-  Spinner,
   Avatar,
   Square,
 } from 'tamagui';

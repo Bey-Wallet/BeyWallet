@@ -1,3 +1,4 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -6,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
-import { YStack, XStack, Text, View, ZStack, Spinner, Theme } from 'tamagui';
+import { YStack, XStack, Text, View, ZStack, Theme } from 'tamagui';
 import { X, Zap, ZapOff, RefreshCcw } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';

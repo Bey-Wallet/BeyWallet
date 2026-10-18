@@ -1,10 +1,11 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import React, { useCallback, useRef, useState } from 'react';
 import { DeviceEventEmitter, Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClipboardPaste, Search, X } from '@tamagui/lucide-icons';
-import { Input, Spinner, Text, XStack, YStack } from 'tamagui';
+import { Input, Text, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';

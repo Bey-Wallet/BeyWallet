@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { RemoteImage } from '~/shared/ui/RemoteImage';
 import React from 'react';
 import { View } from 'tamagui';
-import { ActivityIndicator } from 'react-native';
+
 import { Sprout } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -55,7 +56,7 @@ export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
       shrink={0}
     >
       {showLoading ? (
-        <ActivityIndicator size="small" color="#888" />
+        <Spinner size="small" color="#888" />
       ) : showPrimary ? (
         <RemoteImage
           source={{ uri: primaryIcon, width: size, height: size }}

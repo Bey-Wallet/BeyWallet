@@ -2,7 +2,7 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
-import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import {
   X,
   Clipboard,

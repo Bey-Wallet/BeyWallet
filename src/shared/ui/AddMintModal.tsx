@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Text, YStack, XStack, Spinner, Paragraph, View, useTheme } from 'tamagui';
+import { Text, YStack, XStack, Paragraph, View, useTheme } from 'tamagui';
 import {
   Check,
   AlertCircle,

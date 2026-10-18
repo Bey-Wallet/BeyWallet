@@ -1,3 +1,4 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
 import {
@@ -36,7 +37,7 @@ import { consolidationService } from '~/services/wallet';
 import { proofService } from '~/services/wallet';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { ActivityIndicator, Alert, DevSettings, Linking } from 'react-native';
+import { Alert, DevSettings, Linking } from 'react-native';
 import { walletFileService } from '~/services/platform/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
@@ -385,7 +386,7 @@ export function SettingsScreen() {
           title: 'Export wallet data',
           subTitle:
             'Download a dump of your wallet. You can restore your wallet from this file in the welcome screen of a new wallet. This file will be out of sync if you keep using your wallet after exporting it.',
-          icon: isExporting ? ActivityIndicator : ArrowUpFromLine,
+          icon: isExporting ? Spinner : ArrowUpFromLine,
           disabled: isExporting,
         },
         {
@@ -468,7 +469,7 @@ export function SettingsScreen() {
           id: 'verify-dleq',
           title: 'Verify Proofs (Offline)',
           subTitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
-          icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
+          icon: isVerifyingDleq ? Spinner : ShieldCheck,
           disabled: isVerifyingDleq,
         },
         {

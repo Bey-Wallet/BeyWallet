@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, View, ScrollView, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import {
   ShieldCheck,
   ShieldOff,
