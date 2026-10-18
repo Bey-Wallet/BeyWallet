@@ -6,7 +6,6 @@ import { nfcService } from '~/services/platform/nfcService';
 import NfcIcon from '~/shared/icons/NfcIcon';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
-import { NfcDiagnosticsControl } from './NfcDiagnosticsControl';
 
 export function useRequestNfc(request: string | null) {
   useFocusEffect(
@@ -74,7 +73,6 @@ export function RequestNfcBadge() {
           </Text>
         </XStack>
       </AppPressable>
-      {__DEV__ ? <NfcDiagnosticsControl /> : null}
     </XStack>
   );
 }

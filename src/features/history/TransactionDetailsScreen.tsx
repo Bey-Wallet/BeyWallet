@@ -929,9 +929,11 @@ export function TransactionDetailsScreen() {
               </Text>
               <PaymentAmount amount={displayedAmount} compact />
               {receivingFeeNotice && (
-                <Text accessibilityRole="alert" fontSize={13} color="$gray11" textAlign="center">
-                  {receivingFeeNotice}
-                </Text>
+                <XStack p="$2" bg="$gray3" rounded="$6">
+                  <Text accessibilityRole="alert" fontSize={13} color="$gray10" textAlign="center">
+                    {receivingFeeNotice}
+                  </Text>
+                </XStack>
               )}
             </YStack>
 

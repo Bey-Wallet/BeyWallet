@@ -4,7 +4,7 @@ const { spawnSync } = require('child_process');
 const output = path.resolve('.tmp/hce-tests');
 fs.mkdirSync(output, { recursive: true });
 // Android/lifecycle adapters for JVM tests. Production service, application selection,
-// file transport and diagnostics are compiled unchanged; no Android SDK is needed.
+// and file transport are compiled unchanged; no Android SDK is needed.
 const stubs = {
   'android/app/Activity.java': `package android.app;
     public class Activity { public boolean resumed = true; public boolean isResumed() { return resumed; } }`,
@@ -33,8 +33,6 @@ const stubs = {
       }
       public boolean unsetPreferredService(android.app.Activity activity) { preferred = null; return true; }
     }`,
-  'android/os/Build.java': `package android.os;
-    public class Build { public static final String MODEL="test"; public static class VERSION { public static final String RELEASE="16"; } }`,
   'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
   'com/facebook/react/bridge/ReactMethod.java':
     'package com.facebook.react.bridge; public @interface ReactMethod {}',
@@ -80,13 +78,9 @@ const stubs = {
   'android/content/Context.java': `package android.content;
     public class Context {
       public Context getApplicationContext() { return this; }
-      public android.content.pm.ApplicationInfo getApplicationInfo() { return new android.content.pm.ApplicationInfo(); }
       public android.content.pm.PackageManager getPackageManager() { return new android.content.pm.PackageManager(); }
     }`,
-  'android/content/pm/ApplicationInfo.java': `package android.content.pm;
-    public class ApplicationInfo { public static final int FLAG_DEBUGGABLE = 2; public int flags = 2; }`,
   'android/os/Bundle.java': 'package android.os; public class Bundle {}',
-  'android/util/Log.java': 'package android.util; public class Log {}',
   'android/nfc/cardemulation/HostApduService.java': `package android.nfc.cardemulation;
     public abstract class HostApduService extends android.content.Context {
       public void onCreate() {} public void onDestroy() {}
@@ -151,7 +145,6 @@ for (const [name, args] of [
       output,
       ...stubPaths,
       ...[
-        'Diagnostics.java',
         'HceModule.java',
         'IHCEApplication.java',
         'utils/BinaryUtils.java',

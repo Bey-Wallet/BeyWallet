@@ -227,16 +227,6 @@ const isStringSafeForNFC = function (str: string): boolean {
 };
 
 export const nfcService = {
-  getDiagnostics: async (): Promise<NfcDiagnostics | null> => {
-    if (!__DEV__ || Platform.OS !== 'android') return null;
-    if (!NativeModules.Hce?.getDiagnostics) return null;
-    return NativeModules.Hce.getDiagnostics();
-  },
-  clearDiagnostics: async (): Promise<void> => {
-    if (__DEV__ && Platform.OS === 'android') {
-      await NativeModules.Hce?.clearDiagnostics?.();
-    }
-  },
   pauseRequestSession: async () => {
     if (Platform.OS === 'android') await NativeModules.Hce.setEnabled(false);
   },
@@ -256,12 +246,6 @@ export const nfcService = {
   stopListening,
   isStringSafeForNFC,
 };
-
-export interface NfcDiagnostics {
-  report: string;
-  androidVersion: string;
-  deviceModel: string;
-}
 
 export interface PendingNfcPayment {
   id: string;
