@@ -22,6 +22,7 @@ import { CurrencyModal } from '~/features/settings/components/CurrencyModal';
 import { NotificationsModal } from '~/features/settings/components/NotificationsModal';
 import { BiometricModal } from '~/features/settings/components/BiometricModal';
 import { MintModal } from '~/features/settings/components/MintModal';
+import { GetChangeSheet } from '~/features/settings/components/GetChangeSheet';
 import { SettingSection } from '~/features/settings/components/SettingSection';
 import { DeleteWalletSheet } from '~/features/settings/components/DeleteWalletSheet';
 import { SettingSectionConfig } from '~/features/settings/components/types';
@@ -59,6 +60,7 @@ export function SettingsScreen() {
   const themeSheetRef = useRef<AppBottomSheetRef>(null);
   const currencySheetRef = useRef<AppBottomSheetRef>(null);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
+  const changeSheetRef = useRef<AppBottomSheetRef>(null);
   const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
   const biometricSheetRef = useRef<AppBottomSheetRef>(null);
   const deleteSheetRef = useRef<AppBottomSheetRef>(null);
@@ -121,6 +123,9 @@ export function SettingsScreen() {
         break;
       case 'consolidate':
         router.push('/(modals)/optimize-wallet');
+        break;
+      case 'get-change':
+        changeSheetRef.current?.present();
         break;
       case 'verify-dleq':
         handleVerifyDleq();
@@ -223,6 +228,7 @@ export function SettingsScreen() {
         counters: state.counters,
         history: state.history,
         mintQuotes: state.mintQuotes,
+        changeOperations: state.changeOperations,
         defaultMintUrl,
         secondaryCurrency,
         theme,
@@ -280,6 +286,7 @@ export function SettingsScreen() {
                 counters: backup.counters,
                 history: backup.history,
                 mintQuotes: backup.mintQuotes,
+                changeOperations: backup.changeOperations,
               };
               const { backupService } = require('~/services/wallet/backupService');
               await backupService.importState(backupState);
@@ -466,6 +473,12 @@ export function SettingsScreen() {
           icon: Sparkles,
         },
         {
+          id: 'get-change',
+          title: 'Get change',
+          subTitle: 'Prepare smaller coins for offline payments',
+          icon: RefreshCw,
+        },
+        {
           id: 'verify-dleq',
           title: 'Verify Proofs (Offline)',
           subTitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
@@ -536,6 +549,7 @@ export function SettingsScreen() {
         <ThemeModal ref={themeSheetRef} />
         <CurrencyModal ref={currencySheetRef} />
         <MintModal ref={mintSheetRef} />
+        <GetChangeSheet ref={changeSheetRef} />
         <NotificationsModal ref={notificationsSheetRef} />
         <BiometricModal ref={biometricSheetRef} />
 

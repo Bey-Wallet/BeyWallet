@@ -1,7 +1,7 @@
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import React, { useState, useCallback } from 'react';
 import { InteractionManager, Alert } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -31,7 +31,6 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
-import { CloudOff, Cloud } from '@tamagui/lucide-icons';
 import * as Network from 'expo-network';
 import { useToastController } from '@tamagui/toast';
 
@@ -102,23 +101,7 @@ export function SendModalScreen() {
   const executionLock = React.useRef(false);
   const [reviewReady, setReviewReady] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined);
-  const [isHardwareOffline, setIsHardwareOffline] = useState(false);
-  const [forceOffline, setForceOffline] = useState(false);
-  const isOffline = isHardwareOffline || forceOffline;
-
-  React.useEffect(() => {
-    const checkNetwork = async () => {
-      try {
-        const state = await Network.getNetworkStateAsync();
-        setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
-      } catch (e) {
-        setIsHardwareOffline(false);
-      }
-    };
-    checkNetwork();
-    const interval = setInterval(checkNetwork, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  const isOffline = useOfflineStatus();
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -134,32 +117,23 @@ export function SendModalScreen() {
 
   // Auto-select Nostr mode + pre-fill recipient when coming from person-details
   React.useEffect(() => {
-    const checkOfflineMode = async () => {
-      try {
-        const state = await Network.getNetworkStateAsync();
-        const offline = !state.isConnected || state.isInternetReachable === false;
-        if (offline && (params.mode === 'nostr' || params.mode === 'scan')) {
-          Alert.alert(
-            'You are offline',
-            `${params.mode === 'nostr' ? 'Nostr Send' : 'Scan & Pay'} is not available offline. Switched to Standard Mode.`,
-          );
-          setSendMode('standard');
-          return;
-        }
-      } catch (e) {
-        console.warn('[SendModalScreen] Network check error:', e);
-      }
-
-      if (params.mode === 'nostr' && params.to) {
-        setSendMode('nostr');
-        setNostrRecipientNpub(params.to as string);
-        setNostrRecipientUsername(params.username ? String(params.username) : '');
-      } else if (params.mode) {
-        setSendMode(params.mode as SendMode);
-      }
-    };
-    checkOfflineMode();
-  }, [params.mode, params.to, params.username, isHardwareOffline]);
+    if (executionLock.current) return;
+    if (isOffline && (params.mode === 'nostr' || params.mode === 'scan')) {
+      Alert.alert(
+        'You are offline',
+        'This payment method requires a connection. Switched to Standard Mode.',
+      );
+      setSendMode('standard');
+      return;
+    }
+    if (params.mode === 'nostr' && params.to) {
+      setSendMode('nostr');
+      setNostrRecipientNpub(params.to as string);
+      setNostrRecipientUsername(params.username ? String(params.username) : '');
+    } else if (params.mode) {
+      setSendMode(params.mode as SendMode);
+    }
+  }, [params.mode, params.to, params.username, isOffline]);
 
   const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
     if (!params.paymentRequest) return null;
@@ -756,29 +730,6 @@ export function SendModalScreen() {
       <Stack.Screen
         options={{
           title: headerTitle,
-
-          headerRight: () => (
-            <AppIconButton
-              variant={isOffline ? 'critical' : 'default'}
-              emphasis="tertiary"
-              size="xsmall"
-              icon={isOffline ? CloudOff : Cloud}
-              accessibilityLabel={isOffline ? 'Switch to online mode' : 'Switch to offline mode'}
-              accessibilityState={{ checked: isOffline }}
-              accessibilityRole="switch"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                const nextForceOffline = !forceOffline;
-                setForceOffline(nextForceOffline);
-                if (nextForceOffline) {
-                  toast.show('Offline mode enabled; using local ecash', { kind: 'info' });
-                } else {
-                  toast.show('Online mode enabled', { kind: 'info' });
-                }
-              }}
-              disabled={isHardwareOffline || isProcessing || nostrSending}
-            />
-          ),
         }}
       />
       {step === 'payment_request' && activeParsedRequest && (

@@ -4,6 +4,21 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+- In Settings, open **Get change**, select a trusted mint, and review the whole available
+  balance, mint fee, and resulting balance. Cancel or change mints and verify that reserved
+  coins are released without changing the home mint. Empty balances, unsupported restore,
+  and fees consuming the balance must block creation with an explanation.
+- Prepare change on a small balance online. Confirm the resulting amount equals the
+  reviewed balance minus the fee and History contains no artificial payment pair. Enable
+  airplane mode and create several exact small ecash amounts without a mode toggle.
+- Interrupt Get change after submission and restart. Reconnect and use Retry in the same
+  mint's sheet if recovery is still pending. Verify that the original operation completes
+  once, without a second fee or releasing potentially spent inputs. Export/import a wallet
+  backup containing an unfinished change operation and verify that it remains recoverable.
+- While reviewing a send, switch connectivity off and on and resume the app from the
+  background. Offline behavior must follow connectivity automatically. Change connectivity
+  during submission and verify that an executing payment is never replaced or restarted.
+
 - Check Lightning and on-chain top-ups/payments, bearer ecash, encrypted links, P2PK,
   locked/unlocked Nostr sends, requests, swaps, NFC, pending payments, and reopened receipts.
 - Check a small display and large text in light/dark themes. Confirm that the amount,

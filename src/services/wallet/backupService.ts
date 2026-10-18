@@ -1,4 +1,5 @@
 import { initService } from '~/services/wallet';
+import { parseChangeOperation } from '~/storage/sqlite/repositories/ChangeOperationRepository';
 
 export interface WalletState {
   mints: any[];
@@ -9,6 +10,7 @@ export interface WalletState {
   mintQuotes: any[];
   meltOperations: any[];
   sendOperations: any[];
+  changeOperations?: any[];
 }
 
 export const backupService = {
@@ -20,44 +22,49 @@ export const backupService = {
     const repo = initService.getRepo();
     const db = (repo as any).db;
 
-    console.log('[BackupService] Exporting full wallet state...');
+    // Keep input reservations, output counters, and maintenance journals in one snapshot.
+    return db.transaction(async (db: any) => {
+      console.log('[BackupService] Exporting full wallet state...');
 
-    // 1. Fetch all mints
-    const mints = await db.all('SELECT * FROM coco_cashu_mints');
+      // 1. Fetch all mints
+      const mints = await db.all('SELECT * FROM coco_cashu_mints');
 
-    // 2. Fetch all keysets
-    const keysets = await db.all('SELECT * FROM coco_cashu_keysets');
+      // 2. Fetch all keysets
+      const keysets = await db.all('SELECT * FROM coco_cashu_keysets');
 
-    // 3. Fetch all proofs (ready and inflight)
-    const proofs = await db.all('SELECT * FROM coco_cashu_proofs');
+      // 3. Fetch all proofs (ready and inflight)
+      const proofs = await db.all('SELECT * FROM coco_cashu_proofs');
 
-    // 4. Fetch all counters
-    const counters = await db.all('SELECT * FROM coco_cashu_counters');
+      // 4. Fetch all counters
+      const counters = await db.all('SELECT * FROM coco_cashu_counters');
 
-    // 5. Fetch all history entries
-    const history = await db.all('SELECT * FROM coco_cashu_history');
+      // 5. Fetch all history entries
+      const history = await db.all('SELECT * FROM coco_cashu_history');
 
-    // 6. Fetch all mint quotes (not just pending)
-    const mintQuotes = await db.all('SELECT * FROM coco_cashu_mint_quotes');
+      // 6. Fetch all mint quotes (not just pending)
+      const mintQuotes = await db.all('SELECT * FROM coco_cashu_mint_quotes');
 
-    // 7. Fetch send/melt operations (for pending status recovery)
-    const sendOperations = await db.all('SELECT * FROM coco_cashu_send_operations');
-    const meltOperations = await db.all('SELECT * FROM coco_cashu_melt_operations');
+      // 7. Fetch send/melt operations (for pending status recovery)
+      const sendOperations = await db.all('SELECT * FROM coco_cashu_send_operations');
+      const meltOperations = await db.all('SELECT * FROM coco_cashu_melt_operations');
+      const changeOperations = await db.all('SELECT * FROM bey_change_operations');
 
-    console.log(
-      `[BackupService] Export complete: ${proofs.length} proofs, ${mints.length} mints, ${history.length} history items.`,
-    );
+      console.log(
+        `[BackupService] Export complete: ${proofs.length} proofs, ${mints.length} mints, ${history.length} history items.`,
+      );
 
-    return {
-      mints,
-      keysets,
-      proofs,
-      counters,
-      history,
-      mintQuotes,
-      sendOperations,
-      meltOperations,
-    };
+      return {
+        mints,
+        keysets,
+        proofs,
+        counters,
+        history,
+        mintQuotes,
+        sendOperations,
+        meltOperations,
+        changeOperations,
+      };
+    });
   },
 
   /**
@@ -215,6 +222,15 @@ export const backupService = {
           await tx.run(
             `INSERT OR IGNORE INTO coco_cashu_melt_operations (${keys}) VALUES (${placeholders})`,
             values,
+          );
+        }
+        for (const op of state.changeOperations || []) {
+          if (!op.id || !op.mintUrl || !op.data)
+            throw new Error('Invalid change operation in backup.');
+          parseChangeOperation(op);
+          await tx.run(
+            'INSERT INTO bey_change_operations (id, mintUrl, state, data, createdAt) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING',
+            [op.id, op.mintUrl, op.state, op.data, op.createdAt],
           );
         }
       });

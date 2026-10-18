@@ -16,6 +16,7 @@ const mockWallet = {
 };
 const mockParams = {};
 let mockOffline = false;
+let mockNetworkListener: (state: any) => void = () => {};
 const mockAvailableProofs = jest.fn();
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select: (s: typeof mockWallet) => unknown) => select(mockWallet),
@@ -63,6 +64,10 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('expo-network', () => ({
+  addNetworkStateListener: (listener: (state: any) => void) => {
+    mockNetworkListener = listener;
+    return { remove: jest.fn() };
+  },
   getNetworkStateAsync: async () => ({
     isConnected: !mockOffline,
     isInternetReachable: !mockOffline,
@@ -233,8 +238,8 @@ it('never falls back to bearer ecash when an enabled lock goes offline', async (
   const tree = await open();
   await act(async () => confirm(tree).setReceiverPubkey('public-key'));
   await act(async () => confirm(tree).setLockEcash(true));
-  const screen = tree.root.findByType('Screen' as any);
-  await act(async () => screen.props.options.headerRight().props.onPress());
+  expect(tree.root.findByType('Screen' as any).props.options.headerRight).toBeUndefined();
+  await act(async () => mockNetworkListener({ isConnected: false, isInternetReachable: false }));
   expect(confirm(tree).ready).toBe(false);
   expect(confirm(tree).error).toContain('Go online');
   await act(async () => confirm(tree).onConfirm());

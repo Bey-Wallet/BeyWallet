@@ -419,6 +419,20 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '019_change_operations',
+    sql: `
+      CREATE TABLE bey_change_operations (
+        id TEXT PRIMARY KEY NOT NULL,
+        mintUrl TEXT NOT NULL,
+        state TEXT NOT NULL,
+        data TEXT NOT NULL,
+        createdAt INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX bey_change_operations_pending_mint ON bey_change_operations(mintUrl)
+        WHERE state IN ('prepared', 'submitted');
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {
