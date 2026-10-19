@@ -22,6 +22,10 @@
 - The Settings profile badge appears only after authoritative NIP-05 verification;
   a missing registration exposes a direct Claim action.
 - Updates use native download progress; Username uses a plain edit form.
+- Recover funds uses a dedicated Settings screen with trusted-mint selection,
+  authentication, live keyset activity, and separate completed/partial/failed results.
+  Mint details opens the same screen. The fixed sheet delay was removed; scan
+  range, seed derivation, and proof handling remain unchanged.
 
 ## Automated validation
 
@@ -33,6 +37,7 @@ yarn check:structure
 yarn check:buttons
 yarn test:ci --runInBand --runTestsByPath tests/unit/settings-navigation.test.tsx tests/unit/settings-protected-value.test.tsx tests/unit/settings-backup-actions.test.tsx tests/unit/get-change-screen.test.tsx tests/unit/app-switch.test.tsx tests/unit/change-backup.test.ts tests/unit/nostr-auto-claim-policy.test.ts tests/unit/nostr-receipt-service.test.ts
 yarn test:ci --runInBand --runTestsByPath tests/unit/nostr-relay-settings.test.ts tests/unit/settings-relay-ui.test.tsx tests/unit/settings-proof-manager.test.tsx tests/unit/settings-profile-status.test.tsx tests/unit/settings-updates.test.tsx
+yarn test:ci --runInBand --runTestsByPath tests/unit/recover-funds-screen.test.tsx tests/unit/wallet-recovery-result.test.ts
 ```
 
 These cover the header export regression, tab return destinations, switch state,
@@ -72,5 +77,9 @@ Use a disposable test wallet for operations that spend, restore, or delete walle
   a disposable wallet, including cancellation of the native share/confirmation UI.
 - Check OTA availability, download progress, retry, and restart in an update-enabled
   build; development builds cannot fully verify the production update flow.
+- In a disposable wallet, open Recover funds from Backup & recovery and mint details.
+  Test one mint and all trusted mints, authentication cancellation, offline/partial
+  failures, retry, duplicate taps, keyset activity, and updated balances without restart.
+  Confirm back navigation stays blocked during recovery and no untrusted mint is scanned.
 - Test wallet deletion only after exporting a test wallet; cancel authentication
   and cancel the review before performing a deliberate confirmed deletion.

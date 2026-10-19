@@ -16,6 +16,7 @@ import { seedService } from '~/services/platform/seedService';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
+export type MintRecoveryResult = 'completed' | 'partial' | 'queued' | 'failed';
 
 export interface MintRestoreEntry {
   mintUrl: string;
@@ -57,7 +58,7 @@ interface WalletState {
   fetchMintInfo: (url: string) => Promise<any>;
   refreshBalance: () => Promise<void>;
   refreshMintList: () => Promise<void>;
-  restoreFromSeed: (mintUrl: string) => Promise<void>;
+  restoreFromSeed: (mintUrl: string) => Promise<MintRecoveryResult>;
   restoreAllMints: (extraMintUrls?: string[]) => Promise<void>;
   setScannerResult: (result: string | null) => void;
   syncMintsToNostr: () => Promise<void>;
@@ -261,25 +262,29 @@ export const useWalletStore = create<WalletState>()(
 
       restoreFromSeed: async (mintUrl: string) => {
         const state = get();
-        if (state.restoreQueue.includes(mintUrl)) return;
+        if (state.restoreQueue.includes(mintUrl)) return 'queued';
 
         set({ restoreQueue: [...state.restoreQueue, mintUrl] });
 
         if (state.isRestoring || state.restoreQueue.length > 1) {
           console.log(`[WalletStore] ${mintUrl} added to background sync queue`);
-          return;
+          return 'queued';
         }
 
+        let result: MintRecoveryResult = 'completed';
         while (get().restoreQueue.length > 0) {
           const nextUrl = get().restoreQueue[0];
+          let timeout: ReturnType<typeof setTimeout> | undefined;
           try {
-            set({ isRestoring: true, restoringMintUrl: nextUrl });
+            set({
+              isRestoring: true,
+              restoringMintUrl: nextUrl,
+              restoringMintKeysetProgress: null,
+            });
 
             // Wait for all React Native animations/sheet transitions to complete
             // before starting heavy restore work — same philosophy as Sovran
             await new Promise<void>((resolve) => InteractionManager.runAfterInteractions(resolve));
-            // Extra buffer so sheet dismiss animation fully completes
-            await new Promise((resolve) => setTimeout(resolve, 1000));
 
             console.log(`[WalletStore] 🔄 Deterministic Restore: ${nextUrl}`);
 
@@ -287,19 +292,23 @@ export const useWalletStore = create<WalletState>()(
             await mintManager.addMint(nextUrl, { trusted: true });
 
             // Perform NIP-06 deterministic restore (10 min safety timeout)
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('Deep restore timed out after 10 minutes')),
-                600000,
-              ),
+            const timeoutPromise = new Promise<never>(
+              (_, reject) =>
+                (timeout = setTimeout(
+                  () => reject(new Error('Deep restore timed out after 10 minutes')),
+                  600000,
+                )),
             );
 
-            await Promise.race([walletService.restore(nextUrl), timeoutPromise]);
+            const report = await Promise.race([walletService.restore(nextUrl), timeoutPromise]);
+            if (nextUrl === mintUrl && report?.partial) result = 'partial';
 
             console.log(`[WalletStore] ✅ Restore complete for: ${nextUrl}`);
           } catch (err: any) {
+            if (nextUrl === mintUrl) result = 'failed';
             console.warn(`[WalletStore] ⚠️ Restore partial/failed for ${nextUrl}:`, err?.message);
           } finally {
+            if (timeout) clearTimeout(timeout);
             // Rescue any valid proofs stuck in 'inflight' state
             await walletService.restoreInflightProofs(nextUrl);
 
@@ -311,12 +320,14 @@ export const useWalletStore = create<WalletState>()(
               restoreQueue: s.restoreQueue.filter((u) => u !== nextUrl),
               isRestoring: false,
               restoringMintUrl: null,
+              restoringMintKeysetProgress: null,
             }));
 
             // Yield before processing next mint in queue
             await new Promise((resolve) => setTimeout(resolve, 300));
           }
         }
+        return result;
       },
 
       untrustMint: async (url: string) => {

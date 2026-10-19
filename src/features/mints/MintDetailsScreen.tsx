@@ -67,7 +67,6 @@ export default function MintDetailsModal() {
     setActiveMint,
     activeMintUrl,
     removeMint,
-    restoreFromSeed,
     isRestoring,
     restoringMintUrl,
   } = useWalletStore();
@@ -100,22 +99,10 @@ export default function MintDetailsModal() {
     }
   };
 
-  const handleRestoreProofs = async () => {
+  const handleRestoreProofs = () => {
     if (!mintUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      toast.show('Checking for unspent proofs on this mint...', { kind: 'loading' });
-      await restoreFromSeed(mintUrl);
-      toast.show('Mint restore check complete', { kind: 'success' });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ['history'] });
-    } catch (e: any) {
-      console.error('[MintDetails] Restore failed:', e);
-      toast.show('Restore Failed: ' + (e.message || 'Error occurred during restore.'), {
-        kind: 'error',
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
+    router.push({ pathname: '/(tabs)/settings/recover-funds', params: { mintUrl } });
   };
 
   const { data: btcData } = useQuery({

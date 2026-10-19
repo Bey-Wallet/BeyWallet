@@ -62,6 +62,7 @@ const expectedRoutes = [
   '(tabs)/settings/proofs.tsx',
   '(tabs)/settings/public-key.tsx',
   '(tabs)/settings/receiving-policy.tsx',
+  '(tabs)/settings/recover-funds.tsx',
   '(tabs)/settings/recovery-phrase.tsx',
   '(tabs)/settings/relays.tsx',
   '(tabs)/settings/restore-backup.tsx',

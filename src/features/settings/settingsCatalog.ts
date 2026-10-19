@@ -15,6 +15,7 @@ import {
   KeyRound,
   Palette,
   RefreshCw,
+  ScanSearch,
   Landmark,
   Network,
   HeartPulse,
@@ -67,6 +68,7 @@ export const settingsCategories = {
     icon: DatabaseBackup,
     items: [
       { path: 'recovery-phrase', title: 'Recovery phrase', icon: ShieldCheck },
+      { path: 'recover-funds', title: 'Recover funds', icon: ScanSearch },
       { path: 'export-backup', title: 'Export wallet backup', icon: FileUp },
       { path: 'restore-backup', title: 'Restore wallet backup', icon: FileDown },
     ],
