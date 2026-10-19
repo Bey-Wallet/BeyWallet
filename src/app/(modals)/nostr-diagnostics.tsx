@@ -1,1 +1,1 @@
-export { default } from '~/features/nostr/NostrDiagnosticsScreen';
+export { default } from '~/features/nostr/NostrSettingsScreen';

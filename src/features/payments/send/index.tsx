@@ -444,10 +444,12 @@ export function SendModalScreen() {
         const { buildEcashNostrEvent } = require('~/shared/utils/ecashSharing');
         const { event } = buildEcashNostrEvent(result.token, secretKeyHex);
         const { SimplePool } = require('nostr-tools');
-        const { RELAYS } = require('~/services/wallet/nostrService');
+        const { getNostrRelays } =
+          require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
         const pool = new SimplePool();
-        await Promise.any(pool.publish(RELAYS, event));
-        pool.close(RELAYS);
+        const relays = getNostrRelays();
+        await Promise.any(pool.publish(relays, event));
+        pool.close(relays);
 
         let websiteUrl = 'https://bey.cash/c/';
         if (__DEV__) {

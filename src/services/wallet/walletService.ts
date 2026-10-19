@@ -683,8 +683,9 @@ export const walletService = {
    *  3. Storing the keys in the SDK's own keysetRepository so getKeyset() works
    *  4. Then calling the SDK restore which now has all keys it needs
    */
-  restore: async (mintUrl: string): Promise<void> => {
+  restore: async (mintUrl: string): Promise<{ partial: boolean }> => {
     const start = Date.now();
+    let partial = false;
     const m = mgr();
     const unsafeManager = m as any;
     console.log(`[WalletService] 🔄 Starting SDK restore for: ${mintUrl}`);
@@ -816,6 +817,7 @@ export const walletService = {
         err?.message?.includes('restore some keysets') ||
         err?.message?.includes('Keyset has no keys')
       ) {
+        partial = true;
         console.warn(
           `[WalletService] ⚠️ Partial restore for ${mintUrl} (some old keysets missing keys, saved proofs are intact):`,
           err?.message,
@@ -831,6 +833,7 @@ export const walletService = {
 
     const duration = ((Date.now() - start) / 1000).toFixed(1);
     console.log(`[WalletService] ✅ Restore done for ${mintUrl} in ${duration}s`);
+    return { partial };
   },
 
   /**

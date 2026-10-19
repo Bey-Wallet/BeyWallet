@@ -1,3 +1,4 @@
+import { amountLabel } from '~/shared/ui/amountLabel';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -51,7 +52,7 @@ export function ResultStage({
       )
     : '—';
   const formattedSats = sats.toLocaleString('en-US');
-  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} SATS`;
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} sat`;
   const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
   const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
 
@@ -114,7 +115,7 @@ export function ResultStage({
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {primaryAmount}
+              {amountLabel(primaryAmount, 44)}
             </Text>
             <Text
               testID="mint-result-secondary-amount"
@@ -122,7 +123,10 @@ export function ResultStage({
               color="$gray10"
               textAlign="center"
             >
-              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
+              {amountLabel(
+                secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`,
+                16,
+              )}
             </Text>
             {/* <Text fontSize={14} lineHeight={21} color="$gray10" textAlign="center" px="$4">
               {isSuccess

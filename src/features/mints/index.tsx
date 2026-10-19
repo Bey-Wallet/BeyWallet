@@ -469,12 +469,12 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 />
               )}
               {auditorMint && auditorMint.balance !== undefined && (
-                <ListTableRow label="Auditor Balance" value={`${auditorMint.balance} sats`} />
+                <ListTableRow label="Auditor Balance" value={`${auditorMint.balance} sat`} />
               )}
               {auditorMint && auditorMint.sum_donations !== undefined && (
                 <ListTableRow
                   label="Auditor Donations"
-                  value={`${auditorMint.sum_donations} sats`}
+                  value={`${auditorMint.sum_donations} sat`}
                 />
               )}
             </ListTable>

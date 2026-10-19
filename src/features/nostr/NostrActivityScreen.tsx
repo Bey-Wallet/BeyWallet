@@ -395,7 +395,15 @@ export default function NostrActivityModal() {
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
                         {detailItem.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {!showBitcoinSymbol && (
+                          <Text
+                            fontSize={18}
+                            color={detailItem.type === 'sent' ? '$red10' : '$color1'}
+                            letterSpacing={0}
+                          >
+                            {' sat'}
+                          </Text>
+                        )}
                       </Text>
                       {fiatValue && (
                         <Text fontSize="$3" color="$gray10">
@@ -419,7 +427,7 @@ export default function NostrActivityModal() {
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
                         {detailItem.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
                     </>
                   )}
@@ -624,7 +632,7 @@ function PendingTab({
                       <Text fontSize={14} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
                       <Text fontSize={10} fontWeight="700" color="$accent10">
                         +{formattedFiat}
@@ -638,7 +646,7 @@ function PendingTab({
                       <Text fontSize={10} fontWeight="700" color="$accent10">
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
                     </>
                   )}
@@ -732,7 +740,7 @@ function ReceivedTab({
                       <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
                       <Text fontSize={11} fontWeight="600" color="$gray10">
                         +{formattedFiat}
@@ -746,7 +754,7 @@ function ReceivedTab({
                       <Text fontSize={11} fontWeight="600" color="$gray10">
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
                     </>
                   )}
@@ -836,7 +844,7 @@ function SentTab({
                     <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
                       -{showBitcoinSymbol ? '₿' : ''}
                       {(entry.amount ?? 0).toLocaleString()}
-                      {showBitcoinSymbol ? '' : ' sats'}
+                      {showBitcoinSymbol ? '' : ' sat'}
                     </Text>
                     <Text fontSize={11} fontWeight="600" color="$gray10">
                       -{formattedFiat}
@@ -850,7 +858,7 @@ function SentTab({
                     <Text fontSize={11} fontWeight="600" color="$gray10">
                       -{showBitcoinSymbol ? '₿' : ''}
                       {(entry.amount ?? 0).toLocaleString()}
-                      {showBitcoinSymbol ? '' : ' sats'}
+                      {showBitcoinSymbol ? '' : ' sat'}
                     </Text>
                   </>
                 )}

@@ -87,8 +87,8 @@ it.each(['SATS', 'FIAT'])(
   'keeps %s primary across payment and success screens',
   async (currency) => {
     mockPrimaryCurrency = currency;
-    const primary = currency === 'SATS' ? '10,000 SATS' : '$10.00';
-    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 SATS';
+    const primary = currency === 'SATS' ? '10,000 sat' : '$10.00';
+    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 sat';
     const payment = await render(<PaymentStage {...paymentProps} />);
     const result = await render(
       <ResultStage
@@ -98,18 +98,24 @@ it.each(['SATS', 'FIAT'])(
         onClose={jest.fn()}
       />,
     );
-    expect(payment.root.findByProps({ testID: 'mint-payment-primary-amount' }).props.children).toBe(
-      primary,
-    );
     expect(
-      payment.root.findByProps({ testID: 'mint-payment-secondary-amount' }).props.children,
+      amountText(
+        payment.root.findByProps({ testID: 'mint-payment-primary-amount' }).props.children,
+      ),
+    ).toBe(primary);
+    expect(
+      amountText(
+        payment.root.findByProps({ testID: 'mint-payment-secondary-amount' }).props.children,
+      ),
     ).toBe(secondary);
-    expect(result.root.findByProps({ testID: 'mint-result-primary-amount' }).props.children).toBe(
-      primary,
-    );
-    expect(result.root.findByProps({ testID: 'mint-result-secondary-amount' }).props.children).toBe(
-      secondary,
-    );
+    expect(
+      amountText(result.root.findByProps({ testID: 'mint-result-primary-amount' }).props.children),
+    ).toBe(primary);
+    expect(
+      amountText(
+        result.root.findByProps({ testID: 'mint-result-secondary-amount' }).props.children,
+      ),
+    ).toBe(secondary);
     expect(
       result.root
         .findAllByType('ListTableRow' as any)
@@ -215,7 +221,7 @@ it.each([undefined, 0, -1, NaN, Infinity, 5])(
     const rows = tree.root.findAllByType('ListTableRow' as any);
     const feeRow = rows.find(({ props }) => props.label === 'Fee');
     if (feeSats === 5) {
-      expect(feeRow?.props.value).toBe('5 SATS');
+      expect(feeRow?.props.value).toBe('5 sat');
     } else {
       expect(feeRow).toBeUndefined();
     }
@@ -225,3 +231,10 @@ it.each([undefined, 0, -1, NaN, Infinity, 5])(
     await act(async () => tree.unmount());
   },
 );
+
+function amountText(value: React.ReactNode): string {
+  if (Array.isArray(value)) return value.map(amountText).join('');
+  if (React.isValidElement<{ children?: React.ReactNode }>(value))
+    return amountText(value.props.children);
+  return value == null ? '' : String(value);
+}

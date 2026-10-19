@@ -127,7 +127,7 @@ export const useNostrInboxStore = create<NostrInboxState>()(
           // The payment is already persisted; contact hydration can retry later.
         }
         console.log(
-          `[NostrInboxStore] Queued incoming: ${item.amount} sats from ${item.senderPubkey.slice(0, 8)}…`,
+          `[NostrInboxStore] Queued incoming: ${item.amount} sat from ${item.senderPubkey.slice(0, 8)}…`,
         );
         return true;
       },

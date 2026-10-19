@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { AppButton } from '~/shared/ui/AppButton';
+import { Text } from 'tamagui';
 export function ReceiveResultStage({
   status,
   amount,
@@ -10,6 +11,7 @@ export function ReceiveResultStage({
   isLoading,
   onClose,
   onClaimNow,
+  offline = false,
 }: {
   status: 'success' | 'error';
   amount: string;
@@ -21,6 +23,7 @@ export function ReceiveResultStage({
   onClose: () => void;
   onClaimNow?: () => void;
   title?: string;
+  offline?: boolean;
 }) {
   const [time] = useState(Date.now);
   const savedOffline =
@@ -47,7 +50,12 @@ export function ReceiveResultStage({
       error={error}
       onClose={onClose}
     >
-      {!complete && onClaimNow && (
+      {!complete && offline && (
+        <Text color="$gray10" fontSize="$3" textAlign="center">
+          Go online to claim this ecash from History.
+        </Text>
+      )}
+      {!complete && !offline && onClaimNow && (
         <AppButton loading={isLoading} disabled={isLoading} onPress={onClaimNow}>
           Claim now
         </AppButton>

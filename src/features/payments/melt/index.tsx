@@ -262,13 +262,13 @@ export default function MeltScreen() {
           }
 
           if (amountSats < minSats) {
-            setError(`Minimum amount is ${minSats} sats`);
+            setError(`Minimum amount is ${minSats} sat`);
             setIsResolvingAddress(false);
             return;
           }
 
           if (amountSats > maxSats) {
-            setError(`Maximum amount is ${maxSats} sats`);
+            setError(`Maximum amount is ${maxSats} sat`);
             setIsResolvingAddress(false);
             return;
           }
@@ -279,7 +279,7 @@ export default function MeltScreen() {
             return;
           }
 
-          console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sats`);
+          console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sat`);
           await resolveAndGetQuote(cleaned, amountSats);
         } catch (err: any) {
           console.error('[MeltScreen] LN address resolution failed:', err);
@@ -305,7 +305,7 @@ export default function MeltScreen() {
       setError(null);
 
       try {
-        console.log(`[MeltScreen] Resolving ${address} for ${amountSats} sats...`);
+        console.log(`[MeltScreen] Resolving ${address} for ${amountSats} sat...`);
         const bolt11 = await requestInvoiceFromLnurl(address, amountSats);
         if (generation !== quoteGeneration.current) return;
         setResolvedInvoice(bolt11);
@@ -363,7 +363,7 @@ export default function MeltScreen() {
         // Check balance sufficiency
         if (quote.amount + quote.fee_reserve > balance) {
           setError(
-            `Insufficient balance. Need ${quote.amount + quote.fee_reserve} sats (${quote.amount} + ${quote.fee_reserve} fee reserve), have ${balance} sats.`,
+            `Insufficient balance. Need ${quote.amount + quote.fee_reserve} sat (${quote.amount} + ${quote.fee_reserve} fee reserve), have ${balance} sat.`,
           );
           setIsGettingQuote(false);
           return;
@@ -532,7 +532,7 @@ export default function MeltScreen() {
             )}
             {totalCost > balance && !error && (
               <Text color="$red10" p="$3">
-                Insufficient balance ({balance} sats available)
+                Insufficient balance ({balance} sat available)
               </Text>
             )}
           </PaymentStageLayout>

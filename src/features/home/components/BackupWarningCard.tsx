@@ -5,7 +5,6 @@ import { AlertTriangle, X } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '~/state/settingsStore';
-import { biometricService } from '~/services/platform/biometricService';
 
 export default function BackupWarningCard() {
   const router = useRouter();
@@ -31,13 +30,10 @@ export default function BackupWarningCard() {
     await setBackupDismissedAt(Date.now());
   };
 
-  const handleNavigate = async () => {
+  const handleNavigate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const authed = await biometricService.authenticateAsync('Authenticate to backup seed phrase');
-    if (authed) {
-      await setBackupDismissedAt(Date.now());
-      router.push('/(modals)/backup-seed');
-    }
+    // The destination authenticates before loading or revealing recovery material.
+    router.push('/(modals)/backup-seed');
   };
 
   return (

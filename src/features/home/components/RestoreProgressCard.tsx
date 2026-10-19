@@ -64,12 +64,12 @@ function MintProgressItem({
             </Text>
             {isDone && entry.restoredBalance > 0 && (
               <Text fontSize="$2" color="$green10" fontWeight="600">
-                Restored +{entry.restoredBalance.toLocaleString()} sats
+                Restored +{entry.restoredBalance.toLocaleString()} sat
               </Text>
             )}
             {isDone && entry.restoredBalance === 0 && (
               <Text fontSize="$2" color="$gray9">
-                0 sats found
+                0 sat found
               </Text>
             )}
             {isError && (

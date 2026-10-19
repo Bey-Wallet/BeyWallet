@@ -88,7 +88,7 @@ export const consolidationService = {
     }
 
     console.log(
-      `[Consolidation] Starting self-swap for ${mintUrl}: ${beforeProofs.length} proofs, ${totalAmount} sats`,
+      `[Consolidation] Starting self-swap for ${mintUrl}: ${beforeProofs.length} proofs, ${totalAmount} sat`,
     );
 
     // Step 1: Send — this locks the proofs into an inflight token
@@ -137,7 +137,7 @@ export const consolidationService = {
     const afterAmount = afterProofs.reduce((s, p) => s + p.amount, 0);
 
     console.log(
-      `[Consolidation] ✅ Done: ${beforeProofs.length} → ${afterProofs.length} proofs, ${totalAmount} → ${afterAmount} sats`,
+      `[Consolidation] ✅ Done: ${beforeProofs.length} → ${afterProofs.length} proofs, ${totalAmount} → ${afterAmount} sat`,
     );
 
     return {

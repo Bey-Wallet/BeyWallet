@@ -15,6 +15,32 @@ const first = nip19.npubEncode('01'.repeat(32));
 const second = nip19.npubEncode('02'.repeat(32));
 
 describe('unified People state', () => {
+  it('unblocks selected blocked people in one persisted update and requires acceptance again', () => {
+    usePeopleStore.setState({ people: {} });
+    usePeopleStore
+      .getState()
+      .savePerson({ npub: first, displayName: 'Alice', contactStatus: 'blocked' });
+    usePeopleStore
+      .getState()
+      .savePerson({ npub: second, displayName: 'Bob', contactStatus: 'blocked' });
+    const accepted = nip19.npubEncode('03'.repeat(32));
+    usePeopleStore.getState().savePerson({ npub: accepted, contactStatus: 'accepted' });
+    jest.mocked(sqliteStorage.setItem).mockClear();
+    usePeopleStore.getState().unblockPeople([first, first, '02'.repeat(32), accepted, 'invalid']);
+    expect(sqliteStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(usePeopleStore.getState().people[first]).toMatchObject({
+      contactStatus: 'unaccepted',
+      requiresAcceptance: true,
+      displayName: 'Alice',
+    });
+    expect(usePeopleStore.getState().people[second]).toMatchObject({
+      contactStatus: 'unaccepted',
+      requiresAcceptance: true,
+    });
+    expect(usePeopleStore.getState().people[accepted].contactStatus).toBe('accepted');
+    expect(Object.keys(usePeopleStore.getState().people)).toHaveLength(3);
+  });
+
   it('migrates contacts and favorites into one deduplicated map', () => {
     const people = migrateLegacyPeople({
       contacts: {

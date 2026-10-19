@@ -97,13 +97,13 @@ export default function SwapScreen() {
     try {
       if (sourceMintUrl === targetMintUrl) {
         // Same-mint swap: simple refresh
-        console.log(`[Swap] Single-mint swapping ${amountNum} sats on ${sourceMintUrl}`);
+        console.log(`[Swap] Single-mint swapping ${amountNum} sat on ${sourceMintUrl}`);
         const token = await walletService.send(sourceMintUrl, amountNum);
         await walletService.receive(token.token as any);
       } else {
         // Cross-mint swap via NUT-19 (Direct Atomic Swap or Optimized Route)
         console.log(
-          `[Swap] Executing NUT-19 cross-mint swap (${amountNum} sats) from ${sourceMintUrl} to ${targetMintUrl}`,
+          `[Swap] Executing NUT-19 cross-mint swap (${amountNum} sat) from ${sourceMintUrl} to ${targetMintUrl}`,
         );
         await quotesService.swapMintToMint(sourceMintUrl, targetMintUrl, amountNum);
       }

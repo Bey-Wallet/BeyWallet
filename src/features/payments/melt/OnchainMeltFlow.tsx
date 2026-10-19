@@ -482,7 +482,8 @@ export function OnchainMeltFlow() {
           On-chain payment
         </Text>
         <Text fontSize="$7" fontWeight="700">
-          {Number(amount).toLocaleString()} SATS
+          {Number(amount).toLocaleString()}
+          <Text fontSize="$4">{' sat'}</Text>
         </Text>
         <Text color="$gray10" textAlign="center">
           {address}
@@ -615,7 +616,7 @@ export function OnchainMeltFlow() {
                       <XStack gap="$3" items="center">
                         <YStack items="flex-end">
                           <Text fontWeight="700" fontSize="$4" color="$color">
-                            {option.fee_reserve} sats
+                            {option.fee_reserve} sat
                           </Text>
                           <Text fontSize="$2" color="$gray10">
                             fee reserve
@@ -662,13 +663,13 @@ export function OnchainMeltFlow() {
               />
               <DetailItem
                 label="Maximum network fee"
-                value={`${selectedFeeReserve} sats`}
+                value={`${selectedFeeReserve} sat`}
                 valueColor="$orange10"
                 icon={<ShieldCheck size={16} color="$orange10" />}
               />
               <DetailItem
                 label="Maximum total"
-                value={`${total.toLocaleString()} sats (≈ ${formattedTotalFiat})`}
+                value={`${total.toLocaleString()} sat (≈ ${formattedTotalFiat})`}
                 valueColor="$accent10"
                 icon={<ShieldCheck size={16} color="$accent10" />}
               />
@@ -716,7 +717,7 @@ export function OnchainMeltFlow() {
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
 
             <AppPressable

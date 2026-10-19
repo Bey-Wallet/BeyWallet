@@ -34,6 +34,7 @@ interface ConfirmStageProps {
   onConfirm: () => void;
   onReceiveLater: () => void;
   onBack: () => void;
+  offline?: boolean;
 }
 
 export function ConfirmStage({
@@ -43,6 +44,7 @@ export function ConfirmStage({
   onConfirm,
   onReceiveLater,
   onBack,
+  offline = false,
 }: ConfirmStageProps) {
   const { mints } = useWalletStore();
   const npub = useSettingsStore((state) => state.npub);
@@ -57,6 +59,10 @@ export function ConfirmStage({
 
   React.useEffect(() => {
     let cancelled = false;
+    if (offline) {
+      setProofStatus('unknown');
+      return;
+    }
     setProofStatus('checking');
     (async () => {
       try {
@@ -82,7 +88,7 @@ export function ConfirmStage({
     return () => {
       cancelled = true;
     };
-  }, [token, statusRefresh]);
+  }, [token, statusRefresh, offline]);
   // ─────────────────────────────────────────────────────────────────
 
   const [expiresAt, setExpiresAt] = React.useState<number | undefined>(undefined);
@@ -143,6 +149,10 @@ export function ConfirmStage({
 
   // Fetch fee for this mint
   React.useEffect(() => {
+    if (offline) {
+      setEstimatedFee(0);
+      return;
+    }
     if (tokenInfo.mint) {
       mintManager
         .getFeePpk(tokenInfo.mint)
@@ -152,7 +162,7 @@ export function ConfirmStage({
         })
         .catch(() => setEstimatedFee(0));
     }
-  }, [tokenInfo.mint, tokenInfo.proofCount]);
+  }, [tokenInfo.mint, tokenInfo.proofCount, offline]);
 
   // Check if mint is trusted
   const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
@@ -193,45 +203,61 @@ export function ConfirmStage({
             variant="branded"
             emphasis="primary"
             size="large"
-            loading={isLoading}
-            loadingText="Receiving ecash…"
+            loading={isLoading || isSavingLater}
+            loadingText={offline ? 'Saving ecash…' : 'Receiving ecash…'}
             disabled={
-              isLoading || isSavingLater || proofStatus === 'checking' || proofStatus === 'spent'
+              isLoading ||
+              isSavingLater ||
+              (!offline && (proofStatus === 'checking' || proofStatus === 'spent'))
             }
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              onConfirm();
+              if (offline) {
+                if (isSavingLater) return;
+                setIsSavingLater(true);
+                Promise.resolve(onReceiveLater()).finally(() => setIsSavingLater(false));
+              } else onConfirm();
             }}
           >
-            {isLoading
-              ? 'Receiving...'
-              : proofStatus === 'spent'
-                ? 'Already spent'
-                : isMintTrusted
-                  ? 'Receive'
-                  : 'Trust & Receive'}
+            {offline
+              ? 'Save & claim later'
+              : isLoading
+                ? 'Receiving...'
+                : proofStatus === 'spent'
+                  ? 'Already spent'
+                  : isMintTrusted
+                    ? 'Receive'
+                    : 'Trust & Receive'}
           </AppButton>
         }
       >
-        <AppButton
-          variant="default"
-          emphasis="text-only"
-          flex={1}
-          size="small"
-          loading={isSavingLater}
-          disabled={isLoading || isSavingLater}
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setIsSavingLater(true);
-            try {
-              await onReceiveLater();
-            } finally {
-              setIsSavingLater(false);
-            }
-          }}
-        >
-          {isSavingLater ? 'Saving...' : 'Claim Later'}
-        </AppButton>
+        {!offline && (
+          <AppButton
+            variant="default"
+            emphasis="text-only"
+            flex={1}
+            size="small"
+            loading={isSavingLater}
+            disabled={isLoading || isSavingLater}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setIsSavingLater(true);
+              try {
+                await onReceiveLater();
+              } finally {
+                setIsSavingLater(false);
+              }
+            }}
+          >
+            {isSavingLater ? 'Saving...' : 'Claim Later'}
+          </AppButton>
+        )}
+        {offline && (
+          <Text color="$gray10" fontSize="$3" textAlign="center">
+            You’re offline. Save this token on your device and claim it from History when you’re
+            online. Your balance won’t change until the mint confirms the claim.
+          </Text>
+        )}
         <ListTable compact>
           <ListTableRow
             label="Mint"
@@ -242,15 +268,17 @@ export function ConfirmStage({
           <ListTableRow
             label="Status"
             value={
-              proofStatus === 'checking'
-                ? 'Checking…'
-                : proofStatus === 'valid'
-                  ? 'Unspent'
-                  : proofStatus === 'spent'
-                    ? 'Already spent'
-                    : proofStatus === 'pending'
-                      ? 'Pending'
-                      : 'Unverified'
+              offline
+                ? 'Unverified · offline'
+                : proofStatus === 'checking'
+                  ? 'Checking…'
+                  : proofStatus === 'valid'
+                    ? 'Unspent'
+                    : proofStatus === 'spent'
+                      ? 'Already spent'
+                      : proofStatus === 'pending'
+                        ? 'Pending'
+                        : 'Unverified'
             }
             valueColor={proofStatus === 'spent' ? '$red10' : undefined}
             rightContent={
@@ -259,19 +287,19 @@ export function ConfirmStage({
                 emphasis="tertiary"
                 size="xxsmall"
                 accessibilityLabel="Refresh status"
-                disabled={isLoading || isSavingLater || proofStatus === 'checking'}
-                loading={proofStatus === 'checking'}
+                disabled={offline || isLoading || isSavingLater || proofStatus === 'checking'}
+                loading={!offline && proofStatus === 'checking'}
                 icon={<RefreshCw size={16} color="$gray10" />}
                 onPress={() => {
-                  if (isLoading || isSavingLater || proofStatus === 'checking') return;
+                  if (offline || isLoading || isSavingLater || proofStatus === 'checking') return;
                   setProofStatus('checking');
                   setStatusRefresh((value) => value + 1);
                 }}
               />
             }
           />
-          {estimatedFee > 0 && (
-            <ListTableRow label="Estimated fee" value={`${estimatedFee} sats`} />
+          {!offline && estimatedFee > 0 && (
+            <ListTableRow label="Estimated fee" value={`${estimatedFee} sat`} />
           )}
           {tokenInfo.p2pkNpub && (
             <ListTableRow
@@ -289,7 +317,9 @@ export function ConfirmStage({
         </ListTable>
         {!isMintTrusted && (
           <Text color="$orange10" fontSize="$2" textAlign="center">
-            Receiving will add and trust this mint.
+            {offline
+              ? 'Saving does not add or trust this mint. Review it when claiming online.'
+              : 'Receiving will add and trust this mint.'}
           </Text>
         )}
       </PaymentStageLayout>

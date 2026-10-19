@@ -1,4 +1,5 @@
 import React from 'react';
+import { amountLabel } from './amountLabel';
 import { Text, YStack } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -14,7 +15,7 @@ export function paymentAmounts(
 ) {
   const bitcoin = bitcoinSymbol
     ? `₿${sats.toLocaleString('en-US')}`
-    : `${sats.toLocaleString('en-US')} SATS`;
+    : `${sats.toLocaleString('en-US')} sat`;
   const fiat =
     price && Number.isFinite(price) && price > 0
       ? currencyService.formatValue(
@@ -73,10 +74,10 @@ export function PaymentAmount({
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {values.primary ?? '—'}
+        {amountLabel(values.primary ?? '—', 44)}
       </Text>
       <Text fontSize={16} color="$gray10" textAlign="center">
-        {values.secondary ? `≈ ${values.secondary}` : 'Conversion unavailable'}
+        {amountLabel(values.secondary ? `≈ ${values.secondary}` : 'Conversion unavailable', 16)}
       </Text>
     </YStack>
   );

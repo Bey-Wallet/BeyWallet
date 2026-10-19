@@ -97,13 +97,13 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
               {entry.restoredBalance.toLocaleString()}
             </Text>
             <Text fontSize="$2" color="$green10">
-              sats
+              sat
             </Text>
           </XStack>
         )}
         {isDone && entry.restoredBalance === 0 && (
           <Text fontSize="$2" color="$gray9">
-            0 sats
+            0 sat
           </Text>
         )}
       </XStack>
@@ -204,7 +204,7 @@ export function RestoreProgressStep({
               {totalRestoredSats.toLocaleString()}
             </Text>
             <Text fontSize="$4" color="$green10" fontWeight="600">
-              sats
+              sat
             </Text>
           </XStack>
         )}

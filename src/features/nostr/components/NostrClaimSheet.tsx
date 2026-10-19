@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { nip19 } from 'nostr-tools';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import Blockies from '~/shared/ui/Blockies';
 import { mintManager } from '~/services/wallet/mintManager';
 import { nostrClaimService, type NostrClaimResult } from '~/services/wallet/nostrClaimService';
@@ -43,6 +44,7 @@ export function NostrClaimSheet() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const presented = useRef(new Set<string>());
   const insets = useSafeAreaInsets();
+  const offline = useOfflineStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mintTrusted, setMintTrusted] = useState<boolean | null>(null);
   const [senderProfile, setSenderProfile] = useState<NostrProfile | null>(null);
@@ -66,7 +68,7 @@ export function NostrClaimSheet() {
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-    enabled: secondaryCurrency !== 'NONE',
+    enabled: !offline && secondaryCurrency !== 'NONE',
     staleTime: 30_000,
   });
 
@@ -131,9 +133,11 @@ export function NostrClaimSheet() {
 
     void Promise.all([
       mintManager.isMintTrusted(activeItem.mintUrl).catch(() => false),
-      nostrProfileService
-        .getProfile(safeNpub(activeItem.senderPubkey), { forceRefresh: true })
-        .catch(() => null),
+      offline
+        ? Promise.resolve(null)
+        : nostrProfileService
+            .getProfile(safeNpub(activeItem.senderPubkey), { forceRefresh: true })
+            .catch(() => null),
     ]).then(([trusted, profile]) => {
       if (cancelled) return;
       setMintTrusted(trusted);
@@ -148,10 +152,10 @@ export function NostrClaimSheet() {
       cancelled = true;
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
-  }, [activeItem, canPresent]);
+  }, [activeItem, canPresent, offline]);
 
   const handleClaim = useCallback(async () => {
-    if (!activeItem || claimStatus === 'claiming') return;
+    if (!activeItem || claimStatus === 'claiming' || offline) return;
     if (!contactAccepted) {
       if (contactBlocked) return;
       await acceptContact(activeItem.senderPubkey);
@@ -171,7 +175,7 @@ export function NostrClaimSheet() {
       setClaimStatus('error');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [activeItem, mintTrusted, claimStatus, contactAccepted, contactBlocked]);
+  }, [activeItem, mintTrusted, claimStatus, contactAccepted, contactBlocked, offline]);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.dismiss();
@@ -327,16 +331,25 @@ export function NostrClaimSheet() {
                   )}
               </>
             )}
+            {offline && claimStatus !== 'success' && (
+              <Text color="$gray10" fontSize="$3">
+                This payment is saved for later. Go online to claim it.
+              </Text>
+            )}
             <XStack width="100%" gap="$3">
               <AppButton
-                variant={claimStatus === 'success' ? 'default' : 'critical'}
+                variant={claimStatus === 'success' || offline ? 'default' : 'critical'}
                 emphasis={claimStatus === 'success' ? 'primary' : 'secondary'}
                 size="large"
                 flex={1}
-                onPress={handleClose}
+                onPress={
+                  offline && claimStatus !== 'success'
+                    ? () => sheetRef.current?.dismiss()
+                    : handleClose
+                }
                 disabled={claimStatus === 'claiming'}
               >
-                {claimStatus === 'success' ? 'Done' : 'Delete'}
+                {claimStatus === 'success' ? 'Done' : offline ? 'Claim later' : 'Delete'}
               </AppButton>
               {claimStatus !== 'success' && (
                 <AppButton
@@ -347,15 +360,17 @@ export function NostrClaimSheet() {
                   onPress={handleClaim}
                   loading={claimStatus === 'claiming'}
                   loadingText="Receiving ecash…"
-                  disabled={claimStatus === 'claiming' || contactBlocked}
+                  disabled={offline || claimStatus === 'claiming' || contactBlocked}
                 >
-                  {!contactAccepted
-                    ? 'Accept contact'
-                    : activeItem.failure?.code === 'receipt_unverified'
-                      ? 'Verify receipt'
-                      : mintTrusted === false
-                        ? 'Trust & Claim'
-                        : 'Try Again'}
+                  {offline
+                    ? 'Claim when online'
+                    : !contactAccepted
+                      ? 'Accept contact'
+                      : activeItem.failure?.code === 'receipt_unverified'
+                        ? 'Verify receipt'
+                        : mintTrusted === false
+                          ? 'Trust & Claim'
+                          : 'Try Again'}
                 </AppButton>
               )}
             </XStack>

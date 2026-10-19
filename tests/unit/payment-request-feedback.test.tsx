@@ -63,7 +63,7 @@ jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: {
     formatValue: () => '$0.01',
     convertSatsToCurrency: () => 0.01,
-    formatSats: (value: number) => `${value} sats`,
+    formatSats: (value: number) => `${value} sat`,
   },
   SUPPORTED_CURRENCIES: [{ code: 'USD', symbol: '$' }],
 }));
@@ -207,7 +207,7 @@ it('requires opt-in for the legacy quote, shows the net amount, and locks the mo
   await act(async () => toggle().props.onValueChange(true));
   expect(mockPreview).toHaveBeenLastCalledWith(nostrRequest, 'https://mint.test', 'exact');
   expect(tree.root.findByProps({ label: 'Recipient receives after fees' }).props.value).toBe(
-    '9 sats',
+    '9 sat',
   );
   expect(
     tree.root

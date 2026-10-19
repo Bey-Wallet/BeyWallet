@@ -1,11 +1,15 @@
+import { SettingsPage, SettingsDescription } from '~/features/settings/components/SettingsLayout';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
+import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
+import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, View, ScrollView, Input, Separator } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import { Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
-import { AtSign, CheckCircle, XCircle, Globe, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
+import { AtSign, CheckCircle, XCircle, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
@@ -127,7 +131,9 @@ async function unregisterUsername(
 
 type CheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
-export function NostrUsernameScreen() {
+export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: boolean }) {
+  const { claim } = useLocalSearchParams<{ claim?: string }>();
+  const [claimFromShortcut, setClaimFromShortcut] = useState(claim === '1');
   const toast = useToastController();
   const router = useRouter();
   const { npub, nsec, nip05, setNip05 } = useSettingsStore();
@@ -136,6 +142,8 @@ export function NostrUsernameScreen() {
   const [checkState, setCheckState] = useState<CheckState>('idle');
   const [isRegistering, setIsRegistering] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  useSettingsBusy(isRegistering || isDeleting);
+  const lookup = useNip05Lookup();
 
   // Editing states
   const [isEditing, setIsEditing] = useState(false);
@@ -160,17 +168,19 @@ export function NostrUsernameScreen() {
       return;
     }
 
+    let cancelled = false;
     setCheckState('checking');
     debounceRef.current = setTimeout(async () => {
       const offline = await networkService.isOffline();
       if (offline) {
-        setCheckState('error');
+        if (!cancelled) setCheckState('error');
         return;
       }
       const result = await checkAvailability(input);
-      setCheckState(result);
+      if (!cancelled) setCheckState(result);
     }, 500);
     return () => {
+      cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [input, isEditing, oldUsername]);
@@ -224,9 +234,12 @@ export function NostrUsernameScreen() {
         setInput('');
         setCheckState('idle');
         setIsEditing(false);
-        setTimeout(() => {
-          router.back();
-        }, 1500);
+        setClaimFromShortcut(false);
+        void lookup.refresh();
+        if (!settingsMode)
+          setTimeout(() => {
+            router.back();
+          }, 1500);
       } else {
         toast.show(result.error || 'Registration failed', { duration: 4000, kind: 'error' });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -343,191 +356,111 @@ export function NostrUsernameScreen() {
   const msg = checkMessage();
 
   return (
-    <ScrollView bg="$background" showsVerticalScrollIndicator={false}>
-      <YStack px="$4" pt="$4" pb="$12" gap="$6">
-        {/* Processing Overlay loader */}
-        {isDeleting && (
-          <YStack bg="rgba(0,0,0,0.4)" p="$4" rounded="$4" items="center" gap="$2">
-            <Spinner size="large" color="#FFD700" />
-            <Text color="white" fontWeight="600">
-              Deleting from Nostr Relays...
-            </Text>
-          </YStack>
-        )}
-
-        {/* Current identifier */}
-        {nip05 && !isEditing ? (
-          <YStack gap="$3">
-            <Text fontWeight="700" fontSize="$5">
-              Your Nostr Address
-            </Text>
-            <YStack bg="$gray2" rounded="$5" overflow="hidden">
-              <XStack px="$4" py="$4" items="center" gap="$3">
-                <View bg="$green3" p="$2" rounded="$10">
-                  <CheckCircle size={20} color="$green10" />
-                </View>
-                <YStack flex={1}>
-                  <Text fontWeight="800" fontSize="$5" color="$green10">
-                    {nip05}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" mt="$0.5">
-                    Your verified Nostr identifier
-                  </Text>
-                </YStack>
-              </XStack>
-              <Separator borderColor="$borderColor" opacity={0.5} />
-              <XStack>
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="medium"
-                  icon={<Copy size={16} color="$gray10" />}
-                  flex={1}
-                  onPress={handleCopyIdentifier}
-                >
-                  Copy
-                </AppButton>
-
-                <Separator vertical borderColor="$borderColor" opacity={0.5} />
-
-                <AppButton
-                  variant="default"
-                  emphasis="text-only"
-                  size="medium"
-                  icon={<Edit3 size={16} color="$blue10" />}
-                  flex={1}
-                  onPress={handleEditStart}
-                >
-                  Edit
-                </AppButton>
-
-                <Separator vertical borderColor="$borderColor" opacity={0.5} />
-
-                <AppButton
-                  variant="critical"
-                  emphasis="secondary"
-                  size="medium"
-                  icon={<Trash2 size={16} color="$red10" />}
-                  flex={1}
-                  onPress={handleDelete}
-                >
-                  Delete
-                </AppButton>
-              </XStack>
-            </YStack>
-          </YStack>
-        ) : (
-          /* ─── Claim / Edit flow ──────────────────────────────────── */
-          <YStack gap="$5">
-            {/* Header */}
-            <YStack gap="$2">
-              <Text fontWeight="800" fontSize="$7">
-                {isEditing ? 'Change Nostr Address' : 'Get a Nostr Address'}
+    <SettingsPage>
+      <SettingsDescription>
+        {isEditing
+          ? 'Choose a new address. Your current address stays active until the replacement is registered.'
+          : 'A free @bey.cash username helps people find you and verify your Nostr identity.'}
+      </SettingsDescription>
+      {nip05 && !isEditing && !claimFromShortcut ? (
+        <>
+          <YStack gap="$2">
+            <XStack items="center" gap="$2">
+              <Text fontSize="$5" fontWeight="500" color="$color" flexShrink={1}>
+                {nip05}
               </Text>
-              <Text color="$gray10" fontSize="$3" lineHeight={20}>
-                {isEditing
-                  ? 'Select a new username. The old mapping will be deleted automatically once successfully changed.'
-                  : `Claim a free username@${DOMAIN} identifier to let others find and verify you on Nostr.`}
-              </Text>
-            </YStack>
-
-            {/* Input */}
-            <YStack gap="$2">
-              <Text fontWeight="700" fontSize="$4">
-                Choose a username
-              </Text>
-              <XStack
-                bg="$gray2"
-                rounded="$4"
-                borderWidth={1}
-                borderColor={
-                  checkState === 'available'
-                    ? '$green8'
-                    : checkState === 'taken'
-                      ? '$red8'
-                      : '$borderColor'
-                }
-                items="center"
-                px="$3"
-                gap="$2"
-              >
-                <AtSign size={18} color="$gray10" />
-                <Input
-                  flex={1}
-                  bg="transparent"
-                  borderWidth={0}
-                  placeholder="yourname"
-                  value={input}
-                  onChangeText={(v) => setInput(v.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="ascii-capable"
-                  fontSize="$5"
-                  fontWeight="600"
-                />
-                <Text color="$gray9" fontSize="$3">
-                  @{DOMAIN}
-                </Text>
-                <CheckIcon />
-              </XStack>
-
-              {msg && (
-                <Text fontSize="$2" color={msg.color as any} mt="$1">
-                  {msg.text}
-                </Text>
+              {lookup.status === 'verified' && lookup.nip05 === nip05 && (
+                <Nip05VerifiedBadge size={18} />
               )}
-            </YStack>
-
-            {/* Claim / Update button */}
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              loading={isRegistering}
-              icon={<Globe size={20} />}
-              disabled={checkState !== 'available' || isRegistering}
-              onPress={handleClaim}
-            >
-              {isRegistering
-                ? isEditing
-                  ? 'Updating Username...'
-                  : 'Claiming Username...'
-                : isEditing
-                  ? 'Update Username'
-                  : 'Claim Username'}
-            </AppButton>
-
-            {/* Cancel Edit Button */}
-            {isEditing && (
-              <AppButton
-                variant="default"
-                emphasis="text-only"
-                size="medium"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setInput('');
-                  setCheckState('idle');
-                  setIsEditing(false);
-                }}
-              >
-                Cancel Edit
-              </AppButton>
-            )}
-
-            {/* Info box */}
-            <YStack bg="$gray2" p="$4" rounded="$4" gap="$2">
-              <Text fontWeight="700" fontSize="$3">
-                What is a Nostr address?
-              </Text>
-              <Text fontSize="$2" color="$gray10" lineHeight={18}>
-                A NIP-05 identifier (like an email address) lets other Nostr users find and verify
-                you. It appears as <Text fontWeight="700">you@{DOMAIN}</Text> in compatible apps.
-                Registration is free and powered by Bey Wallet.
-              </Text>
-            </YStack>
+            </XStack>
+            <Text fontSize="$3" color="$gray10">
+              {lookup.status === 'verified'
+                ? 'Username verified'
+                : lookup.loading
+                  ? 'Checking username…'
+                  : 'Saved username'}
+            </Text>
           </YStack>
-        )}
-      </YStack>
-    </ScrollView>
+          <AppButton
+            icon={Copy}
+            variant="default"
+            emphasis="secondary"
+            disabled={isDeleting}
+            onPress={handleCopyIdentifier}
+          >
+            Copy address
+          </AppButton>
+          <AppButton icon={Edit3} disabled={isDeleting} onPress={handleEditStart}>
+            Change username
+          </AppButton>
+          <AppButton
+            icon={Trash2}
+            variant="critical"
+            emphasis="secondary"
+            loading={isDeleting}
+            onPress={handleDelete}
+          >
+            Delete username
+          </AppButton>
+        </>
+      ) : (
+        <>
+          <YStack gap="$3">
+            <Text fontSize="$5" color="$color" fontWeight="500">
+              Choose a username
+            </Text>
+            <XStack items="center" gap="$2">
+              <Input
+                flex={1}
+                accessibilityLabel="Nostr username"
+                placeholder="yourname"
+                value={input}
+                onChangeText={(value) => setInput(value.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
+                autoCapitalize="none"
+                autoCorrect={false}
+                rounded="$6"
+                editable={!isRegistering}
+                color="$color"
+              />
+              <Text fontSize="$3" color="$gray10">
+                @{DOMAIN}
+              </Text>
+              <CheckIcon />
+            </XStack>
+            {msg && (
+              <Text fontSize="$3" color={msg.color as any} accessibilityLiveRegion="polite">
+                {msg.text}
+              </Text>
+            )}
+          </YStack>
+          <AppButton
+            icon={AtSign}
+            loading={isRegistering}
+            loadingText={isEditing ? 'Updating username…' : 'Claiming username…'}
+            disabled={checkState !== 'available' || isRegistering}
+            onPress={handleClaim}
+          >
+            {isEditing ? 'Update username' : 'Claim username'}
+          </AppButton>
+          {isEditing && (
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              disabled={isRegistering}
+              onPress={() => {
+                setInput('');
+                setCheckState('idle');
+                setIsEditing(false);
+              }}
+            >
+              Cancel
+            </AppButton>
+          )}
+          <SettingsDescription>
+            Your username is public. Your private keys stay on this device.
+          </SettingsDescription>
+        </>
+      )}
+    </SettingsPage>
   );
 }

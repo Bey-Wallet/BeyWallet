@@ -593,6 +593,12 @@ export const initService = {
    */
   destroyWallet: async (): Promise<void> => {
     console.log('[InitService] Destroying wallet...');
+    const { resetMintBackup } =
+      require('./mintBackupService') as typeof import('./mintBackupService');
+    const { useMintBackupStore, mintBackupDefaults } =
+      require('~/state/mintBackupStore') as typeof import('~/state/mintBackupStore');
+    resetMintBackup();
+    useMintBackupStore.setState({ ...mintBackupDefaults, publishing: false });
 
     // These account-scoped stores must not carry acceptance or messages into
     // the next wallet in the same process. Clear while storage is still open.
@@ -610,6 +616,9 @@ export const initService = {
     await initService.cleanup();
 
     // 2. Delete the SQLite databases (both main and restore)
+    const { useNostrRelayStore } =
+      require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
+    useNostrRelayStore.getState().resetRelays();
     try {
       await SQLite.deleteDatabaseAsync('coco_wallet.db');
       console.log('[InitService] Main database deleted');

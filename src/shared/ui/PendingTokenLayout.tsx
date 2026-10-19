@@ -44,6 +44,7 @@ export interface PendingTokenLayoutProps {
   hideActions?: boolean;
   onClaim?: () => void | Promise<void>;
   isClaiming?: boolean;
+  offline?: boolean;
   operationId?: string;
   expiresAt?: number;
   reclaimAt?: number;
@@ -68,6 +69,7 @@ export function PendingTokenLayout({
   hideActions = false,
   onClaim,
   isClaiming = false,
+  offline = false,
   operationId,
   expiresAt,
   reclaimAt,
@@ -236,8 +238,8 @@ export function PendingTokenLayout({
       setLockDisabled(true);
 
       const shareMessage = currentToken.startsWith('http')
-        ? `Claim my ecash send of ${amount} sats:\n\n${currentToken}`
-        : `Claim my ecash send of ${amount} sats:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
+        ? `Claim my ecash send of ${amount} sat:\n\n${currentToken}`
+        : `Claim my ecash send of ${amount} sat:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
 
       await RNShare.share({
         message: shareMessage,
@@ -265,10 +267,12 @@ export function PendingTokenLayout({
       const { event } = buildEcashNostrEvent(cleanToken(currentToken), secretKeyHex);
 
       const { SimplePool } = require('nostr-tools');
-      const { RELAYS } = require('~/services/wallet/nostrService');
+      const { getNostrRelays } =
+        require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
       const pool = new SimplePool();
-      await Promise.any(pool.publish(RELAYS, event));
-      pool.close(RELAYS);
+      const relays = getNostrRelays();
+      await Promise.any(pool.publish(relays, event));
+      pool.close(relays);
 
       const websiteUrl = 'https://bey.cash/c/';
       const shareLink = `${websiteUrl}#${secretKeyHex}`;
@@ -375,9 +379,9 @@ export function PendingTokenLayout({
               fullWidth
               loading={isClaiming}
               onPress={onClaim}
-              disabled={isClaiming}
+              disabled={isClaiming || offline}
             >
-              Claim now
+              {offline ? 'Claim when online' : 'Claim now'}
             </AppButton>
           ) : (
             <AppButton
@@ -440,9 +444,7 @@ export function PendingTokenLayout({
               )}
               {!hideDetails && (
                 <>
-                  {displayFee > 0 && (
-                    <DetailRowItem label="Mint Fee" value={`${displayFee} sats`} />
-                  )}
+                  {displayFee > 0 && <DetailRowItem label="Mint Fee" value={`${displayFee} sat`} />}
                   {!!reclaimAt && (
                     <DetailRowItem
                       label="Reclaim eligible"

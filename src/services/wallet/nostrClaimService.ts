@@ -571,7 +571,7 @@ class NostrClaimService {
       if (!recovered && useSettingsStore.getState().notificationsEnabled) {
         await notificationService.sendLocalNotification(
           'Nostr payment received',
-          `${item.amount.toLocaleString()} sats were added to your wallet.`,
+          `${item.amount.toLocaleString()} sat were added to your wallet.`,
           { eventId: item.id, type: 'nostr-payment' },
         );
       }

@@ -179,8 +179,8 @@ export default function StatusScreen({
               <Text fontSize="$10" fontWeight="700" color={getIconColor()}>
                 {amount}
               </Text>
-              <Text fontSize="$6" fontWeight="600" color={getIconColor()} opacity={0.8}>
-                SATS
+              <Text fontSize="$4" fontWeight="600" color={getIconColor()} opacity={0.8}>
+                sat
               </Text>
             </XStack>
           )}

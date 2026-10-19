@@ -80,29 +80,29 @@ async function render(isLoading = false) {
 }
 
 it.each([
-  ['SATS', '10,000 SATS', '≈ $10.00'],
-  ['FIAT', '$10.00', '≈ 10,000 SATS'],
+  ['SATS', '10,000 sat', '≈ $10.00'],
+  ['FIAT', '$10.00', '≈ 10,000 sat'],
 ])('keeps %s primary and the conversion secondary', async (currency, primary, secondary) => {
   mockPrimaryCurrency = currency;
   const { tree } = await render();
-  expect(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.children).toBe(
-    primary,
-  );
-  expect(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children).toBe(
-    secondary,
-  );
+  expect(
+    amountText(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.children),
+  ).toBe(primary);
+  expect(
+    amountText(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children),
+  ).toBe(secondary);
   await act(async () => tree.unmount());
 });
 
 it('shows an unavailable conversion instead of a zero estimate', async () => {
   mockPrice = undefined;
   const { tree } = await render();
-  expect(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.children).toBe(
-    '10,000 SATS',
-  );
-  expect(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children).toBe(
-    'Conversion unavailable',
-  );
+  expect(
+    amountText(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.children),
+  ).toBe('10,000 sat');
+  expect(
+    amountText(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children),
+  ).toBe('Conversion unavailable');
   await act(async () => tree.unmount());
 });
 
@@ -124,3 +124,10 @@ it('disables the action while creating the invoice', async () => {
   });
   await act(async () => tree.unmount());
 });
+
+function amountText(value: React.ReactNode): string {
+  if (Array.isArray(value)) return value.map(amountText).join('');
+  if (React.isValidElement<{ children?: React.ReactNode }>(value))
+    return amountText(value.props.children);
+  return value == null ? '' : String(value);
+}

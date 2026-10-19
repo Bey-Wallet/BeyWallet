@@ -65,7 +65,7 @@ export const quotesService = {
    * @returns MintQuoteResponse with `quote` (id) and Lightning `request` (invoice)
    */
   createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
-    console.log(`[QuotesService] Creating mint quote: ${amount} sats from ${mintUrl}`);
+    console.log(`[QuotesService] Creating mint quote: ${amount} sat from ${mintUrl}`);
     return withKeysetRecovery(mintUrl, async () => {
       const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
       console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
@@ -236,7 +236,7 @@ export const quotesService = {
    */
   swapMintToMint: async (sourceMintUrl: string, targetMintUrl: string, amount: number) => {
     console.log(
-      `[QuotesService] 🔄 Executing NUT-19 Mint-to-Mint swap: ${amount} sats from ${sourceMintUrl} -> ${targetMintUrl}`,
+      `[QuotesService] 🔄 Executing NUT-19 Mint-to-Mint swap: ${amount} sat from ${sourceMintUrl} -> ${targetMintUrl}`,
     );
 
     // 1. Check for direct NUT-19 atomic swap capability on target mint
@@ -266,7 +266,7 @@ export const quotesService = {
     // Helper: execute two-step Lightning swap between two mints (src -> dst)
     const executeTwoStepSwap = async (srcUrl: string, dstUrl: string, swapAmount: number) => {
       console.log(
-        `[QuotesService] ℹ️ Executing two-step Lightning swap route for ${srcUrl} -> ${dstUrl} (${swapAmount} sats)`,
+        `[QuotesService] ℹ️ Executing two-step Lightning swap route for ${srcUrl} -> ${dstUrl} (${swapAmount} sat)`,
       );
 
       let mintQuote: MintQuoteResponse;
@@ -400,7 +400,7 @@ export const quotesService = {
 
       // If middleman routing was not possible or failed, rethrow the original error
       throw new Error(
-        `Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${msg || 'Lightning path error'}. Your ${amount} sats remain safe.`,
+        `Source mint (${sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0]}) could not route to target mint: ${msg || 'Lightning path error'}. Your ${amount} sat remain safe.`,
       );
     }
   },
@@ -414,7 +414,7 @@ export const quotesService = {
     amount: number,
   ): Promise<MeltQuoteResponse> => {
     console.log(
-      `[QuotesService] Creating NUT-19 On-Chain Melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`,
+      `[QuotesService] Creating NUT-19 On-Chain Melt quote for ${btcAddress} (${amount} sat) from ${mintUrl}`,
     );
     return withKeysetRecovery(mintUrl, async () => {
       const quote = await mgr().quotes.createMeltQuote(mintUrl, btcAddress);
@@ -433,7 +433,7 @@ export const quotesService = {
     privkeyHex: string,
   ): Promise<MintQuoteResponse> => {
     console.log(
-      `[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sats) on ${mintUrl}`,
+      `[QuotesService] 🔐 Creating NUT-20 Signature-Locked Mint quote (${amount} sat) on ${mintUrl}`,
     );
     // Derive the public key from the private key — the mint locks the quote
     // to this pubkey so only the key owner can mint the tokens (NUT-20).
@@ -587,7 +587,7 @@ export const quotesService = {
     amount: number,
   ): Promise<any> => {
     console.log(
-      `[QuotesService] Creating on-chain melt quote for ${btcAddress} (${amount} sats) from ${mintUrl}`,
+      `[QuotesService] Creating on-chain melt quote for ${btcAddress} (${amount} sat) from ${mintUrl}`,
     );
     const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/quote/onchain`, {
       method: 'POST',
@@ -649,7 +649,7 @@ export const quotesService = {
       }
     }
     if (currentAmount < totalCost) {
-      throw new Error(`Insufficient balance: need ${totalCost} sats, have ${currentAmount} sats`);
+      throw new Error(`Insufficient balance: need ${totalCost} sat, have ${currentAmount} sat`);
     }
 
     const mint = new CashuMint(mintUrl);

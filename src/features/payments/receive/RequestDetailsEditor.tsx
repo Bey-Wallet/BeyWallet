@@ -106,7 +106,7 @@ export function RequestAmountEditor({
           >
             {mode === 'FIAT' ? symbol : showBitcoinSymbol ? '₿' : ''}
             {draft}
-            {mode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+            {mode === 'SATS' && !showBitcoinSymbol && <Text fontSize={22}>{' sat'}</Text>}
           </Text>
           {fiatEnabled && (
             <AppPressable
