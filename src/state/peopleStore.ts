@@ -27,6 +27,7 @@ interface PeopleState {
   savePerson: (person: PersonInput) => void;
   updatePerson: (person: PersonInput) => void;
   setContactStatus: (npub: string, status: Person['contactStatus']) => void;
+  unblockPeople: (npubs: string[]) => void;
   removePerson: (npub: string) => void;
 }
 
@@ -126,6 +127,22 @@ export const usePeopleStore = create<PeopleState>()(
               },
             },
           };
+        }),
+      unblockPeople: (npubs) =>
+        set((state) => {
+          const targets = [...new Set(npubs.map(normalizeNpub))].filter(
+            (npub) => state.people[npub]?.contactStatus === 'blocked',
+          );
+          if (!targets.length) return state;
+          const people = { ...state.people };
+          for (const npub of targets) {
+            people[npub] = {
+              ...people[npub],
+              contactStatus: 'unaccepted',
+              requiresAcceptance: true,
+            };
+          }
+          return { people };
         }),
       removePerson: (npubValue) =>
         set((state) => {

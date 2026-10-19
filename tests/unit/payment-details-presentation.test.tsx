@@ -32,7 +32,7 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select: (state: any) => unknown) => select({ mints: [] }),
 }));
 jest.mock('~/services/wallet/currencyService', () => ({
-  currencyService: { formatSats: (amount: number) => `${amount} sats` },
+  currencyService: { formatSats: (amount: number) => `${amount} sat` },
 }));
 
 let tree: ReactTestRenderer;

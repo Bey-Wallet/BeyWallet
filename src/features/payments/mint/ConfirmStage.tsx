@@ -64,7 +64,7 @@ export function ConfirmStage({
     return sats.toLocaleString('en-US');
   }, [sats]);
 
-  const satsDisplay = showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} sats`;
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} sat`;
   const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
   const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
 

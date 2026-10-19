@@ -222,7 +222,7 @@ export function AmountStage({
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sats' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
               color={isOverBalance ? '$red10' : '$color'}
             />
 

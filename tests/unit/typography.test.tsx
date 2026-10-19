@@ -43,7 +43,7 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
         <Input testID="input" value="123" />
         <TextArea testID="textarea" value="123" />
         <Toast.Title testID="toast">123</Toast.Title>
-        <AppButton>Pay 123 sats</AppButton>
+        <AppButton>Pay 123 sat</AppButton>
         <Text testID="override" fontVariant={['proportional-nums']}>
           123
         </Text>
@@ -71,7 +71,7 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
       .map((n) => StyleSheet.flatten(n.props.style)?.fontVariant);
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
   }
-  const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sats');
+  const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(
     buttonLabels.some((n) =>
       StyleSheet.flatten(n.props.style)?.fontVariant?.includes('tabular-nums'),

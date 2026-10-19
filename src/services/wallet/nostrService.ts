@@ -802,7 +802,7 @@ class NostrService {
       return;
     }
 
-    console.log(`[NostrService] Token: ${amount} sats from mint ${mintUrl}`);
+    console.log(`[NostrService] Token: ${amount} sat from mint ${mintUrl}`);
 
     if (outgoingConversation) {
       await this.recordPaymentCopy(sourceEvent, outgoingConversation, amount, 'token');

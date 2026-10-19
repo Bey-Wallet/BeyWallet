@@ -164,7 +164,7 @@ export async function requestInvoiceFromLnurl(
 
   if (amountMsats < params.minSendable || amountMsats > params.maxSendable) {
     throw new Error(
-      `Amount must be between ${Math.ceil(params.minSendable / 1000)} and ${Math.floor(params.maxSendable / 1000)} sats`,
+      `Amount must be between ${Math.ceil(params.minSendable / 1000)} and ${Math.floor(params.maxSendable / 1000)} sat`,
     );
   }
 

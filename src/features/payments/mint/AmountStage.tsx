@@ -235,7 +235,7 @@ export function AmountStage({
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sats' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
 
             <AppPressable

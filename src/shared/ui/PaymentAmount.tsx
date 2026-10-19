@@ -15,7 +15,7 @@ export function paymentAmounts(
 ) {
   const bitcoin = bitcoinSymbol
     ? `₿${sats.toLocaleString('en-US')}`
-    : `${sats.toLocaleString('en-US')} sats`;
+    : `${sats.toLocaleString('en-US')} sat`;
   const fiat =
     price && Number.isFinite(price) && price > 0
       ? currencyService.formatValue(

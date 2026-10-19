@@ -180,7 +180,7 @@ export function OptimizeSettingsScreen() {
             await useWalletStore.getState().refreshBalance();
             await queryClient.invalidateQueries({ queryKey: ['readyProofs'] });
             await queryClient.invalidateQueries({ queryKey: ['fragmentationAnalysis'] });
-            return `Proofs reduced from ${result.before.count} to ${result.after.count}. Balance: ${result.after.totalAmount} sats.`;
+            return `Proofs reduced from ${result.before.count} to ${result.after.count}. Balance: ${result.after.totalAmount} sat.`;
           })
         }
       >

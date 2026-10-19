@@ -165,7 +165,7 @@ export default function ProofManagerScreen() {
       {!failed && !loading && (
         <SettingsDescription>
           {rows.length} proofs ·{' '}
-          {rows.reduce((sum, proof) => sum + proof.amount, 0).toLocaleString()} sats
+          {rows.reduce((sum, proof) => sum + proof.amount, 0).toLocaleString()} sat
         </SettingsDescription>
       )}
       {rows.length > 0 && (
@@ -181,7 +181,7 @@ export default function ProofManagerScreen() {
             >
               <Coins size={20} color="$color" />
               <Text flex={1} fontSize="$5" color="$color">
-                {proof.amount.toLocaleString()} sats
+                {proof.amount.toLocaleString()} sat
               </Text>
               <Text fontSize="$3" color="$gray10" maxWidth="45%" numberOfLines={1}>
                 {name(proof.mintUrl)} · {index + 1}

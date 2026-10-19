@@ -87,8 +87,8 @@ it.each(['SATS', 'FIAT'])(
   'keeps %s primary across payment and success screens',
   async (currency) => {
     mockPrimaryCurrency = currency;
-    const primary = currency === 'SATS' ? '10,000 sats' : '$10.00';
-    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 sats';
+    const primary = currency === 'SATS' ? '10,000 sat' : '$10.00';
+    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 sat';
     const payment = await render(<PaymentStage {...paymentProps} />);
     const result = await render(
       <ResultStage
@@ -221,7 +221,7 @@ it.each([undefined, 0, -1, NaN, Infinity, 5])(
     const rows = tree.root.findAllByType('ListTableRow' as any);
     const feeRow = rows.find(({ props }) => props.label === 'Fee');
     if (feeSats === 5) {
-      expect(feeRow?.props.value).toBe('5 sats');
+      expect(feeRow?.props.value).toBe('5 sat');
     } else {
       expect(feeRow).toBeUndefined();
     }

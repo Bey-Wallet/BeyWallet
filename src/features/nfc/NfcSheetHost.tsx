@@ -173,7 +173,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                 <ListTableRow label="Time" value={new Date(state.eventTime).toLocaleString()} />
               )}
               {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
-                <ListTableRow label="Fee" value={`${state.fees} sats`} />
+                <ListTableRow label="Fee" value={`${state.fees} sat`} />
               )}
             </ListTable>
           )}

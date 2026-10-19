@@ -87,9 +87,9 @@ it('reviews the whole balance, changes mints locally, and releases canceled revi
   const tree = await open();
   expect(mockPrepare).toHaveBeenLastCalledWith('mint-a');
   expect(tree.root.findAllByType('ListTableRow' as any).map((row) => row.props.value)).toEqual([
-    '32 sats',
-    '1 sats',
-    '31 sats',
+    '32 sat',
+    '1 sat',
+    '31 sat',
   ]);
   expect(first.execute).not.toHaveBeenCalled();
   await act(async () =>

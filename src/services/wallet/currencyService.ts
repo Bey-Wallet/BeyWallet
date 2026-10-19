@@ -74,7 +74,7 @@ export const currencyService = {
     if (showBitcoinSymbol) {
       return `${sign}₿${formatted}`;
     }
-    return `${sign}${formatted} sats`;
+    return `${sign}${formatted} sat`;
   },
 
   formatValue(value: number, currencyCode: CurrencyCode): string {

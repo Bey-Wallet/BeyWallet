@@ -10,7 +10,7 @@ it.each(['USD', 'EUR', 'INR'])(
   (currency) => {
     const sats = paymentAmounts(10000, 'SATS', currency, false, 100000);
     const fiat = paymentAmounts(10000, 'FIAT', currency, true, 100000);
-    expect(sats.primary).toBe('10,000 sats');
+    expect(sats.primary).toBe('10,000 sat');
     expect(fiat.primary).toBe(sats.secondary);
     expect(fiat.secondary).toBe('₿10,000');
   },

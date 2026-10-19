@@ -100,7 +100,7 @@ export function DisplayUnitSettingsScreen() {
         {(['SATS', 'FIAT'] as const).map((value) => (
           <SettingsRow
             key={value}
-            title={value === 'SATS' ? 'Sats' : 'Fiat currency'}
+            title={value === 'SATS' ? 'Sat' : 'Fiat currency'}
             selected={primary === value}
             onPress={() => void setPrimary(value)}
           />
@@ -143,8 +143,8 @@ export function BitcoinSymbolSettingsScreen() {
   const checked = useSettingsStore((state) => state.showBitcoinSymbol);
   return (
     <TogglePreference
-      title="Use ₿ symbol for sats"
-      description="Display satoshi amounts with ₿ instead of the sats label."
+      title="Use ₿ symbol for sat"
+      description="Display satoshi amounts with ₿ instead of the sat label."
       checked={checked}
       save={useSettingsStore.getState().setShowBitcoinSymbol}
     />

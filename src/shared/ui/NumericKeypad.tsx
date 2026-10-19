@@ -122,12 +122,12 @@ export function NumericKeypad({
               {value}
             </Text>
             <Text fontSize={20} fontWeight="500" color="$gray10" mb="$2">
-              {currency === 'SATS' ? 'sats' : currency}
+              {currency === 'SATS' ? 'sat' : currency}
             </Text>
           </XStack>
           {showBalance && maxAmount !== undefined && (
             <Text color="$gray10" fontSize="$3" fontWeight="500">
-              Balance: {maxAmount} {currency === 'SATS' ? 'sats' : currency}
+              Balance: {maxAmount} {currency === 'SATS' ? 'sat' : currency}
             </Text>
           )}
         </YStack>

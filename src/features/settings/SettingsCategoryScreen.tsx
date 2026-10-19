@@ -19,9 +19,9 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
   const policy = useNostrReceiveSettingsStore((state) => state.policy);
   const summaries: Record<string, string | undefined> = {
     theme: settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light',
-    'display-unit': settings.primaryCurrency === 'SATS' ? 'Sats' : 'Fiat',
+    'display-unit': settings.primaryCurrency === 'SATS' ? 'Sat' : 'Fiat',
     currency: settings.secondaryCurrency === 'NONE' ? 'None' : settings.secondaryCurrency,
-    'bitcoin-symbol': settings.showBitcoinSymbol ? '₿' : 'sats',
+    'bitcoin-symbol': settings.showBitcoinSymbol ? '₿' : 'sat',
     notifications: settings.notificationsEnabled ? 'On' : 'Off',
     'app-lock': settings.biometricEnabled ? 'On' : 'Off',
     'hide-balance': settings.hideBalance ? 'On' : 'Off',

@@ -270,9 +270,7 @@ export function ConfirmStage({
               />
             }
           />
-          {estimatedFee > 0 && (
-            <ListTableRow label="Estimated fee" value={`${estimatedFee} sats`} />
-          )}
+          {estimatedFee > 0 && <ListTableRow label="Estimated fee" value={`${estimatedFee} sat`} />}
           {tokenInfo.p2pkNpub && (
             <ListTableRow
               label="Locked To"

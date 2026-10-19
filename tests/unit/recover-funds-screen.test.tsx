@@ -111,7 +111,7 @@ it('authenticates, prevents duplicate scans, shows real progress and refreshes r
   mockWallet.balances['https://a.test'] = 132;
   mockWallet.isRestoring = false;
   await act(async () => finish('completed'));
-  expect(messages(tree)).toContain('balance increased by 32 sats');
+  expect(messages(tree)).toContain('balance increased by 32 sat');
   expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['proofs'] });
   expect(mockPreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
   await act(async () => tree.unmount());

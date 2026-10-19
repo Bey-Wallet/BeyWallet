@@ -80,8 +80,8 @@ async function render(isLoading = false) {
 }
 
 it.each([
-  ['SATS', '10,000 sats', '≈ $10.00'],
-  ['FIAT', '$10.00', '≈ 10,000 sats'],
+  ['SATS', '10,000 sat', '≈ $10.00'],
+  ['FIAT', '$10.00', '≈ 10,000 sat'],
 ])('keeps %s primary and the conversion secondary', async (currency, primary, secondary) => {
   mockPrimaryCurrency = currency;
   const { tree } = await render();
@@ -99,7 +99,7 @@ it('shows an unavailable conversion instead of a zero estimate', async () => {
   const { tree } = await render();
   expect(
     amountText(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.children),
-  ).toBe('10,000 sats');
+  ).toBe('10,000 sat');
   expect(
     amountText(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children),
   ).toBe('Conversion unavailable');

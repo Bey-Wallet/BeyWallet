@@ -81,7 +81,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
               📥 Deposit (Minting)
             </Text>
             <Text fontSize="$3" color="$gray12" lineHeight={18}>
-              You ask the wallet to deposit sats. The wallet generates a Lightning Invoice from your
+              You ask the wallet to deposit sat. The wallet generates a Lightning Invoice from your
               chosen mint. You pay this invoice from any Bitcoin Lightning wallet, and once paid,
               the mint signs and issues equivalent Ecash tokens to your device.
             </Text>

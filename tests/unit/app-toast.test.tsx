@@ -65,7 +65,7 @@ it('prefers explicit kinds, renders only a bold title and preserves reduced moti
 it('uses the same bold title-only style for action toasts', async () => {
   mockToast = {
     id: 'action',
-    title: 'Received 10 sats via Nostr',
+    title: 'Received 10 sat via Nostr',
     message: 'Legacy description',
     kind: 'success',
     customData: { variant: 'action', actionLabel: 'View', onAction: jest.fn() },
@@ -77,7 +77,7 @@ it('uses the same bold title-only style for action toasts', async () => {
   expect(tree.root.findAllByType('ToastTitle' as any)).toHaveLength(1);
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
-    children: 'Received 10 sats via Nostr',
+    children: 'Received 10 sat via Nostr',
     fontSize: 16,
     fontWeight: '800',
   });

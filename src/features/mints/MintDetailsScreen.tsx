@@ -419,7 +419,7 @@ export default function MintDetailsModal() {
                     <Text fontSize={36} fontWeight="900" color="$color">
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
-                      {!showBitcoinSymbol && <Text fontSize={20}>{' sats'}</Text>}
+                      {!showBitcoinSymbol && <Text fontSize={20}>{' sat'}</Text>}
                     </Text>
                   ) : (
                     <Text fontSize={36} fontWeight="900" color="$color">
@@ -432,7 +432,7 @@ export default function MintDetailsModal() {
                     ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
                     : showBitcoinSymbol
                       ? `₿${balance.toLocaleString()}`
-                      : `${balance.toLocaleString()} sats`}
+                      : `${balance.toLocaleString()} sat`}
                 </Text>
 
                 {/* Trust badges */}
@@ -619,7 +619,7 @@ export default function MintDetailsModal() {
                         value={
                           showBitcoinSymbol
                             ? `₿${auditorMint.balance.toLocaleString()}`
-                            : `${auditorMint.balance.toLocaleString()} sats`
+                            : `${auditorMint.balance.toLocaleString()} sat`
                         }
                       />
                     )}
@@ -629,7 +629,7 @@ export default function MintDetailsModal() {
                         value={
                           showBitcoinSymbol
                             ? `₿${auditorMint.sum_donations.toLocaleString()}`
-                            : `${auditorMint.sum_donations.toLocaleString()} sats`
+                            : `${auditorMint.sum_donations.toLocaleString()} sat`
                         }
                       />
                     )}
@@ -767,7 +767,7 @@ export default function MintDetailsModal() {
                       <Text fontWeight="800">
                         {showBitcoinSymbol
                           ? `₿${balance.toLocaleString()}`
-                          : `${balance.toLocaleString()} sats`}
+                          : `${balance.toLocaleString()} sat`}
                       </Text>{' '}
                       in this mint. If you remove it, you will lose access to these funds!
                     </Text>

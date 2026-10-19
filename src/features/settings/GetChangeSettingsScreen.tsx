@@ -140,9 +140,9 @@ export function GetChangeSettingsScreen() {
         <ListTable compact bg="$buttonDefaultSecondary">
           {review && (
             <>
-              <ListTableRow label="Available balance" value={`${review.inputAmount} sats`} />
-              <ListTableRow label="Mint fee" value={`${review.fee} sats`} />
-              <ListTableRow label="After preparation" value={`${review.outputAmount} sats`} />
+              <ListTableRow label="Available balance" value={`${review.inputAmount} sat`} />
+              <ListTableRow label="Mint fee" value={`${review.fee} sat`} />
+              <ListTableRow label="After preparation" value={`${review.outputAmount} sat`} />
             </>
           )}
         </ListTable>
@@ -165,7 +165,7 @@ export function GetChangeSettingsScreen() {
           <Text
             fontFamily="$body"
             fontSize="$3"
-          >{`${result.amount} sats prepared as ${result.coinCount} coins. Ready for offline payments.`}</Text>
+          >{`${result.amount} sat prepared as ${result.coinCount} coins. Ready for offline payments.`}</Text>
         )}
         {!result && (
           <AppButton

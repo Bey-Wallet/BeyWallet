@@ -655,7 +655,8 @@ export default function ConversationScreen() {
               </XStack>
             ) : blocked ? (
               <Text color="$gray10">
-                Blocked. Unblock in Nostr Settings to accept this person again.
+                Blocked. Manage blocked people in Settings → Security & privacy to accept this
+                person again.
               </Text>
             ) : !incomingInvitation ? (
               <AppButton

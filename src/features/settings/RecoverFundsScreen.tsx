@@ -107,7 +107,7 @@ export function RecoverFundsScreen() {
                   : outcome === 'partial'
                     ? 'Some keysets could not be checked. Recovered funds are saved; try again later.'
                     : added > 0
-                      ? `Scan finished · balance increased by ${added.toLocaleString()} sats.`
+                      ? `Scan finished · balance increased by ${added.toLocaleString()} sat.`
                       : 'Scan finished · no additional balance found.',
           },
         ]);

@@ -180,7 +180,7 @@ export default function StatusScreen({
                 {amount}
               </Text>
               <Text fontSize="$4" fontWeight="600" color={getIconColor()} opacity={0.8}>
-                sats
+                sat
               </Text>
             </XStack>
           )}

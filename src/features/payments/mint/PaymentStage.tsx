@@ -54,7 +54,7 @@ export function PaymentStage({
       )
     : '—';
   const formattedSats = sats.toLocaleString('en-US');
-  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} sats`;
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} sat`;
   const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
   const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
   const timeLeft = expiry == null ? null : Math.max(0, expiry - now);

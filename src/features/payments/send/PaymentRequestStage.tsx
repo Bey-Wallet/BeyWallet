@@ -376,14 +376,14 @@ export function PaymentRequestStage({
           )}
           <YStack separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
             {cost && (
-              <DetailItem label="Total debit (including fees)" value={`${cost.totalDebit} sats`} />
+              <DetailItem label="Total debit (including fees)" value={`${cost.totalDebit} sat`} />
             )}
-            {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sats`} />}
-            {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sats`} />}
+            {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sat`} />}
+            {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sat`} />}
             {amountMode === 'exact' && cost && (
               <DetailItem
                 label="Recipient receives after fees"
-                value={`${cost.grossAmount - cost.receiverFee} sats`}
+                value={`${cost.grossAmount - cost.receiverFee} sat`}
               />
             )}
             <DetailItem

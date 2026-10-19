@@ -141,7 +141,7 @@ export const RollingNumber = ({
     formattedValue = displayValue?.toString() || '';
   }
 
-  const hasSatsSuffix = suffix.trim() === 'sats';
+  const hasSatsSuffix = suffix.trim() === 'sat';
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
   const itemHeight = lineHeight || fontSize * 1.1;
 
@@ -205,7 +205,7 @@ export const RollingNumber = ({
           fontWeight={fontWeight}
           fontSize={Math.max(12, Math.round(fontSize * 0.55))}
         >
-          {' sats'}
+          {' sat'}
         </Text>
       )}
     </View>

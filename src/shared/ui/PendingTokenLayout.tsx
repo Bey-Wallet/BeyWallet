@@ -236,8 +236,8 @@ export function PendingTokenLayout({
       setLockDisabled(true);
 
       const shareMessage = currentToken.startsWith('http')
-        ? `Claim my ecash send of ${amount} sats:\n\n${currentToken}`
-        : `Claim my ecash send of ${amount} sats:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
+        ? `Claim my ecash send of ${amount} sat:\n\n${currentToken}`
+        : `Claim my ecash send of ${amount} sat:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
 
       await RNShare.share({
         message: shareMessage,
@@ -442,9 +442,7 @@ export function PendingTokenLayout({
               )}
               {!hideDetails && (
                 <>
-                  {displayFee > 0 && (
-                    <DetailRowItem label="Mint Fee" value={`${displayFee} sats`} />
-                  )}
+                  {displayFee > 0 && <DetailRowItem label="Mint Fee" value={`${displayFee} sat`} />}
                   {!!reclaimAt && (
                     <DetailRowItem
                       label="Reclaim eligible"

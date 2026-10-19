@@ -145,7 +145,7 @@ export default function OptimizeWalletScreen() {
         'Wallet Optimized ✅',
         `Saved ${result.savedProofs} proofs!\n` +
           `Proofs reduced: ${result.before.count} → ${result.after.count}\n` +
-          `Balance unchanged: ${result.after.totalAmount} sats`,
+          `Balance unchanged: ${result.after.totalAmount} sat`,
       );
     } catch (err: any) {
       console.error('[OptimizeWallet] Optimization failed:', err);
@@ -363,7 +363,7 @@ export default function OptimizeWalletScreen() {
                   label={
                     showBitcoinSymbol
                       ? `₿${amount.toLocaleString()}`
-                      : `${amount.toLocaleString()} sats`
+                      : `${amount.toLocaleString()} sat`
                   }
                   value={`${count} proof${count === 1 ? '' : 's'}`}
                   icon={Zap}

@@ -3,7 +3,6 @@ import { Text, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import { Copy, EyeOff } from '@tamagui/lucide-icons';
 import { useSettingsStore } from '~/state/settingsStore';
-import { usePeopleStore } from '~/state/peopleStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import { AppButton } from '~/shared/ui/AppButton';
 import {
@@ -120,32 +119,4 @@ export function ReceivingPolicySettingsScreen() {
   );
 }
 
-export function BlockedPeopleSettingsScreen() {
-  const people = usePeopleStore((state) => state.people);
-  const blocked = Object.values(people).filter((person) => person.contactStatus === 'blocked');
-  return (
-    <SettingsPage>
-      <SettingsDescription>
-        Manage people you have blocked. Unblocking returns them to an unaccepted state.
-      </SettingsDescription>
-      {blocked.length === 0 ? (
-        <SettingsMessage>No blocked people.</SettingsMessage>
-      ) : (
-        blocked.map((person) => (
-          <YStack key={person.npub} bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$3">
-            <Text color="$color">{person.displayName || person.username || person.npub}</Text>
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              onPress={() => {
-                usePeopleStore.getState().setContactStatus(person.npub, 'unaccepted');
-              }}
-            >
-              Unblock
-            </AppButton>
-          </YStack>
-        ))
-      )}
-    </SettingsPage>
-  );
-}
+export { BlockedPeopleSettingsScreen } from './BlockedPeopleSettingsScreen';

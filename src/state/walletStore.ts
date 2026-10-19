@@ -562,7 +562,7 @@ export const useWalletStore = create<WalletState>()(
               const delta = status.amount_paid - status.amount_issued;
               if (delta > 0 && metadata.privKey) {
                 console.log(
-                  `[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sats...`,
+                  `[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sat...`,
                 );
                 await quotesService.redeemOnchainMintQuote(
                   entry.mintUrl,

@@ -22,6 +22,9 @@
 - The Settings profile badge appears only after authoritative NIP-05 verification;
   a missing registration exposes a direct Claim action.
 - Updates use native download progress; Username uses a plain edit form.
+- Blocked people uses a searchable virtual list with checkable rows, select-all
+  results, and one confirmed bulk-unblock action. Unblocking persists in one update
+  and preserves the requirement to accept those contacts again.
 - Recover funds uses a dedicated Settings screen with trusted-mint selection,
   authentication, live keyset activity, and separate completed/partial/failed results.
   Mint details opens the same screen. The fixed sheet delay was removed; scan
@@ -72,6 +75,8 @@ Use a disposable test wallet for operations that spend, restore, or delete walle
   removed relays disconnect, and reset restores the defaults.
 - Check profile/username and existing non-settings entry points, including backup
   warnings and onboarding. Follow website, support, documentation, and legal links.
+- Review a large blocked list: search by name/key, select across filters, clear the
+  selection, cancel/confirm bulk unblocking, and check large text and screen readers.
 - Claim, change, and delete a test username; confirm the verified badge and Claim
   action reflect the registry result. Test proof export and spent-only cleanup in
   a disposable wallet, including cancellation of the native share/confirmation UI.

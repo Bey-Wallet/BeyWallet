@@ -120,7 +120,7 @@ export const ConversationContactSheet = forwardRef<
               onPress={() =>
                 Alert.alert(
                   'Block contact?',
-                  'Waiting payments remain unclaimed. Unblock this person in Nostr Settings.',
+                  'Waiting payments remain unclaimed. Unblock this person in Settings → Security & privacy → Blocked people.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {

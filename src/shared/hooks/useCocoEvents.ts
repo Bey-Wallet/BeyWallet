@@ -123,9 +123,9 @@ export function useCocoEvents() {
       console.log('[useCocoEvents] Nostr received:', payload.amount);
       notificationService.sendLocalNotification(
         'Payment Received',
-        `You received ₿${payload.amount} sats via Nostr.`,
+        `You received ₿${payload.amount} sat via Nostr.`,
       );
-      toast.show(`Received ${payload.amount} sats via Nostr`, {
+      toast.show(`Received ${payload.amount} sat via Nostr`, {
         customData: {
           variant: 'action',
           actionLabel: 'View',
@@ -157,7 +157,7 @@ export function useCocoEvents() {
       (payload: { amount: number }) => {
         notificationService.sendLocalNotification(
           'Payment Saved for Review',
-          `Automatic claiming was paused. Tap to review ₿${payload.amount} sats.`,
+          `Automatic claiming was paused. Tap to review ₿${payload.amount} sat.`,
         );
       },
     );
