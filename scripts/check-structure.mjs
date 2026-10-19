@@ -53,6 +53,7 @@ const expectedRoutes = [
   '(tabs)/settings/hide-balance.tsx',
   '(tabs)/settings/identity.tsx',
   '(tabs)/settings/index.tsx',
+  '(tabs)/settings/mint-backup.tsx',
   '(tabs)/settings/mints.tsx',
   '(tabs)/settings/nostr.tsx',
   '(tabs)/settings/notifications.tsx',

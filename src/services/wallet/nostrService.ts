@@ -1229,19 +1229,33 @@ class NostrService {
     };
 
     const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
+    const relays = getNostrRelays();
+    const ownsPool = !this.pool;
     const pool = this.pool ?? new SimplePool();
 
     console.log(
       `[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${getNostrRelays().length} relays…`,
     );
 
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await Promise.any(pool.publish(getNostrRelays(), signedEvent));
+      await Promise.race([
+        Promise.any(pool.publish(relays, signedEvent)),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error('Mint backup confirmation timed out.')),
+            15_000,
+          );
+        }),
+      ]);
       console.log(`[NostrService] ✅ Mints backed up. Event: ${signedEvent.id}`);
       return true;
     } catch (err: any) {
       console.error('[NostrService] Failed to backup mints to Nostr:', err?.message || err);
       return false;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      if (ownsPool) pool.close(relays);
     }
   }
 

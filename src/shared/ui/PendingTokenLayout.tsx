@@ -44,6 +44,7 @@ export interface PendingTokenLayoutProps {
   hideActions?: boolean;
   onClaim?: () => void | Promise<void>;
   isClaiming?: boolean;
+  offline?: boolean;
   operationId?: string;
   expiresAt?: number;
   reclaimAt?: number;
@@ -68,6 +69,7 @@ export function PendingTokenLayout({
   hideActions = false,
   onClaim,
   isClaiming = false,
+  offline = false,
   operationId,
   expiresAt,
   reclaimAt,
@@ -377,9 +379,9 @@ export function PendingTokenLayout({
               fullWidth
               loading={isClaiming}
               onPress={onClaim}
-              disabled={isClaiming}
+              disabled={isClaiming || offline}
             >
-              Claim now
+              {offline ? 'Claim when online' : 'Claim now'}
             </AppButton>
           ) : (
             <AppButton

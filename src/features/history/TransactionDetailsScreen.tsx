@@ -13,6 +13,8 @@ import { reclaimPayment } from '~/services/wallet/reclaimPayment';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
+import { networkService } from '~/services/platform/networkService';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, ScrollView, Separator, YGroup } from 'tamagui';
 import { ArrowDownLeft, AlertCircle, Trash2 } from '@tamagui/lucide-icons';
@@ -597,14 +599,18 @@ export function TransactionDetailsScreen() {
   };
 
   const [isClaiming, setIsClaiming] = useState(false);
+  const claimLock = useRef(false);
+  const offline = useOfflineStatus();
   const mintFee =
     metadata?.via !== 'onchain' && Number.isFinite(metadata?.fee) ? Number(metadata.fee) : 0;
 
   const handleClaimNow = async () => {
-    if (!token || isClaiming) return;
+    if (!token || claimLock.current) return;
+    claimLock.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsClaiming(true);
     try {
+      if (await networkService.isOffline()) return;
       await walletService.receive(token.trim());
       toast.show('Tokens added to wallet', { kind: 'success' });
 
@@ -622,6 +628,7 @@ export function TransactionDetailsScreen() {
       console.error('[TransactionDetails] Claim failed:', err);
       toast.show('Claim Failed: ' + err.message, { kind: 'error' });
     } finally {
+      claimLock.current = false;
       setIsClaiming(false);
     }
   };
@@ -897,6 +904,7 @@ export function TransactionDetailsScreen() {
           lockedToNpub={lockedToNpub}
           onClaim={entry.type === 'receive' ? handleClaimNow : undefined}
           isClaiming={isClaiming}
+          offline={offline}
           onReclaim={entry.type === 'send' ? handleReclaim : undefined}
           isReclaiming={isReclaiming}
           expiresAt={expiresAt}

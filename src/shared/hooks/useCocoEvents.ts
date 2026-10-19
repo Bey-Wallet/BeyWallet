@@ -162,15 +162,6 @@ export function useCocoEvents() {
       },
     );
 
-    const syncSub = DeviceEventEmitter.addListener(
-      'nostr:sync-success',
-      (payload: { npub: string }) => {
-        const shortAddress =
-          payload.npub.substring(0, 10) + '...' + payload.npub.substring(payload.npub.length - 4);
-        toast.show(`Nostr sync complete (${shortAddress})`, { kind: 'success' });
-      },
-    );
-
     // Subscribe using typed eventService
     const unsubs = [
       eventService.on('mint-quote:redeemed', handleMintQuoteRedeemed),
@@ -187,7 +178,6 @@ export function useCocoEvents() {
       nostrSub.remove();
       nostrIncomingSub.remove();
       nostrAutoClaimPausedSub.remove();
-      syncSub.remove();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [

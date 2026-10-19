@@ -22,6 +22,13 @@
 - The Settings profile badge appears only after authoritative NIP-05 verification;
   a missing registration exposes a direct Claim action.
 - Updates use native download progress; Username uses a plain edit form.
+- Mint backup has an automatic-publish switch, a manual Backup now action, and
+  last-attempt/relay-acknowledged publication times. Automatic startup/resume and
+  mint-list-change publishes are silent. The existing public Nostr mint-list format
+  is preserved; recovery phrases and ecash are not published.
+- Offline ecash confirmation offers Save & claim later. This saves an unclaimed
+  history entry locally without trusting a mint or crediting the balance. Proof
+  status checks resume online, and duplicate save/claim taps share one operation guard.
 - Blocked people uses a searchable virtual list with checkable rows, select-all
   results, and one confirmed bulk-unblock action. Unblocking persists in one update
   and preserves the requirement to accept those contacts again.
@@ -82,6 +89,14 @@ Use a disposable test wallet for operations that spend, restore, or delete walle
   a disposable wallet, including cancellation of the native share/confirmation UI.
 - Check OTA availability, download progress, retry, and restart in an update-enabled
   build; development builds cannot fully verify the production update flow.
+- Toggle automatic mint backup, restart/resume, and change the mint list. Confirm
+  quiet publishing, persisted preference/timestamps, manual backup while automatic
+  backup is off, and unchanged last-success time if all relays reject publication.
+  Restore the same test identity on another device and retrieve its mint list.
+- In airplane mode, paste or scan a raw ecash token and save it for later. Confirm
+  one pending History entry, unchanged spendable balance, and no new trusted mint.
+  Go online and claim through the normal validation/trust flow. Also test losing
+  connectivity immediately before a receive tap and failure to write local history.
 - In a disposable wallet, open Recover funds from Backup & recovery and mint details.
   Test one mint and all trusted mints, authentication cancellation, offline/partial
   failures, retry, duplicate taps, keyset activity, and updated balances without restart.

@@ -6,6 +6,7 @@ import {
 } from '~/shared/utils/nostrRelays';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { nostrService } from '~/services/wallet/nostrService';
+import { getPublicKey } from 'nostr-tools';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => {
   const values = new Map<string, string>();
@@ -27,9 +28,26 @@ beforeEach(() => {
   useNostrRelayStore.getState().resetRelays();
 });
 afterEach(() => {
+  jest.useRealTimers();
   (nostrService as any).isRunning = false;
   (nostrService as any).pool = null;
   jest.restoreAllMocks();
+});
+
+it('bounds mint-backup acknowledgement time without closing the shared messaging pool', async () => {
+  jest.useFakeTimers();
+  const pool = { publish: jest.fn(() => [new Promise<void>(() => {})]), close: jest.fn() };
+  (nostrService as any).pool = pool;
+  const fixture = new Uint8Array(32).fill(1);
+  const result = nostrService.backupMintsToNostr(
+    ['https://mint.example'],
+    '01'.repeat(32),
+    getPublicKey(fixture),
+  );
+  await jest.advanceTimersByTimeAsync(15_000);
+  expect(await result).toBe(false);
+  expect(pool.close).not.toHaveBeenCalled();
+  expect(jest.getTimerCount()).toBe(0);
 });
 
 it('validates URLs, canonicalizes duplicates, and prevents removing the final relay', () => {

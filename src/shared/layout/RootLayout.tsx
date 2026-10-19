@@ -11,6 +11,7 @@ import { OnboardingScreen } from '~/features/onboarding';
 import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentReceived';
 import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
 import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
+import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ export function RootLayout() {
 
   // Cache manager in state instead of re-computing inside render body
   const [manager, setManager] = useState<any>(null);
+  useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
     TTFirsNeueNormal: require('~/assets/fonts/tt_firs_neue_normal.ttf'),

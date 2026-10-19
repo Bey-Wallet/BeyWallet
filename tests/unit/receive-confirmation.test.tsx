@@ -3,10 +3,11 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ConfirmStage } from '~/features/payments/receive/ConfirmStage';
 
 const mockCheck = jest.fn();
+const mockFee = jest.fn(async () => 0);
 let mockMints = [{ mintUrl: 'https://mint.example', name: 'Example mint', trusted: true }];
 jest.mock('~/services/wallet', () => ({
   proofService: { checkProofStates: (...args: unknown[]) => mockCheck(...args) },
-  mintManager: { getFeePpk: jest.fn(async () => 0) },
+  mintManager: { getFeePpk: (...args: unknown[]) => mockFee(...(args as [])) },
 }));
 jest.mock('~/services/wallet/tokenUtils', () => ({ decodeToken: () => ({ proofs: [] }) }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: () => ({ mints: mockMints }) }));
@@ -133,4 +134,31 @@ it('retains explicit trust consent and recipient lock information', async () => 
   expect(tree.root.findByType('Text' as any).props.children).toBe(
     'Receiving will add and trust this mint.',
   );
+});
+
+it('offers only save-and-claim-later offline without checking the mint or trusting it', async () => {
+  mockMints = [];
+  await act(async () => {
+    tree = create(<ConfirmStage {...props} offline />);
+  });
+  expect(mockCheck).not.toHaveBeenCalled();
+  expect(mockFee).not.toHaveBeenCalled();
+  expect(receive().props.children).toBe('Save & claim later');
+  expect(receive().props.disabled).toBeFalsy();
+  expect(status().props.value).toBe('Unverified · offline');
+  expect(refresh().props.disabled).toBe(true);
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(1);
+  await act(async () => receive().props.onPress());
+  expect(props.onReceiveLater).toHaveBeenCalledTimes(1);
+  expect(props.onConfirm).not.toHaveBeenCalled();
+});
+
+it('checks proof state again when connectivity returns', async () => {
+  await act(async () => {
+    tree = create(<ConfirmStage {...props} offline />);
+  });
+  await act(async () => tree.update(<ConfirmStage {...props} offline={false} />));
+  expect(mockCheck).toHaveBeenCalledWith('first-token');
+  expect(status().props.value).toBe('Unspent');
+  expect(receive().props.children).toBe('Receive');
 });

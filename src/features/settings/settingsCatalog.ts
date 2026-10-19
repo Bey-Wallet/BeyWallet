@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Coins,
   DatabaseBackup,
+  CloudUpload,
   EyeOff,
   FileDown,
   FileUp,
@@ -69,6 +70,7 @@ export const settingsCategories = {
     items: [
       { path: 'recovery-phrase', title: 'Recovery phrase', icon: ShieldCheck },
       { path: 'recover-funds', title: 'Recover funds', icon: ScanSearch },
+      { path: 'mint-backup', title: 'Mint backup', icon: CloudUpload },
       { path: 'export-backup', title: 'Export wallet backup', icon: FileUp },
       { path: 'restore-backup', title: 'Restore wallet backup', icon: FileDown },
     ],

@@ -17,6 +17,8 @@ import { getNostrRelays } from '~/state/nostrRelayStore';
 import { deriveSharingKeys, decryptToken } from '~/shared/utils/ecashSharing';
 import ReceiveModeSelector, { ReceiveMode } from '~/shared/ui/ReceiveModeSelector';
 import * as ClipboardAPI from 'expo-clipboard';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
+import { usePreventRemove } from '@react-navigation/native';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -40,6 +42,10 @@ export function ReceiveModalScreen() {
   const [automaticDecode, setAutomaticDecode] = useState(false);
   const decodeLock = React.useRef(false);
   const [isReceiving, setIsReceiving] = useState(false);
+  const receiveLock = React.useRef(false);
+  const savedToken = React.useRef<string | null>(null);
+  const offline = useOfflineStatus();
+  usePreventRemove(isReceiving, () => {});
   usePendingOperationToast({ active: isDecoding && automaticDecode, title: 'Reading ecash…' });
   const [status, setStatus] = useState<'success' | 'error'>('success');
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +163,7 @@ export function ReceiveModalScreen() {
         const isTrusted = currentMints.some(
           (m) => normalizeUrl(m.mintUrl) === normalizeUrl(mintUrl) && m.trusted,
         );
-        if (!isTrusted) {
+        if (!isTrusted && !(await networkService.isOffline())) {
           fetchMintInfoRef
             .current(mintUrl)
             .then((info: any) => {
@@ -298,7 +304,7 @@ export function ReceiveModalScreen() {
     }
   }, [params.scannedToken, params.requestId, params.from, params.mode, params.paste]);
 
-  const handleReceiveLater = useCallback(async () => {
+  const saveForLater = useCallback(async () => {
     if (!tokenInfo) return;
 
     setError(null);
@@ -307,59 +313,62 @@ export function ReceiveModalScreen() {
       const mintUrl = tokenInfo.mint;
       console.log('[ReceiveModal] Saving for later:', mintUrl);
 
-      // 1. Ensure mint is added/known (optional but good for UI consistency)
-      const knownMints = mints.map((m) => m.mintUrl.toLowerCase());
-      if (!knownMints.includes(mintUrl.toLowerCase())) {
-        addMint(mintUrl, { trusted: true }).catch((e) => {
-          console.warn('[ReceiveModal] Failed to add mint in background during save later:', e);
-        });
-      }
-
-      // 2. Decode to get the full token object for storage
+      // Save only an unclaimed offer. Do not trust a mint or credit spendable proofs.
       const decoded = decodeToken(token.trim());
 
       // 3. Add to history as 'unclaimed' receive
       const repo = initService.getRepo();
-      await (repo.historyRepository as any).addHistoryEntry({
-        mintUrl,
-        type: 'receive',
-        unit: 'sat',
-        amount: tokenInfo.amount,
-        createdAt: Date.now(),
-        state: 'unclaimed',
-        token: decoded,
-        metadata: {
-          type: tokenInfo.p2pkNpub ? 'p2pk' : 'standard',
-          p2pkPubkey: tokenInfo.p2pkNpub ? nip19.decode(tokenInfo.p2pkNpub).data : undefined,
-        },
-      });
+      if (savedToken.current !== token.trim())
+        await (repo.historyRepository as any).addHistoryEntry({
+          mintUrl,
+          type: 'receive',
+          unit: 'sat',
+          amount: tokenInfo.amount,
+          createdAt: Date.now(),
+          state: 'unclaimed',
+          token: decoded,
+          metadata: {
+            offline: true,
+            type: tokenInfo.p2pkNpub ? 'p2pk' : 'standard',
+            p2pkPubkey: tokenInfo.p2pkNpub ? nip19.decode(tokenInfo.p2pkNpub).data : undefined,
+          },
+        });
+      savedToken.current = token.trim();
 
       setStatus('success');
       setIsReceiveLater(true);
       setStep('result');
     } catch (err: any) {
-      console.error('[ReceiveModal] Failed to save token for later:', err);
-      setError(err.message || 'Failed to save for later');
+      console.error('[ReceiveModal] Failed to save token for later.');
+      setError('Could not save this token on your device. Please try again.');
       setStatus('error');
       setStep('result');
     }
-  }, [token, tokenInfo, mints, addMint]);
+  }, [token, tokenInfo]);
+
+  const handleReceiveLater = useCallback(async () => {
+    if (!tokenInfo || receiveLock.current) return;
+    receiveLock.current = true;
+    setIsReceiving(true);
+    try {
+      await saveForLater();
+    } finally {
+      receiveLock.current = false;
+      setIsReceiving(false);
+    }
+  }, [tokenInfo, saveForLater]);
 
   const handleReceive = useCallback(async () => {
-    if (!tokenInfo) return;
-
-    const offline = await networkService.isOffline();
-    if (offline) {
-      setError('You are offline. Please check your internet connection.');
-      setStatus('error');
-      setStep('result');
-      return;
-    }
-
+    if (!tokenInfo || receiveLock.current) return;
+    receiveLock.current = true;
     setIsReceiving(true);
     setError(null);
 
     try {
+      if (await networkService.isOffline()) {
+        await saveForLater();
+        return;
+      }
       const mintUrl = tokenInfo.mint;
       console.log('[ReceiveModal] Starting receive for mint:', mintUrl);
 
@@ -435,9 +444,10 @@ export function ReceiveModalScreen() {
       setStatus('error');
       setStep('result');
     } finally {
+      receiveLock.current = false;
       setIsReceiving(false);
     }
-  }, [token, tokenInfo, mints, refreshBalance, addMint]);
+  }, [token, tokenInfo, mints, refreshBalance, addMint, saveForLater]);
 
   const handleNext = () => {
     if (step === 'input') handleDecodeToken();
@@ -454,6 +464,7 @@ export function ReceiveModalScreen() {
   }, [params.scannedToken, router, refreshBalance]);
 
   const handleBack = useCallback(() => {
+    if (receiveLock.current) return;
     if (step === 'confirm' && !params.scannedToken) {
       setStep('input');
       setTokenInfo(null);
@@ -524,6 +535,7 @@ export function ReceiveModalScreen() {
           isLoading={isReceiving}
           onConfirm={handleNext}
           onReceiveLater={handleReceiveLater}
+          offline={offline}
           onBack={handleBack}
         />
       )}
@@ -536,6 +548,7 @@ export function ReceiveModalScreen() {
           token={token}
           error={error}
           isReceiveLater={isReceiveLater}
+          offline={offline}
           isLoading={isReceiving}
           onClaimNow={handleReceive}
           onClose={handleClose}

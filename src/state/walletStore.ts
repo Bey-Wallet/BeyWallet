@@ -1,18 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
-import {
-  initService,
-  walletService,
-  mintManager,
-  nostrService,
-  quotesService,
-} from '~/services/wallet';
+import { initService, walletService, mintManager, quotesService } from '~/services/wallet';
 import type { MintInfo } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
 import { DEFAULT_MINT } from '~/state/constants';
-import { InteractionManager, DeviceEventEmitter } from 'react-native';
-import { seedService } from '~/services/platform/seedService';
+import { InteractionManager } from 'react-native';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
@@ -489,44 +482,8 @@ export const useWalletStore = create<WalletState>()(
       },
 
       syncMintsToNostr: async () => {
-        try {
-          console.log('[WalletStore] Starting mint sync to Nostr...');
-          // Get all trusted mints
-          const trustedMints = await mintManager.getAllTrustedMints();
-          const urlsToBackup = new Set<string>(trustedMints.map((m) => m.mintUrl));
-
-          // Also include any untrusted mints that have a balance > 0
-          const allBalances = await walletService.getBalances();
-          for (const [url, balance] of Object.entries(allBalances)) {
-            if (balance > 0) {
-              urlsToBackup.add(url);
-            }
-          }
-
-          const mintUrls = Array.from(urlsToBackup);
-          if (mintUrls.length === 0) {
-            return;
-          }
-
-          const mnemonic = await seedService.getMnemonic();
-          if (!mnemonic) {
-            console.warn('[WalletStore] No mnemonic found, skipping Nostr backup');
-            return;
-          }
-
-          const keys = await seedService.getNostrKeys(mnemonic);
-          // keys.pubkey is already a hex string
-          const success = await nostrService.backupMintsToNostr(
-            mintUrls,
-            keys.privkey,
-            keys.pubkey,
-          );
-          if (success) {
-            DeviceEventEmitter.emit('nostr:sync-success', { npub: keys.npub });
-          }
-        } catch (err: any) {
-          console.error('[WalletStore] Failed to sync mints to Nostr:', err?.message || err);
-        }
+        const { publishMintBackup } = await import('~/services/wallet/mintBackupService');
+        await publishMintBackup(true);
       },
 
       autoCheckPendingOnchainQuotes: async () => {
