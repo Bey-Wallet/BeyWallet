@@ -1,9 +1,11 @@
+import { Spinner } from '~/shared/ui/Spinner';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import React, { useCallback, useRef, useState } from 'react';
-import { DeviceEventEmitter, FlatList, Keyboard } from 'react-native';
+import { DeviceEventEmitter, Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClipboardPaste, Search, X } from '@tamagui/lucide-icons';
-import { Input, Spinner, Text, XStack, YStack } from 'tamagui';
+import { Input, Text, XStack, YStack } from 'tamagui';
 import * as Clipboard from 'expo-clipboard';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -39,19 +41,17 @@ function PeopleVirtualList({
   ListEmptyComponent: React.ReactElement | null;
   ListFooterComponent: React.ReactElement;
 }) {
-  const list = useRef<FlatList<PeopleListEntry>>(null);
+  const list = useRef<LegendListRef>(null);
   const initial = useRef(initialOffset);
   const restored = useRef(false);
   return (
-    <FlatList
+    <LegendList
+      recycleItems={false}
       {...props}
       ref={list}
       data={data}
-      contentOffset={{ x: 0, y: initial.current }}
+      initialScrollOffset={initial.current}
       keyExtractor={(item) => item.id}
-      initialNumToRender={12}
-      maxToRenderPerBatch={12}
-      windowSize={7}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}

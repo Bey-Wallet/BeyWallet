@@ -83,7 +83,7 @@ export default function NostrSettingsScreen() {
 
   return (
     <SafeFlex fill bg="$background">
-      <Stack.Screen options={{ headerTitle: 'Nostr Settings' }} />
+      <Stack.Screen options={{ title: 'Nostr Settings' }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}

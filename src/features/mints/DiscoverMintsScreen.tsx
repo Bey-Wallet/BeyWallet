@@ -1,6 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, View, ScrollView, Spinner } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import {
   ShieldCheck,
   ShieldOff,
@@ -13,7 +15,6 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useRouter } from 'expo-router';
-import { FlatList } from 'react-native';
 import AddMintModal, { AddMintModalRef } from '~/shared/ui/AddMintModal';
 import { useRef } from 'react';
 
@@ -124,7 +125,8 @@ export default function DiscoverMintsScreen() {
           <Text color="$gray10">No mints found.</Text>
         </YStack>
       ) : (
-        <FlatList
+        <LegendList
+          recycleItems={false}
           data={displayedMints}
           renderItem={renderItem}
           keyExtractor={(item) => item.url}

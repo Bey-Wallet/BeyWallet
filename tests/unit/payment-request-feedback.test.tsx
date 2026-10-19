@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentRequestStage } from '~/features/payments/send/PaymentRequestStage';
@@ -19,18 +20,22 @@ const mockPayment = {
   cost: { mintUrl: 'https://mint.test' },
 };
 const mockConstruct = jest.fn();
+const mockPreview = jest.fn(async (_request: unknown, _mint: string, amountMode = 'net') => ({
+  mintUrl: 'https://mint.test',
+  amountMode,
+  amount: 10,
+  grossAmount: 10,
+  totalDebit: 10,
+  receiverFee: amountMode === 'exact' ? 1 : 0,
+  senderFee: 0,
+}));
 jest.mock('~/services/wallet/paymentRequestPayment', () => ({
   requestPaymentKey: () => 'request-key',
-  PaymentRequestPayment: function () {
-    mockConstruct();
+  PaymentRequestPayment: function (...args: unknown[]) {
+    mockConstruct(...args);
     return mockPayment;
   },
-  previewPaymentRequest: async () => ({
-    mintUrl: 'https://mint.test',
-    totalDebit: 10,
-    receiverFee: 0,
-    senderFee: 0,
-  }),
+  previewPaymentRequest: (...args: Parameters<typeof mockPreview>) => mockPreview(...args),
 }));
 jest.mock('~/services/wallet/requestLifecycleService', () => ({
   requestLifecycleService: { reconcile: jest.fn() },
@@ -44,7 +49,7 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: () => ({
     balance: 100,
     activeMintUrl: 'https://mint.test',
-    mints: [{ mintUrl: 'https://mint.test', name: 'Mint' }],
+    mints: [{ mintUrl: 'https://mint.test', name: 'Mint', trusted: true }],
     balances: { 'https://mint.test': 100 },
     refreshMintList: jest.fn(),
   }),
@@ -56,6 +61,7 @@ jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: { price: 10
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: {
+    formatValue: () => '$0.01',
     convertSatsToCurrency: () => 0.01,
     formatSats: (value: number) => `${value} sats`,
   },
@@ -116,12 +122,12 @@ afterEach(async () => {
   jest.useRealTimers();
 });
 
-async function render(autoPay: boolean, onSuccess = jest.fn()) {
+async function render(autoPay: boolean, onSuccess = jest.fn(), paymentRequest = request) {
   await act(async () => {
     tree = create(
       <OperationFeedbackProvider>
         <PaymentRequestStage
-          request={request}
+          request={paymentRequest}
           autoPay={autoPay}
           onSuccess={onSuccess}
           onError={jest.fn()}
@@ -189,5 +195,45 @@ it('exposes a manual retry after automatic delivery fails before an operation ex
   await act(async () => pay.props.onPress());
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
   expect(tree.root.findAllByType('AppButton' as any).find((n) => n.props.loading)).toBeDefined();
+  await act(async () => mockResolveDelivery());
+});
+
+it('requires opt-in for the legacy quote, shows the net amount, and locks the mode during delivery', async () => {
+  const nostrRequest = { ...request, delivery: 'nip17' as const };
+  await render(false, jest.fn(), nostrRequest);
+  const toggle = () =>
+    tree.root.findByProps({ accessibilityLabel: 'Exact amount for legacy wallets' });
+  expect(toggle().props.value).toBe(false);
+  await act(async () => toggle().props.onValueChange(true));
+  expect(mockPreview).toHaveBeenLastCalledWith(nostrRequest, 'https://mint.test', 'exact');
+  expect(tree.root.findByProps({ label: 'Recipient receives after fees' }).props.value).toBe(
+    '9 sats',
+  );
+  expect(
+    tree.root
+      .findAllByProps({ accessibilityRole: 'alert' })
+      .some((node) => JSON.stringify(node.props.children).includes('recipient pays')),
+  ).toBe(true);
+  const pay = () =>
+    tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
+  await act(async () => pay().props.onPress());
+  expect(mockConstruct).toHaveBeenCalledWith(
+    nostrRequest,
+    expect.objectContaining({ amountMode: 'exact' }),
+    undefined,
+  );
+  expect(toggle().props.disabled).toBe(true);
+  await act(async () => toggle().props.onValueChange(false));
+  expect(toggle().props.value).toBe(true);
+  await act(async () => mockResolveDelivery());
+  expect(toggle().props.disabled).toBe(true);
+});
+
+it('never offers legacy mode for automatic NFC payments', async () => {
+  await render(true, jest.fn(), { ...request, delivery: 'nfc' });
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Exact amount for legacy wallets' }),
+  ).toHaveLength(0);
+  expect(mockPreview).toHaveBeenLastCalledWith(expect.anything(), 'https://mint.test', 'net');
   await act(async () => mockResolveDelivery());
 });

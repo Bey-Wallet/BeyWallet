@@ -55,11 +55,11 @@ function renderIcon(icon: AppButtonIcon | undefined, props: IconProps) {
 }
 
 const sizes = {
-  xxsmall: [32, 12, 14, 8],
-  xsmall: [36, 13, 16, 10],
-  small: [40, 14, 18, 12],
-  medium: [48, 16, 20, 16],
-  large: [56, 18, 24, 20],
+  xxsmall: [32, 12, 14, '$3'],
+  xsmall: [36, 13, 16, '$4'],
+  small: [40, 14, 18, '$5'],
+  medium: [48, 16, 20, '$6'],
+  large: [56, 18, 24, '$6'],
 } as const;
 
 export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(function AppButton(

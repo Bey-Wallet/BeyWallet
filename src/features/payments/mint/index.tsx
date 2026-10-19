@@ -1,6 +1,7 @@
+import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { YStack } from 'tamagui';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { InteractionManager } from 'react-native';
 import { AmountStage } from '~/features/payments/mint/AmountStage';
 import { ConfirmStage } from '~/features/payments/mint/ConfirmStage';
@@ -23,13 +24,13 @@ interface MintQuoteData {
 export default function MintScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
+  const { mintUrl: activeMintUrl, setMintUrl } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
 
   if (mode === 'onchain') {
     return (
       <YStack flex={1} bg="$background" px="$4">
-        <Stack.Screen options={{ headerTitle: 'On-Chain Recieve' }} />
+        <Stack.Screen options={{ title: 'On-Chain Recieve' }} />
         <OnchainMintFlow />
       </YStack>
     );
@@ -40,6 +41,7 @@ export default function MintScreen() {
   const [status, setStatus] = useState<MintResultStatus>('success');
   const [quoteData, setQuoteData] = useState<MintQuoteData | null>(null);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
+  const createLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   // Listen for mint quote redeemed event
@@ -62,23 +64,19 @@ export default function MintScreen() {
   }, [quoteData, refreshBalance]);
 
   const handleCreateQuote = useCallback(async () => {
+    if (createLock.current) return;
     if (!activeMintUrl) {
       setError('No active mint selected');
       return;
     }
 
-    const offline = await networkService.isOffline();
-    if (offline) {
-      setError('You are offline. Please check your internet connection.');
-      setStatus('error');
-      setStep('result');
-      return;
-    }
-
+    createLock.current = true;
     setIsCreatingQuote(true);
     setError(null);
 
     try {
+      if (await networkService.isOffline())
+        throw new Error('You are offline. Please check your internet connection.');
       const amountSats = parseInt(amount, 10);
       if (isNaN(amountSats) || amountSats <= 0) {
         throw new Error('Invalid amount');
@@ -98,6 +96,7 @@ export default function MintScreen() {
       setStatus('error');
       setStep('result');
     } finally {
+      createLock.current = false;
       setIsCreatingQuote(false);
     }
   }, [activeMintUrl, amount]);
@@ -158,13 +157,20 @@ export default function MintScreen() {
 
   return (
     <YStack flex={1} bg="$background" px="$4">
-      <Stack.Screen options={{ headerTitle: 'Mint Cash' }} />
+      <Stack.Screen />
       {step === 'amount' && (
-        <AmountStage amount={amount} setAmount={setAmount} onContinue={handleNext} />
+        <AmountStage
+          mintUrl={activeMintUrl}
+          onMintChange={setMintUrl}
+          amount={amount}
+          setAmount={setAmount}
+          onContinue={handleNext}
+        />
       )}
 
       {step === 'confirm' && (
         <ConfirmStage
+          onMintChange={setMintUrl}
           amount={amount}
           mintUrl={activeMintUrl || ''}
           isLoading={isCreatingQuote}

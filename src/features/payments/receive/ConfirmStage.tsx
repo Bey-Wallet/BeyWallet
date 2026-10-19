@@ -1,18 +1,20 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
-import { YStack, XStack, Text, View, Separator, ScrollView, YGroup } from 'tamagui';
-import { ShieldCheck, AlertTriangle, Copy, Clock, Check } from '@tamagui/lucide-icons';
-import { Spinner } from '~/shared/ui/Spinner';
+import { Text } from 'tamagui';
+import { RefreshCw } from '@tamagui/lucide-icons';
+
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
 import { useWalletStore } from '~/state/walletStore';
 import { mintManager, proofService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
-import { useQuery } from '@tanstack/react-query';
-import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 
 interface TokenInfo {
   mint: string;
@@ -43,14 +45,15 @@ export function ConfirmStage({
   onBack,
 }: ConfirmStageProps) {
   const { mints } = useWalletStore();
-  const { secondaryCurrency } = useSettingsStore();
+  const npub = useSettingsStore((state) => state.npub);
   const toast = useToastController();
   const [isSavingLater, setIsSavingLater] = React.useState(false);
   const [estimatedFee, setEstimatedFee] = React.useState(0);
 
   // ── Proof state verification (NUT-07) ────────────────────────────
-  type ProofStatus = 'checking' | 'valid' | 'spent' | 'unknown';
+  type ProofStatus = 'checking' | 'valid' | 'spent' | 'pending' | 'unknown';
   const [proofStatus, setProofStatus] = React.useState<ProofStatus>('checking');
+  const [statusRefresh, setStatusRefresh] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -63,8 +66,15 @@ export function ConfirmStage({
           setProofStatus('unknown');
           return;
         }
-        const anySpent = states.some((s: any) => s.state === 'SPENT');
-        setProofStatus(anySpent ? 'spent' : 'valid');
+        setProofStatus(
+          states.some((state) => state.state === 'SPENT')
+            ? 'spent'
+            : states.some((state) => state.state === 'PENDING')
+              ? 'pending'
+              : states.every((state) => state.state === 'UNSPENT')
+                ? 'valid'
+                : 'unknown',
+        );
       } catch {
         if (!cancelled) setProofStatus('unknown');
       }
@@ -72,7 +82,7 @@ export function ConfirmStage({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, statusRefresh]);
   // ─────────────────────────────────────────────────────────────────
 
   const [expiresAt, setExpiresAt] = React.useState<number | undefined>(undefined);
@@ -131,12 +141,6 @@ export function ConfirmStage({
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  const { data: btcData } = useQuery({
-    queryKey: ['bitcoinPrice', secondaryCurrency],
-    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-    staleTime: 30000,
-  });
-
   // Fetch fee for this mint
   React.useEffect(() => {
     if (tokenInfo.mint) {
@@ -175,119 +179,47 @@ export function ConfirmStage({
   };
 
   return (
-    <YStack flex={1} bg="$background">
-      <ScrollView
-        pointerEvents={isLoading ? 'none' : 'auto'}
-        contentContainerStyle={{ paddingBottom: 250 } as any}
-        showsVerticalScrollIndicator={false}
-      >
-        <YStack p="$4" gap="$4">
-          {/* Middle Amount Display */}
-          <YStack gap="$3" py="$6" items="center" justify="center">
-            <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
-              {currencyService.formatSats(tokenInfo.amount)}
-            </Text>
-            <Text color="$accent5" fontWeight="600" fontSize={16}>
-              {btcData?.price
-                ? currencyService.formatValue(
-                    currencyService.convertSatsToCurrency(tokenInfo.amount, btcData.price),
-                    secondaryCurrency as CurrencyCode,
-                  )
-                : '$0.00'}
-            </Text>
-          </YStack>
-
-          {/* Proof verification status badge (NUT-07) */}
-          <XStack
-            self="center"
-            items="center"
-            gap="$2"
-            bg={proofStatus === 'valid' ? '$green9' : proofStatus === 'spent' ? '$red9' : '$gray9'}
-            px="$4"
-            py="$3"
-            rounded="$10"
+    <>
+      <PaymentFlowHeader
+        title="Confirm receive"
+        onBack={onBack}
+        disabled={isLoading || isSavingLater}
+      />
+      <PaymentStageLayout
+        disabled={isLoading || isSavingLater}
+        hero={<PaymentAmount amount={tokenInfo.amount} label="You're receiving" />}
+        footer={
+          <AppButton
+            variant="branded"
+            emphasis="primary"
+            size="large"
+            loading={isLoading}
+            loadingText="Receiving ecash…"
+            disabled={
+              isLoading || isSavingLater || proofStatus === 'checking' || proofStatus === 'spent'
+            }
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              onConfirm();
+            }}
           >
-            {proofStatus === 'checking' && <Spinner size="small" color="white" />}
-            {proofStatus === 'valid' && <Check size={16} color="white" />}
-            {proofStatus === 'spent' && <AlertTriangle size={16} color="white" />}
-            {proofStatus === 'unknown' && <AlertTriangle size={16} color="white" />}
-            <Text fontSize="$3" fontWeight="700" color="white">
-              {proofStatus === 'checking'
-                ? 'Checking...'
-                : proofStatus === 'valid'
-                  ? 'Unspent'
-                  : proofStatus === 'spent'
-                    ? 'Spent'
-                    : 'Unverified'}
-            </Text>
-          </XStack>
-
-          {/* Warning for untrusted mint */}
-          {!isMintTrusted && (
-            <YStack bg="$orange3" p="$3" px="$4" rounded="$4" gap="$1.5">
-              <XStack gap="$2" items="center">
-                <AlertTriangle size={18} color="$orange10" />
-                <Text color="$orange10" fontSize="$3" fontWeight="700">
-                  Untrusted Mint
-                </Text>
-              </XStack>
-              <Text color="$orange10" fontSize="$2" fontWeight="500" lineHeight={18}>
-                You are about to add and trust this mint to receive funds.
-                {tokenInfo.preview ? ' Review the details below.' : ''}
-              </Text>
-            </YStack>
-          )}
-
-          {/* Details List */}
-          <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
-            <View p="$3" px="$4">
-              <Text fontSize="$3" fontWeight="700" color="$gray12">
-                Details
-              </Text>
-            </View>
-            <Separator borderColor="$borderColor" opacity={0.3} />
-            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-              <DetailItem
-                label="Token"
-                value={`${token.substring(0, 10)}...${token.substring(token.length - 6)}`}
-                isCopyable
-                onCopy={() => handleCopy(token, 'Token')}
-              />
-              <DetailItem label="Proofs" value={tokenInfo.proofCount.toString()} />
-              <DetailItem
-                label="Mint"
-                value={getMintDisplayName(tokenInfo.mint)}
-                isCopyable
-                onCopy={() => handleCopy(tokenInfo.mint, 'Mint URL')}
-              />
-              {estimatedFee > 0 && <DetailItem label="Fee" value={`${estimatedFee} sats`} />}
-              {tokenInfo.p2pkNpub && (
-                <DetailItem
-                  label="Locked To"
-                  value={
-                    tokenInfo.p2pkNpub === useSettingsStore.getState().npub
-                      ? 'You (Safe)'
-                      : `${tokenInfo.p2pkNpub.substring(0, 10)}...${tokenInfo.p2pkNpub.substring(tokenInfo.p2pkNpub.length - 6)}`
-                  }
-                  isCopyable={tokenInfo.p2pkNpub !== useSettingsStore.getState().npub}
-                  onCopy={() => handleCopy(tokenInfo.p2pkNpub!, 'NPUB')}
-                />
-              )}
-              {expiresAt && <DetailItem label="Expiry" value={timeLeftStr || 'Checking...'} />}
-            </YGroup>
-          </YStack>
-        </YStack>
-      </ScrollView>
-
-      <YStack position="absolute" b="$2" l="$4" r="$4" gap="$2">
+            {isLoading
+              ? 'Receiving...'
+              : proofStatus === 'spent'
+                ? 'Already spent'
+                : isMintTrusted
+                  ? 'Receive'
+                  : 'Trust & Receive'}
+          </AppButton>
+        }
+      >
         <AppButton
           variant="default"
           emphasis="text-only"
-          size="large"
-          loading={isSavingLater}
-          icon={<Clock size={18} color="$accent6" />}
           flex={1}
-          disabled={isLoading}
+          size="small"
+          loading={isSavingLater}
+          disabled={isLoading || isSavingLater}
           onPress={async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setIsSavingLater(true);
@@ -300,71 +232,67 @@ export function ConfirmStage({
         >
           {isSavingLater ? 'Saving...' : 'Claim Later'}
         </AppButton>
-
-        <AppButton
-          variant="branded"
-          emphasis="primary"
-          size="large"
-          loading={isLoading}
-          loadingText="Receiving ecash…"
-          flex={1}
-          disabled={isLoading || proofStatus === 'spent'}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            onConfirm();
-          }}
-        >
-          {isLoading
-            ? 'Receiving...'
-            : proofStatus === 'spent'
-              ? 'Token Already Spent'
-              : isMintTrusted
-                ? 'Receive'
-                : 'Trust & Receive'}
-        </AppButton>
-      </YStack>
-    </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  isCopyable,
-  onCopy,
-}: {
-  label: string;
-  value: string;
-  isCopyable?: boolean;
-  onCopy?: () => void;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color="$color"
-          numberOfLines={1}
-          style={{ maxWidth: 200 }}
-        >
-          {value}
-        </Text>
-        {isCopyable && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Copy"
-            icon={<Copy size={16} color="$gray10" />}
-            onPress={onCopy}
+        <ListTable compact>
+          <ListTableRow
+            label="Mint"
+            value={getMintDisplayName(tokenInfo.mint)}
+            isCopyable
+            onCopy={() => handleCopy(tokenInfo.mint, 'Mint URL')}
           />
+          <ListTableRow
+            label="Status"
+            value={
+              proofStatus === 'checking'
+                ? 'Checking…'
+                : proofStatus === 'valid'
+                  ? 'Unspent'
+                  : proofStatus === 'spent'
+                    ? 'Already spent'
+                    : proofStatus === 'pending'
+                      ? 'Pending'
+                      : 'Unverified'
+            }
+            valueColor={proofStatus === 'spent' ? '$red10' : undefined}
+            rightContent={
+              <AppIconButton
+                variant="default"
+                emphasis="tertiary"
+                size="xxsmall"
+                accessibilityLabel="Refresh status"
+                disabled={isLoading || isSavingLater || proofStatus === 'checking'}
+                loading={proofStatus === 'checking'}
+                icon={<RefreshCw size={16} color="$gray10" />}
+                onPress={() => {
+                  if (isLoading || isSavingLater || proofStatus === 'checking') return;
+                  setProofStatus('checking');
+                  setStatusRefresh((value) => value + 1);
+                }}
+              />
+            }
+          />
+          {estimatedFee > 0 && (
+            <ListTableRow label="Estimated fee" value={`${estimatedFee} sats`} />
+          )}
+          {tokenInfo.p2pkNpub && (
+            <ListTableRow
+              label="Locked To"
+              value={
+                tokenInfo.p2pkNpub === npub
+                  ? 'You (Safe)'
+                  : `${tokenInfo.p2pkNpub.substring(0, 10)}...${tokenInfo.p2pkNpub.substring(tokenInfo.p2pkNpub.length - 6)}`
+              }
+              isCopyable={tokenInfo.p2pkNpub !== npub}
+              onCopy={() => handleCopy(tokenInfo.p2pkNpub!, 'NPUB')}
+            />
+          )}
+          {expiresAt && <ListTableRow label="Expiry" value={timeLeftStr || 'Checking...'} />}
+        </ListTable>
+        {!isMintTrusted && (
+          <Text color="$orange10" fontSize="$2" textAlign="center">
+            Receiving will add and trust this mint.
+          </Text>
         )}
-      </XStack>
-    </XStack>
+      </PaymentStageLayout>
+    </>
   );
 }

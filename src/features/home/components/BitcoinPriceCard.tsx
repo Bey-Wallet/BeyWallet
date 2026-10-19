@@ -1,7 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import React, { useMemo } from 'react';
 import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
 import { useToastController } from '@tamagui/toast';
-import { H2, Image, Text, View, XStack, YStack, Spinner, Stack } from 'tamagui';
+import { H2, Image, Text, View, XStack, YStack, Stack } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import * as Haptics from 'expo-haptics';

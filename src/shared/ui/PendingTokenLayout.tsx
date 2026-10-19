@@ -1,49 +1,35 @@
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
+import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
-import { YStack, XStack, Text, Separator, View, ScrollView, useTheme, YGroup } from 'tamagui';
-import {
-  Copy,
-  Share2,
-  Check,
-  RotateCcw,
-  Gauge,
-  ArrowDownLeft,
-  Nfc,
-  Globe,
-  ChevronRight,
-  Clock,
-  AlertCircle,
-  X,
-  Send,
-} from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Separator, useTheme, YGroup } from 'tamagui';
+import { Copy, Share2, Check, Gauge, Nfc, Globe, X } from '@tamagui/lucide-icons';
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
-import QRCode from 'react-native-qrcode-svg';
+import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Clipboard from 'expo-clipboard';
-import { Share as RNShare, Platform } from 'react-native';
+import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 import * as Linking from 'expo-linking';
 
 import { Spinner } from '~/shared/ui/Spinner';
-import { Stack, router } from 'expo-router';
 
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
-import {
-  cleanToken,
-  decodeToken,
-  encodeTokenV4,
-  encodeTokenV3,
-  mintManager,
-} from '~/services/wallet';
+import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import { useAuthStore } from '~/state/authStore';
-import { StatusBadge, BadgeStatus } from '~/shared/ui/StatusBadge';
+import { BadgeStatus } from '~/shared/ui/StatusBadge';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 export interface PendingTokenLayoutProps {
@@ -60,11 +46,12 @@ export interface PendingTokenLayoutProps {
   isClaiming?: boolean;
   operationId?: string;
   expiresAt?: number;
+  reclaimAt?: number;
   /** Controls the status badge color in the header. Defaults to 'pending'. */
   headerStatus?: BadgeStatus;
-  /** Called when the status badge is tapped. */
+  /** Refreshes the status row using the owning payment flow. */
   onCheckStatus?: () => void | Promise<void>;
-  /** Shows spinner on the badge while a status check is in-flight. */
+  /** Shows a spinner while a status check is in flight. */
   isCheckingStatus?: boolean;
   customHeaderRight?: () => React.ReactNode;
 }
@@ -83,6 +70,7 @@ export function PendingTokenLayout({
   isClaiming = false,
   operationId,
   expiresAt,
+  reclaimAt,
   headerStatus = 'pending',
   onCheckStatus,
   isCheckingStatus = false,
@@ -320,281 +308,187 @@ export function PendingTokenLayout({
     }
   };
 
-  const [computedFee, setComputedFee] = useState<number | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function fetchRealFee() {
-      try {
-        let proofsCount = 0;
-        let targetMint = mintUrl;
-
-        if (currentToken) {
-          try {
-            const clean = cleanToken(currentToken);
-            const decoded = decodeToken(clean) as any;
-            let proofs: any[] = [];
-            if (decoded.token && decoded.token.length > 0) proofs = decoded.token[0].proofs || [];
-            else if (decoded.proofs) proofs = decoded.proofs || [];
-
-            proofsCount = proofs.length;
-            if (!targetMint) {
-              targetMint = (decoded.token && decoded.token[0]?.mint) || decoded.mint;
-            }
-          } catch (e) {
-            console.warn('[PendingTokenLayout] Error decoding token for fee:', e);
-          }
-        }
-
-        if (targetMint) {
-          const feePpk = await mintManager.getFeePpk(targetMint);
-          if (feePpk > 0) {
-            const inputsCount = proofsCount > 0 ? proofsCount : 1;
-            const feeInSats = Math.ceil((inputsCount * feePpk) / 1000);
-            if (isMounted) setComputedFee(feeInSats);
-            return;
-          }
-        }
-
-        if (fee > 0 && fee < 100) {
-          if (isMounted) setComputedFee(fee);
-        } else {
-          if (isMounted) setComputedFee(0);
-        }
-      } catch (err) {
-        console.warn('[PendingTokenLayout] Failed to calculate real mint fee:', err);
-        if (isMounted) setComputedFee(0);
-      }
-    }
-
-    fetchRealFee();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentToken, mintUrl, fee]);
-
-  const displayFee = computedFee !== null ? computedFee : fee > 0 && fee < 100 ? fee : 0;
+  const displayFee = Number.isFinite(fee) ? fee : 0;
 
   const displayNpub = lockedToNpub || parsedNpub;
 
+  const pendingTitle =
+    headerStatus === 'success'
+      ? 'Ecash claimed'
+      : headerStatus === 'failed'
+        ? 'Payment failed'
+        : onClaim
+          ? 'Receive ecash'
+          : 'Pending ecash';
   return (
-    <YStack flex={1} bg="$background" gap="$4" pb="$5" width="100%">
-      <Stack.Screen
-        options={{
-          headerTitle(props) {
-            return (
-              <>
-                <XStack
-                  self="center"
-                  items="center"
-                  gap="$2"
-                  bg={
-                    headerStatus === 'success'
-                      ? '$green9'
-                      : headerStatus === 'failed'
-                        ? '$red9'
-                        : '$orange9'
-                  }
-                  px="$4"
-                  py="$3"
-                  rounded="$10"
-                  onPress={onCheckStatus}
-                  pressStyle={{ opacity: 0.8 }}
-                >
-                  {isCheckingStatus ? (
-                    <Spinner size="small" color="white" />
-                  ) : headerStatus === 'success' ? (
-                    <Check size={16} color="white" />
-                  ) : headerStatus === 'failed' ? (
-                    <AlertCircle size={16} color="white" />
+    <>
+      <PaymentFlowHeader title={pendingTitle} headerRight={customHeaderRight || (() => null)} />
+      <PaymentStageLayout
+        variant="qr"
+        hero={
+          <>
+            {headerStatus !== 'pending' && (
+              <PaymentStatusIcon
+                status={
+                  headerStatus === 'success'
+                    ? 'success'
+                    : headerStatus === 'failed'
+                      ? 'error'
+                      : 'pending'
+                }
+              />
+            )}
+            <PaymentQRFrame accessibilityLabel="Ecash QR code">
+              {(size) =>
+                qrCodeFragment ? (
+                  qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
+                    <YStack width={size} height={size} items="center" justify="center" gap="$3">
+                      <Gauge size={40} color="$orange10" />
+                      <Text color="$gray10" textAlign="center">
+                        Token too large. Enable animated QR or use V4 encoding.
+                      </Text>
+                    </YStack>
                   ) : (
-                    <Clock size={16} color="white" />
-                  )}
-                  <Text fontSize="$3" fontWeight="700" color="white">
-                    {isCheckingStatus
-                      ? 'Checking Status...'
-                      : headerStatus === 'success'
-                        ? 'Claimed'
-                        : headerStatus === 'failed'
-                          ? 'Failed'
-                          : 'Pending Claim'}
-                  </Text>
-                </XStack>
-              </>
-            );
-          },
-          headerTitleAlign: 'center',
-          headerRight: customHeaderRight || (() => null),
-        }}
-      />
-
-      {/* Middle Amount Display */}
-      {/* <YStack gap="$2" py="$5" items="center" justify="center">
-                <Text fontSize={52}  fontWeight="700" color="$color" lineHeight={54}>
-                    {currencyService.formatSats(Number(amount || 0))}
-                </Text>
-                <Text color="$accent9" fontWeight="600" fontSize={16}>
-                    {fiatValue}
-                </Text>
-            </YStack> */}
-
-      {/* QR Code Container */}
-      <YStack items="center" gap="$3" pt="$4">
-        <View
-          bg="white"
-          p="$3"
-          rounded="$6"
-          borderWidth={1}
-          borderColor="$borderColor"
-          style={{ elevation: 2 }}
-        >
-          {qrCodeFragment ? (
-            qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
-              <YStack width={330} height={330} items="center" justify="center" px="$4">
-                <Gauge size={50} color="$orange8" opacity={0.5} />
-                <Text mt="$4" color="$gray10" text="center" fontWeight="600">
-                  Token too large
-                </Text>
-                <Text mt="$2" color="$gray9" text="center" fontSize="$2" px="$4">
-                  Please enable Animated QR (UR) or switch to V4 encoding to make it smaller.
-                </Text>
-              </YStack>
-            ) : (
-              <QRCode
-                value={qrCodeFragment}
-                size={320}
-                backgroundColor="white"
-                color="black"
-                quietZone={10}
-              />
-            )
+                    <QRCode
+                      value={qrCodeFragment}
+                      size={size}
+                      backgroundColor="white"
+                      color="black"
+                    />
+                  )
+                ) : (
+                  <YStack width={size} height={size} items="center" justify="center">
+                    <Spinner size="large" />
+                  </YStack>
+                )
+              }
+            </PaymentQRFrame>
+            <PaymentAmount amount={Number(amount)} compact />
+          </>
+        }
+        footer={
+          !hideActions && onClaim ? (
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              fullWidth
+              loading={isClaiming}
+              onPress={onClaim}
+              disabled={isClaiming}
+            >
+              Claim now
+            </AppButton>
           ) : (
-            <YStack width={330} height={330} items="center" justify="center">
-              <Spinner size="large" color="$color" />
-            </YStack>
-          )}
-        </View>
-
-        {/* QR Interactive Settings Controls */}
-      </YStack>
-      {/* Verification status badge */}
-
-      {/* Unified Details Card (flat table layout consistent with ResultStage) */}
-      {(!hideDetails || currentToken.startsWith('http')) && (
-        <YStack bg="$gray2" rounded="$6" overflow="hidden">
-          <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-            <DetailRowItem
-              label="Amount"
-              value={`${currencyService.formatSats(Number(amount || 0))} (${fiatValue})`}
+            <AppButton
+              variant="branded"
+              emphasis="primary"
+              size="large"
+              fullWidth
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                shareSheetRef.current?.present();
+              }}
+            >
+              Send
+            </AppButton>
+          )
+        }
+      >
+        {(!hideDetails || currentToken.startsWith('http')) && (
+          <ListTable compact>
+            <PaymentStatusRow
+              value={
+                headerStatus === 'success'
+                  ? 'Claimed'
+                  : headerStatus === 'failed'
+                    ? 'Failed'
+                    : onClaim
+                      ? 'Unclaimed'
+                      : 'Awaiting recipient'
+              }
+              onRefresh={onCheckStatus}
+              checking={isCheckingStatus}
+              disabled={isClaiming || isReclaiming}
+              valueColor={headerStatus === 'failed' ? '$red10' : undefined}
             />
-            <DetailRowItem label="Fees" value={`${currencyService.formatSats(Number(fee || 0))}`} />
-            {currentToken.startsWith('http') && (
-              <DetailRowItem
-                label="Web Link"
-                value={`${currentToken.slice(0, 20)}…${currentToken.slice(-8)}`}
+            {!currentToken.startsWith('http') && (
+              <ListTableRow
+                label="Token"
+                value={
+                  currentToken.length > 24
+                    ? currentToken.slice(0, 12) + '…' + currentToken.slice(-8)
+                    : currentToken
+                }
                 isCopyable
-                onCopy={async () => {
-                  await Clipboard.setStringAsync(currentToken);
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Web share link copied', { kind: 'success' });
-                }}
+                copyValue={currentToken}
+                onCopy={handleCopy}
               />
             )}
-            {!hideDetails && (
-              <>
-                {displayFee > 0 && <DetailRowItem label="Mint Fee" value={`${displayFee} sats`} />}
-                {!!expiresAt && (
-                  <DetailRowItem label="Expiry" value={timeLeftStr || 'Checking...'} />
-                )}
-                {displayNpub && (
-                  <DetailRowItem
-                    label="Locked To"
-                    value={
-                      displayNpub === npub
-                        ? 'You (Safe)'
-                        : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`
-                    }
-                    isCopyable={displayNpub !== npub}
-                    onCopy={async () => {
-                      await Clipboard.setStringAsync(displayNpub);
-                      Haptics.selectionAsync();
-                      toast.show('NPUB copied', { kind: 'success' });
-                    }}
-                  />
-                )}
+            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+              {currentToken.startsWith('http') && (
                 <DetailRowItem
-                  label="Mint"
-                  value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'}
+                  label="Web Link"
+                  value={`${currentToken.slice(0, 20)}…${currentToken.slice(-8)}`}
+                  isCopyable
+                  onCopy={async () => {
+                    await Clipboard.setStringAsync(currentToken);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    toast.show('Web share link copied', { kind: 'success' });
+                  }}
                 />
-              </>
-            )}
-          </YGroup>
-        </YStack>
-      )}
-
-      {/* Action Buttons: Share / Send & Copy */}
-      <XStack gap="$3" width="100%">
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          icon={copied ? <Check size={20} color="$green11" /> : <Copy size={20} color="$accent5" />}
-          flex={1}
-          onPress={handleCopy}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </AppButton>
-        <AppButton
-          variant="branded"
-          emphasis="primary"
-          size="large"
-          icon={<Send size={20} />}
-          flex={1}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            shareSheetRef.current?.present();
-          }}
-        >
-          Send
-        </AppButton>
-      </XStack>
-
-      {/* Reclaim Button (separated for visibility outside details list) */}
-      {onReclaim && !onClaim && (
-        <YStack>
+              )}
+              {!hideDetails && (
+                <>
+                  {displayFee > 0 && (
+                    <DetailRowItem label="Mint Fee" value={`${displayFee} sats`} />
+                  )}
+                  {!!reclaimAt && (
+                    <DetailRowItem
+                      label="Reclaim eligible"
+                      value={new Date(reclaimAt).toLocaleString()}
+                    />
+                  )}
+                  {!!expiresAt && (
+                    <DetailRowItem label="Expiry" value={timeLeftStr || 'Checking...'} />
+                  )}
+                  {displayNpub && (
+                    <DetailRowItem
+                      label="Locked To"
+                      value={
+                        displayNpub === npub
+                          ? 'You (Safe)'
+                          : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`
+                      }
+                      isCopyable={displayNpub !== npub}
+                      onCopy={async () => {
+                        await Clipboard.setStringAsync(displayNpub);
+                        Haptics.selectionAsync();
+                        toast.show('NPUB copied', { kind: 'success' });
+                      }}
+                    />
+                  )}
+                  <DetailRowItem
+                    label="Mint"
+                    value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'}
+                  />
+                </>
+              )}
+            </YGroup>
+          </ListTable>
+        )}
+        {onReclaim && !onClaim && (
           <AppButton
             variant="warning"
-            emphasis="secondary"
-            size="large"
+            emphasis="text-only"
             loading={isReclaiming}
-            icon={<RotateCcw size={18} color="$orange10" />}
             onPress={onReclaim}
-            disabled={isReclaiming}
+            disabled={isReclaiming || (reclaimAt != null && Date.now() < reclaimAt)}
           >
-            Reclaim Token
+            Reclaim token
           </AppButton>
-        </YStack>
-      )}
-
-      {/* Primary Action Button (Claim Now) */}
-      {!hideActions && onClaim && (
-        <YStack mt="auto" pb="$8">
-          <AppButton
-            variant="branded"
-            emphasis="primary"
-            size="large"
-            loading={isClaiming}
-            icon={<ArrowDownLeft size={20} color="$accent3" />}
-            onPress={onClaim}
-            disabled={isClaiming}
-          >
-            Claim Now
-          </AppButton>
-        </YStack>
-      )}
-
+        )}
+      </PaymentStageLayout>
       <AppBottomSheet
         ref={shareSheetRef}
         backgroundColor="$gray4"
@@ -713,7 +607,7 @@ export function PendingTokenLayout({
           </YStack>
         </YStack>
       </AppBottomSheet>
-    </YStack>
+    </>
   );
 }
 
@@ -728,33 +622,5 @@ function DetailRowItem({
   isCopyable?: boolean;
   onCopy?: () => void;
 }) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color="$color"
-          numberOfLines={1}
-          style={{ maxWidth: 260 }}
-        >
-          {value}
-        </Text>
-        {isCopyable && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Copy"
-            icon={<Copy size={16} color="$gray10" />}
-            onPress={onCopy}
-          />
-        )}
-      </XStack>
-    </XStack>
-  );
+  return <ListTableRow label={label} value={value} isCopyable={isCopyable} onCopy={onCopy} />;
 }

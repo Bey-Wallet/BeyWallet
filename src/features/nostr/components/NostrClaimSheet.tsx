@@ -1,8 +1,9 @@
+import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
-import { Image, Separator, Text, View, XStack, YStack } from 'tamagui';
+import { Separator, Text, View, XStack, YStack } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -242,7 +243,8 @@ export function NostrClaimSheet() {
                   justify="center"
                 >
                   {senderProfile?.picture && !pictureFailed ? (
-                    <Image
+                    <RemoteImage
+                      identity={npub}
                       source={{ uri: senderProfile.picture }}
                       width={72}
                       height={72}

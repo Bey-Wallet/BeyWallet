@@ -1,5 +1,20 @@
+jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
+  nfcReceiveCoordinator: {
+    getSnapshot: () => ({ status: 'idle' }),
+    subscribe: () => () => {},
+    setReady: jest.fn(),
+    processPending: jest.fn(async () => {}),
+    retry: jest.fn(),
+  },
+}));
+jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'PaymentAmount' }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'ListTable',
+  ListTableRow: 'ListTableRow',
+}));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { AppState } from 'react-native';
 
 jest.mock('tamagui', () => ({
   Button: 'Button',
@@ -51,6 +66,7 @@ jest.mock('~/features/nfc/nfcFlow', () => ({
     getSnapshot: () => mockState,
     setReady: jest.fn(),
     background: jest.fn(),
+    foreground: jest.fn(),
     dismiss: jest.fn(() => true),
     retry: jest.fn(),
     refresh: jest.fn(),
@@ -92,6 +108,27 @@ it('offers delivery retry, settlement refresh and History when delivery is uncon
   expect(nfcFlow.retry).toHaveBeenCalledTimes(1);
   expect(nfcFlow.refresh).toHaveBeenCalledTimes(1);
   await act(async () => sheet.unmount());
+});
+
+it('synchronizes foreground state on host remount without waiting for an AppState change', async () => {
+  const previous = AppState.currentState;
+  AppState.currentState = 'active';
+  let sheet!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      sheet = create(<NfcSheetHost walletReady />);
+    });
+    expect(nfcFlow.foreground).toHaveBeenCalledTimes(1);
+    await act(async () => sheet.unmount());
+    expect(nfcFlow.background).toHaveBeenCalled();
+    await act(async () => {
+      sheet = create(<NfcSheetHost walletReady />);
+    });
+    expect(nfcFlow.foreground).toHaveBeenCalledTimes(2);
+    await act(async () => sheet.unmount());
+  } finally {
+    AppState.currentState = previous;
+  }
 });
 
 it('offers settlement refresh without delivery retry after acknowledged publication', async () => {

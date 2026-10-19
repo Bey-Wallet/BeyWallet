@@ -1,36 +1,18 @@
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { useFlowMint } from '~/shared/hooks/useFlowMint';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
+import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { onchainMeltOutcome } from '~/features/history/transactionPresentation';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  H1,
-  Input,
-  Separator,
-  ScrollView,
-  View,
-  Avatar,
-  YGroup,
-} from 'tamagui';
-import {
-  Clipboard as ClipboardIcon,
-  ScanLine,
-  AlertCircle,
-  Landmark,
-  Check,
-  Zap,
-  ArrowUpDown,
-  Coins,
-  Info,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  Bitcoin,
-  ChevronDown,
-  Sprout,
-} from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Separator, View, YGroup } from 'tamagui';
+import { AlertCircle, Landmark, ArrowUpDown, ShieldCheck, Bitcoin } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
@@ -38,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService, initService } from '~/services/wallet';
 import { useToastController } from '@tamagui/toast';
-import { onchainNetwork } from '~/shared/utils/onchain';
+
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -58,10 +40,13 @@ import { MeltQuoteState } from '@cashu/cashu-ts';
 
 export function OnchainMeltFlow() {
   const router = useRouter();
+  const [eventTime, setEventTime] = useState<number>();
   const toast = useToastController();
 
-  const balance = useWalletStore((s) => s.balance);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
+  const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
+  const quoteGeneration = useRef(0);
+  const paymentLock = useRef(false);
+  const refreshReviewMint = useRef<string | null>(null);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const scannerResult = useWalletStore((s) => s.scannerResult);
   const setScannerResult = useWalletStore((s) => s.setScannerResult);
@@ -70,7 +55,9 @@ export function OnchainMeltFlow() {
 
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
-  const [step, setStep] = useState<'input' | 'confirm' | 'paying' | 'success' | 'error'>('input');
+  const [step, setStep] = useState<
+    'input' | 'confirm' | 'paying' | 'pending' | 'success' | 'error'
+  >('input');
   usePendingOperationToast({ active: step === 'paying', title: 'Sending on-chain payment…' });
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('0');
@@ -109,45 +96,26 @@ export function OnchainMeltFlow() {
     return activeMintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }, [activeMint, activeMintUrl]);
 
-  // Check if the selected mint supports NUT-30 onchain withdrawals
   useEffect(() => {
-    if (!activeMintUrl) return;
+    let cancelled = false;
     setIsCheckingSupport(true);
     setSupportsOnchain(null);
-
-    fetch(`${activeMintUrl.replace(/\/$/, '')}/v1/info`)
-      .then((res) => res.json())
-      .then((info) => {
-        const nuts = info.nuts || {};
-
-        // 1. Check NUT-30 explicitly
-        const nut30 = nuts['30'] || nuts[30];
-        let supported = !!(
-          nut30 &&
-          (nut30.supported || (Array.isArray(nut30.methods) && nut30.methods.length > 0))
-        );
-
-        // 2. Fallback to check NUT-04/NUT-05 method lists (typical of CDK mints like testnut)
-        if (!supported) {
-          const nut4 = nuts['4'] || nuts[4];
-          const nut5 = nuts['5'] || nuts[5];
-          const hasOnchainMint =
-            Array.isArray(nut4?.methods) && nut4.methods.some((m: any) => m.method === 'onchain');
-          const hasOnchainMelt =
-            Array.isArray(nut5?.methods) && nut5.methods.some((m: any) => m.method === 'onchain');
-          supported = hasOnchainMint && hasOnchainMelt;
-        }
-
-        setSupportsOnchain(supported);
-      })
-      .catch((err) => {
-        console.warn('[OnchainMeltFlow] Mint info check failed:', err);
-        // Default to true to be non-blocking on minor connections
-        setSupportsOnchain(true);
-      })
-      .finally(() => {
-        setIsCheckingSupport(false);
-      });
+    if (activeMintUrl)
+      fetch(activeMintUrl.replace(/\/$/, '') + '/v1/info')
+        .then((r) => r.json())
+        .then((info) => {
+          if (!cancelled) setSupportsOnchain(supportsPaymentMethod(info, 'melt-onchain'));
+        })
+        .catch(() => {
+          if (!cancelled) setSupportsOnchain(false);
+        })
+        .finally(() => {
+          if (!cancelled) setIsCheckingSupport(false);
+        });
+    return () => {
+      cancelled = true;
+      ++quoteGeneration.current;
+    };
   }, [activeMintUrl]);
 
   // Value derived for the non-active mode
@@ -356,11 +324,12 @@ export function OnchainMeltFlow() {
   const amountSats = parseInt(amount, 10) || 0;
   const isOverBalance = amountSats > balance;
   const canContinue =
-    isValidAddress && amountSats > 0 && !isOverBalance && supportsOnchain !== false;
+    isValidAddress && amountSats > 0 && !isOverBalance && supportsOnchain === true;
 
   // Handle quote creation
-  const handleGetQuote = async () => {
-    if (!activeMintUrl || !canContinue) return;
+  const handleGetQuote = async (selectedMint = activeMintUrl, reviewing = false) => {
+    const generation = ++quoteGeneration.current;
+    if (!selectedMint || (!reviewing && !canContinue)) return;
 
     const offline = await networkService.isOffline();
     if (offline) {
@@ -373,29 +342,51 @@ export function OnchainMeltFlow() {
 
     try {
       const quote = await quotesService.createOnchainMeltQuote(
-        activeMintUrl,
+        selectedMint,
         address.trim(),
         amountSats,
       );
+      if (generation !== quoteGeneration.current) return;
       setMeltQuote(quote);
       if (quote.fee_options?.length) {
         setSelectedFeeIndex(quote.fee_options[0].fee_index);
       }
       setStep('confirm');
     } catch (err: any) {
+      if (generation !== quoteGeneration.current) return;
       console.error('[OnchainMeltFlow] Melt quote failed:', err);
       setErrorMsg(err.message || 'Failed to estimate transaction fees');
       setStep('input');
     }
   };
 
+  useEffect(() => {
+    if (activeMintUrl && refreshReviewMint.current === activeMintUrl) {
+      refreshReviewMint.current = null;
+      void handleGetQuote(activeMintUrl, true);
+    }
+  }, [activeMintUrl]);
+
   // Confirm and melt payments
   const handlePayMelt = async () => {
-    if (!activeMintUrl || !meltQuote) return;
+    if (!activeMintUrl || !meltQuote || paymentLock.current) return;
+    const selectedOption =
+      meltQuote.fee_options?.find((o: any) => o.fee_index === selectedFeeIndex) ||
+      meltQuote.fee_options?.[0];
+    if (meltQuote.amount + (selectedOption?.fee_reserve ?? meltQuote.fee_reserve ?? 0) > balance) {
+      setErrorMsg('Insufficient balance including the maximum fee');
+      return;
+    }
+    if (meltQuote.expiry && meltQuote.expiry <= Date.now() / 1000) {
+      setErrorMsg('Quote expired. Review a new quote.');
+      return;
+    }
+    paymentLock.current = true;
 
     const offline = await networkService.isOffline();
     if (offline) {
       setErrorMsg('You are offline. Please check your internet connection.');
+      paymentLock.current = false;
       return;
     }
 
@@ -408,8 +399,6 @@ export function OnchainMeltFlow() {
         meltQuote,
         selectedFeeIndex,
       );
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       // Log outgoing transaction in history
       try {
         const repo = initService.getRepo();
@@ -440,7 +429,7 @@ export function OnchainMeltFlow() {
           metadata: {
             via: 'onchain',
             address: address.trim(),
-            fee: selectedFeeReserve,
+            feeReserve: selectedFeeReserve,
             inputs: response.selectedInputs?.map((p: any) => ({
               secret: p.secret,
               amount: p.amount,
@@ -454,13 +443,33 @@ export function OnchainMeltFlow() {
         console.warn('[OnchainMeltFlow] History injection failed (non-fatal):', histErr);
       }
 
-      setStep('success');
+      // Reconcile change and input proof states through the existing wallet boundary
+      // before presenting a terminal receipt. A POST acknowledgement can still be pending.
+      await refreshOnchainPayment().catch(() => setStep('pending'));
       refreshBalance();
     } catch (err: any) {
       console.error('[OnchainMeltFlow] Payment execution failed:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setErrorMsg(err.message || 'Failed to send payment');
       setStep('error');
+    }
+  };
+
+  const refreshOnchainPayment = async () => {
+    if (!activeMintUrl || !meltQuote) return;
+    await useWalletStore.getState().autoCheckPendingOnchainQuotes();
+    const history = await initService
+      .getRepo()
+      .historyRepository.getMeltHistoryEntry(activeMintUrl, meltQuote.quote);
+    const outcome = onchainMeltOutcome(history?.state);
+    if (outcome === 'paid') {
+      setEventTime((time) => time ?? Date.now());
+      setStep('success');
+    } else if (outcome === 'failed') {
+      setErrorMsg('The mint did not complete this on-chain payment.');
+      setStep('error');
+    } else {
+      setStep('pending');
     }
   };
 
@@ -483,137 +492,51 @@ export function OnchainMeltFlow() {
   }
 
   // Render error state
-  if (step === 'error') {
+  if (step === 'error')
     return (
-      <YStack flex={1} justify="space-between" bg="$background">
-        <YStack flex={1} justify="center" items="center" gap="$4" p="$4">
-          <XCircle size={80} color="$red10" />
-          <Text color="$red10" fontSize="$6" fontWeight="700" text="center">
-            Transaction Failed
-          </Text>
-          <Text color="$gray10" fontSize="$4" text="center" px="$4">
-            {errorMsg || 'An error occurred during payment.'}
-          </Text>
-        </YStack>
-        <AppButton
-          variant="branded"
-          emphasis="primary"
-          size="large"
-          onPress={() => setStep('input')}
-        >
-          Try Again
-        </AppButton>
-      </YStack>
+      <PaymentReceipt
+        status="error"
+        inset={false}
+        title="Payment not completed"
+        amount={amountSats}
+        mintUrl={activeMintUrl || undefined}
+        completed={false}
+        error={errorMsg}
+        actionLabel="Try again"
+        actionEmphasis="primary"
+        onClose={() => setStep('input')}
+      />
     );
-  }
+
+  if (step === 'pending')
+    return (
+      <PendingOnchainLayout
+        direction="withdrawal"
+        amount={amountSats}
+        address={address}
+        mint={mintDisplayName}
+        onRefresh={refreshOnchainPayment}
+        onClose={() => router.back()}
+        inset={false}
+      />
+    );
 
   // Render success state
-  if (step === 'success') {
-    const fiatValue = btcData?.price
-      ? currencyService.formatValue(
-          currencyService.convertSatsToCurrency(amountSats, btcData.price),
-          secondaryCurrency as CurrencyCode,
-        )
-      : '...';
-
+  if (step === 'success')
     return (
-      <YStack flex={1} justify="space-between" bg="$background">
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 } as any}
-        >
-          <YStack gap="$4" width="100%">
-            {/* Payment amount */}
-            <YStack gap="$3" py="$6" items="center" justify="center">
-              <Text fontSize={52} fontWeight="700" color="$orange10" lineHeight={54}>
-                -{currencyService.formatSats(amountSats)}
-              </Text>
-              <Text color="$accent5" fontWeight="600" fontSize={16}>
-                ≈ {fiatValue} {secondaryCurrency}
-              </Text>
-            </YStack>
-
-            {/* Centered orange/pending badge */}
-            <XStack
-              self="center"
-              items="center"
-              gap="$2"
-              bg="$orange9"
-              px="$4"
-              py="$3"
-              rounded="$10"
-            >
-              <Check size={16} color="white" />
-              <Text fontSize="$3" fontWeight="700" color="white">
-                Payment Broadcasted
-              </Text>
-            </XStack>
-
-            {/* Description Text */}
-            <YStack px="$4" py="$2">
-              <Text color="$gray10" fontSize="$4" text="center" lineHeight={20}>
-                Transaction successfully broadcast to the network.
-              </Text>
-            </YStack>
-
-            {/* Details Table */}
-            <YStack
-              bg="$gray2"
-              rounded="$6"
-              overflow="hidden"
-              mb="$6"
-              separator={<Separator borderColor="$borderColor" opacity={0.4} />}
-            >
-              <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontSize="$3" color="$gray10" fontWeight="600">
-                  Status
-                </Text>
-                <Text fontSize="$3" fontWeight="800" color="$orange10">
-                  PENDING
-                </Text>
-              </XStack>
-              <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontSize="$3" color="$gray10" fontWeight="600">
-                  Destination
-                </Text>
-                <Text
-                  fontSize="$3"
-                  fontWeight="800"
-                  color="$color"
-                >{`${address.substring(0, 10)}...${address.substring(address.length - 8)}`}</Text>
-              </XStack>
-              <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontSize="$3" color="$gray10" fontWeight="600">
-                  Mint
-                </Text>
-                <Text fontSize="$3" fontWeight="800" color="$color">
-                  {mintDisplayName}
-                </Text>
-              </XStack>
-              <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontSize="$3" color="$gray10" fontWeight="600">
-                  Date
-                </Text>
-                <Text fontSize="$3" fontWeight="800" color="$color">
-                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </XStack>
-            </YStack>
-          </YStack>
-        </ScrollView>
-        <YStack py="$4" bg="$background">
-          <AppButton
-            variant="default"
-            emphasis="primary"
-            size="large"
-            onPress={() => router.back()}
-          >
-            Done
-          </AppButton>
-        </YStack>
-      </YStack>
+      <PaymentReceipt
+        inset={false}
+        title="Payment sent"
+        amount={amountSats}
+        mintUrl={activeMintUrl || undefined}
+        time={eventTime}
+        completed
+        onClose={() => router.back()}
+      >
+        <ListTableRow label="Method" value="Bitcoin on-chain" />
+        <ListTableRow label="Destination" value={address} isCopyable copyValue={address} />
+      </PaymentReceipt>
     );
-  }
 
   // Render confirmation state
   if (step === 'confirm' && meltQuote) {
@@ -631,168 +554,133 @@ export function OnchainMeltFlow() {
       : 0;
     const formattedFiat = btcData?.price
       ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-      : '0.00';
+      : '—';
 
     const totalFiat = btcData?.price
       ? currencyService.convertSatsToCurrency(total, btcData.price)
       : 0;
     const formattedTotalFiat = btcData?.price
       ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
-      : '0.00';
+      : '—';
 
     const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 32 : 40;
 
     return (
-      <YStack flex={1} bg="$background">
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 180 } as any}
-          showsVerticalScrollIndicator={false}
-        >
-          <YStack gap="$4" pt="$2">
-            {/* Middle Amount Display */}
-            <YStack gap="$3" py="$6" items="center" justify="center">
-              <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
-                -{currencyService.formatSats(meltQuote.amount)}
-              </Text>
-              <Text color="$accent5" fontWeight="600" fontSize={16}>
-                ≈ {formattedFiat} {secondaryCurrency}
-              </Text>
-            </YStack>
-
-            {/* Send Method Badge */}
-            <XStack
-              self="center"
-              items="center"
-              gap="$2"
-              bg="$orange9"
-              px="$4"
-              py="$3"
-              rounded="$10"
+      <>
+        <PaymentFlowHeader title="Confirm payment" onBack={() => setStep('input')} />
+        <PaymentStageLayout
+          inset={false}
+          hero={<PaymentAmount amount={meltQuote.amount} label="You're paying" />}
+          footer={
+            <AppButton
+              size="large"
+              fullWidth
+              disabled={total > balance || paymentLock.current}
+              onPress={handlePayMelt}
             >
-              <Landmark size={16} color="white" />
-              <Text fontSize="$3" fontWeight="700" color="white">
-                On-Chain Bitcoin Send
+              Confirm &amp; send
+            </AppButton>
+          }
+        >
+          {/* Fee Option Selection Selector */}
+          {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
+            <YStack gap="$2">
+              <Text fontSize="$3" color="$gray10" fontWeight="700" px="$1">
+                Choose confirmation speed
               </Text>
-            </XStack>
-
-            {/* Fee Option Selection Selector */}
-            {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
               <YStack gap="$2">
-                <Text fontSize="$3" color="$gray10" fontWeight="700" px="$1">
-                  Choose confirmation speed
-                </Text>
-                <YStack gap="$2">
-                  {meltQuote.fee_options.map((option: any) => {
-                    const isSelected = option.fee_index === selectedFeeIndex;
-                    return (
-                      <XStack
-                        key={option.fee_index}
-                        borderWidth={2}
-                        borderColor={isSelected ? '$accent10' : '$gray5'}
-                        p="$3"
-                        rounded="$6"
-                        justify="space-between"
-                        items="center"
-                        onPress={() => setSelectedFeeIndex(option.fee_index)}
-                        pressStyle={{ opacity: 0.85 }}
-                      >
-                        <YStack>
+                {meltQuote.fee_options.map((option: any) => {
+                  const isSelected = option.fee_index === selectedFeeIndex;
+                  return (
+                    <XStack
+                      key={option.fee_index}
+                      borderWidth={2}
+                      borderColor={isSelected ? '$accent10' : '$gray5'}
+                      p="$3"
+                      rounded="$6"
+                      justify="space-between"
+                      items="center"
+                      onPress={() => setSelectedFeeIndex(option.fee_index)}
+                      pressStyle={{ opacity: 0.85 }}
+                    >
+                      <YStack>
+                        <Text fontWeight="700" fontSize="$4" color="$color">
+                          {option.estimated_blocks}{' '}
+                          {option.estimated_blocks === 1 ? 'block' : 'blocks'}
+                        </Text>
+                        <Text fontSize="$2" color="$gray10">
+                          Estimated confirmation
+                        </Text>
+                      </YStack>
+                      <XStack gap="$3" items="center">
+                        <YStack items="flex-end">
                           <Text fontWeight="700" fontSize="$4" color="$color">
-                            {option.estimated_blocks}{' '}
-                            {option.estimated_blocks === 1 ? 'block' : 'blocks'}
+                            {option.fee_reserve} sats
                           </Text>
                           <Text fontSize="$2" color="$gray10">
-                            Estimated confirmation
+                            fee reserve
                           </Text>
                         </YStack>
-                        <XStack gap="$3" items="center">
-                          <YStack items="flex-end">
-                            <Text fontWeight="700" fontSize="$4" color="$color">
-                              {option.fee_reserve} sats
-                            </Text>
-                            <Text fontSize="$2" color="$gray10">
-                              fee reserve
-                            </Text>
-                          </YStack>
-                          <View
-                            width={22}
-                            height={22}
-                            rounded="$11"
-                            borderWidth={2}
-                            borderColor={isSelected ? '$accent10' : '$gray8'}
-                            items="center"
-                            justify="center"
-                          >
-                            {isSelected && (
-                              <View width={10} height={10} rounded="$6" bg="$accent10" />
-                            )}
-                          </View>
-                        </XStack>
+                        <View
+                          width={22}
+                          height={22}
+                          rounded="$11"
+                          borderWidth={2}
+                          borderColor={isSelected ? '$accent10' : '$gray8'}
+                          items="center"
+                          justify="center"
+                        >
+                          {isSelected && (
+                            <View width={10} height={10} rounded="$6" bg="$accent10" />
+                          )}
+                        </View>
                       </XStack>
-                    );
-                  })}
-                </YStack>
+                    </XStack>
+                  );
+                })}
               </YStack>
-            )}
-
-            {/* Details List */}
-            <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
-              <View p="$3" px="$4">
-                <Text fontSize="$3" fontWeight="700" color="$gray12">
-                  Details
-                </Text>
-              </View>
-              <Separator borderColor="$borderColor" opacity={0.3} />
-              <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                <DetailItem
-                  label="Mint"
-                  value={mintDisplayName}
-                  icon={
-                    <Avatar rounded="$3" size="$1.5">
-                      <Avatar.Image src={activeMint?.icon} />
-                      <Avatar.Fallback bg="$green3" items="center" justify="center">
-                        <Sprout size={12} color="$green10" />
-                      </Avatar.Fallback>
-                    </Avatar>
-                  }
-                />
-                <DetailItem
-                  label="Destination"
-                  value={shortAddress}
-                  icon={<Landmark size={16} color="$yellow10" />}
-                />
-                <DetailItem
-                  label="Network Fee"
-                  value={`${selectedFeeReserve} sats`}
-                  valueColor="$orange10"
-                  icon={<ShieldCheck size={16} color="$orange10" />}
-                />
-                <DetailItem
-                  label="Total Cost"
-                  value={`${total.toLocaleString()} sats (≈ ${formattedTotalFiat})`}
-                  valueColor="$accent10"
-                  icon={<ShieldCheck size={16} color="$accent10" />}
-                />
-              </YGroup>
             </YStack>
-          </YStack>
-        </ScrollView>
+          )}
 
-        {/* Confirm and Pay Actions */}
-        <YStack position="absolute" b="$4" l="$1" r="$1" gap="$2">
-          <AppButton
-            variant="default"
-            emphasis="primary"
-            size="large"
-            onPress={() => setStep('input')}
-          >
-            Go Back
-          </AppButton>
-          <AppButton variant="branded" emphasis="primary" size="large" onPress={handlePayMelt}>
-            Confirm & Send
-          </AppButton>
-        </YStack>
-      </YStack>
+          {/* Details List */}
+          <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+              <PaymentMintRow
+                mintUrl={activeMintUrl || ''}
+                method="melt-onchain"
+                onSelect={(url) => {
+                  if (url === activeMintUrl) return;
+                  refreshReviewMint.current = url;
+                  setMintUrl(url);
+                  setMeltQuote(null);
+                }}
+              />
+              <DetailItem
+                label="Destination"
+                value={shortAddress}
+                icon={<Landmark size={16} color="$yellow10" />}
+              />
+              <DetailItem
+                label="Maximum network fee"
+                value={`${selectedFeeReserve} sats`}
+                valueColor="$orange10"
+                icon={<ShieldCheck size={16} color="$orange10" />}
+              />
+              <DetailItem
+                label="Maximum total"
+                value={`${total.toLocaleString()} sats (≈ ${formattedTotalFiat})`}
+                valueColor="$accent10"
+                icon={<ShieldCheck size={16} color="$accent10" />}
+              />
+            </YGroup>
+          </ListTable>
+          {errorMsg && (
+            <Text color="$red10" p="$3">
+              {errorMsg}
+            </Text>
+          )}
+        </PaymentStageLayout>
+      </>
     );
   }
 
@@ -903,12 +791,20 @@ export function OnchainMeltFlow() {
         showAmountDisplay={false}
         value={localInputValue}
         onValueChange={onKeypadChange}
-        onConfirm={handleGetQuote}
+        onConfirm={() => void handleGetQuote()}
         confirmLabel="Continue"
         confirmDisabled={!canContinue}
       />
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={setMintUrl}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+        method="melt-onchain"
+      />
     </YStack>
   );
 }
@@ -924,23 +820,5 @@ function DetailItem({
   icon?: React.ReactNode;
   valueColor?: string;
 }) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        {icon}
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color={valueColor || '$color'}
-          numberOfLines={1}
-          style={{ maxWidth: 220 }}
-        >
-          {value}
-        </Text>
-      </XStack>
-    </XStack>
-  );
+  return <ListTableRow label={label} value={value} valueColor={valueColor} />;
 }

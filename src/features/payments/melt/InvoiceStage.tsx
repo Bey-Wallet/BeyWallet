@@ -1,16 +1,8 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, Input, Avatar } from 'tamagui';
-import {
-  Clipboard as ClipboardIcon,
-  ScanLine,
-  AlertCircle,
-  ChevronDown,
-  Sprout,
-  ArrowUpDown,
-  X,
-  Zap,
-} from '@tamagui/lucide-icons';
+import { YStack, Text } from 'tamagui';
+import { ArrowUpDown, Zap } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
@@ -32,6 +24,8 @@ import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
 interface InvoiceStageProps {
+  mintUrl?: string | null;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   invoice: string;
@@ -44,6 +38,8 @@ interface InvoiceStageProps {
 }
 
 export function InvoiceStage({
+  mintUrl,
+  onMintChange,
   amount,
   setAmount,
   invoice,
@@ -56,7 +52,7 @@ export function InvoiceStage({
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
   const {
-    activeMintUrl,
+    activeMintUrl: globalMintUrl,
     mints,
     refreshMintList,
     isInitializing,
@@ -64,6 +60,7 @@ export function InvoiceStage({
     scannerResult,
     setScannerResult,
   } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -108,13 +105,7 @@ export function InvoiceStage({
 
   const isValidInvoice = useMemo(() => {
     if (!invoice.trim()) return false;
-    const lower = invoice.trim().toLowerCase();
-    return (
-      lower.startsWith('lnbc') ||
-      lower.startsWith('lntb') ||
-      lower.startsWith('lnurl') ||
-      lower.includes('@')
-    );
+    return detectLightningInputType(invoice) !== 'unknown';
   }, [invoice]);
 
   const isBolt11 = useMemo(() => {
@@ -298,7 +289,7 @@ export function InvoiceStage({
             refreshMintList();
             sheetRef.current?.present();
           }}
-          showMax={true}
+          showMax={!isBolt11}
           onMaxPress={handleMax}
           maxDisabled={balance === 0}
         />
@@ -314,52 +305,62 @@ export function InvoiceStage({
           gap="$3"
           borderWidth={0}
         >
-          {/* Amount Display Section */}
-          <YStack items="center" justify="center" py="$0" gap="$2" width="100%">
-            {error || isOverBalance ? (
-              <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
-                {error || 'Exceeds available balance'}
+          {isBolt11 ? (
+            <YStack gap="$2" items="center">
+              <Text color="$color" fontSize="$5" fontWeight="500">
+                Lightning invoice
               </Text>
-            ) : (
-              <Text color="$gray10" fontSize="$3" fontWeight="500">
-                {isBolt11 ? 'Lightning Invoice Amount' : 'How much to pay?'}
+              <Text color={error ? '$red10' : '$gray10'} fontSize="$3" textAlign="center">
+                {error || 'The amount is set by the invoice.'}
               </Text>
-            )}
+            </YStack>
+          ) : (
+            <YStack items="center" justify="center" py="$0" gap="$2" width="100%">
+              {error || isOverBalance ? (
+                <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
+                  {error || 'Exceeds available balance'}
+                </Text>
+              ) : (
+                <Text color="$gray10" fontSize="$3" fontWeight="500">
+                  {isBolt11 ? 'Lightning Invoice Amount' : 'How much to pay?'}
+                </Text>
+              )}
 
-            <BouncyAmount
-              value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
-              prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
-            />
+              <BouncyAmount
+                value={formattedDisplayValue}
+                fontSize={dynamicFontSize}
+                prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+                suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+              />
 
-            <AppPressable
-              px={12}
-              py={4}
-              rounded="$10"
-              bg="$gray5"
-              pressStyle={{ scale: 0.96, bg: '$gray5' }}
-              onPress={toggleMode}
-              disabled={isBolt11}
-              opacity={isBolt11 ? 0.6 : 1}
-              minHeight={36}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$3" fontWeight="600">
-                {conversionValue}
-              </Text>
-              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-            </AppPressable>
-          </YStack>
+              <AppPressable
+                px={12}
+                py={4}
+                rounded="$10"
+                bg="$gray5"
+                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                onPress={toggleMode}
+                disabled={isBolt11}
+                opacity={isBolt11 ? 0.6 : 1}
+                minHeight={36}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap={8}
+              >
+                <Text color="$color" fontSize="$3" fontWeight="600">
+                  {conversionValue}
+                </Text>
+                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+              </AppPressable>
+            </YStack>
+          )}
         </YStack>
         {/* Invoice / LN Address Input Row */}
         <DestinationInputRow
           value={invoice}
           onChangeText={setInvoice}
-          placeholder="lnbc... or lightning address"
+          placeholder="Lightning address, LNURL or invoice"
           onPaste={handlePaste}
           onScan={handleOpenScanner}
           defaultIcon={<Zap size="$1.5" color="$accent10" />}
@@ -369,19 +370,40 @@ export function InvoiceStage({
         />
       </YStack>
 
-      <NumericKeypad
-        showAmountDisplay={false}
-        value={localInputValue}
-        onValueChange={onKeypadChange}
-        onConfirm={onContinue}
-        confirmLabel="Continue"
-        isLoading={isLoading}
-        loadingText="Preparing Lightning payment…"
-        confirmDisabled={!isValidAmount || disabled || isLoading}
-        confirmIcon={undefined}
-      />
+      {isBolt11 ? (
+        <AppButton
+          size="large"
+          fullWidth
+          onPress={onContinue}
+          loading={isLoading}
+          loadingText="Preparing Lightning payment…"
+          disabled={!isValidInvoice || !activeMintUrl || disabled || isLoading}
+        >
+          Review invoice
+        </AppButton>
+      ) : (
+        <NumericKeypad
+          showAmountDisplay={false}
+          value={localInputValue}
+          onValueChange={onKeypadChange}
+          onConfirm={onContinue}
+          confirmLabel="Continue"
+          isLoading={isLoading}
+          loadingText="Preparing Lightning payment…"
+          confirmDisabled={!isValidAmount || disabled || isLoading}
+          confirmIcon={undefined}
+        />
+      )}
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        method="melt-lightning"
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </YStack>
   );
 }

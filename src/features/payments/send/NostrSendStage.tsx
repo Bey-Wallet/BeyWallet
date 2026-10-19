@@ -80,6 +80,9 @@ function mergeProfiles(local: NostrProfile[], remote: NostrProfile[]): NostrProf
 }
 
 interface NostrSendStageProps {
+  mintUrl?: string | null;
+  p2pkEnabled?: boolean;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   recipientNpub: string;
@@ -93,6 +96,9 @@ interface NostrSendStageProps {
 }
 
 export function NostrSendStage({
+  mintUrl,
+  p2pkEnabled,
+  onMintChange,
   amount,
   setAmount,
   recipientNpub,
@@ -105,7 +111,7 @@ export function NostrSendStage({
   error,
 }: NostrSendStageProps) {
   const {
-    activeMintUrl,
+    activeMintUrl: globalMintUrl,
     mints,
     refreshMintList,
     isInitializing,
@@ -113,6 +119,7 @@ export function NostrSendStage({
     scannerResult,
     setScannerResult,
   } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const people = usePeopleStore((s) => s.people);
   const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
@@ -570,7 +577,15 @@ export function NostrSendStage({
       </AppBottomSheet>
 
       {/* ── Mint Selector Sheet ──────────────────────────────────── */}
-      <MintSelectorSheet ref={mintSheetRef} />
+      <MintSelectorSheet
+        method={p2pkEnabled ? 'p2pk' : undefined}
+        ref={mintSheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </YStack>
   );
 }

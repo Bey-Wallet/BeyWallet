@@ -1,3 +1,5 @@
+import { Spinner } from '~/shared/ui/Spinner';
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef } from 'react';
@@ -10,7 +12,6 @@ import {
   Separator,
   useTheme,
   H1,
-  Spinner,
   Avatar,
   Square,
 } from 'tamagui';
@@ -201,14 +202,12 @@ export default function OptimizeWalletScreen() {
                 <Spinner size="small" color="white" />
               ) : (
                 <Avatar rounded="$3" size="$2">
-                  <Avatar.Image src={selectedMint?.icon} />
-                  <Avatar.Fallback
-                    backgroundColor="rgba(255,255,255,0.2)"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Sprout size={14} color="white" />
-                  </Avatar.Fallback>
+                  <MintImage
+                    mintUrl={selectedMint?.mintUrl}
+                    width="100%"
+                    height="100%"
+                    src={selectedMint?.icon}
+                  />
                 </Avatar>
               )}
 

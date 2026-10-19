@@ -1,6 +1,8 @@
+import { Spinner } from '~/shared/ui/Spinner';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, Input, Spinner } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -12,11 +14,7 @@ import { usePeopleStore } from '~/state/peopleStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useMintRecommendationStore } from '~/state/mintRecommendationStore';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
-import { FlatList } from 'react-native';
 import * as Haptics from 'expo-haptics';
-
-// Fallback if FlashList is not yet installed or has issues
-// const ListComponent = FlashList;
 
 type SearchResultType = 'people' | 'mint' | 'address' | 'recent' | 'header';
 
@@ -397,7 +395,8 @@ export default function UniversalSearchScreen() {
             </Text>
           </YStack>
         ) : (
-          <FlatList
+          <LegendList
+            recycleItems={false}
             data={displayList}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}

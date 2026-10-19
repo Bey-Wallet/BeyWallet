@@ -1,8 +1,9 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
 import { YStack, Text, View, XStack } from 'tamagui';
 import { AlertTriangle, Copy, Check, Trash2 } from '@tamagui/lucide-icons';
-import { ActivityIndicator } from 'react-native';
+
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -100,7 +101,7 @@ export const DeleteWalletSheet: React.FC<DeleteWalletSheetProps> = ({
         <YStack gap="$3" mt="$2">
           {isDeleting ? (
             <YStack items="center" gap="$3" py="$4">
-              <ActivityIndicator size="large" color="#ff0000" />
+              <Spinner size="large" color="#ff0000" />
               <Text color="$red10" fontWeight="600">
                 Deleting wallet...
               </Text>

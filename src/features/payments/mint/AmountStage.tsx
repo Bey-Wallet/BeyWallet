@@ -1,6 +1,6 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Avatar, Square } from 'tamagui';
+import { YStack, XStack, Text } from 'tamagui';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -14,20 +14,35 @@ import {
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
-import { Spinner } from '~/shared/ui/Spinner';
+
 import * as Haptics from 'expo-haptics';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 
 interface AmountStageProps {
+  mintUrl?: string | null;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   onContinue: () => void;
 }
 
-export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps) {
-  const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing, balance } =
-    useWalletStore();
+export function AmountStage({
+  mintUrl,
+  onMintChange,
+  amount,
+  setAmount,
+  onContinue,
+}: AmountStageProps) {
+  const {
+    activeMintUrl: globalMintUrl,
+    mints,
+    refreshMintList,
+    isInitializing,
+    isRefreshing,
+    balance,
+  } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -313,7 +328,15 @@ export function AmountStage({ amount, setAmount, onContinue }: AmountStageProps)
         />
       </YStack>
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        method="mint-lightning"
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </YStack>
   );
 }

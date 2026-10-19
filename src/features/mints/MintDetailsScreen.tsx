@@ -1,3 +1,4 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -472,7 +473,8 @@ export default function MintDetailsModal() {
                 </XStack>
               </YStack>
 
-              <Image
+              <MintImage
+                mintUrl={mintUrl}
                 source={{ uri: iconToUse }}
                 style={{
                   width: 100,

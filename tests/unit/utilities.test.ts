@@ -3,7 +3,7 @@ jest.mock('@noble/hashes/sha2.js', () => ({
 }));
 jest.mock('nostr-tools/pure', () => ({ finalizeEvent: jest.fn() }));
 
-import { findExactSubset, getPossibleAmounts } from '../../src/shared/utils/offlineSendUtils';
+import { findExactSubset } from '../../src/shared/utils/offlineSendUtils';
 import {
   normalizeBitcoinAddress,
   onchainNetwork,
@@ -20,8 +20,11 @@ describe('pure wallet utilities', () => {
     })) as any[];
     const snapshot = [...proofs];
 
-    expect(findExactSubset(10, proofs)?.map((proof) => proof.amount)).toEqual([2, 8]);
-    expect(getPossibleAmounts(proofs)).toContain(15);
+    expect(
+      findExactSubset(10, proofs)
+        ?.map((proof) => proof.amount)
+        .sort((a, b) => a - b),
+    ).toEqual([2, 8]);
     expect(proofs).toEqual(snapshot);
   });
 

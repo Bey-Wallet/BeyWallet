@@ -230,6 +230,110 @@ it('includes receiver fees in net value and fails insufficient funding before pr
   ).toThrow('funded');
 });
 
+it('quotes exact face value only when explicitly selected, including sender swap fees', () => {
+  const { wallet, proof } = harness();
+  wallet.getFeesForKeyset.mockReturnValue(1);
+  wallet.getFeesForProofs.mockReturnValue(1);
+  const cost = calculatePaymentRequestCost(
+    2,
+    'https://mint.example',
+    wallet as any,
+    [proof],
+    { '1': 'key', '2': 'key', '4': 'key' },
+    'keyset',
+    'exact',
+  );
+  expect(cost).toMatchObject({
+    amountMode: 'exact',
+    amount: 2,
+    grossAmount: 2,
+    receiverFee: 1,
+    senderFee: 1,
+    totalDebit: 3,
+  });
+  expect(() =>
+    calculatePaymentRequestCost(
+      1,
+      'https://mint.example',
+      wallet as any,
+      [proof],
+      { '1': 'key', '2': 'key', '4': 'key' },
+      'keyset',
+      'exact',
+    ),
+  ).toThrow('entire payment');
+});
+
+function legacyHarness() {
+  const original = harness();
+  original.wallet.getFeesForProofs.mockReturnValue(1);
+  jest.mocked(seedService.getMnemonic).mockResolvedValue('synthetic mnemonic');
+  jest.mocked(seedService.getNostrKeys).mockResolvedValue({ privkey: '34'.repeat(32) } as any);
+  jest
+    .mocked(publishPaymentRequest)
+    .mockReset()
+    .mockResolvedValue({ eventId: 'event', acceptedRelays: [] });
+  const payment = new PaymentRequestPayment(
+    {
+      ...original.payment.request,
+      id: 'legacy-request',
+      delivery: 'nip17',
+      nostrTarget: '12'.repeat(32),
+    },
+    { ...original.payment.cost, amountMode: 'exact', receiverFee: 1 },
+  );
+  return { ...original, payment };
+}
+
+it('delivers the exact requested face value for Minibits and reuses the saved delivery after restart', async () => {
+  const { payment, prepareSend, executePreparedSend } = legacyHarness();
+  await payment.deliver();
+  expect(prepareSend).toHaveBeenCalledWith('https://mint.example', 4);
+  expect(payment.token!.proofs.reduce((sum, proof) => sum + proof.amount, 0)).toBe(
+    payment.request.amount,
+  );
+  expect(payment.cost.receiverFee).toBe(1);
+  const savedPublication = useNostrRequestStore.getState().payments[0].publication;
+  // Reopening with the default mode must retry the original encrypted payload, not create new proofs.
+  const reopened = new PaymentRequestPayment(payment.request, {
+    ...payment.cost,
+    amountMode: 'net',
+  });
+  await reopened.deliver();
+  expect(publishPaymentRequest).toHaveBeenLastCalledWith(savedPublication);
+  expect(prepareSend).toHaveBeenCalledTimes(1);
+  expect(executePreparedSend).toHaveBeenCalledTimes(1);
+});
+
+it.each(['amount', 'unit', 'fee'] as const)(
+  'does not publish a legacy payment with an unexpected %s',
+  async (changed) => {
+    const { payment, proof, executePreparedSend, wallet, prepareSend } = legacyHarness();
+    if (changed === 'amount')
+      executePreparedSend.mockResolvedValueOnce({
+        token: { mint: 'https://mint.example', proofs: [{ ...proof, amount: 8 }] },
+      });
+    if (changed === 'unit')
+      executePreparedSend.mockResolvedValueOnce({
+        token: { mint: 'https://mint.example', proofs: [proof], unit: 'usd' },
+      } as any);
+    if (changed === 'fee') wallet.getFeesForProofs.mockReturnValueOnce(1).mockReturnValue(2);
+    await expect(payment.deliver()).rejects.toThrow();
+    expect(publishPaymentRequest).not.toHaveBeenCalled();
+    expect(prepareSend).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('rejects exact compatibility mode for NFC before reserving proofs', async () => {
+  const { payment: original, prepareSend } = harness();
+  const payment = new PaymentRequestPayment(original.request, {
+    ...original.cost,
+    amountMode: 'exact',
+  });
+  await expect(payment.deliver(async () => {})).rejects.toThrow('only available for Nostr');
+  expect(prepareSend).not.toHaveBeenCalled();
+});
+
 it('missing signing keys fail before send preparation', async () => {
   const { payment: original, prepareSend } = harness();
   jest.mocked(seedService.getMnemonic).mockResolvedValue(null);

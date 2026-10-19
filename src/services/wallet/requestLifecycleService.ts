@@ -1,9 +1,10 @@
 import { AppState } from 'react-native';
 import type { Manager } from 'coco-cashu-core';
-import { useNostrRequestStore, type NostrReceiveRequest } from '~/state/nostrRequestStore';
+import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
-import { normalizePaymentMint } from './paymentRequestModel';
+import { matchReceiveRequest } from './requestReceiptMatching';
+export { matchReceiveRequest } from './requestReceiptMatching';
 import { contactPolicyReady } from './contactPolicy';
 
 export async function retryRequestPayment(id: string): Promise<void> {
@@ -38,38 +39,6 @@ export async function retryRequestPayment(id: string): Promise<void> {
     usePeopleStore.getState().people[payment.conversation]?.contactStatus !== 'blocked'
   )
     usePeopleStore.getState().setContactStatus(payment.conversation, 'accepted');
-}
-
-export function matchReceiveRequest(
-  requests: NostrReceiveRequest[],
-  item: NostrInboxItem,
-): NostrReceiveRequest | undefined {
-  if (item.type === 'request') return;
-  if (item.receiptCreatedAt !== undefined && item.receiptCreatedAt < item.receivedAt) return;
-  const matches = requests.filter((request) => {
-    if (
-      request.state !== 'pending' ||
-      request.unit !== 'sat' ||
-      (item.unit || 'sat') !== request.unit
-    )
-      return false;
-    if (item.requestId && request.id !== item.requestId) return false;
-    if (item.receiptCreatedAt !== undefined && item.receiptCreatedAt < request.createdAt)
-      return false;
-    if (request.recipient && normalizeNpub(request.recipient) !== normalizeNpub(item.senderPubkey))
-      return false;
-    try {
-      // A NUT-18 response may include extra value for the receiver's input fees.
-      // Legacy ID-less payments require an exact amount to avoid loose matching.
-      return (
-        (item.requestId ? item.amount >= request.amount : item.amount === request.amount) &&
-        normalizePaymentMint(request.mintUrl) === normalizePaymentMint(item.mintUrl)
-      );
-    } catch {
-      return false;
-    }
-  });
-  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export async function recordRequestReceipt(item: NostrInboxItem): Promise<void> {

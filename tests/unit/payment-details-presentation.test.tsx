@@ -1,0 +1,102 @@
+import React from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import * as Clipboard from 'expo-clipboard';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+
+jest.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  Text: 'Text',
+  Separator: 'Separator',
+}));
+jest.mock('@tamagui/lucide-icons', () => ({ Copy: 'Copy', ChevronRight: 'ChevronRight' }));
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn() }));
+jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
+jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
+jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
+jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'StatusIcon' }));
+jest.mock('~/shared/ui/PaymentStageLayout', () => ({
+  PaymentStageLayout: ({ hero, children, footer }: any) => (
+    <>
+      {hero}
+      {children}
+      {footer}
+    </>
+  ),
+}));
+jest.mock('~/state/walletStore', () => ({
+  useWalletStore: (select: (state: any) => unknown) => select({ mints: [] }),
+}));
+jest.mock('~/services/wallet/currencyService', () => ({
+  currencyService: { formatSats: (amount: number) => `${amount} sats` },
+}));
+
+let tree: ReactTestRenderer;
+async function render(element: React.ReactElement) {
+  await act(async () => {
+    tree = create(element);
+  });
+}
+afterEach(async () => {
+  await act(async () => tree?.unmount());
+  jest.clearAllMocks();
+});
+
+it('keeps the complete date readable through nested compact rows and copies the original value', async () => {
+  const date = 'September 30, 2026 at 23:59:59';
+  function Details() {
+    return <ListTableRow label="Reclaim eligible" value={date} isCopyable />;
+  }
+  await render(
+    <ListTable compact>
+      <Details />
+    </ListTable>,
+  );
+  const [label, value] = tree.root.findAllByType('Text' as any);
+  expect(label.props.fontWeight).toBe('400');
+  expect(value.props.fontWeight).toBe('500');
+  expect(value.props.fontSize).toBe('$3');
+  expect(value.props.children).toBe(date);
+  expect(value.props.numberOfLines).toBeUndefined();
+  expect(value.props.style.maxWidth).toBeUndefined();
+  expect(value.props.flexShrink).toBe(1);
+  await act(async () => tree.root.findByType('IconButton' as any).props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(date);
+});
+
+it('preserves the default styling outside payment tables', async () => {
+  await render(
+    <ListTable>
+      <ListTableRow label="Setting" value="Value" />
+    </ListTable>,
+  );
+  const [label, value] = tree.root.findAllByType('Text' as any);
+  expect(label.props.fontWeight).toBe('600');
+  expect(value.props.fontSize).toBe('$4');
+  expect(value.props.numberOfLines).toBe(1);
+});
+
+it.each(['secondary', 'primary'] as const)(
+  'retains the receipt action handler with %s emphasis',
+  async (emphasis) => {
+    const onClose = jest.fn();
+    await render(
+      <PaymentReceipt
+        title="Payment"
+        amount={10}
+        completed
+        onClose={onClose}
+        {...(emphasis === 'primary' ? { actionLabel: 'Try again', actionEmphasis: emphasis } : {})}
+      />,
+    );
+    const button = tree.root.findByType('Button' as any);
+    expect(button.props.emphasis).toBe(emphasis);
+    expect(button.props.variant).toBe(emphasis === 'primary' ? 'branded' : 'default');
+    await act(async () => button.props.onPress());
+    expect(onClose).toHaveBeenCalledTimes(1);
+  },
+);

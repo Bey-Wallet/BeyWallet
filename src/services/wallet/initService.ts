@@ -20,6 +20,9 @@ import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
 import { seedService } from '~/services/platform/seedService';
 import { AppState, type AppStateStatus } from 'react-native';
 import { HistoryWatcherPlugin } from '~/services/wallet/plugins/HistoryWatcherPlugin';
+import { OfflineChangePlugin } from '~/services/wallet/plugins/OfflineChangePlugin';
+import { LocalSendEventsPlugin } from '~/services/wallet/plugins/LocalSendEventsPlugin';
+import { ChangePreparationPlugin } from '~/services/wallet/plugins/ChangePreparationPlugin';
 import { NPCPlugin } from 'coco-cashu-plugin-npc';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
@@ -299,7 +302,13 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
+    [
+      OfflineChangePlugin,
+      LocalSendEventsPlugin,
+      ChangePreparationPlugin,
+      HistoryWatcherPlugin,
+      npcPlugin as unknown as Plugin,
+    ],
   );
 
   repo = repositories;
@@ -317,6 +326,10 @@ async function initializeWithMnemonic(
     nostrClaimService.start(privkey);
     const { requestLifecycleService } = await import('./requestLifecycleService');
     requestLifecycleService.start(manager);
+    const { getChangePreparation } = await import('./changePreparationService');
+    void getChangePreparation()
+      .recoverPending()
+      .catch(() => {});
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');
@@ -431,7 +444,13 @@ export const initService = {
       async () => new Uint8Array(seed),
       customLogger as any,
       undefined,
-      [HistoryWatcherPlugin, npcPlugin as unknown as Plugin],
+      [
+        OfflineChangePlugin,
+        LocalSendEventsPlugin,
+        ChangePreparationPlugin,
+        HistoryWatcherPlugin,
+        npcPlugin as unknown as Plugin,
+      ],
     );
 
     repo = repositories;
@@ -447,6 +466,10 @@ export const initService = {
     nostrClaimService.start(privkey);
     const { requestLifecycleService } = await import('./requestLifecycleService');
     requestLifecycleService.start(manager);
+    const { getChangePreparation } = await import('./changePreparationService');
+    void getChangePreparation()
+      .recoverPending()
+      .catch(() => {});
 
     // Start pending tokens sweeper
     const { expiryService } = await import('~/services/wallet/expiryService');

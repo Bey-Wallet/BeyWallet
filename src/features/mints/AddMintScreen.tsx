@@ -6,7 +6,6 @@ import {
   Text,
   YStack,
   XStack,
-  Spinner,
   Paragraph,
   View,
   useTheme,
@@ -655,7 +654,7 @@ export default function AddMintScreen() {
       {/* ─── Screen Header with Top-Right Scan Icon ─────────────────────────── */}
       <Stack.Screen
         options={{
-          headerTitle: 'Mints',
+          title: 'Mints',
           headerLeft: () => (
             <AppIconButton
               variant="default"

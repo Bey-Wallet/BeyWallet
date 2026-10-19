@@ -1,14 +1,17 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useEffect, useMemo } from 'react';
-import { YStack, XStack, Text, View, Paragraph, Separator, ScrollView } from 'tamagui';
-import { Copy, Check, Clock, ShieldCheck, Sprout, Building2, Zap } from '@tamagui/lucide-icons';
-import QRCode from 'react-native-qrcode-svg';
+import React, { useState, useEffect } from 'react';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
+import { YStack, Text, ScrollView } from 'tamagui';
+import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useToastController } from '@tamagui/toast';
 import { useQuery } from '@tanstack/react-query';
-import { mintManager } from '~/services/wallet';
+import { AppButton } from '~/shared/ui/AppButton';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { useSettingsStore } from '~/state/settingsStore';
+import { useWalletStore } from '~/state/walletStore';
+import { bitcoinService } from '~/services/api/bitcoinService';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 
 interface PaymentStageProps {
   amount: string;
@@ -23,201 +26,184 @@ interface PaymentStageProps {
 export function PaymentStage({
   amount,
   invoice,
-  quoteId,
   mintUrl,
   expiry,
   onPaid,
   onCancel,
 }: PaymentStageProps) {
-  const sats = parseInt(amount, 10);
+  const sats = parseInt(amount, 10) || 0;
   const toast = useToastController();
-  const [copied, setCopied] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [qrWidth, setQrWidth] = useState(0);
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+  const mints = useWalletStore((state) => state.mints);
+  const mint = mints.find((item) => item.mintUrl.replace(/\/$/, '') === mintUrl.replace(/\/$/, ''));
+  const mintDisplayName =
+    mint?.nickname || mint?.name || mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const { data: btcData } = useQuery({
+    queryKey: ['bitcoinPrice', secondaryCurrency],
+    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
+    staleTime: 30000,
+  });
+  const fiatValue = btcData?.price
+    ? currencyService.formatValue(
+        currencyService.convertSatsToCurrency(sats, btcData.price),
+        secondaryCurrency as CurrencyCode,
+      )
+    : '—';
+  const formattedSats = sats.toLocaleString('en-US');
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} SATS`;
+  const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
+  const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
+  const timeLeft = expiry == null ? null : Math.max(0, expiry - now);
+  const isExpired = timeLeft === 0;
+  const qrSize = Math.max(0, Math.min(280, qrWidth - 40));
 
-  const getMintName = (url: string) => {
-    try {
-      const hostname = new URL(url).hostname;
-      return hostname.replace('testnut.', '').replace('.cashu.space', '');
-    } catch {
-      return url;
-    }
-  };
-
-  // Calculate time remaining until expiry
   useEffect(() => {
-    if (!expiry) return;
-
-    const calculateTimeLeft = () => {
-      const now = Math.floor(Date.now() / 1000);
-      const remaining = expiry - now;
-      return remaining > 0 ? remaining : 0;
-    };
-
-    setTimeLeft(calculateTimeLeft());
-
-    const timer = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setTimeLeft(remaining);
-      if (remaining <= 0) {
-        clearInterval(timer);
-      }
-    }, 1000);
-
+    if (expiry == null) return;
+    setNow(Math.floor(Date.now() / 1000));
+    const timer = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(timer);
   }, [expiry]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handleCopy = async () => {
-    await Clipboard.setStringAsync(invoice);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCopied(true);
-    toast.show('Invoice copied to clipboard', { kind: 'success' });
-    setTimeout(() => setCopied(false), 2000);
+    if (isExpired) return;
+    try {
+      await Clipboard.setStringAsync(invoice);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.show('Invoice copied', { kind: 'success' });
+    } catch {
+      toast.show('Could not copy invoice. Please try again.', { kind: 'error' });
+    }
   };
 
-  const isExpired = timeLeft !== null && timeLeft <= 0;
-
-  const { data: feePpk = 0 } = useQuery({
-    queryKey: ['mintFeePpk', mintUrl],
-    queryFn: () => mintManager.getFeePpk(mintUrl),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!mintUrl,
-  });
-
-  const feeDisplay = useMemo(() => {
-    if (!feePpk || feePpk <= 0) return '0 SATS (Free)';
-    const estimatedFee = Math.ceil((sats * feePpk) / 1000);
-    return estimatedFee > 0 ? `~${estimatedFee} SATS` : '0 SATS (Free)';
-  }, [feePpk, sats]);
+  const handleCheckPayment = async () => {
+    if (isChecking || isExpired) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsChecking(true);
+    try {
+      await onPaid();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show('Payment not received yet. Try again shortly.', { kind: 'info' });
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   return (
     <YStack flex={1} bg="$background">
       <ScrollView
+        flex={1}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 } as any}
-        px="$0"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
       >
-        <YStack items="center" gap="$4" mb="$4">
-          <View bg="white" p="$2" borderColor="$borderColor" borderWidth={1} rounded="$6">
-            <QRCode
-              value={invoice}
-              size={330}
-              backgroundColor="white"
-              color="black"
-              quietZone={10}
-            />
-          </View>
-        </YStack>
+        <YStack flex={1} items="center" gap="$4" py="$4">
+          <YStack gap="$2" items="center" width="100%">
+            <Text fontSize={14} fontWeight="500" color="$gray10">
+              {isExpired ? 'Invoice expired' : 'Pay with Lightning'}
+            </Text>
+          </YStack>
 
-        <YStack
-          gap="$0"
-          mb="$6"
-          bg="$gray2"
-          rounded="$6"
-          overflow="hidden"
-          separator={<Separator borderColor="$borderColor" opacity={0.5} />}
-        >
-          <DetailItem label="Pay Invoice" value={`${sats} SATS`} />
-          <DetailItem label="Expires in (UTC)" value={formatTime(timeLeft ?? 0)} />
-          <DetailItem label="Mint" value={getMintName(mintUrl)} />
-          <DetailItem label="Fee Rate" value={feeDisplay} />
-          <DetailItem
-            label="Invoice"
-            value={`${invoice.substring(0, 10)}...${invoice.substring(invoice.length - 10)}`}
-            isCopyable
-            onCopy={handleCopy}
-          />
+          {!isExpired && (
+            <YStack
+              width="100%"
+              items="center"
+              gap="$3"
+              onLayout={(event) => setQrWidth(event.nativeEvent.layout.width)}
+              accessibilityLabel="Lightning invoice QR code"
+            >
+              {qrSize > 0 && (
+                <YStack bg="white" p={20} rounded="$6">
+                  <QRCode value={invoice} size={qrSize} backgroundColor="white" color="black" />
+                </YStack>
+              )}
+            </YStack>
+          )}
+          <YStack gap="$2" items="center" width="100%">
+            <Text
+              testID="mint-payment-primary-amount"
+              fontSize={44}
+              lineHeight={56}
+              fontWeight="500"
+              letterSpacing={-1.5}
+              color="$color"
+              textAlign="center"
+              maxWidth="100%"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {primaryAmount}
+            </Text>
+            <Text
+              testID="mint-payment-secondary-amount"
+              fontSize={16}
+              color="$gray10"
+              textAlign="center"
+            >
+              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
+            </Text>
+          </YStack>
+
+          <YStack width="100%" gap="$2">
+            <ListTable compact>
+              <ListTableRow label="Mint" value={mintDisplayName} />
+              <PaymentStatusRow
+                value={isExpired ? 'Expired' : 'Awaiting payment'}
+                onRefresh={handleCheckPayment}
+                checking={isChecking}
+                disabled={isExpired}
+              />
+              <ListTableRow
+                label="Invoice"
+                value={
+                  invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice
+                }
+                isCopyable
+                copyValue={invoice}
+                onCopy={handleCopy}
+                disabled={isChecking || isExpired}
+              />
+              <ListTableRow
+                label="Expires in"
+                value={
+                  isExpired
+                    ? 'Expired'
+                    : timeLeft === null
+                      ? 'Not provided'
+                      : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+                }
+              />
+            </ListTable>
+            {!isExpired && (
+              <AppButton
+                variant="default"
+                emphasis="text-only"
+                fullWidth
+                disabled={isChecking}
+                onPress={onCancel}
+              >
+                Cancel
+              </AppButton>
+            )}
+          </YStack>
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" b={0} l={0} r={0} py="$2" bg="$background">
-        <XStack width="100%" justify="space-evenly" gap="$3">
-          <AppButton
-            variant="critical"
-            emphasis="secondary"
-            size="large"
-            flex={1}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              onCancel();
-            }}
-          >
-            Cancel
-          </AppButton>
-          <AppButton
-            variant="branded"
-            emphasis="primary"
-            size="large"
-            loading={isChecking}
-            loadingText="Checking payment…"
-            flex={1}
-            disabled={isExpired || isChecking}
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setIsChecking(true);
-              try {
-                await onPaid();
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              } catch (err: any) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                toast.show('Invoice not paid yet. Try again shortly.', { kind: 'info' });
-              } finally {
-                setIsChecking(false);
-              }
-            }}
-          >
-            {isChecking ? '...' : 'I Paid'}
-          </AppButton>
-        </XStack>
+      <YStack gap="$2" pt="$3" pb="$4" bg="$background">
+        <AppButton
+          size="large"
+          fullWidth
+          disabled={isChecking}
+          variant={isExpired ? 'default' : 'branded'}
+          emphasis={isExpired ? 'secondary' : 'primary'}
+          onPress={isExpired ? onCancel : handleCopy}
+        >
+          {isExpired ? 'Close invoice' : 'Copy invoice'}
+        </AppButton>
       </YStack>
     </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  isCopyable,
-  onCopy,
-}: {
-  label: string;
-  value: string;
-  isCopyable?: boolean;
-  onCopy?: () => void;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$4" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        <Text
-          fontSize="$5"
-          fontWeight="800"
-          color="$color"
-          numberOfLines={1}
-          style={{ maxWidth: 200 }}
-        >
-          {value}
-        </Text>
-        {isCopyable && (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            accessibilityLabel="Copy"
-            icon={<Copy size={16} color="$gray10" />}
-            onPress={onCopy}
-          />
-        )}
-      </XStack>
-    </XStack>
   );
 }

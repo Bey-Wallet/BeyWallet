@@ -1,21 +1,19 @@
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { AppButton } from '~/shared/ui/AppButton';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import React, { useMemo } from 'react';
-import { YStack, XStack, Text, View, Separator, ScrollView, YGroup, Avatar } from 'tamagui';
-import { Sprout, Zap, ShieldCheck } from '@tamagui/lucide-icons';
+import { YStack, Text, ScrollView } from 'tamagui';
 
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import {
-  currencyService,
-  CurrencyCode,
-  SUPPORTED_CURRENCIES,
-} from '~/services/wallet/currencyService';
-import { mintManager } from '~/services/wallet';
+import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
+  onMintChange?: (url: string) => void;
   amount: string;
   mintUrl: string;
   isLoading?: boolean;
@@ -23,10 +21,17 @@ interface ConfirmStageProps {
   onBack: () => void;
 }
 
-export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: ConfirmStageProps) {
+export function ConfirmStage({
+  amount,
+  mintUrl,
+  isLoading,
+  onConfirm,
+  onMintChange,
+  onBack,
+}: ConfirmStageProps) {
   const sats = parseInt(amount, 10) || 0;
   const { mints } = useWalletStore();
-  const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
 
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -34,29 +39,8 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
     staleTime: 30000,
   });
 
-  // Fetch the mint's keyset fee (input_fee_ppk). Minting creates fresh proofs
-  // with no input proofs consumed, so the per-proof fee doesn't apply directly.
-  // We show the mint's fee policy so the user knows what rate this mint charges.
-  const { data: feePpk = 0 } = useQuery({
-    queryKey: ['mintFeePpk', mintUrl],
-    queryFn: () => mintManager.getFeePpk(mintUrl),
-    staleTime: 5 * 60 * 1000, // 5 min
-    enabled: !!mintUrl,
-  });
-
-  const feeDisplay = useMemo(() => {
-    if (!feePpk || feePpk <= 0) return '0 SATS (Free)';
-    // feePpk is fee in parts-per-thousand per proof (NUT-02)
-    const estimatedFee = Math.ceil((sats * feePpk) / 1000);
-    return estimatedFee > 0 ? `~${estimatedFee} SATS` : '0 SATS (Free)';
-  }, [feePpk, sats]);
-
-  const currencySymbol = useMemo(() => {
-    return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
-  }, [secondaryCurrency]);
-
   const fiatValue = useMemo(() => {
-    if (!btcData?.price) return '0.00';
+    if (!btcData?.price) return '—';
     const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
     return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
   }, [sats, btcData?.price, secondaryCurrency]);
@@ -79,123 +63,83 @@ export function ConfirmStage({ amount, mintUrl, isLoading, onConfirm, onBack }: 
     return sats.toLocaleString('en-US');
   }, [sats]);
 
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`;
+  const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
+  const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
+
   return (
     <YStack flex={1} bg="$background">
+      <PaymentFlowHeader title="Confirm top-up" onBack={onBack} disabled={isLoading} />
       <ScrollView
+        flex={1}
         pointerEvents={isLoading ? 'none' : 'auto'}
-        contentContainerStyle={{ paddingBottom: 180 } as any}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$4">
-          {/* Middle Amount Display */}
-          <YStack gap="$3" py="$6" items="center" justify="center">
-            <Text fontSize={52} fontWeight="700" color="$accent3" lineHeight={54}>
-              +{showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`}
+        <YStack flex={1} gap="$6">
+          <YStack flex={1} minHeight={240} gap="$3" py="$7" items="center" justify="center">
+            <Text fontSize={14} fontWeight="500" color="$gray10">
+              You're adding
             </Text>
-            <Text color="$accent5" fontWeight="600" fontSize={16}>
-              ≈ {fiatValue} {secondaryCurrency}
+            <Text
+              testID="mint-confirm-primary-amount"
+              fontSize={44}
+              fontWeight="500"
+              color="$color"
+              lineHeight={64}
+              letterSpacing={-1.5}
+              textAlign="center"
+              maxWidth="100%"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {primaryAmount}
+            </Text>
+            <Text
+              testID="mint-confirm-secondary-amount"
+              color="$gray10"
+              fontWeight="400"
+              fontSize={16}
+              textAlign="center"
+            >
+              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
             </Text>
           </YStack>
 
-          {/* Send Method Badge */}
-          <XStack self="center" items="center" gap="$2" bg="$accent9" px="$4" py="$3" rounded="$10">
-            <Zap size={16} color="white" />
-            <Text fontSize="$3" fontWeight="700" color="white">
-              Top Up via Lightning
-            </Text>
-          </XStack>
-
-          {/* Details List */}
-          <YStack bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
-            <View p="$3" px="$4">
-              <Text fontSize="$3" fontWeight="700" color="$gray12">
-                Details
-              </Text>
-            </View>
-            <Separator borderColor="$borderColor" opacity={0.3} />
-            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-              <DetailItem
-                label="Mint"
-                value={mintDisplayName}
-                icon={
-                  <Avatar rounded="$3" size="$1.5">
-                    <Avatar.Image src={activeMint?.icon} />
-                    <Avatar.Fallback bg="$green3" items="center" justify="center">
-                      <Sprout size={12} color="$green10" />
-                    </Avatar.Fallback>
-                  </Avatar>
-                }
+          <ListTable compact>
+            {onMintChange ? (
+              <PaymentMintRow
+                method="mint-lightning"
+                mintUrl={mintUrl}
+                onSelect={onMintChange}
+                disabled={isLoading}
               />
-              <DetailItem label="Method" value="Top Up via Lightning" icon={<Zap size={16} />} />
-              <DetailItem label="Estimated Fee" value={feeDisplay} />
-            </YGroup>
-          </YStack>
+            ) : (
+              <ListTableRow label="Mint" value={mintDisplayName} />
+            )}
+            <ListTableRow label="Method" value="Lightning" />
+            <ListTableRow label="Lightning fee" value="Set by paying wallet" />
+          </ListTable>
         </YStack>
       </ScrollView>
 
-      {/* Action Buttons */}
-      <YStack position="absolute" justify="space-between" b="$4" l="$1" r="$1" gap="$2">
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          flex={1}
-          disabled={isLoading}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onBack();
-          }}
-        >
-          Go Back
-        </AppButton>
+      <YStack gap="$3" pt="$3" pb="$4" bg="$background">
         <AppButton
           variant="branded"
           emphasis="primary"
           size="large"
           loading={isLoading}
           loadingText="Creating Lightning invoice…"
-          flex={1}
+          fullWidth
           disabled={isLoading}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onConfirm();
           }}
         >
-          {isLoading ? 'Creating...' : 'Confirm'}
+          Create invoice
         </AppButton>
       </YStack>
     </YStack>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  icon,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  valueColor?: string;
-}) {
-  return (
-    <XStack justify="space-between" items="center" py="$3" px="$4">
-      <Text fontSize="$3" color="$gray10" fontWeight="600">
-        {label}
-      </Text>
-      <XStack gap="$2" items="center">
-        {icon}
-        <Text
-          fontSize="$3"
-          fontWeight="800"
-          color={valueColor || '$color'}
-          numberOfLines={1}
-          style={{ maxWidth: 220 }}
-        >
-          {value}
-        </Text>
-      </XStack>
-    </XStack>
   );
 }

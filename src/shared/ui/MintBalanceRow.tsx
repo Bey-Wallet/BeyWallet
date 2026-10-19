@@ -1,3 +1,4 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { XStack, YStack, Text, Avatar } from 'tamagui';
@@ -72,10 +73,12 @@ export function MintBalanceRow({
           <Spinner size="small" color="$accent10" />
         ) : (
           <Avatar rounded="$3" size="$2">
-            <Avatar.Image src={activeMint?.icon} />
-            <Avatar.Fallback backgroundColor="$gray3" alignItems="center" justifyContent="center">
-              <Sprout size={14} color="$accent10" />
-            </Avatar.Fallback>
+            <MintImage
+              mintUrl={activeMint?.mintUrl}
+              width="100%"
+              height="100%"
+              src={activeMint?.icon}
+            />
           </Avatar>
         )}
         {label ? (

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Loader } from '@tamagui/lucide-icons';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { YStack, YStackProps, useTheme, variableToString } from 'tamagui';
 import Animated, {
@@ -19,7 +19,7 @@ export type SpinnerProps = Omit<YStackProps, 'children'> & {
 };
 
 export const Spinner = (props: SpinnerProps) => {
-  const { size = 'small', color: colorProp, reduceMotion, strokeWidth = 2, ...stackProps } = props;
+  const { size = 'small', color: colorProp, reduceMotion, strokeWidth = 3, ...stackProps } = props;
   const systemReducedMotion = useReducedMotion();
   const isStatic = reduceMotion ?? systemReducedMotion;
   const theme = useTheme();
@@ -28,7 +28,7 @@ export const Spinner = (props: SpinnerProps) => {
   // Resolve color tokens
   let color = colorProp || theme.accentColor?.val || theme.color?.val;
   if (color && color.startsWith('$')) {
-    color = variableToString(theme[color as keyof typeof theme]);
+    color = variableToString(theme[color.slice(1) as keyof typeof theme]);
   }
 
   // Resolve size
@@ -49,7 +49,8 @@ export const Spinner = (props: SpinnerProps) => {
     rotation.value = withRepeat(
       withTiming(360, {
         duration: 1000,
-        easing: Easing.linear,
+        // Uniswap's ring accelerates and decelerates over each full turn.
+        easing: Easing.bezier(0.83, 0, 0.17, 1),
       }),
       -1, // Infinite
       false, // Don't reverse
@@ -71,7 +72,15 @@ export const Spinner = (props: SpinnerProps) => {
           { width: iconSize, height: iconSize, alignItems: 'center', justifyContent: 'center' },
         ]}
       >
-        <Loader size={iconSize} color={color} strokeWidth={strokeWidth} />
+        <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+          <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={strokeWidth} opacity={0.1} />
+          <Path
+            d="M12 3a9 9 0 0 1 9 9"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        </Svg>
       </Animated.View>
     </YStack>
   );

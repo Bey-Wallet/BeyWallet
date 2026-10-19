@@ -1,3 +1,6 @@
+import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -22,6 +25,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { nfcService } from '~/services/platform/nfcService';
 import { nfcFlow } from './nfcFlow';
+import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
 const stateIcons = {
   ready: NfcIcon,
@@ -57,7 +61,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const queryClient = useQueryClient();
   useEffect(() => {
     nfcFlow.setReady(walletReady && settingsReady && (!biometric || authenticated));
+    nfcReceiveCoordinator.setReady(walletReady && settingsReady && (!biometric || authenticated));
   }, [walletReady, settingsReady, biometric, authenticated]);
+  useEffect(() => {
+    const stop = nfcReceiveCoordinator.subscribe(() => nfcFlow.resumeRequest());
+    return () => {
+      stop();
+      nfcReceiveCoordinator.setReady(false);
+    };
+  }, []);
   useEffect(() => {
     if (state.visible) ref.current?.present();
     else ref.current?.dismiss();
@@ -69,8 +81,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     }
   }, [state.status, state.hasPayment, queryClient]);
   useEffect(() => {
+    // Remounting can stop the controller without another AppState event.
+    if (AppState.currentState === 'active') nfcFlow.foreground();
+    else if (AppState.currentState === 'background') void nfcFlow.background();
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'background') void nfcFlow.background();
+      else if (next === 'active') {
+        nfcFlow.foreground();
+        void nfcReceiveCoordinator.processPending();
+      }
     });
     return () => {
       subscription.remove();
@@ -129,30 +148,34 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
         <Text fontSize="$6" fontWeight="700" textAlign="center">
           {titles[state.status]}
         </Text>
-        <View
-          backgroundColor={badgeColor}
-          borderRadius={3000}
-          p="$4"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <StateIcon size={40} color={iconColor} />
-        </View>
-        {state.amount !== undefined && (
-          <Text fontSize="$7" fontWeight="700">
-            {state.amount.toLocaleString()} sats
-          </Text>
+        {state.status === 'confirmed' || state.status === 'error' ? (
+          <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
+        ) : (
+          <View
+            backgroundColor={badgeColor}
+            borderRadius={3000}
+            p="$4"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <StateIcon size={40} color={iconColor} />
+          </View>
         )}
+        {state.amount !== undefined && <PaymentAmount amount={state.amount} />}
         <Text color="$color11" textAlign="center">
           {state.message}
         </Text>
         <YStack width="100%" gap="$3" justifyContent="center" items="center" flex={1} mt="$2">
           {state.mintUrl && (
-            <XStack minWidth={0} bg="$gray5" rounded="$4" px="$3" py="$2" gap="$2" items="center">
-              <Text fontSize="$3" fontWeight="600" numberOfLines={1}>
-                {mint?.nickname || mint?.name || state.mintUrl.replace(/^https?:\/\//, '')}
-              </Text>
-            </XStack>
+            <ListTable width="100%">
+              <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
+              {state.eventTime && (
+                <ListTableRow label="Time" value={new Date(state.eventTime).toLocaleString()} />
+              )}
+              {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
+                <ListTableRow label="Fee" value={`${state.fees} sats`} />
+              )}
+            </ListTable>
           )}
 
           {primaryAction && (

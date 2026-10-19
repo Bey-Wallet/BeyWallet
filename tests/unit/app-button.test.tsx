@@ -110,11 +110,11 @@ it('centers only the loader, preserves label geometry, and restores icons after 
 });
 
 it.each([
-  ['xxsmall', 8],
-  ['xsmall', 10],
-  ['small', 12],
-  ['medium', 16],
-  ['large', 20],
+  ['xxsmall', '$3'],
+  ['xsmall', '$4'],
+  ['small', '$5'],
+  ['medium', '$6'],
+  ['large', '$6'],
 ] as const)('uses proportional corner rounding for %s buttons', async (size, radius) => {
   const tree = await render({ size });
   expect(tree.root.findByType('Button' as any).props.rounded).toBe(radius);

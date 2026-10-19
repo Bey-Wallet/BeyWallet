@@ -53,6 +53,7 @@ export interface WalletBackup {
   counters?: any[];
   history?: any[];
   mintQuotes?: any[];
+  changeOperations?: any[];
   defaultMintUrl: string;
   secondaryCurrency: string;
   theme: 'system' | 'light' | 'dark';
@@ -85,6 +86,7 @@ export const walletFileService = {
       counters: any[];
       history: any[];
       mintQuotes: any[];
+      changeOperations?: any[];
       defaultMintUrl: string;
       secondaryCurrency: string;
       theme: 'system' | 'light' | 'dark';
@@ -105,6 +107,7 @@ export const walletFileService = {
       counters: opts.counters,
       history: opts.history,
       mintQuotes: opts.mintQuotes,
+      changeOperations: opts.changeOperations,
       defaultMintUrl: opts.defaultMintUrl,
       secondaryCurrency: opts.secondaryCurrency,
       theme: opts.theme,
@@ -257,6 +260,7 @@ export const walletFileService = {
       counters: backup.counters ?? [],
       history: backup.history ?? [],
       mintQuotes: backup.mintQuotes ?? [],
+      changeOperations: backup.changeOperations ?? [],
       defaultMintUrl,
       secondaryCurrency,
       theme: backup.theme ?? 'system',

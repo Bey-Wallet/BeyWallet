@@ -1,3 +1,6 @@
+import { LegendList } from '@legendapp/list/react-native';
+jest.mock('@legendapp/list/react-native', () => ({ LegendList: require('react-native').FlatList }));
+jest.mock('~/shared/ui/RemoteImage', () => ({ RemoteImage: 'RemoteImage' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { nip19 } from 'nostr-tools';
@@ -10,7 +13,7 @@ import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore'
 import { nostrService } from '~/services/wallet/nostrService';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { useSettingsStore } from '~/state/settingsStore';
-import { Alert, DeviceEventEmitter, FlatList } from 'react-native';
+import { Alert, DeviceEventEmitter } from 'react-native';
 import { applyIncomingContactPolicy } from '~/services/wallet/contactPolicy';
 import { useWalletStore } from '~/state/walletStore';
 import * as Clipboard from 'expo-clipboard';
@@ -238,7 +241,7 @@ describe('People conversations and invitations', () => {
         .findAllByType('AppPressable' as any)
         .find((node) => node.props.accessibilityLabel === 'Requests, 1 pending')!;
     await act(async () => requests().props.onPress());
-    const list = () => tree!.root.findByType(FlatList);
+    const list = () => tree!.root.findByType(LegendList);
     await act(async () => list().props.onContentSizeChange!(320, 2000));
     await act(async () =>
       list().props.onScroll!({ nativeEvent: { contentOffset: { y: 320 } } } as any),
@@ -270,7 +273,7 @@ describe('People conversations and invitations', () => {
         .props.onPress(),
     );
     expect(requests().props.accessibilityState.selected).toBe(true);
-    expect(list().props.contentOffset?.y).toBe(320);
+    expect(list().props.initialScrollOffset).toBe(320);
   });
 
   it('opens conversations from people rows and claim review from payment issue rows', async () => {
@@ -324,7 +327,7 @@ describe('People conversations and invitations', () => {
     await act(async () => {
       tree = create(<PeopleScreen />);
     });
-    const list = () => tree!.root.findByType(FlatList);
+    const list = () => tree!.root.findByType(LegendList);
     expect(list().props.data).toHaveLength(50);
     await act(async () => list().props.onEndReached!({ distanceFromEnd: 0 }));
     expect(list().props.data).toHaveLength(100);

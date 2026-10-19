@@ -1,3 +1,7 @@
+import { reclaimOptions, supportsReclaim } from '~/services/wallet/reclaimPolicy';
+import { seedService } from '~/services/platform/seedService';
+import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
+import { createOfflineEcash } from '~/services/wallet/offlineEcash';
 /**
  * Wallet service — send, receive, balances, restore.
  *
@@ -12,8 +16,8 @@
 import { initService } from '~/services/wallet/initService';
 import { purgeCorruptedKeysets } from '~/services/wallet/initService';
 import { cleanToken, encodeToken, decodeToken } from '~/services/wallet/tokenUtils';
-import type { Token } from '@cashu/cashu-ts';
-import { getDecodedToken, getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
+import type { SwapPreview, Token } from '@cashu/cashu-ts';
+import { getDecodedToken, Mint } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
 import {
   isDuplicateOutputsError,
@@ -328,39 +332,22 @@ export const walletService = {
 
   // ─── P2PK Sending ─────────────────────────────────────────
 
-  sendP2PK: async (
+  sendP2PK: async (mintUrl: string, amount: number, receiverPubkey: string, reclaimAt?: number) => {
+    const prepared = await walletService.prepareP2PK(mintUrl, amount, receiverPubkey, reclaimAt);
+    return prepared.execute();
+  },
+
+  prepareP2PK: async (
     mintUrl: string,
     amount: number,
     receiverPubkey: string,
-  ): Promise<{ encoded: string; token: Token; id: string }> => {
+    reclaimAt?: number,
+  ) => {
+    if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid amount');
     const m = mgr();
     const unsafeManager = m as any;
 
-    // ── Convert Nostr identifiers (npub/nprofile) to compressed SEC1 pubkey ──
-    let lockPubkey = receiverPubkey;
-    if (lockPubkey.startsWith('npub1') || lockPubkey.startsWith('nprofile1')) {
-      try {
-        const { decode: nip19Decode } = require('nostr-tools/nip19');
-        const decoded = nip19Decode(lockPubkey);
-        // nprofile has .data.pubkey, npub has .data directly
-        const hexPubkey = decoded.type === 'nprofile' ? decoded.data.pubkey : decoded.data;
-        // Add 02 prefix for compressed SEC1 format (33 bytes)
-        lockPubkey = '02' + hexPubkey;
-        console.log(
-          `[WalletService] Converted Nostr pubkey to compressed SEC1: ${lockPubkey.substring(0, 10)}…`,
-        );
-      } catch (decodeErr: any) {
-        console.error('[WalletService] Failed to decode Nostr identifier:', decodeErr?.message);
-        throw new Error('Invalid Nostr public key format');
-      }
-    } else if (/^[0-9a-fA-F]{64}$/.test(lockPubkey)) {
-      // Raw 32-byte hex — add 02 prefix
-      lockPubkey = '02' + lockPubkey;
-      console.log(
-        `[WalletService] Added 02 prefix to raw hex pubkey: ${lockPubkey.substring(0, 10)}…`,
-      );
-    }
-
+    const lockPubkey = normalizeP2PKRecipient(receiverPubkey);
     // 1. Ensure mint is trusted and get internal cashu-ts wallet + proof repository
     if (!(await unsafeManager.mintService.isTrustedMint(mintUrl))) {
       throw new Error(`Mint ${mintUrl} is not trusted`);
@@ -374,191 +361,137 @@ export const walletService = {
       throw new Error(`Insufficient balance: need ${amount}, have ${totalAvailable}`);
     }
 
-    // 2. Select proofs and perform the swap.
-    // We use explicit `prepareSwapToSend` so that we can capture `txn.inputs` and mark those exact proofs as SPENT.
-    console.log(`[WalletService] Executing send OP to lock to: ${lockPubkey.substring(0, 10)}…`);
-    let keepProofs: any[] = [];
-    let sendProofs: any[] = [];
-    let inputSecrets: string[] = [];
-
-    try {
-      const customConfig = {
-        send: { type: 'p2pk', options: { pubkey: lockPubkey } },
+    if (!supportsReclaim(await unsafeManager.mint.getMintInfo(mintUrl)))
+      throw new Error('Mint does not advertise P2PK support');
+    let refundPubkey: string | undefined;
+    if (reclaimAt !== undefined) {
+      const info = await unsafeManager.mint.getMintInfo(mintUrl);
+      if (!supportsReclaim(info)) throw new Error('Mint does not advertise reclaim support');
+      const mnemonic = await seedService.getMnemonic();
+      if (!mnemonic) throw new Error('Wallet identity unavailable');
+      refundPubkey = '02' + (await seedService.getNostrKeys(mnemonic)).pubkey;
+    }
+    const options = reclaimOptions(lockPubkey, reclaimAt, refundPubkey);
+    const txn: SwapPreview = await wallet.prepareSwapToSend(
+      amount,
+      availableProofs,
+      { includeFees: true },
+      {
+        send: { type: 'p2pk', options },
         keep: { type: 'random' },
-      };
+      },
+    );
+    const inputSecrets = txn.inputs.map((p) => p.secret);
+    const fee =
+      txn.inputs.reduce((sum, p) => sum + Number(p.amount), 0) -
+      [...(txn.sendOutputs ?? []), ...(txn.keepOutputs ?? [])].reduce(
+        (sum, output) => sum + Number(output.blindedMessage.amount),
+        0,
+      );
+    if (!Number.isSafeInteger(fee) || fee < 0)
+      throw new Error('Could not calculate the creation fee');
+    const operationId = generateSubId();
+    await unsafeManager.proofService.reserveProofs(mintUrl, inputSecrets, operationId);
+    let submitted = false;
+    let released = false;
+    let execution: Promise<{ encoded: string; token: Token; id: string }> | undefined;
+    const execute = async (): Promise<{ encoded: string; token: Token; id: string }> => {
+      if (released) throw new Error('Payment review was replaced');
+      if (reclaimAt !== undefined && reclaimAt <= Date.now())
+        throw new Error('Reclaim deadline passed. Review the payment again.');
+      submitted = true;
+      // Once submitted, preserve reservations on ambiguous network failures for recovery.
+      const swapResult = await wallet.completeSwap(txn);
+      const keepProofs = swapResult.keep;
+      const sendProofs = swapResult.send;
+      // 3. Update Proof Repository Manually
+      // Emulate what coco's SendOperationService does:
+      // Set inputs to SPENT, add keepProofs as READY, and theoretically sendProofs as INFLIGHT
 
-      let txn;
-      try {
-        // Attempt 1
-        txn = await wallet.prepareSwapToSend(
-          amount,
-          availableProofs,
-          { includeFees: true },
-          customConfig as any,
-        );
-      } catch (firstErr: any) {
-        if (firstErr?.message?.includes('already spent') || firstErr?.message?.includes('11001')) {
-          console.log(
-            `[WalletService] Caught "already spent" state mismatch. Auto-healing local database...`,
-          );
-          // Force the database to drop spent proofs
-          await unsafeManager.proofService.checkState(mintUrl);
-          // Re-fetch clean proofs
-          const refreshedProofs = await unsafeManager.proofRepository.getAvailableProofs(mintUrl);
-          console.log(`[WalletService] Retrying send after healing database...`);
-          txn = await wallet.prepareSwapToSend(
-            amount,
-            refreshedProofs,
-            { includeFees: true },
-            customConfig as any,
-          );
-          // Update availableProofs reference for the filter later
-          availableProofs.splice(0, availableProofs.length, ...refreshedProofs);
-        } else {
-          throw firstErr;
-        }
+      // 4a. Mark keep proofs as ready (filter out unspent proofs we already had!)
+      const availableSecrets = new Set(availableProofs.map((p: any) => p.secret));
+      const newKeepProofs = keepProofs.filter((p: any) => !availableSecrets.has(p.secret));
+
+      if (newKeepProofs.length > 0) {
+        const keepCoreProofs = newKeepProofs.map((p: any) => ({
+          ...p,
+          mintUrl,
+          state: 'ready',
+          createdByOperationId: operationId,
+        }));
+        await unsafeManager.proofService.saveProofs(mintUrl, keepCoreProofs);
       }
 
-      const swapResult = await wallet.completeSwap(txn);
-
-      keepProofs = swapResult.keep;
-      sendProofs = swapResult.send;
-      inputSecrets = txn.inputs.map((p: any) => p.secret);
-    } catch (opsErr: any) {
-      console.error('[WalletService] ops.send failed:', opsErr?.message || opsErr);
-      console.error(
-        '[WalletService] ops.send Full Error:',
-        JSON.stringify(opsErr, Object.getOwnPropertyNames(opsErr)),
-      );
-      throw opsErr;
-    }
-
-    // 3. Update Proof Repository Manually
-    // Emulate what coco's SendOperationService does:
-    // Set inputs to SPENT, add keepProofs as READY, and theoretically sendProofs as INFLIGHT
-    const operationId = generateSubId();
-
-    // 4a. Mark keep proofs as ready (filter out unspent proofs we already had!)
-    const availableSecrets = new Set(availableProofs.map((p: any) => p.secret));
-    const newKeepProofs = keepProofs.filter((p: any) => !availableSecrets.has(p.secret));
-
-    if (newKeepProofs.length > 0) {
-      const keepCoreProofs = newKeepProofs.map((p: any) => ({
+      // 4b. Mark sending proofs as inflight
+      const sendCoreProofs = sendProofs.map((p: any) => ({
         ...p,
         mintUrl,
-        state: 'ready',
+        state: 'inflight',
         createdByOperationId: operationId,
       }));
-      await unsafeManager.proofService.saveProofs(mintUrl, keepCoreProofs);
-    }
+      await unsafeManager.proofService.saveProofs(mintUrl, sendCoreProofs);
 
-    // 4b. Mark sending proofs as inflight
-    const sendCoreProofs = sendProofs.map((p: any) => ({
-      ...p,
-      mintUrl,
-      state: 'inflight',
-      createdByOperationId: operationId,
-    }));
-    await unsafeManager.proofService.saveProofs(mintUrl, sendCoreProofs);
+      // 4c. SPENT the inputs
+      await unsafeManager.proofService.setProofState(mintUrl, inputSecrets, 'spent');
 
-    // 4c. SPENT the inputs
-    await unsafeManager.proofService.setProofState(mintUrl, inputSecrets, 'spent');
-
-    // 5. Build Token
-    const token: Token = {
-      mint: mintUrl,
-      proofs: sendProofs,
-      unit: wallet.unit || 'sat',
-    };
-    const encoded = encodeToken(token);
-    console.log(
-      `[WalletService] ✅ P2PK Send execution complete! Token locked to: ${receiverPubkey}`,
-    );
-
-    // Ideally we also create an operation or history log, but coco's internals are slightly opaque
-    // For now, this effectively subtracts balance and hands off a token.
-    try {
-      await initService.getRepo().historyRepository.addHistoryEntry({
-        mintUrl,
+      // 5. Build Token
+      const token: Token = {
+        mint: mintUrl,
+        proofs: sendProofs,
         unit: wallet.unit || 'sat',
-        createdAt: Date.now(),
-        type: 'send',
-        amount: amount,
-        operationId: operationId,
-        state: 'pending',
-        token: token,
-        metadata: {
-          p2pkPubkey: receiverPubkey,
-          type: 'p2pk',
-        },
-      });
-      console.log(`[WalletService] History tracking injected for P2PK send.`);
-    } catch (histErr) {
-      console.warn('[WalletService] Failed to inject history entry:', histErr);
-    }
+      };
+      const encoded = encodeToken(token);
+      console.log(
+        `[WalletService] ✅ P2PK Send execution complete! Token locked to: ${receiverPubkey}`,
+      );
 
-    return { encoded, token, id: operationId };
+      // Ideally we also create an operation or history log, but coco's internals are slightly opaque
+      // For now, this effectively subtracts balance and hands off a token.
+      try {
+        await initService.getRepo().historyRepository.addHistoryEntry({
+          mintUrl,
+          unit: wallet.unit || 'sat',
+          createdAt: Date.now(),
+          type: 'send',
+          amount: amount,
+          operationId: operationId,
+          state: 'pending',
+          token: token,
+          metadata: {
+            p2pkPubkey: receiverPubkey,
+            type: 'p2pk',
+            fee,
+            ...(reclaimAt !== undefined ? { reclaimAt, refundPubkey } : {}),
+          },
+        });
+        console.log(`[WalletService] History tracking injected for P2PK send.`);
+      } catch (histErr) {
+        console.warn('[WalletService] Failed to inject history entry:', histErr);
+      }
+
+      return { encoded, token, id: operationId };
+    };
+    return {
+      fee,
+      reclaimAt,
+      refundPubkey,
+      execute: () => (execution ??= execute()),
+      dispose: async () => {
+        if (submitted || released) return;
+        released = true;
+        await unsafeManager.proofService.releaseProofs(mintUrl, inputSecrets);
+      },
+    };
   },
 
   /**
-   * Create an ecash token offline using a selected subset of proofs.
-   * Marks selected proofs as spent in the local repository and saves a history log.
+   * Create the exact requested bearer token from local, unreserved proofs without mint calls.
    */
   sendOffline: async (
     mintUrl: string,
     amount: number,
-    selectedProofs: CoreProof[],
   ): Promise<{ encoded: string; token: Token; id: string }> => {
-    console.log(
-      `[WalletService] Creating offline send of ${amount} sats from ${mintUrl} using ${selectedProofs.length} proofs`,
-    );
-
-    const m = mgr();
-    const unsafeManager = m as any;
-    const operationId = generateSubId();
-
-    // 1. Mark selected proofs as spent in the local database
-    const secrets = selectedProofs.map((p) => p.secret);
-    await unsafeManager.proofService.setProofState(mintUrl, secrets, 'spent');
-
-    // 2. Clean proofs to standard Cashu format (strip db-specific metadata)
-    const cleanProofs = selectedProofs.map((p) => ({
-      id: p.id,
-      amount: p.amount,
-      secret: p.secret,
-      C: p.C,
-    }));
-
-    // 3. Build and Encode Token
-    const token: Token = {
-      mint: mintUrl,
-      proofs: cleanProofs,
-      unit: 'sat',
-    };
-    const encoded = encodeToken(token);
-
-    // 4. Add history entry
-    try {
-      await initService.getRepo().historyRepository.addHistoryEntry({
-        mintUrl,
-        unit: 'sat',
-        createdAt: Date.now(),
-        type: 'send',
-        amount: amount,
-        operationId: operationId,
-        state: 'pending',
-        token: token,
-        metadata: {
-          via: 'ecash_create',
-          offline: true,
-        },
-      });
-      console.log(`[WalletService] History tracking injected for offline send.`);
-    } catch (histErr) {
-      console.warn('[WalletService] Failed to inject history entry for offline send:', histErr);
-    }
-
-    return { encoded, token, id: operationId };
+    return createOfflineEcash(mintUrl, amount, generateSubId(), initService.getRepo());
   },
 
   // ─── Receiving ────────────────────────────────────────────

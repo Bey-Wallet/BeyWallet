@@ -73,7 +73,7 @@ export function BouncyAmount({
     <AnimatedH1
       fontSize={fontSize}
       fontVariant={['tabular-nums']}
-      fontWeight="700"
+      fontWeight="500"
       letterSpacing={-1}
       py="$2"
       color={color}

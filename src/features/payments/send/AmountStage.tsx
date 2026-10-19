@@ -1,7 +1,7 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, H1, Avatar, Square } from 'tamagui';
-import { ArrowUpDown, AlertCircle, Wallet } from '@tamagui/lucide-icons';
+import { YStack, Text } from 'tamagui';
+import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useWalletStore } from '~/state/walletStore';
@@ -21,6 +21,8 @@ import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 
 interface AmountStageProps {
+  mintUrl?: string | null;
+  onMintChange?: (url: string) => void;
   amount: string;
   setAmount: (val: string) => void;
   onContinue: () => void;
@@ -28,10 +30,11 @@ interface AmountStageProps {
   isLoading?: boolean;
   error?: string | null;
   isOffline?: boolean;
-  onSelectedProofsChange?: (proofs: any[]) => void;
 }
 
 export function AmountStage({
+  mintUrl,
+  onMintChange,
   amount,
   setAmount,
   onContinue,
@@ -40,7 +43,14 @@ export function AmountStage({
   error,
   isOffline,
 }: AmountStageProps) {
-  const { activeMintUrl, mints, refreshMintList, isInitializing, isRefreshing } = useWalletStore();
+  const {
+    activeMintUrl: globalMintUrl,
+    mints,
+    refreshMintList,
+    isInitializing,
+    isRefreshing,
+  } = useWalletStore();
+  const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [inputMode, setInputMode] = React.useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -225,11 +235,11 @@ export function AmountStage({
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
             {error || isOverBalance ? (
-              <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
+              <Text color="$red10" fontSize="$3" fontWeight="400" text="center">
                 {error || 'Exceeds available balance'}
               </Text>
             ) : (
-              <Text color="$gray10" fontSize="$3" fontWeight="500">
+              <Text color="$gray10" fontSize="$3" fontWeight="400">
                 How much to send?
               </Text>
             )}
@@ -254,7 +264,7 @@ export function AmountStage({
               justify="center"
               gap={8}
             >
-              <Text color="$color" fontSize="$3" fontWeight="600">
+              <Text color="$color" fontSize="$3" fontWeight="400">
                 {conversionValue}
               </Text>
               <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
@@ -273,7 +283,14 @@ export function AmountStage({
         confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
       />
 
-      <MintSelectorSheet ref={sheetRef} />
+      <MintSelectorSheet
+        ref={sheetRef}
+        activeMintUrl={activeMintUrl || undefined}
+        onSelect={onMintChange}
+        changeGlobalActiveMint={false}
+        showAllOption={false}
+        trustedOnly
+      />
     </Flex>
   );
 }

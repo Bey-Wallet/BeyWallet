@@ -1,3 +1,4 @@
+import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -736,7 +737,7 @@ export default function ProofsModal() {
 
           <AppButton
             variant="default"
-            emphasis="primary"
+            emphasis="secondary"
             size="medium"
             onPress={() => proofActionSheetRef.current?.dismiss()}
           >
@@ -796,7 +797,7 @@ export default function ProofsModal() {
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
-          headerTitle: 'Proof Manager',
+          title: 'Proof Manager',
           headerLeft: () => (
             <AppIconButton
               variant="default"
@@ -856,10 +857,12 @@ export default function ProofsModal() {
               gap={8}
             >
               <Avatar rounded="$3" size="$1.5">
-                <Avatar.Image src={activeMintInfo?.icon} />
-                <Avatar.Fallback bg="$color5" items="center" justify="center">
-                  <Landmark size={12} color="$color10" />
-                </Avatar.Fallback>
+                <MintImage
+                  mintUrl={activeMintInfo?.mintUrl}
+                  width="100%"
+                  height="100%"
+                  src={activeMintInfo?.icon}
+                />
               </Avatar>
 
               <Text fontWeight="700" fontSize="$2" numberOfLines={1} style={{ maxWidth: 100 }}>
@@ -1022,10 +1025,12 @@ export default function ProofsModal() {
                   >
                     <XStack gap="$3" items="center" flex={1}>
                       <Avatar rounded="$3" size="$3">
-                        <Avatar.Image src={info?.icon} />
-                        <Avatar.Fallback bg="$gray3" items="center" justify="center">
-                          <Landmark size={16} color="$gray10" />
-                        </Avatar.Fallback>
+                        <MintImage
+                          mintUrl={info?.mintUrl}
+                          width="100%"
+                          height="100%"
+                          src={info?.icon}
+                        />
                       </Avatar>
                       <YStack flex={1}>
                         <Text fontWeight="700" fontSize="$4" numberOfLines={1}>

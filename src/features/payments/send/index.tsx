@@ -1,6 +1,9 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
+import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
+import { useFlowMint } from '~/shared/hooks/useFlowMint';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import React, { useState, useCallback } from 'react';
-import { InteractionManager, Switch, Alert } from 'react-native';
+import { InteractionManager, Alert } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { AmountStage } from '~/features/payments/send/AmountStage';
@@ -23,34 +26,21 @@ import {
 } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
 import * as Haptics from 'expo-haptics';
-import { Text, YStack, XStack, Separator, View, H2, H4 } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
-import {
-  Building2,
-  ShieldCheck,
-  Zap,
-  ScanLine,
-  Lock,
-  Clock,
-  CloudOff,
-  Cloud,
-} from '@tamagui/lucide-icons';
 import * as Network from 'expo-network';
 import { useToastController } from '@tamagui/toast';
-import { Image } from 'tamagui';
+
 import { nip19 } from 'nostr-tools';
 import { eventService, proofService } from '~/services/wallet';
 import SendMethodSelector, { SendMode } from '~/shared/ui/SendMethodSelector';
 import { parsePaymentRequest as validatePaymentRequest } from '~/services/wallet/paymentRequestModel';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import Blockies from '~/shared/ui/Blockies';
-import {
-  OfflineOptimizationSheet,
-  type OfflineOptimizationSheetRef,
-} from '~/shared/ui/OfflineOptimizationSheet';
+import { findExactSubset, OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
 
 type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
@@ -94,6 +84,7 @@ export function SendModalScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [sendMode, setSendMode] = useState<SendMode>('standard');
   const [receiverPubkey, setReceiverPubkey] = useState('');
+  const [lockEcash, setLockEcash] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [manualParsedRequest, setManualParsedRequest] = useState<ParsedPaymentRequest | null>(null);
   // Nostr-specific state
@@ -101,40 +92,16 @@ export function SendModalScreen() {
   const [nostrRecipientUsername, setNostrRecipientUsername] = useState('');
   const [useP2PK, setUseP2PK] = useState(true); // Default ON for Nostr sends
   const [nostrSending, setNostrSending] = useState(false);
-  const [expiryEnabled, setExpiryEnabled] = useState(false);
-  const [expiryHours, setExpiryHours] = useState(168); // Default to 7 days (168 hours)
+  const [expiryHours, setExpiryHours] = useState(0);
+  const [capability, setCapability] = useState<{ mint: string; supported: boolean } | null>(null);
+  const reviewRef = React.useRef<EcashReview | null>(null);
+  const submittedReviewRef = React.useRef<EcashReview | null>(null);
+  const reviewQueue = React.useRef<Promise<void>>(Promise.resolve());
+  const releaseFailure = React.useRef<unknown>(null);
+  const executionLock = React.useRef(false);
+  const [reviewReady, setReviewReady] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined);
-  const [isHardwareOffline, setIsHardwareOffline] = useState(false);
-  const [forceOffline, setForceOffline] = useState(false);
-  const [selectedOfflineProofs, setSelectedOfflineProofs] = useState<any[] | null>(null);
-  const isOffline = isHardwareOffline || forceOffline;
-  const optimizationSheetRef = React.useRef<OfflineOptimizationSheetRef>(null);
-
-  const handleOfflineOptimizationConfirm = useCallback((optimizedAmount: number, proofs: any[]) => {
-    console.log(
-      '[SendModalScreen] Offline optimization confirmed amount:',
-      optimizedAmount,
-      'proofs:',
-      proofs.length,
-    );
-    setAmount(String(optimizedAmount));
-    setSelectedOfflineProofs(proofs);
-    setStep('confirm');
-  }, []);
-
-  React.useEffect(() => {
-    const checkNetwork = async () => {
-      try {
-        const state = await Network.getNetworkStateAsync();
-        setIsHardwareOffline(!state.isConnected || state.isInternetReachable === false);
-      } catch (e) {
-        setIsHardwareOffline(false);
-      }
-    };
-    checkNetwork();
-    const interval = setInterval(checkNetwork, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  const isOffline = useOfflineStatus();
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -150,32 +117,23 @@ export function SendModalScreen() {
 
   // Auto-select Nostr mode + pre-fill recipient when coming from person-details
   React.useEffect(() => {
-    const checkOfflineMode = async () => {
-      try {
-        const state = await Network.getNetworkStateAsync();
-        const offline = !state.isConnected || state.isInternetReachable === false;
-        if (offline && (params.mode === 'nostr' || params.mode === 'scan')) {
-          Alert.alert(
-            'You are offline',
-            `${params.mode === 'nostr' ? 'Nostr Send' : 'Scan & Pay'} is not available offline. Switched to Standard Mode.`,
-          );
-          setSendMode('standard');
-          return;
-        }
-      } catch (e) {
-        console.warn('[SendModalScreen] Network check error:', e);
-      }
-
-      if (params.mode === 'nostr' && params.to) {
-        setSendMode('nostr');
-        setNostrRecipientNpub(params.to as string);
-        setNostrRecipientUsername(params.username ? String(params.username) : '');
-      } else if (params.mode) {
-        setSendMode(params.mode as SendMode);
-      }
-    };
-    checkOfflineMode();
-  }, [params.mode, params.to, params.username, isHardwareOffline]);
+    if (executionLock.current) return;
+    if (isOffline && (params.mode === 'nostr' || params.mode === 'scan')) {
+      Alert.alert(
+        'You are offline',
+        'This payment method requires a connection. Switched to Standard Mode.',
+      );
+      setSendMode('standard');
+      return;
+    }
+    if (params.mode === 'nostr' && params.to) {
+      setSendMode('nostr');
+      setNostrRecipientNpub(params.to as string);
+      setNostrRecipientUsername(params.username ? String(params.username) : '');
+    } else if (params.mode) {
+      setSendMode(params.mode as SendMode);
+    }
+  }, [params.mode, params.to, params.username, isOffline]);
 
   const parsedRequest = React.useMemo<ParsedPaymentRequest | null>(() => {
     if (!params.paymentRequest) return null;
@@ -200,26 +158,126 @@ export function SendModalScreen() {
     }
   }, [activeParsedRequest, params.paymentRequest]);
 
-  const balance = useWalletStore((s) => s.balance);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
+  const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const mints = useWalletStore((s) => s.mints);
   const { secondaryCurrency } = useSettingsStore();
-  const [estimatedFee, setEstimatedFee] = React.useState(0);
-
-  // Fetch fee when active mint changes
-  React.useEffect(() => {
-    if (activeMintUrl) {
-      mintManager
-        .getFeePpk(activeMintUrl)
-        .then((feePpk) => {
-          // Estimate fee assuming ~4 input proofs (typical swap)
-          const fee = feePpk > 0 ? Math.ceil((4 * feePpk) / 1000) : 0;
-          setEstimatedFee(fee);
-        })
-        .catch(() => setEstimatedFee(0));
+  const [paidCreationFee, setPaidCreationFee] = useState<number | undefined>();
+  const [estimatedFee, setEstimatedFee] = React.useState<number | null>(null);
+  const disposeReview = async (review: EcashReview | null) => {
+    try {
+      await review?.dispose();
+    } catch (error) {
+      releaseFailure.current = error;
+      throw error;
     }
-  }, [activeMintUrl]);
+  };
+  const ecashLockEnabled = sendMode === 'p2pk' || (sendMode === 'standard' && lockEcash);
+  const reclaimSupported =
+    !isOffline &&
+    (ecashLockEnabled || (sendMode === 'nostr' && useP2PK)) &&
+    capability?.mint === activeMintUrl &&
+    capability.supported;
+  React.useEffect(() => {
+    let cancelled = false;
+    setCapability(null);
+    if (activeMintUrl && !isOffline)
+      mintManager
+        .getMintInfo(activeMintUrl)
+        .then((info) => {
+          if (!cancelled) setCapability({ mint: activeMintUrl, supported: supportsReclaim(info) });
+        })
+        .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMintUrl, isOffline]);
+  React.useEffect(() => {
+    if (!reclaimSupported) setExpiryHours(0);
+  }, [reclaimSupported]);
+
+  React.useEffect(() => {
+    if (executionLock.current) return;
+    let cancelled = false;
+    setReviewReady(false);
+    setEstimatedFee(null);
+    const obsolete = reviewRef.current;
+    reviewRef.current = null;
+    reviewQueue.current = reviewQueue.current
+      .then(async () => {
+        await disposeReview(obsolete);
+        if (releaseFailure.current)
+          throw new Error('Could not release the previous review. Close this flow and try again.');
+        if (cancelled || step !== 'confirm' || !activeMintUrl) return;
+        setError(null);
+        if (ecashLockEnabled && isOffline) throw new Error('Go online to create locked ecash.');
+        if (ecashLockEnabled && !receiverPubkey)
+          throw new Error('Set a recipient public key before creating locked ecash.');
+        if (isOffline) {
+          const available = await initService
+            .getRepo()
+            .proofRepository.getAvailableProofs(activeMintUrl);
+          if (cancelled) return;
+          if (!findExactSubset(Number(amount), available)) throw new Error(OFFLINE_CHANGE_REQUIRED);
+          setEstimatedFee(0);
+          setReviewReady(true);
+          return;
+        }
+        const reclaimAt =
+          reclaimSupported && expiryHours > 0 ? Date.now() + expiryHours * 3600000 : undefined;
+        const lockedRecipient = ecashLockEnabled
+          ? receiverPubkey
+          : sendMode === 'nostr' && useP2PK
+            ? nostrRecipientNpub
+            : null;
+        const review = lockedRecipient
+          ? await walletService.prepareP2PK(
+              activeMintUrl,
+              Number(amount),
+              lockedRecipient,
+              reclaimAt,
+            )
+          : await prepareEcash(activeMintUrl, Number(amount));
+        if (cancelled) {
+          await disposeReview(review);
+          return;
+        }
+        reviewRef.current = review;
+        setEstimatedFee(review.fee);
+        setReviewReady(true);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Could not prepare ecash');
+      });
+    return () => {
+      cancelled = true;
+      const review = reviewRef.current;
+      reviewRef.current = null;
+      reviewQueue.current = reviewQueue.current.then(() => disposeReview(review));
+      // Observe cleanup errors on unmount too; a failed release blocks replacements.
+      void reviewQueue.current.catch(() => {});
+    };
+  }, [
+    step,
+    activeMintUrl,
+    amount,
+    sendMode,
+    receiverPubkey,
+    nostrRecipientNpub,
+    useP2PK,
+    expiryHours,
+    reclaimSupported,
+    isOffline,
+    ecashLockEnabled,
+  ]);
+
+  const executeReview = async () => {
+    const review = submittedReviewRef.current || reviewRef.current;
+    if (!review) throw new Error('Review the payment before sending');
+    const result = await review.execute();
+    setPaidCreationFee(review.fee);
+    return { ...result, token: result.encoded };
+  };
 
   // Monitor for claim success when in 'result' stage
   React.useEffect(() => {
@@ -347,18 +405,10 @@ export function SendModalScreen() {
       // Send and get encoded token for sharing
       let result;
 
+      if (isOffline && ecashLockEnabled) throw new Error('Go online to create locked ecash.');
       if (isOffline) {
-        let selected = selectedOfflineProofs;
-        if (!selected || selected.length === 0) {
-          const repo = initService.getRepo();
-          const availableProofs = await repo.proofRepository.getAvailableProofs(activeMintUrl);
-          const { findExactSubset } = require('~/shared/utils/offlineSendUtils');
-          selected = findExactSubset(amountSats, availableProofs);
-        }
-        if (!selected || selected.length === 0) {
-          throw new Error(`Cannot form exactly ${amountSats} sats from offline proofs`);
-        }
-        result = await walletService.sendOffline(activeMintUrl, amountSats, selected);
+        result = await walletService.sendOffline(activeMintUrl, amountSats);
+        setPaidCreationFee(0);
         rawTokenRef.current = result.encoded;
         setEncodedToken(result.encoded);
         setOperationId(result.id);
@@ -381,12 +431,12 @@ export function SendModalScreen() {
           }
         }
 
-        result = await walletService.sendP2PK(activeMintUrl, amountSats, targetPubkey);
+        result = await executeReview();
         rawTokenRef.current = result.encoded;
         setEncodedToken(result.encoded);
         setOperationId(result.id);
       } else if (sendMode === 'link') {
-        result = await walletService.send(activeMintUrl, amountSats);
+        result = await executeReview();
         rawTokenRef.current = result.token;
 
         const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
@@ -408,7 +458,7 @@ export function SendModalScreen() {
         setEncodedToken(`${websiteUrl}#${secretKeyHex}`);
         setOperationId(result.id);
       } else {
-        result = await walletService.send(activeMintUrl, amountSats);
+        result = await executeReview();
         rawTokenRef.current = result.token;
         setEncodedToken(result.token);
         setOperationId(result.id);
@@ -423,7 +473,7 @@ export function SendModalScreen() {
         (result.encoded || result.token || '').length,
       );
 
-      const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+      const computedExpiry = submittedReviewRef.current?.reclaimAt;
       setExpiresAt(computedExpiry);
 
       // Tag this as a locally-created ecash token (not sent via Nostr)
@@ -432,12 +482,15 @@ export function SendModalScreen() {
           activeMintUrl,
           'send',
           sendMode === 'link' ? 'ecash_link' : 'ecash_create',
-          computedExpiry
-            ? {
-                expiresAt: computedExpiry,
-                expiryHours: expiryHours,
-              }
-            : undefined,
+          {
+            fee: submittedReviewRef.current?.fee,
+            ...(computedExpiry
+              ? {
+                  reclaimAt: computedExpiry,
+                  refundPubkey: submittedReviewRef.current?.refundPubkey,
+                }
+              : {}),
+          },
           result.id,
         )
         .catch(() => {});
@@ -456,12 +509,11 @@ export function SendModalScreen() {
     amount,
     balance,
     refreshBalance,
-    expiryEnabled,
     expiryHours,
     sendMode,
     receiverPubkey,
     isOffline,
-    selectedOfflineProofs,
+    ecashLockEnabled,
   ]);
 
   // ── Nostr Send Handler ───────────────────────────────────────────────
@@ -484,9 +536,9 @@ export function SendModalScreen() {
       // Step 1: Create the ecash token
       let result;
       if (useP2PK) {
-        result = await walletService.sendP2PK(activeMintUrl, amountSats, nostrRecipientNpub);
+        result = await executeReview();
       } else {
-        const stdResult = await walletService.send(activeMintUrl, amountSats);
+        const stdResult = await executeReview();
         result = { encoded: stdResult.token, token: null as any, id: stdResult.id };
       }
       rawTokenRef.current = result.encoded;
@@ -526,7 +578,7 @@ export function SendModalScreen() {
       refreshBalance();
       queryClient.invalidateQueries({ queryKey: ['history'] });
 
-      const computedExpiry = expiryEnabled ? Date.now() + expiryHours * 60 * 60 * 1000 : undefined;
+      const computedExpiry = submittedReviewRef.current?.reclaimAt;
       setExpiresAt(computedExpiry);
 
       // Tag as Nostr send with recipient username
@@ -536,14 +588,15 @@ export function SendModalScreen() {
           'send',
           'nostr',
           {
+            fee: submittedReviewRef.current?.fee,
             nostrPubkey: nostrRecipientNpub,
             ...(nostrRecipientUsername
               ? { nostrUsername: nostrRecipientUsername.replace('@bey.cash', '') }
               : {}),
             ...(computedExpiry
               ? {
-                  expiresAt: computedExpiry,
-                  expiryHours: expiryHours,
+                  reclaimAt: computedExpiry,
+                  refundPubkey: submittedReviewRef.current?.refundPubkey,
                 }
               : {}),
           },
@@ -568,13 +621,15 @@ export function SendModalScreen() {
     nostrRecipientNpub,
     useP2PK,
     refreshBalance,
-    expiryEnabled,
     expiryHours,
     nostrRecipientUsername,
     toast,
   ]);
 
   const handleExecuteSend = async () => {
+    if (executionLock.current || !reviewReady) return;
+    executionLock.current = true;
+    submittedReviewRef.current = reviewRef.current;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       if (sendMode === 'nostr') {
@@ -593,18 +648,15 @@ export function SendModalScreen() {
       setError(error.message || 'Send failed');
       setStatus('error');
       setStep('result');
+    } finally {
+      executionLock.current = false;
     }
   };
 
   const handleNext = () => {
     if (step === 'amount') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (isOffline) {
-        optimizationSheetRef.current?.present();
-      } else {
-        setSelectedOfflineProofs(null);
-        setStep('confirm');
-      }
+      setStep('confirm');
     }
   };
 
@@ -674,33 +726,10 @@ export function SendModalScreen() {
   }, [step, status, sendMode]);
 
   return (
-    <YStack flex={1} bg="$background" px="$4">
+    <YStack flex={1} bg="$background" px={step === 'amount' ? '$4' : 0}>
       <Stack.Screen
         options={{
-          headerTitle: () => <H4 fontWeight="bold">{headerTitle}</H4>,
-
-          headerRight: () => (
-            <AppIconButton
-              variant={isOffline ? 'critical' : 'default'}
-              emphasis="tertiary"
-              size="xsmall"
-              icon={isOffline ? CloudOff : Cloud}
-              accessibilityLabel={isOffline ? 'Switch to online mode' : 'Switch to offline mode'}
-              accessibilityState={{ checked: isOffline }}
-              accessibilityRole="switch"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                const nextForceOffline = !forceOffline;
-                setForceOffline(nextForceOffline);
-                if (nextForceOffline) {
-                  toast.show('Offline mode enabled; using local ecash', { kind: 'info' });
-                } else {
-                  toast.show('Online mode enabled', { kind: 'info' });
-                }
-              }}
-              disabled={isHardwareOffline || isProcessing || nostrSending}
-            />
-          ),
+          title: headerTitle,
         }}
       />
       {step === 'payment_request' && activeParsedRequest && (
@@ -741,6 +770,8 @@ export function SendModalScreen() {
           })()}
           {(sendMode === 'standard' || sendMode === 'link') && (
             <AmountStage
+              mintUrl={activeMintUrl}
+              onMintChange={setMintUrl}
               amount={amount}
               setAmount={setAmount}
               onContinue={handleNext}
@@ -748,11 +779,12 @@ export function SendModalScreen() {
               isLoading={isProcessing}
               error={error}
               isOffline={isOffline}
-              onSelectedProofsChange={setSelectedOfflineProofs}
             />
           )}
           {sendMode === 'p2pk' && (
             <P2PKAmountStage
+              mintUrl={activeMintUrl}
+              onMintChange={setMintUrl}
               amount={amount}
               setAmount={setAmount}
               receiverPubkey={receiverPubkey}
@@ -762,7 +794,6 @@ export function SendModalScreen() {
               isLoading={isProcessing}
               error={error}
               isOffline={isOffline}
-              onSelectedProofsChange={setSelectedOfflineProofs}
             />
           )}
           {sendMode === 'scan' && (
@@ -776,6 +807,9 @@ export function SendModalScreen() {
           )}
           {sendMode === 'nostr' && (
             <NostrSendStage
+              p2pkEnabled={useP2PK}
+              mintUrl={activeMintUrl}
+              onMintChange={setMintUrl}
               amount={amount}
               setAmount={setAmount}
               recipientNpub={nostrRecipientNpub}
@@ -798,10 +832,10 @@ export function SendModalScreen() {
           token={encodedToken}
           mintUrl={activeMintUrl || ''}
           operationId={operationId || undefined}
-          fee={estimatedFee}
+          fee={paidCreationFee}
           error={error}
           onClose={handleClose}
-          expiresAt={expiresAt}
+          reclaimAt={expiresAt}
         />
       )}
 
@@ -809,7 +843,7 @@ export function SendModalScreen() {
         <SuccessStage
           amount={amount}
           mintUrl={activeMintUrl || ''}
-          fee={estimatedFee}
+          fee={paidCreationFee}
           onClose={handleClose}
         />
       )}
@@ -822,24 +856,32 @@ export function SendModalScreen() {
           sendMode={sendMode}
           useP2PK={useP2PK}
           setUseP2PK={setUseP2PK}
-          expiryEnabled={expiryEnabled}
-          setExpiryEnabled={setExpiryEnabled}
+          reclaimSupported={Boolean(reclaimSupported)}
+          reclaimHours={expiryHours}
+          setReclaimHours={setExpiryHours}
+          ready={reviewReady}
+          error={error}
+          onMintChange={setMintUrl}
           nostrRecipientNpub={nostrRecipientNpub}
           nostrRecipientUsername={nostrRecipientUsername}
           receiverPubkey={receiverPubkey}
+          lockEcash={lockEcash}
+          isOffline={isOffline}
+          setLockEcash={(enabled) => {
+            if (executionLock.current) return;
+            setReviewReady(false);
+            setLockEcash(enabled);
+          }}
+          setReceiverPubkey={(key) => {
+            if (executionLock.current) return;
+            setReviewReady(false);
+            setReceiverPubkey(key);
+          }}
           isLoading={isProcessing || nostrSending}
           onConfirm={handleExecuteSend}
           onBack={() => setStep('amount')}
         />
       )}
-
-      {/* Offline Optimization Selector */}
-      <OfflineOptimizationSheet
-        ref={optimizationSheetRef}
-        targetAmount={parseInt(amount, 10) || 0}
-        activeMintUrl={activeMintUrl}
-        onConfirm={handleOfflineOptimizationConfirm}
-      />
     </YStack>
   );
 }

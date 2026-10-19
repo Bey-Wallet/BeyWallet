@@ -1,5 +1,6 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import React from 'react';
-import { View, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { Clock, Check, XCircle } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
 
@@ -38,7 +39,7 @@ export function StatusBadge({ status, onPress, isChecking = false, size = 36 }: 
       ]}
     >
       {isChecking ? (
-        <ActivityIndicator size="small" color="white" />
+        <Spinner size="small" color="white" />
       ) : (
         <Icon size={iconSize} color="white" strokeWidth={2.5} />
       )}

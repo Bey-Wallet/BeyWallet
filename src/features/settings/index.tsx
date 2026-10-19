@@ -1,3 +1,4 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import React, { useRef, useState } from 'react';
 import { YStack, ScrollView, Text } from 'tamagui';
 import {
@@ -21,6 +22,7 @@ import { CurrencyModal } from '~/features/settings/components/CurrencyModal';
 import { NotificationsModal } from '~/features/settings/components/NotificationsModal';
 import { BiometricModal } from '~/features/settings/components/BiometricModal';
 import { MintModal } from '~/features/settings/components/MintModal';
+import { GetChangeSheet } from '~/features/settings/components/GetChangeSheet';
 import { SettingSection } from '~/features/settings/components/SettingSection';
 import { DeleteWalletSheet } from '~/features/settings/components/DeleteWalletSheet';
 import { SettingSectionConfig } from '~/features/settings/components/types';
@@ -36,7 +38,7 @@ import { consolidationService } from '~/services/wallet';
 import { proofService } from '~/services/wallet';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { ActivityIndicator, Alert, DevSettings, Linking } from 'react-native';
+import { Alert, DevSettings, Linking } from 'react-native';
 import { walletFileService } from '~/services/platform/walletFileService';
 import Constants from 'expo-constants';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
@@ -58,6 +60,7 @@ export function SettingsScreen() {
   const themeSheetRef = useRef<AppBottomSheetRef>(null);
   const currencySheetRef = useRef<AppBottomSheetRef>(null);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
+  const changeSheetRef = useRef<AppBottomSheetRef>(null);
   const notificationsSheetRef = useRef<AppBottomSheetRef>(null);
   const biometricSheetRef = useRef<AppBottomSheetRef>(null);
   const deleteSheetRef = useRef<AppBottomSheetRef>(null);
@@ -120,6 +123,9 @@ export function SettingsScreen() {
         break;
       case 'consolidate':
         router.push('/(modals)/optimize-wallet');
+        break;
+      case 'get-change':
+        changeSheetRef.current?.present();
         break;
       case 'verify-dleq':
         handleVerifyDleq();
@@ -222,6 +228,7 @@ export function SettingsScreen() {
         counters: state.counters,
         history: state.history,
         mintQuotes: state.mintQuotes,
+        changeOperations: state.changeOperations,
         defaultMintUrl,
         secondaryCurrency,
         theme,
@@ -279,6 +286,7 @@ export function SettingsScreen() {
                 counters: backup.counters,
                 history: backup.history,
                 mintQuotes: backup.mintQuotes,
+                changeOperations: backup.changeOperations,
               };
               const { backupService } = require('~/services/wallet/backupService');
               await backupService.importState(backupState);
@@ -385,7 +393,7 @@ export function SettingsScreen() {
           title: 'Export wallet data',
           subTitle:
             'Download a dump of your wallet. You can restore your wallet from this file in the welcome screen of a new wallet. This file will be out of sync if you keep using your wallet after exporting it.',
-          icon: isExporting ? ActivityIndicator : ArrowUpFromLine,
+          icon: isExporting ? Spinner : ArrowUpFromLine,
           disabled: isExporting,
         },
         {
@@ -465,10 +473,16 @@ export function SettingsScreen() {
           icon: Sparkles,
         },
         {
+          id: 'get-change',
+          title: 'Get change',
+          subTitle: 'Prepare smaller coins for offline payments',
+          icon: RefreshCw,
+        },
+        {
           id: 'verify-dleq',
           title: 'Verify Proofs (Offline)',
           subTitle: isVerifyingDleq ? 'Verifying…' : 'Cryptographic offline proof check',
-          icon: isVerifyingDleq ? ActivityIndicator : ShieldCheck,
+          icon: isVerifyingDleq ? Spinner : ShieldCheck,
           disabled: isVerifyingDleq,
         },
         {
@@ -535,6 +549,7 @@ export function SettingsScreen() {
         <ThemeModal ref={themeSheetRef} />
         <CurrencyModal ref={currencySheetRef} />
         <MintModal ref={mintSheetRef} />
+        <GetChangeSheet ref={changeSheetRef} />
         <NotificationsModal ref={notificationsSheetRef} />
         <BiometricModal ref={biometricSheetRef} />
 

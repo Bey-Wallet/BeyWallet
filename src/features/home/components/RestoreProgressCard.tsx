@@ -1,47 +1,12 @@
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, H6 } from 'tamagui';
 import { CheckCircle2, AlertCircle, Clock, ChevronRight, X } from '@tamagui/lucide-icons';
-import { Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useWalletStore, type MintRestoreEntry } from '~/state/walletStore';
-
-function SpinnerIcon({ size = 18, color = '$blue9' }) {
-  const rotation = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [rotation]);
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <View
-        width={size}
-        height={size}
-        borderRadius={999}
-        borderWidth={2}
-        borderColor={color}
-        borderTopColor="transparent"
-      />
-    </Animated.View>
-  );
-}
 
 function MintProgressItem({
   entry,
@@ -88,7 +53,7 @@ function MintProgressItem({
             items="center"
             justify="center"
           >
-            {isActive && <SpinnerIcon />}
+            {isActive && <Spinner size={18} color="$blue9" />}
             {isDone && <CheckCircle2 size={18} color="$green10" />}
             {isError && <AlertCircle size={18} color="$red10" />}
             {isPending && <Clock size={18} color="$gray10" />}
@@ -212,7 +177,7 @@ export default function RestoreProgressCard() {
         <XStack items="flex-start" justify="space-between">
           <XStack items="flex-start" gap="$2.5" flex={1}>
             <View p="$2" bg="$blue5" rounded="$3" items="center" justify="center">
-              <SpinnerIcon size={20} color="$blue10" />
+              <Spinner size={20} color="$blue10" />
             </View>
             <YStack flex={1} gap="$0.5">
               <H6 color="$color" fontWeight="800">

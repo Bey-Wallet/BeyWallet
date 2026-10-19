@@ -2,8 +2,22 @@ import { initService } from '~/services/wallet/initService';
 import { proofService } from '~/services/wallet/proofService';
 import { walletService } from '~/services/wallet/walletService';
 import { cleanToken, decodeToken, encodeToken } from '~/services/wallet/tokenUtils';
+import { AppState } from 'react-native';
+import { seedService } from '~/services/platform/seedService';
 
 let sweepInterval: any = null;
+let sweeping = false;
+
+function canReclaim() {
+  // Settings initialization imports wallet services; defer this lifecycle edge.
+  const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
+  const { useSettingsStore } =
+    require('~/state/settingsStore') as typeof import('~/state/settingsStore');
+  return (
+    AppState.currentState === 'active' &&
+    (!useSettingsStore.getState().biometricEnabled || useAuthStore.getState().isAuthenticated)
+  );
+}
 
 export const expiryService = {
   /**
@@ -12,6 +26,8 @@ export const expiryService = {
    * or updates their status to 'claimed' if they were spent.
    */
   checkAndSweepExpiredTokens: async (): Promise<void> => {
+    if (sweeping || !canReclaim()) return;
+    sweeping = true;
     try {
       if (!initService.isInitialized()) return;
       const repo = initService.getRepo();
@@ -30,10 +46,11 @@ export const expiryService = {
         try {
           if (!row.metadata) continue;
           const metadata = JSON.parse(row.metadata);
-          if (!metadata.expiresAt) continue;
+          const deadline = metadata.reclaimAt ?? metadata.expiresAt;
+          if (!deadline || !Number.isFinite(Number(deadline))) continue;
 
           // Check if expired
-          if (Date.now() > Number(metadata.expiresAt)) {
+          if (Date.now() >= Number(deadline)) {
             console.log(
               `[ExpiryService] Found expired pending token: id=${row.id}, opId=${row.operationId}`,
             );
@@ -54,7 +71,11 @@ export const expiryService = {
             // Check proof states with the mint
             console.log(`[ExpiryService] Checking proof states at mint for expired token...`);
             const states = await proofService.checkProofStates(tokenStr);
-            if (!states || states.length === 0) {
+            if (
+              !states ||
+              states.length === 0 ||
+              states.length !== decodeToken(cleanToken(tokenStr)).proofs.length
+            ) {
               console.log(`[ExpiryService] Proof states check returned empty/failed. Skipping.`);
               continue;
             }
@@ -73,17 +94,29 @@ export const expiryService = {
                   await repo.proofRepository.deleteProofs(row.mintUrl, secrets);
                 }
               } catch (e) {}
-            } else {
+            } else if (states.every((s: any) => s.state === 'UNSPENT')) {
               // Unspent, sweep/refund it!
               console.log(
                 `[ExpiryService] Token is unspent. Refunding/Sweeping token back to wallet...`,
               );
               try {
-                await walletService.receive(tokenStr);
+                if (!canReclaim()) return;
+                if (metadata.reclaimAt) {
+                  const mnemonic = await seedService.getMnemonic();
+                  if (!mnemonic) continue;
+                  const keys = await seedService.getNostrKeys(mnemonic);
+                  if (metadata.refundPubkey !== '02' + keys.pubkey || !canReclaim()) continue;
+                  await walletService.receiveP2PK(tokenStr, keys.privkey);
+                } else {
+                  await walletService.receive(tokenStr);
+                }
                 console.log(`[ExpiryService] ✅ Successfully refunded token to wallet.`);
 
                 // Mark history entry as expired (refunded)
-                await repo.historyRepository.updateHistoryEntryState(String(row.id), 'expired');
+                await repo.historyRepository.updateHistoryEntryState(
+                  String(row.id),
+                  metadata.reclaimAt ? 'refunded' : 'expired',
+                );
 
                 // Delete local inflight proofs if any
                 try {
@@ -107,6 +140,8 @@ export const expiryService = {
       }
     } catch (err) {
       console.error('[ExpiryService] Background sweep error:', err);
+    } finally {
+      sweeping = false;
     }
   },
 

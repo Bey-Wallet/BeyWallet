@@ -1,5 +1,6 @@
+import { RemoteImage } from '~/shared/ui/RemoteImage';
 import React, { useEffect, useState } from 'react';
-import { Image, View } from 'tamagui';
+import { View } from 'tamagui';
 import Blockies from '~/shared/ui/Blockies';
 
 export function ConversationAvatar({
@@ -12,7 +13,7 @@ export function ConversationAvatar({
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [picture]);
+  useEffect(() => setFailed(false), [npub, picture]);
   return (
     <View
       width={size}
@@ -26,7 +27,8 @@ export function ConversationAvatar({
       importantForAccessibility="no-hide-descendants"
     >
       {picture && !failed ? (
-        <Image
+        <RemoteImage
+          identity={npub}
           key={picture}
           source={{ uri: picture }}
           width={size}

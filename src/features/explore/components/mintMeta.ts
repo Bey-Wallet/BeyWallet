@@ -15,14 +15,8 @@ export interface MintMetadata {
 
 const metadataCache = new Map<string, MintMetadata>();
 
-/** Extract favicon url from any mint URL (last-resort icon) */
-export function deriveFavicon(mintUrl: string): string {
-  try {
-    return `${new URL(mintUrl).origin}/favicon.ico`;
-  } catch {
-    return '';
-  }
-}
+import { deriveFavicon } from '~/shared/utils/mintIcon';
+export { deriveFavicon } from '~/shared/utils/mintIcon';
 
 export async function fetchMintMeta(url: string): Promise<MintMetadata> {
   const key = url.replace(/\/$/, '');
@@ -46,7 +40,8 @@ export async function fetchMintMeta(url: string): Promise<MintMetadata> {
     const nuts = data.nuts || {};
     const nut30 = nuts['30'] || nuts[30];
     let supportsNut30 = !!(
-      nut30 && (nut30.supported || (Array.isArray(nut30.methods) && nut30.methods.length > 0))
+      nut30 &&
+      (nut30.supported || (Array.isArray(nut30.methods) && nut30.methods.length > 0))
     );
     if (!supportsNut30) {
       const nut4 = nuts['4'] || nuts[4];

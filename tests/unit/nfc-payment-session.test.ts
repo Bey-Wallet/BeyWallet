@@ -4,6 +4,8 @@ jest.mock('react-native-nfc-manager', () => ({
     requestTechnology: jest.fn(async () => {}),
     getTag: jest.fn(async () => ({ ndefMessage: [] })),
     cancelTechnologyRequest: jest.fn(async () => {}),
+    setEventListener: jest.fn(),
+    unregisterTagEvent: jest.fn(async () => {}),
     ndefHandler: { writeNdefMessage: jest.fn(async () => {}) },
   },
   NfcTech: { Ndef: 'Ndef' },
@@ -16,7 +18,11 @@ jest.mock('react-native-nfc-manager', () => ({
     uri: { decodePayload: jest.fn(() => 'bitcoin:?creq=request') },
   },
 }));
-jest.mock('react-native-hce', () => ({}));
+jest.mock('react-native-hce', () => ({
+  HCESession: { getInstance: async () => mockHceSession },
+  NFCTagType4: jest.fn((options) => options),
+  NFCTagType4NDEFContentType: { Text: 'text', URL: 'url' },
+}));
 jest.mock('~/services/wallet', () => ({}));
 
 import NfcManager, { Ndef, type TagEvent } from 'react-native-nfc-manager';
@@ -28,10 +34,51 @@ import {
 } from '~/services/platform/nfcService';
 import { PaymentRequest } from '@cashu/cashu-ts';
 import { useAuthStore } from '~/state/authStore';
+import { NFCTagType4 } from 'react-native-hce';
+
+const mockHceSession = {
+  setApplication: jest.fn(async (_tag: unknown) => {}),
+  setEnabled: jest.fn(async (_enabled: boolean) => {}),
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   useAuthStore.getState().setLockDisabled(false);
+});
+
+it('advertises the complete request read-only without disabling or restoring the wallet lock', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  const session = await nfcService.startHceSimulation('creq-complete-request', {
+    preventAutoLock: false,
+  });
+  expect(NFCTagType4).toHaveBeenCalledWith({
+    type: 'text',
+    content: 'cashu:creq-complete-request',
+    writable: false,
+  });
+  expect(useAuthStore.getState().isLockDisabled).toBe(false);
+  useAuthStore.getState().setLockDisabled(true);
+  await nfcService.stopHceSimulation(session);
+  expect(useAuthStore.getState().isLockDisabled).toBe(true);
+  expect(mockHceSession.setEnabled.mock.calls).toEqual([[true], [false]]);
+});
+
+it('preserves the existing auto-lock protection for ordinary NFC sends', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  const session = await nfcService.startHceSimulation('cashuB-token');
+  expect(useAuthStore.getState().isLockDisabled).toBe(true);
+  await nfcService.stopHceSimulation(session);
+  expect(useAuthStore.getState().isLockDisabled).toBe(false);
+});
+
+it('disables a partially started request broadcast when native startup fails', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  mockHceSession.setEnabled.mockRejectedValueOnce(new Error('Native startup failed'));
+  await expect(
+    nfcService.startHceSimulation('creq-request', { preventAutoLock: false }),
+  ).rejects.toThrow('Native startup failed');
+  expect(mockHceSession.setEnabled.mock.calls).toEqual([[true], [false]]);
+  expect(useAuthStore.getState().isLockDisabled).toBe(false);
 });
 
 it('keeps the same native session open for confirmation and write-back', async () => {
