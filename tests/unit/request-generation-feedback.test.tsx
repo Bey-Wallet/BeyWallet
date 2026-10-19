@@ -490,7 +490,7 @@ it('allows switching a zero request to fiat, shows its sats equivalent and saves
   expect(keypad().props.value).toBe('0.');
   await act(async () => keypad().props.onValueChange('1.25'));
   expect(
-    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 1,250 SATS'),
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 1,250 sats'),
   ).toBe(true);
   await act(async () => keypad().props.onConfirm());
   expect(onChange).toHaveBeenCalledWith(1250);
@@ -506,7 +506,7 @@ it('opens in the preferred fiat currency and shows the other currency below', as
   await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
   expect(tree.root.findByType('NumericKeypad' as any).props.value).toBe('2.00');
   expect(
-    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 2,000 SATS'),
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === '≈ 2,000 sats'),
   ).toBe(true);
   await act(async () => tree.unmount());
 });
@@ -547,7 +547,7 @@ it('falls back to sats when the preferred fiat price is unavailable', async () =
 it('starts NFC for the created request and stops it when New request clears the screen', async () => {
   const tree = await createRequestScreen();
   expect(mockPresentRequest).toHaveBeenCalledWith('nfc-creq-complete-request');
-  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 SATS');
+  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 sats');
   expect(tree.root.findByProps({ label: 'Amount' }).props.rightContent.type).toBe('Pencil');
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Tap to pay' })).toHaveLength(1);
   expect(

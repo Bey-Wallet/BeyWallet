@@ -116,12 +116,12 @@ export function CurrencySettingsScreen() {
   return (
     <SettingsPage>
       <SettingsDescription>
-        Choose your secondary display currency, or hide the conversion.
+        Choose the currency used for fiat conversions, or hide the conversion.
       </SettingsDescription>
       <SettingsGroup>
         <SettingsRow
           title="None"
-          description="Hide secondary conversion"
+          description="Hide fiat conversion"
           selected={currency === 'NONE'}
           onPress={() => void setCurrency('NONE')}
         />

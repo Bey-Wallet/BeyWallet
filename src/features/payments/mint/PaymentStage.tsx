@@ -1,3 +1,4 @@
+import { amountLabel } from '~/shared/ui/amountLabel';
 import React, { useState, useEffect } from 'react';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, Text, ScrollView } from 'tamagui';
@@ -53,7 +54,7 @@ export function PaymentStage({
       )
     : '—';
   const formattedSats = sats.toLocaleString('en-US');
-  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} SATS`;
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSats}` : `${formattedSats} sats`;
   const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
   const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
   const timeLeft = expiry == null ? null : Math.max(0, expiry - now);
@@ -135,7 +136,7 @@ export function PaymentStage({
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {primaryAmount}
+              {amountLabel(primaryAmount, 44)}
             </Text>
             <Text
               testID="mint-payment-secondary-amount"
@@ -143,7 +144,10 @@ export function PaymentStage({
               color="$gray10"
               textAlign="center"
             >
-              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
+              {amountLabel(
+                secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`,
+                16,
+              )}
             </Text>
           </YStack>
 

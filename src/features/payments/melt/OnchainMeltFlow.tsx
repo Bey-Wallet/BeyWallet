@@ -482,7 +482,8 @@ export function OnchainMeltFlow() {
           On-chain payment
         </Text>
         <Text fontSize="$7" fontWeight="700">
-          {Number(amount).toLocaleString()} SATS
+          {Number(amount).toLocaleString()}
+          <Text fontSize="$4">{' sats'}</Text>
         </Text>
         <Text color="$gray10" textAlign="center">
           {address}
@@ -716,7 +717,7 @@ export function OnchainMeltFlow() {
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sats' : ''}
             />
 
             <AppPressable

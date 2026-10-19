@@ -104,7 +104,7 @@ export function AmountStage({
       val = '0.';
     }
 
-    // 2. In SATS mode, satoshis are whole integers — do not allow decimal points
+    // 2. In sats mode, satoshis are whole integers — do not allow decimal points
     if (inputMode === 'SATS') {
       val = val.replace(/\./g, '');
     } else {
@@ -235,7 +235,7 @@ export function AmountStage({
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sats' : ''}
             />
 
             <AppPressable

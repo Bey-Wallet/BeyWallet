@@ -1,3 +1,4 @@
+import { amountLabel } from '~/shared/ui/amountLabel';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -63,7 +64,7 @@ export function ConfirmStage({
     return sats.toLocaleString('en-US');
   }, [sats]);
 
-  const satsDisplay = showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} SATS`;
+  const satsDisplay = showBitcoinSymbol ? `₿${formattedSatsString}` : `${formattedSatsString} sats`;
   const primaryAmount = primaryCurrency === 'FIAT' ? fiatValue : satsDisplay;
   const secondaryAmount = primaryCurrency === 'FIAT' ? satsDisplay : fiatValue;
 
@@ -93,7 +94,7 @@ export function ConfirmStage({
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {primaryAmount}
+              {amountLabel(primaryAmount, 44)}
             </Text>
             <Text
               testID="mint-confirm-secondary-amount"
@@ -102,7 +103,10 @@ export function ConfirmStage({
               fontSize={16}
               textAlign="center"
             >
-              {secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`}
+              {amountLabel(
+                secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`,
+                16,
+              )}
             </Text>
           </YStack>
 

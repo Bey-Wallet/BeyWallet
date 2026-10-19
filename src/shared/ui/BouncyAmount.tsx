@@ -84,7 +84,13 @@ export function BouncyAmount({
     >
       {prefix}
       {value}
-      {suffix}
+      {suffix.trim() === 'sats' ? (
+        <Text fontSize={Math.max(12, Math.round(fontSize * 0.55))} letterSpacing={0} color={color}>
+          {suffix}
+        </Text>
+      ) : (
+        suffix
+      )}
     </AnimatedH1>
   );
 }

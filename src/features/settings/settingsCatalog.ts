@@ -46,8 +46,8 @@ export const settingsCategories = {
     icon: SlidersHorizontal,
     items: [
       { path: 'theme', title: 'Theme', icon: Palette },
-      { path: 'display-unit', title: 'Primary display unit', icon: Coins },
-      { path: 'currency', title: 'Secondary currency', icon: Banknote },
+      { path: 'display-unit', title: 'Display unit', icon: Coins },
+      { path: 'currency', title: 'Fiat currency', icon: Banknote },
       { path: 'bitcoin-symbol', title: 'Bitcoin symbol', icon: Bitcoin },
       { path: 'notifications', title: 'Notifications', icon: Bell },
     ],

@@ -419,7 +419,7 @@ export default function MintDetailsModal() {
                     <Text fontSize={36} fontWeight="900" color="$color">
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
-                      {showBitcoinSymbol ? '' : ' SATS'}
+                      {!showBitcoinSymbol && <Text fontSize={20}>{' sats'}</Text>}
                     </Text>
                   ) : (
                     <Text fontSize={36} fontWeight="900" color="$color">

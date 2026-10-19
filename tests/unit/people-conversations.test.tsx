@@ -516,7 +516,7 @@ describe('People conversations and invitations', () => {
       tree = create(<ConversationScreen />);
     });
     expect(JSON.stringify(tree!.toJSON())).toContain('$60.00');
-    expect(JSON.stringify(tree!.toJSON())).toContain('100,000 SATS');
+    expect(JSON.stringify(tree!.toJSON())).toContain('100,000 sats');
   });
 
   it('uses branded primary for sent payments and text with equal corners', async () => {
@@ -684,8 +684,8 @@ describe('People conversations and invitations', () => {
         .findAllByType('AppPressable' as any)
         .filter((node) => node.props.accessibilityLabel?.includes('Show payment details'));
     expect(cards()).toHaveLength(50);
-    expect(cards()[0].props.accessibilityLabel).toContain('10 SATS');
-    expect(cards()[49].props.accessibilityLabel).toContain('59 SATS');
+    expect(cards()[0].props.accessibilityLabel).toContain('10 sats');
+    expect(cards()[49].props.accessibilityLabel).toContain('59 sats');
     expect(cards()[0].props.width).toBeUndefined();
     expect(cards()[0].props.minWidth).toBeUndefined();
     const scroll = tree!.root.findByType('ScrollView' as any);

@@ -141,7 +141,8 @@ export const RollingNumber = ({
     formattedValue = displayValue?.toString() || '';
   }
 
-  const valueStr = prefix + formattedValue + suffix;
+  const hasSatsSuffix = suffix.trim() === 'sats';
+  const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
   const itemHeight = lineHeight || fontSize * 1.1;
 
   // Track if we've passed the decimal point
@@ -198,6 +199,15 @@ export const RollingNumber = ({
           );
         }
       })}
+      {hasSatsSuffix && (
+        <Text
+          color={color}
+          fontWeight={fontWeight}
+          fontSize={Math.max(12, Math.round(fontSize * 0.55))}
+        >
+          {' sats'}
+        </Text>
+      )}
     </View>
   );
 };

@@ -301,7 +301,7 @@ export function P2PKAmountStage({
               value={formattedDisplayValue}
               fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' SATS' : ''}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sats' : ''}
             />
             <AppPressable
               px={12}

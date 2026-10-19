@@ -395,7 +395,15 @@ export default function NostrActivityModal() {
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
                         {detailItem.amount.toLocaleString()}
-                        {showBitcoinSymbol ? '' : ' sats'}
+                        {!showBitcoinSymbol && (
+                          <Text
+                            fontSize={18}
+                            color={detailItem.type === 'sent' ? '$red10' : '$color1'}
+                            letterSpacing={0}
+                          >
+                            {' sats'}
+                          </Text>
+                        )}
                       </Text>
                       {fiatValue && (
                         <Text fontSize="$3" color="$gray10">

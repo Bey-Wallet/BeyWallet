@@ -272,7 +272,7 @@ const ConnectedMintRow = React.memo(
 
     const suffix = useMemo(() => {
       if (hideBalance || !displayAsSats) return '';
-      return showBitcoinSymbol ? '' : ' SATS';
+      return showBitcoinSymbol ? '' : ' sats';
     }, [hideBalance, displayAsSats, showBitcoinSymbol]);
 
     const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? 'hidden' : 'visible'}_${displayAsSats ? 'SATS' : 'FIAT'}_${showBitcoinSymbol}`;

@@ -82,7 +82,7 @@ export default function Balance() {
           <RollingNumber
             value={hideBalance ? '****' : currentBalance}
             prefix={hideBalance ? '' : showBitcoinSymbol ? '₿' : ''}
-            suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' SATS'}
+            suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sats'}
             trigger={
               refreshCounter +
               localTrigger +
@@ -149,7 +149,7 @@ export default function Balance() {
         <RollingNumber
           value={hideBalance ? '****' : displayAsSats ? secondaryBalance : currentBalance}
           prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
-          suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' SATS'}
+          suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sats'}
           trigger={
             refreshCounter +
             (hideBalance ? '_hidden' : displayAsSats ? '_visible_fiat_sub' : '_visible_sats_sub') +
