@@ -1,5 +1,6 @@
 import React, { forwardRef, useState } from 'react';
-import { YStack, XStack, H3, Circle, Text, Switch } from 'tamagui';
+import { YStack, XStack, H3, Circle, Text } from 'tamagui';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { Fingerprint } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -62,14 +63,13 @@ export const BiometricModal = forwardRef<AppBottomSheetRef>((_, ref) => {
                 Require Face ID, Touch ID, or passcode to open your wallet.
               </Text>
             </YStack>
-            <Switch
-              size="$3"
+            <AppSwitch
+              accessibilityLabel="App Lock"
+              variant="branded"
               checked={biometricEnabled}
               onCheckedChange={handleToggle}
               disabled={isAuthenticating}
-            >
-              <Switch.Thumb animation="bouncy" />
-            </Switch>
+            />
           </XStack>
         </YStack>
       </YStack>

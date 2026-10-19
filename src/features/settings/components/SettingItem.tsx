@@ -1,5 +1,6 @@
 import React from 'react';
-import { ListItem, H6, Text, Switch } from 'tamagui';
+import { ListItem, H6, Text } from 'tamagui';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { SettingItemConfig } from '~/features/settings/components/types';
 
 export const SettingItem: React.FC<SettingItemConfig> = ({
@@ -20,14 +21,13 @@ export const SettingItem: React.FC<SettingItemConfig> = ({
   const renderRight = () => {
     if (isSwitch) {
       return (
-        <Switch
-          size="$3"
-          checked={checked}
-          onCheckedChange={onCheckedChange}
-          backgroundColor={checked ? '$green9' : '$gray5'}
-        >
-          <Switch.Thumb animation="bouncy" />
-        </Switch>
+        <AppSwitch
+          checked={!!checked}
+          onCheckedChange={(next) => onCheckedChange?.(next)}
+          accessibilityLabel={typeof title === 'string' ? title : 'Toggle setting'}
+          disabled={disabled}
+          variant="branded"
+        />
       );
     }
     if (value) {

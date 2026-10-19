@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
-import { YStack, XStack, H3, Circle, Text, Switch } from 'tamagui';
+import { YStack, XStack, H3, Circle, Text } from 'tamagui';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { Bell } from '@tamagui/lucide-icons';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -33,9 +34,12 @@ export const NotificationsModal = forwardRef<AppBottomSheetRef>((_, ref) => {
                 Receive alerts for incoming transactions and completed ecash claims.
               </Text>
             </YStack>
-            <Switch size="$3" checked={notificationsEnabled} onCheckedChange={handleToggle}>
-              <Switch.Thumb animation="bouncy" />
-            </Switch>
+            <AppSwitch
+              accessibilityLabel="Push Notifications"
+              variant="branded"
+              checked={notificationsEnabled}
+              onCheckedChange={handleToggle}
+            />
           </XStack>
         </YStack>
       </YStack>
