@@ -1,4 +1,5 @@
 import { SimplePool, Filter } from 'nostr-tools';
+import { getNostrQueryRelays } from '~/state/nostrRelayStore';
 
 export type MintRecommendation = {
   url: string;
@@ -37,6 +38,7 @@ export const mintRecommendationService = {
    */
   discoverMints: async (limit = 20): Promise<MintRecommendation[]> => {
     const pool = new SimplePool();
+    const relays = getNostrQueryRelays(DEFAULT_RELAYS);
     const recommendationsMap = new Map<string, MintRecommendation>();
 
     // Pre-fill with featured mints for robustness
@@ -62,7 +64,7 @@ export const mintRecommendationService = {
         limit: 50,
       };
 
-      const infoEvents = await pool.querySync(DEFAULT_RELAYS, infoFilter);
+      const infoEvents = await pool.querySync(relays, infoFilter);
 
       infoEvents.forEach((event) => {
         const url = event.tags.find((t) => t[0] === 'u')?.[1];
@@ -92,7 +94,7 @@ export const mintRecommendationService = {
         limit: 100,
       };
 
-      const recEvents = await pool.querySync(DEFAULT_RELAYS, recFilter);
+      const recEvents = await pool.querySync(relays, recFilter);
 
       const reviewsByUrl: Record<string, number[]> = {};
 
@@ -137,7 +139,7 @@ export const mintRecommendationService = {
       console.error('Error discovering mints:', error);
       return [];
     } finally {
-      pool.close(DEFAULT_RELAYS);
+      pool.close(relays);
     }
   },
 

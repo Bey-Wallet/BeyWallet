@@ -19,44 +19,8 @@ import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native'
 import { decodeToken } from '~/services/wallet/tokenUtils';
 import { nostrRequestStore } from '~/state/nostrRequestStore';
 
-// ─── Relay List ───────────────────────────────────────────────────────────────
-//
-// Comprehensive list of relays used by the major Cashu/Nostr wallets:
-//   - cashu.me PWA          → relay.primal.net, relay.damus.io, nostr.oxtr.dev,
-//                              relay.snort.social, nos.lol, nostr.wine
-//   - Minibits               → relay.minibits.cash, relay.primal.net, relay.damus.io,
-//                              relay.nostr.band, relay.noswhere.com
-//   - Common / fallback      → nostr.bitcoiner.social, relay.current.fyi,
-//                              relay.nostr.jabber.ch
-//
-export const RELAYS: string[] = [
-  // ── Core / high-uptime ───────────────────────────────────────────────
-  'wss://relay.damus.io',
-  'wss://relay.primal.net',
-  'wss://nos.lol',
-  // ── Minibits dedicated relay ─────────────────────────────────────────
-  'wss://relay.minibits.cash',
-  // ── cashu.me preferred relays ────────────────────────────────────────
-  'wss://nostr.oxtr.dev',
-  'wss://relay.snort.social',
-  'wss://nostr.wine',
-  // ── Search / discovery relays ────────────────────────────────────────
-  'wss://relay.nostr.band',
-  'wss://relay.noswhere.com',
-  // ── Broader ecosystem ────────────────────────────────────────────────
-  'wss://nostr.bitcoiner.social',
-  'wss://relay.current.fyi',
-  'wss://relay.8333.space',
-];
-
-// Public inbox relays advertised via NIP-17 kind 10050. Keep this list small
-// and aligned with the relay hints returned by bey.cash NIP-05 responses.
-export const NIP17_INBOX_RELAYS: string[] = [
-  'wss://relay.minibits.cash',
-  'wss://relay.damus.io',
-  'wss://relay.primal.net',
-  'wss://nos.lol',
-];
+import { normalizeRelayUrl } from '~/shared/utils/nostrRelays';
+import { getNostrRelays, getNostrInboxRelays, useNostrRelayStore } from '~/state/nostrRelayStore';
 
 // ─── Event Kinds ──────────────────────────────────────────────────────────────
 //
@@ -168,6 +132,16 @@ const RECONNECT_INTERVAL_MS = 30_000;
 class NostrService {
   private subscription: { close: () => void } | null = null;
   private generation = 0;
+  private connectedRelays: string[] = [];
+
+  constructor() {
+    useNostrRelayStore.subscribe((state, previous) => {
+      if (state.relays === previous.relays || !this.isRunning) return;
+      this.refresh();
+      void this._publishInboxRelayList();
+    });
+  }
+
   private chatPublishing = new Set<string>();
 
   private async initializeChat(): Promise<void> {
@@ -189,7 +163,7 @@ class NostrService {
       ...(usePeopleStore.getState().people[normalizeNpub(pubkey)]?.relayHints || []),
       ...relayHints,
     ].filter(validRelay);
-    const events = await this.pool.querySync([...new Set([...RELAYS, ...hints])], {
+    const events = await this.pool.querySync([...new Set([...getNostrRelays(), ...hints])], {
       kinds: [10050],
       authors: [pubkey],
       limit: 5,
@@ -253,7 +227,7 @@ class NostrService {
       transport: 'nip17',
       envelopes: [
         { event: copies.recipient, relays: [] },
-        { event: copies.sender, relays: NIP17_INBOX_RELAYS },
+        { event: copies.sender, relays: getNostrInboxRelays() },
       ],
     };
     const { initService } =
@@ -274,7 +248,7 @@ class NostrService {
     privateKey = this.privkeyHex || '',
   ): Promise<void> {
     const recipient = resolveNostrRecipient(identifier);
-    const relays = [...new Set([...recipient.relayHints, ...RELAYS])];
+    const relays = [...new Set([...recipient.relayHints, ...getNostrRelays()])];
     const now = Date.now();
     const message: ChatMessage = {
       id: `request-${requestId}`,
@@ -435,7 +409,7 @@ class NostrService {
     this.isRunning = true;
 
     console.log(
-      `[NostrService] Starting on ${RELAYS.length} relays for pubkey: ${pubkeyHex.slice(0, 8)}…`,
+      `[NostrService] Starting on ${getNostrRelays().length} relays for pubkey: ${pubkeyHex.slice(0, 8)}…`,
     );
 
     void this.initializeChat();
@@ -461,7 +435,7 @@ class NostrService {
     console.log('[NostrService] Manual refresh requested.');
     if (this.pool) {
       try {
-        this.pool.close(RELAYS);
+        this.pool.close(this.connectedRelays);
       } catch {
         /* ignore */
       }
@@ -486,7 +460,7 @@ class NostrService {
     }
     if (this.pool) {
       try {
-        this.pool.close(RELAYS);
+        this.pool.close(this.connectedRelays);
       } catch {
         /* ignore */
       }
@@ -506,6 +480,7 @@ class NostrService {
     this.subscription?.close();
 
     this.pool = new SimplePool();
+    this.connectedRelays = getNostrRelays();
 
     // Subscribe to ALL relevant kinds simultaneously
     const filter: Filter = {
@@ -514,7 +489,7 @@ class NostrService {
       since: Math.floor(Date.now() / 1000) - SINCE_SECONDS,
     };
 
-    this.subscription = this.pool.subscribeMany(RELAYS, filter, {
+    this.subscription = this.pool.subscribeMany(this.connectedRelays, filter, {
       onevent: (event: Event) => {
         this._processEvent(event).catch((error) => {
           console.warn(
@@ -531,7 +506,7 @@ class NostrService {
     });
 
     console.log(
-      `[NostrService] Subscribed to kinds [${LISTENED_KINDS.join(', ')}] across ${RELAYS.length} relays`,
+      `[NostrService] Subscribed to kinds [${LISTENED_KINDS.join(', ')}] across ${getNostrRelays().length} relays`,
     );
   }
 
@@ -550,7 +525,7 @@ class NostrService {
         console.log('[NostrService] 🔄 Detected disconnected relay(s), refreshing subscription…');
         if (this.pool) {
           try {
-            this.pool.close(RELAYS);
+            this.pool.close(this.connectedRelays);
           } catch {
             /* ignore */
           }
@@ -571,7 +546,7 @@ class NostrService {
         console.log('[NostrService] App foregrounded — refreshing relay subscription');
         if (this.pool) {
           try {
-            this.pool.close(RELAYS);
+            this.pool.close(this.connectedRelays);
           } catch {
             /* ignore */
           }
@@ -926,14 +901,14 @@ class NostrService {
       {
         kind: 10050,
         created_at: Math.floor(Date.now() / 1000),
-        tags: NIP17_INBOX_RELAYS.map((relay) => ['relay', relay]),
+        tags: getNostrInboxRelays().map((relay) => ['relay', relay]),
         content: '',
       },
       this.privkeyBytes,
     );
 
     try {
-      await Promise.any(this.pool.publish(RELAYS, event));
+      await Promise.any(this.pool.publish(getNostrRelays(), event));
       console.log('[NostrService] Published NIP-17 inbox relay preference.');
       return true;
     } catch (err: any) {
@@ -955,7 +930,12 @@ class NostrService {
 
   public getRelayConnectionStatus(): Record<string, boolean> {
     const statuses = this.pool?.listConnectionStatus?.();
-    return Object.fromEntries(RELAYS.map((relay) => [relay, statuses?.get(relay) === true]));
+    const normalized = new Map(
+      Array.from(statuses ?? [], ([url, connected]) => [normalizeRelayUrl(url), connected]),
+    );
+    return Object.fromEntries(
+      getNostrRelays().map((relay) => [relay, normalized.get(relay) === true]),
+    );
   }
 
   /**
@@ -1011,16 +991,17 @@ class NostrService {
   public async publishProfileEvent(profileEvent: Event): Promise<boolean> {
     const pool = this.pool ?? new SimplePool();
     const ownsPool = this.pool === null;
+    const relays = getNostrInboxRelays();
 
     try {
-      await Promise.any(pool.publish(NIP17_INBOX_RELAYS, profileEvent));
+      await Promise.any(pool.publish(relays, profileEvent));
       console.log('[NostrService] Published Nostr kind-0 profile.');
       return true;
     } catch (err: any) {
       console.warn('[NostrService] Could not publish Nostr profile:', err?.message || err);
       return false;
     } finally {
-      if (ownsPool) pool.close(NIP17_INBOX_RELAYS);
+      if (ownsPool) pool.close(relays);
     }
   }
 
@@ -1042,11 +1023,12 @@ class NostrService {
   private async _fetchProfileMetadata(pubkeyHex: string): Promise<Record<string, unknown>> {
     const pool = this.pool ?? new SimplePool();
     const ownsPool = this.pool === null;
+    const relays = getNostrInboxRelays();
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
     try {
       const events = await Promise.race([
-        pool.querySync(NIP17_INBOX_RELAYS, {
+        pool.querySync(relays, {
           authors: [pubkeyHex],
           kinds: [0],
           limit: 8,
@@ -1064,7 +1046,7 @@ class NostrService {
       return {};
     } finally {
       if (timeout) clearTimeout(timeout);
-      if (ownsPool) pool.close(NIP17_INBOX_RELAYS);
+      if (ownsPool) pool.close(relays);
     }
   }
 
@@ -1145,7 +1127,7 @@ class NostrService {
       throw new Error(`Invalid Nostr identifier: ${e.message}`);
     }
     const recipientPubkeyHex = recipient.pubkey;
-    const publishRelays = [...new Set([...recipient.relayHints, ...RELAYS])];
+    const publishRelays = [...new Set([...recipient.relayHints, ...getNostrRelays()])];
 
     const senderPrivkeyBytes = hexToBytes(senderPrivkeyHex);
 
@@ -1250,11 +1232,11 @@ class NostrService {
     const pool = this.pool ?? new SimplePool();
 
     console.log(
-      `[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${RELAYS.length} relays…`,
+      `[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${getNostrRelays().length} relays…`,
     );
 
     try {
-      await Promise.any(pool.publish(RELAYS, signedEvent));
+      await Promise.any(pool.publish(getNostrRelays(), signedEvent));
       console.log(`[NostrService] ✅ Mints backed up. Event: ${signedEvent.id}`);
       return true;
     } catch (err: any) {
@@ -1269,6 +1251,7 @@ class NostrService {
   public async fetchMintsFromNostr(pubkeyHex: string): Promise<string[]> {
     console.log(`[NostrService] 📥 Fetching mints from Nostr for pubkey ${pubkeyHex.slice(0, 8)}…`);
     const pool = new SimplePool();
+    const relays = getNostrRelays();
 
     try {
       const filter: Filter = {
@@ -1277,7 +1260,7 @@ class NostrService {
         limit: 1, // Get the most recent one
       };
 
-      const events = await pool.querySync(RELAYS, filter);
+      const events = await pool.querySync(relays, filter);
 
       if (!events || events.length === 0) {
         console.log('[NostrService] No mint backup found on Nostr.');
@@ -1299,7 +1282,7 @@ class NostrService {
       console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
       return [];
     } finally {
-      pool.close(RELAYS);
+      pool.close(relays);
     }
   }
 
@@ -1333,7 +1316,7 @@ class NostrService {
       console.log(
         `[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`,
       );
-      await Promise.any(pool.publish(RELAYS, signedEvent));
+      await Promise.any(pool.publish(getNostrRelays(), signedEvent));
       console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
       return true;
     } catch (err: any) {
@@ -1351,6 +1334,7 @@ class NostrService {
   ): Promise<any | null> {
     console.log(`[NostrService] 📥 Fetching NIP-60 wallet state from Nostr…`);
     const pool = new SimplePool();
+    const relays = getNostrRelays();
 
     try {
       const filter: Filter = {
@@ -1360,7 +1344,7 @@ class NostrService {
         limit: 1,
       };
 
-      const events = await pool.querySync(RELAYS, filter);
+      const events = await pool.querySync(relays, filter);
       if (!events || events.length === 0) {
         console.log('[NostrService] No NIP-60 wallet backup found on Nostr.');
         return null;
@@ -1380,7 +1364,7 @@ class NostrService {
       console.error('[NostrService] Failed NIP-60 wallet state recovery:', err?.message || err);
       return null;
     } finally {
-      pool.close(RELAYS);
+      pool.close(relays);
     }
   }
 }

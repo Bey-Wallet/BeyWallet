@@ -265,10 +265,12 @@ export function PendingTokenLayout({
       const { event } = buildEcashNostrEvent(cleanToken(currentToken), secretKeyHex);
 
       const { SimplePool } = require('nostr-tools');
-      const { RELAYS } = require('~/services/wallet/nostrService');
+      const { getNostrRelays } =
+        require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
       const pool = new SimplePool();
-      await Promise.any(pool.publish(RELAYS, event));
-      pool.close(RELAYS);
+      const relays = getNostrRelays();
+      await Promise.any(pool.publish(relays, event));
+      pool.close(relays);
 
       const websiteUrl = 'https://bey.cash/c/';
       const shareLink = `${websiteUrl}#${secretKeyHex}`;

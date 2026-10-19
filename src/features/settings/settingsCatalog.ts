@@ -1,5 +1,4 @@
 import {
-  Activity,
   AtSign,
   Banknote,
   Bell,
@@ -16,7 +15,10 @@ import {
   KeyRound,
   Palette,
   RefreshCw,
-  Server,
+  Landmark,
+  Network,
+  HeartPulse,
+  Pin,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -73,8 +75,8 @@ export const settingsCategories = {
     title: 'Wallet & payments',
     icon: Wallet,
     items: [
-      { path: 'mints', title: 'Connected mints', icon: Server },
-      { path: 'fallback-mint', title: 'Fallback mint', icon: Server },
+      { path: 'mints', title: 'Connected mints', icon: Landmark },
+      { path: 'fallback-mint', title: 'Fallback mint', icon: Pin },
       { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
       { path: 'optimize-wallet', title: 'Optimize wallet', icon: Sparkles },
     ],
@@ -84,8 +86,8 @@ export const settingsCategories = {
     icon: NostrIcon,
     items: [
       { path: 'receiving-policy', title: 'Receiving from people', icon: UserRound },
-      { path: 'relays', title: 'Relays', icon: Server },
-      { path: 'nostr-health', title: 'Nostr health', icon: Activity },
+      { path: 'relays', title: 'Relays', icon: Network },
+      { path: 'nostr-health', title: 'Nostr health', icon: HeartPulse },
     ],
   },
   advanced: {

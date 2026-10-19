@@ -54,7 +54,6 @@ const expectedRoutes = [
   '(tabs)/settings/identity.tsx',
   '(tabs)/settings/index.tsx',
   '(tabs)/settings/mints.tsx',
-  '(tabs)/settings/nostr-health.tsx',
   '(tabs)/settings/nostr.tsx',
   '(tabs)/settings/notifications.tsx',
   '(tabs)/settings/optimize-wallet.tsx',

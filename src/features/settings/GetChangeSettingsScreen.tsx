@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
+import { Landmark } from '@tamagui/lucide-icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
@@ -125,6 +126,7 @@ export function GetChangeSettingsScreen() {
             .map((mint) => (
               <SettingsRow
                 key={mint.mintUrl}
+                icon={Landmark}
                 title={mint.nickname || mint.name || mint.mintUrl}
                 selected={mintUrl === mint.mintUrl}
                 disabled={executing}

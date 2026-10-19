@@ -15,6 +15,13 @@
 - Settings-specific sheets were removed. Existing payment/mint feature screens
   and their operation controls remain available through their existing routes.
 - About links to the existing combined Terms of Service & Privacy Policy page.
+- Proof Manager was rebuilt as a minimal list with mint/state filters, export,
+  refresh, and confirmed spent-only cleanup; the old detailed manager was removed.
+- Relays support persisted add/remove and confirmed reset to defaults. Row status
+  dots use actual pool connection state. Nostr health is a read-only overall row.
+- The Settings profile badge appears only after authoritative NIP-05 verification;
+  a missing registration exposes a direct Claim action.
+- Updates use native download progress; Username uses a plain edit form.
 
 ## Automated validation
 
@@ -25,6 +32,7 @@ yarn typecheck
 yarn check:structure
 yarn check:buttons
 yarn test:ci --runInBand --runTestsByPath tests/unit/settings-navigation.test.tsx tests/unit/settings-protected-value.test.tsx tests/unit/settings-backup-actions.test.tsx tests/unit/get-change-screen.test.tsx tests/unit/app-switch.test.tsx tests/unit/change-backup.test.ts tests/unit/nostr-auto-claim-policy.test.ts tests/unit/nostr-receipt-service.test.ts
+yarn test:ci --runInBand --runTestsByPath tests/unit/nostr-relay-settings.test.ts tests/unit/settings-relay-ui.test.tsx tests/unit/settings-proof-manager.test.tsx tests/unit/settings-profile-status.test.tsx tests/unit/settings-updates.test.tsx
 ```
 
 These cover the header export regression, tab return destinations, switch state,
@@ -54,8 +62,15 @@ Use a disposable test wallet for operations that spend, restore, or delete walle
 - Test offline change review, mint switching, fee changes, retry, and leaving before
   execution. Confirm navigation is blocked during submission and released afterward.
 - Verify mint details/add/discovery routes, optimization, proof inspection, offline
-  verification, blocked people, receiving policy, relay status, and Nostr diagnostics.
+  verification, blocked people, receiving policy, relay add/remove/reset and status,
+  and the read-only Nostr health summary. Confirm relay edits survive restart,
+  removed relays disconnect, and reset restores the defaults.
 - Check profile/username and existing non-settings entry points, including backup
   warnings and onboarding. Follow website, support, documentation, and legal links.
+- Claim, change, and delete a test username; confirm the verified badge and Claim
+  action reflect the registry result. Test proof export and spent-only cleanup in
+  a disposable wallet, including cancellation of the native share/confirmation UI.
+- Check OTA availability, download progress, retry, and restart in an update-enabled
+  build; development builds cannot fully verify the production update flow.
 - Test wallet deletion only after exporting a test wallet; cancel authentication
   and cancel the review before performing a deliberate confirmed deletion.

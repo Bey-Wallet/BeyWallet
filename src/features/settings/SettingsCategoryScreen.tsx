@@ -4,6 +4,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import { settingsCategories, type SettingsCategory } from './settingsCatalog';
+import { NostrHealthRow } from './components/NostrHealthRow';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -32,14 +33,17 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     'recovery-phrase': settings.seedBackedUp ? 'Backed up' : 'Not confirmed',
   };
   const items = settingsCategories[category].items;
-  const row = (item: (typeof items)[number]) => (
-    <SettingsRow
-      key={item.path}
-      {...item}
-      value={summaries[item.path]}
-      onPress={() => router.push(`/(tabs)/settings/${item.path}` as Href)}
-    />
-  );
+  const row = (item: (typeof items)[number]) =>
+    item.path === 'nostr-health' ? (
+      <NostrHealthRow key={item.path} />
+    ) : (
+      <SettingsRow
+        key={item.path}
+        {...item}
+        value={summaries[item.path]}
+        onPress={() => router.push(`/(tabs)/settings/${item.path}` as Href)}
+      />
+    );
   return (
     <SettingsPage>
       {category === 'advanced' && (

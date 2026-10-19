@@ -610,6 +610,9 @@ export const initService = {
     await initService.cleanup();
 
     // 2. Delete the SQLite databases (both main and restore)
+    const { useNostrRelayStore } =
+      require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
+    useNostrRelayStore.getState().resetRelays();
     try {
       await SQLite.deleteDatabaseAsync('coco_wallet.db');
       console.log('[InitService] Main database deleted');

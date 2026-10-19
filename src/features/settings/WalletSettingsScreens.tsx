@@ -1,18 +1,17 @@
 import React, { useCallback, useState } from 'react';
-import { Text, YStack } from 'tamagui';
+
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Coins, Plus, Server, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
+import { Coins, Plus, Landmark, Search, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { proofService } from '~/services/wallet/proofService';
 import { consolidationService } from '~/services/wallet/consolidationService';
 import { biometricService } from '~/services/platform/biometricService';
-import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
-import { RELAYS } from '~/services/wallet/nostrService';
+
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { AppButton } from '~/shared/ui/AppButton';
-import ProofsScreen from '~/features/payments/ProofsScreen';
+import ProofManagerScreen from './ProofManagerScreen';
 import { useProtectedValue } from './hooks/useProtectedValue';
 import { useSettingsOperation } from './hooks/useSettingsOperation';
 import {
@@ -38,7 +37,7 @@ export function MintsSettingsScreen() {
             <SettingsRow
               key={mint.mintUrl}
               title={mint.nickname || mint.name || mint.mintUrl}
-              icon={Server}
+              icon={Landmark}
               value={mint.trusted ? 'Trusted' : 'Not trusted'}
               onPress={() =>
                 router.push({
@@ -60,7 +59,7 @@ export function MintsSettingsScreen() {
         />
         <SettingsRow
           title="Discover mints"
-          icon={Server}
+          icon={Search}
           onPress={() => router.push('/(modals)/discover-mints')}
         />
       </SettingsGroup>
@@ -85,6 +84,7 @@ export function FallbackMintSettingsScreen() {
               key={mint.mintUrl}
               title={mint.nickname || mint.name || mint.mintUrl}
               description={mint.mintUrl}
+              icon={Landmark}
               selected={selected === mint.mintUrl}
               onPress={() => void setSelected(mint.mintUrl)}
             />
@@ -116,6 +116,7 @@ function OperationMintList({
         <SettingsRow
           key={mint.mintUrl}
           title={mint.nickname || mint.name || mint.mintUrl}
+          icon={Landmark}
           selected={value === mint.mintUrl}
           disabled={disabled}
           onPress={() => onSelect(mint.mintUrl)}
@@ -236,57 +237,12 @@ export function VerifyProofsSettingsScreen() {
   );
 }
 
-export function RelaysSettingsScreen() {
-  const diagnostics = useQuery({
-    queryKey: ['settings', 'relay-health'],
-    queryFn: () => nostrDiagnosticsService.getDiagnostics(),
-  });
-  return (
-    <SettingsPage>
-      <SettingsDescription>
-        These relays connect Bey Wallet to Nostr. This screen shows connection health; relay
-        configuration is managed by the app.
-      </SettingsDescription>
-      <SettingsGroup>
-        {RELAYS.map((url) => {
-          const reachable = diagnostics.data?.relays.find((relay) => relay.url === url)?.reachable;
-          return (
-            <YStack key={url} p="$4" gap="$2">
-              <Text color="$color">{url}</Text>
-              <Text color="$gray10">
-                {reachable === true
-                  ? 'Reachable'
-                  : reachable === false
-                    ? 'Unavailable'
-                    : diagnostics.isPending
-                      ? 'Checking…'
-                      : 'Unknown'}
-              </Text>
-            </YStack>
-          );
-        })}
-      </SettingsGroup>
-      {diagnostics.isError && (
-        <SettingsMessage error>Could not check relay health.</SettingsMessage>
-      )}
-      <AppButton
-        variant="default"
-        emphasis="secondary"
-        loading={diagnostics.isFetching}
-        onPress={() => void diagnostics.refetch()}
-      >
-        Refresh status
-      </AppButton>
-    </SettingsPage>
-  );
-}
-
 export function ProofManagerSettingsScreen() {
   const access = useProtectedValue(
     'Authenticate to view wallet proofs',
     useCallback(async () => true, []),
   );
-  if (access.value) return <ProofsScreen settingsMode />;
+  if (access.value) return <ProofManagerScreen />;
   return (
     <SettingsPage>
       <SettingsDescription>

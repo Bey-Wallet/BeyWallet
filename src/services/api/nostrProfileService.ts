@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { getNostrQueryRelays } from '~/state/nostrRelayStore';
 import { nip19, SimplePool, type Event, type Filter } from 'nostr-tools';
 
 export interface NostrProfile {
@@ -111,10 +112,11 @@ function mergeNewestEvents(events: Event[]): NostrProfile[] {
 
 async function queryProfiles(filter: Filter): Promise<NostrProfile[]> {
   const pool = new SimplePool();
+  const relays = getNostrQueryRelays(SEARCH_RELAYS);
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    const query = pool.querySync(SEARCH_RELAYS, filter);
+    const query = pool.querySync(relays, filter);
     const events = await Promise.race([
       query,
       new Promise<Event[]>((resolve) => {
@@ -124,16 +126,17 @@ async function queryProfiles(filter: Filter): Promise<NostrProfile[]> {
     return mergeNewestEvents(events);
   } finally {
     if (timeout) clearTimeout(timeout);
-    pool.close(SEARCH_RELAYS);
+    pool.close(relays);
   }
 }
 
 async function fetchProfile(pubkeyHex: string): Promise<NostrProfile | null> {
   const pool = new SimplePool();
+  const relays = getNostrQueryRelays(PROFILE_RELAYS);
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    const query = pool.querySync(PROFILE_RELAYS, {
+    const query = pool.querySync(relays, {
       kinds: [0],
       authors: [pubkeyHex],
       limit: 8,
@@ -147,7 +150,7 @@ async function fetchProfile(pubkeyHex: string): Promise<NostrProfile | null> {
     return mergeNewestEvents(events)[0] || null;
   } finally {
     if (timeout) clearTimeout(timeout);
-    pool.close(PROFILE_RELAYS);
+    pool.close(relays);
   }
 }
 

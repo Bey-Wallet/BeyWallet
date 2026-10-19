@@ -1,1 +1,1 @@
-export { RelaysSettingsScreen as default } from '~/features/settings/WalletSettingsScreens';
+export { RelaySettingsScreen as default } from '~/features/settings/RelaySettingsScreen';

@@ -1,25 +1,18 @@
-import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { YStack, XStack, Text, useTheme, View, ScrollView } from 'tamagui';
-import * as Updates from 'expo-updates';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { YStack, Text } from 'tamagui';
 import {
-  DownloadCloud,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  Sparkles,
-  ArrowUpCircle,
-  Check,
-} from '@tamagui/lucide-icons';
-import { SafeFlex } from '~/shared/ui/Flex';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+  SettingsPage,
+  SettingsGroup,
+  SettingsDescription,
+  SettingsMessage,
+} from './components/SettingsLayout';
+import { useSettingsBusy } from './hooks/useSettingsBusy';
+import * as Updates from 'expo-updates';
+import { DownloadCloud, RefreshCw, ArrowUpCircle } from '@tamagui/lucide-icons';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
-import BeyIcon from '~/shared/icons/BeyIcon';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme } from '~/shared/theme/ThemeContext';
-import { Stack } from 'expo-router';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 
 const STORAGE_KEY_LAST_OTA_CHANGELOG = 'last_installed_ota_changelog';
@@ -35,14 +28,6 @@ const buildVersion =
 
 type UpdateStatus =
   'idle' | 'checking' | 'no-update' | 'update-available' | 'downloading' | 'ready' | 'error';
-
-// Default changelog highlights for the base app version
-const DEFAULT_VERSION_HIGHLIGHTS = [
-  'Lightning-fast Cashu e-cash payments & instant mint settlement',
-  'NFC Tap-to-Pay and contactless token exchange',
-  'Multi-mint balance management and proof security',
-  'Encrypted seed phrase backup and instant restore',
-];
 
 /**
  * Extracts and normalizes changelog / What's New items from any EAS manifest or string message.
@@ -106,13 +91,11 @@ export default function OtaUpdateScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [newManifest, setNewManifest] = useState<any>(null);
   const [lastCheckedTime, setLastCheckedTime] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  const { downloadProgress } = Updates.useUpdates();
+  const operationLock = useRef(false);
+  useSettingsBusy(status === 'downloading');
   const [storedChangelog, setStoredChangelog] = useState<string[]>([]);
   const [storedVersion, setStoredVersion] = useState<string | null>(null);
-  const [storedDate, setStoredDate] = useState<string | null>(null);
-
-  const theme = useTheme();
-  const { resolvedTheme } = useAppTheme();
 
   const formatCurrentTime = () => {
     const now = new Date();
@@ -140,9 +123,6 @@ export default function OtaUpdateScreen() {
 
       const version = sqliteStorage.getItem(STORAGE_KEY_LAST_OTA_VERSION);
       if (version) setStoredVersion(version);
-
-      const dateStr = sqliteStorage.getItem(STORAGE_KEY_LAST_OTA_DATE);
-      if (dateStr) setStoredDate(dateStr);
     } catch (e) {
       console.warn('[OtaUpdate] Error reading stored update notes:', e);
     }
@@ -189,25 +169,12 @@ export default function OtaUpdateScreen() {
   }, [handleCheckUpdates]);
 
   const handleDownload = async () => {
+    if (operationLock.current) return;
+    operationLock.current = true;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setStatus('downloading');
-      setDownloadProgress(20);
-
-      // Smooth progress animation while downloading bundle
-      const progressInterval = setInterval(() => {
-        setDownloadProgress((prev) => {
-          if (prev >= 85) {
-            clearInterval(progressInterval);
-            return 85;
-          }
-          return prev + 15;
-        });
-      }, 300);
-
-      const fetchResult = await Updates.fetchUpdateAsync();
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
+      await Updates.fetchUpdateAsync();
 
       // Persist the incoming update changelog into sqliteStorage
       if (newManifest) {
@@ -243,6 +210,8 @@ export default function OtaUpdateScreen() {
       setStatus('error');
       setErrorMsg(error.message || 'Failed to download update bundle.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      operationLock.current = false;
     }
   };
 
@@ -252,6 +221,7 @@ export default function OtaUpdateScreen() {
       await Updates.reloadAsync();
     } catch (e: any) {
       console.warn('[OtaUpdate] Reload failed:', e);
+      setErrorMsg('Could not restart the app. Please try again.');
     }
   };
 
@@ -261,13 +231,7 @@ export default function OtaUpdateScreen() {
     return parseChangelog(newManifest);
   }, [newManifest]);
 
-  // Features list for the current/previous update (fallback to base highlights)
-  const currentVersionFeatures = useMemo(() => {
-    if (storedChangelog.length > 0) {
-      return storedChangelog;
-    }
-    return DEFAULT_VERSION_HIGHLIGHTS;
-  }, [storedChangelog]);
+  const currentVersionFeatures = storedChangelog;
 
   // Format incoming new version if available
   const newVersionString = useMemo(() => {
@@ -292,322 +256,95 @@ export default function OtaUpdateScreen() {
 
   const channelName = Updates.channel || (Updates.isEnabled ? 'Release' : 'Standard');
 
+  const title =
+    status === 'checking'
+      ? 'Checking for updates…'
+      : status === 'downloading'
+        ? 'Downloading update…'
+        : status === 'ready'
+          ? 'Update ready'
+          : status === 'update-available'
+            ? 'Update available'
+            : status === 'error'
+              ? 'Update check failed'
+              : !Updates.isEnabled
+                ? 'Updates unavailable in this build'
+                : 'You’re up to date';
   return (
-    <SafeFlex fill bg="$background" px="$4">
-      <Stack.Screen
-        options={{
-          title: 'App Updates',
-          headerTitleAlign: 'center',
-        }}
-      />
-
-      <YStack flex={1} justify="space-between" py="$3" gap="$4">
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ gap: 18, paddingBottom: 20 }}
-        >
-          {/* Top App Header Card */}
-          <XStack items="center" gap="$3.5" rounded="$5">
-            <View p="$3" bg="$buttonDefaultSecondary" rounded="$5" items="center" justify="center">
-              <BeyIcon size={34} color={resolvedTheme === 'dark' ? 'white' : 'black'} />
-            </View>
-            <YStack flex={1} gap="$1">
-              <XStack items="center" justify="space-between">
-                <Text fontSize="$5" fontWeight="900" color="$color">
-                  Bey Wallet
-                </Text>
-                <XStack bg="$gray4" px="$2.5" py="$1.5" rounded="$10">
-                  <Text fontSize={10} fontWeight="800" color="$gray10" textTransform="uppercase">
-                    {channelName}
-                  </Text>
-                </XStack>
-              </XStack>
-              <Text fontSize="$2" color="$gray10" fontWeight="600">
-                Current Version: v{appVersion} ({buildVersion})
-              </Text>
-            </YStack>
-          </XStack>
-
-          {/* Status Section */}
-          {status === 'idle' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-              <YStack gap="$4" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <RefreshCw size={28} color="$color" />
-                </View>
-                <YStack flex={1} gap="$2" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Check for Updates
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    See if a new over-the-air release is available for Bey Wallet.
-                  </Text>
-                </YStack>
-              </YStack>
-              <YStack flex={1} items="center">
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
-                  icon={<RefreshCw size={12} />}
-                  onPress={() => handleCheckUpdates(true)}
-                >
-                  Check Now
-                </AppButton>
-              </YStack>
-            </YStack>
+    <SettingsPage>
+      <SettingsDescription>
+        Keep Bey Wallet up to date. Downloads are applied when you restart the app.
+      </SettingsDescription>
+      <SettingsGroup>
+        <YStack p="$4" gap="$2">
+          <Text fontSize="$5" fontWeight="500" color="$color">
+            Bey Wallet
+          </Text>
+          <Text fontSize="$3" color="$gray10">
+            Version {appVersion} ({buildVersion}) · {channelName}
+          </Text>
+        </YStack>
+        <YStack p="$4" gap="$2" accessibilityLiveRegion="polite">
+          <Text fontSize="$5" fontWeight="500" color="$color">
+            {title}
+          </Text>
+          {lastCheckedTime && (
+            <Text fontSize="$3" color="$gray10">
+              Last checked {lastCheckedTime}
+            </Text>
           )}
-
-          {status === 'checking' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-              <YStack gap="$4" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <Spinner size="small" color="$color" />
-                </View>
-                <YStack flex={1} gap="$2" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Checking for Updates...
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    Connecting to the update server to check for new releases.
-                  </Text>
-                </YStack>
-              </YStack>
-            </YStack>
-          )}
-
-          {status === 'no-update' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$3">
-              <YStack gap="$3" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <Check size={28} color="$color" />
-                </View>
-                <YStack flex={1} gap="$1.5" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Your App is Up to Date
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    You are running the latest version available.
-                  </Text>
-                  {lastCheckedTime && (
-                    <Text fontSize={11} color="$gray9" fontWeight="600" mt="$1">
-                      Last checked today at {lastCheckedTime}
-                    </Text>
-                  )}
-                </YStack>
-              </YStack>
-            </YStack>
-          )}
-
-          {status === 'update-available' && (
-            <YStack gap="$4">
-              <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-                <YStack gap="$4" items="center">
-                  <View p="$3" bg="$gray4" rounded="$4">
-                    <Sparkles size={28} color="$color" />
-                  </View>
-                  <YStack flex={1} gap="$2" items="center">
-                    <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                      New Update Available {newVersionString}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                      A new over-the-air update is ready to download and install.
-                    </Text>
-                    {updateCreatedAt && (
-                      <Text fontSize="$1" color="$gray10" fontWeight="600">
-                        Released {updateCreatedAt}
-                      </Text>
-                    )}
-                  </YStack>
-                </YStack>
-              </YStack>
-
-              {/* What's New in this Update */}
-              <YStack gap="$2">
-                <Text
-                  fontSize="$2"
-                  fontWeight="800"
-                  color="$gray10"
-                  textTransform="uppercase"
-                  px="$1"
-                >
-                  What's New in this Update
-                </Text>
-
-                <ListTable width="100%" bg="$buttonDefaultSecondary">
-                  {incomingWhatsNewItems.map((item, idx) => (
-                    <ListTableRow
-                      key={idx}
-                      label={item}
-                      icon={Sparkles}
-                      iconColor="$accent10"
-                      multiline
-                    />
-                  ))}
-                </ListTable>
-              </YStack>
-            </YStack>
-          )}
-
           {status === 'downloading' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-              <YStack gap="$4" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <Spinner size="small" color="$color" />
-                </View>
-                <YStack flex={1} gap="$2" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Downloading Update...
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    {downloadProgress < 50
-                      ? 'Fetching update bundle from server...'
-                      : 'Verifying and preparing update assets...'}
-                  </Text>
-                </YStack>
-              </YStack>
-              <YStack width="100%" gap="$2">
-                <View width="100%" height={6} bg="$gray4" rounded="$10" overflow="hidden">
-                  <View height="100%" width={`${downloadProgress}%`} bg="$color" rounded="$10" />
-                </View>
-                <Text fontSize="$1" color="$gray10" fontWeight="700" textAlign="center">
-                  {downloadProgress}%
-                </Text>
-              </YStack>
-            </YStack>
+            <Text fontSize="$3" color="$gray10">
+              {Math.round((downloadProgress ?? 0) * 100)}%
+            </Text>
           )}
-
-          {status === 'ready' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-              <YStack gap="$4" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <CheckCircle2 size={28} color="$color" />
-                </View>
-                <YStack flex={1} gap="$2" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Update Ready to Apply
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    The update bundle has been downloaded. Restart Bey Wallet to apply the changes.
-                  </Text>
-                </YStack>
-              </YStack>
-              <YStack flex={1} items="center">
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
-                  icon={<ArrowUpCircle size={12} />}
-                  onPress={handleRestart}
-                >
-                  Restart App
-                </AppButton>
-              </YStack>
-            </YStack>
-          )}
-
-          {status === 'error' && (
-            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
-              <YStack gap="$4" items="center">
-                <View p="$3" bg="$gray4" rounded="$4">
-                  <AlertCircle size={28} color="$color" />
-                </View>
-                <YStack flex={1} gap="$2" items="center">
-                  <Text fontSize="$4" fontWeight="800" color="$color" textAlign="center">
-                    Check Failed
-                  </Text>
-                  <Text fontSize="$2" color="$gray10" fontWeight="500" textAlign="center">
-                    {errorMsg}
-                  </Text>
-                </YStack>
-              </YStack>
-              <YStack flex={1} items="center">
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
-                  icon={<RefreshCw size={12} />}
-                  onPress={() => handleCheckUpdates(true)}
-                >
-                  Try Again
-                </AppButton>
-              </YStack>
-            </YStack>
-          )}
-
-          {/* Current / Previous Version Highlights Section (Shown when Up to Date, Idle, Checking, or Error) */}
-          {(status === 'no-update' ||
-            status === 'idle' ||
-            status === 'checking' ||
-            status === 'error') && (
-            <YStack gap="$2.5">
-              <XStack items="center" justify="space-between" px="$1">
-                <Text fontSize="$2" fontWeight="800" color="$gray10" textTransform="uppercase">
-                  {storedVersion
-                    ? `What's New in ${storedVersion}`
-                    : `What's New in v${appVersion}`}
-                </Text>
-                {storedDate && (
-                  <Text fontSize={11} color="$gray9" fontWeight="600">
-                    {storedDate}
-                  </Text>
-                )}
-              </XStack>
-
-              <ListTable width="100%" bg="$buttonDefaultSecondary">
-                {currentVersionFeatures.map((item, idx) => (
-                  <ListTableRow
-                    key={idx}
-                    label={item}
-                    icon={Sparkles}
-                    iconColor="$accent10"
-                    multiline
-                  />
-                ))}
-              </ListTable>
-            </YStack>
-          )}
-        </ScrollView>
-
-        {/* Bottom Action Buttons */}
-        <YStack gap="$2" width="100%">
-          {(status === 'idle' || status === 'no-update' || status === 'error') && (
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              icon={<RefreshCw size={18} color="white" />}
-              onPress={() => handleCheckUpdates(true)}
-            >
-              Check for Updates
-            </AppButton>
-          )}
-
           {status === 'update-available' && (
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              icon={<DownloadCloud size={20} color="white" />}
-              onPress={handleDownload}
-            >
-              Download & Install
-            </AppButton>
-          )}
-
-          {status === 'ready' && (
-            <AppButton
-              variant="branded"
-              emphasis="primary"
-              size="large"
-              icon={<ArrowUpCircle size={20} color="white" />}
-              onPress={handleRestart}
-            >
-              Restart App to Apply
-            </AppButton>
+            <Text fontSize="$3" color="$gray10">
+              {newVersionString}
+              {updateCreatedAt ? ' · ' + updateCreatedAt : ''}
+            </Text>
           )}
         </YStack>
-      </YStack>
-    </SafeFlex>
+      </SettingsGroup>
+      {errorMsg && <SettingsMessage error>{errorMsg}</SettingsMessage>}
+      {status === 'ready' ? (
+        <AppButton icon={ArrowUpCircle} onPress={handleRestart}>
+          Restart to apply update
+        </AppButton>
+      ) : status === 'update-available' ? (
+        <AppButton icon={DownloadCloud} onPress={handleDownload}>
+          Download update
+        </AppButton>
+      ) : (
+        <AppButton
+          icon={RefreshCw}
+          loading={status === 'checking' || status === 'downloading'}
+          loadingText={status === 'downloading' ? 'Downloading update…' : 'Checking for updates…'}
+          disabled={!Updates.isEnabled}
+          onPress={() => handleCheckUpdates(true)}
+        >
+          Check for updates
+        </AppButton>
+      )}
+      {(status === 'update-available' ? incomingWhatsNewItems : currentVersionFeatures).length >
+        0 && (
+        <YStack gap="$3">
+          <Text fontSize="$5" fontWeight="500" color="$color">
+            What’s new{storedVersion && status !== 'update-available' ? ' · ' + storedVersion : ''}
+          </Text>
+          <SettingsGroup>
+            {(status === 'update-available' ? incomingWhatsNewItems : currentVersionFeatures).map(
+              (item, index) => (
+                <YStack key={index} p="$4">
+                  <Text fontSize="$4" color="$color">
+                    {item}
+                  </Text>
+                </YStack>
+              ),
+            )}
+          </SettingsGroup>
+        </YStack>
+      )}
+    </SettingsPage>
   );
 }

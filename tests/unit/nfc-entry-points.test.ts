@@ -10,11 +10,10 @@ it.each([
   expect(source(file)).toContain('nfcFlow.openReader');
   expect(source(file)).not.toContain('/(modals)/nfc-receive');
 });
-it('uses the common token layout for send results, shared tokens and proof-created tokens', () => {
+it('uses the common token layout for send results and shared tokens', () => {
   for (const file of [
     'src/features/payments/send/ResultStage.tsx',
     'src/features/history/TransactionDetailsScreen.tsx',
-    'src/features/payments/ProofsScreen.tsx',
   ]) {
     expect(source(file)).toContain('PendingTokenLayout');
   }

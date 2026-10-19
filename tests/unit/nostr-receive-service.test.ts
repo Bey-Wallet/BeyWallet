@@ -4,13 +4,13 @@ import { wrapEvent } from 'nostr-tools/nip59';
 import { getEncodedTokenV4 } from '@cashu/cashu-ts';
 import {
   hasSuccessfulRelayPublish,
-  NIP17_INBOX_RELAYS,
   nostrService,
   createNip17GiftWrap,
 } from '~/services/wallet/nostrService';
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 import { useNostrInboxStore } from '~/state/nostrInboxStore';
 import { usePeopleStore } from '~/state/peopleStore';
+import { DEFAULT_NOSTR_INBOX_RELAYS } from '~/shared/utils/nostrRelays';
 
 jest.mock(
   '@noble/hashes/utils',
@@ -72,7 +72,7 @@ describe('Nostr receive service', () => {
   });
 
   it('advertises the relay used by Minibits', () => {
-    expect(NIP17_INBOX_RELAYS).toContain('wss://relay.minibits.cash');
+    expect(DEFAULT_NOSTR_INBOX_RELAYS).toContain('wss://relay.minibits.cash');
   });
 
   it('hands a Minibits-style NIP-17 ordinary V4 message to automatic claiming intact', async () => {

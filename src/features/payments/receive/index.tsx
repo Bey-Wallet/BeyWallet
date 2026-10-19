@@ -13,7 +13,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { networkService } from '~/services/platform/networkService';
 import { nip19, SimplePool } from 'nostr-tools';
-import { RELAYS } from '~/services/wallet/nostrService';
+import { getNostrRelays } from '~/state/nostrRelayStore';
 import { deriveSharingKeys, decryptToken } from '~/shared/utils/ecashSharing';
 import ReceiveModeSelector, { ReceiveMode } from '~/shared/ui/ReceiveModeSelector';
 import * as ClipboardAPI from 'expo-clipboard';
@@ -94,12 +94,13 @@ export function ReceiveModalScreen() {
           console.log('[ReceiveModal] Fetching encrypted token from Nostr...');
           const keys = deriveSharingKeys(secretKeyHex);
           const pool = new SimplePool();
-          const event = await pool.get(RELAYS, {
+          const relays = getNostrRelays();
+          const event = await pool.get(relays, {
             authors: [keys.ephemeralPk],
             kinds: [30078],
             '#d': [keys.dTag],
           });
-          pool.close(RELAYS);
+          pool.close(relays);
 
           if (!event) {
             throw new Error('eCash token link not found or expired on Nostr.');

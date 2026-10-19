@@ -148,7 +148,7 @@ The adaptive-icon update is included. The obsolete FlashList patch was removed.
 - `src/features/nfc/nfcFlow.ts`
 - `src/features/nostr/components/NostrClaimSheet.tsx`
 - `src/features/payments/OptimizeWalletScreen.tsx`
-- `src/features/payments/ProofsScreen.tsx`
+- `src/features/settings/ProofManagerScreen.tsx`
 - `src/features/payments/SearchScreen.tsx`
 - `src/features/payments/receive/RequestDetailsEditor.tsx`
 - `src/features/payments/receive/RequestEcashStage.tsx`

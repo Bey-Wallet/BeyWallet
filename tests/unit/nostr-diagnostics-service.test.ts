@@ -18,9 +18,11 @@ jest.mock('~/state/settingsStore', () => ({
 jest.mock('~/services/api/nostrProfileService', () => ({
   nostrProfileService: { search: jest.fn() },
 }));
+jest.mock('~/state/nostrRelayStore', () => ({
+  getNostrRelays: () => ['wss://one.example', 'wss://two.example'],
+  getNostrInboxRelays: () => ['wss://inbox.example'],
+}));
 jest.mock('~/services/wallet/nostrService', () => ({
-  RELAYS: ['wss://one.example', 'wss://two.example'],
-  NIP17_INBOX_RELAYS: ['wss://inbox.example'],
   nostrService: {
     publishProfile: jest.fn(),
     republishInboxRelayList: jest.fn(),

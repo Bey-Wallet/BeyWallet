@@ -2,7 +2,8 @@ import { Buffer } from 'buffer';
 import { nip19, SimplePool, type Event } from 'nostr-tools';
 import { getPublicKey } from 'nostr-tools/pure';
 import { nostrProfileService } from '~/services/api/nostrProfileService';
-import { NIP17_INBOX_RELAYS, nostrService, RELAYS } from '~/services/wallet/nostrService';
+import { nostrService } from '~/services/wallet/nostrService';
+import { getNostrRelays, getNostrInboxRelays } from '~/state/nostrRelayStore';
 
 export interface NostrRelayHealth {
   url: string;
@@ -101,6 +102,8 @@ async function resolveNip05Pubkey(identifier: string | null): Promise<string | n
 export const nostrDiagnosticsService = {
   async getDiagnostics(): Promise<NostrDiagnosticSnapshot> {
     const identity = getIdentity();
+    const relays = getNostrRelays();
+    const inboxTargets = getNostrInboxRelays();
     const pubkey = publicKeyHex(identity.npub, identity.nsec);
     if (!pubkey) {
       return {
@@ -109,13 +112,13 @@ export const nostrDiagnosticsService = {
         nip05: { identifier: identity.nip05, resolvedPubkey: null, matches: false },
         profile: { present: false, nip05: null, nip05Matches: false },
         inboxRelayList: { published: false, relays: [], matches: false },
-        relays: RELAYS.map((url) => ({ url, reachable: false, error: 'No public key' })),
+        relays: relays.map((url) => ({ url, reachable: false, error: 'No public key' })),
       };
     }
 
     const [resolvedPubkey, relayResults] = await Promise.all([
       resolveNip05Pubkey(identity.nip05),
-      Promise.all(RELAYS.map((relay) => queryRelay(relay, pubkey))),
+      Promise.all(relays.map((relay) => queryRelay(relay, pubkey))),
     ]);
     const allEvents = relayResults.flatMap((result) => result.events);
     const newestProfile = allEvents
@@ -131,7 +134,7 @@ export const nostrDiagnosticsService = {
     const inboxRelays =
       newestInbox?.tags.filter((tag) => tag[0] === 'relay' && tag[1]).map((tag) => tag[1]) || [];
     const relaySet = new Set(inboxRelays);
-    const inboxMatches = NIP17_INBOX_RELAYS.every((relay) => relaySet.has(relay));
+    const inboxMatches = inboxTargets.every((relay) => relaySet.has(relay));
     const nip05Matches = !!identity.nip05 && resolvedPubkey === pubkey;
     const profileMatches =
       !!identity.nip05 && profileNip05?.toLowerCase() === identity.nip05.toLowerCase();

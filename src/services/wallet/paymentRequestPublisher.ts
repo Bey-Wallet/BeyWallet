@@ -1,5 +1,6 @@
 import { SimplePool, type Event } from 'nostr-tools';
-import { createNip17GiftWrap, resolveNostrRecipient, RELAYS } from './nostrService';
+import { createNip17GiftWrap, resolveNostrRecipient } from './nostrService';
+import { getNostrRelays } from '~/state/nostrRelayStore';
 
 export interface PaymentRequestPublication {
   event: Event;
@@ -15,7 +16,7 @@ export function preparePaymentRequestPublication(
   const recipient = resolveNostrRecipient(target);
   return {
     event: createNip17GiftWrap(payload, recipient.pubkey, privateKey),
-    relays: [...new Set([...recipient.relayHints, ...RELAYS])],
+    relays: [...new Set([...recipient.relayHints, ...getNostrRelays()])],
     recipientRelays: [...new Set(recipient.relayHints)],
   };
 }

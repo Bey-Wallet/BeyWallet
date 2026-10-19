@@ -57,7 +57,8 @@ Verify each named icon export against the installed package during implementatio
 use its closest semantic equivalent if needed without adding a dependency.
 Leaf screens use specific icons: Palette for theme, Coins for display units,
 Banknote for fiat currency, Bell for notifications, Fingerprint for biometric lock,
-EyeOff for hidden balance, Server for mints/relays, and ShieldCheck for proof verification.
+EyeOff for hidden balance, Landmark for mints, Pin for the fallback mint,
+Network for relays, HeartPulse for health, and ShieldCheck for proof verification.
 Use FileUp for backup export and FileDown for backup restore, always paired with
 explicit action labels. Reserve Trash2 and destructive red for wallet deletion.
 
@@ -97,12 +98,13 @@ backup warnings, onboarding, and payment flows.
 
 - Surface the existing hide-balance preference in Settings; its persistence already exists.
 - Add navigation and explanatory screens for existing functionality before adding
-  new behavior. Keep current notification and relay capabilities accurate:
-  per-event notification controls and editable relay configuration are new features.
+  new behavior. Per-event notification controls remain a separate new feature.
+  Relay editing was subsequently approved and implemented with persisted URL
+  validation, add/remove controls, default reset, and live connection dots.
 - Language is currently an inactive placeholder. Do not ship an inert row. Add a
   dedicated language selector only with real localization support in a later phase.
 - Possible later additions: settings search, haptic preference, configurable lock
-  timeout, notification categories, editable relays, backup-location management,
+  timeout, notification categories, backup-location management,
   and sanitized diagnostic sharing. These require individual scope approval and
   implementation; they are not part of the initial navigation/UI refactor.
 - Do not copy Phantom's Manage Accounts, Active Networks, or Connected Apps rows:
@@ -177,10 +179,16 @@ interact with existing authentication and lock handling before migration.
 ## Approval scope
 
 Phases 2–5 were approved and implemented. Optional new behaviors remain outside
-that scope. The new Settings tree uses 36 additional routes, with thin route
+that scope. The new Settings tree uses thin route
 wrappers and a dedicated screen for each setting. Existing public entry points
 for recovery and Nostr settings remain available. Terms and Privacy share the
 existing published `https://bey.cash/privacy-policy` page, verified during implementation.
+
+The follow-up simplification replaces the old Proof Manager with a minimal list
+for mint/state filtering, refresh, export, and confirmed spent-record cleanup.
+Individual token creation and ready-proof deletion are no longer exposed there.
+Nostr health is a read-only overall status row rather than a separate clickable
+screen. Updates and Username use simple text, lists, and actions without hero cards.
 
 Automated checks and remaining device checks are recorded in
 [settings-verification.md](settings-verification.md).

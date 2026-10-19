@@ -33,6 +33,7 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 - Use meaningful icons from the existing icon family or app brand assets. Keep list icons consistently sized at 20–22 points, aligned in a fixed-width slot, and paired with clear text labels.
 - Use chevrons for internal navigation, external-link icons for web destinations, and checkmarks for selected options. Make the whole row tappable with a minimum 48-point touch target and accessible feedback.
 - Keep Settings main/category rows navigation-only. Give each preference or operation a dedicated screen; place editing controls and switches there instead of using settings sheets or inline mutations in navigation lists.
+- Show informational status, such as overall Nostr health, as a read-only row without a chevron or press handler. Keep management screens minimal: grouped lists, brief descriptions, and direct action buttons rather than hero/status cards.
 - Center Settings header titles, provide a back arrow, and hide the bottom tab bar throughout Settings. Return from the Settings root to the originating tab, with Home as the direct-entry fallback.
 - Use `AppSwitch` for preference switches. Preserve its neutral/branded variants and primary/secondary emphases; use branded primary for normal Settings toggles and respect reduced motion.
 - Keep sensitive-screen authentication at the destination so direct entry is protected. Hide recovery phrases and private keys on blur/background, and prevent navigation away from in-flight wallet operations.
