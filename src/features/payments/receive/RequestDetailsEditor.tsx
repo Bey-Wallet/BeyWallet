@@ -132,12 +132,13 @@ export function RequestAmountEditor({
             onValueChange={(value) => {
               if (value.length > 11 || !/^\d*(\.\d{0,2})?$/.test(value)) return;
               if (mode === 'SATS' && value.includes('.')) return;
-              setDraft(value || '0');
+              const normalized = value.startsWith('.') ? `0${value}` : value || '0';
+              setDraft(normalized);
               setDraftSats(
                 mode === 'SATS'
-                  ? Number(value)
+                  ? Number(normalized)
                   : hasPrice
-                    ? currencyService.convertCurrencyToSats(Number(value), price!)
+                    ? currencyService.convertCurrencyToSats(Number(normalized), price!)
                     : NaN,
               );
             }}
