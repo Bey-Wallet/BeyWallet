@@ -8,6 +8,8 @@ import {
   settingsTabIsActive,
 } from '~/features/settings/settingsNavigation';
 import * as Haptics from 'expo-haptics';
+import { usePeopleUnreadCounts } from '~/features/people/hooks/usePeopleUnreadCounts';
+import { UnreadBadge } from './UnreadBadge';
 
 export function CustomTabBar({
   state,
@@ -16,6 +18,7 @@ export function CustomTabBar({
 }: BottomTabBarProps): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const unread = usePeopleUnreadCounts();
 
   if (settingsTabIsActive(state.routes[state.index].name)) return <></>;
 
@@ -37,6 +40,8 @@ export function CustomTabBar({
         {state.routes.map((route, index): React.JSX.Element => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
+          const unreadCount = route.name === 'people' ? unread.total : 0;
+          const label = options.tabBarAccessibilityLabel ?? options.title ?? route.name;
 
           const handleTabPress = () => {
             const event = navigation.emit({
@@ -73,7 +78,9 @@ export function CustomTabBar({
               key={route.key}
               onPress={handleTabPress}
               accessibilityRole="tab"
-              accessibilityLabel={options.tabBarAccessibilityLabel ?? options.title ?? route.name}
+              accessibilityLabel={
+                unreadCount > 0 ? `${label}, ${unreadCount} unread conversations` : label
+              }
               accessibilityState={{ selected: isFocused }}
               style={{
                 flex: 1,
@@ -82,7 +89,14 @@ export function CustomTabBar({
                 height: '100%',
               }}
             >
-              {icon}
+              <YStack position="relative">
+                {icon}
+                {unreadCount > 0 && (
+                  <YStack position="absolute" top={-7} left={16}>
+                    <UnreadBadge count={unreadCount} />
+                  </YStack>
+                )}
+              </YStack>
             </Pressable>
           );
         })}
