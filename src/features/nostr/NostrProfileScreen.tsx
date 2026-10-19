@@ -7,7 +7,7 @@ import { Copy, AtSign, RefreshCw, Scan, Check } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import * as Clipboard from 'expo-clipboard';
-import { Share, InteractionManager } from 'react-native';
+import { Share, InteractionManager, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -17,8 +17,10 @@ import BeyIcon from '~/shared/icons/BeyIcon';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { Flex } from '~/shared/ui/Flex';
 
-export default function NostrProfileScreen() {
+export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const qrSize = settingsMode ? Math.max(120, Math.min(350, width - 64)) : 350;
   const toast = useToastController();
   const npub = useSettingsStore((state) => state.npub);
 
@@ -52,7 +54,7 @@ export default function NostrProfileScreen() {
 
   const handleAddNip05 = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/(modals)/nostr-username');
+    router.push(settingsMode ? '/(tabs)/settings/username' : '/(modals)/nostr-username');
   };
 
   const handleCopy = async () => {
@@ -94,50 +96,52 @@ export default function NostrProfileScreen() {
 
   return (
     <YStack flex={1} justify="space-between">
-      <Stack.Screen
-        options={{
-          headerShown: true,
+      {!settingsMode && (
+        <Stack.Screen
+          options={{
+            headerShown: true,
 
-          headerShadowVisible: false,
-          headerTitleAlign: 'center',
+            headerShadowVisible: false,
+            headerTitleAlign: 'center',
 
-          headerTitle: () => (
-            <XStack gap="$2" items="center" justify="center">
-              <Text fontSize={18} fontWeight="700" color="$accent4">
-                {isNip05Verified && username ? username : 'Bey Wallet User'}
-              </Text>
-              {isNip05Verified && <Nip05VerifiedBadge size={17} />}
+            headerTitle: () => (
+              <XStack gap="$2" items="center" justify="center">
+                <Text fontSize={18} fontWeight="700" color="$accent4">
+                  {isNip05Verified && username ? username : 'Bey Wallet User'}
+                </Text>
+                {isNip05Verified && <Nip05VerifiedBadge size={17} />}
+                <AppIconButton
+                  variant="default"
+                  emphasis="tertiary"
+                  size="xxsmall"
+
+                  shape="circular"
+                  accessibilityLabel="Refresh"
+                  loading={nip05Loading}
+                  icon={<RefreshCw size={14} />}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    refresh();
+                  }}
+                  disabled={nip05Loading}
+                />
+              </XStack>
+            ),
+            headerRight: () => (
               <AppIconButton
                 variant="default"
                 emphasis="tertiary"
-                size="xxsmall"
+                size="small"
 
                 shape="circular"
-                accessibilityLabel="Refresh"
-                loading={nip05Loading}
-                icon={<RefreshCw size={14} />}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  refresh();
-                }}
-                disabled={nip05Loading}
+                accessibilityLabel="Scan QR code"
+                icon={<Scan size={20} />}
+                onPress={() => router.push({ pathname: '/(modals)/scanner' })}
               />
-            </XStack>
-          ),
-          headerRight: () => (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="small"
-
-              shape="circular"
-              accessibilityLabel="Scan QR code"
-              icon={<Scan size={20} />}
-              onPress={() => router.push({ pathname: '/(modals)/scanner' })}
-            />
-          ),
-        }}
-      />
+            ),
+          }}
+        />
+      )}
       <Flex>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -150,7 +154,7 @@ export default function NostrProfileScreen() {
               <View borderWidth={1} borderColor="$gray4" rounded="$6">
                 <CustomQRCode
                   value={npub}
-                  size={350}
+                  size={qrSize}
                   logo={true}
                   logoSize={50}
                   dotShape="circle"
@@ -160,10 +164,10 @@ export default function NostrProfileScreen() {
             ) : (
               <View
                 p="$4"
-                bg="$gray3"
-                rounded="$7"
-                width={350}
-                height={350}
+                bg={settingsMode ? '$buttonDefaultSecondary' : '$gray3'}
+                rounded={settingsMode ? '$6' : '$7'}
+                width={qrSize}
+                height={qrSize}
                 items="center"
                 justify="center"
               >
@@ -176,7 +180,13 @@ export default function NostrProfileScreen() {
           </YStack>
 
           {/* Profile Identity Details Card */}
-          <YStack bg="$gray2" rounded="$5" p="$4" gap="$4" mb="$4">
+          <YStack
+            bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+            rounded={settingsMode ? '$6' : '$5'}
+            p="$4"
+            gap="$4"
+            mb="$4"
+          >
             <XStack items="center" gap="$3">
               <View
                 width={38}

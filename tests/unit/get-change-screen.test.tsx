@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { GetChangeSheet } from '~/features/settings/components/GetChangeSheet';
+import { GetChangeSettingsScreen } from '~/features/settings/GetChangeSettingsScreen';
 import {
   ChangePreparationError,
   type ChangeReview,
@@ -16,6 +16,18 @@ const mockWallet = {
 };
 const mockPrepare = jest.fn();
 let mockOffline = false;
+let mockFocused = true;
+const mockPreventRemove = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useIsFocused: () => mockFocused,
+  usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
+}));
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }) }));
+jest.mock('~/features/settings/components/SettingsLayout', () => ({
+  SettingsPage: 'Page',
+  SettingsGroup: 'Group',
+  SettingsRow: 'SettingsRow',
+}));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: () => mockWallet }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockOffline }));
 jest.mock('~/services/wallet/changePreparationService', () => ({
@@ -30,19 +42,11 @@ jest.mock('~/services/wallet/changePreparationService', () => ({
   },
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('~/shared/ui/AppBottomSheet', () => {
-  const React = require('react');
-  return {
-    __esModule: true,
-    default: React.forwardRef((props: any, _ref: any) => React.createElement('Sheet', props)),
-  };
-});
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'ListTable',
   ListTableRow: 'ListTableRow',
 }));
-jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'PaymentMintRow' }));
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }));
@@ -62,9 +66,8 @@ function review(mintUrl = 'mint-a'): ChangeReview {
 async function open() {
   let tree!: ReactTestRenderer;
   await act(async () => {
-    tree = create(<GetChangeSheet ref={React.createRef()} />);
+    tree = create(<GetChangeSettingsScreen />);
   });
-  await act(async () => tree.root.findByType('Sheet' as any).props.onOpenChange(true));
   return tree;
 }
 const primary = (tree: ReactTestRenderer) =>
@@ -74,6 +77,7 @@ const primary = (tree: ReactTestRenderer) =>
 beforeEach(() => {
   jest.clearAllMocks();
   mockOffline = false;
+  mockFocused = true;
 });
 
 it('reviews the whole balance, changes mints locally, and releases canceled reviews', async () => {
@@ -88,11 +92,17 @@ it('reviews the whole balance, changes mints locally, and releases canceled revi
     '31 sats',
   ]);
   expect(first.execute).not.toHaveBeenCalled();
-  await act(async () => tree.root.findByType('PaymentMintRow' as any).props.onSelect('mint-b'));
+  await act(async () =>
+    tree.root
+      .findAllByType('SettingsRow' as any)
+      .find((row) => row.props.title === 'mint-b')!
+      .props.onPress(),
+  );
   expect(first.dispose).toHaveBeenCalledTimes(1);
   expect(mockPrepare).toHaveBeenLastCalledWith('mint-b');
   expect(mockWallet.activeMintUrl).toBe('mint-a');
-  await act(async () => tree.root.findByType('Sheet' as any).props.onOpenChange(false));
+  mockFocused = false;
+  await act(async () => tree.update(<GetChangeSettingsScreen />));
   expect(second.dispose).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());
 });
@@ -106,7 +116,7 @@ it('blocks offline preparation and reports an empty mint without enabling a swap
   mockPrepare.mockRejectedValueOnce(
     new ChangePreparationError('No available balance at this mint.'),
   );
-  await act(async () => tree.update(<GetChangeSheet ref={React.createRef()} />));
+  await act(async () => tree.update(<GetChangeSettingsScreen />));
   expect(
     tree.root
       .findAllByType('Text' as any)
@@ -116,7 +126,7 @@ it('blocks offline preparation and reports an empty mint without enabling a swap
   await act(async () => tree.unmount());
 });
 
-it('executes duplicate taps once, locks dismissal during submission, and uses a secondary Done action', async () => {
+it('executes duplicate taps once, locks navigation during submission, and uses a secondary Done action', async () => {
   const prepared = review();
   let complete!: (result: any) => void;
   jest.mocked(prepared.execute).mockReturnValue(
@@ -131,14 +141,14 @@ it('executes duplicate taps once, locks dismissal during submission, and uses a 
     primary(tree).props.onPress();
   });
   expect(prepared.execute).toHaveBeenCalledTimes(1);
-  expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(false);
+  expect(mockPreventRemove).toHaveBeenLastCalledWith(true, expect.any(Function));
   await act(async () => complete({ amount: 31, coinCount: 15 }));
   const buttons = tree.root.findAllByType('AppButton' as any);
   expect(buttons).toHaveLength(1);
   expect(buttons[0].props).toMatchObject({ children: 'Done', emphasis: 'secondary' });
   expect(mockWallet.refreshBalance).toHaveBeenCalledTimes(1);
   mockOffline = true;
-  await act(async () => tree.update(<GetChangeSheet ref={React.createRef()} />));
+  await act(async () => tree.update(<GetChangeSettingsScreen />));
   expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(1);
   expect(mockPrepare).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());

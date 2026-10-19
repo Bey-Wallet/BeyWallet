@@ -3,6 +3,10 @@ import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack, useTheme } from 'tamagui';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import {
+  rememberSettingsOrigin,
+  settingsTabIsActive,
+} from '~/features/settings/settingsNavigation';
 import * as Haptics from 'expo-haptics';
 
 export function CustomTabBar({
@@ -12,6 +16,8 @@ export function CustomTabBar({
 }: BottomTabBarProps): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  if (settingsTabIsActive(state.routes[state.index].name)) return <></>;
 
   return (
     <YStack
@@ -40,6 +46,9 @@ export function CustomTabBar({
             });
 
             if (!isFocused && !event.defaultPrevented) {
+              if (settingsTabIsActive(route.name)) {
+                rememberSettingsOrigin(state.routes[state.index].name);
+              }
               navigation.navigate(route.name);
             }
 

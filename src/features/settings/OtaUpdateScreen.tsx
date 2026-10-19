@@ -308,7 +308,7 @@ export default function OtaUpdateScreen() {
         >
           {/* Top App Header Card */}
           <XStack items="center" gap="$3.5" rounded="$5">
-            <View p="$3" bg="$gray3" rounded="$5" items="center" justify="center">
+            <View p="$3" bg="$buttonDefaultSecondary" rounded="$5" items="center" justify="center">
               <BeyIcon size={34} color={resolvedTheme === 'dark' ? 'white' : 'black'} />
             </View>
             <YStack flex={1} gap="$1">
@@ -317,7 +317,7 @@ export default function OtaUpdateScreen() {
                   Bey Wallet
                 </Text>
                 <XStack bg="$gray4" px="$2.5" py="$1.5" rounded="$10">
-                  <Text fontSize={10} fontWeight="800" color="$gray11" textTransform="uppercase">
+                  <Text fontSize={10} fontWeight="800" color="$gray10" textTransform="uppercase">
                     {channelName}
                   </Text>
                 </XStack>
@@ -330,7 +330,7 @@ export default function OtaUpdateScreen() {
 
           {/* Status Section */}
           {status === 'idle' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <RefreshCw size={28} color="$color" />
@@ -359,7 +359,7 @@ export default function OtaUpdateScreen() {
           )}
 
           {status === 'checking' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <Spinner size="small" color="$color" />
@@ -377,7 +377,7 @@ export default function OtaUpdateScreen() {
           )}
 
           {status === 'no-update' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$3">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$3">
               <YStack gap="$3" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <Check size={28} color="$color" />
@@ -401,7 +401,7 @@ export default function OtaUpdateScreen() {
 
           {status === 'update-available' && (
             <YStack gap="$4">
-              <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+              <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
                 <YStack gap="$4" items="center">
                   <View p="$3" bg="$gray4" rounded="$4">
                     <Sparkles size={28} color="$color" />
@@ -434,7 +434,7 @@ export default function OtaUpdateScreen() {
                   What's New in this Update
                 </Text>
 
-                <ListTable width="100%">
+                <ListTable width="100%" bg="$buttonDefaultSecondary">
                   {incomingWhatsNewItems.map((item, idx) => (
                     <ListTableRow
                       key={idx}
@@ -450,7 +450,7 @@ export default function OtaUpdateScreen() {
           )}
 
           {status === 'downloading' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <Spinner size="small" color="$color" />
@@ -478,7 +478,7 @@ export default function OtaUpdateScreen() {
           )}
 
           {status === 'ready' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <CheckCircle2 size={28} color="$color" />
@@ -507,7 +507,7 @@ export default function OtaUpdateScreen() {
           )}
 
           {status === 'error' && (
-            <YStack bg="$gray2" p="$5" rounded="$5" gap="$4">
+            <YStack bg="$buttonDefaultSecondary" p="$5" rounded="$6" gap="$4">
               <YStack gap="$4" items="center">
                 <View p="$3" bg="$gray4" rounded="$4">
                   <AlertCircle size={28} color="$color" />
@@ -554,7 +554,7 @@ export default function OtaUpdateScreen() {
                 )}
               </XStack>
 
-              <ListTable width="100%">
+              <ListTable width="100%" bg="$buttonDefaultSecondary">
                 {currentVersionFeatures.map((item, idx) => (
                   <ListTableRow
                     key={idx}

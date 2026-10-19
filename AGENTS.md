@@ -23,6 +23,20 @@ Use Yarn 4.5.0, as pinned in `package.json`.
 
 Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier: two-space indentation, single quotes, semicolons, trailing commas, and a 100-character print width. A Biome configuration exists, but there is no package lint script; use the wired Prettier commands for formatting. Use PascalCase component names, camelCase services and stores, and `use`-prefixed hooks. Follow existing Expo Router filename conventions and use the configured `~/` alias for imports from `src/`.
 
+### Approved UI & UX Conventions
+
+- Use the Settings screens as the approved reference for grouped preferences and navigation lists.
+- Use `rounded="$6"` for cards and grouped lists. Clip child rows to the group's corners rather than rounding every row. Preserve circular avatars, icon buttons, and switch pill shapes.
+- Match Home's `ActionButtons.tsx` for neutral card colors: `$buttonDefaultSecondary`, with `$buttonDefaultSecondaryHover` and `$buttonDefaultSecondaryPress` for interactive states.
+- Use `$gray10` for muted text, descriptions, current-value labels, and navigation cues. Preserve semantic warning, error, and success colors.
+- Make list separators full width, including beneath leading icons, and 2 points thick. Do not inset them after the icon column.
+- Use meaningful icons from the existing icon family or app brand assets. Keep list icons consistently sized at 20–22 points, aligned in a fixed-width slot, and paired with clear text labels.
+- Use chevrons for internal navigation, external-link icons for web destinations, and checkmarks for selected options. Make the whole row tappable with a minimum 48-point touch target and accessible feedback.
+- Keep Settings main/category rows navigation-only. Give each preference or operation a dedicated screen; place editing controls and switches there instead of using settings sheets or inline mutations in navigation lists.
+- Center Settings header titles, provide a back arrow, and hide the bottom tab bar throughout Settings. Return from the Settings root to the originating tab, with Home as the direct-entry fallback.
+- Use `AppSwitch` for preference switches. Preserve its neutral/branded variants and primary/secondary emphases; use branded primary for normal Settings toggles and respect reduced motion.
+- Keep sensitive-screen authentication at the destination so direct entry is protected. Hide recovery phrases and private keys on blur/background, and prevent navigation away from in-flight wallet operations.
+
 ## Testing Guidelines
 
 Jest uses the `jest-expo` preset. Name tests `*.test.ts` or `*.test.tsx` and place them under `tests/unit/` or `tests/integration/`. Existing coverage is minimal; no coverage threshold is configured. Add focused regression tests for changed wallet behavior, public-key normalization, persistence, and other bug fixes. Mock native APIs and network services where appropriate. Document device checks for NFC, biometrics, notifications, and payment flows.

@@ -154,13 +154,23 @@ function StatChip({
   label,
   value,
   color,
+  settingsMode = false,
 }: {
   label: string;
   value: string | number;
   color?: string;
+  settingsMode?: boolean;
 }) {
   return (
-    <YStack items="center" gap="$0.5" px="$3" py="$2" bg="$gray3" rounded="$4" flex={1}>
+    <YStack
+      items="center"
+      gap="$0.5"
+      px="$3"
+      py="$2"
+      bg={settingsMode ? '$buttonDefaultSecondary' : '$gray3'}
+      rounded={settingsMode ? '$6' : '$4'}
+      flex={1}
+    >
       <Text fontSize="$6" fontWeight="900" color={(color as any) ?? '$color'}>
         {value}
       </Text>
@@ -238,7 +248,7 @@ function ProofRow({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function ProofsModal() {
+export default function ProofsModal({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { mints, refreshBalance } = useWalletStore();
@@ -571,7 +581,11 @@ export default function ProofsModal() {
       const Icon = meta.icon;
       return (
         <YStack py="$12" items="center" justify="center" gap="$3" opacity={0.5}>
-          <View p="$4" bg="$gray3" rounded="$5">
+          <View
+            p="$4"
+            bg={settingsMode ? '$buttonDefaultSecondary' : '$gray3'}
+            rounded={settingsMode ? '$6' : '$5'}
+          >
             <Icon size={32} color="$gray9" />
           </View>
           <YStack items="center" gap="$1">
@@ -590,7 +604,11 @@ export default function ProofsModal() {
       );
     }
     return (
-      <YStack rounded="$5" bg="$gray2" overflow="hidden">
+      <YStack
+        rounded={settingsMode ? '$6' : '$5'}
+        bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+        overflow="hidden"
+      >
         {filteredProofs.map((proof, i) => (
           <ProofRow
             key={`${proof.mintUrl}-${proof.secret}`}
@@ -645,8 +663,8 @@ export default function ProofsModal() {
           {/* ── Details table — nostr-profile.tsx style ── */}
           <YStack
             gap="$0"
-            bg="$gray2"
-            rounded="$5"
+            bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+            rounded={settingsMode ? '$6' : '$5'}
             overflow="hidden"
             separator={<Separator borderColor="$borderColor" opacity={0.5} />}
           >
@@ -888,9 +906,24 @@ export default function ProofsModal() {
 
           {/* ── Summary stats ── */}
           <XStack gap="$2">
-            <StatChip label="Unspent" value={counts.unspent} color="$green10" />
-            <StatChip label="In-flight" value={counts.inflight} color="$orange10" />
-            <StatChip label="Spent" value={counts.spent} color="$gray10" />
+            <StatChip
+              label="Unspent"
+              value={counts.unspent}
+              color="$green10"
+              settingsMode={settingsMode}
+            />
+            <StatChip
+              label="In-flight"
+              value={counts.inflight}
+              color="$orange10"
+              settingsMode={settingsMode}
+            />
+            <StatChip
+              label="Spent"
+              value={counts.spent}
+              color="$gray10"
+              settingsMode={settingsMode}
+            />
           </XStack>
 
           {/* ── Tab chips ── */}
@@ -928,7 +961,12 @@ export default function ProofsModal() {
             <Text fontSize="$5" fontWeight="800" color="$color4">
               {TAB_META[activeTab].label} Proofs
             </Text>
-            <View bg="$gray2" px="$2" py="$1" rounded="$3">
+            <View
+              bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+              px="$2"
+              py="$1"
+              rounded="$3"
+            >
               <Text fontSize="$3" color="$color" fontWeight="800">
                 {filteredProofs.length}
               </Text>
@@ -942,8 +980,8 @@ export default function ProofsModal() {
           <YStack
             mt="$2"
             p="$3"
-            bg="$gray2"
-            rounded="$4"
+            bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+            rounded={settingsMode ? '$6' : '$4'}
             borderWidth={1}
             borderColor="$borderColor"
             gap="$1.5"
@@ -976,8 +1014,8 @@ export default function ProofsModal() {
           <ScrollView showsVerticalScrollIndicator={false}>
             <YStack
               gap="$0"
-              bg="$gray2"
-              rounded="$5"
+              bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+              rounded={settingsMode ? '$6' : '$5'}
               overflow="hidden"
               separator={<Separator borderColor="$borderColor" opacity={0.3} />}
             >

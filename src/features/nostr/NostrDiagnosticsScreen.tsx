@@ -142,7 +142,7 @@ export default function NostrDiagnosticsScreen() {
 
 function CheckRow({ label, detail, ok }: { label: string; detail: string; ok?: boolean }) {
   return (
-    <XStack bg="$gray3" rounded="$5" p="$3" gap="$3" items="center">
+    <XStack bg="$buttonDefaultSecondary" rounded="$6" p="$3" gap="$3" items="center">
       <View>
         {ok ? <CheckCircle2 size={20} color="$green10" /> : <XCircle size={20} color="$red10" />}
       </View>

@@ -127,7 +127,7 @@ async function unregisterUsername(
 
 type CheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
-export function NostrUsernameScreen() {
+export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const toast = useToastController();
   const router = useRouter();
   const { npub, nsec, nip05, setNip05 } = useSettingsStore();
@@ -361,7 +361,11 @@ export function NostrUsernameScreen() {
             <Text fontWeight="700" fontSize="$5">
               Your Nostr Address
             </Text>
-            <YStack bg="$gray2" rounded="$5" overflow="hidden">
+            <YStack
+              bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+              rounded={settingsMode ? '$6' : '$5'}
+              overflow="hidden"
+            >
               <XStack px="$4" py="$4" items="center" gap="$3">
                 <View bg="$green3" p="$2" rounded="$10">
                   <CheckCircle size={20} color="$green10" />
@@ -437,7 +441,7 @@ export function NostrUsernameScreen() {
                 Choose a username
               </Text>
               <XStack
-                bg="$gray2"
+                bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
                 rounded="$4"
                 borderWidth={1}
                 borderColor={
@@ -515,7 +519,12 @@ export function NostrUsernameScreen() {
             )}
 
             {/* Info box */}
-            <YStack bg="$gray2" p="$4" rounded="$4" gap="$2">
+            <YStack
+              bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
+              p="$4"
+              rounded={settingsMode ? '$6' : '$4'}
+              gap="$2"
+            >
               <Text fontWeight="700" fontSize="$3">
                 What is a Nostr address?
               </Text>

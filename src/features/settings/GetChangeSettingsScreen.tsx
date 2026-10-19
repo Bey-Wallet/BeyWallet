@@ -1,9 +1,7 @@
-import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
-import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { useWalletStore } from '~/state/walletStore';
 import {
@@ -12,16 +10,24 @@ import {
   type ChangeReview,
 } from '~/services/wallet/changePreparationService';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIsFocused } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { SettingsPage, SettingsGroup, SettingsRow } from './components/SettingsLayout';
+import { useSettingsBusy } from './hooks/useSettingsBusy';
 
-export const GetChangeSheet = forwardRef<AppBottomSheetRef>(function GetChangeSheet(_, ref) {
+export function GetChangeSettingsScreen() {
   const { activeMintUrl, mints, refreshBalance } = useWalletStore();
   const queryClient = useQueryClient();
   const offline = useOfflineStatus();
-  const [open, setOpen] = useState(false);
-  const [mintUrl, setMintUrl] = useState('');
+  const open = useIsFocused();
+  const router = useRouter();
+  const [mintUrl, setMintUrl] = useState(
+    () => mints.find((mint) => mint.mintUrl === activeMintUrl && mint.trusted)?.mintUrl ?? '',
+  );
   const [review, setReview] = useState<ChangeReview | null>(null);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
+  useSettingsBusy(executing);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ amount: number; coinCount: number } | null>(null);
   const reviewRef = useRef<ChangeReview | null>(null);
@@ -77,7 +83,9 @@ export const GetChangeSheet = forwardRef<AppBottomSheetRef>(function GetChangeSh
     };
   }, [open, mintUrl, offline, retry]);
 
-  const dismiss = () => (ref as React.RefObject<AppBottomSheetRef>).current?.dismiss();
+  const dismiss = () => {
+    if (!locked.current) router.back();
+  };
   const execute = async () => {
     if (locked.current || !review || offline) return;
     locked.current = true;
@@ -106,36 +114,28 @@ export const GetChangeSheet = forwardRef<AppBottomSheetRef>(function GetChangeSh
   };
 
   return (
-    <AppBottomSheet
-      ref={ref}
-      canDismiss={!executing}
-      onOpenChange={(value) => {
-        if (locked.current) return;
-        if (value) {
-          completedMint.current = null;
-          setMintUrl(
-            mints.find((mint) => mint.mintUrl === activeMintUrl && mint.trusted)?.mintUrl ?? '',
-          );
-        }
-        setOpen(value);
-      }}
-    >
-      <YStack p="$4" gap="$4">
-        <Text fontFamily="$heading" fontSize="$6" fontWeight="500">
-          Get change
-        </Text>
-        <Text fontFamily="$body" fontSize="$3" color="$gray11">
+    <SettingsPage>
+      <YStack gap="$4">
+        <Text fontFamily="$body" fontSize="$3" color="$gray10">
           Prepare smaller coins for offline payments. Mint fees may apply.
         </Text>
-        <ListTable compact>
-          <PaymentMintRow
-            mintUrl={mintUrl}
-            onSelect={(url) => {
-              completedMint.current = null;
-              setMintUrl(url);
-            }}
-            disabled={executing}
-          />
+        <SettingsGroup>
+          {mints
+            .filter((mint) => mint.trusted)
+            .map((mint) => (
+              <SettingsRow
+                key={mint.mintUrl}
+                title={mint.nickname || mint.name || mint.mintUrl}
+                selected={mintUrl === mint.mintUrl}
+                disabled={executing}
+                onPress={() => {
+                  completedMint.current = null;
+                  setMintUrl(mint.mintUrl);
+                }}
+              />
+            ))}
+        </SettingsGroup>
+        <ListTable compact bg="$buttonDefaultSecondary">
           {review && (
             <>
               <ListTableRow label="Available balance" value={`${review.inputAmount} sats`} />
@@ -145,12 +145,12 @@ export const GetChangeSheet = forwardRef<AppBottomSheetRef>(function GetChangeSh
           )}
         </ListTable>
         {offline && (
-          <Text fontFamily="$body" fontSize="$3" color="$gray11">
+          <Text fontFamily="$body" fontSize="$3" color="$gray10">
             Go online to get change.
           </Text>
         )}
         {!mintUrl && (
-          <Text fontFamily="$body" fontSize="$3" color="$gray11">
+          <Text fontFamily="$body" fontSize="$3" color="$gray10">
             Select a trusted mint to continue.
           </Text>
         )}
@@ -189,6 +189,6 @@ export const GetChangeSheet = forwardRef<AppBottomSheetRef>(function GetChangeSh
           {result ? 'Done' : 'Cancel'}
         </AppButton>
       </YStack>
-    </AppBottomSheet>
+    </SettingsPage>
   );
-});
+}
