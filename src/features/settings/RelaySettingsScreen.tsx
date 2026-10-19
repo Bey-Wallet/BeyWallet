@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Input, Text, XStack, YStack } from 'tamagui';
-import { Plus, RotateCcw, Trash2 } from '@tamagui/lucide-icons';
+import { Input, Text, XStack } from 'tamagui';
+import * as Clipboard from 'expo-clipboard';
+import { Copy, Plus, Radio, RefreshCw, RotateCcw, Trash2 } from '@tamagui/lucide-icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { nostrService } from '~/services/wallet/nostrService';
@@ -18,6 +19,7 @@ export function RelaySettingsScreen() {
   const relays = useNostrRelayStore((state) => state.relays);
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [connections, setConnections] = useState<Record<string, boolean>>({});
   useFocusEffect(
     useCallback(() => {
@@ -29,6 +31,7 @@ export function RelaySettingsScreen() {
   );
   const change = (action: () => void) => {
     setError(null);
+    setMessage(null);
     try {
       action();
     } catch (failure) {
@@ -44,11 +47,9 @@ export function RelaySettingsScreen() {
       <SettingsGroup>
         {relays.map((relay) => (
           <XStack key={relay} px="$4" py="$3" minHeight={56} gap="$3" items="center">
-            <YStack
-              width={8}
-              height={8}
-              rounded={4}
-              bg={connections[relay] ? '$green10' : '$red10'}
+            <Radio
+              size={20}
+              color={connections[relay] ? '$green10' : '$red10'}
               accessibilityRole="image"
               accessibilityLabel={connections[relay] ? 'Connected' : 'Disconnected'}
             />
@@ -56,10 +57,27 @@ export function RelaySettingsScreen() {
               {relay}
             </Text>
             <AppIconButton
+              icon={Copy}
+              variant="default"
+              emphasis="tertiary"
+              size="xxsmall"
+              accessibilityLabel={`Copy ${relay}`}
+              onPress={async () => {
+                setError(null);
+                setMessage(null);
+                try {
+                  await Clipboard.setStringAsync(relay);
+                  setMessage('Relay URL copied.');
+                } catch {
+                  setError('Could not copy relay URL.');
+                }
+              }}
+            />
+            <AppIconButton
               icon={Trash2}
               variant="critical"
               emphasis="tertiary"
-              size="xsmall"
+              size="xxsmall"
               accessibilityLabel={`Remove ${relay}`}
               disabled={relays.length <= 1}
               onPress={() => change(() => useNostrRelayStore.getState().removeRelay(relay))}
@@ -95,6 +113,21 @@ export function RelaySettingsScreen() {
         />
       </XStack>
       {error && <SettingsMessage error>{error}</SettingsMessage>}
+      {message && <SettingsMessage>{message}</SettingsMessage>}
+      <AppButton
+        variant="default"
+        emphasis="secondary"
+        icon={RefreshCw}
+        onPress={() =>
+          change(() => {
+            nostrService.reconnectRelays();
+            setConnections(nostrService.getRelayConnectionStatus());
+            setMessage('Reconnect requested. Connection status updates automatically.');
+          })
+        }
+      >
+        Reconnect all relays
+      </AppButton>
       <AppButton
         variant="default"
         emphasis="secondary"
