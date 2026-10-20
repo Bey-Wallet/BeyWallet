@@ -1,75 +1,53 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useEffect, useState, useMemo } from 'react';
-import { YStack, XStack, Text, H2, H3, H4, Separator, ScrollView, View, Card } from 'tamagui';
+import { YStack, XStack, Text, H2, H4, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import {
-  Link,
-  Mail,
-  Globe,
-  Info,
-  Copy,
-  Check,
-  ChevronLeft,
-  Sprout,
-  Share2,
-  MessageSquare,
-  ShieldCheck,
-  Cpu,
-  Plus,
-  ShieldOff,
-  QrCode,
-} from '@tamagui/lucide-icons';
+import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { mintRecommendationService } from '~/services/api/mintRecommendationService';
 import { useToastController } from '@tamagui/toast';
-import { useQuery } from '@tanstack/react-query';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { usePreventRemove } from '@react-navigation/native';
-import AddMintModal, { AddMintModalRef } from '~/shared/ui/AddMintModal';
-import EditNicknameModal, { EditNicknameModalRef } from '~/shared/ui/EditNicknameModal';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import * as Sharing from 'expo-sharing';
-import { Share as RNShare, Alert } from 'react-native';
+import { Share as RNShare } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintPreviewHealth, MintReliabilityRow } from './components/MintPreviewHealth';
 import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
-import { mintHealthService, mintHealthUrl } from '~/services/api/mintHealthService';
-
+import { mintHealthUrl } from '~/services/api/mintHealthService';
+import { mintUrlKey } from '~/shared/utils/mintUrl';
 interface MintProfileScreenProps {
   url: string;
 }
-
 export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [showQr, setShowQr] = useState(false);
   const router = useRouter();
   const toast = useToastController();
   const { addMint, mints } = useWalletStore();
-
-  const addMintRef = React.useRef<AddMintModalRef>(null);
   const connectionSheetRef = React.useRef<AppBottomSheetRef>(null);
   const connectionLock = React.useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   usePreventRemove(isConnecting, () => {});
-
-  const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+  const normalizeUrl = mintUrlKey;
   const walletMint = mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(url));
   const isAlreadyAdded = !!walletMint;
-  const isTrusted = walletMint?.trusted ?? false;
   useEffect(() => {
     if (isAlreadyAdded && !isConnecting && !connectionError) {
       connectionSheetRef.current?.dismiss();
-      router.replace({ pathname: '/(modals)/mint-details', params: { mintUrl: url } });
+      router.replace({
+        pathname: '/(modals)/mint-details',
+        params: { mintUrl: walletMint?.mintUrl || url },
+      });
     }
-  }, [isAlreadyAdded, isConnecting, connectionError, router, url]);
+  }, [isAlreadyAdded, isConnecting, connectionError, router, url, walletMint?.mintUrl]);
   const validUrl = useMemo(() => {
     try {
       mintHealthUrl(url);
@@ -78,20 +56,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       return false;
     }
   }, [url]);
-
-  const { removeMint } = useWalletStore();
-  const editNicknameRef = React.useRef<EditNicknameModalRef>(null);
-
   const handleAction = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!isAlreadyAdded) {
-      setConnectionError(null);
-      connectionSheetRef.current?.present();
-    } else if (!isTrusted) {
-      addMintRef.current?.present(url);
-    }
+    setConnectionError(null);
+    connectionSheetRef.current?.present();
   };
-
   const handleConfirmConnection = async () => {
     if (connectionLock.current) return;
     connectionLock.current = true;
@@ -120,7 +89,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       setIsConnecting(false);
     }
   };
-
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
@@ -129,7 +97,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       handleCopy(url, 'URL');
     }
   };
-
   const safeGoBack = React.useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -137,27 +104,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       router.replace('/(tabs)');
     }
   }, [router]);
-
-  const handleDelete = () => {
-    Alert.alert('Remove Mint', 'Are you sure you want to remove this mint from your wallet?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          try {
-            safeGoBack();
-            await removeMint(url);
-            toast.show('Mint removed', { kind: 'success' });
-          } catch (e: any) {
-            toast.show(e.message || 'Failed to remove mint.', { kind: 'error' });
-          }
-        },
-      },
-    ]);
-  };
-
   const {
     data: fetchedInfo,
     isLoading,
@@ -166,153 +112,13 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     dataUpdatedAt: connectionCheckedAt,
     errorUpdatedAt: connectionErrorAt,
     refetch: recheckConnection,
-  } = useQuery({
-    queryKey: ['mint-metadata', url],
-    queryFn: async ({ signal }) => {
-      if (!isAlreadyAdded) return mintHealthService.mintInfo(url, signal);
-      const metadata = await mintRecommendationService.fetchMintMetadata(url);
-      return metadata;
-    },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    networkMode: 'always',
-    retry: isAlreadyAdded ? 2 : false,
-    refetchOnMount: isAlreadyAdded ? true : 'always',
-    enabled: validUrl,
-  });
+  } = useMintInfo(url, { enabled: validUrl && !isAlreadyAdded, refetchOnMount: 'always' });
   const info = fetchedInfo || {};
-
-  // Auditor queries
-  const { data: auditorMint } = useQuery({
-    queryKey: ['auditor-mint', url],
-    queryFn: async () => {
-      try {
-        const response = await fetch(
-          `https://api.audit.8333.space/mints/url?url=${encodeURIComponent(url || '')}`,
-        );
-        if (response.ok) {
-          return await response.json();
-        }
-      } catch (e) {
-        console.error('Error fetching auditor mint info:', e);
-      }
-      return null;
-    },
-    enabled: isAlreadyAdded && !!url,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
-
-  const { data: auditorSwaps = [] } = useQuery({
-    queryKey: ['auditor-swaps', auditorMint?.id],
-    queryFn: async () => {
-      if (!auditorMint?.id) return [];
-      try {
-        const response = await fetch(
-          `https://api.audit.8333.space/swaps/mint/${auditorMint.id}?skip=0&limit=30`,
-        );
-        if (response.ok) {
-          return await response.json();
-        }
-      } catch (e) {
-        console.error('Error fetching auditor swaps:', e);
-      }
-      return [];
-    },
-    enabled: isAlreadyAdded && !!auditorMint?.id,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
-
-  const { successRate, averageTime, riskLabel, uptimeColor, sortedSwaps } = useMemo(() => {
-    if (!auditorMint || !auditorSwaps || auditorSwaps.length === 0) {
-      return {
-        successRate: null,
-        averageTime: null,
-        riskLabel: 'Not Audited',
-        uptimeColor: '$gray10',
-        sortedSwaps: [],
-      };
-    }
-
-    const successfulSwaps = auditorSwaps.filter((s: any) => s.state === 'OK');
-    const rate = Math.round((successfulSwaps.length / auditorSwaps.length) * 100);
-
-    const successfulSwapsWithTime = successfulSwaps.filter((s: any) => s.time_taken);
-    const avgTime =
-      successfulSwapsWithTime.length > 0
-        ? successfulSwapsWithTime.reduce((sum: number, s: any) => sum + s.time_taken, 0) /
-          successfulSwapsWithTime.length
-        : null;
-
-    let risk = 'Low Risk';
-    let color = '$green10';
-    if (rate >= 99.0) {
-      risk = 'Low Risk';
-      color = '$green10';
-    } else if (rate >= 95.0) {
-      risk = 'Medium Risk';
-      color = '$orange10';
-    } else {
-      risk = 'High Risk';
-      color = '$red10';
-    }
-
-    const sorted = [...auditorSwaps].sort(
-      (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-
-    return {
-      successRate: rate,
-      averageTime: avgTime,
-      riskLabel: risk,
-      uptimeColor: color,
-      sortedSwaps: sorted,
-    };
-  }, [auditorMint, auditorSwaps]);
-
-  const uptimeBars = useMemo(() => {
-    const totalBars = 30;
-    const bars: React.ReactNode[] = [];
-
-    // If not audited, show all neutral gray bars
-    if (!auditorMint || sortedSwaps.length === 0) {
-      return Array.from({ length: totalBars }).map((_, idx) => (
-        <View key={idx} flex={1} height={12} bg="$gray5" rounded={2} opacity={0.4} />
-      ));
-    }
-
-    // Pad with placeholders on the left if we have fewer than 30 swaps
-    const paddingCount = Math.max(0, totalBars - sortedSwaps.length);
-    for (let i = 0; i < paddingCount; i++) {
-      bars.push(
-        <View key={`pad-${i}`} flex={1} height={12} bg="$gray5" rounded={2} opacity={0.4} />,
-      );
-    }
-
-    // Add real swap bars (Green for OK, Red for any error status)
-    sortedSwaps.forEach((swap: any) => {
-      const isOk = swap.state === 'OK';
-      const barColor = isOk ? '$green9' : '$red9';
-
-      bars.push(
-        <View
-          key={`swap-${swap.id}`}
-          flex={1}
-          height={12}
-          bg={barColor}
-          rounded={2}
-          opacity={0.85}
-        />,
-      );
-    });
-
-    return bars;
-  }, [auditorMint, sortedSwaps]);
-
   const handleCopy = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     toast.show(`${label} copied to clipboard`, { kind: 'success' });
   };
-
   if (isLoading || (isAlreadyAdded && !isConnecting && !connectionError)) {
     return (
       <YStack flex={1} items="center" justify="center" bg="$background">
@@ -323,8 +129,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       </YStack>
     );
   }
-
-  if (!validUrl || (isAlreadyAdded && (fetchError || !fetchedInfo))) {
+  if (!validUrl) {
     return (
       <YStack flex={1} items="center" justify="center" bg="$background" p="$4" gap="$4">
         <Text color="$red10">Failed to fetch mint information.</Text>
@@ -342,7 +147,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       </YStack>
     );
   }
-
   const name =
     walletMint?.nickname ||
     info.name ||
@@ -357,13 +161,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const motd = info.motd;
   const version = info.version;
   const nuts = info.nuts || {};
-  const previewTableProps = isAlreadyAdded
-    ? {}
-    : {
-        compact: true,
-        bg: '$gray3',
-        separator: <YStack height={2} width="100%" bg="$background" />,
-      };
+  const previewTableProps = {
+    compact: true,
+    bg: '$gray3',
+    separator: <YStack height={2} width="100%" bg="$background" />,
+  };
   const previewUnits = [
     ...new Set([
       ...(Array.isArray(info.units)
@@ -372,10 +174,8 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       ...mintPreviewMethods(info).flatMap((method) => (method.unit ? [method.unit] : [])),
     ]),
   ];
-
   // Safely extract icon from store or the fetched v1/info metadata
   const iconToUse = walletMint?.icon || info.icon_url || info.picture || info.icon;
-
   const hostname = (() => {
     try {
       return new URL(url).hostname;
@@ -383,27 +183,12 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       return url;
     }
   })();
-
   return (
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
           title: name,
           gestureEnabled: !isConnecting,
-          headerRight: isAlreadyAdded
-            ? () => (
-                <AppIconButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="xsmall"
-
-                  shape="circular"
-                  accessibilityLabel="Copy"
-                  icon={<Share2 size={20} color="$color" />}
-                  onPress={() => handleCopy(url, 'Mint URL')}
-                />
-              )
-            : undefined,
         }}
       />
 
@@ -411,12 +196,12 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         <YStack px="$4" pb="$10" gap="$6">
           {/* Header Section */}
           <YStack gap="$3">
-            <XStack flexDirection={isAlreadyAdded ? 'column' : 'row'} items="center" gap="$3">
+            <XStack items="center" gap="$3">
               <View
-                width={isAlreadyAdded ? 100 : 64}
-                height={isAlreadyAdded ? 100 : 64}
+                width={64}
+                height={64}
                 flexShrink={0}
-                rounded={isAlreadyAdded ? '$5' : '$6'}
+                rounded="$6"
                 bg="$gray3"
                 items="center"
                 justify="center"
@@ -428,38 +213,22 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                   mintUrl={url}
                   source={{
                     uri: iconToUse,
-                    width: isAlreadyAdded ? 100 : 64,
-                    height: isAlreadyAdded ? 100 : 64,
+                    width: 64,
+                    height: 64,
                   }}
-                  fallback={<Sprout size={isAlreadyAdded ? 60 : 32} color="$accentColor" />}
+                  fallback={<Sprout size={32} color="$accentColor" />}
                 />
               </View>
-              <YStack
-                flex={isAlreadyAdded ? undefined : 1}
-                minWidth={0}
-                gap="$2"
-                items={isAlreadyAdded ? 'center' : 'stretch'}
-              >
+              <YStack flex={1} minWidth={0} gap="$2" items="stretch">
                 <XStack items="center" gap="$2">
-                  <H2
-                    letterSpacing={-1}
-                    text={isAlreadyAdded ? 'center' : 'left'}
-                    flexShrink={1}
-                    fontSize={isAlreadyAdded ? undefined : 24}
-                    lineHeight={isAlreadyAdded ? undefined : 30}
-                  >
+                  <H2 letterSpacing={-1} text="left" flexShrink={1} fontSize={24} lineHeight={30}>
                     {name}
                   </H2>
-                  {isTrusted ? (
-                    <ShieldCheck size={24} color="$green10" />
-                  ) : isAlreadyAdded ? (
-                    <ShieldOff size={24} color="$orange10" />
-                  ) : null}
                 </XStack>
                 <XStack
-                  bg={isAlreadyAdded ? '$gray3' : 'transparent'}
-                  px={isAlreadyAdded ? '$3' : 0}
-                  py={isAlreadyAdded ? '$1' : 0}
+                  bg="transparent"
+                  px={0}
+                  py={0}
                   rounded={100}
                   items="center"
                   gap="$2"
@@ -468,90 +237,63 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 >
                   <Globe size={14} color="$gray10" />
                   <Text color="$gray10" fontSize="$3" flexShrink={1}>
-                    {isAlreadyAdded ? hostname : url}
+                    {url}
                   </Text>
                 </XStack>
               </YStack>
             </XStack>
-            {!isAlreadyAdded && (
-              <MintReliabilityRow
-                key={`score-${url}`}
-                url={url}
-                connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
-                onRecheck={() => {
-                  void recheckConnection({ cancelRefetch: false });
-                }}
+            <XStack gap="$2" items="center">
+              <AppIconButton
+                variant="default"
+                emphasis="secondary"
+                size="small"
+                icon={Share2}
+                accessibilityLabel="Share mint"
+                onPress={handleShare}
               />
-            )}
-            {!isAlreadyAdded && (
-              <XStack gap="$3" items="center">
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="small"
-                  icon={Share2}
-                  onPress={handleShare}
-                >
-                  Share
-                </AppButton>
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="small"
-                  icon={QrCode}
-                  onPress={() => setShowQr(true)}
-                >
-                  Show QR
-                </AppButton>
-              </XStack>
-            )}
+              <AppIconButton
+                variant="default"
+                emphasis="secondary"
+                size="small"
+                icon={QrCode}
+                accessibilityLabel="Show mint QR code"
+                onPress={() => setShowQr(true)}
+              />
+            </XStack>
+            <MintReliabilityRow
+              key={`score-${url}`}
+              url={url}
+              connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
+              onRecheck={() => {
+                void recheckConnection({ cancelRefetch: false });
+              }}
+            />
           </YStack>
 
           {/* Description */}
-          {description &&
-            (isAlreadyAdded ? (
+          {description && (
+            <YStack gap="$3">
+              <Text color="$gray10" fontSize="$4" fontWeight="600">
+                About
+              </Text>
               <YStack gap="$2">
-                <H4 color="$gray10" fontSize="$4">
-                  About
-                </H4>
-                <Text lineHeight={22} color="$color">
-                  {description}
-                </Text>
-              </YStack>
-            ) : (
-              <YStack gap="$2">
-                <Text color="$gray10" fontSize="$3">
-                  About
-                </Text>
                 <Text lineHeight={22}>{description}</Text>
               </YStack>
-            ))}
+            </YStack>
+          )}
           {/* MOTD */}
-          {motd &&
-            (isAlreadyAdded ? (
-              <View>
-                <XStack gap="$3">
-                  <MessageSquare color="$color" size={20} />
-                  <YStack flex={1}>
-                    <Text fontWeight="bold" color="$color">
-                      Message of the Day
-                    </Text>
-                    <Text color="$color" mt="$1">
-                      {motd}
-                    </Text>
-                  </YStack>
-                </XStack>
-              </View>
-            ) : (
+          {motd && (
+            <YStack gap="$3" theme="orange">
+              <Text color="$gray10" fontSize="$4" fontWeight="600">
+                Message from the mint
+              </Text>
               <ListTable {...previewTableProps}>
                 <YStack px="$4" py="$3" gap="$2">
-                  <Text color="$gray10" fontSize="$3">
-                    Message from the mint
-                  </Text>
                   <Text lineHeight={22}>{motd}</Text>
                 </YStack>
               </ListTable>
-            ))}
+            </YStack>
+          )}
 
           {/* General Metadata lists */}
           <YStack gap="$3">
@@ -562,8 +304,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               <ListTableRow label="URL" value={hostname} isCopyable copyValue={url} />
               {version && <ListTableRow label="Version" value={version} />}
               <ListTableRow
-                label={isAlreadyAdded ? 'Supported NUTs' : 'Advertised NUTs'}
-                value={Object.keys(nuts).length}
+                label="Advertised NUTs"
                 rightContent={
                   <XStack gap="$1" items="center">
                     <Text fontSize="$4" fontWeight="600" color="$color">
@@ -577,127 +318,26 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                   </XStack>
                 }
               />
-              {isAlreadyAdded ? (
-                <ListTableRow
-                  label="Currencies"
-                  rightContent={
-                    <XStack gap="$1" items="center">
-                      <View bg="$gray4" px="$2" py="$1" rounded="$2">
-                        <Text fontSize="$2" fontWeight="800">
-                          SAT
-                        </Text>
-                      </View>
-                      {nuts['14']?.supported && (
-                        <View bg="$gray4" px="$2" py="$1" rounded="$2">
-                          <Text fontSize="$2" fontWeight="800">
-                            USD
-                          </Text>
-                        </View>
-                      )}
-                    </XStack>
-                  }
-                />
-              ) : (
-                <ListTableRow label="Units" value={previewUnits.join(', ') || 'Not provided'} />
-              )}
-              {!isAlreadyAdded && info.pubkey && (
-                <ListTableRow label="Public key" value={info.pubkey} isCopyable />
-              )}
-              {!isAlreadyAdded && info.tos_url && (
+              <ListTableRow label="Units" value={previewUnits.join(', ') || 'Not provided'} />
+              {info.pubkey && <ListTableRow label="Public key" value={info.pubkey} isCopyable />}
+              {info.tos_url && (
                 <ListTableRow label="Terms of service" value={info.tos_url} isCopyable />
               )}
             </ListTable>
           </YStack>
 
-          {!isAlreadyAdded && <MintPreviewMethods info={info} />}
+          <MintPreviewMethods info={info} />
 
-          {/* Audit Info Section */}
-          {isAlreadyAdded ? (
-            <YStack gap="$3">
-              <H4 color="$gray10" fontSize="$4">
-                Audit Information
-              </H4>
-              <ListTable {...previewTableProps}>
-                <YStack py="$3" px="$4" gap="$2">
-                  <XStack justify="space-between" items="center">
-                    <Text fontSize="$4" color="$gray10" fontWeight="600">
-                      Uptime
-                    </Text>
-                    <Text fontSize="$4" fontWeight="700" color={uptimeColor}>
-                      {successRate !== null ? `${successRate}% (${riskLabel})` : 'Not Audited'}
-                    </Text>
-                  </XStack>
-                  <XStack gap="$1" items="center" width="100%" pt="$1">
-                    {uptimeBars}
-                  </XStack>
-                </YStack>
-                <ListTableRow
-                  label="Success Rate"
-                  value={successRate !== null ? `${successRate}%` : 'Not Audited'}
-                />
-                {averageTime !== null && (
-                  <ListTableRow
-                    label="Avg Response Time"
-                    value={`${(averageTime / 1000).toFixed(2)}s`}
-                  />
-                )}
-                {auditorMint && auditorMint.balance !== undefined && (
-                  <ListTableRow label="Auditor Balance" value={`${auditorMint.balance} sat`} />
-                )}
-                {auditorMint && auditorMint.sum_donations !== undefined && (
-                  <ListTableRow
-                    label="Auditor Donations"
-                    value={`${auditorMint.sum_donations} sat`}
-                  />
-                )}
-              </ListTable>
-            </YStack>
-          ) : (
-            <MintPreviewHealth
-              key={url}
-              url={url}
-              connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
-              connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
-              onRecheck={() => {
-                void recheckConnection();
-              }}
-            />
-          )}
-
-          {/* Actions List */}
-          {isAlreadyAdded && (
-            <YStack gap="$3">
-              <H4 color="$gray10" fontSize="$4">
-                Actions
-              </H4>
-              <ListTable {...previewTableProps}>
-                {isAlreadyAdded && (
-                  <ListTableRow
-                    label="Edit Name"
-                    icon={Info}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      editNicknameRef.current?.present(url, walletMint?.nickname || info.name);
-                    }}
-                  />
-                )}
-                <ListTableRow
-                  label="Copy URL"
-                  icon={Copy}
-                  onPress={() => handleCopy(url, 'Mint URL')}
-                />
-                <ListTableRow label="Share Mint" icon={Share2} onPress={handleShare} />
-                {isAlreadyAdded && (
-                  <ListTableRow
-                    label="Delete from Wallet"
-                    iconColor="$red10"
-                    labelColor="$red10"
-                    onPress={handleDelete}
-                  />
-                )}
-              </ListTable>
-            </YStack>
-          )}
+          {/* Connection and independent monitoring */}
+          <MintPreviewHealth
+            key={url}
+            url={url}
+            connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
+            connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
+            onRecheck={() => {
+              void recheckConnection();
+            }}
+          />
 
           {/* Contact (if available) */}
           {info.contact && info.contact.length > 0 && (
@@ -736,19 +376,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
           variant="default"
           emphasis="primary"
           size="medium"
-          icon={
-            isTrusted ? (
-              <Check size={18} />
-            ) : isAlreadyAdded ? (
-              <Check size={18} />
-            ) : (
-              <Plus size={18} />
-            )
-          }
-          disabled={isTrusted || isConnecting}
+          icon={<Plus size={18} />}
+          disabled={isConnecting}
           onPress={handleAction}
         >
-          {isTrusted ? 'Mint Trusted' : isAlreadyAdded ? 'Trust this Mint' : 'Connect'}
+          {'Connect'}
         </AppButton>
       </YStack>
 
@@ -795,11 +427,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
           </YStack>
         </BottomSheetScrollView>
       </AppBottomSheet>
-      <AddMintModal ref={addMintRef} />
-      <EditNicknameModal ref={editNicknameRef} />
-      {!isAlreadyAdded && (
-        <MintUrlQrOverlay url={url} visible={showQr} onClose={() => setShowQr(false)} />
-      )}
+      <MintUrlQrOverlay url={url} visible={showQr} onClose={() => setShowQr(false)} />
     </YStack>
   );
 }

@@ -178,22 +178,4 @@ export const mintRecommendationService = {
       )
       .slice(0, limit);
   },
-
-  /**
-   * Fetches details for a specific mint to augment recommendation data if needed.
-   */
-  fetchMintMetadata: async (url: string) => {
-    try {
-      const response = await fetch(`${url.replace(/\/$/, '')}/v1/info`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (e) {
-      console.error(`Failed to fetch metadata for ${url}`, e);
-    }
-    return null;
-  },
 };

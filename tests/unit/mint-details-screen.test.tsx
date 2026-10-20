@@ -8,11 +8,12 @@ const url = 'https://mint.example/Bitcoin';
 const mockPush = jest.fn();
 const mockSheetPresent = jest.fn();
 const mockRecheckConnection = jest.fn();
+let mockEditName: string | undefined;
 const mockToast = { show: jest.fn() };
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
-  useLocalSearchParams: () => ({ mintUrl: url }),
+  useLocalSearchParams: () => ({ mintUrl: url, editName: mockEditName }),
   Stack: {
     Screen: ({ options }: any) => (
       <>
@@ -128,6 +129,7 @@ const render = async () => {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  mockEditName = undefined;
   useWalletStore.setState({
     mints: [{ mintUrl: url, nickname: 'My mint', name: 'Original mint', trusted: true }],
     balances: { [url]: 0 },
@@ -187,6 +189,19 @@ it('allows clearing a nickname to restore the original mint name', async () => {
   expect(
     tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Original mint'),
   ).toBe(true);
+});
+
+it('opens inline editing from a mint selector without reopening it after save', async () => {
+  mockEditName = 'true';
+  await render();
+  expect(tree.root.findByType('Input' as any).props.defaultValue).toBe('My mint');
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Picker nickname'));
+  await act(async () => iconButton('Save mint name').props.onPress());
+  await act(async () => {
+    useWalletStore.setState({ balances: { [url]: 100 } });
+  });
+  expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
+  expect(useWalletStore.getState().setMintNickname).toHaveBeenCalledWith(url, 'Picker nickname');
 });
 
 it('keeps the balance and actions, shows mint information, and stops fetching transactions', async () => {

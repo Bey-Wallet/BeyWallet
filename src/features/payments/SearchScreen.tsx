@@ -12,9 +12,13 @@ import Blockies from '~/shared/ui/Blockies';
 import { Buffer } from 'buffer';
 import { usePeopleStore } from '~/state/peopleStore';
 import { useWalletStore } from '~/state/walletStore';
-import { useMintRecommendationStore } from '~/state/mintRecommendationStore';
+import { useMintDiscovery } from '~/features/mints/hooks/useMintDiscovery';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import * as Haptics from 'expo-haptics';
+import type { MintRecommendation } from '~/services/api/mintRecommendationService';
+import { mintUrlKey } from '~/shared/utils/mintUrl';
+
+const EMPTY_MINTS: MintRecommendation[] = [];
 
 type SearchResultType = 'people' | 'mint' | 'address' | 'recent' | 'header';
 
@@ -36,7 +40,7 @@ export default function UniversalSearchScreen() {
 
   const people = usePeopleStore((state) => state.people);
   const { mints, scannerResult, setScannerResult } = useWalletStore();
-  const { recommendations, fetchRecommendations } = useMintRecommendationStore();
+  const { data: recommendations = EMPTY_MINTS } = useMintDiscovery();
 
   // Load directory and recent searches
   useEffect(() => {
@@ -65,8 +69,7 @@ export default function UniversalSearchScreen() {
 
     fetchDirectory();
     loadRecents();
-    fetchRecommendations();
-  }, [fetchRecommendations]);
+  }, []);
 
   const saveRecents = (updated: SearchResultItem[]) => {
     setRecentSearches(updated);
@@ -150,7 +153,8 @@ export default function UniversalSearchScreen() {
       mints.forEach((mint) => {
         if (
           mint.mintUrl.toLowerCase().includes(lowerQuery) ||
-          (mint.nickname && mint.nickname.toLowerCase().includes(lowerQuery))
+          (mint.nickname && mint.nickname.toLowerCase().includes(lowerQuery)) ||
+          (mint.name && mint.name.toLowerCase().includes(lowerQuery))
         ) {
           mintResults.push({
             id: `mint-${mint.mintUrl}`,
@@ -168,7 +172,7 @@ export default function UniversalSearchScreen() {
         const lowerName = rec.name?.toLowerCase() || '';
         if (lowerUrl.includes(lowerQuery) || lowerName.includes(lowerQuery)) {
           // Deduplicate: don't add if already in local mints
-          if (!mintResults.some((r) => r.subtitle === rec.url)) {
+          if (!mintResults.some((r) => mintUrlKey(r.subtitle || '') === mintUrlKey(rec.url))) {
             mintResults.push({
               id: `global-mint-${rec.url}`,
               type: 'mint',
@@ -391,7 +395,7 @@ export default function UniversalSearchScreen() {
               Search anything
             </Text>
             <Text color="$gray8" textAlign="center">
-              Search for people on @bey.cash, mints on Nostr, or paste an address.
+              Search for people on @bey.cash or mints, or paste an address.
             </Text>
           </YStack>
         ) : (

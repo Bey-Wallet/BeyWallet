@@ -19,7 +19,6 @@ import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react'
 import * as Network from 'expo-network';
 import { useWalletStore } from '~/state/walletStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import EditNicknameModal, { EditNicknameModalRef } from '~/shared/ui/EditNicknameModal';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
 import { supportsPaymentMethod, type PaymentMintMethod } from '~/services/wallet/paymentMintPolicy';
@@ -121,12 +120,17 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       }, 100);
     }, [router, ref]);
 
-    const editNicknameRef = useRef<EditNicknameModalRef>(null);
-
-    const handleEditNickname = useCallback((mint: any) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      editNicknameRef.current?.present(mint.mintUrl, mint.nickname);
-    }, []);
+    const handleEditNickname = useCallback(
+      (mint: any) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        handleClose();
+        router.push({
+          pathname: '/(modals)/mint-details',
+          params: { mintUrl: mint.mintUrl, editName: 'true' },
+        });
+      },
+      [handleClose, router],
+    );
 
     const snapPoints = useMemo(() => {
       const itemCount = mints.length + (showAllOption ? 1 : 0);
@@ -366,7 +370,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             </BottomSheetScrollView>
           </YStack>
         </AppBottomSheet>
-        <EditNicknameModal ref={editNicknameRef} />
       </>
     );
   },

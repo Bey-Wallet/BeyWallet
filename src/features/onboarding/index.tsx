@@ -9,7 +9,6 @@ import { NotificationStep } from '~/features/onboarding/NotificationStep';
 import { networkService } from '~/services/platform/networkService';
 import { NostrStep } from '~/features/onboarding/NostrStep';
 import { ImportSeedStep } from '~/features/onboarding/ImportSeedStep';
-import { MintConfirmationStep } from '~/features/onboarding/MintConfirmationStep';
 import { RestoreProgressStep } from '~/features/onboarding/RestoreProgressStep';
 import { ConsentStep } from '~/features/onboarding/ConsentStep';
 import { PermissionsStep } from '~/features/onboarding/PermissionsStep';

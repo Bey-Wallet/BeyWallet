@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AddMintScreen from '~/features/mints/AddMintScreen';
 import { useWalletStore } from '~/state/walletStore';
+import { ConnectedMintsCard } from '~/features/home/components/ConnectedMintsCard';
+import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
 
 const mockPush = jest.fn();
 let mockDiscoveredMints: { url: string; name: string }[] = [];
@@ -9,11 +11,12 @@ const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(
-    ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator'].map(
+    ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator', 'H6'].map(
       (name) => [name, name],
     ),
   ),
   useTheme: () => new Proxy({}, { get: () => ({ val: '#888' }) }),
+  styled: () => 'RowContainer',
 }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
@@ -30,9 +33,10 @@ jest.mock('~/state/settingsStore', () => ({
 jest.mock('~/services/wallet/currencyService', () => ({ currencyService: {} }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendationService: {} }));
-jest.mock('~/features/explore/components/mintMeta', () => ({ fetchMintMeta: jest.fn() }));
+jest.mock('~/storage/sqlite/sqliteStorage', () => ({ sqliteStorage: {} }));
 jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon' }));
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
+jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
@@ -103,6 +107,20 @@ it('opens a scanned mint URL once and consumes the scanner result', async () => 
     params: { url: 'https://mint.example/Bitcoin' },
   });
   expect(useWalletStore.getState().scannerResult).toBeNull();
+});
+
+it('sends Home recommendations through the same profile and consent flow', async () => {
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const add = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Add')!;
+  await act(async () => add.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-profile',
+    params: { url: RECOMMENDED_MINTS[0].mintUrl },
+  });
 });
 
 it('makes all discovered mints reachable through Load More', async () => {

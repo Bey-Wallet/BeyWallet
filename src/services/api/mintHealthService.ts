@@ -1,4 +1,6 @@
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { normalizeMintUrl as mintHealthUrl } from '~/shared/utils/mintUrl';
+export { normalizeMintUrl as mintHealthUrl } from '~/shared/utils/mintUrl';
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): RecordValue =>
@@ -19,14 +21,6 @@ const date = (value: unknown) => {
   return s && Number.isFinite(Date.parse(s)) ? s : null;
 };
 
-/** Keep paths, ports and schemes significant when matching a provider's mint. */
-export function mintHealthUrl(value: string) {
-  const url = new URL(value.trim());
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
-    throw new Error('Invalid mint URL');
-  url.hash = '';
-  return `${url.protocol}//${url.host.toLowerCase()}${url.pathname.replace(/\/+$/, '')}${url.search}`;
-}
 const matches = (a: unknown, b: string) => {
   try {
     return typeof a === 'string' && mintHealthUrl(a) === mintHealthUrl(b);

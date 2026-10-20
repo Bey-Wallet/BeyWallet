@@ -6,7 +6,6 @@ import { useWalletStore } from '~/state/walletStore';
 import { mintPreviewMethods } from '~/features/mints/components/MintPreviewMethods';
 
 const url = 'https://mint.example/Bitcoin';
-const mockPresent = jest.fn();
 const mockRefetch = jest.fn();
 const mockReplace = jest.fn();
 const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace };
@@ -147,20 +146,6 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
     }),
   };
 });
-jest.mock('~/shared/ui/AddMintModal', () => {
-  const React = require('react');
-  return {
-    __esModule: true,
-    default: React.forwardRef((_: unknown, ref: any) => {
-      React.useImperativeHandle(ref, () => ({ present: mockPresent }));
-      return null;
-    }),
-  };
-});
-jest.mock('~/shared/ui/EditNicknameModal', () => ({
-  __esModule: true,
-  default: 'EditNicknameModal',
-}));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: ({ children, ...props }: any) =>
     require('react').createElement('ListTable', props, children),
@@ -231,16 +216,19 @@ it('shows independent uptime and payment results, MintRadar score, and actual ad
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
   await render();
-  await act(async () => button('Share').props.onPress());
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Share mint' }).props.onPress(),
+  );
   expect(share).toHaveBeenCalledWith({ message: url });
-  await act(async () => button('Show QR').props.onPress());
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Show mint QR code' }).props.onPress(),
+  );
   expect(tree.root.findByType('QRCode' as any).props.value).toBe(url);
   await act(async () => tree.root.findByType('Modal' as any).props.onRequestClose());
   expect(tree.root.findAllByType('QRCode' as any)).toHaveLength(0);
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
   await act(async () => button('Connect').props.onPress());
   expect(button('Confirm')).toBeDefined();
-  expect(mockPresent).not.toHaveBeenCalled();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
 

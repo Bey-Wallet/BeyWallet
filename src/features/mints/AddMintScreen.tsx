@@ -41,18 +41,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import {
-  mintRecommendationService,
-  type MintRecommendation,
-} from '~/services/api/mintRecommendationService';
-import { fetchMintMeta, type MintMetadata } from '~/features/explore/components/mintMeta';
+import type { MintRecommendation } from '~/services/api/mintRecommendationService';
+import { mintMetadataFromInfo } from '~/features/explore/components/mintMeta';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { useMintDiscovery } from './hooks/useMintDiscovery';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
+import { mintUrlKey } from '~/shared/utils/mintUrl';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
 interface MintSkeletonRowProps {
@@ -228,11 +228,8 @@ const ConnectedMintRow = React.memo(
     onPress,
     showTopSeparator,
   }: ConnectedMintRowProps) => {
-    const { data: meta } = useQuery<MintMetadata>({
-      queryKey: ['mint-meta', mint.mintUrl],
-      queryFn: () => fetchMintMeta(mint.mintUrl),
-      staleTime: 10 * 60 * 1000,
-    });
+    const { data: info } = useMintInfo(mint.mintUrl);
+    const meta = mintMetadataFromInfo(info, mint.mintUrl);
 
     const displayName =
       mint.nickname ||
@@ -344,11 +341,8 @@ interface DiscoveredMintRowProps {
 
 const DiscoveredMintRow = React.memo(
   ({ mint, isAdded, onPress, onAdd, showTopSeparator }: DiscoveredMintRowProps) => {
-    const { data: meta } = useQuery<MintMetadata>({
-      queryKey: ['mint-meta', mint.url],
-      queryFn: () => fetchMintMeta(mint.url),
-      staleTime: 10 * 60 * 1000,
-    });
+    const { data: info } = useMintInfo(mint.url);
+    const meta = mintMetadataFromInfo(info, mint.url);
 
     const displayName =
       meta?.name ||
@@ -441,7 +435,6 @@ export default function AddMintScreen() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -478,13 +471,7 @@ export default function AddMintScreen() {
     isLoading: isDiscoverLoading,
     isError: isDiscoverError,
     refetch: refetchDiscover,
-  } = useQuery<MintRecommendation[]>({
-    queryKey: ['all-mint-recommendations', 'radar-and-nip87'],
-    queryFn: async () => {
-      return await mintRecommendationService.discoverMints();
-    },
-    staleTime: 5 * 60 * 1000, // 5 min cache
-  });
+  } = useMintDiscovery();
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
@@ -518,7 +505,7 @@ export default function AddMintScreen() {
     return url.replace(/\/$/, '');
   }, [cleanQuery, isDetectedAsUrl]);
 
-  const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
+  const normalizeUrl = mintUrlKey;
 
   const isDetectedUrlAlreadyAdded = useMemo(() => {
     if (!formattedDetectedUrl) return false;

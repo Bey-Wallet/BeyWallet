@@ -1,7 +1,7 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView, View, Separator, Input } from 'tamagui';
 import {
   ChevronLeft,
@@ -30,7 +30,7 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useToastController } from '@tamagui/toast';
 import { SafeFlex } from '~/shared/ui/Flex';
-import { mintHealthService } from '~/services/api/mintHealthService';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintReliabilityRow, MintPreviewHealth } from './components/MintPreviewHealth';
 import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
@@ -41,7 +41,7 @@ export default function MintDetailsModal() {
   const router = useRouter();
   const toast = useToastController();
   const insets = useSafeAreaInsets();
-  const { mintUrl } = useLocalSearchParams<{ mintUrl: string }>();
+  const { mintUrl, editName } = useLocalSearchParams<{ mintUrl: string; editName?: string }>();
   const {
     mints,
     balances,
@@ -57,6 +57,7 @@ export default function MintDetailsModal() {
   const [isSavingName, setIsSavingName] = useState(false);
   const nameDraft = useRef('');
   const nameSaveLock = useRef(false);
+  const autoEditHandled = useRef(false);
   const [showQr, setShowQr] = useState(false);
   const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
   const isRemovingRef = useRef(false);
@@ -104,15 +105,7 @@ export default function MintDetailsModal() {
     dataUpdatedAt: connectionCheckedAt,
     errorUpdatedAt: connectionErrorAt,
     refetch: recheckConnection,
-  } = useQuery({
-    queryKey: ['mint-metadata', mintUrl],
-    queryFn: ({ signal }) => mintHealthService.mintInfo(mintUrl || '', signal),
-    enabled: !!mintUrl,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    networkMode: 'always',
-    retry: false,
-    refetchOnMount: 'always',
-  });
+  } = useMintInfo(mintUrl || '', { refetchOnMount: 'always' });
 
   const normalizedTargetUrl = useMemo(() => mintUrl?.replace(/\/$/, '') || '', [mintUrl]);
 
@@ -141,6 +134,14 @@ export default function MintDetailsModal() {
         return mintUrl || '';
       }
     })();
+
+  useEffect(() => {
+    if (editName === 'true' && walletMint && !autoEditHandled.current) {
+      autoEditHandled.current = true;
+      nameDraft.current = name;
+      setIsEditingName(true);
+    }
+  }, [editName, walletMint, name]);
 
   const description = mintText(info?.description) || mintText(info?.description_long);
   const motd = mintText(info?.motd);
@@ -347,7 +348,7 @@ export default function MintDetailsModal() {
         >
           <YStack px="$4" gap="$5">
             {/* Balance and Avatar Row */}
-            <XStack justify="space-between" items="center" py="$4">
+            <XStack justify="space-between" items="center" pt="$4">
               <YStack gap="$2">
                 <XStack items="baseline" gap="$1">
                   {primaryCurrency === 'SATS' ? (
@@ -395,15 +396,35 @@ export default function MintDetailsModal() {
                 </XStack>
               </YStack>
 
-              <MintImage
-                mintUrl={mintUrl}
-                source={{ uri: iconToUse }}
-                style={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: 20,
-                }}
-              />
+              <YStack items="center" gap="$2">
+                <MintImage
+                  mintUrl={mintUrl}
+                  source={{ uri: iconToUse }}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 20,
+                  }}
+                />
+                <XStack gap="$2" items="center">
+                  <AppIconButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="small"
+                    icon={Share2}
+                    accessibilityLabel="Share mint"
+                    onPress={handleShare}
+                  />
+                  <AppIconButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="small"
+                    icon={QrCode}
+                    accessibilityLabel="Show mint QR code"
+                    onPress={() => setShowQr(true)}
+                  />
+                </XStack>
+              </YStack>
             </XStack>
 
             {/* Action Columns Row */}
@@ -456,45 +477,32 @@ export default function MintDetailsModal() {
                 void recheckConnection({ cancelRefetch: false });
               }}
             />
-            <XStack gap="$3" items="center">
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="small"
-                icon={Share2}
-                onPress={handleShare}
-              >
-                Share
-              </AppButton>
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="small"
-                icon={QrCode}
-                onPress={() => setShowQr(true)}
-              >
-                Show QR
-              </AppButton>
-            </XStack>
+
             {motd && (
-              <ListTable {...tableProps}>
-                <YStack px="$4" py="$3" gap="$2">
-                  <Text color="$gray10" fontSize="$3">
-                    Message from the mint
-                  </Text>
-                  <Text lineHeight={22}>{motd}</Text>
-                </YStack>
-              </ListTable>
+              <YStack gap="$3">
+                <Text color="$gray10" fontSize="$4" fontWeight="600">
+                  Message from the mint
+                </Text>
+                <ListTable {...tableProps}>
+                  <YStack px="$4" py="$3" gap="$2">
+                    <Text theme="orange" lineHeight={22}>
+                      {motd}
+                    </Text>
+                  </YStack>
+                </ListTable>
+              </YStack>
             )}
             {description && (
-              <ListTable {...tableProps}>
-                <YStack px="$4" py="$3" gap="$2">
-                  <Text color="$gray10" fontSize="$3">
-                    About
-                  </Text>
-                  <Text lineHeight={22}>{description}</Text>
-                </YStack>
-              </ListTable>
+              <YStack gap="$3">
+                <Text color="$gray10" fontSize="$4" fontWeight="600">
+                  About
+                </Text>
+                <ListTable {...tableProps}>
+                  <YStack px="$4" py="$3" gap="$2">
+                    <Text lineHeight={22}>{description}</Text>
+                  </YStack>
+                </ListTable>
+              </YStack>
             )}
             <YStack gap="$3">
               <Text color="$gray10" fontSize="$4" fontWeight="600">

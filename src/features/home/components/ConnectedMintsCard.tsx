@@ -1,7 +1,7 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
 import { Plus, Landmark } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
@@ -12,8 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { mintRecommendationService } from '~/services/api/mintRecommendationService';
-import AddMintModal, { type AddMintModalRef } from '~/shared/ui/AddMintModal';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -158,11 +157,7 @@ interface MintPlaceholderItemProps {
 const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProps) => {
   const hostname = useMemo(() => new URL(mint.mintUrl).hostname, [mint.mintUrl]);
   const [iconFailed, setIconFailed] = useState(false);
-  const { data: metadata } = useQuery({
-    queryKey: ['mint-metadata', mint.mintUrl],
-    queryFn: () => mintRecommendationService.fetchMintMetadata(mint.mintUrl),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: metadata } = useMintInfo(mint.mintUrl);
   const iconUrl =
     metadata?.icon_url ||
     metadata?.picture ||
@@ -223,7 +218,6 @@ MintPlaceholderItem.displayName = 'MintPlaceholderItem';
 
 export const ConnectedMintsCard = () => {
   const router = useRouter();
-  const addMintRef = useRef<AddMintModalRef>(null);
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -257,10 +251,13 @@ export const ConnectedMintsCard = () => {
     router.push('/(modals)/add-mint');
   }, [router]);
 
-  const handleAddRecommendedMint = useCallback((mintUrl: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addMintRef.current?.present(mintUrl);
-  }, []);
+  const handleAddRecommendedMint = useCallback(
+    (mintUrl: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push({ pathname: '/(modals)/mint-profile', params: { url: mintUrl } });
+    },
+    [router],
+  );
 
   const normalizedActiveUrl = activeMintUrl?.replace(/\/$/, '');
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
@@ -329,7 +326,6 @@ export const ConnectedMintsCard = () => {
           Add Mint
         </AppButton>
       </XStack>
-      <AddMintModal ref={addMintRef} />
     </>
   );
 };

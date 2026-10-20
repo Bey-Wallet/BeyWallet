@@ -108,11 +108,13 @@ export function MintPreviewMethods({ info }: { info: Info }) {
             accessibilityState={{ expanded }}
             onPress={() => setExpanded((value) => !value)}
           >
-            <Text color="$gray10">Payment limits</Text>
+            <Text color="$gray10" fontSize="$4" fontWeight="600">
+              Payment limits
+            </Text>
             {expanded ? (
-              <ChevronUp size={20} color="$gray10" />
+              <ChevronUp size={22} color="$gray10" />
             ) : (
-              <ChevronDown size={20} color="$gray10" />
+              <ChevronDown size={22} color="$gray10" />
             )}
           </AppPressable>
           {expanded &&
