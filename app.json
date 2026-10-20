@@ -115,7 +115,8 @@
             "./src/assets/fonts/tt_firs_neue_normal.ttf",
             "./src/assets/fonts/tt_firs_neue_medium.ttf",
             "./src/assets/fonts/tt_firs_neue_demi_bold.ttf",
-            "./src/assets/fonts/Mono.otf"
+            "./src/assets/fonts/Mono.otf",
+            "./src/assets/fonts/roboto_mono.ttf"
           ]
         }
       ],

@@ -25,6 +25,8 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 
 ### Approved UI & UX Conventions
 
+- The shared Tonkeeper-based foundation is opt-in under `src/shared/theme/bey/`; see `docs/theme.md` for pinned source values and migration rules. Use `dark_bey` / `light_bey`, `$bey...` semantic tokens, and `BeyText` for explicitly migrated UI. Do not activate it globally or restyle existing screens/controls as part of foundation work. Keep the existing spinner unchanged.
+
 - Use the Settings screens as the approved reference only for Settings and grouped preference/navigation lists. Do not apply that grouped-row treatment to transaction history, activity feeds, or other screens by default.
 - History follows the user-provided design reference: a centered title, compact filter pills, date headings, and separate rounded transaction cards with gaps. Use circular direction icons, titles and payment context on the left, and amounts and timestamps on the right. Keep pending status minimal within the existing subtitle; check status by opening transaction details, without a separate status/action row on the card. Do not turn History into a Settings list. Keep LegendList for rendering the history timeline.
 - Match History's reference colors and typography using its feature-local palette: black background, charcoal cards, lighter icon circles, soft off-white primary text, and muted gray supporting text/icons. Preserve the reference's font hierarchy, spacing, and pill treatment instead of inheriting Settings styling. Keep header/filter controls clearly visible and at least 48 points tappable.

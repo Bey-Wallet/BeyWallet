@@ -35,6 +35,7 @@ export function RootLayout() {
     TTFirsNeueMedium: require('~/assets/fonts/tt_firs_neue_medium.ttf'),
     TTFirsNeueDemiBold: require('~/assets/fonts/tt_firs_neue_demi_bold.ttf'),
     Mono: require('~/assets/fonts/Mono.otf'),
+    BeyRobotoMono: require('~/assets/fonts/roboto_mono.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

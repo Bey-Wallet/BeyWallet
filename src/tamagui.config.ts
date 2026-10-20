@@ -2,6 +2,8 @@ import { createAnimations } from '@tamagui/animations-react-native';
 import { Text, createFont, createTamagui } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v5';
 import type { TextStyle } from 'react-native';
+import { createBeyTheme } from './shared/theme/bey/colors';
+import { beyRadiusTokens, beySpaceTokens, beySizeTokens } from './shared/theme/bey/metrics';
 
 const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
 
@@ -303,6 +305,12 @@ export const config = createTamagui({
   // Styled text components have their own names; Text defaults alone do not cover them.
   defaultProps: textDefaults,
   animations,
+  tokens: {
+    ...defaultConfig.tokens,
+    radius: { ...defaultConfig.tokens.radius, ...beyRadiusTokens },
+    space: { ...defaultConfig.tokens.space, ...beySpaceTokens },
+    size: { ...defaultConfig.tokens.size, ...beySizeTokens },
+  },
   settings: {
     ...defaultConfig.settings,
     allowedStyleValues: false,
@@ -313,6 +321,15 @@ export const config = createTamagui({
     heading: ttFirsNeueFont,
     body: ttFirsNeueFont,
     mono: monoFont,
+    // Additive families: source typography opts in without changing legacy font metrics.
+    beyBody: createFont({ ...ttFirsNeueFont, lineHeight: {}, letterSpacing: {} }),
+    beyMono: createFont({
+      family: 'BeyRobotoMono',
+      size: ttFirsNeueFont.size,
+      lineHeight: {},
+      letterSpacing: {},
+      face: { 400: { normal: 'BeyRobotoMono' }, 500: { normal: 'BeyRobotoMono' } },
+    }),
   },
   themes: {
     ...defaultConfig.themes,
@@ -332,6 +349,8 @@ export const config = createTamagui({
       ...surfaceColors,
       ...buttonThemes.dark,
     },
+    light_bey: createBeyTheme('light'),
+    dark_bey: createBeyTheme('dark'),
   },
 });
 

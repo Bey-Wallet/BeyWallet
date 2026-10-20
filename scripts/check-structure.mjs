@@ -32,6 +32,7 @@ const expectedRoutes = [
   '(modals)/send.tsx',
   '(modals)/swap.tsx',
   '(modals)/token-details.tsx',
+  '(modals)/theme-preview.tsx',
   '(modals)/txn-details.tsx',
   '(tabs)/_layout.tsx',
   '(tabs)/people.tsx',

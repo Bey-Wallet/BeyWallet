@@ -3,7 +3,7 @@ import { Text, YStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
-import { RefreshCw, FileText } from '@tamagui/lucide-icons';
+import { RefreshCw, FileText, Palette } from '@tamagui/lucide-icons';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { settingsLinks, settingsLinkIcons } from './settingsCatalog';
 import {
@@ -62,6 +62,15 @@ export function AboutSettingsScreen() {
           onPress={() => link(settingsLinks.github)}
         />
       </SettingsGroup>
+      {__DEV__ && (
+        <SettingsGroup>
+          <SettingsRow
+            title="Theme preview"
+            icon={Palette}
+            onPress={() => router.push('/(modals)/theme-preview')}
+          />
+        </SettingsGroup>
+      )}
       {error && <SettingsMessage error>Could not open the link. Please try again.</SettingsMessage>}
     </SettingsPage>
   );
