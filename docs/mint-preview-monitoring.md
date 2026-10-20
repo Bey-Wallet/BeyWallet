@@ -72,6 +72,13 @@ when the other fails, with the saved MintRadar directory as an offline fallback.
   New-mint score caps remain identified.
 - `https://cashu.info/api/v1/mints` resolves the exact URL to its auditor ID.
   `/api/v1/mints/{id}` supplies independent uptime and seven-day payment tests.
+- Its `daily` history supplies a chronological outage strip on both mint
+  screens. Each bar represents one reported calendar day: green means no recorded
+  downtime, red means at least some downtime, and gray means no valid checks.
+  Within the latest 30 days, the strip trims empty days before the first and after
+  the last valid observation. Gaps within that recorded range stay gray. The label
+  and dates reflect the visible range; saved reports retain their original dates.
+  The 24-hour and seven-day percentages remain separate summary rows.
 - Payment success is successful / total tests, including the sample counts.
   Receive and Send test results remain separate. Attributed failures are shown
   independently from total failed routes. Uptime is never derived from swaps.
@@ -85,6 +92,13 @@ when the other fails, with the saved MintRadar directory as an offline fallback.
   These labels do not change the wallet's supported payment capabilities.
 - Unit labels come from the advertised units/payment methods. NUT-14 support
   does not imply USD support.
+- Advertised NUTs expands inline on both screens. Only numeric entries present
+  in the mint's metadata appear, ordered by number with their specification name
+  and a check. Explicitly unsupported or disabled entries are omitted; absent
+  NUTs are never inferred. Unknown NUT numbers retain their number with a generic
+  name. This is mint-reported support, not independently tested compatibility.
+- Terms of service uses a colored external link on both screens and opens the
+  mint's reported HTTP(S) destination in the browser instead of copying it.
 
 Sources: [cashu.info auditor](https://github.com/gorrdy/cashu-auditor),
 [MintRadar wallet API](https://github.com/hroomnik007/MintRadar/blob/main/MintRadar/docs/API.md).

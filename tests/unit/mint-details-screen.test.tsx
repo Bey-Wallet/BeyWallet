@@ -40,6 +40,9 @@ jest.mock('@tamagui/lucide-icons', () =>
       'QrCode',
       'Pencil',
       'Check',
+      'ChevronDown',
+      'ChevronUp',
+      'ExternalLink',
       'ArrowDownToLine',
       'ArrowUpFromLine',
       'ArrowRightLeft',
@@ -94,6 +97,7 @@ jest.mock('~/features/mints/components/MintUrlQrOverlay', () => ({
 }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/Flex', () => ({ SafeFlex: 'SafeFlex' }));
 jest.mock('~/shared/ui/ListTable', () => ({

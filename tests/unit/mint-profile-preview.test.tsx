@@ -1,9 +1,11 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Share } from 'react-native';
+import { Linking, Share } from 'react-native';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
 import { mintPreviewMethods } from '~/features/mints/components/MintPreviewMethods';
+import { MintNutsRow } from '~/features/mints/components/MintNutsRow';
+import { MintTermsRow } from '~/features/mints/components/MintTermsRow';
 
 const url = 'https://mint.example/Bitcoin';
 const mockRefetch = jest.fn();
@@ -13,12 +15,19 @@ let mockScore: number | null = 98;
 let mockMetadataError: Error | null = null;
 let mockCheckingConnection = false;
 let mockProviderError = false;
+let mockUptime24 = 100;
+let mockDaily = [
+  { day: '2026-10-18', uptime: 100, checks: 288 },
+  { day: '2026-10-19', uptime: 90, checks: 288 },
+  { day: '2026-10-20', uptime: 100, checks: 100 },
+];
 let mockCountry = 'US';
 let mockTests = { total: 15, success: 14, failed: 1, avgMs: 6400 };
 const mockInfo = {
   name: 'Example mint',
   description: 'Community mint',
   version: 'cdk/0.17',
+  tos_url: 'https://mint.example/terms?version=1',
   nuts: {
     '4': { methods: [{ method: 'bolt11', unit: 'sat', min_amount: 0, max_amount: 1000 }] },
     '5': { methods: [{ method: 'bolt11', unit: 'sat', min_amount: 1, max_amount: 2000 }] },
@@ -56,7 +65,9 @@ jest.mock('@tanstack/react-query', () => ({
     if (key[1] === 'cashu-info-list')
       return {
         ...base,
-        data: mockProviderError ? undefined : [{ id: 'mint1', url, uptime24h: 100, uptime7d: 99 }],
+        data: mockProviderError
+          ? undefined
+          : [{ id: 'mint1', url, uptime24h: mockUptime24, uptime7d: 99 }],
         isError: mockProviderError,
       };
     if (key[1] === 'cashu-info-detail')
@@ -68,7 +79,8 @@ jest.mock('@tanstack/react-query', () => ({
               id: 'mint1',
               url,
               network: { country: mockCountry },
-              uptime: { '24h': 100, '7d': 99 },
+              uptime: { '24h': mockUptime24, '7d': 99 },
+              daily: mockDaily,
               swaps7d: { all: mockTests, errorsBlamed: 0 },
             },
         isError: mockProviderError,
@@ -179,6 +191,12 @@ beforeEach(() => {
   mockMetadataError = null;
   mockCheckingConnection = false;
   mockProviderError = false;
+  mockUptime24 = 100;
+  mockDaily = [
+    { day: '2026-10-18', uptime: 100, checks: 288 },
+    { day: '2026-10-19', uptime: 90, checks: 288 },
+    { day: '2026-10-20', uptime: 100, checks: 100 },
+  ];
   mockCountry = 'US';
   mockTests = { total: 15, success: 14, failed: 1, avgMs: 6400 };
   useWalletStore.setState({
@@ -206,11 +224,110 @@ it('shows independent uptime and payment results, MintRadar score, and actual ad
   expect(score()?.props.value).toBe('98%');
   expect(row('Server country').props.value).toBe('United States');
   expect(row('Uptime · 24 hours').props.value).toBe('100%');
+  const bars = tree.root.findAllByProps({ accessibilityRole: 'image' });
+  expect(bars).toHaveLength(3);
+  expect(bars.slice(-3).map((bar) => bar.props.bg)).toEqual(['$green11', '$red9', '$green11']);
+  expect(bars.at(-2)?.props.accessibilityLabel).toBe('2026-10-19: 90% uptime');
   expect(row('Payment success · 7 days').props.value).toBe('93.3% (14/15)');
   expect(row('Failures attributed to mint').props.value).toBe('0');
   expect(row('Mint balance / reserves').props.value).toBe('Not published');
   expect(row('Units').props.value).toBe('sat');
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+});
+
+it('expands only the advertised NUTs with numbers, names, and checks, then collapses', async () => {
+  await render();
+  const toggle = () => tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' });
+  const entries = () =>
+    tree.root
+      .findAllByType('ListTableRow' as any)
+      .filter((node) => node.props.label.startsWith('NUT-'));
+  expect(row('Advertised NUTs').props.value).toBe(3);
+  expect(entries()).toHaveLength(0);
+  await act(async () => toggle().props.onPress());
+  expect(toggle().props.accessibilityState.expanded).toBe(true);
+  expect(entries().map((node) => node.props.label)).toEqual([
+    'NUT-04 · Minting tokens',
+    'NUT-05 · Melting tokens',
+    'NUT-14 · HTLC locking',
+  ]);
+  expect(entries().every((node) => node.props.rightContent.type === 'Check')).toBe(true);
+  await act(async () => toggle().props.onPress());
+  expect(toggle().props.accessibilityState.expanded).toBe(false);
+  expect(entries()).toHaveLength(0);
+});
+
+it('does not tick explicitly unsupported, disabled, or malformed NUT entries', async () => {
+  await act(async () => {
+    tree = create(
+      <MintNutsRow
+        nuts={{
+          '14': { supported: true },
+          '4': { methods: [{ method: 'bolt11', unit: 'sat' }] },
+          '5': { disabled: true },
+          '11': { supported: false },
+          '17': { supported: [] },
+          '7': null,
+          '9': false,
+          '44': { supported: true },
+          unknown: {},
+        }}
+      />,
+    );
+  });
+  expect(row('Advertised NUTs').props.value).toBe(3);
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' }).props.onPress(),
+  );
+  expect(
+    tree.root
+      .findAllByType('ListTableRow' as any)
+      .filter((node) => node.props.label.startsWith('NUT-'))
+      .map((node) => node.props.label),
+  ).toEqual(['NUT-04 · Minting tokens', 'NUT-14 · HTLC locking', 'NUT-44 · Additional capability']);
+});
+
+it('opens the colored terms link in the browser with an external-link icon', async () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  await render();
+  const terms = row('Terms of service');
+  expect(terms.props.valueColor).toBe('$accentColor');
+  expect(terms.props.rightContent.type).toBe('ExternalLink');
+  expect(terms.props.isCopyable).toBeUndefined();
+  await act(async () => terms.props.onPress());
+  expect(open).toHaveBeenCalledWith(mockInfo.tos_url);
+});
+
+it('omits terms links that are not valid public web URLs', async () => {
+  await act(async () => {
+    tree = create(<MintTermsRow url={undefined} />);
+  });
+  for (const link of [
+    'javascript:alert(1)',
+    'file:///private/terms',
+    'https://user:pass@mint.example/terms',
+    'invalid',
+  ]) {
+    await act(async () => tree.update(<MintTermsRow url={link} />));
+    expect(tree.root.findAllByType('ListTableRow' as any)).toHaveLength(0);
+  }
+});
+
+it('trims days outside recorded history while retaining gaps and zero-uptime days', async () => {
+  mockDaily = [
+    { day: '2026-10-16', uptime: 100, checks: 0 },
+    { day: '2026-10-18', uptime: 100, checks: 288 },
+    { day: '2026-10-20', uptime: 0, checks: 288 },
+    { day: '2026-10-21', uptime: 100, checks: 0 },
+  ];
+  await render();
+  const bars = tree.root.findAllByProps({ accessibilityRole: 'image' });
+  expect(bars.map((bar) => bar.props.accessibilityLabel)).toEqual([
+    '2026-10-18: 100% uptime',
+    '2026-10-19: No data',
+    '2026-10-20: 0% uptime',
+  ]);
+  expect(bars.map((bar) => bar.props.bg)).toEqual(['$green11', '$gray5', '$red9']);
 });
 
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
@@ -346,15 +463,23 @@ it('does not turn missing monitoring into a failed mint or fabricate zero succes
   expect(row('Connection').props.value).toBe('Online');
   expect(score()?.props.value).toBe('Unavailable');
   expect(row('Server country').props.value).toBe('Unknown');
+  const bars = tree.root.findAllByProps({ accessibilityRole: 'image' });
+  expect(bars).toHaveLength(0);
   expect(row('Payment success · 7 days').props.value).toBe('Unavailable');
 });
 
 it('retains real zero scores and distinguishes no samples from zero success', async () => {
   mockScore = 0;
+  mockUptime24 = 0;
+  mockDaily = [{ day: '2026-10-20', uptime: 0, checks: 100 }];
   mockTests = { total: 0, success: 0, failed: 0, avgMs: 0 };
   await render();
   expect(score()?.props.value).toBe('0%');
   expect(score()?.props.valueColor).toBe('$red11');
+  expect(row('Uptime · 24 hours').props.value).toBe('0%');
+  expect(tree.root.findByProps({ accessibilityLabel: '2026-10-20: 0% uptime' }).props.bg).toBe(
+    '$red9',
+  );
   expect(row('Payment success · 7 days').props.value).toBe('No recent tests');
 });
 

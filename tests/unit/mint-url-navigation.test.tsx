@@ -7,6 +7,7 @@ import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
 
 const mockPush = jest.fn();
 let mockDiscoveredMints: { url: string; name: string }[] = [];
+let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('tamagui', () => ({
@@ -21,7 +22,12 @@ jest.mock('tamagui', () => ({
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: any) => ({
-    data: queryKey[0] === 'all-mint-recommendations' ? mockDiscoveredMints : undefined,
+    data:
+      queryKey[0] === 'all-mint-recommendations'
+        ? mockDiscoveredMints
+        : queryKey[0] === 'mint-metadata'
+          ? mockMintMetadata[queryKey[1]]
+          : undefined,
     isLoading: false,
   }),
   useQueryClient: () => ({}),
@@ -55,6 +61,7 @@ let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
   mockDiscoveredMints = [];
+  mockMintMetadata = {};
   useWalletStore.setState({
     mints: [],
     balances: {},
@@ -107,6 +114,47 @@ it('opens a scanned mint URL once and consumes the scanner result', async () => 
     params: { url: 'https://mint.example/Bitcoin' },
   });
   expect(useWalletStore.getState().scannerResult).toBeNull();
+});
+
+it('shows Home payment badges only for the methods each mint advertises', async () => {
+  const urls = [
+    'https://lightning.example',
+    'https://chain.example',
+    'https://both.example',
+    'https://unknown.example',
+  ];
+  useWalletStore.setState({
+    mints: urls.map((mintUrl) => ({ mintUrl, trusted: true })),
+  });
+  mockMintMetadata = {
+    [urls[0]]: { nuts: { '4': { methods: [{ method: 'bolt11', unit: 'sat' }] } } },
+    [urls[1]]: { nuts: { '30': { supported: true } } },
+    [urls[2]]: {
+      nuts: {
+        '5': {
+          methods: [
+            { method: 'bolt11', unit: 'sat' },
+            { method: 'onchain', unit: 'sat' },
+          ],
+        },
+      },
+    },
+  };
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const badges = (mintUrl: string) =>
+    tree.root
+      .findAllByType('RowContainer' as any)
+      .find((row) =>
+        row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
+      )!
+      .findAllByProps({ accessibilityRole: 'image' })
+      .map((badge) => badge.props.accessibilityLabel);
+  expect(badges(urls[0])).toEqual(['Lightning supported']);
+  expect(badges(urls[1])).toEqual(['On-chain supported']);
+  expect(badges(urls[2])).toEqual(['Lightning supported', 'On-chain supported']);
+  expect(badges(urls[3])).toEqual([]);
 });
 
 it('sends Home recommendations through the same profile and consent flow', async () => {

@@ -20,6 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintPreviewHealth, MintReliabilityRow } from './components/MintPreviewHealth';
 import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
+import { MintNutsRow } from './components/MintNutsRow';
+import { MintTermsRow } from './components/MintTermsRow';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 interface MintProfileScreenProps {
@@ -303,26 +305,10 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             <ListTable {...previewTableProps}>
               <ListTableRow label="URL" value={hostname} isCopyable copyValue={url} />
               {version && <ListTableRow label="Version" value={version} />}
-              <ListTableRow
-                label="Advertised NUTs"
-                rightContent={
-                  <XStack gap="$1" items="center">
-                    <Text fontSize="$4" fontWeight="600" color="$color">
-                      {Object.keys(nuts).length}
-                    </Text>
-                    <View bg="$gray4" px="$2" py="$1" rounded="$2">
-                      <Text fontSize="$2" fontWeight="800">
-                        NUTs
-                      </Text>
-                    </View>
-                  </XStack>
-                }
-              />
+              <MintNutsRow key={url} nuts={nuts} />
               <ListTableRow label="Units" value={previewUnits.join(', ') || 'Not provided'} />
               {info.pubkey && <ListTableRow label="Public key" value={info.pubkey} isCopyable />}
-              {info.tos_url && (
-                <ListTableRow label="Terms of service" value={info.tos_url} isCopyable />
-              )}
+              <MintTermsRow url={info.tos_url} />
             </ListTable>
           </YStack>
 
@@ -384,7 +370,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         </AppButton>
       </YStack>
 
-      <AppBottomSheet ref={connectionSheetRef} snapPoints={['60%']} canDismiss={!isConnecting}>
+      <AppBottomSheet ref={connectionSheetRef} snapPoints={['65%']} canDismiss={!isConnecting}>
         <BottomSheetScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: Math.max(insets.bottom, 24) }}
         >
@@ -403,11 +389,13 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 {url}
               </Text>
             </YStack>
-            <Text color="$gray10" fontSize="$4">
-              This mint holds the bitcoin backing your ecash. You depend on its operator to redeem
-              it. Bey Wallet does not operate this mint and is not responsible for losses caused by
-              it. Only connect if you trust the operator.
-            </Text>
+            <View p="$3" bg="$gray5" theme="orange" rounded="$6">
+              <Text color="$color" fontSize="$4">
+                This mint holds the bitcoin backing your ecash. You depend on its operator to redeem
+                it. Bey Wallet does not operate this mint and is not responsible for losses caused
+                by it. Only connect if you trust the operator.
+              </Text>
+            </View>
             {connectionError && (
               <Text color="$red10" accessibilityRole="alert">
                 {connectionError}

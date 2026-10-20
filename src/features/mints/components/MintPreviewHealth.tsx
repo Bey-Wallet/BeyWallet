@@ -1,7 +1,7 @@
 import React from 'react';
 import { Linking } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Text, YStack } from 'tamagui';
+import { Text, View, XStack, YStack } from 'tamagui';
 import { ExternalLink, RefreshCw } from '@tamagui/lucide-icons';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -10,6 +10,7 @@ import countryNames from '~/shared/utils/countryNames.json';
 import {
   mintHealthService,
   mintHealthUrl,
+  type CashuUptimeDay,
   type PaymentTestStats,
 } from '~/services/api/mintHealthService';
 
@@ -26,6 +27,63 @@ export const paymentTestRate = (stats: PaymentTestStats | null | undefined) =>
   !stats || stats.total === 0
     ? 'No recent tests'
     : `${percent((stats.success / stats.total) * 100)} (${stats.success}/${stats.total})`;
+
+function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
+  const byDay = new Map(daily.map((day) => [day.day, day]));
+  const end = Date.parse(`${daily.at(-1)?.day ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const days = Array.from({ length: 30 }, (_, index) => {
+    const day = new Date(end - (29 - index) * 86_400_000).toISOString().slice(0, 10);
+    const sample = byDay.get(day);
+    return { day, uptime: sample?.checks ? sample.uptime : null };
+  });
+  const monitored = days.filter(({ uptime }) => uptime != null);
+  const history = monitored.length
+    ? days.filter(
+        ({ day }) => day >= monitored[0].day && day <= monitored[monitored.length - 1].day,
+      )
+    : [];
+  if (!history.length) {
+    return (
+      <YStack px="$4" py="$3" gap="$2">
+        <Text color="$gray10" fontSize="$3">
+          Uptime history
+        </Text>
+        <Text color="$gray10" fontSize={12}>
+          No uptime history available
+        </Text>
+      </YStack>
+    );
+  }
+  return (
+    <YStack px="$4" py="$3" gap="$2">
+      <Text color="$gray10" fontSize="$3">
+        Uptime history · {history.length} {history.length === 1 ? 'day' : 'days'}
+      </Text>
+      <XStack gap={3}>
+        {history.map(({ day, uptime }) => (
+          <View
+            key={day}
+            flex={1}
+            height={30}
+            rounded={3}
+            bg={uptime == null ? '$gray5' : uptime < 100 ? '$red9' : '$green11'}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={`${day}: ${uptime == null ? 'No data' : `${percent(uptime)} uptime`}`}
+          />
+        ))}
+      </XStack>
+      <XStack justify="space-between">
+        <Text color="$gray10" fontSize={12}>
+          {history[0].day}
+        </Text>
+        <Text color="$gray10" fontSize={12}>
+          {history[history.length - 1].day}
+        </Text>
+      </XStack>
+    </YStack>
+  );
+}
 
 function useRadarHealth(url: string) {
   const cache = React.useMemo(() => mintHealthService.cachedRadar(url), [url]);
@@ -132,11 +190,13 @@ export function MintPreviewHealth({
   const mint = list.data?.find((item) => item.url === mintHealthUrl(url));
   const matchingDetailCache = !mint || detailCache?.data?.id === mint.id ? detailCache : undefined;
   const detail = useQuery({
-    queryKey: ['mint-health', 'cashu-info-detail', url, mint?.id],
+    queryKey: ['mint-health', 'cashu-info-detail', url, mint?.id, 'daily-v1'],
     queryFn: ({ signal }) => mintHealthService.cashuDetail(mint!, signal),
     enabled: !!mint,
     initialData: matchingDetailCache?.data,
-    initialDataUpdatedAt: matchingDetailCache?.savedAt,
+    initialDataUpdatedAt: matchingDetailCache?.data?.daily?.length
+      ? matchingDetailCache.savedAt
+      : 0,
     staleTime: 300_000,
     retry: false,
   });
@@ -190,6 +250,7 @@ export function MintPreviewHealth({
           label="Uptime · 7 days"
           value={uptime7 == null ? unavailable(monitoringLoading, notCovered) : percent(uptime7)}
         />
+        <UptimeHistory daily={audit?.daily} />
         <ListTableRow
           label="Payment success · 7 days"
           value={stats ? paymentTestRate(stats) : unavailable(monitoringLoading, notCovered)}

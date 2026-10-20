@@ -34,6 +34,8 @@ import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintReliabilityRow, MintPreviewHealth } from './components/MintPreviewHealth';
 import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
+import { MintNutsRow } from './components/MintNutsRow';
+import { MintTermsRow } from './components/MintTermsRow';
 
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
@@ -511,18 +513,12 @@ export default function MintDetailsModal() {
               <ListTable {...tableProps}>
                 <ListTableRow label="URL" value={mintUrl} isCopyable copyValue={mintUrl} />
                 {version && <ListTableRow label="Version" value={version} />}
-                <ListTableRow label="Advertised NUTs" value={Object.keys(nuts).length} />
+                <MintNutsRow key={mintUrl} nuts={nuts} />
                 <ListTableRow label="Units" value={units.join(', ') || 'Not provided'} />
                 {mintText(info?.pubkey) && (
                   <ListTableRow label="Public key" value={mintText(info?.pubkey)} isCopyable />
                 )}
-                {mintText(info?.tos_url) && (
-                  <ListTableRow
-                    label="Terms of service"
-                    value={mintText(info?.tos_url)}
-                    isCopyable
-                  />
-                )}
+                <MintTermsRow url={info?.tos_url} />
               </ListTable>
             </YStack>
             <MintPreviewMethods info={info || {}} />

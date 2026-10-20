@@ -3,7 +3,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
-import { Plus, Landmark } from '@tamagui/lucide-icons';
+import { Plus, Landmark, Zap, Bitcoin } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -28,6 +29,52 @@ const RowContainer = styled(XStack, {
   hoverStyle: { bg: '$backgroundHover' },
   pressStyle: { opacity: 0.7, bg: '$backgroundPress' },
 });
+
+function MintPaymentBadges({ metadata }: { metadata?: Record<string, any> }) {
+  const lightning =
+    supportsPaymentMethod(metadata, 'mint-lightning') ||
+    supportsPaymentMethod(metadata, 'melt-lightning');
+  const onchain =
+    supportsPaymentMethod(metadata, 'mint-onchain') ||
+    supportsPaymentMethod(metadata, 'melt-onchain');
+  if (!lightning && !onchain) return null;
+  return (
+    <XStack gap="$1.5" items="center">
+      {lightning && (
+        <View
+          width={18}
+          height={18}
+          rounded={100}
+          borderWidth={1}
+          borderColor="$gray7"
+          items="center"
+          justify="center"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="Lightning supported"
+        >
+          <Zap size={10} color="$gray10" fill="gray" />
+        </View>
+      )}
+      {onchain && (
+        <View
+          width={18}
+          height={18}
+          rounded={100}
+          borderWidth={1}
+          borderColor="$gray7"
+          items="center"
+          justify="center"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="On-chain supported"
+        >
+          <Bitcoin size={10} color="$gray10" />
+        </View>
+      )}
+    </XStack>
+  );
+}
 
 interface MintRowItemProps {
   mint: any;
@@ -55,6 +102,7 @@ const MintRowItem = React.memo(
     loading,
     onPress,
   }: MintRowItemProps) => {
+    const { data: metadata } = useMintInfo(mint.mintUrl);
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -122,6 +170,7 @@ const MintRowItem = React.memo(
               >
                 {displayName}
               </Text>
+              <MintPaymentBadges metadata={metadata} />
             </XStack>
           </YStack>
         </XStack>
@@ -190,9 +239,12 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           )}
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
-          <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1}>
-            {mint.name}
-          </Text>
+          <XStack items="center" gap="$1.5" flexWrap="wrap">
+            <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1} flexShrink={1}>
+              {mint.name}
+            </Text>
+            <MintPaymentBadges metadata={metadata} />
+          </XStack>
           <Text fontSize="$2" color="$gray10" numberOfLines={1}>
             {hostname}
           </Text>

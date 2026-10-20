@@ -33,6 +33,11 @@ const detail = {
   url,
   network: { country: 'us' },
   uptime: { '24h': 100, '7d': 99 },
+  daily: [
+    { day: '2026-10-18', uptime: 100, checks: 288 },
+    { day: '2026-10-19', uptime: 90, checks: 288 },
+    { day: '2026-10-20', uptime: 100, checks: 100 },
+  ],
   swaps7d: {
     all: { total: 15, success: 14, failed: 1, avgMs: 6419 },
     asSource: { total: 8, success: 7, failed: 1 },
@@ -106,12 +111,38 @@ it('loads the independent auditor and keeps uptime, route failures, and attribut
     expect.anything(),
   );
   expect(audit?.uptime['24h']).toBe(100);
+  expect(audit?.daily).toEqual(detail.daily);
   expect(audit?.network.country).toBe('US');
   expect(audit?.swaps7d.all).toMatchObject({ total: 15, success: 14, failed: 1 });
   expect(audit?.swaps7d.errorsBlamed).toBe(0);
   expect(audit).not.toHaveProperty('balance');
   expect(mintHealthService.cachedCashuList()?.data).toEqual(list);
   expect(mintHealthService.cachedCashuDetail(url)?.data).toEqual(audit);
+});
+
+it('validates and orders daily outage history without inventing uptime for missing checks', () => {
+  const audit = parseCashuHealthDetail(
+    {
+      ...detail,
+      daily: [
+        { day: '2026-10-20', uptime: 100, checks: 0 },
+        { day: '2026-10-18', uptime: 0, checks: 288 },
+        { day: '2026-10-19', uptime: 99.5, checks: 288 },
+        { day: '2026-10-17', uptime: 101, checks: 288 },
+        { day: '2026-02-30', uptime: 100, checks: 288 },
+        { day: 'bad', uptime: 100, checks: 288 },
+        { day: '2026-10-16', uptime: 100, checks: -1 },
+      ],
+    },
+    url,
+  );
+  expect(audit.daily).toEqual([
+    { day: '2026-10-17', uptime: null, checks: 288 },
+    { day: '2026-10-18', uptime: 0, checks: 288 },
+    { day: '2026-10-19', uptime: 99.5, checks: 288 },
+    { day: '2026-10-20', uptime: null, checks: 0 },
+  ]);
+  expect(parseCashuHealthDetail({ ...detail, daily: undefined }, url).daily).toEqual([]);
 });
 
 it('preserves real zeros, rejects invalid percentages, and never accepts another mint identity', () => {

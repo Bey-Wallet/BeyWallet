@@ -58,11 +58,17 @@ export interface PaymentTestStats {
   failed: number;
   avgMs: number | null;
 }
+export interface CashuUptimeDay {
+  day: string;
+  uptime: number | null;
+  checks: number;
+}
 export interface CashuHealthDetail {
   id: string;
   url: string;
   network: { country: string | null };
   uptime: { '24h': number | null; '7d': number | null; '30d': number | null };
+  daily: CashuUptimeDay[];
   swaps7d: {
     all: PaymentTestStats | null;
     asSource: PaymentTestStats | null;
@@ -145,6 +151,21 @@ function parseTests(value: unknown): PaymentTestStats | null {
     return null;
   return { total, success, failed, avgMs: number(stats.avgMs) };
 }
+function parseDailyUptime(value: unknown): CashuUptimeDay[] {
+  if (!Array.isArray(value)) return [];
+  const days = new Map<string, CashuUptimeDay>();
+  for (const raw of value) {
+    const item = record(raw);
+    const day = text(item.day);
+    const checks = count(item.checks);
+    if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day) || checks === null) continue;
+    const timestamp = Date.parse(`${day}T00:00:00Z`);
+    if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== day)
+      continue;
+    days.set(day, { day, checks, uptime: checks > 0 ? percent(item.uptime) : null });
+  }
+  return [...days.values()].sort((a, b) => a.day.localeCompare(b.day)).slice(-90);
+}
 export function parseCashuHealthDetail(value: unknown, url: string): CashuHealthDetail {
   const detail = record(value);
   if (!matches(detail.url, url) || !text(detail.id))
@@ -161,6 +182,7 @@ export function parseCashuHealthDetail(value: unknown, url: string): CashuHealth
       '7d': percent(uptime['7d']),
       '30d': percent(uptime['30d']),
     },
+    daily: parseDailyUptime(detail.daily),
     swaps7d: {
       all: parseTests(swaps.all),
       asSource: parseTests(swaps.asSource),
