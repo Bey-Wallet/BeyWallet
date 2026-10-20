@@ -2,7 +2,8 @@ import { Spinner } from '~/shared/ui/Spinner';
 import React, { useMemo } from 'react';
 import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
 import { useToastController } from '@tamagui/toast';
-import { H2, Image, Text, View, XStack, YStack, Stack } from 'tamagui';
+import { H2, Text, View, XStack, YStack, Stack } from 'tamagui';
+import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import * as Haptics from 'expo-haptics';
@@ -89,9 +90,7 @@ export default function BitcoinPriceCard() {
         <XStack gap="$2" items="center">
           <Image
             source={require('~/assets/images/Bitcoin.png')}
-            width={25}
-            height={25}
-            rounded={5}
+            style={{ width: 25, height: 25, borderRadius: 5 }}
           />
           <Text fontWeight="700" fontSize="$4" color="$orange12">
             Bitcoin price

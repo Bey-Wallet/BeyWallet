@@ -1,6 +1,8 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, Text, H1, View, XStack, Image } from 'tamagui';
+import { YStack, Text, H1, View, XStack } from 'tamagui';
+import { Image } from 'expo-image';
+import { StyleSheet } from 'react-native';
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,15 +75,8 @@ export function WelcomeStep({
       >
         <Image
           source={require('~/assets/images/Moving-clouds.gif')}
-          position="absolute"
-          t={0}
-          l={0}
-          r={0}
-          b={0}
-          width="100%"
-          height="100%"
-
-          resizeMode="cover"
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
         />
         <BeyIcon color="black" size={50} />
       </YStack>

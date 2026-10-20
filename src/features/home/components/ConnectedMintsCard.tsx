@@ -32,7 +32,6 @@ const RowContainer = styled(XStack, {
 interface MintRowItemProps {
   mint: any;
   balance: number;
-  isActive: boolean;
   hideBalance: boolean;
   displayAsSats: boolean;
   showBitcoinSymbol: boolean;
@@ -47,7 +46,6 @@ const MintRowItem = React.memo(
   ({
     mint,
     balance,
-    isActive,
     hideBalance,
     displayAsSats,
     showBitcoinSymbol,
@@ -108,9 +106,9 @@ const MintRowItem = React.memo(
             height={40}
             alt={displayName}
             borderRadius={8}
-            borderColor={isActive ? '$green10' : '$borderColor'}
-            borderWidth={mint.icon ? (isActive ? 2 : 1) : 0}
-            fallback={<Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />}
+            borderColor="$borderColor"
+            borderWidth={mint.icon ? 1 : 0}
+            fallback={<Landmark size={20} color="$color11" />}
           />
 
           <YStack gap="$0.5" flex={1} theme="gray">
@@ -220,7 +218,6 @@ export const ConnectedMintsCard = () => {
   const router = useRouter();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
@@ -259,7 +256,6 @@ export const ConnectedMintsCard = () => {
     [router],
   );
 
-  const normalizedActiveUrl = activeMintUrl?.replace(/\/$/, '');
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
@@ -283,16 +279,13 @@ export const ConnectedMintsCard = () => {
         <YStack>
           {[
             ...mints.map((mint) => {
-              const normalizedMintUrl = mint.mintUrl.replace(/\/$/, '');
               const balance = balances[mint.mintUrl] || 0;
-              const isActive = normalizedMintUrl === normalizedActiveUrl;
 
               return (
                 <MintRowItem
                   key={mint.mintUrl}
                   mint={mint}
                   balance={balance}
-                  isActive={isActive}
                   hideBalance={hideBalance}
                   displayAsSats={displayAsSats}
                   showBitcoinSymbol={showBitcoinSymbol}

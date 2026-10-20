@@ -4,7 +4,8 @@ import { YStack } from 'tamagui';
 import { Fingerprint } from '@tamagui/lucide-icons';
 import { biometricService } from '~/services/platform/biometricService';
 import * as Haptics from 'expo-haptics';
-import { AppState, AppStateStatus, StyleSheet, Image, Platform } from 'react-native';
+import { AppState, AppStateStatus, StyleSheet, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import { BlurView } from 'expo-blur';
 
@@ -87,7 +88,7 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
       <YStack flex={1} px="$4" py="$5" justify="space-between" items="center">
         {/* Middle Section - App Logo */}
         <YStack flex={1} justify="center" items="center">
-          <Image source={logoSource} style={{ width: 90, height: 90 }} resizeMode="contain" />
+          <Image source={logoSource} style={{ width: 90, height: 90 }} contentFit="contain" />
         </YStack>
 
         {/* Bottom Section - Unlock Button */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import FastImage from 'react-native-fast-image';
+import { Image } from 'expo-image';
 import { View, type ImageProps } from 'tamagui';
 import { Sprout } from '@tamagui/lucide-icons';
 import { deriveFavicon } from '~/shared/utils/mintIcon';
@@ -45,7 +45,7 @@ function RemoteImageContent({
   fallbackUri,
   fallback,
   onError,
-  identity: _identity,
+  identity,
   resizeMode = 'cover',
   alt,
   width,
@@ -67,11 +67,21 @@ function RemoteImageContent({
     >
       {!loaded && fallback}
       {uri && (
-        <FastImage
+        <Image
           key={uri}
-          source={{ uri, cache: FastImage.cacheControl.web }}
+          source={{ uri }}
+          cachePolicy="memory-disk"
+          recyclingKey={`${identity ?? ''}:${uri}`}
           style={StyleSheet.absoluteFill}
-          resizeMode={resizeMode === 'none' ? 'center' : resizeMode}
+          contentFit={
+            resizeMode === 'repeat'
+              ? 'cover'
+              : resizeMode === 'stretch'
+                ? 'fill'
+                : resizeMode === 'center'
+                  ? 'none'
+                  : resizeMode
+          }
           onLoad={() => setLoaded(true)}
           onError={() => {
             setLoaded(false);

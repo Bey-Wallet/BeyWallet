@@ -6861,6 +6861,7 @@ __metadata:
     expo-file-system: "npm:~19.0.21"
     expo-font: "npm:~14.0.9"
     expo-haptics: "npm:~15.0.8"
+    expo-image: "npm:~3.0.11"
     expo-keep-awake: "npm:~15.0.8"
     expo-linear-gradient: "npm:^55.0.14"
     expo-linking: "npm:~8.0.8"
@@ -6888,7 +6889,6 @@ __metadata:
     react-is: "npm:^19.2.4"
     react-native: "npm:0.81.5"
     react-native-blockies: "npm:^1.0.2"
-    react-native-fast-image: "npm:9.3.7"
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-get-random-values: "npm:~1.11.0"
     react-native-hce: "npm:0.3.0"
@@ -8773,6 +8773,21 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10/28d9703d0c56bed1afe903a589ef56c10a65d864370227fcfe6b4fe5a12423d82f534184b59f008083830538528637ff3680b22f286ed83e8edf6f1bfdafadc4
+  languageName: node
+  linkType: hard
+
+"expo-image@npm:~3.0.11":
+  version: 3.0.11
+  resolution: "expo-image@npm:3.0.11"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10/61d438f9feae0db952f0374050bdbb007002c2aa163270cf7c4ecb8c6b6f6c367bb4f5bf054347ed674ea0318bff6cb51b12eb36c8c8f8e5da6641ba985ac450
   languageName: node
   linkType: hard
 
@@ -13154,16 +13169,6 @@ __metadata:
   peerDependencies:
     react-native: ^0.41.2
   checksum: 10/95b49e5df9c2cb11653ad44f05bb0fea600e1a38213bc3bd48bf5a402043d01ae496821c872421f56d113832d86030ef7a4ca14f715e9ca7a89d0483935740ce
-  languageName: node
-  linkType: hard
-
-"react-native-fast-image@npm:9.3.7":
-  version: 9.3.7
-  resolution: "react-native-fast-image@npm:9.3.7"
-  peerDependencies:
-    react: ^17 || ^18 || ^19
-    react-native: "*"
-  checksum: 10/3f58f301c43e5e26e6921e8065bea558e92844e77af5763f4c82b106be047e40ee76a7828e5258c48bde28be9a72bbfb2f0057701024c2b868d7167da4929617
   languageName: node
   linkType: hard
 
