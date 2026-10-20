@@ -141,7 +141,6 @@ The adaptive-icon update is included. The obsolete FlashList patch was removed.
 - `src/features/home/components/Balance.tsx`
 - `src/features/home/components/ConnectedMintsCard.tsx`
 - `src/features/home/components/NostrActivity.tsx`
-- `src/features/mints/DiscoverMintsScreen.tsx`
 - `src/features/mints/MintDetailsScreen.tsx`
 - `src/features/mints/index.tsx`
 - `src/features/nfc/NfcSheetHost.tsx`
@@ -161,7 +160,6 @@ The adaptive-icon update is included. The obsolete FlashList patch was removed.
 - `src/services/wallet/historyService.ts`
 - `src/services/wallet/nfcReceiveCoordinator.ts`
 - `src/services/wallet/nostrReceiptService.ts`
-- `src/shared/ui/AddMintModal.tsx`
 - `src/shared/ui/HomeMintSelector.tsx`
 - `src/shared/ui/MintBalanceRow.tsx`
 - `src/shared/ui/RemoteImage.tsx`

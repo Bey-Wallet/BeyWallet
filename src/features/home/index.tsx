@@ -19,6 +19,7 @@ import ConnectedMintsCard from '~/features/home/components/ConnectedMintsCard';
 import NostrActivity from '~/features/home/components/NostrActivity';
 import { useAuthStore } from '~/state/authStore';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 const LazyBitcoinPriceCard = React.lazy(
   () => import('~/features/home/components/BitcoinPriceCard'),
 );
@@ -61,6 +62,7 @@ function HomeSkeleton() {
 
 export function HomeTabScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const error = useWalletStore((s) => s.error);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -87,11 +89,14 @@ export function HomeTabScreen() {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await refreshBalance();
+      await Promise.all([
+        refreshBalance(),
+        queryClient.invalidateQueries({ queryKey: ['bitcoinPrice'] }),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshBalance]);
+  }, [refreshBalance, queryClient]);
 
   if (showStatus) {
     return (

@@ -265,7 +265,14 @@ export function RequestEcashStage({
     toast.show('Payment request copied to clipboard', { kind: 'success' });
   }, [creqString]);
 
+  const isRequestBusy =
+    isGenerating ||
+    isSending ||
+    nfcIncoming.status === 'receiving' ||
+    incomingPayment?.status === 'claiming';
+
   const handleReset = () => {
+    if (isRequestBusy) return;
     setRestored(false);
     setIsRestoring(false);
     sessionRequestIds.current.clear();
@@ -494,8 +501,13 @@ export function RequestEcashStage({
           <AppButton
             size="large"
             fullWidth
-            disabled={isGenerating || isSending || nfcIncoming.status === 'receiving'}
-            loading={isGenerating || isSending}
+            disabled={isRequestBusy}
+            loading={isRequestBusy}
+            loadingText={
+              nfcIncoming.status === 'receiving' || incomingPayment?.status === 'claiming'
+                ? 'Receiving payment'
+                : undefined
+            }
             onPress={handleReset}
           >
             New request

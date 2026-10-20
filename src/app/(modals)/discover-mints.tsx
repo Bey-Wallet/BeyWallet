@@ -1,1 +1,1 @@
-export { default } from '~/features/mints/DiscoverMintsScreen';
+export { default } from '~/features/mints/AddMintScreen';

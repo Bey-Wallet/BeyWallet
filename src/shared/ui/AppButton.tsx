@@ -26,6 +26,8 @@ type AppButtonBaseProps = Omit<
   fullWidth?: boolean;
   /** For previewing accessibility text sizes; system font scaling remains enabled. */
   labelFontSize?: number;
+  /** Override glyph size without changing the button's touch target. */
+  iconSize?: number;
 };
 
 export type AppButtonProps = AppButtonBaseProps &
@@ -77,6 +79,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     shape = 'rounded',
     fullWidth = false,
     labelFontSize,
+    iconSize: requestedIconSize,
     density = 'regular',
     onPress,
     accessibilityState,
@@ -103,9 +106,11 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
   const blocked = disabled || loading;
   const [minHeight, fontSize, regularIconSize, radius] = sizes[size];
   const compact = iconOnly && density === 'compact';
-  const iconSize = compact
-    ? { xxsmall: 20, xsmall: 24, small: 28, medium: 32, large: 36 }[size]
-    : regularIconSize;
+  const iconSize =
+    requestedIconSize ??
+    (compact && emphasis === 'tertiary'
+      ? { xxsmall: 20, xsmall: 24, small: 28, medium: 32, large: 36 }[size]
+      : regularIconSize);
   const hitPadding = Math.max(0, (48 - minHeight) / 2);
 
   return (

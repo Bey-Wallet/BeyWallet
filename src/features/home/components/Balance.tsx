@@ -32,10 +32,11 @@ export default function Balance() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setHideBalance(!hideBalance);
   }, [hideBalance, setHideBalance]);
-  const { data: btcData } = useQuery({
+  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const currentBalance = React.useMemo(() => {
@@ -43,12 +44,19 @@ export default function Balance() {
   }, [balances]);
 
   const secondaryBalance = React.useMemo(() => {
-    if (!btcData?.price) return 0;
+    if (currentBalance === 0) return 0;
+    if (!btcData?.price) return null;
     return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
   }, [currentBalance, btcData?.price]);
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
+  const fiatText =
+    secondaryBalance === null
+      ? isFetchingPrice
+        ? 'Loading…'
+        : 'Unavailable'
+      : currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode);
 
   return (
     <YStack
@@ -89,10 +97,10 @@ export default function Balance() {
               (hideBalance ? '_hidden' : '_visible_sats') +
               `_${showBitcoinSymbol}`
             }
-            letterSpacing={-1}
+            letterSpacing={-0.5}
             fontSize={42}
             fontWeight={500}
-            color="$accent4"
+            color="$accent1"
 
             decimalOpacity={0.4}
             showDecimals={false}
@@ -112,12 +120,12 @@ export default function Balance() {
           />
         ) : (
           <RollingNumber
-            value={hideBalance ? '****' : secondaryBalance}
+            value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
-            letterSpacing={-1}
+            letterSpacing={-0.5}
             fontSize={42}
             fontWeight={500}
-            color="$accent4"
+            color="$accent1"
 
             decimalOpacity={0.4}
             showDecimals={true}
@@ -135,11 +143,7 @@ export default function Balance() {
                 : undefined
             }
           >
-            {hideBalance
-              ? undefined
-              : btcData?.price
-                ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)
-                : '—'}
+            {hideBalance ? undefined : fiatText}
           </RollingNumber>
         )}
       </YStack>
@@ -147,7 +151,9 @@ export default function Balance() {
       {/* Secondary Balance */}
       {isFiatEnabled && (
         <RollingNumber
-          value={hideBalance ? '****' : displayAsSats ? secondaryBalance : currentBalance}
+          value={
+            hideBalance ? '****' : displayAsSats ? (secondaryBalance ?? undefined) : currentBalance
+          }
           prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
           suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
           trigger={
@@ -163,11 +169,7 @@ export default function Balance() {
           showDecimals={displayAsSats}
           style={{ marginTop: 4 }}
         >
-          {!hideBalance && displayAsSats
-            ? btcData?.price
-              ? currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode)
-              : '—'
-            : undefined}
+          {!hideBalance && displayAsSats ? fiatText : undefined}
         </RollingNumber>
       )}
     </YStack>

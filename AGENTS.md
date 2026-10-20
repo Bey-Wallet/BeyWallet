@@ -26,6 +26,8 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 ### Approved UI & UX Conventions
 
 - Use the Settings screens as the approved reference for grouped preferences and navigation lists.
+- Call mint-to-mint operations "Transfer" in user-facing text and use the `ArrowRightLeft` icon. Preserve existing protocol/API identifiers and stored transaction types.
+- Keep button icons proportional to their button size, except tertiary icon buttons, which retain enlarged glyphs. Preserve a minimum 48-point touch target.
 - Use `rounded="$6"` for cards and grouped lists. Clip child rows to the group's corners rather than rounding every row. Preserve circular avatars, icon buttons, and switch pill shapes.
 - Match Home's `ActionButtons.tsx` for neutral card colors: `$buttonDefaultSecondary`, with `$buttonDefaultSecondaryHover` and `$buttonDefaultSecondaryPress` for interactive states.
 - Use `$gray10` for muted text, descriptions, current-value labels, and navigation cues. Preserve semantic warning, error, and success colors.

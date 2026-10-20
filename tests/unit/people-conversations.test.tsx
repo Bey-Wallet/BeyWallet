@@ -13,7 +13,7 @@ import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore'
 import { nostrService } from '~/services/wallet/nostrService';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { useSettingsStore } from '~/state/settingsStore';
-import { Alert, DeviceEventEmitter } from 'react-native';
+import { Alert, DeviceEventEmitter, ScrollView } from 'react-native';
 import { applyIncomingContactPolicy } from '~/services/wallet/contactPolicy';
 import { useWalletStore } from '~/state/walletStore';
 import * as Clipboard from 'expo-clipboard';
@@ -48,6 +48,7 @@ jest.mock('tamagui', () =>
   ),
 );
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/ListTable', () => ({
@@ -117,7 +118,9 @@ jest.mock('~/state/settingsStore', () => ({
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: require('zustand').create(() => ({ setScannerResult: jest.fn() })),
 }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 0 }),
+}));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: any) => ({
     data: queryKey[0] === 'bitcoinPrice' ? { price: 60000 } : mockHistory,
@@ -168,6 +171,18 @@ jest.mock('~/storage/sqlite/sqliteStorage', () => ({
 
 describe('People conversations and invitations', () => {
   let tree: ReactTestRenderer;
+  const activeList = () => {
+    const lists = tree.root.findAllByType(LegendList);
+    if (lists.length === 1) return lists[0];
+    const requestsSelected = tree.root
+      .findAllByType('AppPressable' as any)
+      .some(
+        (node) =>
+          node.props.accessibilityLabel?.startsWith('Requests,') &&
+          node.props.accessibilityState?.selected,
+      );
+    return lists[requestsSelected ? 1 : 0];
+  };
   beforeEach(() => {
     useSettingsStore.setState({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' });
     mockSavedMessages = [];
@@ -219,16 +234,75 @@ describe('People conversations and invitations', () => {
     expect(text).toContain('Recent');
     expect(text).toContain('Requests');
     expect(text).not.toContain('Favorites');
-    expect(tree!.root.findAllByType('PeopleRow' as any).map((row) => row.props.item.npub)).toEqual([
-      alice,
-    ]);
+    expect(
+      activeList()
+        .findAllByType('PeopleRow' as any)
+        .map((row) => row.props.item.npub),
+    ).toEqual([alice]);
     const requests = tree!.root
       .findAllByType('AppPressable' as any)
-      .find((node) => node.props.accessibilityLabel === 'Requests, 1 pending')!;
+      .find((node) => node.props.accessibilityLabel === 'Requests, 1 unread conversations')!;
     await act(async () => requests.props.onPress());
-    expect(tree!.root.findAllByType('PeopleRow' as any).map((row) => row.props.item.npub)).toEqual([
-      bob,
-    ]);
+    expect(
+      activeList()
+        .findAllByType('PeopleRow' as any)
+        .map((row) => row.props.item.npub),
+    ).toEqual([bob]);
+  });
+
+  it('removes paste, swipes between tabs, and updates unread badges when a conversation is read', async () => {
+    useMessageStore.setState({ unread: { [alice]: 4, [eve]: 2 } });
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    const tab = (name: string) =>
+      tree.root
+        .findAllByType('AppPressable' as any)
+        .find(
+          (node) =>
+            node.props.accessibilityRole === 'tab' &&
+            node.props.accessibilityLabel.startsWith(name),
+        )!;
+    expect(tab('Recent').props.accessibilityLabel).toBe('Recent, 1 unread conversations');
+    expect(tab('Requests').props.accessibilityLabel).toBe('Requests, 1 unread conversations');
+    expect(
+      tree.root
+        .findAllByType('AppIconButton' as any)
+        .some((node) => node.props.accessibilityLabel === 'Paste identifier'),
+    ).toBe(false);
+    const pager = tree.root.findAllByType(ScrollView).find((node) => node.props.horizontal)!;
+    const swipe = async (x: number) =>
+      act(async () => {
+        pager.props.onMomentumScrollEnd!({ nativeEvent: { contentOffset: { x } } } as any);
+      });
+    await swipe(10000);
+    expect(tab('Requests').props.accessibilityState.selected).toBe(true);
+    expect(activeList().findAllByType('PeopleRow' as any)[0].props.item.npub).toBe(bob);
+    await swipe(0);
+    expect(tab('Recent').props.accessibilityState.selected).toBe(true);
+    await act(async () => useMessageStore.setState({ unread: {} }));
+    expect(tab('Recent').props.accessibilityLabel).toBe('Recent, 0 unread conversations');
+    await act(async () => useNostrInboxStore.getState().markAllSeen());
+    expect(tab('Requests').props.accessibilityLabel).toBe('Requests, 0 unread conversations');
+  });
+
+  it('shows saved matches immediately while online search is pending and keeps them above online results', async () => {
+    mockSearching = true;
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Ali'));
+    const rows = () => tree.root.findAllByType('PeopleRow' as any);
+    expect(rows().map((row) => row.props.item.npub)).toEqual([alice]);
+    expect(rows()[0].props.item.name).toBe('Alice');
+    const online = nip19.npubEncode('04'.repeat(32));
+    mockRemoteResults = [
+      { npub: alice, pubkeyHex: '01'.repeat(32), displayName: 'Alice', source: 'identifier' },
+      { npub: online, pubkeyHex: '04'.repeat(32), displayName: 'Alina', source: 'identifier' },
+    ];
+    mockSearching = false;
+    await act(async () => tree.update(<PeopleScreen />));
+    expect(rows().map((row) => row.props.item.npub)).toEqual([alice, online]);
   });
 
   it('keeps local search results during remote failure, retries, and restores tab/scroll after clearing search', async () => {
@@ -239,9 +313,9 @@ describe('People conversations and invitations', () => {
     const requests = () =>
       tree!.root
         .findAllByType('AppPressable' as any)
-        .find((node) => node.props.accessibilityLabel === 'Requests, 1 pending')!;
+        .find((node) => node.props.accessibilityLabel === 'Requests, 1 unread conversations')!;
     await act(async () => requests().props.onPress());
-    const list = () => tree!.root.findByType(LegendList);
+    const list = activeList;
     await act(async () => list().props.onContentSizeChange!(320, 2000));
     await act(async () =>
       list().props.onScroll!({ nativeEvent: { contentOffset: { y: 320 } } } as any),
@@ -327,7 +401,7 @@ describe('People conversations and invitations', () => {
     await act(async () => {
       tree = create(<PeopleScreen />);
     });
-    const list = () => tree!.root.findByType(LegendList);
+    const list = activeList;
     expect(list().props.data).toHaveLength(50);
     await act(async () => list().props.onEndReached!({ distanceFromEnd: 0 }));
     expect(list().props.data).toHaveLength(100);

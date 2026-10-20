@@ -15,6 +15,9 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
 
+const editableFiatAmount = (sats: number, price: number) =>
+  String(Number(currencyService.convertSatsToCurrency(sats, price).toFixed(2)));
+
 export function RequestAmountEditor({
   amount,
   disabled,
@@ -53,20 +56,12 @@ export function RequestAmountEditor({
     const nextMode = primaryCurrency === 'FIAT' && hasPrice ? 'FIAT' : 'SATS';
     setMode(nextMode);
     setDraftSats(amount);
-    setDraft(
-      nextMode === 'SATS'
-        ? String(amount)
-        : currencyService.convertSatsToCurrency(amount, price!).toFixed(2),
-    );
+    setDraft(nextMode === 'SATS' ? String(amount) : editableFiatAmount(amount, price!));
     sheet.current?.present();
   };
   const toggleMode = () => {
     if (!hasPrice || !Number.isSafeInteger(sats) || sats < 0) return;
-    setDraft(
-      mode === 'SATS'
-        ? currencyService.convertSatsToCurrency(sats, price!).toFixed(2)
-        : String(sats),
-    );
+    setDraft(mode === 'SATS' ? editableFiatAmount(sats, price!) : String(sats));
     setMode(mode === 'SATS' ? 'FIAT' : 'SATS');
   };
   const symbol = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '';

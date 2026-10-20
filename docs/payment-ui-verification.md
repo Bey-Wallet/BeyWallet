@@ -4,6 +4,19 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+- The mint selector uses flat, virtualized rows with icon, name, primary-currency
+  balance and a bold branded check. Opening it uses the saved mint list and does
+  not trigger a full refresh. Payment-method filtering reads SDK metadata locally;
+  trust and allowed-URL restrictions still apply offline. Saved exchange rates are
+  available immediately; without a rate, nonzero amounts retain an explicit sat unit.
+  The chosen row shows a spinner until selection completes, then a check before
+  closing. Failed selection stays open with an error and supports retry.
+- On device, open the selector in airplane mode with cached balances and icons.
+  Test Home, history's All mints option, and payment-specific selectors. Switch
+  repeatedly, tap two rows quickly, and try to dismiss while a selection is pending.
+  Confirm smooth scrolling, correct primary/hidden balances, check placement, and
+  large-text layouts. Payment selectors must keep the Home mint unchanged.
+
 - Open Send, Receive, and Fund & withdraw. Check the two-column action cards, icons above
   wrapping labels, and larger input with controls below it in light/dark themes, on a small
   screen, and with large text. Expand the sheet and open the keyboard; every action must

@@ -4,12 +4,8 @@ import React from 'react';
 import { View } from 'tamagui';
 
 import { Sprout } from '@tamagui/lucide-icons';
-import { useQuery } from '@tanstack/react-query';
-import {
-  fetchMintMeta,
-  deriveFavicon,
-  type MintMetadata,
-} from '~/features/explore/components/mintMeta';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { mintMetadataFromInfo, deriveFavicon } from '~/features/explore/components/mintMeta';
 
 interface MintIconProps {
   url: string;
@@ -19,17 +15,13 @@ interface MintIconProps {
 }
 
 export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
-  const { data: meta, isLoading } = useQuery<MintMetadata>({
-    queryKey: ['mint-meta', url],
-    queryFn: () => fetchMintMeta(url),
-    staleTime: 10 * 60 * 1000,
-    retry: 1,
-  });
+  const { data: info, isLoading } = useMintInfo(url);
+  const meta = mintMetadataFromInfo(info, url);
 
   const [imgError, setImgError] = React.useState(false);
   const [faviconError, setFaviconError] = React.useState(false);
 
-  const primaryIcon = meta?.icon || hintIcon || '';
+  const primaryIcon = (info ? meta.icon : undefined) || hintIcon || '';
   const favicon = deriveFavicon(url);
 
   // Reset error states when primaryIcon changes

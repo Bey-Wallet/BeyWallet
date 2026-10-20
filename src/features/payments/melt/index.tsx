@@ -196,7 +196,9 @@ export default function MeltScreen() {
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';
     const val = currencyService.convertSatsToCurrency(quoteAmount, btcData.price);
-    return `${symbol}${val.toFixed(2)}`;
+    return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
+      ? currencyService.formatValue(val, secondaryCurrency)
+      : `${symbol}${val.toFixed(2)}`;
   }, [quoteAmount, btcData?.price, secondaryCurrency]);
 
   const totalFiatValue = useMemo(() => {
@@ -204,7 +206,9 @@ export default function MeltScreen() {
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';
     const val = currencyService.convertSatsToCurrency(totalCost, btcData.price);
-    return `${symbol}${val.toFixed(2)}`;
+    return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
+      ? currencyService.formatValue(val, secondaryCurrency)
+      : `${symbol}${val.toFixed(2)}`;
   }, [totalCost, btcData?.price, secondaryCurrency]);
 
   // ─── Invoice Stage: Continue Handler ──────────────────────

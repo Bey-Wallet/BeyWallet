@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ImageStyle } from 'react-native';
+import { Image, type ImageStyle } from 'expo-image';
 import { useThemeName } from 'tamagui';
 
 const NOSTR_BLACK = require('~/assets/images/nostr-icon-black-transparent.png');
@@ -16,6 +16,6 @@ export default function NostrIcon({ size = 24, style }: NostrIconProps) {
   const source = themeName.startsWith('light') ? NOSTR_BLACK : NOSTR_WHITE;
 
   return (
-    <Image source={source} style={[{ width: size, height: size, resizeMode: 'contain' }, style]} />
+    <Image source={source} style={[{ width: size, height: size }, style]} contentFit="contain" />
   );
 }

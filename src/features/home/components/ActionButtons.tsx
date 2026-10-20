@@ -1,7 +1,7 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useCallback } from 'react';
 import { Text, View, XStack, useTheme } from 'tamagui';
-import { Scan, Repeat } from '@tamagui/lucide-icons';
+import { Scan } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ArrowDownIcon from '~/shared/icons/ArrowDown';
@@ -12,11 +12,15 @@ function HomeAction({
   label,
   accessibilityLabel = label,
   icon: Icon,
+  iconSize = 24,
+  iconStrokeWidth,
   onPress,
 }: {
   label: string;
   accessibilityLabel?: string;
-  icon: React.ComponentType<{ size?: number; color?: string }>;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  iconSize?: number;
+  iconStrokeWidth?: number;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -44,7 +48,11 @@ function HomeAction({
       onPress={onPress}
     >
       <View aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Icon size={24} color={iconColor} />
+        <Icon
+          size={iconSize}
+          color={iconColor}
+          {...(iconStrokeWidth !== undefined ? { strokeWidth: 2 } : {})}
+        />
       </View>
       <Text
         color="$buttonDefaultSecondaryText"
@@ -71,11 +79,6 @@ export default React.memo(function ActionButtons() {
     });
   }, [router]);
 
-  const handleSwap = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/swap');
-  }, [router]);
-
   const handleReceive = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     actionSheetRef.current?.present('receive');
@@ -93,9 +96,10 @@ export default React.memo(function ActionButtons() {
           label="Scan"
           accessibilityLabel="Scan QR code"
           icon={Scan}
+          iconSize={20}
+          iconStrokeWidth={2}
           onPress={handleScan}
         />
-        {/* <HomeAction label="Swap" icon={Repeat} onPress={handleSwap} /> */}
         <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
         <HomeAction label="Send" icon={SendIcon} onPress={handleSend} />
       </XStack>

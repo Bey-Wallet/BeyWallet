@@ -140,7 +140,7 @@ export default function SwapScreen() {
       setStep('result');
     } catch (err: any) {
       console.error('[Swap] Failed:', err);
-      setError(err.message || 'Swap failed');
+      setError(err.message || 'Transfer failed');
       setStatus('error');
       setStep('result');
     } finally {
@@ -186,23 +186,23 @@ export default function SwapScreen() {
       {step === 'confirm' && (
         <>
           <PaymentFlowHeader
-            title="Confirm swap"
+            title="Confirm transfer"
             onBack={() => setStep('amount')}
             disabled={isProcessing}
           />
           <PaymentStageLayout
             disabled={isProcessing}
-            hero={<PaymentAmount amount={Number(amount)} label="You're swapping" />}
+            hero={<PaymentAmount amount={Number(amount)} label="You're transferring" />}
             footer={
               <AppButton
                 size="large"
                 fullWidth
                 loading={isProcessing}
-                loadingText="Swapping ecash…"
+                loadingText="Transferring ecash…"
                 onPress={handleConfirmSubmit}
                 disabled={isProcessing}
               >
-                Swap
+                Transfer
               </AppButton>
             }
           >
@@ -221,8 +221,8 @@ export default function SwapScreen() {
                 disabled={isProcessing}
                 method="mint-lightning"
               />
-              <ListTableRow label="Method" value="Mint swap" />
-              <ListTableRow label="Fee" value="Calculated during swap" />
+              <ListTableRow label="Method" value="Mint transfer" />
+              <ListTableRow label="Fee" value="Calculated during transfer" />
             </ListTable>
           </PaymentStageLayout>
         </>

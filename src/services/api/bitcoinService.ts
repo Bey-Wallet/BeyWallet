@@ -10,6 +10,22 @@ function isValidPrice(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function readCachedPrice(currency: string): BitcoinPriceData | null {
+  try {
+    const cached = sqliteStorage.getItem(`btc_price_cache_${currency.toLowerCase()}`);
+    if (!cached) return null;
+    const data = JSON.parse(cached);
+    return isValidPrice(data?.price) &&
+      Number.isFinite(data?.change24h) &&
+      Number.isFinite(data?.updatedAt) &&
+      data.updatedAt > 0
+      ? data
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchFromCoinPaprika(vsCurrency: string): Promise<BitcoinPriceData> {
   const quoteCurrency = vsCurrency.toUpperCase();
   const response = await fetch(
@@ -59,6 +75,7 @@ async function fetchFromCoinbase(vsCurrency: string): Promise<BitcoinPriceData> 
 }
 
 export const bitcoinService = {
+  getCachedPrice: readCachedPrice,
   async fetchPrice(currency: string = 'usd'): Promise<BitcoinPriceData> {
     const vsCurrency = currency.toLowerCase();
     try {
@@ -83,28 +100,13 @@ export const bitcoinService = {
     } catch (error) {
       console.warn(`[BitcoinService] Network fetch failed, falling back to cache...`, error);
 
-      const cached = sqliteStorage.getItem(`btc_price_cache_${vsCurrency}`);
-      if (cached) {
-        try {
-          return JSON.parse(cached) as BitcoinPriceData;
-        } catch (parseError) {
-          console.error('[BitcoinService] Failed to parse cached price:', parseError);
-        }
-      }
+      const cached = readCachedPrice(vsCurrency);
+      if (cached) return cached;
       throw new Error('Network error and no local cache available.');
     }
   },
 
   async getFromDb(currency: string = 'usd'): Promise<BitcoinPriceData | null> {
-    const vsCurrency = currency.toLowerCase();
-    const cached = sqliteStorage.getItem(`btc_price_cache_${vsCurrency}`);
-    if (cached) {
-      try {
-        return JSON.parse(cached) as BitcoinPriceData;
-      } catch (err) {
-        return null;
-      }
-    }
-    return null;
+    return readCachedPrice(currency);
   },
 };

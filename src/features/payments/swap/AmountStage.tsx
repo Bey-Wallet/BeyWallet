@@ -214,7 +214,7 @@ export function AmountStage({
               </Text>
             ) : (
               <Text color="$gray10" fontSize="$3" fontWeight="500">
-                How much to swap?
+                How much to transfer?
               </Text>
             )}
 
@@ -266,7 +266,7 @@ export function AmountStage({
         value={localInputValue}
         onValueChange={onKeypadChange}
         onConfirm={onContinue}
-        confirmLabel="Review Swap"
+        confirmLabel="Review Transfer"
         maxAmount={sourceBalance}
         confirmDisabled={
           !sourceMintUrl ||

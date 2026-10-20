@@ -17,13 +17,13 @@ export function paymentAmounts(
     ? `₿${sats.toLocaleString('en-US')}`
     : `${sats.toLocaleString('en-US')} sat`;
   const fiat =
-    price && Number.isFinite(price) && price > 0
+    currency !== 'NONE' && (sats === 0 || (price && Number.isFinite(price) && price > 0))
       ? currencyService.formatValue(
-          currencyService.convertSatsToCurrency(sats, price),
+          sats === 0 ? 0 : currencyService.convertSatsToCurrency(sats, price!),
           currency as CurrencyCode,
         )
       : null;
-  return primary === 'FIAT'
+  return primary === 'FIAT' && currency !== 'NONE'
     ? { primary: fiat, secondary: bitcoin }
     : { primary: bitcoin, secondary: fiat };
 }
@@ -38,10 +38,11 @@ export function PaymentAmount({
   compact?: boolean;
 }) {
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const { data } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
   const values = paymentAmounts(
     amount,
@@ -74,10 +75,17 @@ export function PaymentAmount({
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {amountLabel(values.primary ?? '—', 44)}
+        {amountLabel(values.primary ?? (isFetching ? 'Loading…' : 'Conversion unavailable'), 44)}
       </Text>
       <Text fontSize={16} color="$gray10" textAlign="center">
-        {amountLabel(values.secondary ? `≈ ${values.secondary}` : 'Conversion unavailable', 16)}
+        {amountLabel(
+          values.secondary
+            ? `≈ ${values.secondary}`
+            : isFetching
+              ? 'Loading…'
+              : 'Conversion unavailable',
+          16,
+        )}
       </Text>
     </YStack>
   );

@@ -1,5 +1,6 @@
 import { SimplePool, Filter } from 'nostr-tools';
 import { getNostrQueryRelays } from '~/state/nostrRelayStore';
+import { mintHealthService, mintHealthUrl } from './mintHealthService';
 
 export type MintRecommendation = {
   url: string;
@@ -10,7 +11,17 @@ export type MintRecommendation = {
   icon?: string;
   error?: boolean;
   isTestnet?: boolean;
+  status?: string | null;
+  reliabilityScore?: number | null;
 };
+
+function canonicalUrl(raw: unknown): string | null {
+  try {
+    return typeof raw === 'string' ? mintHealthUrl(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 const DEFAULT_RELAYS = [
   'wss://relay.cashumints.space',
@@ -34,9 +45,13 @@ const FEATURED_MINTS = [
 
 export const mintRecommendationService = {
   /**
-   * Discovers mints by fetching recommendations and info from Nostr relays.
+   * Merge MintRadar's complete wallet list with NIP-87 relay discovery.
    */
-  discoverMints: async (limit = 20): Promise<MintRecommendation[]> => {
+  discoverMints: async (limit = Infinity): Promise<MintRecommendation[]> => {
+    // Start independently: a failed relay must not discard MintRadar's list.
+    const radarPromise = mintHealthService
+      .radarList()
+      .catch(() => mintHealthService.cachedRadarList()?.data ?? []);
     const pool = new SimplePool();
     const relays = getNostrQueryRelays(DEFAULT_RELAYS);
     const recommendationsMap = new Map<string, MintRecommendation>();
@@ -64,11 +79,15 @@ export const mintRecommendationService = {
         limit: 50,
       };
 
-      const infoEvents = await pool.querySync(relays, infoFilter);
+      const [infoResult, reviewResult] = await Promise.allSettled([
+        pool.querySync(relays, infoFilter, { maxWait: 8000 }),
+        pool.querySync(relays, { kinds: [RECOMMENDATION_KIND], limit: 100 }, { maxWait: 8000 }),
+      ]);
+      const infoEvents = infoResult.status === 'fulfilled' ? infoResult.value : [];
 
       infoEvents.forEach((event) => {
-        const url = event.tags.find((t) => t[0] === 'u')?.[1];
-        if (url && url.startsWith('http')) {
+        const url = canonicalUrl(event.tags.find((t) => t[0] === 'u')?.[1]);
+        if (url) {
           const existing = recommendationsMap.get(url) || {
             url,
             reviewsCount: 0,
@@ -77,9 +96,11 @@ export const mintRecommendationService = {
 
           try {
             const content = JSON.parse(event.content);
-            existing.name = content.name || existing.name;
-            existing.description = content.description || existing.description;
-            existing.icon = content.icon || existing.icon;
+            if (typeof content?.name === 'string' && content.name.trim())
+              existing.name = content.name;
+            if (typeof content?.description === 'string')
+              existing.description = content.description;
+            if (typeof content?.icon === 'string') existing.icon = content.icon;
           } catch (e) {
             // Not JSON or legacy content
           }
@@ -89,12 +110,7 @@ export const mintRecommendationService = {
       });
 
       // 2. Fetch Recommendations/Reviews (Kind 38000)
-      const recFilter: Filter = {
-        kinds: [RECOMMENDATION_KIND],
-        limit: 100,
-      };
-
-      const recEvents = await pool.querySync(relays, recFilter);
+      const recEvents = reviewResult.status === 'fulfilled' ? reviewResult.value : [];
 
       const reviewsByUrl: Record<string, number[]> = {};
 
@@ -104,8 +120,8 @@ export const mintRecommendationService = {
         const rating = ratingTag ? parseInt(ratingTag[1]) : null;
 
         uTags.forEach((tag) => {
-          const url = tag[1];
-          if (url && url.startsWith('http')) {
+          const url = canonicalUrl(tag[1]);
+          if (url) {
             if (!reviewsByUrl[url]) reviewsByUrl[url] = [];
             if (rating !== null) reviewsByUrl[url].push(rating);
 
@@ -130,34 +146,36 @@ export const mintRecommendationService = {
           rec.averageRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
         }
       }
-
-      // Convert to array and sort by review count
-      return Array.from(recommendationsMap.values())
-        .sort((a, b) => b.reviewsCount - a.reviewsCount)
-        .slice(0, limit);
     } catch (error) {
       console.error('Error discovering mints:', error);
-      return [];
     } finally {
       pool.close(relays);
     }
-  },
 
-  /**
-   * Fetches details for a specific mint to augment recommendation data if needed.
-   */
-  fetchMintMetadata: async (url: string) => {
-    try {
-      const response = await fetch(`${url.replace(/\/$/, '')}/v1/info`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+    const radarMints = await radarPromise;
+    radarMints.forEach((mint) => {
+      const existing = recommendationsMap.get(mint.url);
+      recommendationsMap.set(mint.url, {
+        ...existing,
+        url: mint.url,
+        name: mint.name || existing?.name || new URL(mint.url).hostname,
+        reviewsCount: mint.reviewsCount,
+        averageRating: mint.averageRating,
+        status: mint.status,
+        reliabilityScore: mint.score,
+        isTestnet: mint.isTest,
       });
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (e) {
-      console.error(`Failed to fetch metadata for ${url}`, e);
-    }
-    return null;
+    });
+    const statusOrder = (mint: MintRecommendation) =>
+      mint.status === 'online' ? 0 : mint.status ? 2 : 1;
+    return Array.from(recommendationsMap.values())
+      .sort(
+        (a, b) =>
+          statusOrder(a) - statusOrder(b) ||
+          (b.reliabilityScore ?? -1) - (a.reliabilityScore ?? -1) ||
+          b.reviewsCount - a.reviewsCount ||
+          (a.name || a.url).localeCompare(b.name || b.url),
+      )
+      .slice(0, limit);
   },
 };

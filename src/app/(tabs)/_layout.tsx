@@ -18,7 +18,6 @@ import HomeIcon from '~/shared/icons/Home';
 import Blockies from '~/shared/ui/Blockies';
 import { useSettingsStore } from '~/state/settingsStore';
 import { CustomTabBar } from '~/shared/ui/CustomTabBar';
-import { PeopleHeaderActions } from '~/features/people/components/PeopleHeaderActions';
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
@@ -122,9 +121,7 @@ export default function TabLayout() {
         }}
         options={{
           title: 'People',
-          headerTitleAlign: 'center',
-          headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
-          headerRight: () => <PeopleHeaderActions />,
+          headerShown: false,
           tabBarIcon: ({ color }) => <AtSign size={24} strokeWidth={2.5} color={color as any} />,
         }}
       />

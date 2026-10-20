@@ -10,7 +10,6 @@ type OnboardingStep =
   | 'biometric'
   | 'notifications'
   | 'nostr'
-  | 'mintpicker'
   | 'import'
   | 'restoring'
   | 'complete'

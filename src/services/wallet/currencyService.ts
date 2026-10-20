@@ -51,8 +51,8 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', locale: 'sv-SE' },
   { code: 'KRW', symbol: '₩', name: 'South Korean Won', locale: 'ko-KR' },
   { code: 'TRY', symbol: '₺', name: 'Turkish Lira', locale: 'tr-TR' },
-  { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', locale: 'ar-AE' },
-  { code: 'KWD', symbol: 'د.ك', name: 'Kuwaiti Dinar', locale: 'ar-KW' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-US' },
+  { code: 'KWD', symbol: 'KWD', name: 'Kuwaiti Dinar', locale: 'en-US' },
 ];
 
 // Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.
@@ -80,13 +80,15 @@ export const currencyService = {
   formatValue(value: number, currencyCode: CurrencyCode): string {
     const currency =
       SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode) || SUPPORTED_CURRENCIES[0];
+    const useCodeSuffix = currency.code === 'AED' || currency.code === 'KWD';
     try {
       const cacheKey = `${currency.locale}_${currency.code}`;
       let formatter = currencyFormatterCache.get(cacheKey);
       if (!formatter) {
         formatter = new Intl.NumberFormat(currency.locale, {
-          style: 'currency',
+          style: useCodeSuffix ? 'decimal' : 'currency',
           currency: currency.code,
+          ...(useCodeSuffix ? { minimumFractionDigits: 2 } : {}),
           maximumFractionDigits: 2,
         });
         currencyFormatterCache.set(cacheKey, formatter);
@@ -106,7 +108,7 @@ export const currencyService = {
       ) {
         throw new Error('Platform Intl fallback detected');
       }
-      return formatted;
+      return useCodeSuffix ? `${formatted} ${currency.code}` : formatted;
     } catch (error) {
       // Fallback formatting: format the number as a decimal under the requested locale,
       // then manually prepend/append the correct currency symbol.
@@ -139,7 +141,7 @@ export const currencyService = {
       }
 
       // Determine symbol position based on currency convention
-      const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR'];
+      const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR', 'AED', 'KWD'];
       if (suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {

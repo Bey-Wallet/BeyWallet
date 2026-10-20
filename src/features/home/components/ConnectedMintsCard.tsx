@@ -1,9 +1,9 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
-import { Plus, Landmark } from '@tamagui/lucide-icons';
+import { Plus, Landmark, Zap, Bitcoin } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -12,8 +12,8 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { mintRecommendationService } from '~/services/api/mintRecommendationService';
-import AddMintModal, { type AddMintModalRef } from '~/shared/ui/AddMintModal';
+import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -30,16 +30,62 @@ const RowContainer = styled(XStack, {
   pressStyle: { opacity: 0.7, bg: '$backgroundPress' },
 });
 
+function MintPaymentBadges({ metadata }: { metadata?: Record<string, any> }) {
+  const lightning =
+    supportsPaymentMethod(metadata, 'mint-lightning') ||
+    supportsPaymentMethod(metadata, 'melt-lightning');
+  const onchain =
+    supportsPaymentMethod(metadata, 'mint-onchain') ||
+    supportsPaymentMethod(metadata, 'melt-onchain');
+  if (!lightning && !onchain) return null;
+  return (
+    <XStack gap="$1.5" items="center">
+      {lightning && (
+        <View
+          width={18}
+          height={18}
+          rounded={100}
+          borderWidth={1}
+          borderColor="$gray7"
+          items="center"
+          justify="center"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="Lightning supported"
+        >
+          <Zap size={10} color="$gray10" fill="gray" />
+        </View>
+      )}
+      {onchain && (
+        <View
+          width={18}
+          height={18}
+          rounded={100}
+          borderWidth={1}
+          borderColor="$gray7"
+          items="center"
+          justify="center"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="On-chain supported"
+        >
+          <Bitcoin size={10} color="$gray10" />
+        </View>
+      )}
+    </XStack>
+  );
+}
+
 interface MintRowItemProps {
   mint: any;
   balance: number;
-  isActive: boolean;
   hideBalance: boolean;
   displayAsSats: boolean;
   showBitcoinSymbol: boolean;
   btcPrice: number | undefined;
   secondaryCurrency: string;
   refreshCounter: number;
+  loading: boolean;
   onPress: (mintUrl: string) => void;
 }
 
@@ -47,15 +93,16 @@ const MintRowItem = React.memo(
   ({
     mint,
     balance,
-    isActive,
     hideBalance,
     displayAsSats,
     showBitcoinSymbol,
     btcPrice,
     secondaryCurrency,
     refreshCounter,
+    loading,
     onPress,
   }: MintRowItemProps) => {
+    const { data: metadata } = useMintInfo(mint.mintUrl);
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -78,12 +125,12 @@ const MintRowItem = React.memo(
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
       if (!displayAsSats) {
-        if (!btcPrice) return '...';
-        const fiat = currencyService.convertSatsToCurrency(balance, btcPrice);
+        if (!btcPrice && balance !== 0) return loading ? 'Loading…' : 'Unavailable';
+        const fiat = balance === 0 ? 0 : currencyService.convertSatsToCurrency(balance, btcPrice!);
         return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
       }
       return balance;
-    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
+    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency, loading]);
 
     const prefix = useMemo(() => {
       if (hideBalance || !displayAsSats) return '';
@@ -107,9 +154,9 @@ const MintRowItem = React.memo(
             height={40}
             alt={displayName}
             borderRadius={8}
-            borderColor={isActive ? '$green10' : '$borderColor'}
-            borderWidth={mint.icon ? (isActive ? 2 : 1) : 0}
-            fallback={<Landmark size={20} color={isActive ? '$acolor1' : '$color11'} />}
+            borderColor="$borderColor"
+            borderWidth={mint.icon ? 1 : 0}
+            fallback={<Landmark size={20} color="$color11" />}
           />
 
           <YStack gap="$0.5" flex={1} theme="gray">
@@ -123,6 +170,7 @@ const MintRowItem = React.memo(
               >
                 {displayName}
               </Text>
+              <MintPaymentBadges metadata={metadata} />
             </XStack>
           </YStack>
         </XStack>
@@ -156,11 +204,7 @@ interface MintPlaceholderItemProps {
 const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProps) => {
   const hostname = useMemo(() => new URL(mint.mintUrl).hostname, [mint.mintUrl]);
   const [iconFailed, setIconFailed] = useState(false);
-  const { data: metadata } = useQuery({
-    queryKey: ['mint-metadata', mint.mintUrl],
-    queryFn: () => mintRecommendationService.fetchMintMetadata(mint.mintUrl),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: metadata } = useMintInfo(mint.mintUrl);
   const iconUrl =
     metadata?.icon_url ||
     metadata?.picture ||
@@ -195,9 +239,12 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           )}
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
-          <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1}>
-            {mint.name}
-          </Text>
+          <XStack items="center" gap="$1.5" flexWrap="wrap">
+            <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1} flexShrink={1}>
+              {mint.name}
+            </Text>
+            <MintPaymentBadges metadata={metadata} />
+          </XStack>
           <Text fontSize="$2" color="$gray10" numberOfLines={1}>
             {hostname}
           </Text>
@@ -221,17 +268,15 @@ MintPlaceholderItem.displayName = 'MintPlaceholderItem';
 
 export const ConnectedMintsCard = () => {
   const router = useRouter();
-  const addMintRef = useRef<AddMintModalRef>(null);
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
-  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
-  const { data: btcData } = useQuery({
+  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () =>
       isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
@@ -255,12 +300,14 @@ export const ConnectedMintsCard = () => {
     router.push('/(modals)/add-mint');
   }, [router]);
 
-  const handleAddRecommendedMint = useCallback((mintUrl: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addMintRef.current?.present(mintUrl);
-  }, []);
+  const handleAddRecommendedMint = useCallback(
+    (mintUrl: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push({ pathname: '/(modals)/mint-profile', params: { url: mintUrl } });
+    },
+    [router],
+  );
 
-  const normalizedActiveUrl = activeMintUrl?.replace(/\/$/, '');
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
@@ -284,22 +331,20 @@ export const ConnectedMintsCard = () => {
         <YStack>
           {[
             ...mints.map((mint) => {
-              const normalizedMintUrl = mint.mintUrl.replace(/\/$/, '');
               const balance = balances[mint.mintUrl] || 0;
-              const isActive = normalizedMintUrl === normalizedActiveUrl;
 
               return (
                 <MintRowItem
                   key={mint.mintUrl}
                   mint={mint}
                   balance={balance}
-                  isActive={isActive}
                   hideBalance={hideBalance}
                   displayAsSats={displayAsSats}
                   showBitcoinSymbol={showBitcoinSymbol}
                   btcPrice={btcData?.price}
                   secondaryCurrency={secondaryCurrency}
                   refreshCounter={refreshCounter}
+                  loading={!displayAsSats && isFetchingPrice}
                   onPress={handleMintPress}
                 />
               );
@@ -326,7 +371,6 @@ export const ConnectedMintsCard = () => {
           Add Mint
         </AppButton>
       </XStack>
-      <AddMintModal ref={addMintRef} />
     </>
   );
 };
