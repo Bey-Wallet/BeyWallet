@@ -202,11 +202,11 @@ export const HistoryItem = React.memo<HistoryItemProps>(
     const queryClient = useQueryClient();
     const [isChecking, setIsChecking] = useState(false);
 
-    const { data: btcData } = useQuery({
+    const { data: btcData, isFetching: isFetchingPrice } = useQuery({
       queryKey: ['bitcoinPrice', secondaryCurrency],
       queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
       staleTime: 30000,
-      enabled: primaryCurrency !== 'SATS',
+      enabled: primaryCurrency !== 'SATS' && secondaryCurrency !== 'NONE',
     });
 
     const fiatAmount = React.useMemo(() => {
@@ -215,8 +215,10 @@ export const HistoryItem = React.memo<HistoryItemProps>(
     }, [amount, btcData?.price]);
 
     const formattedFiat = React.useMemo(() => {
+      if (!btcData?.price && amount !== 0)
+        return isFetchingPrice ? 'Loading…' : currencyService.formatSats(amount);
       return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
-    }, [fiatAmount, secondaryCurrency]);
+    }, [fiatAmount, secondaryCurrency, btcData?.price, amount, isFetchingPrice]);
 
     const isOutgoing = type === 'send' || type === 'melt';
     const isPending =

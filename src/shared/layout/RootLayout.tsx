@@ -12,8 +12,10 @@ import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentRe
 import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
 import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
 import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
+import { hydrateBitcoinPriceCache } from '~/shared/utils/bitcoinPriceQueryCache';
 
 const queryClient = new QueryClient();
+hydrateBitcoinPriceCache(queryClient);
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

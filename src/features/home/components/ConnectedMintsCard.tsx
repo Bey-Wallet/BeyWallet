@@ -40,6 +40,7 @@ interface MintRowItemProps {
   btcPrice: number | undefined;
   secondaryCurrency: string;
   refreshCounter: number;
+  loading: boolean;
   onPress: (mintUrl: string) => void;
 }
 
@@ -54,6 +55,7 @@ const MintRowItem = React.memo(
     btcPrice,
     secondaryCurrency,
     refreshCounter,
+    loading,
     onPress,
   }: MintRowItemProps) => {
     const displayName =
@@ -78,12 +80,12 @@ const MintRowItem = React.memo(
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
       if (!displayAsSats) {
-        if (!btcPrice) return '...';
-        const fiat = currencyService.convertSatsToCurrency(balance, btcPrice);
+        if (!btcPrice && balance !== 0) return loading ? 'Loading…' : 'Unavailable';
+        const fiat = balance === 0 ? 0 : currencyService.convertSatsToCurrency(balance, btcPrice!);
         return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
       }
       return balance;
-    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
+    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency, loading]);
 
     const prefix = useMemo(() => {
       if (hideBalance || !displayAsSats) return '';
@@ -231,7 +233,7 @@ export const ConnectedMintsCard = () => {
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
-  const { data: btcData } = useQuery({
+  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () =>
       isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
@@ -300,6 +302,7 @@ export const ConnectedMintsCard = () => {
                   btcPrice={btcData?.price}
                   secondaryCurrency={secondaryCurrency}
                   refreshCounter={refreshCounter}
+                  loading={!displayAsSats && isFetchingPrice}
                   onPress={handleMintPress}
                 />
               );

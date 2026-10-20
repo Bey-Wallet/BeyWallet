@@ -16,7 +16,7 @@ export default function BitcoinPriceCard() {
   const [showSats, setShowSats] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt, isError, error } = useQuery({
+  const { data, isFetching, refetch, isError, error } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     refetchInterval: 300000,
@@ -36,12 +36,10 @@ export default function BitcoinPriceCard() {
     const satPrice = price / 100000000;
     const symbol = currencyService.getSymbol(secondaryCurrency as CurrencyCode);
 
-    if (satPrice === 0) return `${symbol}0.00/SAT`;
-
-    if (satPrice < 0.01) {
-      return `${symbol}${satPrice.toFixed(5)}/SAT`;
-    }
-    return `${symbol}${satPrice.toFixed(2)}/SAT`;
+    const value = satPrice === 0 ? '0.00' : satPrice.toFixed(satPrice < 0.01 ? 5 : 2);
+    return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
+      ? `${value} ${symbol}/SAT`
+      : `${symbol}${value}/SAT`;
   };
 
   const [now, setNow] = React.useState(Date.now());
@@ -60,11 +58,11 @@ export default function BitcoinPriceCard() {
   }, [isError, error]);
 
   const timeAgo = useMemo(() => {
-    if (!dataUpdatedAt) return '';
-    const mins = Math.floor((now - dataUpdatedAt) / 60000);
+    if (!data?.updatedAt) return '';
+    const mins = Math.floor((now - data.updatedAt * 1000) / 60000);
     if (mins < 1) return 'Just now';
     return `${mins} min ago`;
-  }, [dataUpdatedAt, now, isLoading]);
+  }, [data?.updatedAt, now]);
 
   const isPositive = data ? data.change24h >= 0 : true;
 
@@ -151,7 +149,9 @@ export default function BitcoinPriceCard() {
                 </Text>
               )
             ) : (
-              <View height={20} width={80} bg="$gray5" rounded="$2" opacity={0.5} />
+              <Text color="$gray10" fontSize={14}>
+                {isFetching ? 'Loading price…' : 'Price unavailable'}
+              </Text>
             )}
             <XStack
               onPress={(e) => {
@@ -213,10 +213,7 @@ export default function BitcoinPriceCard() {
                 </XStack>
               </XStack>
             ) : (
-              <YStack gap="$2">
-                <View height={30} width={120} bg="$gray5" rounded="$2" opacity={0.5} />
-                <View height={20} width={60} bg="$gray5" rounded="$2" opacity={0.5} />
-              </YStack>
+              <Text color="$gray10">{isFetching ? 'Loading price…' : 'Price unavailable'}</Text>
             )}
           </YStack>
         </XStack>
