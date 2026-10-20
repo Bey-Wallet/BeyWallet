@@ -428,6 +428,7 @@ export default function PeopleScreen() {
               key={view}
               width={width}
               flexShrink={0}
+              pt="$3"
               height="100%"
               accessibilityElementsHidden={activeView !== view}
               importantForAccessibility={activeView === view ? 'auto' : 'no-hide-descendants'}
