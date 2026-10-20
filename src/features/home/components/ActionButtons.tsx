@@ -1,7 +1,7 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useCallback } from 'react';
 import { Text, View, XStack, useTheme } from 'tamagui';
-import { Scan, Repeat } from '@tamagui/lucide-icons';
+import { Scan } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ArrowDownIcon from '~/shared/icons/ArrowDown';
@@ -71,11 +71,6 @@ export default React.memo(function ActionButtons() {
     });
   }, [router]);
 
-  const handleSwap = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/swap');
-  }, [router]);
-
   const handleReceive = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     actionSheetRef.current?.present('receive');
@@ -95,7 +90,6 @@ export default React.memo(function ActionButtons() {
           icon={Scan}
           onPress={handleScan}
         />
-        {/* <HomeAction label="Swap" icon={Repeat} onPress={handleSwap} /> */}
         <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
         <HomeAction label="Send" icon={SendIcon} onPress={handleSend} />
       </XStack>

@@ -31,7 +31,7 @@ export const useMintRecommendationStore = create<MintRecommendationState>((set, 
 
     set({ isLoading: true, error: null });
     try {
-      const recommendations = await mintRecommendationService.discoverMints();
+      const recommendations = await mintRecommendationService.discoverMints(20);
       set({
         recommendations,
         isLoading: false,

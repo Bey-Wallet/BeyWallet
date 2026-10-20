@@ -150,11 +150,11 @@ it('centers an icon-only loading spinner and keeps its accessible name', async (
 });
 
 it.each([
-  ['xxsmall', 32, 20],
-  ['xsmall', 36, 24],
-  ['small', 40, 28],
-  ['medium', 48, 32],
-  ['large', 56, 36],
+  ['xxsmall', 32, 14],
+  ['xsmall', 36, 16],
+  ['small', 40, 18],
+  ['medium', 48, 20],
+  ['large', 56, 24],
 ] as const)(
   'uses compact geometry and a 48 point touch target for %s icon actions',
   async (size, dimension, iconSize) => {
@@ -221,6 +221,46 @@ it('normalizes element icon geometry without losing stroke details and honors la
     ),
   );
   expect(tree.root.findByType('Button' as any).props.width).toBe('100%');
+  await act(async () => tree.unmount());
+});
+
+it('supports a smaller icon without shrinking the icon button touch target', async () => {
+  const Icon = (_props: { size?: number }) => null;
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <AppIconButton
+        size="xsmall"
+        iconSize={14}
+        icon={<Icon size={30} />}
+        accessibilityLabel="Edit mint name"
+      />,
+    );
+  });
+  expect(tree.root.findByType(Icon).props.size).toBe(14);
+  const button = tree.root.findByType('Button' as any);
+  expect(button.props.minHeight).toBe(36);
+  expect(button.props.hitSlop.top * 2 + button.props.minHeight).toBe(48);
+  await act(async () => tree.unmount());
+});
+
+it.each([
+  ['xxsmall', 20],
+  ['xsmall', 24],
+  ['small', 28],
+  ['medium', 32],
+  ['large', 36],
+] as const)('preserves enlarged glyphs for %s tertiary icon buttons', async (size, iconSize) => {
+  const Icon = (_props: { size?: number }) => null;
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <AppIconButton size={size} emphasis="tertiary" icon={Icon} accessibilityLabel="Go back" />,
+    );
+  });
+  expect(tree.root.findByType(Icon).props.size).toBe(iconSize);
+  const button = tree.root.findByType('Button' as any);
+  expect(button.props.hitSlop.top * 2 + button.props.minHeight).toBeGreaterThanOrEqual(48);
   await act(async () => tree.unmount());
 });
 

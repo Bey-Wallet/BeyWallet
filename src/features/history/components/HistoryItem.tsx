@@ -6,7 +6,7 @@ import {
   ArrowDownLeft,
   ArrowDownToLine,
   ArrowUpFromLine,
-  ArrowLeftRight,
+  ArrowRightLeft,
   AlertCircle,
   HelpCircle,
   AtSign,
@@ -15,7 +15,6 @@ import {
   Box,
   ShieldCheck,
   Bitcoin,
-  RefreshCw,
   Zap,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -56,8 +55,8 @@ function getViaInfo(type: string, metadata?: Record<string, any>): ViaResult {
       label:
         metadata.sourceMintName && metadata.targetMintName
           ? `${sourceName} ➔ ${targetName}`
-          : 'Swap',
-      icon: <RefreshCw size={10} strokeWidth={2.8} color={defaultColor as any} />,
+          : 'Transfer',
+      icon: <ArrowRightLeft size={10} strokeWidth={2.8} color={defaultColor as any} />,
       color: defaultColor,
     };
   }
@@ -135,7 +134,7 @@ function getRailLabel(type: string, metadata?: Record<string, any>): string {
 function getTypeLabel(type: string, metadata?: Record<string, any>): string {
   switch (type) {
     case 'swap':
-      return 'Swap';
+      return 'Transfer';
     case 'receive-request':
       return 'Received Request';
     case 'send':
@@ -163,7 +162,7 @@ function getIconConfig(type: string, isFailed: boolean, metadata?: Record<string
     case 'melt':
       return ArrowUpFromLine;
     case 'swap':
-      return ArrowLeftRight;
+      return ArrowRightLeft;
     case 'receive-request':
       return Box;
     default:

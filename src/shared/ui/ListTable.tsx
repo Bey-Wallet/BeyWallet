@@ -108,8 +108,8 @@ export function ListTableRow({
         <XStack
           gap="$2"
           items="center"
-          flex={compact ? 2 : undefined}
           minWidth={compact ? 0 : undefined}
+          maxWidth={compact ? '60%' : undefined}
           flexShrink={wrap ? 1 : 0}
           justify="flex-end"
         >

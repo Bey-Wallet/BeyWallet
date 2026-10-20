@@ -43,10 +43,9 @@ export default function DiscoverMintsScreen() {
     refetch,
     isRefetching,
   } = useQuery<MintRecommendation[]>({
-    queryKey: ['all-mint-recommendations'],
+    queryKey: ['all-mint-recommendations', 'radar-and-nip87'],
     queryFn: async () => {
-      // Fetch a larger limit to simulate "all" mints
-      return await mintRecommendationService.discoverMints(100);
+      return await mintRecommendationService.discoverMints();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

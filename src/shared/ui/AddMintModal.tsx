@@ -23,6 +23,7 @@ import { useToastController } from '@tamagui/toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BottomSheetTextInput, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { parseMintPreview, type MintPreviewInfo } from '~/shared/utils/mintPreview';
+import { useRouter } from 'expo-router';
 
 type Stage = 'input' | 'preview' | 'loading';
 
@@ -94,6 +95,7 @@ export interface AddMintModalRef {
 }
 
 const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
+  const router = useRouter();
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const theme = useTheme();
   const [stage, setStage] = useState<Stage>('input');
@@ -194,7 +196,11 @@ const AddMintModal = forwardRef<AddMintModalRef>((_, ref) => {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    triggerPreview(rawUrl);
+    sheetRef.current?.dismiss();
+    router.push({
+      pathname: '/(modals)/mint-profile',
+      params: { url: normalizeUrl(rawUrl) },
+    });
   };
 
   const handleTrustMint = async () => {

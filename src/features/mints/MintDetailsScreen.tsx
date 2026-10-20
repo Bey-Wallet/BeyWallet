@@ -1,36 +1,18 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useState, useRef, useCallback } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  ScrollView,
-  View,
-  Separator,
-  Avatar,
-  ListItem,
-  YGroup,
-} from 'tamagui';
+import { YStack, XStack, Text, ScrollView, View, Separator, Input } from 'tamagui';
 import {
   ChevronLeft,
-  ChevronDown,
-  ChevronUp,
-  Landmark,
-  ShieldCheck,
-  ShieldAlert,
-  Sprout,
   Share2,
-  Building2,
-  Globe,
-  ExternalLink,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
+  QrCode,
+  Pencil,
+  Check,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ArrowRightLeft,
   AlertTriangle,
-  Trash,
   Trash2,
   RefreshCw,
 } from '@tamagui/lucide-icons';
@@ -38,27 +20,26 @@ import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { Share as RNShare, Platform } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Share as RNShare, Keyboard } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { initService, historyService } from '~/services/wallet';
-import { mintRecommendationService } from '~/services/api/mintRecommendationService';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { HistoryItem } from '~/features/history/components/HistoryItem';
-import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useToastController } from '@tamagui/toast';
-import { Image } from 'tamagui';
-import * as WebBrowser from 'expo-web-browser';
 import { SafeFlex } from '~/shared/ui/Flex';
+import { mintHealthService } from '~/services/api/mintHealthService';
+import { MintReliabilityRow, MintPreviewHealth } from './components/MintPreviewHealth';
+import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
+import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
+
+const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
 export default function MintDetailsModal() {
   const router = useRouter();
   const toast = useToastController();
-  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const { mintUrl } = useLocalSearchParams<{ mintUrl: string }>();
   const {
@@ -69,9 +50,14 @@ export default function MintDetailsModal() {
     removeMint,
     isRestoring,
     restoringMintUrl,
+    setMintNickname,
   } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
+  const nameDraft = useRef('');
+  const nameSaveLock = useRef(false);
+  const [showQr, setShowQr] = useState(false);
   const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
   const isRemovingRef = useRef(false);
 
@@ -111,147 +97,22 @@ export default function MintDetailsModal() {
     staleTime: 30000,
   });
 
-  const { data: info } = useQuery({
+  const {
+    data: info,
+    isFetching: isCheckingConnection,
+    error: connectionError,
+    dataUpdatedAt: connectionCheckedAt,
+    errorUpdatedAt: connectionErrorAt,
+    refetch: recheckConnection,
+  } = useQuery({
     queryKey: ['mint-metadata', mintUrl],
-    queryFn: () => mintRecommendationService.fetchMintMetadata(mintUrl || ''),
+    queryFn: ({ signal }) => mintHealthService.mintInfo(mintUrl || '', signal),
     enabled: !!mintUrl,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    networkMode: 'always',
+    retry: false,
+    refetchOnMount: 'always',
   });
-
-  const { data: history = [] } = useQuery({
-    queryKey: ['history'],
-    queryFn: async () => {
-      if (!initService.isInitialized()) return [];
-      return historyService.getHistory(200, 0);
-    },
-    enabled: initService.isInitialized(),
-  });
-
-  // Auditor queries
-  const { data: auditorMint } = useQuery({
-    queryKey: ['auditor-mint', mintUrl],
-    queryFn: async () => {
-      try {
-        const response = await fetch(
-          `https://api.audit.8333.space/mints/url?url=${encodeURIComponent(mintUrl || '')}`,
-        );
-        if (response.ok) {
-          return await response.json();
-        }
-      } catch (e) {
-        console.error('Error fetching auditor mint info:', e);
-      }
-      return null;
-    },
-    enabled: !!mintUrl,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
-
-  const { data: auditorSwaps = [] } = useQuery({
-    queryKey: ['auditor-swaps', auditorMint?.id],
-    queryFn: async () => {
-      if (!auditorMint?.id) return [];
-      try {
-        const response = await fetch(
-          `https://api.audit.8333.space/swaps/mint/${auditorMint.id}?skip=0&limit=30`,
-        );
-        if (response.ok) {
-          return await response.json();
-        }
-      } catch (e) {
-        console.error('Error fetching auditor swaps:', e);
-      }
-      return [];
-    },
-    enabled: !!auditorMint?.id,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
-
-  const { successRate, averageTime, riskLabel, uptimeColor, sortedSwaps } = useMemo(() => {
-    if (!auditorMint || !auditorSwaps || auditorSwaps.length === 0) {
-      return {
-        successRate: null,
-        averageTime: null,
-        riskLabel: 'Not Audited',
-        uptimeColor: '$gray10',
-        sortedSwaps: [],
-      };
-    }
-
-    const successfulSwaps = auditorSwaps.filter((s: any) => s.state === 'OK');
-    const rate = Math.round((successfulSwaps.length / auditorSwaps.length) * 100);
-
-    const successfulSwapsWithTime = successfulSwaps.filter((s: any) => s.time_taken);
-    const avgTime =
-      successfulSwapsWithTime.length > 0
-        ? successfulSwapsWithTime.reduce((sum: number, s: any) => sum + s.time_taken, 0) /
-          successfulSwapsWithTime.length
-        : null;
-
-    let risk = 'Low Risk';
-    let color = '$green10';
-    if (rate >= 99.0) {
-      risk = 'Low Risk';
-      color = '$green10';
-    } else if (rate >= 95.0) {
-      risk = 'Medium Risk';
-      color = '$orange10';
-    } else {
-      risk = 'High Risk';
-      color = '$red10';
-    }
-
-    const sorted = [...auditorSwaps].sort(
-      (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-
-    return {
-      successRate: rate,
-      averageTime: avgTime,
-      riskLabel: risk,
-      uptimeColor: color,
-      sortedSwaps: sorted,
-    };
-  }, [auditorMint, auditorSwaps]);
-
-  const uptimeBars = useMemo(() => {
-    const totalBars = 30;
-    const bars: React.ReactNode[] = [];
-
-    // If not audited, show all neutral gray bars
-    if (!auditorMint || sortedSwaps.length === 0) {
-      return Array.from({ length: totalBars }).map((_, idx) => (
-        <View key={idx} flex={1} height={12} bg="$gray5" rounded={2} opacity={0.4} />
-      ));
-    }
-
-    // Pad with placeholders on the left if we have fewer than 30 swaps
-    const paddingCount = Math.max(0, totalBars - sortedSwaps.length);
-    for (let i = 0; i < paddingCount; i++) {
-      bars.push(
-        <View key={`pad-${i}`} flex={1} height={12} bg="$gray5" rounded={2} opacity={0.4} />,
-      );
-    }
-
-    // Add real swap bars (Green for OK, Red for any error status)
-    sortedSwaps.forEach((swap: any) => {
-      const isOk = swap.state === 'OK';
-      const barColor = isOk ? '$green9' : '$red9';
-
-      bars.push(
-        <View
-          key={`swap-${swap.id}`}
-          flex={1}
-          height={12}
-          bg={barColor}
-          rounded={2}
-          opacity={0.85}
-        />,
-      );
-    });
-
-    return bars;
-  }, [auditorMint, sortedSwaps]);
 
   const normalizedTargetUrl = useMemo(() => mintUrl?.replace(/\/$/, '') || '', [mintUrl]);
 
@@ -269,9 +130,103 @@ export default function MintDetailsModal() {
     return currencyService.convertSatsToCurrency(balance, btcData.price);
   }, [balance, btcData?.price]);
 
-  const mintHistory = useMemo(() => {
-    return history.filter((e: any) => e.mintUrl.replace(/\/$/, '') === normalizedTargetUrl);
-  }, [history, normalizedTargetUrl]);
+  const name =
+    walletMint?.nickname ||
+    walletMint?.name ||
+    mintText(info?.name) ||
+    (() => {
+      try {
+        return new URL(mintUrl || '').hostname;
+      } catch (e) {
+        return mintUrl || '';
+      }
+    })();
+
+  const description = mintText(info?.description) || mintText(info?.description_long);
+  const motd = mintText(info?.motd);
+  const version = mintText(info?.version);
+  const nuts = info?.nuts || {};
+  const iconToUse =
+    walletMint?.icon || mintText(info?.icon_url) || mintText(info?.picture) || mintText(info?.icon);
+  const isTrusted = walletMint?.trusted ?? false;
+  const isActive = activeMintUrl?.replace(/\/$/, '') === normalizedTargetUrl;
+
+  const hostname = (() => {
+    try {
+      return new URL(mintUrl || '').hostname;
+    } catch (e) {
+      return mintUrl || '';
+    }
+  })();
+
+  const handleSaveName = useCallback(async () => {
+    if (!mintUrl || nameSaveLock.current) return;
+    nameSaveLock.current = true;
+    setIsSavingName(true);
+    const nickname = nameDraft.current.trim();
+    try {
+      useWalletStore.setState({ error: null });
+      await setMintNickname(mintUrl, nickname);
+      const state = useWalletStore.getState();
+      if (state.error) throw new Error(state.error);
+      const saved = state.mints.find(
+        (mint) => mint.mintUrl.replace(/\/$/, '') === normalizedTargetUrl,
+      );
+      if (!saved || (saved.nickname || '') !== nickname)
+        throw new Error('Could not save mint name. Please try again.');
+      setIsEditingName(false);
+      Keyboard.dismiss();
+      toast.show('Mint name updated', { kind: 'success' });
+    } catch (error) {
+      toast.show(error instanceof Error ? error.message : 'Could not save mint name.', {
+        kind: 'error',
+      });
+    } finally {
+      nameSaveLock.current = false;
+      setIsSavingName(false);
+    }
+  }, [mintUrl, normalizedTargetUrl, setMintNickname, toast]);
+
+  // Native input owns the draft while typing so the navigation header stays mounted.
+  const renderHeaderTitle = useCallback(
+    () => (
+      <YStack items="center" justify="center" maxWidth={220}>
+        {isEditingName ? (
+          <Input
+            accessibilityLabel="Mint name"
+            defaultValue={nameDraft.current}
+            onChangeText={(value) => {
+              nameDraft.current = value;
+            }}
+            onSubmitEditing={handleSaveName}
+            autoFocus={!isSavingName}
+            editable={!isSavingName}
+            selectTextOnFocus
+            returnKeyType="done"
+            autoCapitalize="sentences"
+            fontSize="$4"
+            fontWeight="800"
+            color="$color"
+            textAlign="center"
+            width={200}
+            height={36}
+            py={0}
+            px="$2"
+            bg="$gray3"
+            borderWidth={0}
+          />
+        ) : (
+          <Text fontSize="$4" fontWeight="800" color="$color" numberOfLines={1}>
+            {name}
+          </Text>
+        )}
+        <Text fontSize="$1" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
+          {hostname}
+        </Text>
+      </YStack>
+    ),
+    [isEditingName, isSavingName, handleSaveName, name, hostname],
+  );
 
   if (!mintUrl || !walletMint) {
     return (
@@ -286,33 +241,21 @@ export default function MintDetailsModal() {
     );
   }
 
-  const name =
-    walletMint.nickname ||
-    walletMint.name ||
-    info?.name ||
-    (() => {
-      try {
-        return new URL(mintUrl).hostname;
-      } catch (e) {
-        return mintUrl;
-      }
-    })();
-
-  const description = info?.description || info?.description_long;
-  const motd = info?.motd;
-  const version = info?.version;
-  const nuts = info?.nuts || {};
-  const iconToUse = walletMint.icon || info?.icon_url || info?.picture || info?.icon;
-  const isTrusted = walletMint.trusted ?? false;
-  const isActive = activeMintUrl?.replace(/\/$/, '') === normalizedTargetUrl;
-
-  const hostname = (() => {
-    try {
-      return new URL(mintUrl).hostname;
-    } catch (e) {
-      return mintUrl;
-    }
-  })();
+  const tableProps = {
+    compact: true,
+    bg: '$gray3',
+    separator: <YStack height={2} width="100%" bg="$background" />,
+  };
+  const connection = isCheckingConnection ? 'checking' : connectionError ? 'offline' : 'online';
+  const units = [
+    ...new Set([
+      ...(Array.isArray(info?.units)
+        ? info.units.filter((unit): unit is string => typeof unit === 'string')
+        : []),
+      ...mintPreviewMethods(info || {}).flatMap((method) => (method.unit ? [method.unit] : [])),
+    ]),
+  ];
+  const contacts = Array.isArray(info?.contact) ? info.contact : [];
 
   const handleCopy = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
@@ -329,15 +272,6 @@ export default function MintDetailsModal() {
     }
   };
 
-  const handleOpenLink = async (url: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await WebBrowser.openBrowserAsync(url);
-    } catch (e) {
-      toast.show('Could not open link', { kind: 'error' });
-    }
-  };
-
   const handleDeposit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setActiveMint(mintUrl);
@@ -350,31 +284,17 @@ export default function MintDetailsModal() {
     router.push('/(modals)/melt');
   };
 
-  const handleSwap = () => {
+  const handleTransfer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setActiveMint(mintUrl);
     router.push('/(modals)/swap');
-  };
-
-  const handleTransactionPress = (id: string, type: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({ pathname: '/(modals)/txn-details', params: { id } });
   };
 
   return (
     <YStack flex={1} bg="$background">
       <Stack.Screen
         options={{
-          headerTitle: () => (
-            <YStack items="center" justify="center">
-              <Text fontSize="$4" fontWeight="800" color="$color">
-                {name}
-              </Text>
-              <Text fontSize="$1" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
-                {hostname}
-              </Text>
-            </YStack>
-          ),
+          headerTitle: renderHeaderTitle,
           headerLeft: () => (
             <AppIconButton
               variant="default"
@@ -397,9 +317,24 @@ export default function MintDetailsModal() {
               size="xsmall"
 
               shape="circular"
-              accessibilityLabel="Share"
-              icon={<Share2 size={18} color="$color" />}
-              onPress={handleShare}
+              accessibilityLabel={isEditingName ? 'Save mint name' : 'Edit mint name'}
+              iconSize={isEditingName ? 18 : 14}
+              icon={
+                isEditingName ? (
+                  <Check size={18} color="$color" />
+                ) : (
+                  <Pencil size={14} color="$color" />
+                )
+              }
+              disabled={isSavingName}
+              onPress={
+                isEditingName
+                  ? handleSaveName
+                  : () => {
+                      nameDraft.current = name;
+                      setIsEditingName(true);
+                    }
+              }
             />
           ),
         }}
@@ -472,7 +407,7 @@ export default function MintDetailsModal() {
             </XStack>
 
             {/* Action Columns Row */}
-            <XStack py="$4" justify="space-around" bg="$gray2" rounded="$5" mt="$2">
+            <XStack py="$4" justify="space-around" bg="$gray2" rounded="$6" mt="$2">
               <YStack
                 items="center"
                 gap="$2"
@@ -480,7 +415,7 @@ export default function MintDetailsModal() {
                 pressStyle={{ opacity: 0.7 }}
                 flex={1}
               >
-                <ArrowUp size={24} color="$color" />
+                <ArrowDownToLine size={24} color="$color" />
                 <Text fontSize="$3" fontWeight="600" color="$color">
                   Deposit
                 </Text>
@@ -493,7 +428,7 @@ export default function MintDetailsModal() {
                 pressStyle={{ opacity: 0.7 }}
                 flex={1}
               >
-                <ArrowDown size={24} color="$color" />
+                <ArrowUpFromLine size={24} color="$color" />
                 <Text fontSize="$3" fontWeight="600" color="$color">
                   Withdraw
                 </Text>
@@ -502,200 +437,117 @@ export default function MintDetailsModal() {
               <YStack
                 items="center"
                 gap="$2"
-                onPress={handleSwap}
+                onPress={handleTransfer}
                 pressStyle={{ opacity: 0.7 }}
                 flex={1}
               >
-                <ArrowUpDown size={24} color="$color" />
+                <ArrowRightLeft size={24} color="$color" />
                 <Text fontSize="$3" fontWeight="600" color="$color">
-                  Swap
+                  Transfer
                 </Text>
               </YStack>
             </XStack>
 
-            {/* Collapsible About Section */}
-            <YStack gap="$2">
-              <AppPressable
-                py={4}
-                accessibilityState={{ expanded: isAboutExpanded }}
-                bg="$gray3"
-                pressStyle={{ bg: '$gray4' }}
-                onPress={() => setIsAboutExpanded(!isAboutExpanded)}
-                justify="space-between"
-                px="$4"
-                rounded="$5"
-                minHeight={44}
-                flexDirection="row"
-                items="center"
-                gap={8}
+            {/* Mint information */}
+            <MintReliabilityRow
+              url={mintUrl}
+              connection={connection}
+              onRecheck={() => {
+                void recheckConnection({ cancelRefetch: false });
+              }}
+            />
+            <XStack gap="$3" items="center">
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="small"
+                icon={Share2}
+                onPress={handleShare}
               >
-                <Text fontSize="$4" fontWeight="800" color="$color">
-                  About Mint
-                </Text>
-                {isAboutExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </AppPressable>
-
-              {isAboutExpanded && (
-                <YStack gap="$4" pt="$2">
-                  {description && (
-                    <YStack gap="$1" px="$2">
-                      <Text fontSize="$3" color="$gray10" fontWeight="600">
-                        Description
-                      </Text>
-                      <Text color="$color" fontSize="$4" lineHeight={20}>
-                        {description}
-                      </Text>
-                    </YStack>
-                  )}
-
-                  {motd && (
-                    <YStack bg="$color5" rounded="$4" p="$3" mx="$2">
-                      <Text fontWeight="bold" color="$color" fontSize="$3">
-                        Announcement
-                      </Text>
-                      <Text color="$color" mt="$1" fontSize="$3">
-                        {motd}
-                      </Text>
-                    </YStack>
-                  )}
-
-                  <ListTable>
-                    <ListTableRow
-                      label="URL"
-                      value={
-                        <XStack items="center" gap="$1" onPress={() => handleOpenLink(mintUrl)}>
-                          <Text
-                            color="#0056b3"
-                            fontWeight="700"
-                            fontSize="$4"
-                            style={{ textDecorationLine: 'underline' }}
-                          >
-                            {hostname}
-                          </Text>
-                          <ExternalLink size={12} color="#0056b3" />
-                        </XStack>
-                      }
-                      isCopyable
-                      copyValue={mintUrl}
-                    />
-                    {version && <ListTableRow label="Version" value={version} />}
-                    <ListTableRow
-                      label="Supported NUTs"
-                      value={Object.keys(nuts).length}
-                      rightContent={
-                        <View bg="$gray4" px="$2" py="$1" rounded="$2">
-                          <Text fontSize="$2" fontWeight="800" color="$color">
-                            NUTs
-                          </Text>
-                        </View>
-                      }
-                    />
-                    <YStack py="$3" px="$4" gap="$2">
-                      <XStack justify="space-between" items="center">
-                        <Text fontSize="$4" color="$gray10" fontWeight="600">
-                          Uptime
-                        </Text>
-                        <Text fontSize="$4" fontWeight="700" color={uptimeColor}>
-                          {successRate !== null ? `${successRate}% (${riskLabel})` : 'Not Audited'}
-                        </Text>
-                      </XStack>
-                      <XStack gap="$1" items="center" width="100%" pt="$1">
-                        {uptimeBars}
-                      </XStack>
-                    </YStack>
-                    <ListTableRow
-                      label="Success Rate"
-                      value={successRate !== null ? `${successRate}%` : 'Not Audited'}
-                    />
-                    {averageTime !== null && (
-                      <ListTableRow
-                        label="Avg Response Time"
-                        value={`${(averageTime / 1000).toFixed(2)}s`}
-                      />
-                    )}
-                    {auditorMint && auditorMint.balance !== undefined && (
-                      <ListTableRow
-                        label="Auditor Balance"
-                        value={
-                          showBitcoinSymbol
-                            ? `₿${auditorMint.balance.toLocaleString()}`
-                            : `${auditorMint.balance.toLocaleString()} sat`
-                        }
-                      />
-                    )}
-                    {auditorMint && auditorMint.sum_donations !== undefined && (
-                      <ListTableRow
-                        label="Auditor Donations"
-                        value={
-                          showBitcoinSymbol
-                            ? `₿${auditorMint.sum_donations.toLocaleString()}`
-                            : `${auditorMint.sum_donations.toLocaleString()} sat`
-                        }
-                      />
-                    )}
-                  </ListTable>
-                </YStack>
-              )}
-            </YStack>
-
-            {/* Transaction History Section */}
-            <YStack gap="$3">
-              <Text fontSize="$5" color="$color" fontWeight="800" px="$1">
-                Mint Transactions
-              </Text>
-              {mintHistory.length === 0 ? (
-                <YStack py="$8" items="center" justify="center" opacity={0.5}>
-                  <Text fontWeight="600" color="$gray10">
-                    No transactions for this mint
+                Share
+              </AppButton>
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="small"
+                icon={QrCode}
+                onPress={() => setShowQr(true)}
+              >
+                Show QR
+              </AppButton>
+            </XStack>
+            {motd && (
+              <ListTable {...tableProps}>
+                <YStack px="$4" py="$3" gap="$2">
+                  <Text color="$gray10" fontSize="$3">
+                    Message from the mint
                   </Text>
+                  <Text lineHeight={22}>{motd}</Text>
                 </YStack>
-              ) : (
-                <YGroup
-                  overflow="hidden"
-                  separator={<Separator borderColor="$borderColor" opacity={0.5} />}
-                >
-                  {mintHistory.map((entry, idx) => {
-                    const total = mintHistory.length;
-                    const position =
-                      total === 1
-                        ? 'only'
-                        : idx === 0
-                          ? 'first'
-                          : idx === total - 1
-                            ? 'last'
-                            : 'middle';
-
-                    const isFirst = position === 'first' || position === 'only';
-                    const isLast = position === 'last' || position === 'only';
-
-                    return (
-                      <YGroup.Item key={entry.id}>
-                        <View
-                          style={{
-                            backgroundColor: '$gray3',
-                            borderTopLeftRadius: isFirst ? 10 : 0,
-                            borderTopRightRadius: isFirst ? 10 : 0,
-                            borderBottomLeftRadius: isLast ? 10 : 0,
-                            borderBottomRightRadius: isLast ? 10 : 0,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <HistoryItem
-                            id={entry.id}
-                            type={entry.type}
-                            amount={entry.amount}
-                            createdAt={entry.createdAt}
-                            status={('state' in entry && entry.state) || 'success'}
-                            metadata={entry.metadata}
-                            onPress={handleTransactionPress}
-                          />
-                        </View>
-                      </YGroup.Item>
-                    );
-                  })}
-                </YGroup>
-              )}
+              </ListTable>
+            )}
+            {description && (
+              <ListTable {...tableProps}>
+                <YStack px="$4" py="$3" gap="$2">
+                  <Text color="$gray10" fontSize="$3">
+                    About
+                  </Text>
+                  <Text lineHeight={22}>{description}</Text>
+                </YStack>
+              </ListTable>
+            )}
+            <YStack gap="$3">
+              <Text color="$gray10" fontSize="$4" fontWeight="600">
+                Mint Details
+              </Text>
+              <ListTable {...tableProps}>
+                <ListTableRow label="URL" value={mintUrl} isCopyable copyValue={mintUrl} />
+                {version && <ListTableRow label="Version" value={version} />}
+                <ListTableRow label="Advertised NUTs" value={Object.keys(nuts).length} />
+                <ListTableRow label="Units" value={units.join(', ') || 'Not provided'} />
+                {mintText(info?.pubkey) && (
+                  <ListTableRow label="Public key" value={mintText(info?.pubkey)} isCopyable />
+                )}
+                {mintText(info?.tos_url) && (
+                  <ListTableRow
+                    label="Terms of service"
+                    value={mintText(info?.tos_url)}
+                    isCopyable
+                  />
+                )}
+              </ListTable>
             </YStack>
+            <MintPreviewMethods info={info || {}} />
+            <MintPreviewHealth
+              url={mintUrl}
+              connection={connection}
+              connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
+              onRecheck={() => {
+                void recheckConnection();
+              }}
+            />
+            {contacts.length > 0 && (
+              <YStack gap="$3">
+                <Text color="$gray10" fontSize="$4" fontWeight="600">
+                  Contact & Support
+                </Text>
+                <ListTable {...tableProps}>
+                  {contacts.map((contact, index) => {
+                    const method =
+                      mintText(Array.isArray(contact) ? contact[0] : contact?.method) || 'Contact';
+                    const value = mintText(Array.isArray(contact) ? contact[1] : contact?.info);
+                    return value ? (
+                      <ListTableRow
+                        key={index}
+                        label={method.charAt(0).toUpperCase() + method.slice(1)}
+                        value={value}
+                        isCopyable
+                      />
+                    ) : null;
+                  })}
+                </ListTable>
+              </YStack>
+            )}
           </YStack>
         </ScrollView>
 
@@ -711,8 +563,8 @@ export default function MintDetailsModal() {
         >
           <AppButton
             variant="branded"
-            emphasis="primary"
-            size="large"
+            emphasis="secondary"
+            size="medium"
             loading={isRestoring && restoringMintUrl === mintUrl}
             icon={<RefreshCw size={18} />}
             flex={1}
@@ -723,9 +575,9 @@ export default function MintDetailsModal() {
           </AppButton>
 
           <AppButton
-            variant="critical"
+            variant="branded"
             emphasis="secondary"
-            size="large"
+            size="medium"
             icon={<Trash2 strokeWidth={2.5} />}
             flex={1}
             onPress={() => {
@@ -796,6 +648,7 @@ export default function MintDetailsModal() {
             </YStack>
           </YStack>
         </AppBottomSheet>
+        <MintUrlQrOverlay url={mintUrl} visible={showQr} onClose={() => setShowQr(false)} />
       </SafeFlex>
     </YStack>
   );

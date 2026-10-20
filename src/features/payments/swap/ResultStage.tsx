@@ -22,10 +22,10 @@ export function ResultStage({
       status={status}
       title={
         status === 'success'
-          ? 'Swap completed'
+          ? 'Transfer completed'
           : status === 'cancelled'
-            ? 'Swap cancelled'
-            : 'Swap not completed'
+            ? 'Transfer cancelled'
+            : 'Transfer not completed'
       }
       amount={Number(amount)}
       mintUrl={sourceMintUrl}

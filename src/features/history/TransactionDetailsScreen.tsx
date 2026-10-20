@@ -981,7 +981,7 @@ export function TransactionDetailsScreen() {
                   if (via === 'swap') {
                     return (
                       <>
-                        <DetailItem label="Channel" value="NUT-19 Direct Swap" />
+                        <DetailItem label="Channel" value="Mint transfer" />
                         {sourceMintName && (
                           <DetailItem label="Source Mint" value={sourceMintName} />
                         )}

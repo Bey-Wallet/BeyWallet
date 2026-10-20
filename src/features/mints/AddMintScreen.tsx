@@ -1,6 +1,6 @@
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Input,
   Text,
@@ -53,7 +53,6 @@ import {
 import { fetchMintMeta, type MintMetadata } from '~/features/explore/components/mintMeta';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
-import AddMintModal, { AddMintModalRef } from '~/shared/ui/AddMintModal';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
 interface MintSkeletonRowProps {
@@ -443,7 +442,6 @@ export default function AddMintScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const addMintRef = useRef<AddMintModalRef>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -474,16 +472,16 @@ export default function AddMintScreen() {
     enabled: isFiatEnabled,
   });
 
-  // ─── Discover Mints via NIP-87 & Nostr relays (Cached) ─────────────────────
+  // MintRadar's directory plus NIP-87 relay discovery (cached).
   const {
     data: allDiscoveredMints = [],
     isLoading: isDiscoverLoading,
     isError: isDiscoverError,
     refetch: refetchDiscover,
   } = useQuery<MintRecommendation[]>({
-    queryKey: ['all-mint-recommendations'],
+    queryKey: ['all-mint-recommendations', 'radar-and-nip87'],
     queryFn: async () => {
-      return await mintRecommendationService.discoverMints(100);
+      return await mintRecommendationService.discoverMints();
     },
     staleTime: 5 * 60 * 1000, // 5 min cache
   });
@@ -545,10 +543,10 @@ export default function AddMintScreen() {
           url = 'https://' + url;
         }
         url = url.replace(/\/$/, '');
-        addMintRef.current?.present(url);
+        router.push({ pathname: '/(modals)/mint-profile', params: { url } });
       }
     }
-  }, [scannerResult, setScannerResult]);
+  }, [scannerResult, setScannerResult, router]);
 
   // ─── Filtered Lists & Lazy Pagination ──────────────────────────────────────
   const PAGE_SIZE = 12;
@@ -636,10 +634,13 @@ export default function AddMintScreen() {
     [router],
   );
 
-  const handleAddMintAction = useCallback((url: string) => {
-    Keyboard.dismiss();
-    addMintRef.current?.present(url);
-  }, []);
+  const handleAddMintAction = useCallback(
+    (url: string) => {
+      Keyboard.dismiss();
+      router.push({ pathname: '/(modals)/mint-profile', params: { url } });
+    },
+    [router],
+  );
 
   const safeGoBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -861,7 +862,7 @@ export default function AddMintScreen() {
           )}
         </YStack>
 
-        {/* ─── Section 2: Discover Mints (NIP-87) ────────────────────────────── */}
+        {/* Discover mints from MintRadar and NIP-87. */}
         <YStack gap="$2">
           <XStack justify="space-between" items="center" mb="$1" px="$1">
             <XStack items="center" gap="$2">
@@ -946,9 +947,6 @@ export default function AddMintScreen() {
           )}
         </YStack>
       </ScrollView>
-
-      {/* Trust & Add confirmation modal */}
-      <AddMintModal ref={addMintRef} />
     </YStack>
   );
 }

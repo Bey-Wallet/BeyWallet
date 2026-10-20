@@ -172,7 +172,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
           privacy, and seamless daily usage.
         </Paragraph>
         <Paragraph fontSize="$4" lineHeight={22} color="$gray12">
-          It allows you to hold, receive, send, and swap Bitcoin instantly without dealing with
+          It allows you to hold, receive, send, and transfer Bitcoin instantly without dealing with
           base-layer block times, variable fees, or public blockchain transaction trails.
         </Paragraph>
         <YStack gap="$2" mt="$2">
@@ -198,7 +198,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
             <Text fontWeight="700" color="$color">
               Multi-Mint Support
             </Text>
-            : Seamlessly spread and swap balances across trusted Bitcoin mints.
+            : Seamlessly spread and transfer balances across trusted Bitcoin mints.
           </Text>
         </YStack>
       </YStack>
@@ -258,8 +258,8 @@ export const SUPPORT_ITEMS: SupportItem[] = [
           <Text fontWeight="600" color="$color">
             multiple mints
           </Text>{' '}
-          and allowing you to easily swap, diversify, and manage balances across different operators
-          to minimize counterparty risk.
+          and allowing you to easily transfer, diversify, and manage balances across different
+          operators to minimize counterparty risk.
         </Paragraph>
       </YStack>
     ),

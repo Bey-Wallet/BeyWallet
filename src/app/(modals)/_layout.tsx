@@ -106,7 +106,7 @@ export default function ModalLayout() {
       <Stack.Screen
         name="swap"
         options={{
-          title: 'Swap',
+          title: 'Transfer',
           presentation: 'fullScreenModal',
           animation: 'slide_from_bottom',
         }}
