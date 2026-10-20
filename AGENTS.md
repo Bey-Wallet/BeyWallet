@@ -25,15 +25,17 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 
 ### Approved UI & UX Conventions
 
-- Use the Settings screens as the approved reference for grouped preferences and navigation lists.
+- Use the Settings screens as the approved reference only for Settings and grouped preference/navigation lists. Do not apply that grouped-row treatment to transaction history, activity feeds, or other screens by default.
+- History follows the user-provided design reference: a centered title, compact filter pills, date headings, and separate rounded transaction cards with gaps. Use circular direction icons, titles and payment context on the left, and amounts and timestamps on the right. Keep pending status minimal within the existing subtitle; check status by opening transaction details, without a separate status/action row on the card. Do not turn History into a Settings list. Keep LegendList for rendering the history timeline.
+- Match History's reference colors and typography using its feature-local palette: black background, charcoal cards, lighter icon circles, soft off-white primary text, and muted gray supporting text/icons. Preserve the reference's font hierarchy, spacing, and pill treatment instead of inheriting Settings styling. Keep header/filter controls clearly visible and at least 48 points tappable.
 - Call mint-to-mint operations "Transfer" in user-facing text and use the `ArrowRightLeft` icon. Preserve existing protocol/API identifiers and stored transaction types.
 - Keep button icons proportional to their button size, except tertiary icon buttons, which retain enlarged glyphs. Preserve a minimum 48-point touch target.
 - Use `rounded="$6"` for cards and grouped lists. Clip child rows to the group's corners rather than rounding every row. Preserve circular avatars, icon buttons, and switch pill shapes.
-- Match Home's `ActionButtons.tsx` for neutral card colors: `$buttonDefaultSecondary`, with `$buttonDefaultSecondaryHover` and `$buttonDefaultSecondaryPress` for interactive states.
-- Use `$gray10` for muted text, descriptions, current-value labels, and navigation cues. Preserve semantic warning, error, and success colors.
-- Make list separators full width, including beneath leading icons, and 2 points thick. Do not inset them after the icon column.
+- Match Home's `ActionButtons.tsx` for default neutral card colors: `$buttonDefaultSecondary`, with `$buttonDefaultSecondaryHover` and `$buttonDefaultSecondaryPress` for interactive states. History uses its reference-matched feature palette instead.
+- Use `$gray10` for default muted text, descriptions, current-value labels, and navigation cues. History uses its reference-matched muted text/icon colors. Preserve semantic warning, error, and success colors.
+- Within grouped preference/navigation lists, make separators full width, including beneath leading icons, and 2 points thick. Do not inset them after the icon column. History uses spacing between separate transaction cards instead of list separators.
 - Use meaningful icons from the existing icon family or app brand assets. Keep list icons consistently sized at 20–22 points, aligned in a fixed-width slot, and paired with clear text labels.
-- Use chevrons for internal navigation, external-link icons for web destinations, and checkmarks for selected options. Make the whole row tappable with a minimum 48-point touch target and accessible feedback.
+- In preference/navigation lists, use chevrons for internal navigation, external-link icons for web destinations, and checkmarks for selected options. History transaction cards follow the reference without trailing chevrons. Make interactive rows/cards tappable with a minimum 48-point touch target and accessible feedback.
 - Keep Settings main/category rows navigation-only. Give each preference or operation a dedicated screen; place editing controls and switches there instead of using settings sheets or inline mutations in navigation lists.
 - Show informational status, such as overall Nostr health, as a read-only row without a chevron or press handler. Keep management screens minimal: grouped lists, brief descriptions, and direct action buttons rather than hero/status cards.
 - Center Settings header titles, provide a back arrow, and hide the bottom tab bar throughout Settings. Return from the Settings root to the originating tab, with Home as the direct-entry fallback.

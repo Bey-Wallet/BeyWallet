@@ -432,7 +432,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     throw new Error('This looks like an LNURL. LNURL deposits are not yet supported.');
   }
 
-  console.error('[decodeToken] ❌ All decoders failed. Token prefix:', cleaned.substring(0, 50));
+  console.error('[decodeToken] All decoders failed');
   throw new Error('Invalid or unsupported cashu token format.');
 }
 
