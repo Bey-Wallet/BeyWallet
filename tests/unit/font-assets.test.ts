@@ -50,14 +50,14 @@ function hasGlyph(font: Buffer, codePoint: number) {
 }
 
 it.each([
+  ['Regular', 400],
   ['Medium', 500],
   ['SemiBold', 600],
-  ['Bold', 700],
 ] as const)(
-  'bundles genuine Montserrat %s weight %i with Bitcoin and rupee glyphs',
+  'bundles genuine Special Gothic %s weight %i with Bitcoin and rupee glyphs',
   (name, weight) => {
     const font = readFileSync(
-      path.join(process.cwd(), 'src/assets/fonts', `Montserrat-${name}.ttf`),
+      path.join(process.cwd(), 'src/assets/fonts', `SpecialGothic-${name}.ttf`),
     );
     expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(weight);
     expect(hasGlyph(font, 0x20bf)).toBe(true);

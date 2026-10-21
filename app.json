@@ -112,9 +112,9 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/Montserrat-Medium.ttf",
-            "./src/assets/fonts/Montserrat-SemiBold.ttf",
-            "./src/assets/fonts/Montserrat-Bold.ttf",
+            "./src/assets/fonts/SpecialGothic-Regular.ttf",
+            "./src/assets/fonts/SpecialGothic-Medium.ttf",
+            "./src/assets/fonts/SpecialGothic-SemiBold.ttf",
             "./src/assets/fonts/Mono.otf"
           ]
         }

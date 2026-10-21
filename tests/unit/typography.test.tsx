@@ -25,10 +25,10 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
 it.each([
-  ['400', 'MontserratMedium'],
-  ['500', 'MontserratMedium'],
-  ['600', 'MontserratSemiBold'],
-  ['700', 'MontserratBold'],
+  ['400', 'SpecialGothicRegular'],
+  ['500', 'SpecialGothicMedium'],
+  ['600', 'SpecialGothicSemiBold'],
+  ['700', 'SpecialGothicSemiBold'],
 ] as const)('renders body and heading weight %s with %s', async (weight, family) => {
   let tree!: ReactTestRenderer;
   await act(async () => {
@@ -101,8 +101,10 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
     expect({
       id,
-      usesMontserrat: renderedStyles.some((style) => style?.fontFamily?.startsWith('Montserrat')),
-    }).toEqual({ id, usesMontserrat: true });
+      usesSpecialGothic: renderedStyles.some((style) =>
+        style?.fontFamily?.startsWith('SpecialGothic'),
+      ),
+    }).toEqual({ id, usesSpecialGothic: true });
   }
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(

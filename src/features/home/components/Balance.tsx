@@ -97,7 +97,7 @@ export default function Balance() {
               (hideBalance ? '_hidden' : '_visible_sats') +
               `_${showBitcoinSymbol}`
             }
-            letterSpacing={-0.5}
+            letterSpacing={-2}
             fontSize={42}
             fontWeight={500}
             color="$accent1"
@@ -122,7 +122,7 @@ export default function Balance() {
           <RollingNumber
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
-            letterSpacing={-0.5}
+            letterSpacing={-2}
             fontSize={42}
             fontWeight={500}
             color="$accent1"
@@ -164,6 +164,7 @@ export default function Balance() {
           fontSize={20}
           fontWeight={500}
           color="$accent7"
+          letterSpacing={-1}
 
           decimalOpacity={0.4}
           showDecimals={displayAsSats}

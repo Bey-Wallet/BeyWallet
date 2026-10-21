@@ -62,8 +62,8 @@ const animations = createAnimations({
   },
 });
 
-const montserratFont = createFont({
-  family: 'MontserratMedium',
+const specialGothicFont = createFont({
+  family: 'SpecialGothicRegular',
   size: {
     1: 11,
     2: 12,
@@ -101,9 +101,9 @@ const montserratFont = createFont({
     16: 131,
   },
   weight: {
-    4: '500',
-    5: '600',
-    6: '700',
+    4: '400',
+    5: '500',
+    6: '600',
     1000: '1000',
     bold: 'bold',
   },
@@ -112,24 +112,24 @@ const montserratFont = createFont({
     8: 1,
   },
   face: {
-    100: { normal: 'MontserratMedium' },
-    200: { normal: 'MontserratMedium' },
-    300: { normal: 'MontserratMedium' },
-    400: { normal: 'MontserratMedium' },
-    500: { normal: 'MontserratMedium' },
-    600: { normal: 'MontserratSemiBold' },
-    700: { normal: 'MontserratBold' },
-    800: { normal: 'MontserratBold' },
-    900: { normal: 'MontserratBold' },
-    1000: { normal: 'MontserratBold' },
-    bold: { normal: 'MontserratBold' },
+    100: { normal: 'SpecialGothicRegular' },
+    200: { normal: 'SpecialGothicRegular' },
+    300: { normal: 'SpecialGothicRegular' },
+    400: { normal: 'SpecialGothicRegular' },
+    500: { normal: 'SpecialGothicMedium' },
+    600: { normal: 'SpecialGothicSemiBold' },
+    700: { normal: 'SpecialGothicSemiBold' },
+    800: { normal: 'SpecialGothicSemiBold' },
+    900: { normal: 'SpecialGothicSemiBold' },
+    1000: { normal: 'SpecialGothicSemiBold' },
+    bold: { normal: 'SpecialGothicSemiBold' },
   },
 });
 
 const monoFont = createFont({
   family: 'Mono',
-  size: montserratFont.size,
-  lineHeight: montserratFont.lineHeight,
+  size: specialGothicFont.size,
+  lineHeight: specialGothicFont.lineHeight,
   weight: {
     4: '400',
     5: '500',
@@ -313,8 +313,8 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: montserratFont,
-    body: montserratFont,
+    heading: specialGothicFont,
+    body: specialGothicFont,
     mono: monoFont,
   },
   themes: {

@@ -21,7 +21,7 @@ export default function ModalLayout() {
         },
         headerTitleStyle: {
           color: theme.color?.val,
-          fontFamily: 'MontserratSemiBold',
+          fontFamily: 'SpecialGothicMedium',
           fontWeight: 'normal',
         },
         headerTitleAlign: 'center',

@@ -31,9 +31,9 @@ export function RootLayout() {
   useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
-    MontserratMedium: require('~/assets/fonts/Montserrat-Medium.ttf'),
-    MontserratSemiBold: require('~/assets/fonts/Montserrat-SemiBold.ttf'),
-    MontserratBold: require('~/assets/fonts/Montserrat-Bold.ttf'),
+    SpecialGothicRegular: require('~/assets/fonts/SpecialGothic-Regular.ttf'),
+    SpecialGothicMedium: require('~/assets/fonts/SpecialGothic-Medium.ttf'),
+    SpecialGothicSemiBold: require('~/assets/fonts/SpecialGothic-SemiBold.ttf'),
     Mono: require('~/assets/fonts/Mono.otf'),
   });
 

@@ -25,7 +25,7 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 
 ### Approved UI & UX Conventions
 
-- Use Montserrat Medium (500), SemiBold (600), and Bold (700) through the existing `$body` / `$heading` families. Bundle only these three static weights; retain their SIL license. All three include Bitcoin and Indian rupee glyphs. See `docs/fonts.md` for source and registration details.
+- Use standard-width Special Gothic Regular (400), Medium (500), and SemiBold (600) through the existing `$body` / `$heading` families. Register only these three static weights; retain their SIL license. Per the user's request, keep the Bold (700) font asset in the repository but leave it unregistered until the user requests a switch. The active weights include Bitcoin and Indian rupee glyphs. See `docs/fonts.md` for source and registration details.
 
 - Use the Settings screens as the approved reference for grouped preferences and navigation lists.
 - Call mint-to-mint operations "Transfer" in user-facing text and use the `ArrowRightLeft` icon. Preserve existing protocol/API identifiers and stored transaction types.

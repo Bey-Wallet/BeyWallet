@@ -191,10 +191,10 @@ export function RootLayoutNav() {
     ...(resolvedTheme === 'dark' ? DarkTheme : DefaultTheme),
     // Registered static faces already contain their weight; avoid Android fallback/synthesis.
     fonts: {
-      regular: { fontFamily: 'MontserratMedium', fontWeight: 'normal' as const },
-      medium: { fontFamily: 'MontserratSemiBold', fontWeight: 'normal' as const },
-      bold: { fontFamily: 'MontserratBold', fontWeight: 'normal' as const },
-      heavy: { fontFamily: 'MontserratBold', fontWeight: 'normal' as const },
+      regular: { fontFamily: 'SpecialGothicRegular', fontWeight: 'normal' as const },
+      medium: { fontFamily: 'SpecialGothicMedium', fontWeight: 'normal' as const },
+      bold: { fontFamily: 'SpecialGothicSemiBold', fontWeight: 'normal' as const },
+      heavy: { fontFamily: 'SpecialGothicSemiBold', fontWeight: 'normal' as const },
     },
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
@@ -217,8 +217,8 @@ export function RootLayoutNav() {
       <YStack flex={1}>
         <Stack
           screenOptions={{
-            headerTitleStyle: { fontFamily: 'MontserratSemiBold', fontWeight: 'normal' },
-            headerBackTitleStyle: { fontFamily: 'MontserratMedium' },
+            headerTitleStyle: { fontFamily: 'SpecialGothicMedium', fontWeight: 'normal' },
+            headerBackTitleStyle: { fontFamily: 'SpecialGothicRegular' },
             contentStyle: {
               backgroundColor: theme.background?.val,
             },
