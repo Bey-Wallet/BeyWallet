@@ -8,10 +8,13 @@ const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-
 // Base Text is unnamed in Tamagui, so named config defaults do not reach it.
 // Update its existing defaults before configuring the named text variants below.
 const baseText = Text as unknown as { staticConfig?: { defaultProps?: Record<string, unknown> } };
-Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers);
+Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers, { fontFamily: '$body' });
 
 // Keep this type independent of TamaguiCustomConfig, which is inferred from config below.
-const textDefaults: Record<string, Pick<TextStyle, 'fontVariant'>> = Object.fromEntries(
+const textDefaults: Record<
+  string,
+  Pick<TextStyle, 'fontVariant' | 'fontFamily'>
+> = Object.fromEntries(
   [
     'Text',
     'SizableText',
@@ -37,7 +40,7 @@ const textDefaults: Record<string, Pick<TextStyle, 'fontVariant'>> = Object.from
     'ListItemTitle',
     'ListItemSubtitle',
     'SelectItemText',
-  ].map((name) => [name, tabularNumbers]),
+  ].map((name) => [name, { ...tabularNumbers, fontFamily: '$body' }]),
 );
 
 const animations = createAnimations({
@@ -59,8 +62,8 @@ const animations = createAnimations({
   },
 });
 
-const ttFirsNeueFont = createFont({
-  family: 'TTFirsNeueNormal',
+const montserratFont = createFont({
+  family: 'MontserratMedium',
   size: {
     1: 11,
     2: 12,
@@ -98,9 +101,9 @@ const ttFirsNeueFont = createFont({
     16: 131,
   },
   weight: {
-    4: '400',
-    5: '500',
-    6: '600',
+    4: '500',
+    5: '600',
+    6: '700',
     1000: '1000',
     bold: 'bold',
   },
@@ -109,24 +112,24 @@ const ttFirsNeueFont = createFont({
     8: 1,
   },
   face: {
-    100: { normal: 'TTFirsNeueNormal' },
-    200: { normal: 'TTFirsNeueNormal' },
-    300: { normal: 'TTFirsNeueNormal' },
-    400: { normal: 'TTFirsNeueNormal' },
-    500: { normal: 'TTFirsNeueMedium' },
-    600: { normal: 'TTFirsNeueDemiBold' },
-    700: { normal: 'TTFirsNeueDemiBold' },
-    800: { normal: 'TTFirsNeueDemiBold' },
-    900: { normal: 'TTFirsNeueDemiBold' },
-    1000: { normal: 'TTFirsNeueDemiBold' },
-    bold: { normal: 'TTFirsNeueDemiBold' },
+    100: { normal: 'MontserratMedium' },
+    200: { normal: 'MontserratMedium' },
+    300: { normal: 'MontserratMedium' },
+    400: { normal: 'MontserratMedium' },
+    500: { normal: 'MontserratMedium' },
+    600: { normal: 'MontserratSemiBold' },
+    700: { normal: 'MontserratBold' },
+    800: { normal: 'MontserratBold' },
+    900: { normal: 'MontserratBold' },
+    1000: { normal: 'MontserratBold' },
+    bold: { normal: 'MontserratBold' },
   },
 });
 
 const monoFont = createFont({
   family: 'Mono',
-  size: ttFirsNeueFont.size,
-  lineHeight: ttFirsNeueFont.lineHeight,
+  size: montserratFont.size,
+  lineHeight: montserratFont.lineHeight,
   weight: {
     4: '400',
     5: '500',
@@ -310,8 +313,8 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: ttFirsNeueFont,
-    body: ttFirsNeueFont,
+    heading: montserratFont,
+    body: montserratFont,
     mono: monoFont,
   },
   themes: {

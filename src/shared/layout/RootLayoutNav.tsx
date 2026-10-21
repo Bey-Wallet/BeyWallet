@@ -189,6 +189,13 @@ export function RootLayoutNav() {
 
   const navigationTheme = {
     ...(resolvedTheme === 'dark' ? DarkTheme : DefaultTheme),
+    // Registered static faces already contain their weight; avoid Android fallback/synthesis.
+    fonts: {
+      regular: { fontFamily: 'MontserratMedium', fontWeight: 'normal' as const },
+      medium: { fontFamily: 'MontserratSemiBold', fontWeight: 'normal' as const },
+      bold: { fontFamily: 'MontserratBold', fontWeight: 'normal' as const },
+      heavy: { fontFamily: 'MontserratBold', fontWeight: 'normal' as const },
+    },
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
       background: theme.background?.val,
@@ -210,6 +217,8 @@ export function RootLayoutNav() {
       <YStack flex={1}>
         <Stack
           screenOptions={{
+            headerTitleStyle: { fontFamily: 'MontserratSemiBold', fontWeight: 'normal' },
+            headerBackTitleStyle: { fontFamily: 'MontserratMedium' },
             contentStyle: {
               backgroundColor: theme.background?.val,
             },

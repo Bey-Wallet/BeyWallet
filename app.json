@@ -112,9 +112,9 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/tt_firs_neue_normal.ttf",
-            "./src/assets/fonts/tt_firs_neue_medium.ttf",
-            "./src/assets/fonts/tt_firs_neue_demi_bold.ttf",
+            "./src/assets/fonts/Montserrat-Medium.ttf",
+            "./src/assets/fonts/Montserrat-SemiBold.ttf",
+            "./src/assets/fonts/Montserrat-Bold.ttf",
             "./src/assets/fonts/Mono.otf"
           ]
         }

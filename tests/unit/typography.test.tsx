@@ -24,6 +24,34 @@ import { AppButton } from '~/shared/ui/AppButton';
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
+it.each([
+  ['400', 'MontserratMedium'],
+  ['500', 'MontserratMedium'],
+  ['600', 'MontserratSemiBold'],
+  ['700', 'MontserratBold'],
+] as const)('renders body and heading weight %s with %s', async (weight, family) => {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <TamaguiProvider config={config} defaultTheme="light">
+        <Text testID="body-font" fontWeight={weight}>
+          Bey 123
+        </Text>
+        <Heading testID="heading-font" fontWeight={weight}>
+          Bey 123
+        </Heading>
+      </TamaguiProvider>,
+    );
+  });
+  for (const id of ['body-font', 'heading-font']) {
+    const families = tree.root
+      .findAll((node) => node.props.testID === id)
+      .map((node) => StyleSheet.flatten(node.props.style)?.fontFamily);
+    expect(families).toContain(family);
+  }
+  await act(async () => tree.unmount());
+});
+
 it('applies tabular numerals to rendered text variants, inputs, toast titles, and button labels', async () => {
   let tree!: ReactTestRenderer;
   await act(async () => {
@@ -66,10 +94,15 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
     'textarea',
     'toast',
   ]) {
-    const styles = tree.root
+    const renderedStyles = tree.root
       .findAll((n) => n.props.testID === id)
-      .map((n) => StyleSheet.flatten(n.props.style)?.fontVariant);
+      .map((n) => StyleSheet.flatten(n.props.style));
+    const styles = renderedStyles.map((style) => style?.fontVariant);
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
+    expect({
+      id,
+      usesMontserrat: renderedStyles.some((style) => style?.fontFamily?.startsWith('Montserrat')),
+    }).toEqual({ id, usesMontserrat: true });
   }
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(

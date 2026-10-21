@@ -54,6 +54,7 @@ export const InputSheet = forwardRef<
             borderRadius: 12,
             padding: 16,
             fontSize: 16,
+            fontFamily: 'MontserratMedium',
           }}
         />
         <AppButton size="large" fullWidth onPress={save}>

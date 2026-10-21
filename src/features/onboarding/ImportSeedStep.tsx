@@ -236,6 +236,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
                   onSubmitEditing={handleInputSubmit}
                   blurOnSubmit={false}
                   unstyled
+                  fontFamily="$body"
                 />
               </XStack>
             )}
