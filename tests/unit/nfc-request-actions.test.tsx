@@ -27,7 +27,7 @@ jest.mock('tamagui', () => ({
   YStack: 'YStack',
   useTheme: () => ({
     color: { val: mockAppearance === 'dark' ? '#D9D9D9' : '#000000' },
-    gray3: { val: mockAppearance === 'dark' ? '#222224' : '#E7E6EB' },
+    gray3: { val: require('~/shared/theme/appearance').appColors[mockAppearance].raised },
     iconPrimary: { val: mockAppearance === 'dark' ? '#FFFFFF' : '#000000' },
   }),
 }));

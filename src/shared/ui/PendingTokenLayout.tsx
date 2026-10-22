@@ -55,6 +55,7 @@ export interface PendingTokenLayoutProps {
   /** Shows a spinner while a status check is in flight. */
   isCheckingStatus?: boolean;
   customHeaderRight?: () => React.ReactNode;
+  extraDetails?: React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -77,6 +78,7 @@ export function PendingTokenLayout({
   onCheckStatus,
   isCheckingStatus = false,
   customHeaderRight,
+  extraDetails,
 }: PendingTokenLayoutProps) {
   const toast = useToastController();
   const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
@@ -477,6 +479,7 @@ export function PendingTokenLayout({
                 </>
               )}
             </YGroup>
+            {extraDetails}
           </ListTable>
         )}
         {onReclaim && !onClaim && (
@@ -493,7 +496,7 @@ export function PendingTokenLayout({
       </PaymentStageLayout>
       <AppBottomSheet
         ref={shareSheetRef}
-        backgroundColor="$gray4"
+        backgroundColor="$sheetBackground"
         onClose={() => {
           if (pendingNfc.current) {
             pendingNfc.current = false;

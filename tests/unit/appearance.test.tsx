@@ -19,6 +19,7 @@ it.each(['dark', 'light'] as const)(
           <TamaguiProvider config={config} defaultTheme={appearance}>
             <YStack testID="canvas" bg="$background" />
             <YStack testID="surface" bg="$gray2" />
+            <YStack testID="sheet" bg="$sheetBackground" />
             <Text testID="primary" color="$color" fontSize="$4">
               Primary
             </Text>
@@ -40,6 +41,11 @@ it.each(['dark', 'light'] as const)(
       const c = appColors[appearance];
       expect(styles('canvas').some((style) => style?.backgroundColor === c.canvas)).toBe(true);
       expect(styles('surface').some((style) => style?.backgroundColor === c.surface)).toBe(true);
+      expect(
+        styles('sheet').some(
+          (style) => style?.backgroundColor === (appearance === 'light' ? '#FFFFFF' : c.surface),
+        ),
+      ).toBe(true);
       expect(
         styles('primary').some((style) => style?.color === c.text && style?.fontSize === 16),
       ).toBe(true);

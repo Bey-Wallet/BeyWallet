@@ -2,7 +2,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { useNavigation } from 'expo-router';
 import { XStack } from 'tamagui';
-import { Filter } from '@tamagui/lucide-icons';
+import { SlidersHorizontal } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { HistoryScreen } from '~/features/history';
 
@@ -17,6 +17,7 @@ export default function History() {
   }, []);
 
   const filterHighlighted = showFilters || filtersActive;
+  const closeFilters = useCallback(() => setShowFilters(false), []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -24,16 +25,15 @@ export default function History() {
         <XStack pr="$4">
           <AppIconButton
             variant="default"
-            emphasis="tertiary"
-            size="xsmall"
-
+            emphasis={filterHighlighted ? 'primary' : 'secondary'}
+            size="small"
             shape="circular"
             accessibilityLabel="Filter history"
             icon={
-              <Filter
+              <SlidersHorizontal
                 size={22}
-                strokeWidth={filterHighlighted ? 2.8 : 2.4}
-                color={filterHighlighted ? '$color' : '$gray10'}
+                strokeWidth={2}
+                color={filterHighlighted ? '$onAccent' : '$iconPrimary'}
               />
             }
             onPress={toggleFilters}
@@ -43,5 +43,11 @@ export default function History() {
     });
   }, [navigation, filterHighlighted, toggleFilters]);
 
-  return <HistoryScreen showFilters={showFilters} onFiltersActiveChange={setFiltersActive} />;
+  return (
+    <HistoryScreen
+      showFilters={showFilters}
+      onFiltersClose={closeFilters}
+      onFiltersActiveChange={setFiltersActive}
+    />
+  );
 }

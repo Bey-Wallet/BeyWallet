@@ -14,7 +14,7 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import { useTheme, Separator, YStack } from 'tamagui';
+import { useTheme, YStack } from 'tamagui';
 
 const ShimmerRect = ({
   width,
@@ -62,25 +62,29 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
   return (
     <YStack>
       <View style={styles.row}>
-        {/* Left icon circle placeholder (matches TView 40x40 circle) */}
-        <ShimmerRect width={40} height={40} borderRadius={20} progress={progress} />
+        {/* Leading icon */}
+        <ShimmerRect width={36} height={36} borderRadius={18} progress={progress} />
 
-        {/* Middle content — title only (subtitle removed) */}
+        {/* Title and time */}
         <View style={styles.middle}>
           <ShimmerRect
             width={index % 3 === 0 ? 120 : index % 3 === 1 ? 90 : 140}
-            height={16}
+            height={14}
             borderRadius={6}
             progress={progress}
           />
+          <ShimmerRect width={64} height={12} progress={progress} />
         </View>
 
         {/* Right — single primary amount placeholder */}
-        <ShimmerRect width={72} height={20} borderRadius={6} progress={progress} />
+        <View style={styles.amount}>
+          <ShimmerRect width={72} height={14} borderRadius={6} progress={progress} />
+          <ShimmerRect width={48} height={12} progress={progress} />
+        </View>
       </View>
 
       {/* Matching Separator */}
-      <Separator borderColor="$borderColor" opacity={0.3} />
+      <YStack height={StyleSheet.hairlineWidth} bg="$separatorAlternate" />
     </YStack>
   );
 };
@@ -93,8 +97,8 @@ export const HistorySkeletonSection: React.FC<{
   return (
     <View style={styles.section}>
       {/* Date label placeholder */}
-      <View style={{ paddingHorizontal: 4, paddingVertical: 8, marginTop: 12 }}>
-        <ShimmerRect width={80} height={12} borderRadius={5} progress={progress} />
+      <View style={{ paddingTop: 20, paddingBottom: 4 }}>
+        <ShimmerRect width={80} height={14} borderRadius={5} progress={progress} />
       </View>
       <View style={styles.card}>
         {Array.from({ length: rows }).map((_, i) => (
@@ -128,29 +132,29 @@ export const HistoryPageSkeleton: React.FC = () => {
 
 const styles = StyleSheet.create({
   page: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 0,
   },
   section: {
-    marginTop: 24,
-    gap: 8,
+    marginTop: 0,
   },
   card: {
-    marginTop: 10,
-    borderRadius: 12,
-    overflow: 'hidden',
     backgroundColor: 'transparent',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 60,
+    paddingVertical: 10,
     gap: 12,
     backgroundColor: 'transparent',
   },
   middle: {
     flex: 1,
     justifyContent: 'center',
+    gap: 4,
+  },
+  amount: {
+    alignItems: 'flex-end',
+    gap: 4,
   },
 });

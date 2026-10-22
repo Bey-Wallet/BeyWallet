@@ -129,7 +129,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         backgroundStyle={{
           backgroundColor: backgroundColor
             ? theme[backgroundColor.replace('$', '') as keyof typeof theme]?.val || backgroundColor
-            : theme.color2.val,
+            : theme.sheetBackground.val,
           borderRadius: appRadii.sheet,
         }}
         onChange={handleSheetChanges}

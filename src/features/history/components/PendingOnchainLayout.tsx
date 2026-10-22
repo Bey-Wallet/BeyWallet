@@ -25,6 +25,7 @@ export function PendingOnchainLayout({
   onClose,
   headerRight,
   inset = true,
+  extraDetails,
 }: {
   direction: 'deposit' | 'withdrawal';
   amount: number;
@@ -35,6 +36,7 @@ export function PendingOnchainLayout({
   onClose: () => void;
   headerRight?: () => React.ReactNode;
   inset?: boolean;
+  extraDetails?: React.ReactNode;
 }) {
   const deposit = direction === 'deposit';
   const destination = normalizeBitcoinAddress(address);
@@ -95,6 +97,7 @@ export function PendingOnchainLayout({
             isCopyable={!!destination}
             copyValue={destination}
           />
+          {extraDetails}
         </ListTable>
       </PaymentStageLayout>
     </>

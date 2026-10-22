@@ -31,6 +31,7 @@ interface PendingMintInvoiceLayoutProps {
   isCheckingPaid: boolean;
   onCancel: () => Promise<void> | void;
   onPaid: () => Promise<void> | void;
+  extraDetails?: React.ReactNode;
 }
 
 export function PendingMintInvoiceLayout({
@@ -44,6 +45,7 @@ export function PendingMintInvoiceLayout({
   isCheckingPaid,
   onCancel,
   onPaid,
+  extraDetails,
 }: PendingMintInvoiceLayoutProps) {
   const toast = useToastController();
   const [copied, setCopied] = useState(false);
@@ -103,6 +105,7 @@ export function PendingMintInvoiceLayout({
             onCopy={handleCopy}
           />
           <ListTableRow label="Expires in" value={formatTime(timeLeft)} />
+          {extraDetails}
         </ListTable>
         <AppButton
           emphasis="text-only"

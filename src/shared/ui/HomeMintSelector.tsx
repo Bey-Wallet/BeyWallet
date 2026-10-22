@@ -368,7 +368,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       <AppBottomSheet
         ref={sheetRef}
         snapPoints={snapPoints}
-        backgroundColor="$gray2"
+        backgroundColor="$sheetBackground"
         canDismiss={switchingUrl === null}
         onOpenChange={handleOpenChange}
       >

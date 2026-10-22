@@ -8,6 +8,8 @@ import {
   nfcReceivingFeeNotice,
 } from '~/features/history/transactionPresentation';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { TransactionNoteRows } from './components/TransactionNoteRows';
+import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
@@ -130,10 +132,6 @@ export function TransactionDetailsScreen() {
         if (repo?.historyRepository) {
           const dbEntry = await (repo.historyRepository as any).getHistoryEntryById(id);
           if (dbEntry) {
-            console.log(
-              '[TransactionDetails] Loaded entry directly by ID from historyRepository:',
-              dbEntry,
-            );
             return dbEntry as HistoryEntry;
           }
         }
@@ -148,10 +146,6 @@ export function TransactionDetailsScreen() {
           const history = await (repo.historyRepository as any).getPaginatedHistoryEntries(200, 0);
           const dbEntry = history.find((e: any) => e.id === id || e.quoteId === id);
           if (dbEntry) {
-            console.log(
-              '[TransactionDetails] Found entry by quoteId/id in paginated historyRepository entries:',
-              dbEntry,
-            );
             return dbEntry as HistoryEntry;
           }
         }
@@ -180,7 +174,6 @@ export function TransactionDetailsScreen() {
             entry.mintUrl,
             (entry as any).quoteId,
           );
-          console.log('[TransactionDetails] Loaded mintQuote from repository:', quote);
           return quote;
         }
       } catch (err) {
@@ -215,6 +208,7 @@ export function TransactionDetailsScreen() {
   }, [entry, displayedAmount, primaryCurrency, fiatAmount, secondaryCurrency]);
 
   const [token, setToken] = useState('');
+  const notes = useMemo(() => (entry ? getTransactionNotes(entry) : []), [entry]);
   useEffect(() => {
     setToken(entry ? getHistoryToken(entry) : '');
   }, [entry]);
@@ -820,6 +814,7 @@ export function TransactionDetailsScreen() {
           : 'Pending';
 
   const paymentLayout = historyPaymentLayout(entry);
+  const extraDetails = notes.length > 0 ? <TransactionNoteRows notes={notes} /> : undefined;
   if (paymentLayout === 'onchain-deposit' || paymentLayout === 'onchain-withdrawal') {
     const mints = useWalletStore.getState().mints;
     const mint = mints.find(
@@ -836,6 +831,7 @@ export function TransactionDetailsScreen() {
           checking={isRefetching}
           onClose={() => router.back()}
           headerRight={headerOptions.headerRight}
+          extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>
@@ -855,6 +851,7 @@ export function TransactionDetailsScreen() {
           secondaryCurrency={secondaryCurrency}
           fiatAmount={fiatAmount}
           isCheckingPaid={isCheckingPaid}
+          extraDetails={extraDetails}
           onCancel={async () => {
             try {
               const repo = initService.getRepo();
@@ -912,6 +909,7 @@ export function TransactionDetailsScreen() {
           onCheckStatus={handleRefresh}
           isCheckingStatus={isRefetching}
           customHeaderRight={headerOptions.headerRight}
+          extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>
@@ -1103,7 +1101,7 @@ export function TransactionDetailsScreen() {
                   />
                 )}
                 {/* Token for send/receive txns */}
-                {(entry.type === 'send' || entry.type === 'receive') && (
+                {token && (entry.type === 'send' || entry.type === 'receive') && (
                   <DetailItem
                     label="Token"
                     value={
@@ -1116,6 +1114,7 @@ export function TransactionDetailsScreen() {
                   />
                 )}
               </YGroup>
+              {extraDetails}
             </ListTable>
 
             {/* Pending actions */}

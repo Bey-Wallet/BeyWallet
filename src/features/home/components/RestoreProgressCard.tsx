@@ -195,7 +195,7 @@ export default function RestoreProgressCard() {
       </YStack>
 
       {/* Details Bottom Sheet (Matches ActionSelectorSheet exactly) */}
-      <AppBottomSheet ref={sheetRef} snapPoints={['75%']} backgroundColor="$gray2">
+      <AppBottomSheet ref={sheetRef} snapPoints={['75%']} backgroundColor="$sheetBackground">
         <YStack p="$4" pt="$2" gap="$4" flex={1}>
           {/* Header */}
           <XStack items="center" justify="space-between" width="100%" pb="$2">

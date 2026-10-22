@@ -1,58 +1,13 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text } from 'tamagui';
+import { Text, YStack } from 'tamagui';
+import { appTypography } from '~/shared/theme/appearance';
 
-interface HistorySectionProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-export const HistorySection: React.FC<HistorySectionProps> = ({ title, children }) => {
-  // When used as a list header (children = null), just render the label
-  if (!children) {
-    return (
-      <View style={styles.header}>
-        <Text
-          fontSize={12}
-          fontWeight="700"
-          color="$gray9"
-          style={{ textTransform: 'uppercase', letterSpacing: 1 }}
-        >
-          {title}
-        </Text>
-      </View>
-    );
-  }
-
+export function HistorySection({ title }: { title: string }) {
   return (
-    <View style={styles.section}>
-      <View style={styles.header}>
-        <Text
-          fontSize={12}
-          fontWeight="700"
-          color="$gray9"
-          style={{ textTransform: 'uppercase', letterSpacing: 1 }}
-        >
-          {title}
-        </Text>
-      </View>
-      <View style={styles.card}>{children}</View>
-    </View>
+    <YStack pt={20} pb={4}>
+      <Text {...appTypography.label2} color="$gray10" accessibilityRole="header">
+        {title}
+      </Text>
+    </YStack>
   );
-};
-
-const styles = StyleSheet.create({
-  section: {
-    marginTop: 8,
-  },
-  header: {
-    paddingHorizontal: 4,
-    paddingVertical: 8,
-    marginTop: 12,
-  },
-  card: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    // Card uses theme bg via parent — transparent so Tamagui $gray2 shows
-  },
-});
+}

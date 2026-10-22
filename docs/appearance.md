@@ -5,6 +5,11 @@ roundness. The existing `dark` and `light` themes apply them through the current
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
 available as `$onAccent`. Existing blue aliases resolve to neutral colors for compatibility.
 
+Light mode uses pure white page, navigation and sheet backgrounds. Cards and grouped lists
+use a very light neutral gray (`#F7F7F8`), with slightly stronger fills for inset controls and
+input fields. Muted text uses a darker neutral gray for readability on white. Hover, pressed
+and disabled fills stay neutral, and separators remain subtle. Dark-mode colors are unchanged.
+
 Color roles include page and alternate backgrounds, content and tinted surfaces, three text
 and icon levels, input backgrounds and error states, separators, three overlay strengths,
 active/inactive tab icons, and enabled/highlighted/disabled button states. Success, warning,

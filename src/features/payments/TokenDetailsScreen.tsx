@@ -317,7 +317,7 @@ export default function TokenDetailsModal() {
             <Popover size="$5" allowFlip placement="bottom-end">
               <Adapt when="sm" platform="touch">
                 <Sheet modal dismissOnSnapToBottom animation="bouncy">
-                  <Sheet.Frame pb="$5" bg="$color2">
+                  <Sheet.Frame pb="$5" bg="$sheetBackground">
                     <Adapt.Contents />
                   </Sheet.Frame>
                   <Sheet.Overlay
