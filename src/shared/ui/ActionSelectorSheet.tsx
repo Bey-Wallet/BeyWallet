@@ -1,11 +1,11 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, ChevronLeft, X } from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, ArrowLeft, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 
@@ -153,24 +153,19 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
       >
         <YStack flex={1} px="$4" gap="$3">
           <XStack items="center" justify="space-between">
-            {stage !== 'main' ? (
-              <AppIconButton
-                variant="default"
-                emphasis="tertiary"
-                size="xsmall"
-                shape="circular"
-                accessibilityLabel="Back"
-                disabled={processing}
-                icon={<ChevronLeft size={20} color="$color" />}
-                onPress={() => {
-                  if (processing || actionPending.current) return;
+            <HeaderIconButton
+              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
+              disabled={processing}
+              icon={stage === 'main' ? X : ArrowLeft}
+              onPress={() => {
+                if (processing || actionPending.current) return;
+                if (stage === 'main') dismiss();
+                else {
                   Haptics.selectionAsync();
                   setStage('main');
-                }}
-              />
-            ) : (
-              <View width={40} />
-            )}
+                }
+              }}
+            />
             <Text
               accessibilityRole="header"
               flex={1}
@@ -182,15 +177,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
             >
               {title}
             </Text>
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xsmall"
-              shape="circular"
-              accessibilityLabel="Close"
-              icon={<X size={20} color="$color" />}
-              onPress={dismiss}
-            />
+            <View width={36} />
           </XStack>
           <BottomSheetScrollView
             showsVerticalScrollIndicator={false}

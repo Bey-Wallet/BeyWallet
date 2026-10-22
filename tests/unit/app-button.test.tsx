@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { buttonThemes } from '~/tamagui.config';
 import { defaultConfig } from '@tamagui/config/v5';
 import { processColor } from 'react-native';
@@ -244,13 +245,36 @@ it('supports a smaller icon without shrinking the icon button touch target', asy
   await act(async () => tree.unmount());
 });
 
+it('uses 22-point header glyphs without shrinking the touch target or bypassing disabled state', async () => {
+  const Icon = (_props: { size?: number }) => null;
+  const onPress = jest.fn();
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <HeaderIconButton
+        icon={<Icon size={36} />}
+        accessibilityLabel="Back"
+        disabled
+        onPress={onPress}
+      />,
+    );
+  });
+  expect(tree.root.findByType(Icon).props.size).toBe(22);
+  const button = tree.root.findByType('Button' as any);
+  expect(button.props.hitSlop.top * 2 + button.props.minHeight).toBeGreaterThanOrEqual(48);
+  expect(button.props.hitSlop.left * 2 + button.props.minWidth).toBeGreaterThanOrEqual(48);
+  button.props.onPress({});
+  expect(onPress).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
 it.each([
-  ['xxsmall', 20],
-  ['xsmall', 24],
-  ['small', 28],
-  ['medium', 32],
-  ['large', 36],
-] as const)('preserves enlarged glyphs for %s tertiary icon buttons', async (size, iconSize) => {
+  ['xxsmall', 14],
+  ['xsmall', 16],
+  ['small', 18],
+  ['medium', 20],
+  ['large', 24],
+] as const)('uses proportional glyphs for %s tertiary icon buttons', async (size, iconSize) => {
   const Icon = (_props: { size?: number }) => null;
   let tree!: ReactTestRenderer;
   await act(async () => {

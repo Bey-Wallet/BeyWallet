@@ -105,9 +105,27 @@ it.each(['secondary', 'primary'] as const)(
       />,
     );
     const button = tree.root.findByType('Button' as any);
+    expect(tree.root.findByType('Header' as any).props.navigationAction).toBe('close');
     expect(button.props.emphasis).toBe(emphasis);
     expect(button.props.variant).toBe(emphasis === 'primary' ? 'branded' : 'default');
     await act(async () => button.props.onPress());
     expect(onClose).toHaveBeenCalledTimes(1);
   },
 );
+
+it('uses a back arrow when a receipt action returns to editing', async () => {
+  const retry = jest.fn();
+  await render(
+    <PaymentReceipt
+      title="Payment not completed"
+      amount={10}
+      completed={false}
+      navigationAction="back"
+      onClose={retry}
+    />,
+  );
+  const header = tree.root.findByType('Header' as any);
+  expect(header.props.navigationAction).toBe('back');
+  header.props.onBack();
+  expect(retry).toHaveBeenCalledTimes(1);
+});

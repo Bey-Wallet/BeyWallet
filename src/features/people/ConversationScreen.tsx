@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowDownLeft,
-  X,
+  ArrowLeft,
   ArrowUp,
   ArrowUpRight,
   Info,
@@ -412,8 +412,8 @@ export default function ConversationScreen() {
         <YStack flex={1} bg="$background" pt={insets.top}>
           <XStack px="$3" py="$2" items="center" gap="$2">
             <HeaderIconButton
-              accessibilityLabel="Close"
-              icon={<X size={24} color="$color" />}
+              accessibilityLabel="Back"
+              icon={ArrowLeft}
               onPress={() =>
                 router.canGoBack() ? router.back() : router.replace('/(tabs)/people')
               }

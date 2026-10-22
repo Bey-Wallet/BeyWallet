@@ -26,6 +26,7 @@ export function PendingOnchainLayout({
   headerRight,
   inset = true,
   extraDetails,
+  navigationAction = 'back',
 }: {
   direction: 'deposit' | 'withdrawal';
   amount: number;
@@ -37,12 +38,14 @@ export function PendingOnchainLayout({
   headerRight?: () => React.ReactNode;
   inset?: boolean;
   extraDetails?: React.ReactNode;
+  navigationAction?: 'back' | 'close';
 }) {
   const deposit = direction === 'deposit';
   const destination = normalizeBitcoinAddress(address);
   return (
     <>
       <PaymentFlowHeader
+        navigationAction={navigationAction}
         title={deposit ? 'On-chain deposit' : 'On-chain payment'}
         onBack={onClose}
         headerRight={headerRight}

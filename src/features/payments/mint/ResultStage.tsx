@@ -82,7 +82,7 @@ export function ResultStage({
 
   return (
     <YStack flex={1} bg="$background">
-      <PaymentFlowHeader title={title} onBack={onClose} />
+      <PaymentFlowHeader title={title} navigationAction="close" onBack={onClose} />
       <ScrollView
         flex={1}
         showsVerticalScrollIndicator={false}

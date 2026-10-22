@@ -463,6 +463,7 @@ export default function MeltScreen() {
       {/* Step 1: Input Invoice and Amount Stage */}
       {step === 'invoice' && (
         <YStack flex={1} px="$4">
+          <PaymentFlowHeader title="Pay Lightning" navigationAction="close" onBack={handleClose} />
           <InvoiceStage
             mintUrl={activeMintUrl}
             onMintChange={setMintUrl}

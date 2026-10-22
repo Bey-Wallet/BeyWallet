@@ -1,10 +1,22 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
-import { Nfc, Send, X } from '@tamagui/lucide-icons';
+import { ArrowLeft, X } from '@tamagui/lucide-icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
+
+const backScreens = new Set([
+  'mint-profile',
+  'nostr-username',
+  'nostr-settings',
+  'nostr-diagnostics',
+  'nostr-activity',
+  'txn-details',
+  'token-details',
+  'proofs',
+  'discover-mints',
+]);
 
 export default function ModalLayout() {
   const theme = useTheme();
@@ -13,15 +25,15 @@ export default function ModalLayout() {
 
   return (
     <Stack
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: true,
         presentation: 'formSheet',
         animation: 'slide_from_right',
         ...headerOptions,
         headerLeft: () => (
           <HeaderIconButton
-            accessibilityLabel="Close"
-            icon={<X size={24} color="$color" />}
+            accessibilityLabel={backScreens.has(route.name) ? 'Back' : 'Close'}
+            icon={backScreens.has(route.name) ? ArrowLeft : X}
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
@@ -34,7 +46,7 @@ export default function ModalLayout() {
         contentStyle: {
           backgroundColor: theme.background?.val,
         },
-      }}
+      })}
     >
       <Stack.Screen
         name="mint-details"

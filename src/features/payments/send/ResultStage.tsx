@@ -25,6 +25,7 @@ export function ResultStage(props: ResultStageProps) {
   if (props.status === 'success' && props.token)
     return (
       <PendingTokenLayout
+        navigationAction="close"
         token={props.token}
         operationId={props.operationId}
         amount={props.amount}

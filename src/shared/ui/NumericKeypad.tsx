@@ -3,7 +3,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { ChevronLeft } from '@tamagui/lucide-icons';
+import { Delete } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
 interface NumericKeypadProps {
@@ -58,7 +58,7 @@ const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
     variant="default"
     emphasis="tertiary"
     size="large"
-    icon={ChevronLeft}
+    icon={Delete}
     accessibilityLabel="Delete last digit"
     onPress={onPress}
   />

@@ -32,7 +32,7 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 - Use the Settings screens as the approved reference for grouped preferences and navigation lists.
 - Keep lists compact by default: 14-point row text and a minimum 48-point touch target; use 12-point descriptions. Mint details and preview lists share the Settings group surfaces, clipped corners and separators. Do not enlarge list typography or row density without an explicit request.
 - Call mint-to-mint operations "Transfer" in user-facing text and use the `ArrowRightLeft` icon. Preserve existing protocol/API identifiers and stored transaction types.
-- Keep button icons proportional to their button size, except tertiary icon buttons, which retain enlarged glyphs. Preserve a minimum 48-point touch target.
+- Keep button icons proportional to their button size, including tertiary icon buttons. Use 22-point icons for shared header controls and preserve a minimum 48-point touch target. Keep back arrows and close controls on the left: ArrowLeft returns to a previous screen or step; X dismisses a standalone modal, root sheet, scanner, or finished flow.
 - Use `rounded="$6"` for cards and grouped lists. Clip child rows to the group's corners rather than rounding every row. Preserve circular avatars, icon buttons, and switch pill shapes.
 - Match Home's `ActionButtons.tsx` for neutral card colors: `$buttonDefaultSecondary`, with `$buttonDefaultSecondaryHover` and `$buttonDefaultSecondaryPress` for interactive states.
 - Use `$gray10` for muted text, descriptions, current-value labels, and navigation cues. Preserve semantic warning, error, and success colors.

@@ -1,3 +1,4 @@
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState, useCallback, useEffect } from 'react';
 import { InteractionManager, BackHandler } from 'react-native';
@@ -503,6 +504,9 @@ export function ReceiveModalScreen() {
 
       {/* ── Receive: existing paste/scan flow ─────────────────────── */}
       {receiveMode === 'receive' && step === 'input' && (
+        <PaymentFlowHeader title={headerTitle} navigationAction="close" onBack={handleClose} />
+      )}
+      {receiveMode === 'receive' && step === 'input' && (
         <InputStage
           token={token}
           setToken={setToken}
@@ -539,6 +543,7 @@ export function ReceiveModalScreen() {
           onReceiveLater={handleReceiveLater}
           offline={offline}
           onBack={handleBack}
+          navigationAction={params.scannedToken ? 'close' : 'back'}
         />
       )}
 

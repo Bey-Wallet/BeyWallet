@@ -332,7 +332,7 @@ export default function TokenDetailsModal() {
               <Popover.Trigger asChild>
                 <HeaderIconButton
                   accessibilityLabel="More options"
-                  icon={<MoreHorizontal size={24} />}
+                  icon={<MoreHorizontal />}
                   onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
                 />
               </Popover.Trigger>

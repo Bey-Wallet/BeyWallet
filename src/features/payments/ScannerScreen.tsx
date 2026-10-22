@@ -394,7 +394,7 @@ export default function ScannerScreen() {
             <XStack justify="space-between" items="center">
               <HeaderIconButton
                 accessibilityLabel="Close"
-                icon={<X size={24} color="white" />}
+                icon={<X color="white" />}
                 onPress={() => router.back()}
               />
               <XStack gap="$2">
@@ -403,18 +403,12 @@ export default function ScannerScreen() {
                   loading={isResolving && resolutionOrigin === 'paste'}
                   loadingText="Reading payment…"
                   disabled={isResolving}
-                  icon={<ClipboardIcon size={20} color="white" />}
+                  icon={<ClipboardIcon color="white" />}
                   onPress={handlePaste}
                 />
                 <HeaderIconButton
                   accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
-                  icon={
-                    flash === 'on' ? (
-                      <Zap size={24} color="#FFD700" />
-                    ) : (
-                      <ZapOff size={24} color="white" />
-                    )
-                  }
+                  icon={flash === 'on' ? <Zap color="#FFD700" /> : <ZapOff color="white" />}
                   onPress={() => setFlash((f) => (f === 'on' ? 'off' : 'on'))}
                 />
               </XStack>

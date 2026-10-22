@@ -646,7 +646,7 @@ export default function AddMintScreen() {
           headerLeft: () => (
             <HeaderIconButton
               accessibilityLabel="Go back"
-              icon={<ArrowLeft size={28} color="$color" />}
+              icon={<ArrowLeft color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
@@ -656,7 +656,7 @@ export default function AddMintScreen() {
           headerRight: () => (
             <HeaderIconButton
               accessibilityLabel="Scan QR code"
-              icon={<Scan size={28} color="$color" />}
+              icon={<Scan color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({

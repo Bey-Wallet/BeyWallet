@@ -121,11 +121,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     ];
   const resolvedFontSize = labelFontSize ?? labelStyle.fontSize;
   const compact = iconOnly && density === 'compact';
-  const iconSize =
-    requestedIconSize ??
-    (compact && emphasis === 'tertiary'
-      ? { xxsmall: 20, xsmall: 24, small: 28, medium: 32, large: 36 }[size]
-      : regularIconSize);
+  const iconSize = requestedIconSize ?? regularIconSize;
   const hitPadding = Math.max(0, (48 - minHeight) / 2);
 
   return (

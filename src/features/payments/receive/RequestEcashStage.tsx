@@ -446,6 +446,7 @@ export function RequestEcashStage({
   );
   const header = (
     <PaymentFlowHeader
+      navigationAction="close"
       title={step === 'success' ? 'Payment received' : 'Request ecash'}
       onBack={onClose}
       disabled={isGenerating || isSending}

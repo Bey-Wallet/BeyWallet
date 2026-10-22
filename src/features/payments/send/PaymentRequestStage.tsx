@@ -270,6 +270,7 @@ export function PaymentRequestStage({
   return (
     <>
       <PaymentFlowHeader
+        navigationAction="close"
         title={hasOperation ? 'Pending payment' : 'Confirm payment'}
         onBack={onCancel}
         disabled={isSending}

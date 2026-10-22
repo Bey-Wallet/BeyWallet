@@ -19,7 +19,7 @@ export const HeaderIconButton = forwardRef<
       emphasis="tertiary"
       size="xsmall"
       shape="circular"
-      iconSize={24}
+      iconSize={22}
     />
   );
 });

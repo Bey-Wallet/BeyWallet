@@ -1,7 +1,7 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft } from '@tamagui/lucide-icons';
+import { ArrowLeft, X } from '@tamagui/lucide-icons';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 
 export function PaymentFlowHeader({
@@ -9,11 +9,13 @@ export function PaymentFlowHeader({
   onBack,
   disabled,
   headerRight,
+  navigationAction = 'back',
 }: {
   title: string;
   onBack?: () => void;
   disabled?: boolean;
   headerRight?: () => React.ReactNode;
+  navigationAction?: 'back' | 'close';
 }) {
   const router = useRouter();
   const headerOptions = useScreenHeaderOptions();
@@ -24,9 +26,9 @@ export function PaymentFlowHeader({
         ...headerOptions,
         headerLeft: () => (
           <HeaderIconButton
-            accessibilityLabel="Back"
+            accessibilityLabel={navigationAction === 'close' ? 'Close' : 'Back'}
             disabled={disabled}
-            icon={<ArrowLeft size={24} color="$color" />}
+            icon={navigationAction === 'close' ? X : ArrowLeft}
             onPress={
               onBack ||
               (() => {

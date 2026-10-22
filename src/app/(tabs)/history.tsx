@@ -28,10 +28,10 @@ export default function History() {
             emphasis={filterHighlighted ? 'primary' : 'secondary'}
             size="small"
             shape="circular"
+            iconSize={22}
             accessibilityLabel="Filter history"
             icon={
               <SlidersHorizontal
-                size={22}
                 strokeWidth={2}
                 color={filterHighlighted ? '$onAccent' : '$iconPrimary'}
               />

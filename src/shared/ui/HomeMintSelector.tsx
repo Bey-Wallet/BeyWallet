@@ -1,5 +1,5 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { Check, ChevronDown, Sprout, Plus, Landmark, X } from '@tamagui/lucide-icons';
@@ -374,11 +374,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       >
         <YStack flex={1} minWidth={0}>
           <XStack px="$4" py="$2" items="center" gap="$3">
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xsmall"
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Close mint selector"
               disabled={locked}
               icon={X}
@@ -387,11 +383,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             <Text flex={1} textAlign="center" fontSize="$6" fontWeight="600" color="$color">
               Choose mint
             </Text>
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xsmall"
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Add mint"
               disabled={locked}
               icon={Plus}

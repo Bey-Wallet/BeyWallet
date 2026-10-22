@@ -1,3 +1,4 @@
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { YStack } from 'tamagui';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -158,6 +159,14 @@ export default function MintScreen() {
   return (
     <YStack flex={1} bg="$background" px="$4">
       <Stack.Screen />
+      {(step === 'amount' || step === 'payment') && (
+        <PaymentFlowHeader
+          title={step === 'payment' ? 'Pay invoice' : 'Mint Ecash'}
+          navigationAction="close"
+          onBack={handleClose}
+          disabled={isCreatingQuote}
+        />
+      )}
       {step === 'amount' && (
         <AmountStage
           mintUrl={activeMintUrl}

@@ -5,7 +5,7 @@ import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, Separator, useTheme, YGroup } from 'tamagui';
@@ -33,6 +33,7 @@ import { BadgeStatus } from '~/shared/ui/StatusBadge';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 export interface PendingTokenLayoutProps {
+  navigationAction?: 'back' | 'close';
   token: string;
   amount: number | string;
   fee?: number;
@@ -59,6 +60,7 @@ export interface PendingTokenLayoutProps {
 }
 
 export function PendingTokenLayout({
+  navigationAction = 'back',
   token,
   amount,
   fee = 0,
@@ -328,7 +330,11 @@ export function PendingTokenLayout({
           : 'Pending ecash';
   return (
     <>
-      <PaymentFlowHeader title={pendingTitle} headerRight={customHeaderRight || (() => null)} />
+      <PaymentFlowHeader
+        title={pendingTitle}
+        navigationAction={navigationAction}
+        headerRight={customHeaderRight || (() => null)}
+      />
       <PaymentStageLayout
         variant="qr"
         hero={
@@ -506,19 +512,15 @@ export function PendingTokenLayout({
       >
         <YStack flex={1} px="$4" gap="$4">
           <XStack items="center" justify="space-between" width="100%" pt="$2">
-            <Text fontSize="$6" fontWeight="800" color="$color">
-              Share / Send
-            </Text>
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xsmall"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Close"
-              icon={<X size={20} color="$color11" strokeWidth={3} />}
+              icon={X}
               onPress={() => shareSheetRef.current?.dismiss()}
             />
+            <Text flex={1} textAlign="center" fontSize="$6" fontWeight="600" color="$color">
+              Share / Send
+            </Text>
+            <XStack width={36} />
           </XStack>
 
           <YStack gap="$1" pb="$4">

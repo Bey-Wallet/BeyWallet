@@ -48,7 +48,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
       <XStack justify="flex-start" py="$2">
         <HeaderIconButton
           accessibilityLabel="Go back"
-          icon={<ArrowLeft size={24} color="$color" />}
+          icon={<ArrowLeft color="$color" />}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onBack();

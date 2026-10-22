@@ -81,7 +81,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
             headerRight: () => (
               <HeaderIconButton
                 accessibilityLabel="Share profile"
-                icon={<Share2 size={20} />}
+                icon={<Share2 />}
                 disabled={!npub}
                 onPress={share}
               />

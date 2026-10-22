@@ -24,6 +24,7 @@ export function PaymentReceipt({
   error,
   children,
   onClose,
+  navigationAction = 'close',
 }: {
   title: string;
   amount: number;
@@ -38,6 +39,7 @@ export function PaymentReceipt({
   error?: string | null;
   children?: React.ReactNode;
   onClose: () => void;
+  navigationAction?: 'back' | 'close';
 }) {
   const mints = useWalletStore((s) => s.mints);
   const mint = mints.find((m) => m.mintUrl.replace(/\/$/, '') === mintUrl?.replace(/\/$/, ''));
@@ -91,7 +93,7 @@ export function PaymentReceipt({
         </AppButton>
       }
     >
-      <PaymentFlowHeader title={title} onBack={onClose} />
+      <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
       <ListTable compact>
         {mintUrl && (
           <ListTableRow

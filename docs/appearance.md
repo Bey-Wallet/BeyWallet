@@ -3,9 +3,15 @@
 Screen headers use centered `ModalHeaderTitle` text and the canvas background, without a
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
-neutral tertiary circular controls with 24-point icons and at least 48-point touch areas.
-Back actions use `ArrowLeft`; dismiss actions use `X`. Screen-specific callbacks, loading
+neutral tertiary circular controls with 22-point icons and at least 48-point touch areas.
+Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
+step; `X` dismisses a standalone modal, scanner, root sheet, or finished flow. Nested sheet steps
+use a back arrow. Other header actions stay on the right. Screen-specific callbacks, loading
 and disabled states remain with each screen. Home and tab navigation keep their own styling.
+
+Utility icon buttons, including tertiary buttons, use proportional 14/16/18/20/24-point glyphs
+from xxsmall through large. An explicit `iconSize` overrides the glyph size without shrinking
+the touch target. Home action cards, tab icons, and status artwork retain their own sizing.
 
 `src/shared/theme/appearance.ts` defines semantic colors, typography, spacing, dimensions and
 roundness. The existing `dark` and `light` themes apply them through the current provider.

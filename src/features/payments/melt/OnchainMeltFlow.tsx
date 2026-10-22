@@ -477,6 +477,7 @@ export function OnchainMeltFlow() {
   if (step === 'paying') {
     return (
       <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
+        <PaymentFlowHeader title="Sending payment" disabled />
         <Landmark size={48} color="$accent10" />
         <Text color="$gray10" fontSize="$4" fontWeight="600">
           On-chain payment
@@ -503,6 +504,7 @@ export function OnchainMeltFlow() {
         mintUrl={activeMintUrl || undefined}
         completed={false}
         error={errorMsg}
+        navigationAction="back"
         actionLabel="Try again"
         actionEmphasis="primary"
         onClose={() => setStep('input')}
@@ -512,6 +514,7 @@ export function OnchainMeltFlow() {
   if (step === 'pending')
     return (
       <PendingOnchainLayout
+        navigationAction="close"
         direction="withdrawal"
         amount={amountSats}
         address={address}
@@ -688,6 +691,7 @@ export function OnchainMeltFlow() {
   // Render input form state (AmountStage look-alike with address field)
   return (
     <YStack flex={1} justify="space-between" bg="$background">
+      <PaymentFlowHeader title="Pay on-chain" navigationAction="close" />
       <YStack items="center" gap="$1.5" width="100%">
         {/* Mint Selector & Balance Row */}
         <MintBalanceRow

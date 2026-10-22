@@ -727,7 +727,7 @@ export function TransactionDetailsScreen() {
     headerRight: () => (
       <HeaderIconButton
         accessibilityLabel="Delete transaction"
-        icon={<Trash2 size={22} />}
+        icon={<Trash2 />}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           deleteSheetRef.current?.present();

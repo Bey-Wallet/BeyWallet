@@ -227,7 +227,7 @@ export function OnchainMintFlow() {
   if (step === 'confirm')
     return (
       <>
-        <PaymentFlowHeader title="Confirm top-up" />
+        <PaymentFlowHeader title="Confirm top-up" navigationAction="close" />
         <PaymentStageLayout
           inset={false}
           hero={
@@ -269,6 +269,7 @@ export function OnchainMintFlow() {
   if (step === 'loading') {
     return (
       <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
+        <PaymentFlowHeader title="Preparing deposit" navigationAction="close" disabled />
         <Landmark size={48} color="$accent10" />
         <Paragraph color="$gray10">On-chain deposit</Paragraph>
         <Text fontWeight="600">{mintDisplayName}</Text>
@@ -311,6 +312,7 @@ export function OnchainMintFlow() {
   // Render deposit state (displays Bitcoin address and QR code)
   return (
     <PendingOnchainLayout
+      navigationAction="close"
       direction="deposit"
       amount={amountPaid}
       address={quoteData?.request || ''}

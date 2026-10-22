@@ -1,4 +1,4 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router, Tabs } from 'expo-router';
@@ -85,14 +85,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <BeyIcon size={24} color={color} />,
           headerRight: () => (
             <XStack pr="$4" gap="$2">
-              <AppIconButton
-                variant="default"
-                emphasis="tertiary"
-                size="xsmall"
-
-                shape="circular"
+              <HeaderIconButton
                 accessibilityLabel="Open NFC"
-                icon={<Nfc size={24} />}
+                icon={<Nfc />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   nfcFlow.openReader();

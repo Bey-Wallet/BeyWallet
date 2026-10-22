@@ -36,6 +36,7 @@ interface ConfirmStageProps {
   onReceiveLater: () => void;
   onBack: () => void;
   offline?: boolean;
+  navigationAction?: 'back' | 'close';
 }
 
 export function ConfirmStage({
@@ -46,6 +47,7 @@ export function ConfirmStage({
   onReceiveLater,
   onBack,
   offline = false,
+  navigationAction = 'back',
 }: ConfirmStageProps) {
   const { mints } = useWalletStore();
   const npub = useSettingsStore((state) => state.npub);
@@ -193,6 +195,7 @@ export function ConfirmStage({
     <>
       <PaymentFlowHeader
         title="Confirm receive"
+        navigationAction={navigationAction}
         onBack={onBack}
         disabled={isLoading || isSavingLater}
       />

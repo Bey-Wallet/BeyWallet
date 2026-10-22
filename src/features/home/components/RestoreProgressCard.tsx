@@ -1,5 +1,5 @@
 import { Spinner } from '~/shared/ui/Spinner';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, H6 } from 'tamagui';
 import { CheckCircle2, AlertCircle, Clock, ChevronRight, X } from '@tamagui/lucide-icons';
@@ -199,21 +199,16 @@ export default function RestoreProgressCard() {
         <YStack p="$4" pt="$2" gap="$4" flex={1}>
           {/* Header */}
           <XStack items="center" justify="space-between" width="100%" pb="$2">
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="medium"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Close"
-              icon={<X size={20} color="$color" strokeWidth={3} />}
+              icon={X}
               onPress={() => sheetRef.current?.dismiss()}
             />
             <Text fontSize="$6" fontWeight="800" color="$accent1">
               Sync Progress
             </Text>
             {/* Placeholder keeping the title centered */}
-            <View width={44} height={44} />
+            <View width={36} />
           </XStack>
 
           {/* List of Mints scrollable container */}

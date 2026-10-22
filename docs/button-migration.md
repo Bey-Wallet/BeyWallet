@@ -4,7 +4,7 @@ All 286 former Tamagui Button usages in 95 caller files have been migrated: **24
 
 ## Operation feedback and compact icon actions
 
-Icon-only actions now use AppIconButton, a ref-forwarding AppButton wrapper requiring an icon and accessible label. It forbids visible children and trailing icons. Compact density uses 4-point padding, minimum dimensions 32/36/40/48/56 and icons/spinners 20/24/28/32/36. Rounded radii, circular shapes, theme palettes, reduced motion, and hit slop reaching 48 points remain shared with AppButton. Home keeps Send as its only branded shortcut.
+Icon-only actions use AppIconButton, a ref-forwarding AppButton wrapper requiring an icon and accessible label. It forbids visible children and trailing icons. Compact density uses 4-point padding, minimum dimensions 32/36/40/48/56 and proportional icons/spinners 14/16/18/20/24, including tertiary actions. Shared header controls use 22-point icons. Rounded radii, circular shapes, theme palettes, reduced motion, and hit slop reaching 48 points remain shared with AppButton. Home action cards retain their own styling.
 
 ProcessingSheet and PaymentStatusOverlay have been deleted. Visible initiating buttons own progress with labels such as “Creating ecash…”, “Receiving ecash…”, and “Checking payment…”. Automatic decoding, automatic payment delivery, on-chain preparation/payment, and wallet creation use usePendingOperationToast under OperationFeedbackProvider. Each hook has a stable identity; phase updates replace only its own record, and completion/unmount removes only that record. Infinite-duration, controlled, polite pending toasts coexist with ordinary completion toasts and other operations. Pending toasts have no pointer interaction and prevent Escape/swipe dismissal.
 

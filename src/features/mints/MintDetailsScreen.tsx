@@ -301,7 +301,7 @@ export default function MintDetailsModal() {
           headerLeft: () => (
             <HeaderIconButton
               accessibilityLabel="Go back"
-              icon={<ArrowLeft size={20} color="$color" />}
+              icon={<ArrowLeft color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
@@ -311,13 +311,7 @@ export default function MintDetailsModal() {
           headerRight: () => (
             <HeaderIconButton
               accessibilityLabel={isEditingName ? 'Save mint name' : 'Edit mint name'}
-              icon={
-                isEditingName ? (
-                  <Check size={18} color="$color" />
-                ) : (
-                  <Pencil size={14} color="$color" />
-                )
-              }
+              icon={isEditingName ? <Check color="$color" /> : <Pencil color="$color" />}
               disabled={isSavingName}
               onPress={
                 isEditingName

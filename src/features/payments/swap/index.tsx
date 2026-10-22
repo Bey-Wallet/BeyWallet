@@ -169,6 +169,12 @@ export default function SwapScreen() {
     <YStack flex={1} bg="$background">
       {step === 'amount' && (
         <YStack flex={1} px="$4">
+          <PaymentFlowHeader
+            title="Transfer"
+            navigationAction="close"
+            onBack={handleClose}
+            disabled={isProcessing}
+          />
           <AmountStage
             amount={amount}
             setAmount={setAmount}

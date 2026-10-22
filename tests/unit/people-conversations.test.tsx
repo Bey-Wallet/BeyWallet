@@ -25,6 +25,9 @@ const alice = nip19.npubEncode('01'.repeat(32));
 const bob = nip19.npubEncode('02'.repeat(32));
 const eve = nip19.npubEncode('03'.repeat(32));
 const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockReplace = jest.fn();
+let mockCanGoBack = true;
 const mockParams = { npub: bob };
 let mockSavedMessages: ChatMessage[] = [];
 let mockHistory: any[] = [];
@@ -35,7 +38,12 @@ const mockRetrySearch = jest.fn();
 const mockRefetch = jest.fn(async () => ({ data: [] }));
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({
+    push: mockPush,
+    back: mockBack,
+    replace: mockReplace,
+    canGoBack: () => mockCanGoBack,
+  }),
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
   Stack: { Screen: () => null },
@@ -193,6 +201,9 @@ describe('People conversations and invitations', () => {
     mockRetrySearch.mockClear();
     mockRefetch.mockClear();
     mockPush.mockClear();
+    mockBack.mockClear();
+    mockReplace.mockClear();
+    mockCanGoBack = true;
     jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
@@ -714,8 +725,18 @@ describe('People conversations and invitations', () => {
     ).toBe(false);
     const close = tree!.root
       .findAllByType('AppIconButton' as any)
-      .find((node) => node.props.accessibilityLabel === 'Close')!;
-    expect(close.props).toMatchObject({ size: 'xsmall', shape: 'circular', emphasis: 'secondary' });
+      .find((node) => node.props.accessibilityLabel === 'Back')!;
+    expect(close.props).toMatchObject({
+      size: 'xsmall',
+      shape: 'circular',
+      emphasis: 'tertiary',
+      iconSize: 22,
+    });
+    close.props.onPress();
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    mockCanGoBack = false;
+    close.props.onPress();
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/people');
     await act(async () =>
       buttons()
         .find((node) => node.props.children === 'Add contact')!

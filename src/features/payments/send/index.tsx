@@ -1,3 +1,4 @@
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -742,6 +743,14 @@ export function SendModalScreen() {
           title: headerTitle,
         }}
       />
+      {step === 'amount' && (
+        <PaymentFlowHeader
+          title={headerTitle}
+          navigationAction="close"
+          onBack={handleClose}
+          disabled={isProcessing || nostrSending}
+        />
+      )}
       {step === 'payment_request' && activeParsedRequest && (
         <PaymentRequestStage
           key={activeParsedRequest.raw}
