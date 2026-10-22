@@ -12,6 +12,7 @@ export interface ChatMessage {
   direction: 'incoming' | 'outgoing';
   createdAt: number;
   receivedAt: number;
+  /** Chat body, or the note shown inside a payment card when paymentId is set. */
   text: string;
   read: boolean;
   publication: 'sending' | 'sent' | 'failed';

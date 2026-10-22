@@ -17,6 +17,7 @@ import { Buffer } from 'buffer';
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
 // Removed top level walletService import to break require cycle.
 import { decodeToken } from '~/services/wallet/tokenUtils';
+import { inspectChatPayment } from './chatPayment';
 import { nostrRequestStore } from '~/state/nostrRequestStore';
 
 import { normalizeRelayUrl } from '~/shared/utils/nostrRelays';
@@ -196,7 +197,7 @@ class NostrService {
     text = text.trim();
     if (!text || text.length > 16000)
       throw new Error('Enter a message of up to 16,000 characters.');
-    if (isPaymentShaped(text)) throw new Error('Use Send money or Request to share payments.');
+    const payment = isPaymentShaped(text) ? inspectChatPayment(text) : undefined;
     if (!this.privkeyBytes || !this.pubkeyHex)
       throw new Error('Open and unlock your wallet first.');
     const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
@@ -214,14 +215,22 @@ class NostrService {
     if (recipient.relayHints.length) usePeopleStore.getState().savePerson({ npub: identifier });
     if (!this.privkeyBytes || !this.isRunning || generation !== this.generation)
       throw new Error('Wallet is closed.');
-    const copies = createChatCopies(text, recipient.pubkey, this.privkeyBytes);
+    const copies = createChatCopies(payment?.encoded ?? text, recipient.pubkey, this.privkeyBytes);
     const message: ChatMessage = {
       id: copies.rumor.id,
       conversation: normalizeNpub(identifier),
       direction: 'outgoing',
       createdAt: copies.rumor.created_at * 1000,
       receivedAt: Date.now(),
-      text,
+      text: payment ? payment.note || '' : text,
+      ...(payment
+        ? {
+            paymentId: copies.rumor.id,
+            paymentAmount: payment.amount,
+            paymentType: payment.type,
+            requestId: payment.requestId,
+          }
+        : {}),
       read: true,
       publication: 'sending',
       transport: 'nip17',
@@ -352,7 +361,11 @@ class NostrService {
       ) {
         throw new Error('Wallet or contact permission changed.');
       }
-      if (message.requestId && message.paymentType === 'request') {
+      if (
+        message.requestId &&
+        message.paymentType === 'request' &&
+        message.envelopes[0].event.kind === 4
+      ) {
         // Existing payment transports are alternatives, both addressed to the recipient.
         await Promise.any(
           message.envelopes.map((envelope) => publishChatEnvelope(this.pool!, envelope)),
@@ -698,6 +711,7 @@ class NostrService {
                 pr.amount,
                 'request',
                 pr.id,
+                pr.description,
               );
             }
             return;
@@ -725,6 +739,7 @@ class NostrService {
             mintUrl: pr.mints[0],
             senderPubkey,
             senderUsername,
+            note: pr.description,
           });
           applyIncomingContactPolicy(senderPubkey);
         }
@@ -739,6 +754,7 @@ class NostrService {
     let mintUrl = '';
     let requestIdFromPayload: string | undefined = undefined;
     let unit = 'sat';
+    let note: string | undefined;
 
     // First try to parse a NUT-18 PaymentRequestPayload used by interoperable wallets.
     try {
@@ -758,6 +774,7 @@ class NostrService {
         const tokenStruct = {
           token: [{ mint: payload.mint, proofs: payload.proofs }],
           unit: typeof payload.unit === 'string' ? payload.unit : 'sat',
+          memo: typeof payload.memo === 'string' ? payload.memo : undefined,
         };
 
         const b64 = Buffer.from(JSON.stringify(tokenStruct)).toString('base64');
@@ -785,6 +802,7 @@ class NostrService {
       mintUrl = decoded.mint;
       amount = decoded.amount;
       unit = decoded.unit || 'sat';
+      note = decoded.memo;
     } catch {
       console.warn(
         `[NostrService] Event ${sourceEvent.id.slice(0, 8)}… contained an invalid token`,
@@ -805,7 +823,14 @@ class NostrService {
     console.log(`[NostrService] Token: ${amount} sat from mint ${mintUrl}`);
 
     if (outgoingConversation) {
-      await this.recordPaymentCopy(sourceEvent, outgoingConversation, amount, 'token');
+      await this.recordPaymentCopy(
+        sourceEvent,
+        outgoingConversation,
+        amount,
+        'token',
+        undefined,
+        note,
+      );
       return;
     }
 
@@ -826,6 +851,7 @@ class NostrService {
       senderUsername,
       requestId: requestIdFromPayload,
       unit,
+      note,
     });
 
     // Relays replay recent events whenever the app reconnects. A claimed or
@@ -860,6 +886,7 @@ class NostrService {
     amount: number,
     type: 'token' | 'request',
     requestId?: string,
+    note?: string,
   ): Promise<void> {
     const generation = this.generation;
     const { initService } =
@@ -875,7 +902,7 @@ class NostrService {
       direction: 'outgoing',
       createdAt: event.created_at * 1000,
       receivedAt: Date.now(),
-      text: '',
+      text: note || '',
       read: true,
       publication: 'sent',
       transport: 'nip17',

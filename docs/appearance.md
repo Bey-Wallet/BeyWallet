@@ -12,7 +12,7 @@ and error retain their semantic colors. Neutral cards use the base surface; bran
 buttons use their own fill, avoiding gray backgrounds on large payment cards.
 
 Special Gothic 400/500/600 remains active. The 700 asset stays unregistered. Common text sizes
-use 10/12/14/16 for captions and body text, 20/24/32 for headings, 24 for result/detail amounts,
+use 10/12/14/16 for captions and body text, 20/24/32 for headings, 32 for result/detail amounts,
 and 40 for balances and larger confirmation amounts. Result/detail conversion text uses 14.
 Body text uses 400, labels use 500, and headings use 600. Explicit larger amount-input and
 screen-specific type sizes remain supported. Button labels use the named label styles.

@@ -99,10 +99,8 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   }, []);
   const mint = mints.find((item: { mintUrl: string }) => item.mintUrl === state.mintUrl);
   const StateIcon = stateIcons[state.status];
-  const badgeColor =
-    state.status === 'confirmed' ? '#16a34a' : state.status === 'error' ? '#dc2626' : '$color1';
-  const iconColor =
-    state.status === 'confirmed' || state.status === 'error' ? '#ffffff' : theme.color.val;
+  const badgeColor = theme.gray3.val;
+  const iconColor = theme.iconPrimary.val;
   const titles = {
     ready: state.direction === 'send' ? 'Send via NFC' : 'Receive / Pay',
     reading: 'Reading',

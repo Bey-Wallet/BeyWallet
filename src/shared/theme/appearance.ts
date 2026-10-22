@@ -85,7 +85,7 @@ export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } a
 /** Special Gothic remains the font family; only text metrics are defined here. */
 export const appTypography = {
   display: { fontSize: 40, lineHeight: 50, fontWeight: '500', letterSpacing: -1.5 },
-  amount: { fontSize: 24, lineHeight: 32, fontWeight: '500', letterSpacing: 0 },
+  amount: { fontSize: 32, lineHeight: 40, fontWeight: '500', letterSpacing: 0 },
   title1: { fontSize: 32, lineHeight: 40, fontWeight: '600', letterSpacing: 0 },
   title2: { fontSize: 24, lineHeight: 32, fontWeight: '600', letterSpacing: 0 },
   title3: { fontSize: 20, lineHeight: 28, fontWeight: '600', letterSpacing: 0 },

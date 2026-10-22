@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Text } from 'tamagui';
+import { ListTableRow } from '~/shared/ui/ListTable';
 export function ReceiveResultStage({
   status,
   amount,
   mintUrl,
+  note,
   error,
   isReceiveLater,
   isLoading,
@@ -17,6 +19,7 @@ export function ReceiveResultStage({
   amount: string;
   token?: string;
   mintUrl?: string;
+  note?: string;
   error?: string | null;
   isReceiveLater?: boolean;
   isLoading?: boolean;
@@ -50,6 +53,9 @@ export function ReceiveResultStage({
       error={error}
       onClose={onClose}
     >
+      {!!note?.trim() && (
+        <ListTableRow label="Note" value={note} isCopyable copyValue={note} multiline />
+      )}
       {!complete && offline && (
         <Text color="$gray10" fontSize="$3" textAlign="center">
           Go online to claim this ecash from History.

@@ -16,6 +16,17 @@ const base: ChatMessage = {
   transport: 'nip17',
 };
 
+it('keeps payment notes on the payment card instead of creating a text message', () => {
+  const [item] = buildConversationActivity(
+    npub,
+    [{ ...base, paymentId: 'payment', paymentAmount: 8, text: 'Lunch' }],
+    [],
+    [],
+    true,
+  );
+  expect(item).toMatchObject({ kind: 'payment', text: '', note: 'Lunch', amount: 8 });
+});
+
 it('classifies persisted text independently from nullable or zero payment amounts', () => {
   const text = {
     ...base,

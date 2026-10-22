@@ -69,6 +69,20 @@ it('shows minimal mint and status rows without token or proof details', async ()
   expect(status().props.value).toBe('Unspent');
   expect(receive().props.disabled).toBeFalsy();
   expect(tree.root.findByType('Amount' as any).props.amount).toBe(100);
+  expect(tree.root.findByProps({ label: 'Mint' }).props.isCopyable).toBeUndefined();
+  expect(tree.root.findByProps({ label: 'Mint' }).props.onCopy).toBeUndefined();
+});
+
+it('shows a copyable received memo while the mint remains read-only', async () => {
+  await act(async () => {
+    tree = create(<ConfirmStage {...props} tokenInfo={{ ...props.tokenInfo, memo: 'Lunch ☕' }} />);
+  });
+  expect(tree.root.findByProps({ label: 'Note' }).props).toMatchObject({
+    value: 'Lunch ☕',
+    copyValue: 'Lunch ☕',
+    isCopyable: true,
+  });
+  expect(tree.root.findByProps({ label: 'Mint' }).props.isCopyable).toBeUndefined();
 });
 
 it('refreshes status and blocks receiving until the check finishes', async () => {

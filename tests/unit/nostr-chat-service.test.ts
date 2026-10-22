@@ -1,7 +1,7 @@
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { nostrService } from '~/services/wallet/nostrService';
-import { createChatCopies } from '~/services/wallet/nostrChatTransport';
+import { createChatCopies, decryptAuthenticated } from '~/services/wallet/nostrChatTransport';
 import { usePeopleStore } from '~/state/peopleStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
@@ -18,6 +18,7 @@ const mockRepository = {
   insert: jest.fn(async (message: ChatMessage) => {
     if (!mockMessages.has(message.id)) mockMessages.set(message.id, { ...message });
   }),
+  findRequest: jest.fn(async () => undefined),
   setPublication: jest.fn(async (id: string, publication: ChatMessage['publication']) => {
     mockMessages.set(id, { ...mockMessages.get(id)!, publication });
   }),
@@ -94,6 +95,68 @@ describe('persistent chat publication and sender copies', () => {
     expect(usePeopleStore.getState().people[normalizeNpub(recipient)].contactStatus).toBe(
       'accepted',
     );
+  });
+
+  it('shares an existing token as a payment card, retaining its memo and sender copy', async () => {
+    const encoded = getEncodedTokenV3({
+      mint: 'https://mint.example',
+      unit: 'sat',
+      memo: 'Lunch',
+      proofs: [
+        {
+          id: '00' + 'ab'.repeat(7),
+          amount: 5,
+          secret: 'synthetic-only',
+          C: '02' + '11'.repeat(32),
+        },
+      ],
+    });
+    await nostrService.sendChat(recipient, encoded);
+    const message = [...mockMessages.values()][0];
+    expect(message).toMatchObject({
+      paymentType: 'token',
+      paymentAmount: 5,
+      text: 'Lunch',
+      publication: 'sent',
+    });
+    expect((await decryptAuthenticated(publish.mock.calls[0][1], bytesToHex(receiver)))?.text).toBe(
+      encoded,
+    );
+    expect(message.text).not.toContain('cashu');
+    await service._processEvent(message.envelopes![1].event);
+    expect(mockMessages.size).toBe(1);
+    expect(nostrClaimService.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('shares requests created outside People and requires recipient acknowledgement', async () => {
+    const encoded = new PaymentRequest(
+      [],
+      'outside-people',
+      5,
+      'sat',
+      ['https://mint.example'],
+      'Lunch',
+    ).toEncodedRequest();
+    publish.mockImplementation(() => [Promise.reject(new Error('recipient unavailable'))]);
+    await expect(nostrService.sendChat(recipient, encoded)).rejects.toThrow('publication failed');
+    const message = [...mockMessages.values()][0];
+    expect(message).toMatchObject({
+      paymentType: 'request',
+      requestId: 'outside-people',
+      paymentAmount: 5,
+      text: 'Lunch',
+      publication: 'failed',
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+    publish.mockImplementation(() => [Promise.resolve('accepted')]);
+    await nostrService.retryChat(message);
+    expect(mockMessages.get(message.id)?.publication).toBe('sent');
+  });
+
+  it('rejects malformed pasted payments before persisting or publishing', async () => {
+    await expect(nostrService.sendChat(recipient, 'cashuAbroken')).rejects.toThrow();
+    expect(mockMessages.size).toBe(0);
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it('saves outgoing requests before acknowledgement and retries the same encrypted events', async () => {

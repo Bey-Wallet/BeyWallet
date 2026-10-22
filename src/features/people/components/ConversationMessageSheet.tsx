@@ -77,6 +77,15 @@ export const ConversationMessageSheet = forwardRef<
                 onPress={() => void copy()}
               />
               <Detail label="Status" value={item.status} />
+              {!!item.note && (
+                <ListTableRow
+                  label="Note"
+                  value={item.note}
+                  isCopyable
+                  copyValue={item.note}
+                  multiline
+                />
+              )}
               <Detail
                 label="Direction"
                 value={item.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}

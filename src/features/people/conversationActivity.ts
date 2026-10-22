@@ -19,6 +19,7 @@ interface ConversationActivityBase {
   time: number;
   direction: 'incoming' | 'outgoing';
   text?: string;
+  note?: string;
   amount?: number;
   type?: string;
   status: string;
@@ -63,6 +64,7 @@ export function buildConversationActivity(
         time: message.createdAt,
         direction: message.direction,
         text: message.paymentId || input ? '' : message.text,
+        note: message.paymentId ? message.text || undefined : undefined,
         paymentInput: input,
         amount: message.paymentAmount,
         type: message.paymentId
@@ -95,6 +97,7 @@ export function buildConversationActivity(
       amount: payment.amount,
       type: payment.type === 'request' ? 'Ecash request' : 'Ecash',
       mintUrl: payment.mintUrl,
+      note: payment.note,
       payment,
       status:
         payment.status === 'claimed'
@@ -131,6 +134,7 @@ export function buildConversationActivity(
         time: entry.createdAt < 1e10 ? entry.createdAt * 1000 : entry.createdAt,
         direction: entry.type === 'send' ? 'outgoing' : 'incoming',
         amount: entry.amount,
+        note: typeof metadata.note === 'string' ? metadata.note : undefined,
         type: lightning ? 'Lightning' : 'Ecash',
         status: getPersonPaymentStatus(entry),
         requiresAction: entry.type === 'receive' && getPersonPaymentStatus(entry) === 'Failed',
@@ -173,7 +177,12 @@ export function buildConversationActivity(
                               ? 'Receipt unverified'
                               : 'Claim failed'
                             : 'Awaiting payment';
-        return { ...activity, status, mintUrl: request?.mintUrl };
+        return {
+          ...activity,
+          status,
+          mintUrl: request?.mintUrl,
+          note: activity.note || request?.description,
+        };
       }
       if (activity.payment?.type === 'request') {
         const item = activity.payment;

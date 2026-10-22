@@ -1,4 +1,4 @@
-import { cleanToken, decodeToken, encodeToken } from '~/services/wallet/tokenUtils';
+import { cleanToken, decodeToken, encodeToken, withTokenMemo } from '~/services/wallet/tokenUtils';
 
 /** Read persisted token formats without dropping proofs or exposing token data in logs. */
 export function getHistoryToken(entry: {
@@ -42,7 +42,11 @@ export function getHistoryToken(entry: {
         decoded.mint.replace(/\/$/, '') !== entry.mintUrl.replace(/\/$/, '')
       )
         continue;
-      return encoded;
+      const note =
+        metadata && typeof metadata === 'object' && 'note' in metadata ? metadata.note : undefined;
+      return typeof note === 'string' && note.trim() && !decoded.memo
+        ? withTokenMemo(encoded, note)
+        : encoded;
     } catch {
       // Malformed metadata must not hide an otherwise valid history token.
     }

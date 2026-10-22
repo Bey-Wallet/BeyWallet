@@ -36,6 +36,7 @@ import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreview
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
 import { MintNutsRow } from './components/MintNutsRow';
 import { MintTermsRow } from './components/MintTermsRow';
+import { MintContacts } from './components/MintContacts';
 
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
@@ -528,28 +529,7 @@ export default function MintDetailsModal() {
                 void recheckConnection();
               }}
             />
-            {contacts.length > 0 && (
-              <YStack gap="$3">
-                <Text color="$gray10" fontSize="$4" fontWeight="600">
-                  Contact & Support
-                </Text>
-                <ListTable {...tableProps}>
-                  {contacts.map((contact, index) => {
-                    const method =
-                      mintText(Array.isArray(contact) ? contact[0] : contact?.method) || 'Contact';
-                    const value = mintText(Array.isArray(contact) ? contact[1] : contact?.info);
-                    return value ? (
-                      <ListTableRow
-                        key={index}
-                        label={method.charAt(0).toUpperCase() + method.slice(1)}
-                        value={value}
-                        isCopyable
-                      />
-                    ) : null;
-                  })}
-                </ListTable>
-              </YStack>
-            )}
+            <MintContacts contacts={contacts} />
           </YStack>
         </ScrollView>
 

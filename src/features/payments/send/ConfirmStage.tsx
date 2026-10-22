@@ -11,9 +11,12 @@ import { ReclaimSelector } from '~/shared/ui/ReclaimSelector';
 import type { SendMode } from '~/shared/ui/SendMethodSelector';
 import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
+import { PaymentNote } from '~/shared/ui/PaymentNote';
 
 interface ConfirmStageProps {
   amount: string;
+  note?: string;
+  onNoteChange?: (value: string) => void;
   mintUrl: string;
   estimatedFee: number | null;
   sendMode: SendMode;
@@ -105,6 +108,13 @@ export function ConfirmStage(props: ConfirmStageProps) {
               estimatedFee === null ? 'Calculating…' : currencyService.formatSats(estimatedFee)
             }
           />
+          {props.onNoteChange && (
+            <PaymentNote
+              value={props.note || ''}
+              onChange={props.onNoteChange}
+              disabled={isLoading}
+            />
+          )}
           {recipient && (
             <ListTableRow
               label="Recipient"

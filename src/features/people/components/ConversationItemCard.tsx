@@ -69,6 +69,11 @@ export function ConversationPaymentCard({
           {secondaryAmount}
         </Text>
       )}
+      {!!item.note && (
+        <Text color={color} fontSize={14} lineHeight={20}>
+          {item.note}
+        </Text>
+      )}
       <XStack items="center" gap={5} mt={4}>
         {item.requiresAction && <AlertCircle size={13} color={color} />}
         <Text color={color} fontSize={11} fontWeight="600" flexShrink={1}>

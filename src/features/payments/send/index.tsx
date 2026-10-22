@@ -41,6 +41,7 @@ import { parsePaymentRequest as validatePaymentRequest } from '~/services/wallet
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import Blockies from '~/shared/ui/Blockies';
 import { findExactSubset, OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
+import { withTokenMemo } from '~/services/wallet/tokenUtils';
 
 type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
@@ -76,6 +77,7 @@ export function SendModalScreen() {
   const toast = useToastController();
   const [step, setStep] = useState<SendStep>('amount');
   const [amount, setAmount] = useState('0');
+  const [note, setNote] = useState('');
   const [status, setStatus] = useState<'success' | 'error'>('success');
   const [error, setError] = useState<string | null>(null);
   const [encodedToken, setEncodedToken] = useState<string | null>(null);
@@ -276,7 +278,8 @@ export function SendModalScreen() {
     if (!review) throw new Error('Review the payment before sending');
     const result = await review.execute();
     setPaidCreationFee(review.fee);
-    return { ...result, token: result.encoded };
+    const encoded = withTokenMemo(result.encoded, note);
+    return { ...result, encoded, token: encoded };
   };
 
   // Monitor for claim success when in 'result' stage
@@ -408,6 +411,7 @@ export function SendModalScreen() {
       if (isOffline && ecashLockEnabled) throw new Error('Go online to create locked ecash.');
       if (isOffline) {
         result = await walletService.sendOffline(activeMintUrl, amountSats);
+        result = { ...result, encoded: withTokenMemo(result.encoded, note) };
         setPaidCreationFee(0);
         rawTokenRef.current = result.encoded;
         setEncodedToken(result.encoded);
@@ -486,6 +490,7 @@ export function SendModalScreen() {
           sendMode === 'link' ? 'ecash_link' : 'ecash_create',
           {
             fee: submittedReviewRef.current?.fee,
+            ...(note.trim() ? { note: note.trim() } : {}),
             ...(computedExpiry
               ? {
                   reclaimAt: computedExpiry,
@@ -516,6 +521,7 @@ export function SendModalScreen() {
     receiverPubkey,
     isOffline,
     ecashLockEnabled,
+    note,
   ]);
 
   // ── Nostr Send Handler ───────────────────────────────────────────────
@@ -592,6 +598,7 @@ export function SendModalScreen() {
           {
             fee: submittedReviewRef.current?.fee,
             nostrPubkey: nostrRecipientNpub,
+            ...(note.trim() ? { note: note.trim() } : {}),
             ...(nostrRecipientUsername
               ? { nostrUsername: nostrRecipientUsername.replace('@bey.cash', '') }
               : {}),
@@ -626,6 +633,7 @@ export function SendModalScreen() {
     expiryHours,
     nostrRecipientUsername,
     toast,
+    note,
   ]);
 
   const handleExecuteSend = async () => {
@@ -852,6 +860,10 @@ export function SendModalScreen() {
 
       {step === 'confirm' && (
         <ConfirmStage
+          note={note}
+          onNoteChange={(value) => {
+            if (!executionLock.current) setNote(value);
+          }}
           amount={amount}
           mintUrl={activeMintUrl || ''}
           estimatedFee={estimatedFee}

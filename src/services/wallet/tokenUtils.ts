@@ -6,6 +6,10 @@
 import { getDecodedToken as getDecodedTokenCoco, getEncodedToken } from 'coco-cashu-core';
 import { getEncodedTokenV4, getDecodedToken, PaymentRequest } from '@cashu/cashu-ts';
 import type { DecodedTokenPreview } from '~/services/wallet/types';
+import { decode as decodeCbor, Encoder } from 'cbor-x';
+import { Buffer } from 'buffer';
+
+const tokenEncoder = new Encoder({ useRecords: false, tagUint8Array: false });
 
 // ─── Token Cleaning ───────────────────────────────────────────
 
@@ -136,6 +140,34 @@ export function encodeToken(token: any): string {
   return encodeTokenV4(token);
 }
 
+/** Add public token metadata without changing any proofs or spending conditions. */
+export function withTokenMemo(encoded: string, note: string): string {
+  const memo = note.trim();
+  if (!memo) return encoded;
+  const cleaned = cleanToken(encoded);
+  try {
+    const bytes = Buffer.from(cleaned.slice(6).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    let payload: Uint8Array;
+    if (cleaned.startsWith('cashuB')) {
+      const token = decodeCbor(bytes);
+      if (!token || typeof token.m !== 'string' || !Array.isArray(token.t)) throw new Error();
+      payload = tokenEncoder.encode({ ...token, d: memo });
+    } else if (cleaned.startsWith('cashuA')) {
+      const token = JSON.parse(bytes.toString('utf8'));
+      if (!token || !Array.isArray(token.token)) throw new Error();
+      payload = Buffer.from(JSON.stringify({ ...token, memo }), 'utf8');
+    } else throw new Error();
+    const base64 = Buffer.from(payload)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    return cleaned.slice(0, 6) + base64;
+  } catch {
+    throw new Error('Could not attach the note to this token.');
+  }
+}
+
 /**
  * Encode a token string into "Peanut" format (Variation Selectors).
  */
@@ -171,7 +203,7 @@ export function encodePeanut(tokenStr: string): string {
  */
 function decodeV4TokenManually(
   cleaned: string,
-): { mint: string; proofs: any[]; unit: string; amount: number } | null {
+): { mint: string; proofs: any[]; unit: string; amount: number; memo?: string } | null {
   try {
     if (!cleaned.startsWith('cashuB')) return null;
 
@@ -189,60 +221,8 @@ function decodeV4TokenManually(
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     }
 
-    // Minimal CBOR decoder — only handles map, array, text-string, byte-string, unsigned-int
-    let pos = 0;
-    function readCbor(): any {
-      if (pos >= bytes.length) throw new Error('CBOR: unexpected end');
-      const initial = bytes[pos++];
-      const major = (initial >> 5) & 0x07;
-      const info = initial & 0x1f;
-
-      // Read length / value for additional info
-      let len: number;
-      if (info < 24) len = info;
-      else if (info === 24) len = bytes[pos++];
-      else if (info === 25) {
-        len = (bytes[pos] << 8) | bytes[pos + 1];
-        pos += 2;
-      } else if (info === 26) {
-        len =
-          ((bytes[pos] << 24) | (bytes[pos + 1] << 16) | (bytes[pos + 2] << 8) | bytes[pos + 3]) >>>
-          0;
-        pos += 4;
-      } else throw new Error('CBOR: unsupported length encoding: ' + info);
-
-      if (major === 0) return len; // unsigned int
-      if (major === 2) {
-        // byte string
-        const slice = bytes.slice(pos, pos + len);
-        pos += len;
-        return slice;
-      }
-      if (major === 3) {
-        // text string
-        const slice = bytes.slice(pos, pos + len);
-        pos += len;
-        return new TextDecoder().decode(slice);
-      }
-      if (major === 4) {
-        // array
-        const arr: any[] = [];
-        for (let i = 0; i < len; i++) arr.push(readCbor());
-        return arr;
-      }
-      if (major === 5) {
-        // map
-        const obj: Record<string, any> = {};
-        for (let i = 0; i < len; i++) {
-          const k = readCbor();
-          obj[String(k)] = readCbor();
-        }
-        return obj;
-      }
-      throw new Error('CBOR: unsupported major type: ' + major);
-    }
-
-    const cbor = readCbor();
+    // Use the full CBOR decoder so valid indefinite maps and typed byte strings work too.
+    const cbor = decodeCbor(bytes);
     if (!cbor || typeof cbor !== 'object') return null;
 
     // V4 structure: { m: mintUrl, u: unit, t: [{ i: Uint8Array(8), p: [{ a, s, c }] }], d?: memo }
@@ -260,6 +240,7 @@ function decodeV4TokenManually(
       const keysetId = Array.from(rawId)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
+      if (!keysetId) return null;
       const groupProofs: any[] = Array.isArray(group.p) ? group.p : [];
 
       for (const p of groupProofs) {
@@ -273,19 +254,36 @@ function decodeV4TokenManually(
           : typeof p.c === 'string'
             ? p.c
             : '';
+        const proofAmount = typeof p.a === 'bigint' ? Number(p.a) : p.a;
+        if (
+          !Number.isSafeInteger(proofAmount) ||
+          proofAmount <= 0 ||
+          typeof p.s !== 'string' ||
+          !p.s ||
+          !C
+        )
+          return null;
+        const hex = (value: unknown) => {
+          if (!(value instanceof Uint8Array)) throw new Error('Invalid proof metadata');
+          return Buffer.from(value).toString('hex');
+        };
         proofs.push({
           id: keysetId,
-          amount: typeof p.a === 'number' ? p.a : 0,
+          amount: proofAmount,
           secret: typeof p.s === 'string' ? p.s : '',
           C,
+          ...(typeof p.w === 'string' ? { witness: p.w } : {}),
+          ...(p.pe ? { p2pk_e: hex(p.pe) } : {}),
+          ...(p.d ? { dleq: { e: hex(p.d.e), s: hex(p.d.s), r: hex(p.d.r) } } : {}),
         });
       }
     }
 
     const amount = proofs.reduce((acc, p) => acc + p.amount, 0);
-    return { mint, proofs, unit, amount };
+    if (!proofs.length || !Number.isSafeInteger(amount)) return null;
+    return { mint, proofs, unit, amount, memo: typeof cbor.d === 'string' ? cbor.d : undefined };
   } catch (e: any) {
-    console.warn('[decodeToken] Manual V4 CBOR fallback error:', e?.message);
+    console.warn('[decodeToken] Manual V4 CBOR fallback failed');
     return null;
   }
 }
@@ -316,13 +314,13 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
       mint = first.mint;
       proofs = first.proofs || [];
       unit = first.unit || decoded.unit || 'sat';
-      memo = decoded.memo;
+      memo = typeof decoded.memo === 'string' ? decoded.memo : undefined;
     } else if (decoded.mint && decoded.proofs) {
       // New flat shape: { mint, proofs, unit }
       mint = decoded.mint;
       proofs = decoded.proofs || [];
       unit = decoded.unit || 'sat';
-      memo = decoded.memo;
+      memo = typeof decoded.memo === 'string' ? decoded.memo : undefined;
     } else {
       throw new Error('Unrecognised token shape from getDecodedToken');
     }
@@ -331,7 +329,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     console.log('[decodeToken] ✅ cashu-ts OK — mint:', mint, 'proofs:', proofs.length);
     return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
   } catch (err1: any) {
-    console.warn('[decodeToken] cashu-ts failed:', err1?.message);
+    console.warn('[decodeToken] cashu-ts failed');
   }
 
   // ── Secondary: coco-cashu-core ───────────────────────────────────────────
@@ -347,12 +345,12 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
       mint = first.mint;
       proofs = first.proofs || [];
       unit = first.unit || decoded.unit || 'sat';
-      memo = decoded.memo;
+      memo = typeof decoded.memo === 'string' ? decoded.memo : undefined;
     } else if (decoded.mint && decoded.proofs) {
       mint = decoded.mint;
       proofs = decoded.proofs || [];
       unit = decoded.unit || 'sat';
-      memo = decoded.memo;
+      memo = typeof decoded.memo === 'string' ? decoded.memo : undefined;
     } else {
       throw new Error('Unrecognised token shape from coco getDecodedToken');
     }
@@ -361,7 +359,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     console.log('[decodeToken] ✅ coco-cashu-core OK — mint:', mint);
     return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
   } catch (err2: any) {
-    console.warn('[decodeToken] coco-cashu-core failed:', err2?.message);
+    console.warn('[decodeToken] coco-cashu-core failed');
   }
 
   // ── Manual fallback: cashuB (V4) CBOR — no keyset ID mapping needed ────
@@ -382,6 +380,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
         amount: v4Result.amount,
         unit: v4Result.unit,
         proofs: v4Result.proofs,
+        memo: v4Result.memo,
       };
     }
   }
@@ -399,13 +398,14 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
         return {
           mint: first.mint,
           amount: proofs.reduce((acc: number, p: any) => acc + p.amount, 0),
-          unit: first.unit || 'sat',
+          unit: first.unit || json.unit || 'sat',
           proofs,
+          memo: typeof json.memo === 'string' ? json.memo : undefined,
           raw: json,
         };
       }
     } catch (err3: any) {
-      console.warn('[decodeToken] Manual V3 fallback failed:', err3?.message);
+      console.warn('[decodeToken] Manual V3 fallback failed');
     }
   }
 
@@ -432,7 +432,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     throw new Error('This looks like an LNURL. LNURL deposits are not yet supported.');
   }
 
-  console.error('[decodeToken] ❌ All decoders failed. Token prefix:', cleaned.substring(0, 50));
+  console.error('[decodeToken] All token decoders failed');
   throw new Error('Invalid or unsupported cashu token format.');
 }
 

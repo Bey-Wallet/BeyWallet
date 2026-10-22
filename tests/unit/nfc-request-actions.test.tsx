@@ -15,6 +15,9 @@ jest.mock('~/shared/ui/ListTable', () => ({
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppState } from 'react-native';
+import { appColors } from '~/shared/theme/appearance';
+
+let mockAppearance: 'dark' | 'light' = 'light';
 
 jest.mock('tamagui', () => ({
   Button: 'Button',
@@ -22,7 +25,11 @@ jest.mock('tamagui', () => ({
   View: 'View',
   XStack: 'XStack',
   YStack: 'YStack',
-  useTheme: () => ({ color: { val: 'black' } }),
+  useTheme: () => ({
+    color: { val: mockAppearance === 'dark' ? '#D9D9D9' : '#000000' },
+    gray3: { val: mockAppearance === 'dark' ? '#222224' : '#E7E6EB' },
+    iconPrimary: { val: mockAppearance === 'dark' ? '#FFFFFF' : '#000000' },
+  }),
 }));
 jest.mock('react-native-screens', () => ({ FullWindowOverlay: 'Overlay' }));
 jest.mock('@tamagui/lucide-icons', () => ({
@@ -79,6 +86,7 @@ import { nfcFlow, type NfcPresentation } from '~/features/nfc/nfcFlow';
 let mockState: NfcPresentation;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAppearance = 'light';
   mockState = {
     visible: true,
     status: 'unconfirmed',
@@ -89,6 +97,23 @@ beforeEach(() => {
     canRetryDelivery: true,
   };
 });
+
+it.each(['dark', 'light'] as const)(
+  'keeps the NFC glyph visible on its neutral %s circle',
+  async (appearance) => {
+    mockAppearance = appearance;
+    mockState = { ...mockState, status: 'ready' };
+    let sheet!: ReactTestRenderer;
+    await act(async () => {
+      sheet = create(<NfcSheetHost walletReady />);
+    });
+    const icon = sheet.root.findByType('Icon' as any);
+    expect(icon.props.color).toBe(appColors[appearance].icon);
+    expect(icon.parent!.props.backgroundColor).toBe(appColors[appearance].raised);
+    expect(icon.props.color).not.toBe(icon.parent!.props.backgroundColor);
+    await act(async () => sheet.unmount());
+  },
+);
 
 it('offers delivery retry, settlement refresh and History when delivery is unconfirmed', async () => {
   let sheet!: ReactTestRenderer;

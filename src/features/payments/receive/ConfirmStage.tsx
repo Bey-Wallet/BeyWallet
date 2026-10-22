@@ -18,6 +18,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 
 interface TokenInfo {
   mint: string;
+  memo?: string;
   amount: number;
   proofCount: number;
   preview?: {
@@ -259,12 +260,16 @@ export function ConfirmStage({
           </Text>
         )}
         <ListTable compact>
-          <ListTableRow
-            label="Mint"
-            value={getMintDisplayName(tokenInfo.mint)}
-            isCopyable
-            onCopy={() => handleCopy(tokenInfo.mint, 'Mint URL')}
-          />
+          {tokenInfo.memo?.trim() && (
+            <ListTableRow
+              label="Note"
+              value={tokenInfo.memo}
+              isCopyable
+              copyValue={tokenInfo.memo}
+              multiline
+            />
+          )}
+          <ListTableRow label="Mint" value={getMintDisplayName(tokenInfo.mint)} />
           <ListTableRow
             label="Status"
             value={

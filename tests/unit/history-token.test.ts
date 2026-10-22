@@ -12,6 +12,11 @@ const token = { mint: 'https://mint.example/Bitcoin', unit: 'sat', proofs: [proo
 const encoded = getEncodedTokenV3(token);
 const entry = { mintUrl: token.mint, token };
 
+it('retains the send note when sharing a restored token from history', () => {
+  const result = getHistoryToken({ ...entry, metadata: { note: 'Lunch' } });
+  expect(decodeToken(result)).toMatchObject({ ...token, memo: 'Lunch' });
+});
+
 it.each([
   token,
   [token],

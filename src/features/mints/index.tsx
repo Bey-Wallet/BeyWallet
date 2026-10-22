@@ -22,6 +22,7 @@ import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreview
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
 import { MintNutsRow } from './components/MintNutsRow';
 import { MintTermsRow } from './components/MintTermsRow';
+import { MintContacts } from './components/MintContacts';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 interface MintProfileScreenProps {
@@ -323,29 +324,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             }}
           />
 
-          {/* Contact (if available) */}
-          {info.contact && info.contact.length > 0 && (
-            <YStack gap="$3">
-              <H4 color="$gray10" fontSize="$4">
-                Contact & Support
-              </H4>
-              <ListTable {...previewTableProps}>
-                {info.contact.map((c: any, i: number) => {
-                  const method = Array.isArray(c) ? c[0] : c.method || 'Contact';
-                  const contactInfo = Array.isArray(c) ? c[1] : c.info || '';
-                  if (!contactInfo) return null;
-                  return (
-                    <ListTableRow
-                      key={i}
-                      label={method.charAt(0).toUpperCase() + method.slice(1)}
-                      value={contactInfo}
-                      isCopyable
-                    />
-                  );
-                })}
-              </ListTable>
-            </YStack>
-          )}
+          <MintContacts contacts={info.contact} />
         </YStack>
       </ScrollView>
 

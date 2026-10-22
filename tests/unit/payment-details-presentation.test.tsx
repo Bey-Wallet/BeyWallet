@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { ReceiveResultStage } from '~/features/payments/receive/ReceiveResultStage';
 
 jest.mock('tamagui', () => ({
   XStack: 'XStack',
@@ -79,6 +80,15 @@ it('allows an explicit regular-size table while compact remains the default', as
   expect(value.props.fontWeight).toBe('500');
   expect(value.props.fontSize).toBe(16);
   expect(value.props.numberOfLines).toBe(1);
+});
+
+it('keeps the memo copyable after receiving successfully', async () => {
+  await render(
+    <ReceiveResultStage status="success" amount="8" note="Lunch ☕" onClose={jest.fn()} />,
+  );
+  const copy = tree.root.findByType('IconButton' as any);
+  await act(async () => copy.props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Lunch ☕');
 });
 
 it.each(['secondary', 'primary'] as const)(

@@ -24,6 +24,7 @@ type ReceiveStep = 'input' | 'confirm' | 'result';
 
 interface TokenInfo {
   mint: string;
+  memo?: string;
   amount: number;
   proofCount: number;
   preview?: {
@@ -149,6 +150,7 @@ export function ReceiveModalScreen() {
 
         // Show confirm screen immediately — no waiting for network
         setTokenInfo({
+          memo: rawDecoded.memo,
           mint: mintUrl || 'Unknown mint',
           amount,
           proofCount: proofs.length,
@@ -250,7 +252,7 @@ export function ReceiveModalScreen() {
         .then((text) => {
           console.log(
             '[ReceiveModal] Retrieved clipboard text:',
-            text ? `${text.slice(0, 20)}...` : 'empty',
+            text?.trim() ? 'available' : 'empty',
           );
           if (text && text.trim()) {
             let trimmed = text.trim();
@@ -542,6 +544,7 @@ export function ReceiveModalScreen() {
 
       {step === 'result' && (
         <ReceiveResultStage
+          note={tokenInfo?.memo}
           status={status}
           amount={tokenInfo?.amount?.toString() || '0'}
           mintUrl={tokenInfo?.mint}

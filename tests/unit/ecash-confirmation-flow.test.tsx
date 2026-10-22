@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SendModalScreen } from '~/features/payments/send';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { walletService } from '~/services/wallet';
+import { getDecodedToken, getEncodedTokenV3 } from '@cashu/cashu-ts';
 
 const mockWallet = {
   activeMintUrl: 'mint-a',
@@ -106,6 +107,49 @@ beforeEach(() => {
     { amount: 20, secret: 'fixture', C: 'signature', id: 'keyset' },
   ]);
 });
+
+it.each([false, true])(
+  'attaches the note with no additional payment when offline=%s',
+  async (offline) => {
+    mockOffline = offline;
+    const original = {
+      mint: 'https://mint.example',
+      unit: 'sat',
+      proofs: [
+        {
+          id: '00' + 'ab'.repeat(7),
+          amount: 20,
+          secret: 'fixture-note',
+          C: '02' + '11'.repeat(32),
+        },
+      ],
+    };
+    const encoded = getEncodedTokenV3(original);
+    const prepared = review();
+    (prepared.execute as jest.Mock).mockResolvedValue({ encoded, id: 'note-op' });
+    prepare.mockResolvedValue(prepared);
+    jest
+      .mocked(walletService.sendOffline)
+      .mockResolvedValue({ encoded, id: 'note-op', amount: 20 } as any);
+    const tree = await open();
+    await act(async () => confirm(tree).onNoteChange('Lunch'));
+    expect(confirm(tree).note).toBe('Lunch');
+    await act(async () => confirm(tree).onConfirm());
+    const result = tree.root.findByType('ResultStage' as any);
+    expect(getDecodedToken(result.props.token)).toEqual({
+      ...getDecodedToken(encoded),
+      memo: 'Lunch',
+    });
+    if (offline) {
+      expect(walletService.sendOffline).toHaveBeenCalledTimes(1);
+      expect(prepare).not.toHaveBeenCalled();
+    } else {
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(prepared.execute).toHaveBeenCalledTimes(1);
+    }
+    await act(async () => tree.unmount());
+  },
+);
 
 it('releases an obsolete review, recalculates for the local mint, and cleans up on back', async () => {
   const first = review(0),
