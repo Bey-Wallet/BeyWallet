@@ -60,7 +60,7 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
   index = 0,
 }) => {
   return (
-    <YStack>
+    <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden" mb={6}>
       <View style={styles.row}>
         {/* Leading icon */}
         <ShimmerRect width={36} height={36} borderRadius={18} progress={progress} />
@@ -82,9 +82,6 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
           <ShimmerRect width={48} height={12} progress={progress} />
         </View>
       </View>
-
-      {/* Matching Separator */}
-      <YStack height={StyleSheet.hairlineWidth} bg="$separatorAlternate" />
     </YStack>
   );
 };
@@ -97,7 +94,7 @@ export const HistorySkeletonSection: React.FC<{
   return (
     <View style={styles.section}>
       {/* Date label placeholder */}
-      <View style={{ paddingTop: 20, paddingBottom: 4 }}>
+      <View style={{ paddingTop: 20, paddingBottom: 12 }}>
         <ShimmerRect width={80} height={14} borderRadius={5} progress={progress} />
       </View>
       <View style={styles.card}>
@@ -143,8 +140,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 60,
+    minHeight: 64,
     paddingVertical: 10,
+    paddingHorizontal: 12,
     gap: 12,
     backgroundColor: 'transparent',
   },

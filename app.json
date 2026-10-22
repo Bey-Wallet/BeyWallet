@@ -8,7 +8,7 @@
     "scheme": "bey-wallet",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./src/assets/images/splash.png",
+      "image": "./src/assets/images/splash-icon-dark.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -20,7 +20,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/icons/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000",
+        "monochromeImage": "./src/assets/icons/adaptive-icon.png"
       },
       "package": "com.thehussein01.Bey",
       "permissions": [

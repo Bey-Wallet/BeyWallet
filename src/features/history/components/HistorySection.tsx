@@ -4,8 +4,8 @@ import { appTypography } from '~/shared/theme/appearance';
 
 export function HistorySection({ title }: { title: string }) {
   return (
-    <YStack pt={20} pb={4}>
-      <Text {...appTypography.label2} color="$gray10" accessibilityRole="header">
+    <YStack pt={20} pb={12}>
+      <Text {...appTypography.label2} fontWeight="600" color="$color" accessibilityRole="header">
         {title}
       </Text>
     </YStack>

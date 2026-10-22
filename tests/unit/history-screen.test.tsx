@@ -40,6 +40,8 @@ jest.mock('@tamagui/lucide-icons', () =>
     [
       'ArrowDownLeft',
       'ArrowUpRight',
+      'ArrowDownToLine',
+      'ArrowUpFromLine',
       'ArrowRightLeft',
       'ReceiptText',
       'RefreshCw',

@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import {
-  ArrowUpRight,
-  ArrowDownLeft,
+  ArrowUpFromLine,
+  ArrowDownToLine,
   ArrowRightLeft,
   ReceiptText,
   RefreshCw,
@@ -16,7 +15,6 @@ import { currencyService, type CurrencyCode } from '~/services/wallet/currencySe
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { Spinner } from '~/shared/ui/Spinner';
-import { formatHistoryWhen } from '~/shared/utils/time';
 import { appTypography } from '~/shared/theme/appearance';
 import { checkHistoryStatus } from '../checkHistoryStatus';
 import {
@@ -82,8 +80,8 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     : request
       ? ReceiptText
       : outgoing
-        ? ArrowUpRight
-        : ArrowDownLeft;
+        ? ArrowUpFromLine
+        : ArrowDownToLine;
   const statusLabel = pending
     ? 'Pending'
     : state === 'refunded'
@@ -110,7 +108,16 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
         ? 'Lightning'
         : 'Ecash';
   const subtitle = [paymentType, statusLabel].filter(Boolean).join(' · ');
-  const when = formatHistoryWhen(historyTimestamp(entry.createdAt));
+  const date = new Date(historyTimestamp(entry.createdAt));
+  const when =
+    date.toDateString() === new Date().toDateString()
+      ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : date.toLocaleString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
 
   const handleCheck = async () => {
     if (checking.current) return;
@@ -131,28 +138,34 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   };
 
   return (
-    <YStack>
-      <XStack items="center" minHeight={60}>
+    <YStack
+      bg="$buttonDefaultSecondary"
+      rounded="$6"
+      overflow="hidden"
+      mb={position === 'first' || position === 'middle' ? 6 : 0}
+    >
+      <XStack items="center" minHeight={64} pr={pending ? 12 : 0}>
         <AppPressable
           flex={1}
           minWidth={0}
-          minHeight={60}
-          px={0}
+          minHeight={64}
+          pl={12}
+          pr={pending ? 4 : 12}
           py={10}
           flexDirection="row"
           items="center"
           gap={12}
           bg="transparent"
-          hoverStyle={{ bg: 'transparent', opacity: 0.85 }}
-          pressStyle={{ bg: 'transparent', opacity: 0.6 }}
+          hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+          pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
           accessibilityLabel={`${label}, ${value}${statusLabel ? `, ${statusLabel}` : ''}. Open details`}
           onPress={() => {
             Haptics.selectionAsync();
             onPress(entry.id, entry.type);
           }}
         >
-          <XStack width={36} height={36} rounded={100} bg="$gray2" items="center" justify="center">
-            <Icon size={20} strokeWidth={2.5} color="$iconPrimary" />
+          <XStack width={36} height={36} rounded={100} bg="$gray3" items="center" justify="center">
+            <Icon size={20} strokeWidth={2.5} color="$gray10" />
           </XStack>
           <YStack flex={1} minWidth={0} gap={2}>
             <Text {...appTypography.label2} color="$color" numberOfLines={1}>
@@ -180,8 +193,9 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
         </AppPressable>
         {pending && (
           <AppPressable
-            minHeight={48}
-            width={48}
+            minHeight={32}
+            width={24}
+            hitSlop={12}
             items="center"
             justify="center"
             accessibilityLabel={`Check status of ${label.toLowerCase()}`}
@@ -192,26 +206,14 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
             pressStyle={{ bg: 'transparent', opacity: 0.6 }}
             onPress={handleCheck}
           >
-            <XStack
-              width={30}
-              height={30}
-              rounded={100}
-              bg="$gray2"
-              items="center"
-              justify="center"
-            >
-              {isChecking ? (
-                <Spinner size={15} color="$iconPrimary" />
-              ) : (
-                <RefreshCw size={15} color="$iconPrimary" />
-              )}
-            </XStack>
+            {isChecking ? (
+              <Spinner size={14} color="$gray10" />
+            ) : (
+              <RefreshCw size={14} color="$gray10" />
+            )}
           </AppPressable>
         )}
       </XStack>
-      {(position === 'first' || position === 'middle') && (
-        <YStack height={StyleSheet.hairlineWidth} bg="$separatorAlternate" />
-      )}
     </YStack>
   );
 });

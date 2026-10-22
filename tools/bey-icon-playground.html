@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bey icon and splash studio</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #18181b;
+        background: #f6f6f7;
+        font-synthesis: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid #18181b;
+        outline-offset: 4px;
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+      header {
+        max-width: 1240px;
+        margin: auto;
+        padding: 32px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand {
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: -0.6px;
+      }
+      .brand span {
+        color: #85858e;
+        font-weight: 400;
+        margin-left: 10px;
+        letter-spacing: -0.3px;
+      }
+      .badge {
+        font-size: 12px;
+        color: #6c6c75;
+        border: 1px solid #dedee2;
+        border-radius: 99px;
+        padding: 7px 12px;
+        white-space: nowrap;
+      }
+      main {
+        max-width: 1240px;
+        margin: auto;
+        padding: 28px 40px 64px;
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+        gap: 64px;
+        align-items: start;
+      }
+      h1 {
+        font-size: 30px;
+        letter-spacing: -1.2px;
+        line-height: 1.15;
+        font-weight: 600;
+        margin: 0 0 12px;
+      }
+      .intro {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #71717a;
+        margin: 0 0 32px;
+      }
+      .section-label {
+        display: block;
+        margin: 0 0 12px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .presets {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 28px;
+      }
+      .preset {
+        border: 1px solid #dedee2;
+        background: transparent;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .preset:hover {
+        border-color: #a1a1aa;
+      }
+      .preset[aria-pressed='true'] {
+        border-color: #18181b;
+        background: #fff;
+      }
+      .dot {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 1px solid #dedee2;
+        background: #fff;
+      }
+      .dot.dark {
+        background: #000;
+        border-color: #000;
+      }
+      .color-fields {
+        display: grid;
+        gap: 16px;
+      }
+      .color-row.disabled {
+        opacity: 0.45;
+      }
+      .transparent-control {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 40px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .transparent-control input {
+        width: 17px;
+        height: 17px;
+        accent-color: #18181b;
+        cursor: pointer;
+      }
+      img.checkered {
+        background-color: #d7d7df;
+        background-image: conic-gradient(#bcbcc6 25%, #d7d7df 0 50%, #bcbcc6 0 75%, #d7d7df 0);
+        background-size: 16px 16px;
+      }
+      .color-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e4e4e7;
+        background: #fff;
+        border-radius: 12px;
+      }
+      input[type='color'] {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      input[type='color']::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type='color']::-webkit-color-swatch {
+        border: 1px solid #dedee2;
+        border-radius: 8px;
+      }
+      input[type='color']::-moz-color-swatch {
+        border: 1px solid #dedee2;
+        border-radius: 8px;
+      }
+      .color-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .color-text label {
+        display: block;
+        font-size: 12px;
+        color: #71717a;
+        margin-bottom: 4px;
+      }
+      .hex {
+        width: 100%;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: #18181b;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+        text-transform: uppercase;
+      }
+      .hex[aria-invalid='true'] {
+        color: #b91c1c;
+      }
+      .size-control {
+        margin: 32px 0 28px;
+      }
+      .size-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .size-heading label {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .ratio-field {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        color: #71717a;
+        font-size: 13px;
+      }
+      #ratio-number {
+        width: 63px;
+        padding: 7px 5px;
+        border: 1px solid #dedee2;
+        border-radius: 7px;
+        background: #fff;
+        text-align: center;
+        font-size: 13px;
+      }
+      #ratio {
+        width: 100%;
+        accent-color: #18181b;
+        cursor: pointer;
+      }
+      .range-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #85858e;
+        margin-top: 8px;
+      }
+      .reference {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .reference span {
+        color: #71717a;
+        font-size: 12px;
+      }
+      .text-button {
+        border: 0;
+        padding: 4px 0;
+        background: transparent;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        color: #52525b;
+      }
+      .download {
+        border: 0;
+        color: #fff;
+        background: #18181b;
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+      }
+      .download:hover {
+        background: #303036;
+      }
+      .export-note {
+        font-size: 12px;
+        color: #85858e;
+        line-height: 1.6;
+        text-align: center;
+        margin: 12px 0 0;
+      }
+      #status {
+        min-height: 20px;
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #52525b;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+      .preview-column {
+        min-width: 0;
+      }
+      .preview-label {
+        display: flex;
+        justify-content: space-between;
+        color: #71717a;
+        font-size: 12px;
+        margin: 0 0 16px;
+      }
+      .preview {
+        width: 100%;
+        max-width: 512px;
+        margin: 0 auto;
+      }
+      .preview img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        height: auto;
+        box-shadow: 0 0 0 1px #18181b0a;
+      }
+      .preview-bottom {
+        max-width: 512px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 16px auto 0;
+        gap: 12px;
+      }
+      .preview-bottom span {
+        font-size: 12px;
+        color: #85858e;
+      }
+      .launcher {
+        margin: 36px auto 0;
+        max-width: 512px;
+        border-top: 1px solid #e4e4e7;
+        padding-top: 22px;
+      }
+      .launcher-label {
+        font-size: 12px;
+        color: #71717a;
+        margin: 0 0 16px;
+      }
+      .launcher-icons {
+        display: flex;
+        gap: 28px;
+        align-items: center;
+      }
+      figure {
+        margin: 0;
+        text-align: center;
+      }
+      figure img {
+        width: 64px;
+        height: 64px;
+        display: block;
+        box-shadow: 0 0 0 1px #18181b0a;
+      }
+      figure img.rounded {
+        border-radius: 15px;
+      }
+      figure img.circle {
+        border-radius: 50%;
+      }
+      figcaption {
+        font-size: 11px;
+        color: #85858e;
+        margin-top: 8px;
+      }
+      @media (max-width: 850px) {
+        header {
+          padding: 24px;
+        }
+        main {
+          padding: 16px 24px 40px;
+          gap: 36px;
+          grid-template-columns: 280px minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        header {
+          padding: 24px 20px;
+        }
+        .badge {
+          font-size: 11px;
+        }
+        main {
+          padding: 12px 20px 40px;
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        .preview-column {
+          grid-row: 1;
+        }
+        .preview {
+          max-width: 320px;
+        }
+        .preview-label,
+        .preview-bottom,
+        .launcher {
+          max-width: 320px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .launcher {
+          margin-top: 24px;
+        }
+        .launcher-icons {
+          gap: 24px;
+        }
+        h1 {
+          font-size: 26px;
+        }
+        .intro {
+          margin-bottom: 24px;
+        }
+      }
+      .export-mode {
+        margin-bottom: 24px;
+      }
+      .export-mode select {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #dedee2;
+        background: #fff;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        color: #18181b;
+      }
+      select:focus-visible {
+        outline: 2px solid #18181b;
+        outline-offset: 4px;
+      }
+      .preview.splash {
+        max-width: 280px;
+        aspect-ratio: 393 / 852;
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1px #18181b14;
+      }
+      .preview.splash img {
+        width: 50.8906%;
+        height: auto;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: none;
+      }
+      .splash-help {
+        font-size: 12px;
+        line-height: 1.6;
+        color: #71717a;
+        margin: 18px 0 0;
+      }
+      .splash-help a {
+        color: inherit;
+        text-underline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">Bey<span>Asset studio</span></div>
+      <div class="badge" id="export-badge">512 × 512 PNG</div>
+    </header>
+    <main>
+      <section aria-label="Icon controls">
+        <h1>Make it yours.</h1>
+        <p class="intro">
+          Your Bey logo, with your colours.<br />Adjust the spacing, then download.
+        </p>
+        <div class="export-mode">
+          <label class="section-label" for="export-mode">Export</label
+          ><select id="export-mode">
+            <option value="icon">App icon · 512 × 512</option>
+            <option value="splash">Expo splash logo · 1024 × 1024</option>
+          </select>
+        </div>
+        <span class="section-label">Start with a look</span>
+        <div class="presets" role="group" aria-label="Colour presets">
+          <button class="preset" id="dark-preset" type="button" aria-pressed="true">
+            <span class="dot dark" aria-hidden="true"></span>Dark
+          </button>
+          <button class="preset" id="light-preset" type="button" aria-pressed="false">
+            <span class="dot" aria-hidden="true"></span>Light
+          </button>
+        </div>
+        <div class="color-fields">
+          <div class="color-row">
+            <input type="color" id="icon-color" value="#ffffff" aria-label="Choose logo colour" />
+            <div class="color-text">
+              <label for="icon-hex">Logo colour</label
+              ><input
+                class="hex"
+                id="icon-hex"
+                value="#FFFFFF"
+                maxlength="7"
+                spellcheck="false"
+                autocomplete="off"
+                aria-describedby="status"
+              />
+            </div>
+          </div>
+          <div class="color-row" id="background-row">
+            <input
+              type="color"
+              id="background-color"
+              value="#000000"
+              aria-label="Choose background colour"
+            />
+            <div class="color-text">
+              <label for="background-hex" id="background-label">Background colour</label
+              ><input
+                class="hex"
+                id="background-hex"
+                value="#000000"
+                maxlength="7"
+                spellcheck="false"
+                autocomplete="off"
+                aria-describedby="status"
+              />
+            </div>
+          </div>
+          <label class="transparent-control" for="transparent-background"
+            ><input id="transparent-background" type="checkbox" /><span id="transparent-label"
+              >Transparent background</span
+            ></label
+          >
+        </div>
+        <div class="size-control">
+          <div class="size-heading">
+            <label for="ratio">Logo width</label>
+            <div class="ratio-field">
+              <input
+                id="ratio-number"
+                type="number"
+                min="10"
+                max="90"
+                step="0.1"
+                value="30.2"
+                aria-label="Logo width as a percentage"
+              /><span>%</span>
+            </div>
+          </div>
+          <input
+            id="ratio"
+            type="range"
+            min="10"
+            max="90"
+            step="0.1"
+            value="30.2"
+            aria-label="Logo width"
+          />
+          <div class="range-labels"><span>More space</span><span>Larger logo</span></div>
+          <div class="reference">
+            <span id="reference-label">Reference size: 30.2%</span
+            ><button type="button" class="text-button" id="match-reference">Match reference</button>
+          </div>
+        </div>
+        <button class="download" type="button" id="download">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4" /></svg
+          ><span id="download-label">Download PNG</span>
+        </button>
+        <p class="export-note">
+          <span id="export-size">512 × 512</span> ·
+          <span id="export-background">Full square background</span><br /><span id="export-hint"
+            >Launcher shapes below are previews only.</span
+          >
+        </p>
+        <p class="splash-help" id="splash-help" hidden>
+          Matches the current <strong>imageWidth: 200</strong> setup. Export a black logo for the
+          white splash, and a white logo for the black splash. The background is set separately in
+          Expo.
+          <a
+            href="https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Expo guidelines</a
+          >. Check the final appearance in a preview or release build.
+        </p>
+        <p id="status" role="status" aria-live="polite"></p>
+      </section>
+      <section class="preview-column" aria-label="Icon preview">
+        <div class="preview-label">
+          <span id="preview-label">Live preview</span><span id="preview-size">512 × 512</span>
+        </div>
+        <div class="preview" id="preview-frame">
+          <img id="preview" width="512" height="512" alt="Bey app icon preview" />
+        </div>
+        <div class="preview-bottom">
+          <span id="dimensions">Logo: 155 × 144 px</span
+          ><button class="text-button" type="button" id="reset">Reset all</button>
+        </div>
+        <div class="launcher" id="launcher-previews">
+          <p class="launcher-label">At launcher size</p>
+          <div class="launcher-icons">
+            <figure>
+              <img class="mini" width="64" height="64" alt="Square launcher preview" />
+              <figcaption>Square</figcaption>
+            </figure>
+            <figure>
+              <img class="mini rounded" width="64" height="64" alt="Rounded launcher preview" />
+              <figcaption>Rounded</figcaption>
+            </figure>
+            <figure>
+              <img class="mini circle" width="64" height="64" alt="Circular launcher preview" />
+              <figcaption>Circle</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      'use strict';
+      const REFERENCE_RATIO = 30.2;
+      const SPLASH_RATIO = 40.9;
+      const state = {
+        icon: '#FFFFFF',
+        background: '#000000',
+        ratio: REFERENCE_RATIO,
+        transparent: false,
+        mode: 'icon',
+        iconRatio: REFERENCE_RATIO,
+        splashRatio: SPLASH_RATIO,
+      };
+      const exportSize = () => (state.mode === 'splash' ? 1024 : 512);
+      const isTransparent = () => state.mode === 'splash' || state.transparent;
+      const referenceRatio = () => (state.mode === 'splash' ? SPLASH_RATIO : REFERENCE_RATIO);
+      const el = (id) => document.getElementById(id);
+      const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value);
+      const STORAGE_KEY = 'bey-icon-studio';
+      // Exact mask and mark geometry from src/shared/icons/BeyIcon.tsx.
+      // Centre the painted 500 × 467 bounds, rather than its padded 512 × 512 viewBox.
+      function buildSVG() {
+        const SIZE = exportSize();
+        const scale = (SIZE * state.ratio) / 100 / 500;
+        const x = (SIZE - 500 * scale) / 2;
+        const y = (SIZE - 467 * scale) / 2;
+        const background = isTransparent()
+          ? ''
+          : `<rect width="${SIZE}" height="${SIZE}" fill="${state.background}"/>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">${background}<g transform="translate(${x} ${y}) scale(${scale})"><defs><mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="white" rx="32"/><rect x="135" y="135.5" width="230" height="196" rx="12" fill="black"/><line x1="0" y1="0" x2="500" y2="467" stroke="black" stroke-width="45" stroke-linecap="square"/></mask></defs><rect width="500" height="467" rx="32" fill="${state.icon}" mask="url(#cut)"/></g></svg>`;
+      }
+      function message(text = '', error = false) {
+        el('status').textContent = text;
+        el('status').classList.toggle('error', error);
+      }
+      function render() {
+        const SIZE = exportSize();
+        const splash = state.mode === 'splash';
+        el('export-mode').value = state.mode;
+        el('export-badge').textContent = `${SIZE} × ${SIZE} PNG`;
+        el('export-size').textContent = `${SIZE} × ${SIZE}`;
+        el('preview-size').textContent = splash ? 'imageWidth: 200' : '512 × 512';
+        el('preview-label').textContent = splash ? 'Approximate splash preview' : 'Live preview';
+        el('preview-frame').classList.toggle('splash', splash);
+        el('preview-frame').style.backgroundColor = splash ? state.background : '';
+        el('launcher-previews').hidden = splash;
+        el('splash-help').hidden = !splash;
+        el('reference-label').textContent = splash
+          ? `Current splash: ${SPLASH_RATIO}%`
+          : `Reference size: ${REFERENCE_RATIO}%`;
+        el('background-label').textContent = splash
+          ? 'Splash background (preview only)'
+          : 'Background colour';
+        el('transparent-label').textContent = splash
+          ? 'Transparent splash asset'
+          : 'Transparent background';
+        el('export-hint').textContent = splash
+          ? 'Logo asset only. Set the splash background in Expo.'
+          : 'Launcher shapes below are previews only.';
+        const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(buildSVG())}`;
+        document.querySelectorAll('#preview, .mini').forEach((img) => {
+          img.src = src;
+          img.classList.toggle('checkered', !splash && state.transparent);
+        });
+        el('icon-color').value = state.icon;
+        el('icon-hex').value = state.icon;
+        el('background-color').value = state.background;
+        el('background-hex').value = state.background;
+        el('background-color').disabled = !splash && state.transparent;
+        el('background-hex').disabled = !splash && state.transparent;
+        el('background-row').classList.toggle('disabled', !splash && state.transparent);
+        el('transparent-background').checked = isTransparent();
+        el('transparent-background').disabled = splash;
+        el('export-background').textContent = isTransparent()
+          ? 'Transparent background'
+          : 'Full square background';
+        el('ratio').value = state.ratio;
+        if (document.activeElement !== el('ratio-number')) el('ratio-number').value = state.ratio;
+        el('dimensions').textContent =
+          `Logo: ${Math.round((SIZE * state.ratio) / 100)} × ${Math.round((((SIZE * state.ratio) / 100) * 467) / 500)} px`;
+        el('dark-preset').setAttribute(
+          'aria-pressed',
+          String(
+            (splash || !state.transparent) &&
+              state.icon === '#FFFFFF' &&
+              state.background === '#000000',
+          ),
+        );
+        el('light-preset').setAttribute(
+          'aria-pressed',
+          String(
+            (splash || !state.transparent) &&
+              state.icon === '#000000' &&
+              state.background === '#FFFFFF',
+          ),
+        );
+        for (const id of ['icon-hex', 'background-hex', 'ratio-number'])
+          el(id).removeAttribute('aria-invalid');
+        if (!el('download').hasAttribute('aria-busy')) el('download').disabled = false;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch {
+          /* File previews may disable storage. */
+        }
+      }
+      function setColour(key, value, input) {
+        const colour = (value.startsWith('#') ? value : `#${value}`).toUpperCase();
+        if (!validHex(colour)) {
+          input.setAttribute('aria-invalid', 'true');
+          el('download').disabled = true;
+          message('Enter a six-digit hex colour, such as #FFFFFF.', true);
+          return;
+        }
+        state[key] = colour;
+        message();
+        render();
+      }
+      for (const [key, name] of [
+        ['icon', 'icon'],
+        ['background', 'background'],
+      ]) {
+        el(`${name}-color`).addEventListener('input', (event) =>
+          setColour(key, event.target.value, event.target),
+        );
+        el(`${name}-hex`).addEventListener('input', (event) =>
+          setColour(key, event.target.value, event.target),
+        );
+      }
+      function setRatio(input) {
+        const ratio = Number(input.value);
+        if (!input.value || !Number.isFinite(ratio) || ratio < 10 || ratio > 90) {
+          input.setAttribute('aria-invalid', 'true');
+          el('download').disabled = true;
+          message('Choose a logo width between 10% and 90%.', true);
+          return;
+        }
+        state.ratio = Math.round(ratio * 10) / 10;
+        message();
+        render();
+      }
+      el('ratio').addEventListener('input', (event) => setRatio(event.target));
+      el('ratio-number').addEventListener('input', (event) => setRatio(event.target));
+      el('export-mode').addEventListener('change', (event) => {
+        if (state.mode === 'splash') state.splashRatio = state.ratio;
+        else state.iconRatio = state.ratio;
+        state.mode = event.target.value === 'splash' ? 'splash' : 'icon';
+        state.ratio = state.mode === 'splash' ? state.splashRatio : state.iconRatio;
+        message();
+        render();
+      });
+      el('transparent-background').addEventListener('change', (event) => {
+        state.transparent = event.target.checked;
+        message();
+        render();
+      });
+      function preset(icon, background) {
+        state.icon = icon;
+        state.background = background;
+        state.transparent = false;
+        message();
+        render();
+      }
+      el('dark-preset').addEventListener('click', () => preset('#FFFFFF', '#000000'));
+      el('light-preset').addEventListener('click', () => preset('#000000', '#FFFFFF'));
+      el('match-reference').addEventListener('click', () => {
+        state.ratio = referenceRatio();
+        message();
+        render();
+      });
+      el('reset').addEventListener('click', () => {
+        state.ratio = referenceRatio();
+        preset('#FFFFFF', '#000000');
+      });
+      async function createPNG() {
+        const SIZE = exportSize();
+        const image = new Image();
+        image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(buildSVG())}`;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable');
+        context.drawImage(image, 0, 0, SIZE, SIZE);
+        return new Promise((resolve, reject) =>
+          canvas.toBlob(
+            (blob) => (blob ? resolve(blob) : reject(new Error('PNG export failed'))),
+            'image/png',
+          ),
+        );
+      }
+      el('download').addEventListener('click', async () => {
+        const button = el('download');
+        const filename =
+          state.mode === 'splash'
+            ? `bey-splash-${state.icon.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-1024.png`
+            : `bey-icon-${state.icon.slice(1).toLowerCase()}-on-${state.transparent ? 'transparent' : state.background.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-512.png`;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        el('download-label').textContent = 'Preparing PNG…';
+        try {
+          const blob = await createPNG();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+          message('PNG ready. Your browser will save the download.');
+        } catch {
+          message('Could not export the PNG. Try opening this file in Chrome or Edge.', true);
+        } finally {
+          button.disabled = false;
+          button.removeAttribute('aria-busy');
+          el('download-label').textContent = 'Download PNG';
+        }
+      });
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (
+          saved &&
+          validHex(saved.icon) &&
+          validHex(saved.background) &&
+          Number.isFinite(saved.ratio) &&
+          saved.ratio >= 10 &&
+          saved.ratio <= 90
+        ) {
+          state.icon = saved.icon.toUpperCase();
+          state.background = saved.background.toUpperCase();
+          state.ratio = saved.ratio;
+          state.transparent = saved.transparent === true;
+          state.mode = saved.mode === 'splash' ? 'splash' : 'icon';
+          state.iconRatio =
+            Number.isFinite(saved.iconRatio) && saved.iconRatio >= 10 && saved.iconRatio <= 90
+              ? saved.iconRatio
+              : REFERENCE_RATIO;
+          state.splashRatio =
+            Number.isFinite(saved.splashRatio) && saved.splashRatio >= 10 && saved.splashRatio <= 90
+              ? saved.splashRatio
+              : SPLASH_RATIO;
+        }
+      } catch {
+        /* Start with the reference proportions when storage is unavailable. */
+      }
+      render();
+    </script>
+  </body>
+</html>

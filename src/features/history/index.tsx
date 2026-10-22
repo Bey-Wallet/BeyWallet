@@ -78,10 +78,10 @@ function FilterPill({
         gap={6}
         items="center"
         justify="center"
-        bg={selected ? '$accentColor' : '$gray2'}
+        bg={selected ? '$gray4' : '$buttonDefaultSecondary'}
       >
-        {Icon && <Icon size={15} color={selected ? '$onAccent' : '$gray10'} />}
-        <Text {...appTypography.label2} color={selected ? '$onAccent' : '$color'}>
+        {Icon && <Icon size={15} color={selected ? '$color' : '$gray10'} />}
+        <Text {...appTypography.label2} color="$color">
           {label}
         </Text>
       </XStack>
