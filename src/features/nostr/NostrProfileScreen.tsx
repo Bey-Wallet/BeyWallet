@@ -1,333 +1,258 @@
-import { Spinner } from '~/shared/ui/Spinner';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { YStack, XStack, Text, View, Separator, ScrollView } from 'tamagui';
-import { Copy, AtSign, RefreshCw, Scan, Check } from '@tamagui/lucide-icons';
-import Blockies from '~/shared/ui/Blockies';
-import { CustomQRCode } from '~/shared/ui/CustomQRCode';
+import { InteractionManager, Share, useWindowDimensions } from 'react-native';
+import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
+import { Check, Copy, RefreshCw, Scan, Share2 } from '@tamagui/lucide-icons';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Share, InteractionManager, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
-import { useFocusEffect, useRouter, Stack } from 'expo-router';
-import BeyIcon from '~/shared/icons/BeyIcon';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
-import { Flex } from '~/shared/ui/Flex';
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { CustomQRCode } from '~/shared/ui/CustomQRCode';
+import { Spinner } from '~/shared/ui/Spinner';
 
 export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const qrSize = settingsMode ? Math.max(120, Math.min(350, width - 64)) : 350;
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const qrSize = Math.max(120, Math.min(height < 700 ? 240 : 280, width - 64));
+  const theme = useTheme();
   const toast = useToastController();
   const npub = useSettingsStore((state) => state.npub);
-
-  // Live NIP-05 lookup from bey.cash
-  const { username, nip05, loading: nip05Loading, status: nip05Status, refresh } = useNip05Lookup();
-
-  // Defer QR code rendering to avoid blocking navigation transition
+  const { nip05, loading, status, refresh } = useNip05Lookup();
+  const verified = status === 'verified' && !!nip05;
   const [isQrReady, setIsQrReady] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
-  const [copiedNip05, setCopiedNip05] = React.useState(false);
-  const hasFocusedRef = React.useRef(false);
+  const [copied, setCopied] = React.useState<string | null>(null);
+  const copyTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFocused = React.useRef(false);
 
   React.useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      setIsQrReady(true);
-    });
+    const task = InteractionManager.runAfterInteractions(() => setIsQrReady(true));
     return () => task.cancel();
   }, []);
 
+  React.useEffect(() => {
+    setCopied(null);
+    return () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    };
+  }, [npub, nip05]);
+
   useFocusEffect(
     React.useCallback(() => {
-      if (hasFocusedRef.current) {
-        refresh();
-      } else {
-        hasFocusedRef.current = true;
-      }
+      if (hasFocused.current) refresh();
+      else hasFocused.current = true;
     }, [refresh]),
   );
 
-  const isNip05Verified = nip05Status === 'verified' && !!nip05;
-
-  const handleAddNip05 = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(settingsMode ? '/(tabs)/settings/username' : '/(modals)/nostr-username');
+  const copy = async (value: string) => {
+    await Clipboard.setStringAsync(value);
+    toast.show('Copied to clipboard');
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCopied(value);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleCopy = async () => {
-    if (!npub) return;
-    await Clipboard.setStringAsync(npub);
-    toast.show('Copied npub to clipboard');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCopyNip05 = async () => {
-    if (!nip05) return;
-    await Clipboard.setStringAsync(nip05);
-    toast.show('Copied Nostr address');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCopiedNip05(true);
-    setTimeout(() => setCopiedNip05(false), 2000);
-  };
-
-  const handleShare = async () => {
+  const share = async () => {
     if (!npub) return;
     try {
-      const shareMessage = isNip05Verified ? `${nip05}\n${npub}` : npub;
-      await Share.share({
-        message: shareMessage,
-      });
-    } catch (error: any) {
-      console.error('Error sharing npub:', error.message);
+      await Share.share({ message: verified ? `${nip05}\n${npub}` : npub });
+    } catch {
+      toast.show('Could not share profile. Please try again.');
     }
   };
 
-  // Helper to format npub like npub1...xyz
-  const formatNpub = (str: string | null) => {
-    if (!str) return '';
-    if (str.length < 20) return str;
-    return `${str.slice(0, 10)}...${str.slice(-6)}`;
-  };
-
   return (
-    <YStack flex={1} justify="space-between">
+    <YStack flex={1} bg="$background">
       {!settingsMode && (
         <Stack.Screen
           options={{
             headerShown: true,
-
-            headerShadowVisible: false,
+            title: 'My profile',
             headerTitleAlign: 'center',
-
-            headerTitle: () => (
-              <XStack gap="$2" items="center" justify="center">
-                <Text fontSize={18} fontWeight="700" color="$accent4">
-                  {isNip05Verified && username ? username : 'Bey Wallet User'}
-                </Text>
-                {isNip05Verified && <Nip05VerifiedBadge size={17} />}
-                <AppIconButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="xxsmall"
-
-                  shape="circular"
-                  accessibilityLabel="Refresh"
-                  loading={nip05Loading}
-                  icon={<RefreshCw size={14} />}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    refresh();
-                  }}
-                  disabled={nip05Loading}
-                />
-              </XStack>
-            ),
+            headerShadowVisible: false,
             headerRight: () => (
               <AppIconButton
                 variant="default"
                 emphasis="tertiary"
                 size="small"
-
                 shape="circular"
-                accessibilityLabel="Scan QR code"
-                icon={<Scan size={20} />}
-                onPress={() => router.push({ pathname: '/(modals)/scanner' })}
+                accessibilityLabel="Share profile"
+                iconSize={18}
+                icon={<Share2 size={20} />}
+                disabled={!npub}
+                onPress={share}
               />
             ),
           }}
         />
       )}
-      <Flex>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, gap: 16 }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: 24,
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
+          gap: 32,
+        }}
+      >
+        <YStack
+          flex={1}
+          justify="center"
+          width="100%"
+          maxWidth={400}
+          self="center"
+          gap="$4"
+          items="center"
         >
-          {/* Main content */}
-          <YStack items="center" gap="$5" flex={1} justify="center">
-            {/* QR Code card */}
-            {npub && isQrReady ? (
-              <View borderWidth={1} borderColor="$gray4" rounded="$6">
-                <CustomQRCode
-                  value={npub}
-                  size={qrSize}
-                  logo={true}
-                  logoSize={50}
-                  dotShape="circle"
-                  finderStyle="rounded"
-                />
-              </View>
-            ) : (
-              <View
-                p="$4"
-                bg={settingsMode ? '$buttonDefaultSecondary' : '$gray3'}
-                rounded={settingsMode ? '$6' : '$7'}
-                width={qrSize}
-                height={qrSize}
-                items="center"
-                justify="center"
-              >
-                <Spinner size="large" color="$accent10" />
-                <Text color="$gray10" fontWeight="600" mt="$4">
-                  {!npub ? 'Generating npub...' : 'Loading QR Code...'}
+          {status === 'not_found' && !loading ? (
+            <AppButton
+              variant="default"
+              emphasis="text-only"
+              size="xxsmall"
+              minHeight={48}
+              onPress={() =>
+                router.push(settingsMode ? '/(tabs)/settings/username' : '/(modals)/nostr-username')
+              }
+            >
+              Claim username
+            </AppButton>
+          ) : (
+            <AppPressable
+              onPress={() => verified && copy(nip05!)}
+              disabled={!verified}
+              minHeight={48}
+              accessibilityLabel={verified ? 'Copy Nostr address' : 'My Nostr profile'}
+              justify="center"
+            >
+              <XStack items="center" justify="center" gap="$2">
+                <Text fontSize={22} fontWeight="600" color="$color" text="center" flexShrink={1}>
+                  {verified ? nip05 : 'My Nostr profile'}
                 </Text>
-              </View>
-            )}
-          </YStack>
+                {verified &&
+                  (copied === nip05 ? (
+                    <Check size={18} color="$color" />
+                  ) : (
+                    <Nip05VerifiedBadge size={18} />
+                  ))}
+              </XStack>
+            </AppPressable>
+          )}
 
-          {/* Profile Identity Details Card */}
-          <YStack
-            bg={settingsMode ? '$buttonDefaultSecondary' : '$gray2'}
-            rounded={settingsMode ? '$6' : '$5'}
-            p="$4"
-            gap="$4"
-            mb="$4"
-          >
-            <XStack items="center" gap="$3">
-              <View
-                width={38}
-                height={38}
-                rounded="$10"
-                bg="$gray4"
-                items="center"
-                justify="center"
-              >
-                {isNip05Verified ? (
-                  <Nip05VerifiedBadge size={21} />
-                ) : (
-                  <AtSign size={20} color="$gray10" />
-                )}
-              </View>
-
-              <YStack flex={1} gap="$1">
-                <XStack items="center" gap="$1.5">
-                  <Text fontSize="$3" fontWeight="800">
-                    {isNip05Verified
-                      ? 'NIP-05 discoverable'
-                      : nip05Status === 'not_found'
-                        ? 'Not NIP-05 discoverable'
-                        : nip05Status === 'error'
-                          ? 'NIP-05 check unavailable'
-                          : 'Checking NIP-05'}
-                  </Text>
-                  {isNip05Verified && <Nip05VerifiedBadge size={14} />}
-                </XStack>
-                <Text fontSize="$2" color="$gray10" lineHeight={17}>
-                  {isNip05Verified
-                    ? `${nip05} resolves to this wallet.`
-                    : nip05Status === 'not_found'
-                      ? 'No bey.cash address currently resolves to this public key.'
-                      : nip05Status === 'error'
-                        ? 'Connect to the internet and try the lookup again.'
-                        : 'Checking the public bey.cash NIP-05 registry…'}
+          <View bg="$background" width={qrSize} height={qrSize} items="center" justify="center">
+            {npub && isQrReady ? (
+              <CustomQRCode
+                value={npub}
+                size={qrSize}
+                color={String(theme.color.val)}
+                backgroundColor={String(theme.background.val)}
+                dotShape="circle"
+                finderStyle="rounded"
+              />
+            ) : (
+              <YStack items="center" gap="$3">
+                <Spinner size="large" color="$color" />
+                <Text fontSize={12} color="$gray10">
+                  {npub ? 'Loading QR code…' : 'Loading public key…'}
                 </Text>
               </YStack>
+            )}
+          </View>
+          {npub && (
+            <AppPressable
+              width="100%"
+              rounded="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
+              px="$4"
+              py="$5"
+              mt="$3"
+              minHeight={48}
+              onPress={() => copy(npub)}
+              accessibilityLabel="Copy public key"
+            >
+              <XStack
+                position="absolute"
+                top={-12}
+                self="center"
+                items="center"
+                gap="$2"
+                px="$2"
+                bg="$background"
+              >
+                <Text fontSize={14} color="$gray10">
+                  Public key
+                </Text>
+                {copied === npub ? (
+                  <Check size={16} color="$color" />
+                ) : (
+                  <Copy size={16} color="$gray10" />
+                )}
+              </XStack>
+              <Text fontSize={16} fontWeight="500" lineHeight={24} color="$color" text="center">
+                {npub}
+              </Text>
+            </AppPressable>
+          )}
+          <Text fontSize={14} color="$gray10" text="center" maxWidth={300} lineHeight={20}>
+            Scan or share this public key to connect with me on Nostr.
+          </Text>
 
-              {nip05Loading ? (
+          {!verified && status !== 'not_found' && (
+            <XStack width="100%" items="center" gap="$3">
+              <Text flex={1} fontSize={12} color="$gray10">
+                {status === 'error'
+                  ? 'Could not check your Nostr address. Your QR code still works.'
+                  : 'Checking your Nostr address…'}
+              </Text>
+              {loading ? (
                 <Spinner size="small" />
-              ) : nip05Status === 'not_found' ? (
-                <AppButton
-                  variant="branded"
-                  emphasis="primary"
-                  size="xsmall"
-                  onPress={handleAddNip05}
-                >
-                  Add
-                </AppButton>
-              ) : nip05Status === 'error' ? (
+              ) : status === 'error' ? (
                 <AppIconButton
                   variant="default"
                   emphasis="tertiary"
-                  size="xsmall"
-
+                  size="small"
                   shape="circular"
                   accessibilityLabel="Retry NIP-05 lookup"
-                  icon={<RefreshCw size={17} />}
+                  icon={<RefreshCw size={20} />}
                   onPress={refresh}
                 />
               ) : null}
             </XStack>
-
-            <Separator borderColor="$borderColor" opacity={0.5} />
-
-            {/* Nostr Address (NIP-05) Row - Conditionally Rendered */}
-            {isNip05Verified && (
-              <YStack gap="$3">
-                <XStack
-                  justify="space-between"
-                  items="center"
-                  onPress={handleCopyNip05}
-                  pressStyle={{ opacity: 0.7 }}
-                >
-                  <YStack gap="$1.5" flex={1}>
-                    <Text fontSize="$2" color="$gray10" fontWeight="600">
-                      Nostr Address
-                    </Text>
-                    <XStack gap="$3" items="center">
-                      <Blockies
-                        seed={npub || 'Bey Wallet'}
-                        size={10}
-                        scale={3.5}
-                        style={{ borderRadius: 6 }}
-                      />
-                      <YStack flex={1}>
-                        <Text fontSize="$4" fontWeight="700">
-                          {nip05}
-                        </Text>
-                        <Text fontSize="$1" color="$gray9">
-                          Tap to copy address
-                        </Text>
-                      </YStack>
-                    </XStack>
-                  </YStack>
-                  {copiedNip05 ? (
-                    <Check size={18} color="$accent10" />
-                  ) : (
-                    <Copy size={18} color="$gray10" />
-                  )}
-                </XStack>
-                <Separator borderColor="$borderColor" opacity={0.5} mt="$2" />
-              </YStack>
-            )}
-
-            {/* Public Key (npub) Row */}
-            {npub && (
-              <XStack
-                justify="space-between"
-                items="center"
-                onPress={handleCopy}
-                pressStyle={{ opacity: 0.7 }}
-              >
-                <YStack gap="$1.5" flex={1} mr="$3">
-                  <Text fontSize="$2" color="$gray10" fontWeight="600">
-                    Public Key (npub)
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    color="$accent4"
-                    fontWeight="600"
-                    style={{ wordBreak: 'break-all' } as any}
-                  >
-                    {npub}
-                  </Text>
-                  <Text fontSize="$1" color="$gray9">
-                    Tap to copy public key
-                  </Text>
-                </YStack>
-                {copied ? (
-                  <Check size={18} color="$accent10" />
-                ) : (
-                  <Copy size={18} color="$gray10" />
-                )}
-              </XStack>
-            )}
-          </YStack>
-        </ScrollView>
-      </Flex>
+          )}
+        </YStack>
+        <XStack self="center" items="center" gap="$2">
+          <AppButton
+            variant="default"
+            emphasis="secondary"
+            rounded="$10"
+            px="$5"
+            icon={<Scan />}
+            onPress={() => router.push('/(modals)/scanner')}
+          >
+            Scan a QR code
+          </AppButton>
+          {settingsMode && (
+            <AppIconButton
+              variant="default"
+              emphasis="tertiary"
+              size="small"
+              shape="circular"
+              iconSize={18}
+              icon={<Share2 />}
+              accessibilityLabel="Share profile"
+              disabled={!npub}
+              onPress={share}
+            />
+          )}
+        </XStack>
+      </ScrollView>
     </YStack>
   );
 }

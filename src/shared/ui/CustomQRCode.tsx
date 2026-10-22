@@ -9,7 +9,7 @@ export interface CustomQRCodeProps {
   size?: number;
   color?: string;
   backgroundColor?: string;
-  logo?: any;
+  logo?: boolean;
   logoSize?: number;
   dotShape?: 'circle' | 'square' | 'diamond';
   finderStyle?: 'rounded' | 'square';
@@ -25,22 +25,6 @@ const isInsideFinder = (x: number, y: number, moduleCount: number): boolean => {
   return false;
 };
 
-const isInsideLogoZone = (
-  x: number,
-  y: number,
-  moduleCount: number,
-  logoModules: number,
-): boolean => {
-  const center = moduleCount / 2;
-  const half = logoModules / 2;
-  return (
-    x >= Math.floor(center - half) &&
-    x <= Math.floor(center + half) &&
-    y >= Math.floor(center - half) &&
-    y <= Math.floor(center + half)
-  );
-};
-
 export function CustomQRCode({
   value,
   size = 250,
@@ -53,10 +37,10 @@ export function CustomQRCode({
 }: CustomQRCodeProps) {
   const theme = useTheme();
   const activeColor = color || theme.color?.val || '#000000';
-  const activeBgColor = backgroundColor || 'transparent';
-  const themeBgColor = theme.background?.val || '#ffffff';
+  const activeBgColor = backgroundColor || theme.background?.val || '#ffffff';
+  const safeLogoSize = Math.max(0, Math.min(logoSize, size * 0.18));
 
-  const { modules, moduleCount, cellSize, marginModules } = useMemo(() => {
+  const { modules, moduleCount } = useMemo(() => {
     try {
       // Generate matrix with 0 margin, we will handle margin ourselves
       const qr = QRCode.create(value, {
@@ -65,40 +49,25 @@ export function CustomQRCode({
       const modules = qr.modules.data;
       const moduleCount = qr.modules.size;
 
-      // Standard quiet zone margin of 4 modules
-      const marginModules = 4;
-      const totalModules = moduleCount + 2 * marginModules;
-      const cellSize = size / totalModules;
-
       return {
         modules,
         moduleCount,
-        cellSize,
-        marginModules,
       };
-    } catch (err) {
-      console.error('[CustomQRCode] Error generating QR matrix:', err);
+    } catch {
+      console.warn('[CustomQRCode] Could not generate QR matrix');
       return {
         modules: new Uint8Array(),
         moduleCount: 0,
-        cellSize: 0,
-        marginModules: 0,
       };
     }
-  }, [value, size]);
-
-  const logoModules = useMemo(() => {
-    if (!logo || cellSize === 0) return 0;
-    let count = Math.ceil(logoSize / cellSize);
-    // Force odd count for perfect centering
-    if (count % 2 === 0) count += 0;
-    return count;
-  }, [logo, logoSize, cellSize]);
+  }, [value]);
+  const marginModules = 4;
+  const cellSize = size / (moduleCount + 2 * marginModules);
 
   const renderedModules = useMemo(() => {
     if (moduleCount === 0) return null;
 
-    const cells: React.ReactNode[] = [];
+    const cells: string[] = [];
 
     for (let y = 0; y < moduleCount; y++) {
       for (let x = 0; x < moduleCount; x++) {
@@ -110,68 +79,60 @@ export function CustomQRCode({
         // Skip cells inside finder patterns (handled separately)
         if (isInsideFinder(x, y, moduleCount)) continue;
 
-        // Skip cells inside the center logo zone
-        if (logoModules > 0 && isInsideLogoZone(x, y, moduleCount, logoModules)) continue;
-
         const cx = (x + marginModules) * cellSize + cellSize / 2;
         const cy = (y + marginModules) * cellSize + cellSize / 2;
-        const r = cellSize * 0.42;
+        const r = cellSize * 0.48;
 
         if (dotShape === 'circle') {
-          cells.push(<Circle key={`${x}-${y}`} cx={cx} cy={cy} r={r} fill={activeColor} />);
-        } else if (dotShape === 'diamond') {
           cells.push(
-            <Path
-              key={`${x}-${y}`}
-              d={`M ${cx} ${cy - r} L ${cx + r} ${cy} L ${cx} ${cy + r} L ${cx - r} ${cy} Z`}
-              fill={activeColor}
-            />,
+            `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0 Z`,
           );
+        } else if (dotShape === 'diamond') {
+          cells.push(`M ${cx} ${cy - r} L ${cx + r} ${cy} L ${cx} ${cy + r} L ${cx - r} ${cy} Z`);
         } else {
           // Square cell
           const pad = cellSize * 0.08;
-          cells.push(
-            <Rect
-              key={`${x}-${y}`}
-              x={(x + marginModules) * cellSize + pad}
-              y={(y + marginModules) * cellSize + pad}
-              width={cellSize - 2 * pad}
-              height={cellSize - 2 * pad}
-              fill={activeColor}
-            />,
-          );
+          const x0 = (x + marginModules) * cellSize + pad;
+          const y0 = (y + marginModules) * cellSize + pad;
+          const side = cellSize - 2 * pad;
+          cells.push(`M ${x0} ${y0} h ${side} v ${side} h ${-side} Z`);
         }
       }
     }
 
-    return cells;
-  }, [modules, moduleCount, cellSize, marginModules, activeColor, dotShape, logoModules]);
+    return cells.join(' ');
+  }, [modules, moduleCount, cellSize, dotShape]);
 
   const renderFinder = (startX: number, startY: number, key: string) => {
     const x = (startX + marginModules) * cellSize;
     const y = (startY + marginModules) * cellSize;
-    const rxValue = finderStyle === 'rounded' ? 1.8 * cellSize : 0;
-    const ryValue = finderStyle === 'rounded' ? 1.8 * cellSize : 0;
+    const rounded = finderStyle === 'rounded';
 
     return (
       <G key={key}>
         {/* Outer Ring */}
         <Rect
-          x={x + cellSize / 2}
-          y={y + cellSize / 2}
-          width={6 * cellSize}
-          height={6 * cellSize}
-          rx={rxValue}
-          ry={ryValue}
-          fill="none"
-          stroke={activeColor}
-          strokeWidth={cellSize}
+          x={x}
+          y={y}
+          width={7 * cellSize}
+          height={7 * cellSize}
+          rx={rounded ? 1.8 * cellSize : 0}
+          fill={activeColor}
         />
-        {/* Inner Dot */}
-        <Circle
-          cx={x + 3.5 * cellSize}
-          cy={y + 3.5 * cellSize}
-          r={1.5 * cellSize}
+        <Rect
+          x={x + cellSize}
+          y={y + cellSize}
+          width={5 * cellSize}
+          height={5 * cellSize}
+          rx={rounded ? cellSize : 0}
+          fill={activeBgColor}
+        />
+        <Rect
+          x={x + 2 * cellSize}
+          y={y + 2 * cellSize}
+          width={3 * cellSize}
+          height={3 * cellSize}
+          rx={rounded ? 0.7 * cellSize : 0}
           fill={activeColor}
         />
       </G>
@@ -181,12 +142,18 @@ export function CustomQRCode({
   if (moduleCount === 0) return null;
 
   return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <Svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      accessibilityRole="image"
+      accessibilityLabel="Profile QR code"
+    >
       {/* Background */}
       <Rect x={0} y={0} width={size} height={size} fill={activeBgColor} />
 
       {/* QR Modules */}
-      {renderedModules}
+      <Path d={renderedModules || ''} fill={activeColor} />
 
       {/* Custom Finder Patterns */}
       {renderFinder(0, 0, 'top-left')}
@@ -197,9 +164,16 @@ export function CustomQRCode({
       {logo && (
         <G>
           {/* Clear background behind the logo */}
-          <Circle cx={size / 2} cy={size / 2} r={logoSize / 2 + 4} fill={themeBgColor} />
-          <G transform={`translate(${(size - logoSize) / 2}, ${(size - logoSize) / 2})`}>
-            <BeyIcon size={logoSize} color={activeColor} />
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={safeLogoSize / 2 + cellSize}
+            fill={activeBgColor}
+          />
+          <G
+            transform={`translate(${(size - (safeLogoSize * 500) / 512) / 2}, ${(size - (safeLogoSize * 467) / 512) / 2})`}
+          >
+            <BeyIcon size={safeLogoSize} color={activeColor} />
           </G>
         </G>
       )}
