@@ -199,7 +199,7 @@ export default function OptimizeWalletScreen() {
               gap={8}
             >
               {isLoadingMint ? (
-                <Spinner size="small" color="white" />
+                <Spinner size="small" color="$onAccent" />
               ) : (
                 <Avatar rounded="$3" size="$2">
                   <MintImage
@@ -217,7 +217,7 @@ export default function OptimizeWalletScreen() {
                   fontWeight: '700',
                   maxW: 110,
                   numberOfLines: 1,
-                  color: 'white',
+                  color: '$onAccent',
                 }}
               >
                 {isLoadingMint ? 'Loading...' : mintName}
@@ -231,7 +231,7 @@ export default function OptimizeWalletScreen() {
                   bg="rgba(255,255,255,0.15)"
                   rounded="$3"
                 >
-                  <ChevronDown size={16} strokeWidth={3} color="white" />
+                  <ChevronDown size={16} strokeWidth={3} color="$onAccent" />
                 </Square>
               )}
             </AppPressable>

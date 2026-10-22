@@ -246,8 +246,6 @@ export default function MintDetailsModal() {
 
   const tableProps = {
     compact: true,
-    bg: '$gray3',
-    separator: <YStack height={2} width="100%" bg="$background" />,
   };
   const connection = isCheckingConnection ? 'checking' : connectionError ? 'offline' : 'online';
   const units = [
@@ -348,7 +346,7 @@ export default function MintDetailsModal() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
         >
-          <YStack px="$4" gap="$5">
+          <YStack px="$page" gap="$5">
             {/* Balance and Avatar Row */}
             <XStack justify="space-between" items="center" pt="$4">
               <YStack gap="$2">
@@ -486,7 +484,7 @@ export default function MintDetailsModal() {
                   Message from the mint
                 </Text>
                 <ListTable {...tableProps}>
-                  <YStack px="$4" py="$3" gap="$2">
+                  <YStack px="$page" py="$rowGap" gap="$2">
                     <Text theme="orange" lineHeight={22}>
                       {motd}
                     </Text>
@@ -500,7 +498,7 @@ export default function MintDetailsModal() {
                   About
                 </Text>
                 <ListTable {...tableProps}>
-                  <YStack px="$4" py="$3" gap="$2">
+                  <YStack px="$page" py="$rowGap" gap="$2">
                     <Text lineHeight={22}>{description}</Text>
                   </YStack>
                 </ListTable>

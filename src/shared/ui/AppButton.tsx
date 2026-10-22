@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { Button, Text, XStack, useTheme, type ButtonProps, type GetRef } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
+import { appTypography } from '~/shared/theme/appearance';
 
 export type AppButtonVariant = 'default' | 'branded' | 'critical' | 'warning';
 export type AppButtonEmphasis = 'primary' | 'secondary' | 'tertiary' | 'text-only';
@@ -91,20 +92,34 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
 ) {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
-  const token = (key: string) =>
-    String(theme[(key === 'buttonBrandedPrimary' ? 'blue10' : key) as keyof typeof theme]?.val);
+  const token = (key: string) => String(theme[key as keyof typeof theme]?.val);
   const prefix = `button${variant[0].toUpperCase()}${variant.slice(1)}`;
   const transparent = emphasis === 'tertiary' || emphasis === 'text-only';
   const textOnly = emphasis === 'text-only';
   // Loading retains the enabled palette, including when both flags are set.
   const muted = disabled && !loading;
   const level = emphasis === 'primary' ? 'Primary' : 'Secondary';
-  const background = muted ? token('buttonDisabled') : token(`${prefix}${level}`);
+  const background = muted
+    ? token(level === 'Primary' ? 'buttonDisabled' : 'buttonSecondaryDisabled')
+    : token(`${prefix}${level}`);
   const color = token(
-    muted ? 'buttonDisabledText' : `${prefix}${transparent ? 'Text' : `${level}Text`}`,
+    muted
+      ? level === 'Primary'
+        ? 'buttonDisabledText'
+        : 'buttonSecondaryDisabledText'
+      : `${prefix}${transparent ? 'Text' : `${level}Text`}`,
   );
   const blocked = disabled || loading;
-  const [minHeight, fontSize, regularIconSize, radius] = sizes[size];
+  const tertiaryNeutral =
+    emphasis === 'tertiary' && (variant === 'default' || variant === 'branded');
+  const interactionBackground = (state: 'Hover' | 'Press') =>
+    tertiaryNeutral ? token('buttonTertiaryHighlighted') : token(`${prefix}${level}${state}`);
+  const [minHeight, , regularIconSize, radius] = sizes[size];
+  const labelStyle =
+    appTypography[
+      size === 'xxsmall' ? 'label3' : size === 'xsmall' || size === 'small' ? 'label2' : 'label1'
+    ];
+  const resolvedFontSize = labelFontSize ?? labelStyle.fontSize;
   const compact = iconOnly && density === 'compact';
   const iconSize =
     requestedIconSize ??
@@ -154,13 +169,13 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
       hoverStyle={
         blocked
           ? {}
-          : { backgroundColor: textOnly ? 'transparent' : token(`${prefix}${level}Hover`) }
+          : { backgroundColor: textOnly ? 'transparent' : interactionBackground('Hover') }
       }
       pressStyle={
         blocked
           ? {}
           : {
-              backgroundColor: textOnly ? 'transparent' : token(`${prefix}${level}Press`),
+              backgroundColor: textOnly ? 'transparent' : interactionBackground('Press'),
               scale: reducedMotion || textOnly ? 1 : 0.98,
             }
       }
@@ -198,9 +213,12 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
         {!iconOnly && (
           <Text
             fontFamily="$body"
-            fontWeight="600"
-            fontSize={labelFontSize ?? fontSize}
-            lineHeight={(labelFontSize ?? fontSize) * 1.4}
+            fontWeight={labelStyle.fontWeight}
+            fontSize={resolvedFontSize}
+            lineHeight={
+              labelFontSize === undefined ? labelStyle.lineHeight : resolvedFontSize * 1.4
+            }
+            letterSpacing={labelStyle.letterSpacing}
             color={color}
             flexShrink={1}
             textAlign="center"

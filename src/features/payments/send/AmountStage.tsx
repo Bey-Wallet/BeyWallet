@@ -224,7 +224,7 @@ export function AmountStage({
         {/* Card Box Container */}
         <YStack
           width="100%"
-          bg="$gray3"
+          bg="$gray2"
           rounded="$6"
           p="$3"
           py="$8"

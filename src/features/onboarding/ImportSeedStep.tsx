@@ -312,7 +312,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
             alignItems="center"
             justifyContent="center"
           >
-            {checkedConsent && <Check size={11} color="white" strokeWidth={4} />}
+            {checkedConsent && <Check size={11} color="$onAccent" strokeWidth={4} />}
           </View>
           <YStack flex={1}>
             <Text fontSize="$2" color="$gray10" lineHeight={15}>

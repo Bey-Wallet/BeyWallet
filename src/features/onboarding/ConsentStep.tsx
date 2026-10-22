@@ -226,7 +226,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
             justify="center"
             mt="$0.5"
           >
-            {checked && <Check size={14} color="white" strokeWidth={4} />}
+            {checked && <Check size={14} color="$onAccent" strokeWidth={4} />}
           </View>
           <Text fontSize="$3" color={checked ? '$accent5' : '$gray10'} flex={1} lineHeight={18}>
             I understand I'm solely responsible for my recovery phrase, and I agree to the{' '}

@@ -206,7 +206,7 @@ export function AmountStage({
         />
 
         {/* Amount Display Card */}
-        <YStack width="100%" bg="$gray3" rounded="$6" p="$4" items="center" gap="$2">
+        <YStack width="100%" bg="$gray2" rounded="$6" p="$4" items="center" gap="$2">
           <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
             {error || isOverBalance ? (
               <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">

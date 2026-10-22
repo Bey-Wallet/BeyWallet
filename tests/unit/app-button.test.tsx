@@ -270,7 +270,7 @@ it('resolves the current theme, preserves loading colors and removes reduced-mot
   );
   const tree = await render({ variant: 'default', loading: true, disabled: true });
   expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe('#FFFFFF');
-  expect(tree.root.findByType('Text' as any).props.color).toBe('#181818');
+  expect(tree.root.findByType('Text' as any).props.color).toBe('#000000');
   mockReducedMotion = true;
   await act(async () => tree.update(<AppButton size="xxsmall">Submit example</AppButton>));
   const button = tree.root.findByType('Button' as any);
@@ -298,10 +298,7 @@ it('maintains readable contrast for enabled solid palettes in every state', () =
           const foreground = luminance(palette[`${prefix}Text`]);
           expect(
             (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05),
-            // The requested blue10 with white text has lower contrast in the dark theme.
-          ).toBeGreaterThanOrEqual(
-            variant === 'Branded' && emphasis === 'Primary' && !state ? 3 : 4.5,
-          );
+          ).toBeGreaterThanOrEqual(4.5);
         }
       }
       for (const state of ['', 'Hover', 'Press']) {

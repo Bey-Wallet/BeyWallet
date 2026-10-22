@@ -46,20 +46,20 @@ afterEach(async () => {
   jest.clearAllMocks();
 });
 
-it('keeps the complete date readable through nested compact rows and copies the original value', async () => {
+it('defaults to compact text, keeps complete dates readable, and copies the original value', async () => {
   const date = 'September 30, 2026 at 23:59:59';
   function Details() {
     return <ListTableRow label="Reclaim eligible" value={date} isCopyable />;
   }
   await render(
-    <ListTable compact>
+    <ListTable>
       <Details />
     </ListTable>,
   );
   const [label, value] = tree.root.findAllByType('Text' as any);
   expect(label.props.fontWeight).toBe('400');
   expect(value.props.fontWeight).toBe('500');
-  expect(value.props.fontSize).toBe('$3');
+  expect(value.props.fontSize).toBe(14);
   expect(value.props.children).toBe(date);
   expect(value.props.numberOfLines).toBeUndefined();
   expect(value.props.style.maxWidth).toBeUndefined();
@@ -68,15 +68,16 @@ it('keeps the complete date readable through nested compact rows and copies the 
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith(date);
 });
 
-it('preserves the default styling outside payment tables', async () => {
+it('allows an explicit regular-size table while compact remains the default', async () => {
   await render(
-    <ListTable>
+    <ListTable compact={false}>
       <ListTableRow label="Setting" value="Value" />
     </ListTable>,
   );
   const [label, value] = tree.root.findAllByType('Text' as any);
-  expect(label.props.fontWeight).toBe('600');
-  expect(value.props.fontSize).toBe('$4');
+  expect(label.props.fontWeight).toBe('400');
+  expect(value.props.fontWeight).toBe('500');
+  expect(value.props.fontSize).toBe(16);
   expect(value.props.numberOfLines).toBe(1);
 });
 

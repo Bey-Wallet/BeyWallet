@@ -92,7 +92,7 @@ export function MintPreviewMethods({ info }: { info: Info }) {
       <Text color="$gray10" fontSize="$4" fontWeight="600">
         Payment methods
       </Text>
-      <ListTable compact bg="$gray3" separator={<YStack height={2} bg="$background" />}>
+      <ListTable compact>
         <ListTableRow label="Receive" value={summary('Receive')} />
         <ListTableRow label="Send" value={summary('Send')} />
       </ListTable>
@@ -124,7 +124,7 @@ export function MintPreviewMethods({ info }: { info: Info }) {
                   {row.direction} · {methodName(row.method)}
                   {row.unit ? ` · ${row.unit}` : ''}
                 </Text>
-                <ListTable compact bg="$gray3" separator={<YStack height={2} bg="$background" />}>
+                <ListTable compact>
                   <ListTableRow
                     label="Availability"
                     value={row.disabled ? 'Disabled by mint' : 'Advertised by mint'}

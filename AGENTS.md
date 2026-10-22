@@ -25,9 +25,12 @@ Use TypeScript for new logic and theme-aware Tamagui components. Follow Prettier
 
 ### Approved UI & UX Conventions
 
+- Use the semantic colors, typography, spacing, dimensions and radii in `src/shared/theme/appearance.ts`, applied through the existing Tamagui themes and font families. Branding is monochrome: white in dark mode and black in light mode; use `$onAccent` for text/icons on brand fills. Existing blue aliases resolve to neutrals. Preserve wallet behavior, the current spinner and accessible touch targets. See `docs/appearance.md`.
+
 - Use standard-width Special Gothic Regular (400), Medium (500), and SemiBold (600) through the existing `$body` / `$heading` families. Register only these three static weights; retain their SIL license. Per the user's request, keep the Bold (700) font asset in the repository but leave it unregistered until the user requests a switch. The active weights include Bitcoin and Indian rupee glyphs. See `docs/fonts.md` for source and registration details.
 
 - Use the Settings screens as the approved reference for grouped preferences and navigation lists.
+- Keep lists compact by default: 14-point row text and a minimum 48-point touch target; use 12-point descriptions. Mint details and preview lists share the Settings group surfaces, clipped corners and separators. Do not enlarge list typography or row density without an explicit request.
 - Call mint-to-mint operations "Transfer" in user-facing text and use the `ArrowRightLeft` icon. Preserve existing protocol/API identifiers and stored transaction types.
 - Keep button icons proportional to their button size, except tertiary icon buttons, which retain enlarged glyphs. Preserve a minimum 48-point touch target.
 - Use `rounded="$6"` for cards and grouped lists. Clip child rows to the group's corners rather than rounding every row. Preserve circular avatars, icon buttons, and switch pill shapes.

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Text, XStack } from 'tamagui';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';
 import { useNostrRelayStore } from '~/state/nostrRelayStore';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 export function NostrHealthRow() {
   const relays = useNostrRelayStore((state) => state.relays);
@@ -23,15 +24,15 @@ export function NostrHealthRow() {
           : 'Unhealthy';
   return (
     <XStack
-      px="$4"
-      py="$3"
-      minHeight={56}
-      gap="$3"
+      px={appSpacing.page}
+      py={appSpacing.compact}
+      minHeight={appDimensions.touchTarget}
+      gap={appSpacing.gap}
       items="center"
       accessibilityLabel={`Nostr health, ${value}`}
     >
       <HeartPulse size={20} color="$color" />
-      <Text flex={1} fontSize="$5" fontWeight="500" color="$color">
+      <Text flex={1} {...appTypography.label2} color="$color">
         Nostr health
       </Text>
       <Text fontSize="$3" color="$gray10" accessibilityLiveRegion="polite">

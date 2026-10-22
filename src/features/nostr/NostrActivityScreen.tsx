@@ -613,7 +613,7 @@ function PendingTab({
               </XStack>
 
               <XStack
-                bg="$accent3"
+                bg="$gray3"
                 px="$3"
                 py="$2"
                 rounded="$10"

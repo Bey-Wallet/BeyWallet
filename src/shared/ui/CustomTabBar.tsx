@@ -10,6 +10,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { usePeopleUnreadCounts } from '~/features/people/hooks/usePeopleUnreadCounts';
 import { UnreadBadge } from './UnreadBadge';
+import { appDimensions, appSpacing } from '~/shared/theme/appearance';
 
 export function CustomTabBar({
   state,
@@ -28,7 +29,7 @@ export function CustomTabBar({
       bottom={0}
       left={0}
       right={0}
-      px="$4"
+      px={appSpacing.page}
       pt="$1"
       backgroundColor="$background"
       borderColor="$borderColor"
@@ -36,7 +37,7 @@ export function CustomTabBar({
 
       pb={insets.bottom}
     >
-      <XStack height={48} alignItems="center" justifyContent="space-between">
+      <XStack height={appDimensions.bar} alignItems="center" justifyContent="space-between">
         {state.routes.map((route, index): React.JSX.Element => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -62,8 +63,8 @@ export function CustomTabBar({
             });
           };
 
-          const activeColor = theme.color?.val || '#000000';
-          const inactiveColor = theme.color4?.val || '#888888';
+          const activeColor = theme.tabActive.val;
+          const inactiveColor = theme.tabInactive.val;
 
           const icon = options.tabBarIcon
             ? options.tabBarIcon({

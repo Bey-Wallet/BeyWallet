@@ -4,13 +4,13 @@ import { StyleSheet } from 'react-native';
 import { TamaguiProvider, Theme } from 'tamagui';
 import { config } from '~/tamagui.config';
 import { AppButton } from '~/shared/ui/AppButton';
-import { defaultConfig } from '@tamagui/config/v5';
+import { appColors } from '~/shared/theme/appearance';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
 it.each(['light', 'dark'] as const)(
-  'renders blue10 through the provider and nested %s theme',
+  'renders monochrome branding through the provider and nested %s theme',
   async (theme) => {
     let tree!: ReactTestRenderer;
     await act(async () => {
@@ -29,8 +29,12 @@ it.each(['light', 'dark'] as const)(
       tree.root
         .findAll((node) => node.props.testID === id)
         .map((node) => StyleSheet.flatten(node.props.style)?.backgroundColor);
-    expect(backgrounds('branded')).toContain(defaultConfig.themes[theme].blue10);
-    expect(backgrounds('neutral')).toContain(theme === 'light' ? '#F1F1F1' : '#242424');
+    expect(backgrounds('branded')).toContain(appColors[theme].accent);
+    const foregrounds = tree.root
+      .findAll((node) => node.props.children === 'Branded')
+      .map((node) => StyleSheet.flatten(node.props.style)?.color);
+    expect(foregrounds).toContain(appColors[theme].onAccent);
+    expect(backgrounds('neutral')).toContain(appColors[theme].surface);
     await act(async () => tree.unmount());
   },
 );

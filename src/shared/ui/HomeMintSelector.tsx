@@ -514,7 +514,7 @@ export default function HomeHeaderMintSelector() {
         gap={8}
       >
         {isLoading ? (
-          <Spinner size={14} color="white" />
+          <Spinner size={14} color={isOffline ? 'white' : '$onAccent'} />
         ) : (
           <Avatar rounded="$3" size="$2" flexShrink={0}>
             <MintImage
@@ -533,7 +533,7 @@ export default function HomeHeaderMintSelector() {
             flexShrink: 1,
             minWidth: 0,
             numberOfLines: 1,
-            color: 'white',
+            color: isOffline ? 'white' : '$onAccent',
           }}
         >
           {isLoading ? 'Loading...' : displayName}
@@ -544,11 +544,11 @@ export default function HomeHeaderMintSelector() {
             size="$2"
             flexShrink={0}
             borderWidth={0.5}
-            borderColor="rgba(255,255,255,0.2)"
-            bg="rgba(255,255,255,0.15)"
+            borderColor="transparent"
+            bg="transparent"
             rounded="$3"
           >
-            <ChevronDown size={16} strokeWidth={3} color="white" />
+            <ChevronDown size={16} strokeWidth={3} color={isOffline ? 'white' : '$onAccent'} />
           </Square>
         )}
       </AppPressable>

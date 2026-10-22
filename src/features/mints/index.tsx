@@ -165,8 +165,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const nuts = info.nuts || {};
   const previewTableProps = {
     compact: true,
-    bg: '$gray3',
-    separator: <YStack height={2} width="100%" bg="$background" />,
   };
   const previewUnits = [
     ...new Set([
@@ -195,7 +193,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       />
 
       <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-        <YStack px="$4" pb="$10" gap="$6">
+        <YStack px="$page" pb="$10" gap="$5">
           {/* Header Section */}
           <YStack gap="$3">
             <XStack items="center" gap="$3">
@@ -290,7 +288,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 Message from the mint
               </Text>
               <ListTable {...previewTableProps}>
-                <YStack px="$4" py="$3" gap="$2">
+                <YStack px="$page" py="$rowGap" gap="$2">
                   <Text lineHeight={22}>{motd}</Text>
                 </YStack>
               </ListTable>

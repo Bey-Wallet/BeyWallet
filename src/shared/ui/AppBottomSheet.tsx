@@ -15,6 +15,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
+import { appRadii } from '~/shared/theme/appearance';
 
 interface AppBottomSheetProps {
   children: React.ReactNode;
@@ -76,10 +77,11 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           disappearsOnIndex={-1}
           appearsOnIndex={0}
           pressBehavior={enablePanDownToClose && canDismiss ? 'close' : 'none'}
-          opacity={0.4}
+          opacity={1}
+          style={{ backgroundColor: theme.overlayLight.val }}
         />
       ),
-      [enablePanDownToClose, canDismiss],
+      [enablePanDownToClose, canDismiss, theme.overlayLight.val],
     );
 
     useImperativeHandle(ref, () => ({
@@ -128,7 +130,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           backgroundColor: backgroundColor
             ? theme[backgroundColor.replace('$', '') as keyof typeof theme]?.val || backgroundColor
             : theme.color2.val,
-          borderRadius: 20,
+          borderRadius: appRadii.sheet,
         }}
         onChange={handleSheetChanges}
         animationConfigs={{

@@ -400,7 +400,7 @@ export function NostrSendStage({
         {/* Card Box Container matching AmountStage & P2PKAmountStage */}
         <YStack
           width="100%"
-          bg="$gray3"
+          bg="$gray2"
           rounded="$6"
           p="$3"
           py="$5"

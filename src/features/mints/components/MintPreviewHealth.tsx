@@ -16,8 +16,6 @@ import {
 
 const tableProps = {
   compact: true,
-  bg: '$gray3',
-  separator: <YStack height={2} width="100%" bg="$background" />,
 };
 const time = (value: string | number | null | undefined) =>
   value ? new Date(value).toLocaleString() : 'Not checked';
@@ -44,7 +42,7 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
     : [];
   if (!history.length) {
     return (
-      <YStack px="$4" py="$3" gap="$2">
+      <YStack px="$page" py="$rowGap" gap="$2">
         <Text color="$gray10" fontSize="$3">
           Uptime history
         </Text>
@@ -55,7 +53,7 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
     );
   }
   return (
-    <YStack px="$4" py="$3" gap="$2">
+    <YStack px="$page" py="$rowGap" gap="$2">
       <Text color="$gray10" fontSize="$3">
         Uptime history · {history.length} {history.length === 1 ? 'day' : 'days'}
       </Text>

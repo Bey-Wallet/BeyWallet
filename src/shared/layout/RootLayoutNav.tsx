@@ -199,10 +199,10 @@ export function RootLayoutNav() {
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
       background: theme.background?.val,
+      card: theme.background?.val,
     },
   };
   const isDark = resolvedTheme === 'dark';
-  const systemBarColor = isDark ? '#000000' : '#FFFFFF';
 
   useEffect(() => {
     NavigationBar.setStyle(isDark ? 'dark' : 'light');
@@ -214,7 +214,7 @@ export function RootLayoutNav() {
   return (
     <NavThemeProvider value={navigationTheme}>
       <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
-      <YStack flex={1}>
+      <YStack flex={1} bg="$background">
         <Stack
           screenOptions={{
             headerTitleStyle: { fontFamily: 'SpecialGothicMedium', fontWeight: 'normal' },

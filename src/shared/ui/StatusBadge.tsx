@@ -16,17 +16,21 @@ interface StatusBadgeProps {
   size?: number;
 }
 
-const BADGE_CONFIG: Record<BadgeStatus, { bg: string; icon: React.ComponentType<any> }> = {
-  pending: { bg: '#f97316', icon: Clock }, // orange-500
-  unclaimed: { bg: '#f97316', icon: Clock },
-  success: { bg: '#22c55e', icon: Check }, // green-500
-  paid: { bg: '#22c55e', icon: Check },
-  failed: { bg: '#ef4444', icon: XCircle }, // red-500
-  expired: { bg: '#ef4444', icon: XCircle },
-  refunded: { bg: '#3b82f6', icon: Check }, // blue-500
+const BADGE_CONFIG: Record<
+  BadgeStatus,
+  { bg: 'orange10' | 'green10' | 'red10' | 'blue10'; icon: React.ComponentType<any> }
+> = {
+  pending: { bg: 'orange10', icon: Clock },
+  unclaimed: { bg: 'orange10', icon: Clock },
+  success: { bg: 'green10', icon: Check },
+  paid: { bg: 'green10', icon: Check },
+  failed: { bg: 'red10', icon: XCircle },
+  expired: { bg: 'red10', icon: XCircle },
+  refunded: { bg: 'blue10', icon: Check },
 };
 
 export function StatusBadge({ status, onPress, isChecking = false, size = 36 }: StatusBadgeProps) {
+  const theme = useTheme();
   const cfg = BADGE_CONFIG[status] ?? BADGE_CONFIG.pending;
   const { Icon } = { Icon: cfg.icon };
   const iconSize = Math.round(size * 0.44);
@@ -35,13 +39,17 @@ export function StatusBadge({ status, onPress, isChecking = false, size = 36 }: 
     <View
       style={[
         styles.badge,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: cfg.bg },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: theme[cfg.bg].val },
       ]}
     >
       {isChecking ? (
-        <Spinner size="small" color="white" />
+        <Spinner size="small" color={cfg.bg === 'blue10' ? '$onAccent' : 'white'} />
       ) : (
-        <Icon size={iconSize} color="white" strokeWidth={2.5} />
+        <Icon
+          size={iconSize}
+          color={cfg.bg === 'blue10' ? '$onAccent' : 'white'}
+          strokeWidth={2.5}
+        />
       )}
     </View>
   );

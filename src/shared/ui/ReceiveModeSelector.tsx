@@ -140,8 +140,8 @@ export default function ReceiveModeSelector({
                     </XStack>
                     <XStack items="center" justify="center">
                       {isActive ? (
-                        <View bg="$accent4" p="$1.5" rounded="$10">
-                          <Check size={14} color="$accent10" strokeWidth={3} />
+                        <View bg="$accentColor" p="$1.5" rounded="$10">
+                          <Check size={14} color="$onAccent" strokeWidth={3} />
                         </View>
                       ) : undefined}
                     </XStack>

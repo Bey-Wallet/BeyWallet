@@ -53,7 +53,7 @@ export function DestinationInputRow({
     onChangeText('');
   };
 
-  const containerBg = isError ? '$red3' : '$gray3';
+  const containerBg = isError ? '$red3' : '$gray2';
   const textColor = isError ? '$red10' : '$color';
   const labelColor = isError ? '$red9' : '$gray10';
   const accentColor = isError ? '$red10' : '$accent5';

@@ -1,4 +1,5 @@
 import { amountLabel } from '~/shared/ui/amountLabel';
+import { appTypography } from '~/shared/theme/appearance';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -105,27 +106,24 @@ export function ResultStage({
             </Text>
             <Text
               testID="mint-result-primary-amount"
-              fontSize={44}
-              lineHeight={64}
-              fontWeight="500"
-              letterSpacing={-1.5}
+              {...appTypography.amount}
               color="$color"
               textAlign="center"
               maxWidth="100%"
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {amountLabel(primaryAmount, 44)}
+              {amountLabel(primaryAmount, appTypography.amount.fontSize)}
             </Text>
             <Text
               testID="mint-result-secondary-amount"
-              fontSize={16}
+              {...appTypography.body2}
               color="$gray10"
               textAlign="center"
             >
               {amountLabel(
                 secondaryAmount === '—' ? 'Conversion unavailable' : `≈ ${secondaryAmount}`,
-                16,
+                appTypography.body2.fontSize,
               )}
             </Text>
             {/* <Text fontSize={14} lineHeight={21} color="$gray10" textAlign="center" px="$4">

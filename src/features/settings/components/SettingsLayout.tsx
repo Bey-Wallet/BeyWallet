@@ -5,12 +5,13 @@ import { Check, ChevronRight, ExternalLink } from '@tamagui/lucide-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 export function SettingsPage({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
     <ScrollView flex={1} bg="$background" showsVerticalScrollIndicator={false}>
-      <YStack p="$4" gap="$5" pb={Math.max(insets.bottom, 16) + 16}>
+      <YStack p={appSpacing.page} gap="$5" pb={Math.max(insets.bottom, 16) + 16}>
         {children}
       </YStack>
     </ScrollView>
@@ -20,7 +21,7 @@ export function SettingsPage({ children }: { children: React.ReactNode }) {
 export function SettingsGroup({ children }: { children: React.ReactNode }) {
   const rows = React.Children.toArray(children).filter(Boolean);
   return (
-    <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden">
+    <YStack bg="$gray2" rounded="$6" overflow="hidden">
       {rows.map((child, index) => (
         <React.Fragment key={React.isValidElement(child) ? (child.key ?? index) : index}>
           {index > 0 && <YStack height={2} width="100%" bg="$background" />}
@@ -60,15 +61,15 @@ export function SettingsRow({
       accessibilityRole={selected !== undefined ? 'radio' : external ? 'link' : 'button'}
       accessibilityState={selected !== undefined ? { checked: selected } : undefined}
       accessibilityLabel={[title, value].filter(Boolean).join(', ')}
-      minHeight={56}
-      px="$4"
-      py="$3"
+      minHeight={appDimensions.touchTarget}
+      px={appSpacing.page}
+      py={appSpacing.compact}
       flexDirection="row"
       items="center"
-      gap="$3"
+      gap={appSpacing.gap}
       opacity={disabled ? 0.5 : 1}
-      pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-      hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+      pressStyle={{ bg: '$gray4' }}
+      hoverStyle={{ bg: '$gray3' }}
     >
       {Icon && (
         <XStack width={20} items="center" justify="center" aria-hidden>
@@ -82,11 +83,11 @@ export function SettingsRow({
         </XStack>
       )}
       <YStack flex={1} gap="$1">
-        <Text fontSize="$5" color={color} fontWeight="500">
+        <Text {...appTypography.label2} color={color}>
           {title}
         </Text>
         {description && (
-          <Text fontSize="$3" color="$gray10">
+          <Text {...appTypography.body3} color="$gray10">
             {description}
           </Text>
         )}

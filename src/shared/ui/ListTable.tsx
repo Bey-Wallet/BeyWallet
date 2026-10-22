@@ -1,16 +1,17 @@
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { createContext, useContext } from 'react';
-import { XStack, YStack, Text, Separator } from 'tamagui';
+import { XStack, YStack, Text } from 'tamagui';
 import { Copy, ChevronRight } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
-const CompactTableContext = createContext(false);
+const CompactTableContext = createContext(true);
 
 export function ListTable({
   children,
-  compact = false,
+  compact = true,
   ...props
 }: {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ export function ListTable({
         bg="$gray2"
         rounded="$6"
         overflow="hidden"
-        separator={<Separator borderColor="$borderColor" opacity={0.5} />}
+        separator={<YStack height={2} width="100%" bg="$background" />}
         {...props}
       >
         {children}
@@ -88,14 +89,24 @@ export function ListTableRow({
   const hasTrailing = value != null || rightContent || isCopyable || onPress;
 
   const content = (
-    <XStack justify="space-between" items={wrap ? 'flex-start' : 'center'} py="$3" px="$4" gap="$2">
+    <XStack
+      justify="space-between"
+      items={wrap ? 'flex-start' : 'center'}
+      minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
+      py={appSpacing.gap}
+      px={appSpacing.page}
+      gap={appSpacing.compact}
+    >
       <XStack items={wrap ? 'flex-start' : 'center'} gap="$2" flex={1} flexShrink={1} minWidth={0}>
-        {Icon && <Icon size={18} color={iconColor || '$gray10'} />}
+        {Icon && (
+          <XStack width={22} items="center" justify="center">
+            <Icon size={20} color={iconColor || '$iconSecondary'} />
+          </XStack>
+        )}
         <Text
           fontFamily="$body"
-          fontSize={compact ? '$3' : '$4'}
+          {...(compact ? appTypography.body2 : appTypography.body1)}
           color={labelColor || '$gray10'}
-          fontWeight={compact ? '400' : '600'}
           flex={1}
           flexShrink={1}
           numberOfLines={wrap ? undefined : 1}
@@ -108,17 +119,16 @@ export function ListTableRow({
         <XStack
           gap="$2"
           items="center"
-          minWidth={compact ? 0 : undefined}
-          maxWidth={compact ? '60%' : undefined}
+          minWidth={wrap ? 0 : undefined}
+          maxWidth={wrap ? '60%' : undefined}
           flexShrink={wrap ? 1 : 0}
           justify="flex-end"
         >
           {typeof value === 'string' || typeof value === 'number' ? (
             <Text
               fontFamily="$body"
-              fontSize={compact ? '$3' : '$4'}
+              {...(compact ? appTypography.label2 : appTypography.label1)}
               text="right"
-              fontWeight={compact ? '500' : '600'}
               color={valueColor || '$color'}
               numberOfLines={wrap ? undefined : 1}
               flexShrink={wrap ? 1 : undefined}

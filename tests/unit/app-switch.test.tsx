@@ -1,9 +1,10 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { TamaguiProvider } from 'tamagui';
 import { config } from '~/tamagui.config';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
+import { appColors } from '~/shared/theme/appearance';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-reanimated', () => ({
@@ -16,6 +17,29 @@ jest.mock('react-native-reanimated', () => ({
   Easing: { quad: jest.fn(), inOut: jest.fn() },
 }));
 const NativePressable = (Pressable as unknown as { type?: typeof Pressable }).type ?? Pressable;
+
+it.each(['dark', 'light'] as const)(
+  'keeps the checked branded thumb visible in %s mode',
+  async (mode) => {
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(
+        <TamaguiProvider config={config} defaultTheme={mode}>
+          <AppSwitch
+            checked
+            variant="branded"
+            accessibilityLabel="Notifications"
+            onCheckedChange={jest.fn()}
+          />
+        </TamaguiProvider>,
+      );
+    });
+    const [track, thumb] = tree.root.findAllByType('AnimatedView' as any);
+    expect(StyleSheet.flatten(track.props.style).backgroundColor).toBe(appColors[mode].accent);
+    expect(StyleSheet.flatten(thumb.props.style).backgroundColor).toBe(appColors[mode].onAccent);
+    await act(async () => tree.unmount());
+  },
+);
 
 it('isolates row taps, waits for controlled approval, and blocks disabled switches', async () => {
   const onCheckedChange = jest.fn();

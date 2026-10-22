@@ -7,6 +7,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import * as Haptics from 'expo-haptics';
+import { appTypography } from '~/shared/theme/appearance';
 
 export default function Balance() {
   const balances = useWalletStore((s) => s.balances);
@@ -97,8 +98,8 @@ export default function Balance() {
               (hideBalance ? '_hidden' : '_visible_sats') +
               `_${showBitcoinSymbol}`
             }
-            letterSpacing={-2}
-            fontSize={42}
+            letterSpacing={appTypography.display.letterSpacing}
+            fontSize={appTypography.display.fontSize}
             fontWeight={500}
             color="$accent1"
 
@@ -122,8 +123,8 @@ export default function Balance() {
           <RollingNumber
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
             trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
-            letterSpacing={-2}
-            fontSize={42}
+            letterSpacing={appTypography.display.letterSpacing}
+            fontSize={appTypography.display.fontSize}
             fontWeight={500}
             color="$accent1"
 
@@ -161,10 +162,10 @@ export default function Balance() {
             (hideBalance ? '_hidden' : displayAsSats ? '_visible_fiat_sub' : '_visible_sats_sub') +
             `_${showBitcoinSymbol}`
           }
-          fontSize={20}
+          fontSize={appTypography.body1.fontSize}
           fontWeight={500}
           color="$accent7"
-          letterSpacing={-1}
+          letterSpacing={appTypography.body1.letterSpacing}
 
           decimalOpacity={0.4}
           showDecimals={displayAsSats}

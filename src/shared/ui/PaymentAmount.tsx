@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
+import { appTypography } from '~/shared/theme/appearance';
 
 export function paymentAmounts(
   sats: number,
@@ -51,6 +52,8 @@ export function PaymentAmount({
     showBitcoinSymbol,
     data?.price,
   );
+  const amountStyle = compact ? appTypography.amount : appTypography.display;
+  const conversionStyle = compact ? appTypography.body2 : appTypography.body1;
   return (
     <YStack
       gap={compact ? '$2' : '$3'}
@@ -60,31 +63,31 @@ export function PaymentAmount({
       width="100%"
     >
       {label && (
-        <Text fontSize={14} fontWeight="500" color="$gray10" textAlign="center">
+        <Text {...appTypography.label2} color="$gray10" textAlign="center">
           {label}
         </Text>
       )}
       <Text
-        fontSize={44}
-        lineHeight={compact ? 56 : 64}
-        letterSpacing={-1.5}
-        fontWeight="500"
+        {...amountStyle}
         color="$color"
         textAlign="center"
         maxWidth="100%"
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {amountLabel(values.primary ?? (isFetching ? 'Loading…' : 'Conversion unavailable'), 44)}
+        {amountLabel(
+          values.primary ?? (isFetching ? 'Loading…' : 'Conversion unavailable'),
+          amountStyle.fontSize,
+        )}
       </Text>
-      <Text fontSize={16} color="$gray10" textAlign="center">
+      <Text {...conversionStyle} color="$gray10" textAlign="center">
         {amountLabel(
           values.secondary
             ? `≈ ${values.secondary}`
             : isFetching
               ? 'Loading…'
               : 'Conversion unavailable',
-          16,
+          conversionStyle.fontSize,
         )}
       </Text>
     </YStack>

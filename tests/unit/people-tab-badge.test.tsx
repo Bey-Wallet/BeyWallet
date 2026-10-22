@@ -10,7 +10,7 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   XStack: 'XStack',
   YStack: 'YStack',
-  useTheme: () => ({ color: { val: '#fff' }, color4: { val: '#888' } }),
+  useTheme: () => ({ tabActive: { val: '#fff' }, tabInactive: { val: '#888' } }),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),

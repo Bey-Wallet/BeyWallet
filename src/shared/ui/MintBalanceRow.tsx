@@ -61,7 +61,7 @@ export function MintBalanceRow({
   };
 
   return (
-    <XStack justify="space-between" items="center" width="100%" bg="$gray3" p="$4" rounded="$6">
+    <XStack justify="space-between" items="center" width="100%" bg="$gray2" p="$4" rounded="$6">
       <XStack
         gap="$2"
         items="center"

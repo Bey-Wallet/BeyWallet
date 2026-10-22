@@ -64,7 +64,7 @@ export function UsernamePromptChecker() {
     <AppBottomSheet ref={sheetRef} snapPoints={['43%']}>
       <YStack p="$4" gap="$4" items="center" flex={1}>
         <View p="$3" bg="$blue9" rounded={1000} mb="$2">
-          <AtSign size={32} color={'white'} />
+          <AtSign size={32} color="$onAccent" />
         </View>
         <Text fontSize={20} fontWeight="bold" textAlign="center">
           Claim Your Free Username

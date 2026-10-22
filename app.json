@@ -56,12 +56,8 @@
           "nfcPermission": "Allow $(PRODUCT_NAME) to interact with nearby NFC devices"
         }
       ],
-      [
-        "expo-navigation-bar",
-        {
-          "enforceContrast": false
-        }
-      ],
+      "expo-navigation-bar",
+      "./plugins/withNavigationBarContrast.js",
       [
         "expo-build-properties",
         {

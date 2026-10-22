@@ -707,7 +707,7 @@ export function OnchainMeltFlow() {
         />
 
         {/* Card Box Container (Amount Display) */}
-        <YStack width="100%" bg="$gray3" rounded="$6" p="$4" py="$5" items="center" gap="$3">
+        <YStack width="100%" bg="$gray2" rounded="$6" p="$4" py="$5" items="center" gap="$3">
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
             <Text color="$gray10" fontSize="$3" fontWeight="500">
               Enter Amount

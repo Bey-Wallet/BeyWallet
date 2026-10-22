@@ -2,6 +2,14 @@ import { createAnimations } from '@tamagui/animations-react-native';
 import { Text, createFont, createTamagui } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v5';
 import type { TextStyle } from 'react-native';
+import {
+  appColors,
+  appRadii,
+  appSpacing,
+  appTypography,
+  createAppColorTheme,
+  createComponentColorThemes,
+} from './shared/theme/appearance';
 
 const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
 
@@ -65,15 +73,15 @@ const animations = createAnimations({
 const specialGothicFont = createFont({
   family: 'SpecialGothicRegular',
   size: {
-    1: 11,
+    1: appTypography.caption.fontSize,
     2: 12,
-    3: 13,
-    4: 14,
+    3: appTypography.body2.fontSize,
+    4: appTypography.body1.fontSize,
     5: 16,
-    6: 18,
+    6: appTypography.title3.fontSize,
     7: 20,
-    8: 23,
-    9: 30,
+    8: appTypography.title2.fontSize,
+    9: appTypography.title1.fontSize,
     10: 46,
     11: 54,
     12: 63,
@@ -83,15 +91,15 @@ const specialGothicFont = createFont({
     16: 124,
   },
   lineHeight: {
-    1: 15,
-    2: 17,
-    3: 19,
-    4: 21,
-    5: 23,
-    6: 25,
-    7: 27,
-    8: 30,
-    9: 37,
+    1: appTypography.caption.lineHeight,
+    2: appTypography.body3.lineHeight,
+    3: appTypography.body2.lineHeight,
+    4: appTypography.body1.lineHeight,
+    5: appTypography.label1.lineHeight,
+    6: appTypography.title3.lineHeight,
+    7: appTypography.title3.lineHeight,
+    8: appTypography.title2.lineHeight,
+    9: appTypography.title1.lineHeight,
     10: 53,
     11: 61,
     12: 70,
@@ -108,8 +116,8 @@ const specialGothicFont = createFont({
     bold: 'bold',
   },
   letterSpacing: {
-    4: 0,
-    8: 1,
+    4: appTypography.body1.letterSpacing,
+    8: appTypography.title2.letterSpacing,
   },
   face: {
     100: { normal: 'SpecialGothicRegular' },
@@ -136,7 +144,7 @@ const monoFont = createFont({
     6: '600',
   },
   letterSpacing: {
-    4: 0,
+    4: appTypography.mono.letterSpacing,
     8: 1,
   },
   face: {
@@ -231,8 +239,9 @@ const blend = (background: string, foreground: string, amount: number) =>
     .join('')}`;
 
 function createButtonTheme(dark: boolean) {
-  const foreground = dark ? '#FFFFFF' : '#181818';
-  const neutral = dark ? ['#242424', '#303030', '#3A3A3A'] : ['#F1F1F1', '#E5E5E5', '#D6D6D6'];
+  const c = appColors[dark ? 'dark' : 'light'];
+  const neutral = [c.secondaryButton, c.secondaryButtonHighlighted, c.secondaryButtonHighlighted];
+  const primary = [c.accent, c.accentHover, c.accentPress];
   const semantic = (background: string, color: string) => [
     background,
     blend(background, color, 0.08),
@@ -261,20 +270,13 @@ function createButtonTheme(dark: boolean) {
   return {
     ...palette(
       'Default',
-      dark ? ['#FFFFFF', '#EBEBEB', '#D6D6D6'] : ['#181818', '#282828', '#383838'],
-      dark ? '#181818' : '#FFFFFF',
-      neutral,
-      foreground,
-      foreground,
+      primary,
+      c.onAccent,
+      [c.surface, c.raised, c.pressed],
+      c.buttonForeground,
+      c.accent,
     ),
-    ...palette(
-      'Branded',
-      [defaultConfig.themes[dark ? 'dark' : 'light'].blue10, '#1E4BB5', '#173A8C'],
-      '#FFFFFF',
-      neutral,
-      foreground,
-      dark ? '#9DBAFF' : '#2660E8',
-    ),
+    ...palette('Branded', primary, c.onAccent, neutral, c.buttonForeground, c.accent),
     ...palette(
       'Critical',
       ['#B91C1C', '#991B1B', '#7F1D1D'],
@@ -291,11 +293,16 @@ function createButtonTheme(dark: boolean) {
       warningColor,
       warningColor,
     ),
-    buttonDisabled: dark ? '#202020' : '#BFBFBF',
-    buttonDisabledText: dark ? '#BFBFBF' : '#202020',
-    buttonFocus: '#2660E8',
-    buttonBrandedTextHover: dark ? '#9DBAFF' : '#1E4BB5',
-    buttonBrandedTextPress: dark ? '#9DBAFF' : '#173A8C',
+    buttonDisabled: c.accentDisabled,
+    buttonDisabledText: c.onAccent,
+    buttonSecondaryDisabled: c.secondaryButtonDisabled,
+    buttonSecondaryDisabledText: c.tertiaryText,
+    buttonTertiary: c.tertiaryButton,
+    buttonTertiaryHighlighted: c.tertiaryButtonHighlighted,
+    buttonTertiaryDisabled: c.tertiaryButtonDisabled,
+    buttonFocus: c.accent,
+    buttonBrandedTextHover: c.accent,
+    buttonBrandedTextPress: c.accent,
   };
 }
 
@@ -303,6 +310,27 @@ export const buttonThemes = { light: createButtonTheme(false), dark: createButto
 
 export const config = createTamagui({
   ...defaultConfig,
+  tokens: {
+    ...defaultConfig.tokens,
+    radius: {
+      ...defaultConfig.tokens.radius,
+      1: appRadii.tiny,
+      2: appRadii.tiny,
+      3: appRadii.small,
+      4: appRadii.small,
+      5: appRadii.control,
+      6: appRadii.card,
+      7: appRadii.sheet,
+      8: appRadii.sheet,
+      true: appRadii.card,
+    },
+    space: {
+      ...defaultConfig.tokens.space,
+      page: appSpacing.page,
+      section: appSpacing.large,
+      rowGap: appSpacing.gap,
+    },
+  },
   // Styled text components have their own names; Text defaults alone do not cover them.
   defaultProps: textDefaults,
   animations,
@@ -319,20 +347,21 @@ export const config = createTamagui({
   },
   themes: {
     ...defaultConfig.themes,
+    ...createComponentColorThemes(),
     light: {
       ...defaultConfig.themes.light,
-      background: '#fff',
       ...superblueColors,
       ...beyblueColors,
       ...surfaceColors,
+      ...createAppColorTheme('light'),
       ...buttonThemes.light,
     },
     dark: {
       ...defaultConfig.themes.dark,
-      background: '#000',
       ...superblueColors,
       ...beyblueColors,
       ...surfaceColors,
+      ...createAppColorTheme('dark'),
       ...buttonThemes.dark,
     },
   },

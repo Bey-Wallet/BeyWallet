@@ -49,7 +49,7 @@ export const Spinner = (props: SpinnerProps) => {
     rotation.value = withRepeat(
       withTiming(360, {
         duration: 1000,
-        // Uniswap's ring accelerates and decelerates over each full turn.
+        // The ring accelerates and decelerates over each full turn.
         easing: Easing.bezier(0.83, 0, 0.17, 1),
       }),
       -1, // Infinite

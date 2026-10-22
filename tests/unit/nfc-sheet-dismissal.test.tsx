@@ -17,7 +17,11 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BackHandler } from 'react-native';
 
 jest.mock('tamagui', () => ({
-  useTheme: () => ({ color8: { val: 'gray' }, color2: { val: 'black' } }),
+  useTheme: () => ({
+    color8: { val: 'gray' },
+    color2: { val: 'black' },
+    overlayLight: { val: '#0F0F0F7A' },
+  }),
 }));
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

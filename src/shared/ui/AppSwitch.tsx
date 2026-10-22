@@ -24,7 +24,7 @@ export type AppSwitchProps = {
   emphasis?: AppSwitchEmphasis;
 };
 
-// Match Uniswap's switch proportions and short, eased transition.
+// Keep the switch proportions consistent with its short, eased transition.
 export function AppSwitch({
   checked,
   onCheckedChange,
@@ -35,34 +35,21 @@ export function AppSwitch({
 }: AppSwitchProps) {
   const dark = useThemeName().startsWith('dark');
   const theme = useTheme();
-  const primaryColor = String(theme.blue10.val);
+  const primaryColor = String(theme.accentColor.val);
+  const alternateColor = String(theme.onAccent.val);
   const reducedMotion = useReducedMotion();
   const progress = useSharedValue(checked ? 1 : 0);
   const branded = variant === 'branded';
   const secondary = emphasis === 'secondary';
-  const foreground = dark ? '#FFFFFF' : '#222222';
+  const foreground = primaryColor;
   const offColor = dark ? 'rgba(255,255,255,0.38)' : 'rgba(19,19,19,0.35)';
   const onColor = secondary
     ? String(theme.buttonDefaultSecondary?.val ?? theme.gray3.val)
     : branded
       ? primaryColor
       : foreground;
-  const onThumbColor = secondary
-    ? branded
-      ? primaryColor
-      : foreground
-    : !branded && dark
-      ? '#131313'
-      : '#FFFFFF';
-  const iconColor = secondary
-    ? branded || !dark
-      ? '#FFFFFF'
-      : '#131313'
-    : branded
-      ? primaryColor
-      : dark
-        ? '#FFFFFF'
-        : '#131313';
+  const onThumbColor = secondary ? (branded ? primaryColor : foreground) : alternateColor;
+  const iconColor = secondary ? alternateColor : primaryColor;
 
   useEffect(() => {
     progress.value = reducedMotion
