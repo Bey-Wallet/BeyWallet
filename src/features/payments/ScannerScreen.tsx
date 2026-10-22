@@ -1,7 +1,7 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useToastController } from '@tamagui/toast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
@@ -392,23 +392,13 @@ export default function ScannerScreen() {
           <YStack flex={1} justify="space-between" p="$4">
             {/* Header */}
             <XStack justify="space-between" items="center">
-              <AppIconButton
-                variant="default"
-                emphasis="tertiary"
-                size="medium"
-
-                shape="circular"
+              <HeaderIconButton
                 accessibilityLabel="Close"
                 icon={<X size={24} color="white" />}
                 onPress={() => router.back()}
               />
               <XStack gap="$2">
-                <AppIconButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="medium"
-
-                  shape="circular"
+                <HeaderIconButton
                   accessibilityLabel="Paste"
                   loading={isResolving && resolutionOrigin === 'paste'}
                   loadingText="Reading payment…"
@@ -416,12 +406,7 @@ export default function ScannerScreen() {
                   icon={<ClipboardIcon size={20} color="white" />}
                   onPress={handlePaste}
                 />
-                <AppIconButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="medium"
-
-                  shape="circular"
+                <HeaderIconButton
                   accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
                   icon={
                     flash === 'on' ? (

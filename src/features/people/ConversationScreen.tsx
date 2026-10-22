@@ -1,3 +1,5 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -409,11 +411,7 @@ export default function ConversationScreen() {
       >
         <YStack flex={1} bg="$background" pt={insets.top}>
           <XStack px="$3" py="$2" items="center" gap="$2">
-            <AppIconButton
-              variant="default"
-              emphasis="secondary"
-              size="xsmall"
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Close"
               icon={<X size={24} color="$color" />}
               onPress={() =>
@@ -430,7 +428,7 @@ export default function ConversationScreen() {
               onPress={openContact}
             >
               <ConversationAvatar npub={npub} picture={person?.picture} />
-              <Text flexShrink={1} fontSize="$5" fontWeight="800" numberOfLines={1}>
+              <Text flexShrink={1} fontFamily="$body" {...appTypography.title3} numberOfLines={1}>
                 {label}
               </Text>
               {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
@@ -448,19 +446,13 @@ export default function ConversationScreen() {
                 )}
               </YStack>
             ) : (
-              <AppIconButton
-                variant="default"
-                emphasis="secondary"
-                size="xsmall"
+              <HeaderIconButton
                 icon={UserPlus}
                 accessibilityLabel="Add contact"
                 onPress={() => void run(() => acceptContact(npub))}
               />
             )}
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="small"
+            <HeaderIconButton
               icon={Info}
               accessibilityLabel={`Contact details for ${label}`}
               onPress={openContact}

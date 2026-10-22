@@ -540,16 +540,9 @@ export default function HomeHeaderMintSelector() {
         </Text>
 
         {isLoading ? undefined : (
-          <Square
-            size="$2"
-            flexShrink={0}
-            borderWidth={0.5}
-            borderColor="transparent"
-            bg="transparent"
-            rounded="$3"
-          >
-            <ChevronDown size={16} strokeWidth={3} color={isOffline ? 'white' : '$onAccent'} />
-          </Square>
+          <View pr="$1">
+            <ChevronDown size={22} strokeWidth={3} color={isOffline ? 'white' : '$onAccent'} />
+          </View>
         )}
       </AppPressable>
 

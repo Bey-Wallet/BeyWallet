@@ -1,8 +1,8 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { ChevronLeft } from '@tamagui/lucide-icons';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
+import { ArrowLeft } from '@tamagui/lucide-icons';
+import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 
 export function PaymentFlowHeader({
   title,
@@ -16,22 +16,17 @@ export function PaymentFlowHeader({
   headerRight?: () => React.ReactNode;
 }) {
   const router = useRouter();
+  const headerOptions = useScreenHeaderOptions();
   return (
     <Stack.Screen
       options={{
         title,
-        headerTitle: () => <ModalHeaderTitle>{title}</ModalHeaderTitle>,
-        headerTitleAlign: 'center',
-        headerBackVisible: false,
+        ...headerOptions,
         headerLeft: () => (
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xsmall"
-            shape="circular"
+          <HeaderIconButton
             accessibilityLabel="Back"
             disabled={disabled}
-            icon={<ChevronLeft size={24} color="$color" />}
+            icon={<ArrowLeft size={24} color="$color" />}
             onPress={
               onBack ||
               (() => {

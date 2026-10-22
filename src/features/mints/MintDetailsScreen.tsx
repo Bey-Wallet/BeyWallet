@@ -1,10 +1,13 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
+import { appTypography } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView, View, Separator, Input } from 'tamagui';
 import {
-  ChevronLeft,
+  ArrowLeft,
   Share2,
   QrCode,
   Pencil,
@@ -208,8 +211,8 @@ export default function MintDetailsModal() {
             selectTextOnFocus
             returnKeyType="done"
             autoCapitalize="sentences"
-            fontSize="$4"
-            fontWeight="800"
+            fontFamily="$body"
+            {...appTypography.title3}
             color="$color"
             textAlign="center"
             width={200}
@@ -220,9 +223,7 @@ export default function MintDetailsModal() {
             borderWidth={0}
           />
         ) : (
-          <Text fontSize="$4" fontWeight="800" color="$color" numberOfLines={1}>
-            {name}
-          </Text>
+          <ModalHeaderTitle>{name}</ModalHeaderTitle>
         )}
         <Text fontSize="$1" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
           {hostname}
@@ -298,14 +299,9 @@ export default function MintDetailsModal() {
         options={{
           headerTitle: renderHeaderTitle,
           headerLeft: () => (
-            <AppIconButton
-              variant="default"
-              emphasis="secondary"
-              size="xsmall"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Go back"
-              icon={<ChevronLeft size={20} color="$color" />}
+              icon={<ArrowLeft size={20} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
@@ -313,14 +309,8 @@ export default function MintDetailsModal() {
             />
           ),
           headerRight: () => (
-            <AppIconButton
-              variant="default"
-              emphasis="secondary"
-              size="xsmall"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel={isEditingName ? 'Save mint name' : 'Edit mint name'}
-              iconSize={isEditingName ? 18 : 14}
               icon={
                 isEditingName ? (
                   <Check size={18} color="$color" />

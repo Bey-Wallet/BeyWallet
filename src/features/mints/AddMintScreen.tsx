@@ -1,4 +1,4 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
 } from 'tamagui';
 import {
   Scan,
-  ChevronLeft,
+  ArrowLeft,
   Search,
   X,
   Plus,
@@ -644,14 +644,9 @@ export default function AddMintScreen() {
         options={{
           title: 'Mints',
           headerLeft: () => (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="medium"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Go back"
-              icon={<ChevronLeft size={28} color="$color" />}
+              icon={<ArrowLeft size={28} color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
@@ -659,12 +654,7 @@ export default function AddMintScreen() {
             />
           ),
           headerRight: () => (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="medium"
-
-              shape="circular"
+            <HeaderIconButton
               accessibilityLabel="Scan QR code"
               icon={<Scan size={28} color="$color" />}
               onPress={() => {

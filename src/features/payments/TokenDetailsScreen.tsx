@@ -1,3 +1,4 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
@@ -329,12 +330,7 @@ export default function TokenDetailsModal() {
               </Adapt>
 
               <Popover.Trigger asChild>
-                <AppIconButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="medium"
-
-                  shape="circular"
+                <HeaderIconButton
                   accessibilityLabel="More options"
                   icon={<MoreHorizontal size={24} />}
                   onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}

@@ -6,6 +6,8 @@ import { useSettingsStore } from '~/state/settingsStore';
 
 let mockQuote: { price: number } | undefined;
 let mockFetching = true;
+let mockOffline = false;
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockOffline }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: mockQuote, isFetching: mockFetching }),
 }));
@@ -27,6 +29,7 @@ const displayed = () => tree.root.findAllByType('RollingNumber' as any).map((nod
 beforeEach(() => {
   mockQuote = { price: 100_000 };
   mockFetching = true;
+  mockOffline = false;
   useWalletStore.setState({ balances: { mint: 10_000 }, refreshCounter: 0, isRestoring: false });
   useSettingsStore.setState({
     primaryCurrency: 'FIAT',
@@ -65,6 +68,57 @@ it('shows a real zero without requiring an exchange rate', async () => {
   });
   expect(displayed()[0].children).toBe('$0.00');
 });
+
+it('shows Offline in the sync status area and restores the correct status on reconnection', async () => {
+  mockOffline = true;
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  const status = () => tree.root.findAllByType('Text' as any).map((node) => node.props.children);
+  expect(status()).toContain('Offline');
+  await act(async () => {
+    useWalletStore.setState({ isRestoring: true });
+  });
+  expect(status()).toContain('Offline');
+  expect(status()).not.toContain('Syncing...');
+  mockOffline = false;
+  await act(async () => {
+    tree.update(<Balance />);
+  });
+  expect(status()).toContain('Syncing...');
+  expect(status()).not.toContain('Offline');
+  await act(async () => {
+    useWalletStore.setState({ isRestoring: false });
+  });
+  expect(status()).not.toContain('Offline');
+  expect(status()).not.toContain('Syncing...');
+});
+
+it.each(['SATS', 'FIAT'] as const)(
+  'keeps %s animation keys stable across balance refreshes',
+  async (currency) => {
+    useSettingsStore.setState({ primaryCurrency: currency });
+    await act(async () => {
+      tree = create(<Balance />);
+    });
+    const before = displayed();
+    await act(async () => {
+      useWalletStore.setState({ balances: { mint: 10_000 }, refreshCounter: 1 });
+    });
+    expect(displayed().map((props) => props.trigger)).toEqual(before.map((props) => props.trigger));
+    expect(displayed().map((props) => [props.value, props.children])).toEqual(
+      before.map((props) => [props.value, props.children]),
+    );
+
+    await act(async () => {
+      useWalletStore.setState({ balances: { mint: 20_000 }, refreshCounter: 2 });
+    });
+    const sats = displayed()[currency === 'SATS' ? 0 : 1];
+    const fiat = displayed()[currency === 'SATS' ? 1 : 0];
+    expect(sats.value).toBe(20_000);
+    expect(fiat.children).toBe('$20.00');
+  },
+);
 
 it('does not invent a zero conversion when no quote has ever been cached', async () => {
   mockQuote = undefined;

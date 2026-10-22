@@ -1,14 +1,15 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
 import { Nfc, Send, X } from '@tamagui/lucide-icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
-import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
+import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 
 export default function ModalLayout() {
   const theme = useTheme();
   const router = useRouter();
+  const headerOptions = useScreenHeaderOptions();
 
   return (
     <Stack
@@ -16,25 +17,9 @@ export default function ModalLayout() {
         headerShown: true,
         presentation: 'formSheet',
         animation: 'slide_from_right',
-        headerStyle: {
-          backgroundColor: theme.background?.val,
-        },
-        headerTitleStyle: {
-          color: theme.color?.val,
-          fontFamily: 'SpecialGothicMedium',
-          fontWeight: 'normal',
-        },
-        headerTitleAlign: 'center',
-        headerTintColor: theme.color?.val,
-        headerShadowVisible: false,
-        headerTitle: ({ children }) => <ModalHeaderTitle>{children}</ModalHeaderTitle>,
+        ...headerOptions,
         headerLeft: () => (
-          <AppIconButton
-            variant="default"
-            emphasis="secondary"
-            size="xsmall"
-
-            shape="circular"
+          <HeaderIconButton
             accessibilityLabel="Close"
             icon={<X size={24} color="$color" />}
             onPress={() => {
@@ -132,7 +117,6 @@ export default function ModalLayout() {
         options={{
           presentation: 'fullScreenModal',
           headerShown: true,
-          headerTitle: '',
         }}
       />
       <Stack.Screen

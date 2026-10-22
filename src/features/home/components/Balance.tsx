@@ -8,11 +8,12 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import * as Haptics from 'expo-haptics';
 import { appTypography } from '~/shared/theme/appearance';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 
 export default function Balance() {
   const balances = useWalletStore((s) => s.balances);
-  const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const isRestoring = useWalletStore((s) => s.isRestoring);
+  const isOffline = useOfflineStatus();
   const {
     primaryCurrency,
     setPrimaryCurrency,
@@ -21,7 +22,6 @@ export default function Balance() {
     setHideBalance,
     showBitcoinSymbol,
   } = useSettingsStore();
-  const [localTrigger, setLocalTrigger] = React.useState(0);
 
   const handlePrimaryCurrencyToggle = React.useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -69,12 +69,19 @@ export default function Balance() {
       items="center"
       position="relative"
     >
-      {/* Syncing Indicator at the top (absolute) */}
-      {isRestoring && (
+      {/* Connection and sync status share the same space above the balance. */}
+      {(isOffline || isRestoring) && (
         <XStack position="absolute" z={100} top={15} items="center" gap="$2" self="center">
-          <View width={8} height={8} rounded="$10" bg="$accent10" animation="lazy" opacity={0.8} />
-          <Text fontSize="$2" color="$gray10" fontWeight="600">
-            Syncing...
+          <View
+            width={8}
+            height={8}
+            rounded="$10"
+            bg={isOffline ? '$gray10' : '$accent10'}
+            animation="lazy"
+            opacity={0.8}
+          />
+          <Text fontSize="$2" color="$gray10" fontWeight="600" accessibilityLiveRegion="polite">
+            {isOffline ? 'Offline' : 'Syncing...'}
           </Text>
         </XStack>
       )}
@@ -92,12 +99,7 @@ export default function Balance() {
             value={hideBalance ? '****' : currentBalance}
             prefix={hideBalance ? '' : showBitcoinSymbol ? '₿' : ''}
             suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sat'}
-            trigger={
-              refreshCounter +
-              localTrigger +
-              (hideBalance ? '_hidden' : '_visible_sats') +
-              `_${showBitcoinSymbol}`
-            }
+            trigger={`${hideBalance ? 'hidden' : 'visible_sats'}_${showBitcoinSymbol}`}
             letterSpacing={appTypography.display.letterSpacing}
             fontSize={appTypography.display.fontSize}
             fontWeight={500}
@@ -122,7 +124,7 @@ export default function Balance() {
         ) : (
           <RollingNumber
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
-            trigger={refreshCounter + localTrigger + (hideBalance ? '_hidden' : '_visible_fiat')}
+            trigger={hideBalance ? 'hidden' : 'visible_fiat'}
             letterSpacing={appTypography.display.letterSpacing}
             fontSize={appTypography.display.fontSize}
             fontWeight={500}
@@ -158,7 +160,6 @@ export default function Balance() {
           prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
           suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
           trigger={
-            refreshCounter +
             (hideBalance ? '_hidden' : displayAsSats ? '_visible_fiat_sub' : '_visible_sats_sub') +
             `_${showBitcoinSymbol}`
           }

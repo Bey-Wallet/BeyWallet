@@ -1,3 +1,4 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { PaymentStatusIcon, paymentReceiptStatus } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { getHistoryToken, getVerifiedTokenState } from '~/features/history/historyToken';
@@ -13,7 +14,6 @@ import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { networkService } from '~/services/platform/networkService';
@@ -725,12 +725,7 @@ export function TransactionDetailsScreen() {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
     headerRight: () => (
-      <AppIconButton
-        variant="default"
-        emphasis="tertiary"
-        size="xsmall"
-
-        shape="circular"
+      <HeaderIconButton
         accessibilityLabel="Delete transaction"
         icon={<Trash2 size={22} />}
         onPress={() => {

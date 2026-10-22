@@ -1,3 +1,4 @@
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { InteractionManager, Share, useWindowDimensions } from 'react-native';
 import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
@@ -78,13 +79,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
             headerTitleAlign: 'center',
             headerShadowVisible: false,
             headerRight: () => (
-              <AppIconButton
-                variant="default"
-                emphasis="tertiary"
-                size="small"
-                shape="circular"
+              <HeaderIconButton
                 accessibilityLabel="Share profile"
-                iconSize={18}
                 icon={<Share2 size={20} />}
                 disabled={!npub}
                 onPress={share}

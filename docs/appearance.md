@@ -1,5 +1,12 @@
 # App theme
 
+Screen headers use centered `ModalHeaderTitle` text and the canvas background, without a
+bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
+defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
+neutral tertiary circular controls with 24-point icons and at least 48-point touch areas.
+Back actions use `ArrowLeft`; dismiss actions use `X`. Screen-specific callbacks, loading
+and disabled states remain with each screen. Home and tab navigation keep their own styling.
+
 `src/shared/theme/appearance.ts` defines semantic colors, typography, spacing, dimensions and
 roundness. The existing `dark` and `light` themes apply them through the current provider.
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
