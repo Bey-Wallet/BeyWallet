@@ -1,5 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
+
+// Approved production files: lock the glyphs without retaining preview assets.
+const approvedFontHashes = {
+  Regular: 'f2e607f2bcb8cae25a5a6d404bcc53215506adff8b7da01ad04458c1b542696e',
+  Medium: 'dcd39846547fdf7e19db865987d520ef589f591f54d281e4ef2a26b9b2b86ee4',
+  SemiBold: '01b46e562208ee7c7d60779f7714ac753fc2567edbd6f61b8bd95245e1eb3132',
+  Bold: '18f7100d66022eb8b1511bf1e86a1b2dd81a929b033054238990ebbc967c4bbe',
+};
 
 function tableOffset(font: Buffer, tag: string) {
   for (let i = 0; i < font.readUInt16BE(4); i++) {
@@ -53,14 +62,20 @@ it.each([
   ['Regular', 400],
   ['Medium', 500],
   ['SemiBold', 600],
+  ['Bold', 700],
 ] as const)(
-  'bundles genuine Special Gothic %s weight %i with Bitcoin and rupee glyphs',
+  'bundles approved Funnel Display %s weight %i with all currency symbols',
   (name, weight) => {
     const font = readFileSync(
-      path.join(process.cwd(), 'src/assets/fonts', `SpecialGothic-${name}.ttf`),
+      path.join(process.cwd(), 'src/assets/fonts', `BeyFunnelDisplay-${name}.ttf`),
     );
     expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(weight);
-    expect(hasGlyph(font, 0x20bf)).toBe(true);
-    expect(hasGlyph(font, 0x20b9)).toBe(true);
+    for (const symbol of '$€£¥₿₹₽₩₺￥') {
+      expect({ symbol, covered: hasGlyph(font, symbol.codePointAt(0)!) }).toEqual({
+        symbol,
+        covered: true,
+      });
+    }
+    expect(createHash('sha256').update(font).digest('hex')).toBe(approvedFontHashes[name]);
   },
 );

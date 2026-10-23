@@ -130,7 +130,7 @@ export function P2PKLockCard({
               borderRadius: 12,
               padding: 16,
               fontSize: 14,
-              fontFamily: 'SpecialGothicRegular',
+              fontFamily: 'BeyFunnelDisplayRegular',
               minHeight: 88,
               maxHeight: 160,
             }}

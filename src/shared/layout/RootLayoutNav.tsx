@@ -191,10 +191,10 @@ export function RootLayoutNav() {
     ...(resolvedTheme === 'dark' ? DarkTheme : DefaultTheme),
     // Registered static faces already contain their weight; avoid Android fallback/synthesis.
     fonts: {
-      regular: { fontFamily: 'SpecialGothicRegular', fontWeight: 'normal' as const },
-      medium: { fontFamily: 'SpecialGothicMedium', fontWeight: 'normal' as const },
-      bold: { fontFamily: 'SpecialGothicSemiBold', fontWeight: 'normal' as const },
-      heavy: { fontFamily: 'SpecialGothicSemiBold', fontWeight: 'normal' as const },
+      regular: { fontFamily: 'BeyFunnelDisplayRegular', fontWeight: 'normal' as const },
+      medium: { fontFamily: 'BeyFunnelDisplayMedium', fontWeight: 'normal' as const },
+      bold: { fontFamily: 'BeyFunnelDisplaySemiBold', fontWeight: 'normal' as const },
+      heavy: { fontFamily: 'BeyFunnelDisplaySemiBold', fontWeight: 'normal' as const },
     },
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
@@ -217,8 +217,8 @@ export function RootLayoutNav() {
       <YStack flex={1} bg="$background">
         <Stack
           screenOptions={{
-            headerTitleStyle: { fontFamily: 'SpecialGothicMedium', fontWeight: 'normal' },
-            headerBackTitleStyle: { fontFamily: 'SpecialGothicRegular' },
+            headerTitleStyle: { fontFamily: 'BeyFunnelDisplayMedium', fontWeight: 'normal' },
+            headerBackTitleStyle: { fontFamily: 'BeyFunnelDisplayRegular' },
             contentStyle: {
               backgroundColor: theme.background?.val,
             },

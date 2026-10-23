@@ -1,36 +1,67 @@
 # App fonts
 
-Body text and headings use standard-width Special Gothic with three bundled static weights:
+Body text and headings use the approved, modified Funnel Display family, named **Bey Funnel
+Display** internally to distinguish it from the upstream font:
 
-- Regular (400): `SpecialGothic-Regular.ttf`
-- Medium (500): `SpecialGothic-Medium.ttf`
-- SemiBold (600): `SpecialGothic-SemiBold.ttf`
+| Weight       | Runtime name               | Asset                           |
+| ------------ | -------------------------- | ------------------------------- |
+| Regular 400  | `BeyFunnelDisplayRegular`  | `BeyFunnelDisplay-Regular.ttf`  |
+| Medium 500   | `BeyFunnelDisplayMedium`   | `BeyFunnelDisplay-Medium.ttf`   |
+| SemiBold 600 | `BeyFunnelDisplaySemiBold` | `BeyFunnelDisplay-SemiBold.ttf` |
 
-`SpecialGothic-Bold.ttf` (700) is retained in the repository at the user's request. It is not
-registered in Expo runtime loading, native embedding, or the Tamagui face mappings. Requests for
-700 still render using SemiBold (600); activate Bold only when the user requests it.
+`BeyFunnelDisplay-Bold.ttf` (700) is retained as an inactive asset. It is not registered in Expo
+runtime loading, native embedding, or Tamagui face mappings. Requests for 700 and `bold` continue
+to render using SemiBold 600.
 
-Existing font sizes, line heights, and accessibility scaling are preserved.
+## Integration
 
-The Tamagui body and heading families share these faces. Existing requests below 400 resolve to
-Regular; requests above 600 and `bold` resolve to SemiBold. Weight tokens `$4`, `$5`, and `$6` select
-400, 500, and 600 respectively. No additional Special Gothic weights or
-italics are downloaded. Existing dedicated monospace text retains its separate `Mono` font.
+The `$body` and `$heading` families share these three static faces. Requests below 400 resolve to
+Regular, and requests above 600 resolve to SemiBold. Weight tokens `$4`, `$5`, and `$6` select
+400/500/600. Existing text sizes, line heights, letter spacing, tabular numeral requests, and
+accessibility scaling are preserved. Dedicated `Mono` text remains unchanged.
 
-Runtime loading lives in `src/shared/layout/RootLayout.tsx`; native embedding is configured in
-`app.json`. Rebuild the native app to update embedded assets. The public-key sheet's native input
-also uses Special Gothic Regular.
+Runtime loading is in `src/shared/layout/RootLayout.tsx`; native embedding is configured in
+`app.json`. Navigation fonts and header titles use the same family. Native bottom-sheet inputs
+and the public-key input explicitly select Regular. Plain Tamagui Text, named text components,
+inputs, and toasts use the existing `$body` defaults. OS-owned permission dialogs, share sheets,
+and keyboards retain the platform font.
 
-Plain Tamagui Text explicitly defaults to `$body` (its library default is `unset`). Named text,
-input, and toast defaults also select `$body`. React Navigation uses the three registered static
-faces, and native bottom-sheet inputs specify Special Gothic Regular directly. OS-owned permission
-dialogs, share sheets, and keyboards keep the platform font.
+The user confirmed the fonts work in the existing Expo dev client through runtime asset loading.
+A reload can load these new font files without rebuilding a compatible dev client. A future native
+build will also include the updated embedded-font configuration from `app.json`.
 
-Unmodified fonts and license were downloaded from the official
-[Special Gothic repository at revision 17774cf97eec75a115aebc7ed66a57ce67b88177](https://github.com/AlistairMcCready/Special-Gothic/tree/17774cf97eec75a115aebc7ed66a57ce67b88177).
-Only the three active static weights and the license are used by the app; the 700 asset stays inactive. Each file's upstream Git
-blob hash and weight metadata were checked. All three include Bitcoin (`₿`, U+20BF) and Indian rupee (`₹`, U+20B9)
-glyphs, verified by the font asset regression tests.
-The SIL Open Font License and copyright notice are retained in
-`src/assets/fonts/SpecialGothic-OFL.txt`. The font license remains separate from the application's
-Apache 2.0 license.
+## Approved glyphs and provenance
+
+The user supplied Funnel Display by NORD ID and Kristian Möller in
+`C:\Users\Zaheer\Downloads\Funnel_Display`. The final production assets are the approved design;
+temporary HTML previews, generators, screenshots, and comparison fonts have been removed.
+
+The modified fonts add Bitcoin `₿` U+20BF, rupee `₹` U+20B9, ruble `₽` U+20BD, won `₩` U+20A9,
+lira `₺` U+20BA, and full-width yen `￥` U+FFE5. Original dollar, euro, pound and yen glyphs remain
+unchanged. Coverage checks include the symbols and formatted values for Bey's 21 fiat currencies.
+Native Intl implementations can vary, so device checks remain necessary.
+
+Rupee revision 5 adapts the matching Special Gothic upper outline to Funnel's cap height and keeps
+the approved straight diagonal leg. Both source families use SIL OFL 1.1; their copyright notices
+and the license are consolidated in `src/assets/fonts/BeyFunnelDisplay-OFL.txt`.
+The derivative also embeds attribution to both families.
+These licenses remain separate from the application's Apache 2.0 license.
+
+Special Gothic font binaries have been removed. The adapted rupee's original source is
+[Special Gothic revision 17774cf97eec75a115aebc7ed66a57ce67b88177](https://github.com/AlistairMcCready/Special-Gothic/tree/17774cf97eec75a115aebc7ed66a57ce67b88177).
+
+## Validation
+
+The font asset regression tests check weights, currency coverage, and SHA-256 hashes of the
+approved production files, without depending on temporary design files.
+Typography and appearance tests check rendered family selection and the existing weight mappings.
+
+Device acceptance checks:
+
+- Review Home, payment entry/results, Settings, onboarding, messages, and navigation headers.
+- Check bottom-sheet/native inputs, button labels, long text, both themes, and larger system text.
+- Inspect `₿`, `₹`, `₽`, `₩`, `₺`, and both yen variants at row and balance sizes.
+- Confirm Regular/Medium/SemiBold render distinctly, no text clips, and 700 remains mapped to 600.
+
+The user confirmed the current Expo dev-client appearance. The full screen/accessibility matrix,
+iOS-specific behavior, and a newly embedded native build have not been independently verified.

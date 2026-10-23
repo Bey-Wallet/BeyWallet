@@ -109,9 +109,9 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/SpecialGothic-Regular.ttf",
-            "./src/assets/fonts/SpecialGothic-Medium.ttf",
-            "./src/assets/fonts/SpecialGothic-SemiBold.ttf",
+            "./src/assets/fonts/BeyFunnelDisplay-Regular.ttf",
+            "./src/assets/fonts/BeyFunnelDisplay-Medium.ttf",
+            "./src/assets/fonts/BeyFunnelDisplay-SemiBold.ttf",
             "./src/assets/fonts/Mono.otf"
           ]
         }

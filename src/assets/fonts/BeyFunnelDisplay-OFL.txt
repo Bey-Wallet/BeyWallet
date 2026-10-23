@@ -1,3 +1,4 @@
+Copyright 2024 The Funnel Project Authors (https://github.com/Dicotype/Funnel)
 Copyright 2023 The Special Gothic Project Authors (https://github.com/AlistairMcCready/Special-Gothic/)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

@@ -82,7 +82,7 @@ export const appRadii = { tiny: 4, small: 8, control: 12, card: 16, sheet: 20 } 
 export const appSpacing = { tiny: 2, small: 4, compact: 8, gap: 12, page: 16, large: 32 } as const;
 export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
 
-/** Special Gothic remains the font family; only text metrics are defined here. */
+/** Shared text metrics for the bundled Bey Funnel Display family. */
 export const appTypography = {
   display: { fontSize: 40, lineHeight: 50, fontWeight: '500', letterSpacing: -1.5 },
   amount: { fontSize: 32, lineHeight: 40, fontWeight: '500', letterSpacing: 0 },

@@ -29,7 +29,7 @@ active/inactive tab icons, and enabled/highlighted/disabled button states. Succe
 and error retain their semantic colors. Neutral cards use the base surface; branded secondary
 buttons use their own fill, avoiding gray backgrounds on large payment cards.
 
-Special Gothic 400/500/600 remains active. The 700 asset stays unregistered. Common text sizes
+Bey Funnel Display 400/500/600 is active. The 700 asset stays unregistered. Common text sizes
 use 10/12/14/16 for captions and body text, 20/24/32 for headings, 32 for result/detail amounts,
 and 40 for balances and larger confirmation amounts. Result/detail conversion text uses 14.
 Body text uses 400, labels use 500, and headings use 600. Explicit larger amount-input and
@@ -44,7 +44,7 @@ Explicit regular-size tables can use 16-point text and a 56-point minimum. The t
 plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Special Gothic remains the bundled family. Existing balance and amount size choices are
+Bey Funnel Display is the bundled family. Existing balance and amount size choices are
 preserved, including the smaller result/detail amounts. Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
 component gallery or alternate root provider is required.

@@ -54,7 +54,7 @@ export const InputSheet = forwardRef<
             borderRadius: 12,
             padding: 16,
             fontSize: 16,
-            fontFamily: 'SpecialGothicRegular',
+            fontFamily: 'BeyFunnelDisplayRegular',
           }}
         />
         <AppButton size="large" fullWidth onPress={save}>

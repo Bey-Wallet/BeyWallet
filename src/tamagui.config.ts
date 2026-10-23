@@ -70,8 +70,8 @@ const animations = createAnimations({
   },
 });
 
-const specialGothicFont = createFont({
-  family: 'SpecialGothicRegular',
+const beyFunnelDisplayFont = createFont({
+  family: 'BeyFunnelDisplayRegular',
   size: {
     1: appTypography.caption.fontSize,
     2: 12,
@@ -120,24 +120,24 @@ const specialGothicFont = createFont({
     8: appTypography.title2.letterSpacing,
   },
   face: {
-    100: { normal: 'SpecialGothicRegular' },
-    200: { normal: 'SpecialGothicRegular' },
-    300: { normal: 'SpecialGothicRegular' },
-    400: { normal: 'SpecialGothicRegular' },
-    500: { normal: 'SpecialGothicMedium' },
-    600: { normal: 'SpecialGothicSemiBold' },
-    700: { normal: 'SpecialGothicSemiBold' },
-    800: { normal: 'SpecialGothicSemiBold' },
-    900: { normal: 'SpecialGothicSemiBold' },
-    1000: { normal: 'SpecialGothicSemiBold' },
-    bold: { normal: 'SpecialGothicSemiBold' },
+    100: { normal: 'BeyFunnelDisplayRegular' },
+    200: { normal: 'BeyFunnelDisplayRegular' },
+    300: { normal: 'BeyFunnelDisplayRegular' },
+    400: { normal: 'BeyFunnelDisplayRegular' },
+    500: { normal: 'BeyFunnelDisplayMedium' },
+    600: { normal: 'BeyFunnelDisplaySemiBold' },
+    700: { normal: 'BeyFunnelDisplaySemiBold' },
+    800: { normal: 'BeyFunnelDisplaySemiBold' },
+    900: { normal: 'BeyFunnelDisplaySemiBold' },
+    1000: { normal: 'BeyFunnelDisplaySemiBold' },
+    bold: { normal: 'BeyFunnelDisplaySemiBold' },
   },
 });
 
 const monoFont = createFont({
   family: 'Mono',
-  size: specialGothicFont.size,
-  lineHeight: specialGothicFont.lineHeight,
+  size: beyFunnelDisplayFont.size,
+  lineHeight: beyFunnelDisplayFont.lineHeight,
   weight: {
     4: '400',
     5: '500',
@@ -341,8 +341,8 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: specialGothicFont,
-    body: specialGothicFont,
+    heading: beyFunnelDisplayFont,
+    body: beyFunnelDisplayFont,
     mono: monoFont,
   },
   themes: {

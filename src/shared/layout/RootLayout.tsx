@@ -31,9 +31,9 @@ export function RootLayout() {
   useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
-    SpecialGothicRegular: require('~/assets/fonts/SpecialGothic-Regular.ttf'),
-    SpecialGothicMedium: require('~/assets/fonts/SpecialGothic-Medium.ttf'),
-    SpecialGothicSemiBold: require('~/assets/fonts/SpecialGothic-SemiBold.ttf'),
+    BeyFunnelDisplayRegular: require('~/assets/fonts/BeyFunnelDisplay-Regular.ttf'),
+    BeyFunnelDisplayMedium: require('~/assets/fonts/BeyFunnelDisplay-Medium.ttf'),
+    BeyFunnelDisplaySemiBold: require('~/assets/fonts/BeyFunnelDisplay-SemiBold.ttf'),
     Mono: require('~/assets/fonts/Mono.otf'),
   });
 
