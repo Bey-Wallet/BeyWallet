@@ -10,7 +10,7 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { useToastController } from '@tamagui/toast';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Switch } from 'react-native';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { YStack, XStack, Text, Separator, Avatar } from 'tamagui';
 import { AlertCircle, Zap, ShieldCheck, Sprout } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -353,11 +353,12 @@ export function PaymentRequestStage({
             <ListTableRow
               label="Exact amount for legacy wallets"
               rightContent={
-                <Switch
+                <AppSwitch
+                  variant="branded"
                   accessibilityLabel="Exact amount for legacy wallets"
-                  value={amountMode === 'exact'}
+                  checked={amountMode === 'exact'}
                   disabled={isSending || hasOperation || !!savedPayment || !!paymentRef.current}
-                  onValueChange={(enabled) => {
+                  onCheckedChange={(enabled) => {
                     if (actionLock.current || paymentRef.current || savedPayment || hasOperation)
                       return;
                     setCost(null);

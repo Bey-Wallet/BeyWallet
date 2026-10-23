@@ -71,6 +71,7 @@ jest.mock('~/shared/ui/AppButton', () => ({
   AppButton: (props: unknown) => require('react').createElement('AppButton', props),
 }));
 jest.mock('~/shared/ui/Blockies', () => 'Blockies');
+jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ MintSelectorSheet: 'MintSelectorSheet' }));
 jest.mock('~/shared/ui/MintBalanceRow', () => ({ MintBalanceRow: 'MintBalanceRow' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
@@ -203,8 +204,8 @@ it('requires opt-in for the legacy quote, shows the net amount, and locks the mo
   await render(false, jest.fn(), nostrRequest);
   const toggle = () =>
     tree.root.findByProps({ accessibilityLabel: 'Exact amount for legacy wallets' });
-  expect(toggle().props.value).toBe(false);
-  await act(async () => toggle().props.onValueChange(true));
+  expect(toggle().props.checked).toBe(false);
+  await act(async () => toggle().props.onCheckedChange(true));
   expect(mockPreview).toHaveBeenLastCalledWith(nostrRequest, 'https://mint.test', 'exact');
   expect(tree.root.findByProps({ label: 'Recipient receives after fees' }).props.value).toBe(
     '9 sat',
@@ -223,8 +224,8 @@ it('requires opt-in for the legacy quote, shows the net amount, and locks the mo
     undefined,
   );
   expect(toggle().props.disabled).toBe(true);
-  await act(async () => toggle().props.onValueChange(false));
-  expect(toggle().props.value).toBe(true);
+  await act(async () => toggle().props.onCheckedChange(false));
+  expect(toggle().props.checked).toBe(true);
   await act(async () => mockResolveDelivery());
   expect(toggle().props.disabled).toBe(true);
 });

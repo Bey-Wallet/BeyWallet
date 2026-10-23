@@ -209,7 +209,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
         {!iconOnly && (
           <Text
             fontFamily="$body"
-            fontWeight={labelStyle.fontWeight}
+            fontWeight="600"
             fontSize={resolvedFontSize}
             lineHeight={
               labelFontSize === undefined ? labelStyle.lineHeight : resolvedFontSize * 1.4

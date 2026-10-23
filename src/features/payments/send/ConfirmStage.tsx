@@ -2,7 +2,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React from 'react';
 import { Text } from 'tamagui';
-import { Switch } from 'react-native';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { AppButton } from '~/shared/ui/AppButton';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
@@ -127,11 +127,12 @@ export function ConfirmStage(props: ConfirmStageProps) {
             <ListTableRow
               label="P2PK lock"
               rightContent={
-                <Switch
+                <AppSwitch
+                  variant="branded"
                   accessibilityLabel="P2PK lock"
-                  value={props.useP2PK}
+                  checked={props.useP2PK}
                   disabled={isLoading}
-                  onValueChange={props.setUseP2PK}
+                  onCheckedChange={props.setUseP2PK}
                 />
               }
             />

@@ -1,6 +1,7 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, View, Switch, Separator } from 'tamagui';
+import { YStack, XStack, Text, H1, View, Separator } from 'tamagui';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import {
   ChevronRight,
   Fingerprint,
@@ -191,15 +192,13 @@ export function PermissionsStep({
                 </Text>
               </YStack>
             </XStack>
-            <Switch
-              size="$3"
+            <AppSwitch
+              variant="branded"
+              accessibilityLabel="Biometric security"
               checked={biometricEnabled}
               onCheckedChange={handleBiometricToggle}
               disabled={isRequestingBio}
-              backgroundColor={biometricEnabled ? '$green10' : '$gray5'}
-            >
-              <Switch.Thumb animation="quick" />
-            </Switch>
+            />
           </XStack>
 
           <Separator borderColor="$borderColor" />
@@ -219,14 +218,12 @@ export function PermissionsStep({
                     </Text>
                   </YStack>
                 </XStack>
-                <Switch
-                  size="$3"
+                <AppSwitch
+                  variant="branded"
+                  accessibilityLabel="Claim @bey.cash username"
                   checked={!skipUsername}
                   onCheckedChange={(checked) => setSkipUsername(!checked)}
-                  backgroundColor={!skipUsername ? '$green10' : '$gray5'}
-                >
-                  <Switch.Thumb animation="quick" />
-                </Switch>
+                />
               </XStack>
 
               <Separator borderColor="$borderColor" />

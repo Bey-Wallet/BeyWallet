@@ -23,7 +23,6 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('react-native', () => ({
   Keyboard: { dismiss: jest.fn() },
-  Switch: 'Switch',
   View: 'View',
   Text: 'Text',
   StyleSheet: { create: (styles: unknown) => styles },
@@ -41,6 +40,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
 }));
 jest.mock('expo-clipboard', () => ({ getStringAsync: jest.fn() }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'Table',
   ListTableRow: ({ rightContent, ...props }: any) =>
@@ -96,8 +96,8 @@ it('keeps locking off by default and saves a typed public key only after confirm
   await act(async () => {
     tree = create(<Card />);
   });
-  expect(tree.root.findByType('Switch' as any).props.value).toBe(false);
-  await act(async () => tree.root.findByType('Switch' as any).props.onValueChange(true));
+  expect(tree.root.findByType('Switch' as any).props.checked).toBe(false);
+  await act(async () => tree.root.findByType('Switch' as any).props.onCheckedChange(true));
   expect(mockPresent).toHaveBeenCalledTimes(1);
   await act(async () => input().props.onChangeText('invalid'));
   expect(button('Use public key').props.disabled).toBe(true);
@@ -111,7 +111,7 @@ it('accepts pasted keys and scanner results into the sheet draft without automat
   await act(async () => {
     tree = create(<Card />);
   });
-  await act(async () => tree.root.findByType('Switch' as any).props.onValueChange(true));
+  await act(async () => tree.root.findByType('Switch' as any).props.onCheckedChange(true));
   jest.mocked(Clipboard.getStringAsync).mockResolvedValue(key);
   await act(async () => button('Paste').props.onPress());
   expect(input().props.value).toBe(key);
@@ -136,8 +136,8 @@ it('disables enabling a new lock offline', async () => {
   });
   const toggle = tree.root.findByType('Switch' as any);
   expect(toggle.props.disabled).toBe(true);
-  await act(async () => toggle.props.onValueChange(true));
-  expect(toggle.props.value).toBe(false);
+  await act(async () => toggle.props.onCheckedChange(true));
+  expect(toggle.props.checked).toBe(false);
   expect(mockPresent).not.toHaveBeenCalled();
 });
 
@@ -145,7 +145,7 @@ it('preserves the saved key when editing or scanning is canceled and permits exp
   await act(async () => {
     tree = create(<Card />);
   });
-  await act(async () => tree.root.findByType('Switch' as any).props.onValueChange(true));
+  await act(async () => tree.root.findByType('Switch' as any).props.onCheckedChange(true));
   await act(async () => input().props.onChangeText(key));
   await act(async () => button('Use public key').props.onPress());
   const open = () => tree.root.findByProps({ label: 'Public key' }).props.onPress();
@@ -160,6 +160,6 @@ it('preserves the saved key when editing or scanning is canceled and permits exp
   expect(onKey).toHaveBeenCalledTimes(1);
   await act(async () => tree.update(<Card offline />));
   expect(tree.root.findByType('Switch' as any).props.disabled).toBe(false);
-  await act(async () => tree.root.findByType('Switch' as any).props.onValueChange(false));
-  expect(tree.root.findByType('Switch' as any).props.value).toBe(false);
+  await act(async () => tree.root.findByType('Switch' as any).props.onCheckedChange(false));
+  expect(tree.root.findByType('Switch' as any).props.checked).toBe(false);
 });

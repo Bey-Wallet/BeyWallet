@@ -5,6 +5,8 @@ import { useWalletStore } from '~/state/walletStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import { settingsCategories, type SettingsCategory } from './settingsCatalog';
 import { NostrHealthRow } from './components/NostrHealthRow';
+import { SettingsToggleRow } from './components/SettingsToggleRow';
+import { biometricService } from '~/services/platform/biometricService';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -19,12 +21,7 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
   const policy = useNostrReceiveSettingsStore((state) => state.policy);
   const summaries: Record<string, string | undefined> = {
     theme: settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light',
-    'display-unit': settings.primaryCurrency === 'SATS' ? 'Sat' : 'Fiat',
     currency: settings.secondaryCurrency === 'NONE' ? 'None' : settings.secondaryCurrency,
-    'bitcoin-symbol': settings.showBitcoinSymbol ? '₿' : 'sat',
-    notifications: settings.notificationsEnabled ? 'On' : 'Off',
-    'app-lock': settings.biometricEnabled ? 'On' : 'Off',
-    'hide-balance': settings.hideBalance ? 'On' : 'Off',
     mints: String(mints.length),
     'fallback-mint': settings.defaultMintUrl
       ? settings.defaultMintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -32,10 +29,50 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     'receiving-policy': policy === 'ask' ? 'Ask first' : 'Everyone',
     'recovery-phrase': settings.seedBackedUp ? 'Backed up' : 'Not confirmed',
   };
+  const toggles: Record<
+    string,
+    {
+      checked: boolean;
+      description?: string;
+      save: (next: boolean) => Promise<void>;
+      requiresApproval?: boolean;
+    }
+  > = {
+    'display-unit': {
+      checked: settings.primaryCurrency === 'FIAT',
+      description: 'Use fiat currency instead of Sat',
+      save: (next) => settings.setPrimaryCurrency(next ? 'FIAT' : 'SATS'),
+    },
+    'bitcoin-symbol': {
+      checked: settings.showBitcoinSymbol,
+      description: 'Use ₿ instead of the sat label',
+      save: settings.setShowBitcoinSymbol,
+    },
+    notifications: {
+      checked: settings.notificationsEnabled,
+      save: settings.setNotificationsEnabled,
+    },
+    'hide-balance': { checked: settings.hideBalance, save: settings.setHideBalance },
+    'app-lock': {
+      checked: settings.biometricEnabled,
+      requiresApproval: true,
+      save: async (next) => {
+        const authorized = await biometricService.authenticateAsync(
+          next
+            ? 'Enable biometric security for Bey Wallet'
+            : 'Authenticate to disable biometric security',
+        );
+        if (!authorized) throw new Error('Authentication required');
+        await settings.setBiometricEnabled(next);
+      },
+    },
+  };
   const items = settingsCategories[category].items;
   const row = (item: (typeof items)[number]) =>
     item.path === 'nostr-health' ? (
       <NostrHealthRow key={item.path} />
+    ) : toggles[item.path] ? (
+      <SettingsToggleRow key={item.path} {...item} {...toggles[item.path]} />
     ) : (
       <SettingsRow
         key={item.path}

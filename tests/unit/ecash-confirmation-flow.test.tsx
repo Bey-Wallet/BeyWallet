@@ -46,6 +46,7 @@ jest.mock('~/features/payments/send/P2PKAmountStage', () => ({
 }));
 jest.mock('~/features/payments/send/NostrSendStage', () => ({ NostrSendStage: 'NostrSendStage' }));
 jest.mock('~/features/payments/send/ConfirmStage', () => ({ ConfirmStage: 'ConfirmStage' }));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 jest.mock('~/features/payments/send/ResultStage', () => ({ ResultStage: 'ResultStage' }));
 jest.mock('~/features/payments/send/SuccessStage', () => ({ SuccessStage: 'SuccessStage' }));
 jest.mock('~/features/payments/send/PaymentRequestStage', () => ({

@@ -3,7 +3,12 @@
 ## Implemented
 
 - Settings is a nested stack with a centered header, back navigation, and no bottom
-  tab bar. Main/category rows navigate to dedicated screens instead of mutating values.
+  tab bar. Toggle-only preferences (display unit, Bitcoin symbol, notifications,
+  hide balance, and biometric app lock) use switches directly in category lists.
+  Other rows navigate to dedicated screens. App lock still authenticates each change.
+- Ordinary inline toggles respond immediately and serialize rapid changes while saving.
+  The shared switch uses compact iOS-style proportions and respects reduced motion;
+  onboarding and send confirmation use the same control. ListTable rows center their contents.
 - Profile, preferences, security/privacy, backup/recovery, wallet tools, Nostr,
   advanced tools, support, and About have explicit destinations.
 - Neutral cards use `$buttonDefaultSecondary`, muted text uses `$gray10`, and

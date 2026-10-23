@@ -1,5 +1,5 @@
 import React, { useCallback, useId, useRef, useState } from 'react';
-import { Keyboard, Switch } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
@@ -7,6 +7,7 @@ import { ClipboardPaste, ScanLine } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
 import { useP2PKScanStore } from '~/state/p2pkScanStore';
@@ -73,11 +74,12 @@ export function P2PKLockCard({
         <ListTableRow
           label="P2PK lock"
           rightContent={
-            <Switch
+            <AppSwitch
+              variant="branded"
               accessibilityLabel="Lock ecash to a public key"
-              value={enabled}
+              checked={enabled}
               disabled={disabled || (offline && !enabled)}
-              onValueChange={(value) => {
+              onCheckedChange={(value) => {
                 if (disabled || (offline && !enabled)) return;
                 onEnabledChange(value);
                 if (value && !publicKey) open();

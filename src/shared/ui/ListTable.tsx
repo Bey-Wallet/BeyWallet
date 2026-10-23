@@ -91,13 +91,13 @@ export function ListTableRow({
   const content = (
     <XStack
       justify="space-between"
-      items={wrap ? 'flex-start' : 'center'}
+      items="center"
       minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
       py={appSpacing.gap}
       px={appSpacing.page}
       gap={appSpacing.compact}
     >
-      <XStack items={wrap ? 'flex-start' : 'center'} gap="$2" flex={1} flexShrink={1} minWidth={0}>
+      <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>
         {Icon && (
           <XStack width={22} items="center" justify="center">
             <Icon size={20} color={iconColor || '$iconSecondary'} />

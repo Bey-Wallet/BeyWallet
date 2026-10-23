@@ -4,19 +4,10 @@ import { YStack } from 'tamagui';
 import { Fingerprint } from '@tamagui/lucide-icons';
 import { biometricService } from '~/services/platform/biometricService';
 import * as Haptics from 'expo-haptics';
-import { AppState, AppStateStatus, StyleSheet, Platform } from 'react-native';
-import { Image } from 'expo-image';
-import { useAppTheme } from '~/shared/theme/ThemeContext';
-import { BlurView } from 'expo-blur';
+import { AppState, AppStateStatus, StyleSheet } from 'react-native';
+import BeyIcon from '~/shared/icons/BeyIcon';
 
 export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
-  const { resolvedTheme } = useAppTheme();
-
-  const logoSource =
-    resolvedTheme === 'dark'
-      ? require('~/assets/icons/bey-logo-white-transparent.png')
-      : require('~/assets/icons/bey-logo-black-transparent.png');
-
   // Track active authentication request to prevent overlapping promise races
   const isAuthenticatingRef = useRef(false);
 
@@ -78,17 +69,20 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
   }, [handleAuthenticate]);
 
   return (
-    <YStack position="absolute" t={0} l={0} r={0} b={0} style={StyleSheet.absoluteFill} z={9999}>
-      <BlurView
-        intensity={80}
-        tint={resolvedTheme === 'dark' ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-      />
+    <YStack
+      position="absolute"
+      t={0}
+      l={0}
+      r={0}
+      b={0}
+      bg="$background"
+      style={StyleSheet.absoluteFill}
+      z={9999}
+    >
       <YStack flex={1} px="$4" py="$5" justify="space-between" items="center">
         {/* Middle Section - App Logo */}
         <YStack flex={1} justify="center" items="center">
-          <Image source={logoSource} style={{ width: 90, height: 90 }} contentFit="contain" />
+          <BeyIcon size={90} color="$color" />
         </YStack>
 
         {/* Bottom Section - Unlock Button */}
