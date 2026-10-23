@@ -1,42 +1,15 @@
-import { Wallet } from '@cashu/cashu-ts';
+import { Wallet, hasValidDleq, pointFromHex } from '@cashu/cashu-ts';
 import { getEncodedToken } from '@cashu/cashu-ts';
 import { cleanToken, decodeToken } from '~/services/wallet/tokenUtils';
 import type { CoreProof } from 'coco-cashu-core';
 import { initService } from '~/services/wallet/initService';
-import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-
-// ── NUT-12 DLEQ helpers ──────────────────────────────────────────────────────
-// hash_to_curve: deterministically map a message (secret bytes) to a secp256k1
-// point — matches the cashu-ts implementation exactly.
-function hashToCurve(secret: Uint8Array): ReturnType<typeof secp256k1.Point.fromHex> {
-  let counter = 0;
-  while (counter < 1000) {
-    const msgToHash = new Uint8Array([
-      ...new TextEncoder().encode('Secp256k1_HashToCurve_Cashu_'),
-      ...secret,
-      counter & 0xff,
-    ]);
-    const hash = sha256(msgToHash);
-    const prefix = new Uint8Array([0x02]);
-    const attempt = new Uint8Array([...prefix, ...hash]);
-    try {
-      return secp256k1.Point.fromHex(Buffer.from(attempt).toString('hex'));
-    } catch {
-      counter++;
-    }
-  }
-  throw new Error('hash_to_curve: failed to find valid point after 1000 iterations');
-}
-
 export interface DleqVerificationResult {
   secret: string;
   amount: number;
   valid: boolean;
+  status: 'verified' | 'invalid' | 'unverifiable';
   reason?: string;
 }
-// ────────────────────────────────────────────────────────────────────────────
-
 const decodeCache = new Map<string, any>();
 
 export const proofService = {
@@ -183,100 +156,74 @@ export const proofService = {
     const results: DleqVerificationResult[] = [];
 
     for (const proof of proofsWithDleq) {
-      const { secret, amount, C } = proof as any;
-      const dleq = (proof as any).dleq as { e: string; s: string; r?: string };
+      const { secret, amount, dleq } = proof;
+      const result = (
+        status: DleqVerificationResult['status'],
+        reason?: string,
+      ): DleqVerificationResult => ({
+        secret,
+        amount,
+        status,
+        valid: status === 'verified',
+        reason,
+      });
+
+      // Missing data cannot establish validity. In particular, cashu-ts defaults a missing r to zero.
+      if (!dleq?.e || !dleq?.s || !dleq?.r) {
+        results.push(result('unverifiable', 'Missing required DLEQ e/s/r data'));
+        continue;
+      }
+
+      const isScalarHex = (value: unknown): value is string =>
+        typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
+      if (
+        !isScalarHex(dleq.e) ||
+        !isScalarHex(dleq.s) ||
+        !isScalarHex(dleq.r) ||
+        typeof secret !== 'string' ||
+        !secret.length ||
+        !Number.isSafeInteger(amount) ||
+        amount <= 0 ||
+        typeof proof.id !== 'string' ||
+        !proof.id.length ||
+        typeof proof.C !== 'string' ||
+        !/^(02|03)[0-9a-f]{64}$/i.test(proof.C) ||
+        proof.mintUrl !== mintUrl
+      ) {
+        results.push(result('invalid', 'Malformed proof data'));
+        continue;
+      }
+
+      // Read the exact historical keyset, including inactive keysets. Never fetch or refresh keys.
+      let mintPubkey: unknown;
+      try {
+        const keyset = await repo.keysetRepository.getKeysetById(mintUrl, proof.id);
+        if (keyset?.mintUrl === mintUrl && keyset.id === proof.id) {
+          const keypair = keyset.keypairs?.[String(amount)];
+          mintPubkey = typeof keypair === 'string' ? keypair : keypair?.publicKey;
+        }
+      } catch {
+        // A damaged cache entry must not prevent checking the remaining proofs.
+      }
+      if (typeof mintPubkey !== 'string' || !/^(02|03)[0-9a-f]{64}$/i.test(mintPubkey)) {
+        results.push(result('unverifiable', 'No usable cached denomination key'));
+        continue;
+      }
+      try {
+        pointFromHex(mintPubkey);
+      } catch {
+        results.push(result('unverifiable', 'No usable cached denomination key'));
+        continue;
+      }
 
       try {
-        // 1. Validate DLEQ fields exist
-        if (!dleq?.e || !dleq?.s) {
-          results.push({ secret, amount, valid: false, reason: 'Missing DLEQ e/s fields' });
-          continue;
-        }
-
-        // 2. Fetch the keyset for this proof to get the mint's public key
-        const keyset = await repo.keysetRepository.getKeysetById(mintUrl, (proof as any).id);
-        if (!keyset) {
-          results.push({ secret, amount, valid: false, reason: 'Keyset not found in local DB' });
-          continue;
-        }
-
-        // keypairs is an object: { [amount: string]: { publicKey: string, secretKey: string } }
-        // or for some versions just: { [amount: string]: string }
-        const keypairs = keyset.keypairs as Record<string, any>;
-        const keypairForAmount = keypairs[String(amount)];
-        if (!keypairForAmount) {
-          results.push({
-            secret,
-            amount,
-            valid: false,
-            reason: `No keypair for denomination ${amount}`,
-          });
-          continue;
-        }
-
-        // Handle both { publicKey: string } and raw string formats
-        const mintPubkeyHex: string =
-          typeof keypairForAmount === 'string'
-            ? keypairForAmount
-            : (keypairForAmount.publicKey ?? keypairForAmount);
-
-        if (!mintPubkeyHex || typeof mintPubkeyHex !== 'string') {
-          results.push({
-            secret,
-            amount,
-            valid: false,
-            reason: 'Could not extract mint public key from keypair',
-          });
-          continue;
-        }
-
-        // 3. Reconstruct elliptic curve points
-        const CPoint = secp256k1.Point.fromHex(C);
-
-        // 4. Derive B_ = hash_to_curve(secret)
-        const secretBytes = new TextEncoder().encode(secret);
-        const B_Point = hashToCurve(secretBytes);
-
-        // 5. Unblind C → C_ if we have the blinding factor r
-        //    During minting: C = C_ + r*B_  so C_ = C - r*B_
-        let C_Point = CPoint;
-        if (dleq.r) {
-          const rScalar = BigInt('0x' + dleq.r);
-          const rB_ = B_Point.multiply(rScalar);
-          C_Point = CPoint.subtract(rB_);
-        }
-
-        // 6. Mint public key point A
-        const APoint = secp256k1.Point.fromHex(mintPubkeyHex);
-
-        // 7. Verify the DLEQ equation:
-        //    R1 = s*G - e*A
-        //    R2 = s*B_ - e*C_
-        //    e' = sha256(R1 || R2 || A || B_)  →  must equal stored e
-        const eScalar = BigInt('0x' + dleq.e);
-        const sScalar = BigInt('0x' + dleq.s);
-        const G = secp256k1.Point.BASE;
-
-        const R1 = G.multiply(sScalar).subtract(APoint.multiply(eScalar));
-        const R2 = B_Point.multiply(sScalar).subtract(C_Point.multiply(eScalar));
-
-        const hashInput = new Uint8Array([
-          ...R1.toBytes(true),
-          ...R2.toBytes(true),
-          ...APoint.toBytes(true),
-          ...B_Point.toBytes(true),
-        ]);
-        const computedE = Buffer.from(sha256(hashInput)).toString('hex');
-
-        const valid = computedE.toLowerCase() === dleq.e.toLowerCase();
-        results.push({ secret, amount, valid, reason: valid ? undefined : 'DLEQ hash mismatch' });
-      } catch (err: any) {
-        results.push({
-          secret,
-          amount,
-          valid: false,
-          reason: err.message || 'Unexpected error during DLEQ verification',
-        });
+        const valid = hasValidDleq(proof, { id: proof.id, keys: { [String(amount)]: mintPubkey } });
+        results.push(
+          result(valid ? 'verified' : 'invalid', valid ? undefined : 'DLEQ verification failed'),
+        );
+      } catch {
+        // Do not expose library errors, which may contain raw proof or key data.
+        results.push(result('invalid', 'DLEQ verification failed'));
       }
     }
 

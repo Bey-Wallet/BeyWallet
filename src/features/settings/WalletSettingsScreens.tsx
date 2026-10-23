@@ -219,10 +219,18 @@ export function VerifyProofsSettingsScreen() {
             const results = await proofService.verifyDleqProofs(mintUrl);
             if (!results.length)
               return 'No DLEQ data is available for these proofs. This is normal for older proofs or mints that do not provide it.';
-            const validCount = results.filter((result) => result.valid).length;
-            return validCount === results.length
-              ? `All ${validCount} proofs verified successfully.`
-              : `${validCount}/${results.length} proofs verified. Verification failed for some proofs. Contact the mint operator before taking further action.`;
+            const verified = results.filter((result) => result.status === 'verified').length;
+            const invalid = results.filter((result) => result.status === 'invalid').length;
+            const unverifiable = results.filter(
+              (result) => result.status === 'unverifiable',
+            ).length;
+            return `${results.length} proofs with DLEQ: ${verified} verified, ${invalid} invalid, ${unverifiable} unverifiable.${
+              invalid ? ' Verification failed for invalid proofs.' : ''
+            }${
+              unverifiable
+                ? ' Unverifiable proofs need complete DLEQ data and usable cached keys.'
+                : ''
+            }`;
           })
         }
       >

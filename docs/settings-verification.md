@@ -64,6 +64,15 @@ backup/receiving behavior. The Android development bundle was compiled through M
 
 Use a disposable test wallet for operations that spend, restore, or delete wallet data.
 
+- With existing ready proofs and cached mint keys, enable airplane mode and open
+  Wallet tools → Verify proofs offline. Confirm the action remains available and
+  shows separate verified, invalid, and unverifiable counts for proofs with DLEQ.
+  Historical inactive keysets should still verify when their exact keys are cached.
+  Missing DLEQ fields or cached keys must never count as verified. Proofs without
+  DLEQ are excluded, and an empty result explains that no DLEQ data is available.
+  Confirm balances and proof states stay unchanged. Record aggregate counts only;
+  do not export, screenshot, or log proof secrets, tokens, or raw cryptographic data.
+  This signature check does not establish whether proofs are unspent.
 - Review payment confirmation, ecash/Lightning/on-chain pending screens, requests, final results,
   and transaction details in light/dark mode, narrow screens, and large accessibility text.
   Confirm 32/14-point amounts on pending screens and 40/16 on confirmation/final results/details;
