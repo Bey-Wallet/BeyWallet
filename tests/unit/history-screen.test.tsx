@@ -33,7 +33,7 @@ const mockRouter = { push: mockPush };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(['YStack', 'XStack', 'Text'].map((name) => [name, name])),
-  useTheme: () => ({ color: { val: '#ffffff' } }),
+  useTheme: () => ({ color: { val: '#ffffff' }, orange10: { val: '#F5A73B' } }),
 }));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(

@@ -60,10 +60,10 @@ export const HistorySkeletonItem: React.FC<HistorySkeletonItemProps> = ({
   index = 0,
 }) => {
   return (
-    <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden" mb={6}>
+    <YStack bg="transparent" rounded="$6" overflow="hidden" mb={6}>
       <View style={styles.row}>
         {/* Leading icon */}
-        <ShimmerRect width={36} height={36} borderRadius={18} progress={progress} />
+        <ShimmerRect width={44} height={44} borderRadius={22} progress={progress} />
 
         {/* Title and time */}
         <View style={styles.middle}>
@@ -141,8 +141,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 64,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
     gap: 12,
     backgroundColor: 'transparent',
   },

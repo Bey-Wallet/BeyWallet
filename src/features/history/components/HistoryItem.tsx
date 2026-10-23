@@ -139,51 +139,55 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
 
   return (
     <YStack
-      bg="$buttonDefaultSecondary"
+      bg="transparent"
       rounded="$6"
       overflow="hidden"
       mb={position === 'first' || position === 'middle' ? 6 : 0}
     >
-      <XStack items="center" minHeight={64} pr={pending ? 12 : 0}>
+      <XStack items="center" minHeight={64}>
         <AppPressable
           flex={1}
           minWidth={0}
           minHeight={64}
-          pl={12}
-          pr={pending ? 4 : 12}
-          py={10}
+          pl={0}
+          pr={pending ? 8 : 0}
+          py={8}
           flexDirection="row"
           items="center"
           gap={12}
           bg="transparent"
-          hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-          pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+          hoverStyle={{ opacity: 0.9 }}
+          pressStyle={{ opacity: 0.8 }}
           accessibilityLabel={`${label}, ${value}${statusLabel ? `, ${statusLabel}` : ''}. Open details`}
           onPress={() => {
             Haptics.selectionAsync();
             onPress(entry.id, entry.type);
           }}
         >
-          <XStack width={36} height={36} rounded={100} bg="$gray3" items="center" justify="center">
-            <Icon size={20} strokeWidth={2.5} color="$gray10" />
+          <XStack width={44} height={44} rounded={100} bg="$gray3" items="center" justify="center">
+            <Icon size={24} strokeWidth={2.5} color="$gray10" />
           </XStack>
           <YStack flex={1} minWidth={0} gap={2}>
-            <Text {...appTypography.label2} color="$color" numberOfLines={1}>
+            <Text {...appTypography.label1} color="$color" numberOfLines={1}>
               {title}
             </Text>
-            <Text {...appTypography.body3} color={failed ? '$red10' : '$gray10'} numberOfLines={1}>
+            <Text
+              {...appTypography.body3}
+              color={failed ? '$red10' : pending ? '$orange10' : '$gray10'}
+              numberOfLines={1}
+            >
               {subtitle}
             </Text>
           </YStack>
           <YStack items="flex-end" flexShrink={1} maxWidth="45%" gap={2}>
             <Text
-              {...appTypography.label2}
+              {...appTypography.label1}
               fontWeight="600"
               color="$color"
               numberOfLines={1}
               style={{ fontVariant: ['tabular-nums'] }}
             >
-              {transfer || request ? '' : outgoing ? '−' : '+'}
+              {transfer || request ? '' : outgoing ? '− ' : '+ '}
               {value}
             </Text>
             <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
