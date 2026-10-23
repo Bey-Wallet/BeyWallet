@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
 import { ResultStage } from '~/features/payments/mint/ResultStage';
+import { formatPaymentDateTime } from '~/shared/utils/time';
 
 let mockPrimaryCurrency = 'SATS';
 const mockToastShow = jest.fn();
@@ -122,11 +123,7 @@ it.each(['SATS', 'FIAT'])(
         .map(({ props }) => [props.label, props.value, props.icon]),
     ).toEqual([
       ['Mint', 'My mint', undefined],
-      [
-        'Time',
-        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        undefined,
-      ],
+      ['Time', formatPaymentDateTime(Date.now()), undefined],
     ]);
     await act(async () => {
       payment.unmount();
@@ -139,7 +136,8 @@ it('copies the complete invoice and sizes the QR to the available space', async 
   const tree = await render(<PaymentStage {...paymentProps} />);
   await act(async () =>
     tree.root
-      .findByProps({ accessibilityLabel: 'Lightning invoice QR code' })
+      .findAllByProps({ accessibilityLabel: 'Lightning invoice QR code' })
+      .find((node) => typeof node.props.onLayout === 'function')!
       .props.onLayout({ nativeEvent: { layout: { width: 260 } } }),
   );
   expect(tree.root.findByType('QRCode' as any).props).toMatchObject({

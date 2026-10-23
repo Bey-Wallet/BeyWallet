@@ -25,7 +25,10 @@ jest.mock('~/shared/ui/PaymentQRFrame', () => ({
 }));
 jest.mock('~/shared/ui/PaymentQRCode', () => 'QRCode');
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
-jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'StatusIcon' }));
+jest.mock('~/shared/ui/PaymentStatusIcon', () => ({
+  ...jest.requireActual('~/shared/ui/PaymentStatusIcon'),
+  PaymentStatusIcon: 'StatusIcon',
+}));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
@@ -105,6 +108,8 @@ it('shows an outgoing pending receipt with status refresh, full address copy and
   expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('pending');
   const row = tree.root.findByProps({ label: 'Status' });
   expect(row.props.value).toBe('Pending');
+  expect(tree.root.findAllByType('Row' as any)[0].props.label).toBe('Status');
+  expect(row.props.valueColor).toBe('$orange10');
   await act(async () => row.props.rightContent.props.onPress());
   expect(props.onRefresh).toHaveBeenCalledTimes(1);
   const destination = tree.root.findByProps({ label: 'Destination' });

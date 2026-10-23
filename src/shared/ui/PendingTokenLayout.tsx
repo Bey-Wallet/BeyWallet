@@ -1,3 +1,4 @@
+import { formatPaymentDateTime } from '~/shared/utils/time';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
@@ -375,7 +376,13 @@ export function PendingTokenLayout({
                 )
               }
             </PaymentQRFrame>
-            <PaymentAmount amount={Number(amount)} compact />
+            <PaymentAmount
+              amount={Number(amount)}
+              size={
+                headerStatus === 'success' || headerStatus === 'failed' ? 'prominent' : 'standard'
+              }
+              compact
+            />
           </>
         }
         footer={
@@ -410,6 +417,13 @@ export function PendingTokenLayout({
         {(!hideDetails || currentToken.startsWith('http')) && (
           <ListTable compact>
             <PaymentStatusRow
+              status={
+                headerStatus === 'failed'
+                  ? 'error'
+                  : headerStatus === 'success'
+                    ? 'success'
+                    : 'pending'
+              }
               value={
                 headerStatus === 'success'
                   ? 'Claimed'
@@ -437,7 +451,7 @@ export function PendingTokenLayout({
                 onCopy={handleCopy}
               />
             )}
-            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+            <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
               {currentToken.startsWith('http') && (
                 <DetailRowItem
                   label="Web Link"
@@ -456,7 +470,7 @@ export function PendingTokenLayout({
                   {!!reclaimAt && (
                     <DetailRowItem
                       label="Reclaim eligible"
-                      value={new Date(reclaimAt).toLocaleString()}
+                      value={formatPaymentDateTime(reclaimAt)}
                     />
                   )}
                   {!!expiresAt && (

@@ -30,10 +30,11 @@ and error retain their semantic colors. Neutral cards use the base surface; bran
 buttons use their own fill, avoiding gray backgrounds on large payment cards.
 
 Bey Funnel Display 400/500/600 is active. The 700 asset stays unregistered. Common text sizes
-use 10/12/14/16 for captions and body text, 20/24/32 for headings, 32 for result/detail amounts,
-and 40 for balances and larger confirmation amounts. Result/detail conversion text uses 14.
+use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
+primary text and 14-point secondary conversion text. Confirmation screens, final results, and
+transaction details use 40-point primary amounts and 16-point secondary conversions.
 Body text uses 400, labels use 500, and headings use 600. Explicit larger amount-input and
-screen-specific type sizes remain supported. Button labels use the named label styles.
+screen-specific amount-entry sizes remain supported. Button labels use SemiBold (600).
 
 Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Grouped
 cards retain 16-point outer corners and clipped rows; circular controls remain circular.
@@ -44,10 +45,26 @@ Explicit regular-size tables can use 16-point text and a 56-point minimum. The t
 plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Bey Funnel Display is the bundled family. Existing balance and amount size choices are
-preserved, including the smaller result/detail amounts. Navigation behavior, wallet operations
+Bey Funnel Display is the bundled family. Home balances and editable amount inputs retain their
+existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
+`compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
+Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
 component gallery or alternate root provider is required.
+
+Existing payment Status rows go first in their detail lists, before Mint, Date, fees, or token
+details. Completed success/failure screens retain the status above the amount without an extra
+Status row. Pending status values use `$orange10`; specific states such as Unclaimed and
+Unresolved retain their meaning. Detail rows stay compact and centered,
+with full-width 2-point separators and clipped group corners.
+
+Payment details and receipts use `formatPaymentDateTime` in the device-local timezone:
+`Oct 24, 2026 8:33 PM` for a 12-hour device, or `Oct 24, 2026 20:33` for a 24-hour device.
+Use abbreviated English months and no seconds. Follow the device clock preference: uppercase
+AM/PM without a leading hour zero for 12-hour clocks, and two-digit hours (`00`–`23`) with no
+AM/PM for 24-hour clocks. History rows use short relative times (`just now`, `5m`, `2h`, `1d`), with a
+short date for items at least a week old. Date-only History headings and expiry countdowns
+retain their purpose; chat timestamps and unrelated Settings dates are unchanged.
 
 Large payment-entry cards use the base surface (`$gray2`), with raised gray reserved for
 smaller inset controls. Error surfaces retain their semantic red treatment.

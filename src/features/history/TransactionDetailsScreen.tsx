@@ -26,7 +26,7 @@ import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { Buffer } from 'buffer';
-import { formatFullLocalTime } from '~/shared/utils/time';
+import { formatPaymentDateTime } from '~/shared/utils/time';
 import {
   historyService,
   initService,
@@ -928,7 +928,7 @@ export function TransactionDetailsScreen() {
               <Text fontSize={16} fontWeight="500" color="$color" textAlign="center">
                 {statusLabel}
               </Text>
-              <PaymentAmount amount={displayedAmount} compact />
+              <PaymentAmount amount={displayedAmount} size="prominent" compact />
               {receivingFeeNotice && (
                 <XStack p="$2" bg="$gray3" rounded="$6">
                   <Text accessibilityRole="alert" fontSize={13} color="$gray10" textAlign="center">
@@ -940,12 +940,12 @@ export function TransactionDetailsScreen() {
 
             {/* Details table */}
             <ListTable compact bg="$gray2" rounded="$6" overflow="hidden">
-              <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
-                <DetailItem label="Date" value={formatFullLocalTime(entry.createdAt)} />
+              <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
+                <DetailItem label="Date" value={formatPaymentDateTime(entry.createdAt)} />
                 {metadata?.reclaimAt && (
                   <DetailItem
                     label="Reclaim eligible"
-                    value={formatFullLocalTime(Number(metadata.reclaimAt))}
+                    value={formatPaymentDateTime(Number(metadata.reclaimAt))}
                   />
                 )}
                 <DetailItem

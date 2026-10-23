@@ -1,5 +1,6 @@
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { formatPaymentDateTime } from '~/shared/utils/time';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
@@ -159,7 +160,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             <StateIcon size={40} color={iconColor} />
           </View>
         )}
-        {state.amount !== undefined && <PaymentAmount amount={state.amount} />}
+        {state.amount !== undefined && (
+          <PaymentAmount
+            amount={state.amount}
+            compact
+            size={
+              state.status === 'confirmed' || state.status === 'error' ? 'prominent' : 'standard'
+            }
+          />
+        )}
         <Text color="$color11" textAlign="center">
           {state.message}
         </Text>
@@ -168,7 +177,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             <ListTable width="100%">
               <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
               {state.eventTime && (
-                <ListTableRow label="Time" value={new Date(state.eventTime).toLocaleString()} />
+                <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
               )}
               {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
                 <ListTableRow label="Fee" value={`${state.fees} sat`} />

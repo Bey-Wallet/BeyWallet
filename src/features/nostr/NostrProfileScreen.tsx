@@ -191,7 +191,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   <Copy size={16} color="$gray10" />
                 )}
               </XStack>
-              <Text fontSize={16} fontWeight="500" lineHeight={24} color="$color" text="center">
+              <Text fontSize={14} fontWeight="500" lineHeight={24} color="$color" text="center">
                 {npub}
               </Text>
             </AppPressable>

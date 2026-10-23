@@ -3,12 +3,36 @@
  * Adapted to match Sovran's Intl.DateTimeFormat implementation
  */
 
+import { getCalendars } from 'expo-localization';
+
 function normalizeToMs(ts: number): number {
   return ts > 1e11 ? ts : ts * 1000;
 }
 
 function normalizeToSeconds(ts: number): number {
   return ts > 1e11 ? Math.floor(ts / 1000) : ts;
+}
+
+/** Absolute payment timestamps using the device's local timezone and clock preference. */
+export function formatPaymentDateTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return 'Unknown date';
+  const date = new Date(normalizeToMs(timestamp));
+  if (!Number.isFinite(date.getTime())) return 'Unknown date';
+  const uses24hourClock =
+    getCalendars()[0]?.uses24hourClock ??
+    !(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12 ?? true);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: uses24hourClock ? '2-digit' : 'numeric',
+    minute: '2-digit',
+    hourCycle: uses24hourClock ? 'h23' : 'h12',
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  const period = part('dayPeriod');
+  return `${part('month')} ${part('day')}, ${part('year')} ${part('hour')}:${part('minute')}${period ? ` ${period.toUpperCase()}` : ''}`;
 }
 
 /**

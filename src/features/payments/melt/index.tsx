@@ -497,7 +497,7 @@ export default function MeltScreen() {
           />
           <PaymentStageLayout
             disabled={isPaying || isAuthenticating}
-            hero={<PaymentAmount amount={quoteAmount} label="You're paying" />}
+            hero={<PaymentAmount amount={quoteAmount} size="prominent" label="You're paying" />}
             footer={
               <AppButton
                 variant="branded"

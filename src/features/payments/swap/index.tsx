@@ -198,7 +198,9 @@ export default function SwapScreen() {
           />
           <PaymentStageLayout
             disabled={isProcessing}
-            hero={<PaymentAmount amount={Number(amount)} label="You're transferring" />}
+            hero={
+              <PaymentAmount amount={Number(amount)} size="prominent" label="You're transferring" />
+            }
             footer={
               <AppButton
                 size="large"

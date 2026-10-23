@@ -201,7 +201,7 @@ export function ConfirmStage({
       />
       <PaymentStageLayout
         disabled={isLoading || isSavingLater}
-        hero={<PaymentAmount amount={tokenInfo.amount} label="You're receiving" />}
+        hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" label="You're receiving" />}
         footer={
           <AppButton
             variant="branded"

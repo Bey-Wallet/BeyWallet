@@ -33,10 +33,14 @@ export function PaymentAmount({
   amount,
   label,
   compact = false,
+  size = 'standard',
+  testID,
 }: {
   amount: number;
   label?: string;
   compact?: boolean;
+  size?: 'standard' | 'prominent';
+  testID?: string;
 }) {
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const { data, isFetching } = useQuery({
@@ -52,8 +56,8 @@ export function PaymentAmount({
     showBitcoinSymbol,
     data?.price,
   );
-  const amountStyle = compact ? appTypography.amount : appTypography.display;
-  const conversionStyle = compact ? appTypography.body2 : appTypography.body1;
+  const amountStyle = size === 'prominent' ? appTypography.display : appTypography.amount;
+  const conversionStyle = size === 'prominent' ? appTypography.body1 : appTypography.body2;
   return (
     <YStack
       gap={compact ? '$2' : '$3'}
@@ -68,6 +72,7 @@ export function PaymentAmount({
         </Text>
       )}
       <Text
+        testID={testID ? `${testID}-primary-amount` : undefined}
         {...amountStyle}
         color="$color"
         textAlign="center"
@@ -80,7 +85,12 @@ export function PaymentAmount({
           amountStyle.fontSize,
         )}
       </Text>
-      <Text {...conversionStyle} color="$gray10" textAlign="center">
+      <Text
+        testID={testID ? `${testID}-secondary-amount` : undefined}
+        {...conversionStyle}
+        color="$gray10"
+        textAlign="center"
+      >
         {amountLabel(
           values.secondary
             ? `≈ ${values.secondary}`

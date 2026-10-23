@@ -64,6 +64,19 @@ backup/receiving behavior. The Android development bundle was compiled through M
 
 Use a disposable test wallet for operations that spend, restore, or delete wallet data.
 
+- Review payment confirmation, ecash/Lightning/on-chain pending screens, requests, final results,
+  and transaction details in light/dark mode, narrow screens, and large accessibility text.
+  Confirm 32/14-point amounts on pending screens and 40/16 on confirmation/final results/details;
+  check long amounts, currency glyphs, QR sizing, and reachable footer controls.
+- Confirm existing Status rows appear once and first in pending payment detail lists, with no
+  extra Status rows on completed success/failure screens. Check
+  pending orange, failure red, status refresh/loading, claim/reclaim, and copy/share actions.
+- Verify payment detail and receipt timestamps use the device's local timezone and clock setting:
+  `Oct 24, 2026 8:33 PM` for 12-hour or `Oct 24, 2026 20:33` for 24-hour. Switch clock settings,
+  reopen details, and check midnight/noon (`12:00 AM`/`12:00 PM` or `00:00`/`12:00`).
+  History rows use short relative times and older short dates.
+  Countdown formats and chat dates stay unchanged.
+
 - Open Settings from Home, History, and People. Check that the tab bar disappears;
   the root back button and Android back return to the correct tab. Open nested
   screens and a direct Settings link; confirm back navigation and centered titles.

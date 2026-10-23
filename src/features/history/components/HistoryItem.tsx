@@ -1,3 +1,4 @@
+import { formatRelativeTime } from '~/shared/utils/time';
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack } from 'tamagui';
 import {
@@ -108,16 +109,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
         ? 'Lightning'
         : 'Ecash';
   const subtitle = [paymentType, statusLabel].filter(Boolean).join(' · ');
-  const date = new Date(historyTimestamp(entry.createdAt));
-  const when =
-    date.toDateString() === new Date().toDateString()
-      ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-      : date.toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+  const when = formatRelativeTime(historyTimestamp(entry.createdAt));
 
   const handleCheck = async () => {
     if (checking.current) return;
@@ -190,7 +182,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               {transfer || request ? '' : outgoing ? '− ' : '+ '}
               {value}
             </Text>
-            <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
+            <Text {...appTypography.body3} color="$gray10" numberOfLines={1} textAlign="right">
               {when}
             </Text>
           </YStack>

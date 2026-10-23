@@ -48,6 +48,7 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('tamagui', () => ({ YStack: 'YStack' }));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 jest.mock('~/features/payments/receive/InputStage', () => ({ InputStage: 'InputStage' }));
 jest.mock('~/features/payments/receive/ConfirmStage', () => ({ ConfirmStage: 'ConfirmStage' }));
 jest.mock('~/features/payments/receive/ReceiveResultStage', () => ({

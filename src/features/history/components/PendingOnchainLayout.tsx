@@ -82,12 +82,13 @@ export function PendingOnchainLayout({
         }
       >
         <ListTable compact>
-          <ListTableRow label="Mint" value={mint} />
           <PaymentStatusRow
+            status="pending"
             value={deposit ? (amount > 0 ? 'Payment detected' : 'Awaiting payment') : 'Pending'}
             checking={checking}
             onRefresh={onRefresh}
           />
+          <ListTableRow label="Mint" value={mint} />
           <ListTableRow
             label="Network"
             value={onchainNetworkDisplay(onchainNetwork(destination))}

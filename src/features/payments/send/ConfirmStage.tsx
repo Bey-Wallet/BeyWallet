@@ -53,7 +53,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
       <PaymentFlowHeader title="Confirm send" onBack={onBack} disabled={isLoading} />
       <PaymentStageLayout
         disabled={isLoading}
-        hero={<PaymentAmount amount={Number(amount)} label="You're sending" />}
+        hero={<PaymentAmount amount={Number(amount)} size="prominent" label="You're sending" />}
         footer={
           <AppButton
             size="large"

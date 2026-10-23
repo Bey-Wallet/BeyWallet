@@ -521,6 +521,22 @@ export function RequestEcashStage({
           </Text>
         )}
         <ListTable compact>
+          {creqString && (
+            <PaymentStatusRow
+              status={
+                requestState === 'cancelled' || requestState === 'expired' ? 'cancelled' : 'pending'
+              }
+              value={
+                nfcIncoming.status === 'receiving'
+                  ? 'Receiving NFC payment…'
+                  : reviewingCurrentNfcRequest
+                    ? 'Review NFC payment'
+                    : paymentStatus
+              }
+              onRefresh={handleCheckStatus}
+              checking={isChecking}
+            />
+          )}
           <RequestAmountEditor
             amount={amtNum}
             disabled={editDisabled}
@@ -545,19 +561,6 @@ export function RequestEcashStage({
               else setNote(value);
             }}
           />
-          {creqString && (
-            <PaymentStatusRow
-              value={
-                nfcIncoming.status === 'receiving'
-                  ? 'Receiving NFC payment…'
-                  : reviewingCurrentNfcRequest
-                    ? 'Review NFC payment'
-                    : paymentStatus
-              }
-              onRefresh={handleCheckStatus}
-              checking={isChecking}
-            />
-          )}
           {targetNpub ? (
             <ListTableRow
               label="Recipient"

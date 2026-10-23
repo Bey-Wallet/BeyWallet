@@ -1,9 +1,46 @@
-import { paymentAmounts } from '~/shared/ui/PaymentAmount';
+import React from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { PaymentAmount, paymentAmounts } from '~/shared/ui/PaymentAmount';
 
-jest.mock('~/state/settingsStore', () => ({ useSettingsStore: () => ({}) }));
+const mockSettings = {
+  primaryCurrency: 'SATS',
+  secondaryCurrency: 'USD',
+  showBitcoinSymbol: false,
+};
+
+jest.mock('~/state/settingsStore', () => ({ useSettingsStore: () => mockSettings }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
+jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: { price: 100000 } }) }));
+
+it.each([
+  ['standard', false, 32, 14],
+  ['standard', true, 32, 14],
+  ['prominent', false, 40, 16],
+  ['prominent', true, 40, 16],
+] as const)(
+  'uses %s amount sizing independently of compact=%s',
+  async (size, compact, primary, secondary) => {
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(
+        <PaymentAmount amount={123456789} size={size} compact={compact} testID="amount" />,
+      );
+    });
+    expect(tree.root.findByProps({ testID: 'amount-primary-amount' }).props).toMatchObject({
+      fontSize: primary,
+      fontWeight: '500',
+      color: '$color',
+      numberOfLines: 1,
+      adjustsFontSizeToFit: true,
+    });
+    expect(tree.root.findByProps({ testID: 'amount-secondary-amount' }).props).toMatchObject({
+      fontSize: secondary,
+      color: '$gray10',
+    });
+    await act(async () => tree.unmount());
+  },
+);
 
 it.each(['USD', 'EUR', 'INR'])(
   'respects primary currency and Bitcoin symbol for %s',

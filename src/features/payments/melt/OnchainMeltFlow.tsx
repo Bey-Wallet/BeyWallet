@@ -574,7 +574,7 @@ export function OnchainMeltFlow() {
         <PaymentFlowHeader title="Confirm payment" onBack={() => setStep('input')} />
         <PaymentStageLayout
           inset={false}
-          hero={<PaymentAmount amount={meltQuote.amount} label="You're paying" />}
+          hero={<PaymentAmount amount={meltQuote.amount} size="prominent" label="You're paying" />}
           footer={
             <AppButton
               size="large"
@@ -648,7 +648,7 @@ export function OnchainMeltFlow() {
 
           {/* Details List */}
           <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
-            <YGroup separator={<Separator borderColor="$borderColor" opacity={0.5} />}>
+            <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
               <PaymentMintRow
                 mintUrl={activeMintUrl || ''}
                 method="melt-onchain"

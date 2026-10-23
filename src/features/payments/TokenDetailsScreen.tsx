@@ -1,27 +1,15 @@
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  YStack,
-  XStack,
-  Text,
-  H2,
-  Separator,
-  View,
-  Popover,
-  ListItem,
-  Adapt,
-  Sheet,
-} from 'tamagui';
+import { YStack, XStack, Text, Separator, View, Popover, ListItem, Adapt, Sheet } from 'tamagui';
 import {
   Copy,
   Share,
   Zap,
   ArrowUpDown,
-  Landmark,
-  DollarSign,
-  Layout,
   MoreHorizontal,
   Link,
   Contact2,
@@ -456,79 +444,25 @@ export default function TokenDetailsModal() {
 
       {/* Amount Section */}
       <YStack items="center" gap="$0" py="$4">
-        <H2 fontWeight="400" text="center">
-          ₿{Number(amount).toLocaleString()}
-        </H2>
+        <PaymentAmount amount={Number(amount)} size="prominent" compact />
       </YStack>
 
-      {/* Details Table */}
-      <YStack gap="$4" px="$4">
-        <XStack justify="space-between" items="center">
-          <XStack gap="$3" items="center">
-            <View
-              width={20}
-              height={20}
-              borderWidth={1.5}
-              borderColor="$gray10"
-              rounded="$1"
-              justify="center"
-              items="center"
-            >
-              <Layout size={12} color="$gray10" />
-            </View>
-            <Text color="$gray10" fontSize="$4" fontWeight="500">
-              Unit
-            </Text>
-          </XStack>
-          <Text fontWeight="700" fontSize="$4">
-            SAT
-          </Text>
-        </XStack>
-
-        <XStack justify="space-between" items="center">
-          <XStack gap="$3" items="center">
-            <View
-              width={20}
-              height={20}
-              borderWidth={1.5}
-              borderColor="$gray10"
-              rounded="$1"
-              justify="center"
-              items="center"
-            >
-              <DollarSign size={14} color="$gray10" />
-            </View>
-            <Text color="$gray10" fontSize="$4" fontWeight="500">
-              Fiat
-            </Text>
-          </XStack>
-          <Text fontWeight="700" fontSize="$4">
-            {btcData?.price
-              ? currencyService.formatValue(
-                  currencyService.convertSatsToCurrency(Number(amount), btcData.price),
-                  secondaryCurrency as CurrencyCode,
-                )
-              : '$0.00'}
-          </Text>
-        </XStack>
-
-        <XStack justify="space-between" items="center">
-          <XStack gap="$3" items="center">
-            <Landmark size={18} opacity={0.7} />
-            <Text color="$gray10" fontSize="$4" fontWeight="500">
-              Mint
-            </Text>
-          </XStack>
-          <Text
-            fontWeight="700"
-            fontSize="$4"
-            opacity={0.9}
-            numberOfLines={1}
-            style={{ maxWidth: 200, textAlign: 'right' }}
-          >
-            {mintUrl ? getMintDisplayName(mintUrl) : 'Unknown'}
-          </Text>
-        </XStack>
+      <YStack px="$4">
+        <ListTable compact>
+          <ListTableRow label="Unit" value="SAT" />
+          <ListTableRow
+            label="Fiat"
+            value={
+              btcData?.price
+                ? currencyService.formatValue(
+                    currencyService.convertSatsToCurrency(Number(amount), btcData.price),
+                    secondaryCurrency as CurrencyCode,
+                  )
+                : '$0.00'
+            }
+          />
+          <ListTableRow label="Mint" value={mintUrl ? getMintDisplayName(mintUrl) : 'Unknown'} />
+        </ListTable>
       </YStack>
 
       {/* Action Buttons */}

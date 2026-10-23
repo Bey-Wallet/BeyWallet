@@ -9,6 +9,8 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useWalletStore } from '~/state/walletStore';
 import { currencyService } from '~/services/wallet/currencyService';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
+import { formatPaymentDateTime } from '~/shared/utils/time';
 
 export function PaymentReceipt({
   title,
@@ -16,6 +18,10 @@ export function PaymentReceipt({
   mintUrl,
   completed,
   status,
+  statusLabel,
+  onCheckStatus,
+  isCheckingStatus,
+  amountTestID,
   inset,
   actionLabel = 'Done',
   actionEmphasis = 'secondary',
@@ -34,6 +40,10 @@ export function PaymentReceipt({
   actionLabel?: string;
   actionEmphasis?: 'primary' | 'secondary';
   status?: 'success' | 'error' | 'pending' | 'cancelled';
+  statusLabel?: string;
+  onCheckStatus?: () => void | Promise<void>;
+  isCheckingStatus?: boolean;
+  amountTestID?: string;
   time?: number;
   fee?: number;
   error?: string | null;
@@ -61,7 +71,12 @@ export function PaymentReceipt({
           >
             {title}
           </Text>
-          <PaymentAmount amount={amount} compact />
+          <PaymentAmount
+            amount={amount}
+            size={receiptStatus === 'pending' ? 'standard' : 'prominent'}
+            compact
+            testID={amountTestID}
+          />
           {!!error && (
             <>
               <AppButton
@@ -95,6 +110,14 @@ export function PaymentReceipt({
     >
       <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
       <ListTable compact>
+        {receiptStatus === 'pending' && onCheckStatus && (
+          <PaymentStatusRow
+            status="pending"
+            value={statusLabel ?? 'Pending'}
+            onRefresh={onCheckStatus}
+            checking={isCheckingStatus}
+          />
+        )}
         {mintUrl && (
           <ListTableRow
             label="Mint"
@@ -103,7 +126,7 @@ export function PaymentReceipt({
             }
           />
         )}
-        {time != null && <ListTableRow label="Time" value={new Date(time).toLocaleString()} />}
+        {time != null && <ListTableRow label="Time" value={formatPaymentDateTime(time)} />}
         {completed && fee != null && Number.isFinite(fee) && fee > 0 && (
           <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
         )}

@@ -20,6 +20,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => ({
     color8: { val: 'gray' },
     color2: { val: 'black' },
+    sheetBackground: { val: 'black' },
     overlayLight: { val: '#0F0F0F7A' },
   }),
 }));

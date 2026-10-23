@@ -283,6 +283,7 @@ export function PaymentRequestStage({
             {hasOperation && <PaymentStatusIcon status="pending" />}
             <PaymentAmount
               amount={request.amount}
+              size={hasOperation ? 'standard' : 'prominent'}
               label={hasOperation ? 'Payment pending' : "You're paying"}
             />
           </>
@@ -349,6 +350,15 @@ export function PaymentRequestStage({
           <Text color="$gray10">Payment pending. Do not pay this request again.</Text>
         )}
         <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+          {(receipt || hasOperation) && (
+            <PaymentStatusRow
+              status="pending"
+              value={receipt === 'awaiting' ? 'Awaiting recipient' : 'Unconfirmed'}
+              checking={isRefreshingReceipt}
+              disabled={isSending}
+              onRefresh={() => refreshReceipt(true)}
+            />
+          )}
           {request.delivery === 'nip17' && !autoPay && (
             <ListTableRow
               label="Exact amount for legacy wallets"
@@ -368,15 +378,7 @@ export function PaymentRequestStage({
               }
             />
           )}
-          {(receipt || hasOperation) && (
-            <PaymentStatusRow
-              value={receipt === 'awaiting' ? 'Awaiting recipient' : 'Unconfirmed'}
-              checking={isRefreshingReceipt}
-              disabled={isSending}
-              onRefresh={() => refreshReceipt(true)}
-            />
-          )}
-          <YStack separator={<Separator borderColor="$borderColor" opacity={0.4} />}>
+          <YStack separator={<YStack height={2} width="100%" bg="$background" />}>
             {cost && (
               <DetailItem label="Total debit (including fees)" value={`${cost.totalDebit} sat`} />
             )}

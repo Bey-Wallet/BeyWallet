@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from '@tamagui/lucide-icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { ListTableRow } from '~/shared/ui/ListTable';
+import { paymentStatusColors, type PaymentStatus } from '~/shared/ui/PaymentStatusIcon';
 
 /** Refreshes the owning flow without inferring payment completion. */
 export function PaymentStatusRow({
@@ -10,12 +11,14 @@ export function PaymentStatusRow({
   checking = false,
   disabled = false,
   valueColor,
+  status,
 }: {
   value: string;
   onRefresh?: () => void | Promise<void>;
   checking?: boolean;
   disabled?: boolean;
   valueColor?: string;
+  status?: PaymentStatus;
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -33,7 +36,9 @@ export function PaymentStatusRow({
     <ListTableRow
       label="Status"
       value={busy ? 'Checking…' : failed ? 'Unverified' : value}
-      valueColor={failed ? '$gray10' : valueColor}
+      valueColor={
+        failed ? '$gray10' : (valueColor ?? (status ? paymentStatusColors[status] : undefined))
+      }
       rightContent={
         onRefresh && (
           <AppIconButton

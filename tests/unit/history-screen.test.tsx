@@ -139,6 +139,9 @@ const transactionButtons = () =>
   );
 
 it('renders real rows, opens details and toggles quick filters back to all activity', () => {
+  expect(
+    screen.root.findAllByType('Text' as any).some((node) => node.props.children === 'just now'),
+  ).toBe(true);
   expect(transactionButtons()).toHaveLength(2);
   act(() => transactionButtons()[0].props.onPress());
   expect(mockPush).toHaveBeenCalledWith({

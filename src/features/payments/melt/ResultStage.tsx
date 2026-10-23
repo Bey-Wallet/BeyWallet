@@ -1,6 +1,5 @@
 import React from 'react';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
-import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 export function MeltResultStage({
   status,
   amount,
@@ -38,15 +37,10 @@ export function MeltResultStage({
       time={time}
       fee={feeSats}
       completed={status === 'success'}
+      statusLabel={status === 'unresolved' ? 'Unresolved' : undefined}
+      onCheckStatus={status === 'pending' || status === 'unresolved' ? onRefresh : undefined}
       error={error}
       onClose={onClose}
-    >
-      {(status === 'pending' || status === 'unresolved') && onRefresh && (
-        <PaymentStatusRow
-          value={status === 'unresolved' ? 'Unresolved' : 'Pending'}
-          onRefresh={onRefresh}
-        />
-      )}
-    </PaymentReceipt>
+    />
   );
 }
