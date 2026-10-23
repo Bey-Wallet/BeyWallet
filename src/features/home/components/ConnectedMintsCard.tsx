@@ -14,6 +14,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
+import { appTypography } from '~/shared/theme/appearance';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -162,8 +163,7 @@ const MintRowItem = React.memo(
           <YStack gap="$0.5" flex={1} theme="gray">
             <XStack items="center" gap="$1.5" flexWrap="wrap">
               <Text
-                fontSize="$5"
-                fontWeight="500"
+                {...appTypography.label1}
                 color="$color"
                 numberOfLines={1}
                 style={{ maxWidth: 140 }}
@@ -178,8 +178,8 @@ const MintRowItem = React.memo(
         <XStack items="center" gap="$1.5" pr="$2" theme="gray">
           <YStack items="flex-end" justify="center">
             <RollingNumber
-              fontSize={16}
-              fontWeight="500"
+              fontSize={appTypography.label1.fontSize}
+              fontWeight="600"
               color="$color"
               decimalOpacity={0.4}
               showDecimals={!displayAsSats}
@@ -240,12 +240,12 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
           <XStack items="center" gap="$1.5" flexWrap="wrap">
-            <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1} flexShrink={1}>
+            <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
               {mint.name}
             </Text>
             <MintPaymentBadges metadata={metadata} />
           </XStack>
-          <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+          <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
             {hostname}
           </Text>
         </YStack>
@@ -314,7 +314,7 @@ export const ConnectedMintsCard = () => {
     <>
       <YStack width="100%" gap="$3" p="$0" rounded="$6">
         <XStack items="center" my="$-2" justify="space-between">
-          <H6 fontWeight="800" fontSize="$4" color="$color10">
+          <H6 {...appTypography.label2} fontWeight="600" color="$color">
             Mints
           </H6>
           <AppIconButton
