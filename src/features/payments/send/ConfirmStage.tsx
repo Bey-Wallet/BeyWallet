@@ -92,15 +92,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
           />
           <ListTableRow
             label="Method"
-            value={
-              sendMode === 'nostr'
-                ? 'Nostr'
-                : sendMode === 'p2pk'
-                  ? 'P2PK'
-                  : sendMode === 'link'
-                    ? 'Ecash link'
-                    : 'Ecash'
-            }
+            value={sendMode === 'nostr' ? 'Nostr' : sendMode === 'p2pk' ? 'P2PK' : 'Ecash'}
           />
           <ListTableRow
             label="Creation fee"

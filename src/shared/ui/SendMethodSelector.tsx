@@ -1,13 +1,13 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useState } from 'react';
 import { Text, YStack, XStack, ListItem, View, Square } from 'tamagui';
-import { ChevronDown, Send, Lock, Zap, ScanLine, Check, Link } from '@tamagui/lucide-icons';
+import { ChevronDown, Send, Lock, Zap, ScanLine, Check } from '@tamagui/lucide-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';
 
-export type SendMode = 'standard' | 'link' | 'p2pk' | 'nostr' | 'scan';
+export type SendMode = 'standard' | 'p2pk' | 'nostr' | 'scan';
 
 interface SendMethodSelectorProps {
   mode: SendMode;
@@ -27,12 +27,6 @@ const SEND_METHODS: {
     label: 'Standard',
     subtitle: 'Send a Cashu token to anyone',
     icon: <Send size={18} color="$color" />,
-  },
-  {
-    key: 'link',
-    label: 'eCash Link',
-    subtitle: 'Share encrypted link via Nostr',
-    icon: <Link size={18} color="$color" />,
   },
   {
     key: 'p2pk',
@@ -56,7 +50,6 @@ const SEND_METHODS: {
 
 const MODE_LABELS: Record<SendMode, string> = {
   standard: 'Standard',
-  link: 'eCash Link',
   p2pk: 'P2PK',
   nostr: 'Nostr',
   scan: 'Scan & Pay',
@@ -64,7 +57,6 @@ const MODE_LABELS: Record<SendMode, string> = {
 
 const MODE_ICONS: Record<SendMode, React.ReactNode> = {
   standard: <Send size={16} strokeWidth={3} color="$color" />,
-  link: <Link size={16} strokeWidth={3} color="$color" />,
   p2pk: <Lock size={16} strokeWidth={3} color="$color" />,
   nostr: <Zap size={16} strokeWidth={3} color="$color" />,
   scan: <ScanLine size={16} strokeWidth={3} color="$color" />,

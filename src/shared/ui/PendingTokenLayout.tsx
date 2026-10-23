@@ -9,24 +9,16 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
-import { YStack, XStack, Text, Separator, useTheme, YGroup } from 'tamagui';
-import { Copy, Share2, Check, Gauge, Nfc, Globe, X } from '@tamagui/lucide-icons';
-import { Buffer } from 'buffer';
+import { YStack, XStack, Text, YGroup } from 'tamagui';
+import { Copy, Share2, Check, Nfc, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import QRCode from '~/shared/ui/PaymentQRCode';
+import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
 import * as Clipboard from 'expo-clipboard';
 import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
-import * as Linking from 'expo-linking';
 
-import { Spinner } from '~/shared/ui/Spinner';
-
-import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { useSettingsStore } from '~/state/settingsStore';
-import { useQuery } from '@tanstack/react-query';
-import { bitcoinService } from '~/services/api/bitcoinService';
-import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
-import { cleanToken, decodeToken, encodeTokenV4, encodeTokenV3 } from '~/services/wallet';
+import { cleanToken, decodeToken } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import { useAuthStore } from '~/state/authStore';
@@ -84,23 +76,13 @@ export function PendingTokenLayout({
   extraDetails,
 }: PendingTokenLayoutProps) {
   const toast = useToastController();
-  const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
-  const theme = useTheme();
+  const npub = useSettingsStore((state) => state.npub);
   const { setLockDisabled } = useAuthStore();
 
   const [copied, setCopied] = useState(false);
-  const [currentToken, setCurrentToken] = useState<string>(token || '');
-  const [qrCodeFragment, setQrCodeFragment] = useState<string>(token || '');
-  const [showAnimatedQR, setShowAnimatedQR] = useState(true);
-  const [fragmentLength, setFragmentLength] = useState(150);
-  const [intervalMs, setIntervalMs] = useState(150);
-  const encoderRef = useRef<UREncoder | null>(null);
+  const currentToken = token || '';
   const shareSheetRef = useRef<AppBottomSheetRef>(null);
   const pendingNfc = useRef(false);
-  const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>(
-    token?.startsWith('cashuB') ? 'V4' : 'V3',
-  );
-
   const [timeLeftStr, setTimeLeftStr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -135,8 +117,6 @@ export function PendingTokenLayout({
 
   const [parsedNpub, setParsedNpub] = useState<string | null>(lockedToNpub || null);
 
-  const MAX_STATIC_QR_LENGTH = 1000;
-
   const handleNfcShare = () => {
     if (!currentToken) return;
     nfcFlow.openSend({
@@ -147,26 +127,6 @@ export function PendingTokenLayout({
       fees: fee,
     });
   };
-
-  const { data: btcData } = useQuery({
-    queryKey: ['bitcoinPrice', secondaryCurrency],
-    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-    staleTime: 30000,
-  });
-
-  const fiatValue = React.useMemo(() => {
-    if (!btcData?.price) return '...';
-    return currencyService.formatValue(
-      currencyService.convertSatsToCurrency(Number(amount), btcData.price),
-      secondaryCurrency as CurrencyCode,
-    );
-  }, [amount, btcData?.price, secondaryCurrency]);
-
-  useEffect(() => {
-    if (token && token !== currentToken) {
-      setCurrentToken(token);
-    }
-  }, [token]);
 
   useEffect(() => {
     if (!currentToken || currentToken.startsWith('http')) return;
@@ -194,38 +154,6 @@ export function PendingTokenLayout({
     }
   }, [currentToken, lockedToNpub]);
 
-  useEffect(() => {
-    if (!currentToken) return;
-
-    try {
-      if (currentToken.startsWith('http')) {
-        setQrCodeFragment(currentToken);
-        return;
-      }
-
-      const clean = cleanToken(currentToken);
-
-      if (showAnimatedQR) {
-        const ur = UR.fromBuffer(Buffer.from(clean));
-        encoderRef.current = new UREncoder(ur, fragmentLength, 0);
-        setQrCodeFragment(encoderRef.current.nextPart());
-      } else {
-        setQrCodeFragment(clean);
-      }
-    } catch (e) {
-      console.error('[PendingTokenLayout] Failed to setup QR:', e);
-      setQrCodeFragment(currentToken);
-    }
-  }, [currentToken, fragmentLength, showAnimatedQR]);
-
-  useEffect(() => {
-    if (!showAnimatedQR || !encoderRef.current) return;
-    const interval = setInterval(() => {
-      setQrCodeFragment(encoderRef.current!.nextPart());
-    }, intervalMs);
-    return () => clearInterval(interval);
-  }, [showAnimatedQR, intervalMs]);
-
   const handleCopy = async () => {
     if (currentToken) {
       await Clipboard.setStringAsync(currentToken);
@@ -242,78 +170,14 @@ export function PendingTokenLayout({
     try {
       setLockDisabled(true);
 
-      const shareMessage = currentToken.startsWith('http')
-        ? `Claim my ecash send of ${amount} sat:\n\n${currentToken}`
-        : `Claim my ecash send of ${amount} sat:\n\n${Linking.createURL('/(modals)/receive', { queryParams: { scannedToken: currentToken } })}`;
-
       await RNShare.share({
-        message: shareMessage,
+        message: `cashu:${cleanToken(currentToken)}`,
         title: 'Share Token',
       });
     } catch (error) {
       handleCopy();
     } finally {
       setTimeout(() => setLockDisabled(false), 1000);
-    }
-  };
-
-  const [isPublishing, setIsPublishing] = useState(false);
-
-  const handlePublishToWeb = async () => {
-    if (!currentToken || currentToken.startsWith('http')) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsPublishing(true);
-    try {
-      const secretKeyBytes = global.crypto.getRandomValues(new Uint8Array(32));
-      const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
-
-      const { buildEcashNostrEvent } = require('~/shared/utils/ecashSharing');
-      const { event } = buildEcashNostrEvent(cleanToken(currentToken), secretKeyHex);
-
-      const { SimplePool } = require('nostr-tools');
-      const { getNostrRelays } =
-        require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
-      const pool = new SimplePool();
-      const relays = getNostrRelays();
-      await Promise.any(pool.publish(relays, event));
-      pool.close(relays);
-
-      const websiteUrl = 'https://bey.cash/c/';
-      const shareLink = `${websiteUrl}#${secretKeyHex}`;
-
-      setCurrentToken(shareLink);
-      toast.show('Token published on bey.cash', { kind: 'success' });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      console.error('[PendingTokenLayout] Publish to web failed:', e);
-      toast.show('Publish Failed: ' + (e?.message || 'Could not publish to Nostr relays'), {
-        kind: 'error',
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const handleToggleVersion = () => {
-    if (!currentToken) return;
-    try {
-      const decoded = decodeToken(currentToken);
-      if (tokenVersion === 'V3') {
-        const encodedV4 = encodeTokenV4(decoded);
-        setCurrentToken(encodedV4);
-        setTokenVersion('V4');
-        toast.show('Switched to V4 (compact CBOR)', { kind: 'info' });
-      } else {
-        const encodedV3 = encodeTokenV3(decoded);
-        setCurrentToken(encodedV3);
-        setTokenVersion('V3');
-        toast.show('Switched to V3 (standard JSON)', { kind: 'info' });
-      }
-    } catch (e) {
-      console.error('[PendingTokenLayout] Failed to toggle version:', e);
-      toast.show('Cannot convert this token format', { kind: 'error' });
     }
   };
 
@@ -352,29 +216,7 @@ export function PendingTokenLayout({
               />
             )}
             <PaymentQRFrame accessibilityLabel="Ecash QR code">
-              {(size) =>
-                qrCodeFragment ? (
-                  qrCodeFragment.length > MAX_STATIC_QR_LENGTH ? (
-                    <YStack width={size} height={size} items="center" justify="center" gap="$3">
-                      <Gauge size={40} color="$orange10" />
-                      <Text color="$gray10" textAlign="center">
-                        Token too large. Enable animated QR or use V4 encoding.
-                      </Text>
-                    </YStack>
-                  ) : (
-                    <QRCode
-                      value={qrCodeFragment}
-                      size={size}
-                      backgroundColor="white"
-                      color="black"
-                    />
-                  )
-                ) : (
-                  <YStack width={size} height={size} items="center" justify="center">
-                    <Spinner size="large" />
-                  </YStack>
-                )
-              }
+              {(size) => <AnimatedTokenQRCode token={cleanToken(currentToken)} size={size} />}
             </PaymentQRFrame>
             <PaymentAmount
               amount={Number(amount)}
@@ -414,7 +256,7 @@ export function PendingTokenLayout({
           )
         }
       >
-        {(!hideDetails || currentToken.startsWith('http')) && (
+        {!hideDetails && (
           <ListTable compact>
             <PaymentStatusRow
               status={
@@ -438,32 +280,18 @@ export function PendingTokenLayout({
               disabled={isClaiming || isReclaiming}
               valueColor={headerStatus === 'failed' ? '$red10' : undefined}
             />
-            {!currentToken.startsWith('http') && (
-              <ListTableRow
-                label="Token"
-                value={
-                  currentToken.length > 24
-                    ? currentToken.slice(0, 12) + '…' + currentToken.slice(-8)
-                    : currentToken
-                }
-                isCopyable
-                copyValue={currentToken}
-                onCopy={handleCopy}
-              />
-            )}
+            <ListTableRow
+              label="Token"
+              value={
+                currentToken.length > 24
+                  ? currentToken.slice(0, 12) + '…' + currentToken.slice(-8)
+                  : currentToken
+              }
+              isCopyable
+              copyValue={currentToken}
+              onCopy={handleCopy}
+            />
             <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
-              {currentToken.startsWith('http') && (
-                <DetailRowItem
-                  label="Web Link"
-                  value={`${currentToken.slice(0, 20)}…${currentToken.slice(-8)}`}
-                  isCopyable
-                  onCopy={async () => {
-                    await Clipboard.setStringAsync(currentToken);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    toast.show('Web share link copied', { kind: 'success' });
-                  }}
-                />
-              )}
               {!hideDetails && (
                 <>
                   {displayFee > 0 && <DetailRowItem label="Mint Fee" value={`${displayFee} sat`} />}
@@ -571,40 +399,6 @@ export function PendingTokenLayout({
               <Nfc size={24} color="$color" />
               <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
                 NFC Send
-              </Text>
-            </XStack>
-
-            {/* Publish Web */}
-            <XStack
-              py="$3.5"
-              px="$2"
-              items="center"
-              gap="$4"
-              pressStyle={{ opacity: 0.6 }}
-              disabled={isPublishing}
-              onPress={() => {
-                shareSheetRef.current?.dismiss();
-                if (currentToken.startsWith('http')) {
-                  Clipboard.setStringAsync(currentToken);
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  toast.show('Web share link copied', { kind: 'success' });
-                } else {
-                  handlePublishToWeb();
-                }
-              }}
-            >
-              {isPublishing ? (
-                <Spinner size="small" />
-              ) : (
-                <Globe size={24} color={currentToken.startsWith('http') ? '$green10' : '$color'} />
-              )}
-              <Text
-                fontWeight="800"
-                fontSize={17}
-                color={currentToken.startsWith('http') ? '$green10' : '$color'}
-                flex={1}
-              >
-                {currentToken.startsWith('http') ? 'Copy Web Link' : 'Publish Web'}
               </Text>
             </XStack>
 

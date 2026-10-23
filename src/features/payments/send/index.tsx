@@ -134,7 +134,8 @@ export function SendModalScreen() {
       setNostrRecipientNpub(params.to as string);
       setNostrRecipientUsername(params.username ? String(params.username) : '');
     } else if (params.mode) {
-      setSendMode(params.mode as SendMode);
+      const mode = params.mode;
+      setSendMode(mode === 'p2pk' || mode === 'nostr' || mode === 'scan' ? mode : 'standard');
     }
   }, [params.mode, params.to, params.username, isOffline]);
 
@@ -440,30 +441,6 @@ export function SendModalScreen() {
         rawTokenRef.current = result.encoded;
         setEncodedToken(result.encoded);
         setOperationId(result.id);
-      } else if (sendMode === 'link') {
-        result = await executeReview();
-        rawTokenRef.current = result.token;
-
-        const secretKeyBytes = crypto.getRandomValues(new Uint8Array(32));
-        const secretKeyHex = Buffer.from(secretKeyBytes).toString('hex');
-        const { buildEcashNostrEvent } = require('~/shared/utils/ecashSharing');
-        const { event } = buildEcashNostrEvent(result.token, secretKeyHex);
-        const { SimplePool } = require('nostr-tools');
-        const { getNostrRelays } =
-          require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
-        const pool = new SimplePool();
-        const relays = getNostrRelays();
-        await Promise.any(pool.publish(relays, event));
-        pool.close(relays);
-
-        let websiteUrl = 'https://bey.cash/c/';
-        if (__DEV__) {
-          const hostUri = require('expo-constants').default.expoConfig?.hostUri || 'localhost:3000';
-          websiteUrl = `http://${hostUri.split(':')[0]}:3000/c/`;
-        }
-
-        setEncodedToken(`${websiteUrl}#${secretKeyHex}`);
-        setOperationId(result.id);
       } else {
         result = await executeReview();
         rawTokenRef.current = result.token;
@@ -488,7 +465,7 @@ export function SendModalScreen() {
         .tagHistoryVia(
           activeMintUrl,
           'send',
-          sendMode === 'link' ? 'ecash_link' : 'ecash_create',
+          'ecash_create',
           {
             fee: submittedReviewRef.current?.fee,
             ...(note.trim() ? { note: note.trim() } : {}),
@@ -729,7 +706,6 @@ export function SendModalScreen() {
     if (step === 'confirm') return 'Confirm Send';
     if (step === 'result') return status === 'success' ? 'Success' : 'Error';
     if (step === 'success') return 'Success';
-    if (sendMode === 'link') return 'Create eCash Link';
     if (sendMode === 'p2pk') return 'P2PK Send';
     if (sendMode === 'nostr') return 'Nostr Send';
     if (sendMode === 'scan') return 'Scan & Pay';
@@ -787,7 +763,7 @@ export function SendModalScreen() {
             );
             return null;
           })()}
-          {(sendMode === 'standard' || sendMode === 'link') && (
+          {sendMode === 'standard' && (
             <AmountStage
               mintUrl={activeMintUrl}
               onMintChange={setMintUrl}

@@ -15,7 +15,7 @@ const mockWallet = {
   ],
   refreshBalance: jest.fn(),
 };
-const mockParams = {};
+const mockParams: { mode?: string } = {};
 let mockOffline = false;
 let mockNetworkListener: (state: any) => void = () => {};
 const mockAvailableProofs = jest.fn();
@@ -103,10 +103,20 @@ async function open() {
 const confirm = (tree: ReactTestRenderer) => tree.root.findByType('ConfirmStage' as any).props;
 beforeEach(() => {
   jest.clearAllMocks();
+  delete mockParams.mode;
   mockOffline = false;
   mockAvailableProofs.mockResolvedValue([
     { amount: 20, secret: 'fixture', C: 'signature', id: 'keyset' },
   ]);
+});
+
+it('falls back to standard ecash for the removed link send mode', async () => {
+  mockParams.mode = 'link';
+  prepare.mockResolvedValue(review());
+  const tree = await open();
+  expect(confirm(tree).sendMode).toBe('standard');
+  expect(confirm(tree).ready).toBe(true);
+  await act(async () => tree.unmount());
 });
 
 it.each([false, true])(
