@@ -45,6 +45,7 @@ import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import { PendingMintInvoiceLayout } from '~/features/history/components/PendingMintInvoiceLayout';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePreventRemove } from '@react-navigation/native';
 import { useSettingsStore } from '~/state/settingsStore';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -268,6 +269,12 @@ export function TransactionDetailsScreen() {
   }, [mintQuote?.expiry, entry?.id, onchain]);
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const [isReclaiming, setIsReclaiming] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const claimLock = useRef(false);
+  usePreventRemove(isReclaiming || isClaiming, () => {});
+  const reclaimLock = useRef(false);
+  const refreshLock = useRef(false);
+  const refreshRevision = useRef(0);
   const [isCheckingPaid, setIsCheckingPaid] = useState(false);
 
   const status = (entry?.state || 'completed').trim().toLowerCase();
@@ -299,26 +306,27 @@ export function TransactionDetailsScreen() {
   const expiresAt = metadata?.expiresAt ? Number(metadata.expiresAt) : undefined;
 
   const handleReclaim = async () => {
-    if (!entry || !token || isReclaiming) return;
+    if (!entry || !token || reclaimLock.current || claimLock.current) return;
+    reclaimLock.current = true;
+    refreshRevision.current++;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsReclaiming(true);
     try {
       const result = await reclaimPayment(token.trim(), metadata);
-      if (result === 'claimed') {
-        await initService.getRepo().historyRepository.updateHistoryEntryState(entry.id, 'claimed');
-        await handleRefresh();
-        return;
-      }
-      toast.show('Funds reclaimed to your wallet', { kind: 'success' });
-
-      // Update state in DB
       const repo = initService.getRepo();
-      if (repo?.historyRepository) {
-        await (repo.historyRepository as any).updateHistoryEntryState(
-          entry.id,
-          metadata?.reclaimAt ? 'refunded' : 'expired',
-        );
-      }
+      const nextState =
+        result === 'claimed' ? 'claimed' : metadata?.reclaimAt ? 'refunded' : 'expired';
+      await repo.historyRepository.updateHistoryEntryState(entry.id, nextState);
+      // The mint operation and local write have finished. Update this screen without another
+      // proof-state round-trip, which would mistake our own redemption for a recipient claim.
+      await queryClient.cancelQueries({ queryKey: ['transaction', id], exact: true });
+      queryClient.setQueryData<HistoryEntry>(['transaction', id], (cached) =>
+        cached ? { ...cached, state: nextState } : cached,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+      void useWalletStore.getState().refreshBalance();
+      if (result === 'claimed') return;
+      toast.show('Funds reclaimed to your wallet', { kind: 'success' });
 
       // Delete local inflight proofs if any
       try {
@@ -331,15 +339,12 @@ export function TransactionDetailsScreen() {
       } catch (e) {
         console.warn('[TransactionDetails] Failed to delete inflight proofs during reclaim:', e);
       }
-
-      // Refresh UI
-      setTimeout(() => {
-        handleRefresh();
-      }, 500);
     } catch (err: any) {
       console.error('[TransactionDetails] Reclaim failed:', err);
       toast.show('Reclaim Failed: ' + err.message, { kind: 'error' });
     } finally {
+      refreshRevision.current++;
+      reclaimLock.current = false;
       setIsReclaiming(false);
     }
   };
@@ -533,95 +538,109 @@ export function TransactionDetailsScreen() {
   };
 
   const handleRefresh = async () => {
-    if (!entry || isRefetching) return;
+    if (!entry || isRefetching || reclaimLock.current || claimLock.current || refreshLock.current)
+      return;
+    refreshLock.current = true;
+    const revision = refreshRevision.current;
+    let sweeping = false;
+    try {
+      if (onchain) {
+        await useWalletStore.getState().autoCheckPendingOnchainQuotes();
+        await refetch();
+        queryClient.invalidateQueries({ queryKey: ['history'] });
+        return;
+      }
 
-    if (onchain) {
-      await useWalletStore.getState().autoCheckPendingOnchainQuotes();
+      if (token && ['pending', 'unclaimed'].includes(status)) {
+        try {
+          const states = await proofService.checkProofStates(token);
+          if (reclaimLock.current || claimLock.current || revision !== refreshRevision.current)
+            return;
+          const proofCount = decodeToken(cleanToken(token)).proofs.length;
+          let newState: string | undefined = getVerifiedTokenState(states, proofCount);
+          if (!newState) throw new Error('Token status could not be verified');
+          const isSpent = newState === 'claimed';
+
+          // If pending and unspent but expired, trigger auto-sweep/refund
+          if (!isSpent && expiresAt && Date.now() > expiresAt && newState !== 'claimed') {
+            console.log('[TransactionDetails] Token expired and unspent on refresh. Sweeping...');
+            reclaimLock.current = true;
+            sweeping = true;
+            setIsReclaiming(true);
+            await walletService.receive(token.trim());
+            newState = 'expired';
+            try {
+              const clean = cleanToken(token);
+              const decoded = decodeToken(clean);
+              const secrets = decoded.proofs.map((p: any) => p.secret);
+              if (secrets.length > 0) {
+                const repo = initService.getRepo();
+                await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
+              }
+            } catch (e) {}
+          }
+
+          if (entry && newState !== entry.state) {
+            const repo = initService.getRepo();
+            if (repo?.historyRepository) {
+              await (repo.historyRepository as any).updateHistoryEntryState(entry.id, newState);
+            }
+            if (newState === 'claimed' && entry.type === 'send' && entry.state !== 'claimed') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              toast.show('The recipient has claimed your ecash', { kind: 'success' });
+              if (useSettingsStore.getState().notificationsEnabled) {
+                notificationService.sendLocalNotification(
+                  'Claimed!',
+                  'The recipient has claimed your ecash',
+                  { transactionId: entry.id },
+                );
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[TransactionDetails] Failed to refresh proof states:', err);
+        }
+      }
+
+      if (revision !== refreshRevision.current) return;
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['history'] });
-      return;
-    }
-
-    if (token && ['pending', 'unclaimed'].includes(status)) {
-      try {
-        const states = await proofService.checkProofStates(token);
-        const proofCount = decodeToken(cleanToken(token)).proofs.length;
-        let newState: string | undefined = getVerifiedTokenState(states, proofCount);
-        if (!newState) throw new Error('Token status could not be verified');
-        const isSpent = newState === 'claimed';
-
-        // If pending and unspent but expired, trigger auto-sweep/refund
-        if (!isSpent && expiresAt && Date.now() > expiresAt && newState !== 'claimed') {
-          console.log('[TransactionDetails] Token expired and unspent on refresh. Sweeping...');
-          await walletService.receive(token.trim());
-          newState = 'expired';
-          try {
-            const clean = cleanToken(token);
-            const decoded = decodeToken(clean);
-            const secrets = decoded.proofs.map((p: any) => p.secret);
-            if (secrets.length > 0) {
-              const repo = initService.getRepo();
-              await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
-            }
-          } catch (e) {}
-        }
-
-        if (entry && newState !== entry.state) {
-          const repo = initService.getRepo();
-          if (repo?.historyRepository) {
-            await (repo.historyRepository as any).updateHistoryEntryState(entry.id, newState);
-          }
-          if (newState === 'claimed' && entry.type === 'send' && entry.state !== 'claimed') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            toast.show('The recipient has claimed your ecash', { kind: 'success' });
-            if (useSettingsStore.getState().notificationsEnabled) {
-              notificationService.sendLocalNotification(
-                'Claimed!',
-                'The recipient has claimed your ecash',
-                { transactionId: entry.id },
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[TransactionDetails] Failed to refresh proof states:', err);
+    } finally {
+      refreshLock.current = false;
+      if (sweeping) {
+        reclaimLock.current = false;
+        setIsReclaiming(false);
       }
     }
-
-    await refetch();
-    queryClient.invalidateQueries({ queryKey: ['history'] });
   };
 
-  const [isClaiming, setIsClaiming] = useState(false);
-  const claimLock = useRef(false);
   const offline = useOfflineStatus();
   const mintFee =
     metadata?.via !== 'onchain' && Number.isFinite(metadata?.fee) ? Number(metadata.fee) : 0;
 
   const handleClaimNow = async () => {
-    if (!token || claimLock.current) return;
+    if (!entry || !token || claimLock.current || reclaimLock.current) return;
     claimLock.current = true;
+    refreshRevision.current++;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsClaiming(true);
     try {
       if (await networkService.isOffline()) return;
       await walletService.receive(token.trim());
-      toast.show('Tokens added to wallet', { kind: 'success' });
-
-      // Update state in DB
       const repo = initService.getRepo();
-      if (repo?.historyRepository) {
-        await (repo.historyRepository as any).updateHistoryEntryState(id!, 'claimed');
-      }
-
-      // Wait a bit for DB and then refresh UI
-      setTimeout(() => {
-        handleRefresh();
-      }, 500);
+      await repo.historyRepository.updateHistoryEntryState(entry.id, 'claimed');
+      await queryClient.cancelQueries({ queryKey: ['transaction', id], exact: true });
+      queryClient.setQueryData<HistoryEntry>(['transaction', id], (cached) =>
+        cached ? { ...cached, state: 'claimed' } : cached,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+      void useWalletStore.getState().refreshBalance();
+      toast.show('Tokens added to wallet', { kind: 'success' });
     } catch (err: any) {
       console.error('[TransactionDetails] Claim failed:', err);
       toast.show('Claim Failed: ' + err.message, { kind: 'error' });
     } finally {
+      refreshRevision.current++;
       claimLock.current = false;
       setIsClaiming(false);
     }
@@ -643,7 +662,7 @@ export function TransactionDetailsScreen() {
 
   // Auto-refresh on mount and poll if pending — first check is immediate, then every 3s
   useEffect(() => {
-    if (!entry || !initService.isInitialized()) return;
+    if (!entry || !initService.isInitialized() || reclaimLock.current || claimLock.current) return;
 
     const isPendingSend = entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
     const isPendingMint =
@@ -676,7 +695,7 @@ export function TransactionDetailsScreen() {
     const interval = setInterval(poll, 3000);
 
     return () => clearInterval(interval);
-  }, [entry?.id, entry?.state, status, token, onchain]);
+  }, [entry?.id, entry?.state, status, token, onchain, isReclaiming, isClaiming]);
   // Status text formatting
   const formattedStatus = useMemo(() => {
     if (!status || typeof status !== 'string') return 'Unknown';

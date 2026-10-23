@@ -11,6 +11,57 @@ export interface DleqVerificationResult {
   reason?: string;
 }
 const decodeCache = new Map<string, any>();
+type CheckedProofState = Awaited<ReturnType<Wallet['checkProofsStates']>>[number] & {
+  secret: string;
+};
+const pendingStateChecks = new Map<string, Promise<CheckedProofState[]>>();
+
+async function checkProofStates(cleaned: string) {
+  let decoded: any;
+
+  if (decodeCache.has(cleaned)) {
+    decoded = decodeCache.get(cleaned);
+  } else {
+    try {
+      decoded = decodeToken(cleaned);
+      decodeCache.set(cleaned, decoded);
+    } catch (e) {
+      console.warn('[ProofService] Failed to decode token for check:', e);
+      return [];
+    }
+  }
+
+  if (!decoded || !decoded.proofs || decoded.proofs.length === 0) {
+    return [];
+  }
+
+  try {
+    console.log(
+      `[ProofService] Checking state for ${decoded.mint} with ${decoded.proofs.length} proofs`,
+    );
+
+    // We instantiate a new Wallet instance for the state check.
+    // This is safer than relying on private services in the manager.
+    const wallet = new Wallet(decoded.mint);
+
+    // The library method handles the Y derivation internally from the secrets
+    // It only needs the secret field, which we have in decoded.proofs
+    console.log('[ProofService] Checking state via library...');
+    const states = await wallet.checkProofsStates(decoded.proofs);
+
+    console.log('[ProofService] States received:', states.length);
+
+    // Map the states back to a consistent format if needed,
+    // though usually they match the NUT-07 response
+    return states.map((s, i) => ({
+      ...s,
+      secret: decoded.proofs[i].secret, // Attach secret for UI convenience
+    }));
+  } catch (err: any) {
+    console.error(`[ProofService] Failed to check proof states at ${decoded.mint}:`, err);
+    return [];
+  }
+}
 
 export const proofService = {
   /**
@@ -20,52 +71,15 @@ export const proofService = {
    * @param tokenString - Encoded cashu token string
    * @returns Array of proof state objects from the mint
    */
-  checkProofStates: async (tokenString: string) => {
+  checkProofStates: (tokenString: string): Promise<CheckedProofState[]> => {
     const cleaned = cleanToken(tokenString);
-    let decoded: any;
+    const pending = pendingStateChecks.get(cleaned);
+    if (pending) return pending;
 
-    if (decodeCache.has(cleaned)) {
-      decoded = decodeCache.get(cleaned);
-    } else {
-      try {
-        decoded = decodeToken(cleaned);
-        decodeCache.set(cleaned, decoded);
-      } catch (e) {
-        console.warn('[ProofService] Failed to decode token for check:', e);
-        return [];
-      }
-    }
-
-    if (!decoded || !decoded.proofs || decoded.proofs.length === 0) {
-      return [];
-    }
-
-    try {
-      console.log(
-        `[ProofService] Checking state for ${decoded.mint} with ${decoded.proofs.length} proofs`,
-      );
-
-      // We instantiate a new Wallet instance for the state check.
-      // This is safer than relying on private services in the manager.
-      const wallet = new Wallet(decoded.mint);
-
-      // The library method handles the Y derivation internally from the secrets
-      // It only needs the secret field, which we have in decoded.proofs
-      console.log('[ProofService] Checking state via library...');
-      const states = await wallet.checkProofsStates(decoded.proofs);
-
-      console.log('[ProofService] States received:', states.length);
-
-      // Map the states back to a consistent format if needed,
-      // though usually they match the NUT-07 response
-      return states.map((s, i) => ({
-        ...s,
-        secret: decoded.proofs[i].secret, // Attach secret for UI convenience
-      }));
-    } catch (err: any) {
-      console.error(`[ProofService] Failed to check proof states at ${decoded.mint}:`, err);
-      return [];
-    }
+    // Share only a currently running request. Completed results must never become a state cache.
+    const check = checkProofStates(cleaned).finally(() => pendingStateChecks.delete(cleaned));
+    pendingStateChecks.set(cleaned, check);
+    return check;
   },
 
   /**
