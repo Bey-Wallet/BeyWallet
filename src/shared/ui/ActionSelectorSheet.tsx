@@ -1,17 +1,25 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { Platform, ScrollView } from 'react-native';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, ArrowLeft, X, Scan, Nfc } from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, ArrowLeft, X, Nfc } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
-import { AppFullScreenModal } from '~/shared/ui/AppFullScreenModal';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
 export type ActionSheetStage = 'main' | 'bitcoin';
@@ -39,32 +47,45 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const [type, setType] = useState<ActionSheetType>('send');
     const [stage, setStage] = useState<ActionSheetStage>('main');
     const [processing, setProcessing] = useState(false);
-    const [modalVisible, setModalVisible] = useState(false);
-    const fullScreen = Platform.OS === 'android' && type !== 'mint';
-    const ScrollContainer = fullScreen ? ScrollView : BottomSheetScrollView;
+    const [dismissAfterInput, setDismissAfterInput] = useState(false);
+    const { height } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
 
     const dismiss = useCallback(() => {
       actionPending.current = true;
       inputRef.current?.clear();
-      setModalVisible(false);
-      if (!fullScreen) sheetRef.current?.dismiss();
-    }, [fullScreen]);
+      setProcessing(false);
+      if (processing) setDismissAfterInput(true);
+      else sheetRef.current?.dismiss();
+    }, [processing]);
+
+    const handleInputRedirect = useCallback(() => {
+      actionPending.current = true;
+      inputRef.current?.clear();
+      setProcessing(false);
+      // The lookup retains callbacks from its starting render. Always wait for
+      // canDismiss to commit instead of reading that render's processing value.
+      setDismissAfterInput(true);
+    }, []);
+
+    useEffect(() => {
+      if (dismissAfterInput && !processing) {
+        sheetRef.current?.dismiss();
+        setDismissAfterInput(false);
+      }
+    }, [dismissAfterInput, processing]);
 
     useImperativeHandle(
       ref,
       () => ({
         present: (sheetType) => {
           actionPending.current = false;
+          setDismissAfterInput(false);
           setType(sheetType);
           setStage('main');
           inputRef.current?.clear();
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          if (Platform.OS === 'android' && sheetType !== 'mint') {
-            setModalVisible(true);
-          } else {
-            setModalVisible(false);
-            sheetRef.current?.present();
-          }
+          sheetRef.current?.present();
         },
         dismiss,
       }),
@@ -101,15 +122,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           ]
         : stage === 'main'
           ? [
-              {
-                label: 'Scan',
-                icon: Scan,
-                description: type === 'send' ? 'Scan a payment QR code' : 'Scan an ecash QR code',
-                path:
-                  type === 'send'
-                    ? '/(modals)/scanner'
-                    : { pathname: '/(modals)/scanner', params: { returnTo: '/receive' } },
-              },
               {
                 label: type === 'send' ? 'Share ecash' : 'Request ecash',
                 icon: Banknote,
@@ -154,6 +166,24 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const rows = Array.from({ length: Math.ceil(options.length / 2) }, (_, index) =>
       options.slice(index * 2, index * 2 + 2),
     );
+    const snapPoints = useMemo(() => {
+      if (type === 'mint') return ['75%', '90%'];
+      const rowHeight =
+        Math.max(44, appTypography.label1.lineHeight + appTypography.body2.lineHeight) +
+        2 * appSpacing.page;
+      const preferredHeight =
+        24 +
+        appDimensions.touchTarget +
+        appSpacing.gap +
+        96 +
+        appSpacing.page +
+        options.length * rowHeight +
+        Math.max(0, options.length - 1) * appSpacing.gap +
+        appSpacing.page +
+        appDimensions.touchTarget +
+        Math.max(insets.bottom, appSpacing.page);
+      return [Math.min(height * 0.8, preferredHeight), '90%'];
+    }, [type, options.length, height, insets.bottom]);
     const title =
       type === 'mint'
         ? 'Fund & withdraw'
@@ -272,57 +302,61 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
 
     const content = (
       <YStack flex={1} px="$4" gap="$3">
-        {!fullScreen && (
-          <XStack items="center" justify="space-between">
-            <HeaderIconButton
-              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
-              disabled={processing}
-              icon={stage === 'main' ? X : ArrowLeft}
-              onPress={() => {
-                if (processing || actionPending.current) return;
-                if (stage === 'main') dismiss();
-                else {
-                  Haptics.selectionAsync();
-                  setStage('main');
-                }
-              }}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-            >
-              {title}
-            </Text>
-            <View width={36} />
-          </XStack>
-        )}
+        <XStack items="center" justify="space-between">
+          <HeaderIconButton
+            accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
+            disabled={processing}
+            icon={stage === 'main' ? X : ArrowLeft}
+            onPress={() => {
+              if (processing || actionPending.current) return;
+              if (stage === 'main') dismiss();
+              else {
+                Haptics.selectionAsync();
+                setStage('main');
+              }
+            }}
+          />
+          <Text
+            accessibilityRole="header"
+            flex={1}
+            textAlign="center"
+            fontFamily="$heading"
+            fontSize="$6"
+            fontWeight="500"
+            color="$color"
+          >
+            {title}
+          </Text>
+          <View width={40} />
+        </XStack>
         {type === 'mint' ? (
-          <ScrollContainer showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <BottomSheetScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <YStack gap="$4" pb="$4">
               <UniversalInputCard
                 ref={inputRef}
                 layout="stacked"
+                inputComponent={BottomSheetTextInput}
                 label="Payment details"
                 placeholder="Paste or type payment details"
-                onBeforeRedirect={dismiss}
+                onBeforeRedirect={handleInputRedirect}
                 onProcessingChange={setProcessing}
               />
               {optionContent}
             </YStack>
-          </ScrollContainer>
+          </BottomSheetScrollView>
         ) : (
           <UniversalInputCard
             ref={inputRef}
             layout="screen"
             compact
-            scrollComponent={ScrollContainer}
+            scrollComponent={BottomSheetScrollView}
+            inputComponent={BottomSheetTextInput}
+            bottomInset={insets.bottom}
             label="Payment details"
-            onBeforeRedirect={dismiss}
+            onBeforeRedirect={handleInputRedirect}
             onProcessingChange={setProcessing}
           >
             {optionContent}
@@ -332,37 +366,18 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     );
 
     return (
-      <>
-        <AppBottomSheet
-          ref={sheetRef}
-          snapPoints={type === 'mint' ? ['75%', '90%'] : ['60%', '90%']}
-          onClose={() => {
-            actionPending.current = true;
-            inputRef.current?.clear();
-          }}
-        >
-          {fullScreen ? null : content}
-        </AppBottomSheet>
-        {fullScreen && (
-          <AppFullScreenModal
-            visible={modalVisible}
-            title={title}
-            canDismiss={!processing}
-            onClose={dismiss}
-            onBack={
-              stage === 'main'
-                ? undefined
-                : () => {
-                    if (actionPending.current || processing) return;
-                    Haptics.selectionAsync();
-                    setStage('main');
-                  }
-            }
-          >
-            {content}
-          </AppFullScreenModal>
-        )}
-      </>
+      <AppBottomSheet
+        ref={sheetRef}
+        snapPoints={snapPoints}
+        backgroundColor={type === 'mint' ? undefined : '$background'}
+        canDismiss={!processing}
+        onClose={() => {
+          actionPending.current = true;
+          inputRef.current?.clear();
+        }}
+      >
+        {content}
+      </AppBottomSheet>
     );
   },
 );

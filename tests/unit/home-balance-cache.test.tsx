@@ -18,11 +18,12 @@ jest.mock('~/state/settingsStore', () => ({
 }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  ...Object.fromEntries(
     ['H1', 'H2', 'Paragraph', 'Text', 'View', 'XStack', 'YStack'].map((name) => [name, name]),
   ),
-);
+  useTheme: () => ({ gray3: { val: '#222224' } }),
+}));
 jest.mock('expo-haptics', () => ({}));
 
 let tree: ReactTestRenderer;

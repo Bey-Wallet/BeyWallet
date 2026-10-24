@@ -37,29 +37,23 @@ function MintProgressItem({
   return (
     <YStack
       p="$3.5"
-      bg={isActive ? '$blue2' : isDone ? '$green2' : isError ? '$red2' : '$gray4'}
+      bg="$buttonDefaultSecondary"
       borderWidth={1}
-      borderColor={isActive ? '$blue6' : isDone ? '$green6' : isError ? '$red6' : 'transparent'}
+      borderColor={isDone ? '$green10' : isError ? '$red10' : '$borderColor'}
       rounded="$6"
       gap="$2"
     >
       <XStack items="center" justify="space-between" gap="$3">
         {/* Left icon container + host name */}
         <XStack items="center" gap="$3" flex={1}>
-          <View
-            p="$2"
-            bg={isActive ? '$blue4' : isDone ? '$green4' : isError ? '$red4' : '$gray5'}
-            rounded="$4"
-            items="center"
-            justify="center"
-          >
-            {isActive && <Spinner size={18} color="$blue9" />}
+          <View p="$2" bg="$gray3" rounded="$4" items="center" justify="center">
+            {isActive && <Spinner size={18} color="$iconSecondary" />}
             {isDone && <CheckCircle2 size={18} color="$green10" />}
             {isError && <AlertCircle size={18} color="$red10" />}
             {isPending && <Clock size={18} color="$gray10" />}
           </View>
           <YStack flex={1} gap="$0.5">
-            <Text fontWeight="700" fontSize="$4" color="$accent3" numberOfLines={1}>
+            <Text fontWeight="600" fontSize="$4" color="$color" numberOfLines={1}>
               {hostname}
             </Text>
             {isDone && entry.restoredBalance > 0 && (
@@ -68,7 +62,7 @@ function MintProgressItem({
               </Text>
             )}
             {isDone && entry.restoredBalance === 0 && (
-              <Text fontSize="$2" color="$gray9">
+              <Text fontSize="$2" color="$gray10">
                 0 sat found
               </Text>
             )}
@@ -83,7 +77,7 @@ function MintProgressItem({
               </Text>
             )}
             {isActive && (
-              <Text fontSize="$2" color="$blue10" fontWeight="600">
+              <Text fontSize="$2" color="$gray10" fontWeight="600">
                 Scanning keysets…
               </Text>
             )}
@@ -92,8 +86,8 @@ function MintProgressItem({
 
         {/* Right balance or progress badge */}
         {isActive && keysetProgress && (
-          <View bg="$blue4" px="$2.5" py={4} rounded="$3">
-            <Text fontSize="$2" fontWeight="800" color="$blue10">
+          <View bg="$gray3" px="$2.5" py={4} rounded="$3">
+            <Text fontSize="$2" fontWeight="600" color="$color">
               {progressPercent}%
             </Text>
           </View>
@@ -103,11 +97,11 @@ function MintProgressItem({
       {/* Keyset sub-status and custom progress bar for active scanning mint */}
       {isActive && keysetProgress && (
         <YStack gap="$1.5" mt="$1" px="$3.5">
-          <Text fontSize="$1" color="$blue11" fontWeight="600" opacity={0.85}>
+          <Text fontSize="$1" color="$gray10" fontWeight="600" opacity={0.85}>
             {keysetProgress.statusText}
           </Text>
-          <View height={5} bg="$blue4" rounded="$3" overflow="hidden" width="100%">
-            <View width={`${progressPercent}%`} height="100%" bg="$blue9" rounded="$3" />
+          <View height={5} bg="$gray3" rounded="$3" overflow="hidden" width="100%">
+            <View width={`${progressPercent}%`} height="100%" bg="$iconPrimary" rounded="$3" />
           </View>
         </YStack>
       )}
@@ -169,18 +163,19 @@ export default function RestoreProgressCard() {
         width="100%"
         p="$3.5"
         rounded="$6"
-        bg="$color2"
+        bg="$buttonDefaultSecondary"
         gap="$2.5"
-        pressStyle={{ opacity: 0.9, scale: 0.99 }}
+        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+        pressStyle={{ bg: '$buttonDefaultSecondaryPress', opacity: 0.9, scale: 0.99 }}
         onPress={handlePress}
       >
         <XStack items="flex-start" justify="space-between">
           <XStack items="flex-start" gap="$2.5" flex={1}>
-            <View p="$2" bg="$blue5" rounded="$3" items="center" justify="center">
-              <Spinner size={20} color="$blue10" />
+            <View p="$2" bg="$gray3" rounded="$3" items="center" justify="center">
+              <Spinner size={20} color="$iconSecondary" />
             </View>
             <YStack flex={1} gap="$0.5">
-              <H6 color="$color" fontWeight="800">
+              <H6 color="$color" fontWeight="600">
                 Restoring Wallet Balances
               </H6>
               <Text fontSize="$2" overflow="hidden" color="$gray10" lineHeight={16}>
@@ -204,7 +199,7 @@ export default function RestoreProgressCard() {
               icon={X}
               onPress={() => sheetRef.current?.dismiss()}
             />
-            <Text fontSize="$6" fontWeight="800" color="$accent1">
+            <Text fontSize="$6" fontWeight="600" color="$color">
               Sync Progress
             </Text>
             {/* Placeholder keeping the title centered */}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { FlatList, Modal } from 'react-native';
+import { Modal } from 'react-native';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import HomeHeaderMintSelector, {
@@ -67,6 +68,40 @@ jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
+jest.mock('@gorhom/bottom-sheet', () => ({
+  BottomSheetFlatList: (props: any) =>
+    require('react').createElement(
+      'MintList',
+      props,
+      props.data.length
+        ? props.data.map((item: any) =>
+            require('react').createElement(
+              require('react').Fragment,
+              { key: item.url },
+              props.renderItem({ item }),
+            ),
+          )
+        : props.ListEmptyComponent,
+    ),
+}));
+jest.mock('~/shared/ui/AppBottomSheet', () => ({
+  __esModule: true,
+  default: require('react').forwardRef(({ children, ...props }: any, ref: any) => {
+    const [open, setOpen] = require('react').useState(false);
+    require('react').useImperativeHandle(ref, () => ({
+      present: () => {
+        setOpen(true);
+        props.onOpenChange?.(true);
+      },
+      dismiss: () => {
+        if (!props.canDismiss) return;
+        setOpen(false);
+        props.onOpenChange?.(false);
+      },
+    }));
+    return require('react').createElement('Sheet', { ...props, open }, children);
+  }),
+}));
 
 let tree: ReactTestRenderer;
 let client: QueryClient;
@@ -95,8 +130,8 @@ const row = (url: string) =>
         typeof node.props.accessibilityLabel === 'string' &&
         node.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === url),
     )!;
-const list = () => tree.root.findByType(FlatList);
-const sheet = () => tree.root.findByType(Modal);
+const list = () => tree.root.findByType(BottomSheetFlatList);
+const sheet = () => tree.root.findByType('Sheet' as any);
 const press = async (url: string) => {
   await act(async () => {
     void row(url).props.onPress();
@@ -183,7 +218,7 @@ it('opens cached mints offline without refreshing the list or waiting for networ
     .find((node) => node.props.accessibilityState?.expanded !== undefined)!;
   expect(trigger.props.disabled).toBe(false);
   await act(async () => trigger.props.onPress());
-  expect(sheet().props.visible).toBe(true);
+  expect(sheet().props.open).toBe(true);
   expect(trigger.props.accessibilityState.expanded).toBe(true);
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
@@ -193,44 +228,27 @@ it('opens cached mints offline without refreshing the list or waiting for networ
   expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
 });
 
-it('uses a full-screen native modal and searches cached mint names and URLs', async () => {
+it('uses a simple bottom-sheet mint list without search controls', async () => {
   await render();
-  expect(sheet().props).toMatchObject({
-    visible: true,
-    presentationStyle: 'fullScreen',
-    animationType: 'slide',
-  });
-  const search = () => tree.root.findByProps({ accessibilityLabel: 'Search mints' });
-  await act(async () => search().props.onChangeText('BETA'));
-  expect(list().props.data.map((mint: any) => mint.url)).toEqual([b]);
-  await act(async () => search().props.onChangeText('alpha.example'));
-  expect(list().props.data.map((mint: any) => mint.url)).toEqual([a]);
-  await act(async () => search().props.onChangeText('missing'));
-  expect(list().props.data).toHaveLength(0);
-  expect(
-    tree.root
-      .findAllByType('Text' as any)
-      .some((text) => text.props.children === 'No mints match your search.'),
-  ).toBe(true);
-  await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Clear mint search' }).props.onPress(),
-  );
+  expect(tree.root.findAllByType(Modal)).toHaveLength(0);
+  expect(sheet().props.open).toBe(true);
+  expect(sheet().props.snapPoints[0]).toBeGreaterThan(0);
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Search mints' })).toHaveLength(0);
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
   expect(list().props.data).toHaveLength(4);
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
 });
 
-it('closes with Android Back, reports visibility and clears search when reopened', async () => {
+it('closes with its header and reports visibility when reopened', async () => {
   const onOpenChange = jest.fn();
   await render({ onOpenChange });
   await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Search mints' }).props.onChangeText('beta'),
+    tree.root.findByProps({ accessibilityLabel: 'Close mint selector' }).props.onPress(),
   );
-  await act(async () => sheet().props.onRequestClose!());
-  expect(sheet().props.visible).toBe(false);
+  expect(sheet().props.open).toBe(false);
   await act(async () => ref.current!.present());
-  expect(sheet().props.visible).toBe(true);
-  expect(tree.root.findByProps({ accessibilityLabel: 'Search mints' }).props.value).toBe('');
+  expect(sheet().props.open).toBe(true);
   expect(onOpenChange.mock.calls).toEqual([[true], [false], [true]]);
 });
 
@@ -256,8 +274,8 @@ it('shows the row spinner until the switch commits, then a bold branded check be
   expect(tree.root.findByProps({ accessibilityLabel: 'Close mint selector' }).props.disabled).toBe(
     true,
   );
-  await act(async () => sheet().props.onRequestClose!());
-  expect(sheet().props.visible).toBe(true);
+  expect(sheet().props.canDismiss).toBe(false);
+  expect(sheet().props.open).toBe(true);
   await act(async () => {
     ref.current?.dismiss();
   });
@@ -293,6 +311,7 @@ it('awaits a flow selection without changing the home mint or allowing early dis
   expect(useWalletStore.getState().setActiveMint).not.toHaveBeenCalled();
   expect(useWalletStore.getState().activeMintUrl).toBe(a);
   operation.resolve();
+  await advance(0);
   await advance();
   expect(mockDismiss).toHaveBeenCalledTimes(1);
 });
@@ -307,7 +326,7 @@ it('keeps the sheet open and permits retry after a failed switch', async () => {
   await press(b);
   await advance();
   expect(mockDismiss).not.toHaveBeenCalled();
-  expect(sheet().props.visible).toBe(true);
+  expect(sheet().props.open).toBe(true);
   expect(tree.root.findByProps({ accessibilityLabel: 'Close mint selector' }).props.disabled).toBe(
     false,
   );
@@ -390,7 +409,8 @@ it('selects all mints as a filter without changing the active mint', async () =>
   await act(async () => {
     void all.props.onPress();
   });
-  await advance(80);
+  await advance();
+  await advance();
   expect(onSelect).toHaveBeenCalledWith('all');
   expect(useWalletStore.getState().setActiveMint).not.toHaveBeenCalled();
   expect(useWalletStore.getState().activeMintUrl).toBe(a);

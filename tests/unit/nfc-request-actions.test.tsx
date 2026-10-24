@@ -18,6 +18,20 @@ import { AppState, Modal } from 'react-native';
 import { appColors } from '~/shared/theme/appearance';
 
 let mockAppearance: 'dark' | 'light' = 'light';
+const mockSheetPresent = jest.fn();
+const mockSheetDismiss = jest.fn();
+jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'ScrollView' }));
+jest.mock('react-native-screens', () => ({ FullWindowOverlay: 'Overlay' }));
+jest.mock('~/shared/ui/AppBottomSheet', () => ({
+  __esModule: true,
+  default: require('react').forwardRef((props: any, ref: any) => {
+    require('react').useImperativeHandle(ref, () => ({
+      present: mockSheetPresent,
+      dismiss: mockSheetDismiss,
+    }));
+    return require('react').createElement('Sheet', props, props.children);
+  }),
+}));
 
 jest.mock('tamagui', () => ({
   Button: 'Button',
@@ -108,8 +122,7 @@ it('shows startup progress before asking users to hold phones together', async (
     sheet.root.findAllByType('Text' as any).some((text) => text.props.children === 'Starting NFC'),
   ).toBe(true);
   expect(sheet.root.findAllByType('Spinner' as any)).toHaveLength(1);
-  expect(sheet.root.findByProps({ testID: 'nfc-modal-status' }).props).toMatchObject({
-    flexGrow: 1,
+  expect(sheet.root.findByProps({ testID: 'nfc-sheet-status' }).props).toMatchObject({
     items: 'center',
     justify: 'center',
   });
@@ -154,19 +167,19 @@ it('offers Done after confirmation without retrying or refreshing the payment', 
   await act(async () => sheet.unmount());
 });
 
-it('presents NFC as a full-screen modal and protects both close controls during a payment', async () => {
+it('presents NFC as a bottom sheet and protects dismissal during a payment', async () => {
   let sheet!: ReactTestRenderer;
   await act(async () => {
     sheet = create(<NfcSheetHost walletReady />);
   });
-  const modal = () => sheet.root.findByType(Modal);
+  const presentation = () => sheet.root.findByType('Sheet' as any);
   const close = () => sheet.root.findByProps({ accessibilityLabel: 'Close NFC' });
-  expect(modal().props).toMatchObject({
-    visible: true,
-    presentationStyle: 'fullScreen',
-    animationType: 'slide',
-  });
-  await act(async () => modal().props.onRequestClose!());
+  expect(sheet.root.findAllByType(Modal)).toHaveLength(0);
+  expect(mockSheetPresent).toHaveBeenCalledTimes(1);
+  expect(presentation().props.canDismiss).toBe(true);
+  expect(presentation().props.scrollable).toBe(true);
+  expect(presentation().props.snapPoints).toBeUndefined();
+  await act(async () => presentation().props.onClose());
   expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
   mockState = { ...mockState, locked: true };
   // Read the current controller lock even before React has updated the button.
@@ -176,7 +189,8 @@ it('presents NFC as a full-screen modal and protects both close controls during 
     sheet.update(<NfcSheetHost walletReady />);
   });
   expect(close().props.disabled).toBe(true);
-  await act(async () => modal().props.onRequestClose!());
+  expect(presentation().props.canDismiss).toBe(false);
+  await act(async () => presentation().props.onClose());
   expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
   mockState = { ...mockState, locked: false };
   await act(async () => {
@@ -188,7 +202,7 @@ it('presents NFC as a full-screen modal and protects both close controls during 
   await act(async () => {
     sheet.update(<NfcSheetHost walletReady />);
   });
-  expect(modal().props.visible).toBe(false);
+  expect(mockSheetDismiss).toHaveBeenCalledTimes(1);
   await act(async () => sheet.unmount());
 });
 

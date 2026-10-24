@@ -41,18 +41,19 @@ export default function BackupWarningCard() {
       width="100%"
       p="$3.5"
       rounded="$6"
-      bg="$color2"
+      bg="$buttonDefaultSecondary"
       gap="$2.5"
-      pressStyle={{ opacity: 0.9, scale: 0.99 }}
+      hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+      pressStyle={{ bg: '$buttonDefaultSecondaryPress', opacity: 0.9, scale: 0.99 }}
       onPress={handleNavigate}
     >
       <XStack items="flex-start" justify="space-between">
         <XStack items="flex-start" gap="$2.5" flex={1}>
           <View p="$2" items="center" justify="center">
-            <AlertTriangle size={20} />
+            <AlertTriangle size={20} color="$iconSecondary" />
           </View>
           <YStack flex={1}>
-            <H6 color="$color" fontWeight="800">
+            <H6 color="$color" fontWeight="600">
               Secure Your Wallet
             </H6>
             <Text fontSize="$2" overflow="hidden" color="$gray10" lineHeight={16}>

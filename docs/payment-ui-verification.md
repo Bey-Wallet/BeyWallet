@@ -4,22 +4,29 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
-- Send/Receive on Android, mint selection, and NFC share `AppFullScreenModal` for
-  the background, safe-area padding, centered header, close/back control, and native
-  Back handling. They have no drag handle or swipe-dismiss gesture. Check both
-  themes, large text, keyboard avoidance, and selection/payment dismissal guards.
-  Mint search filters saved names and URLs locally; clearing it must retain the
-  active mint. NFC centers status and instructions above its details/actions; Done
-  closes a confirmed receipt without repeating any payment.
+- Send/Receive, mint selection, and NFC use `AppBottomSheet`, with centered headers
+  and left close/back controls. Send/Receive use the app background and size for their
+  content, with scrolling choices and safe-area bottom padding. Check both themes, large text,
+  keyboard resizing, Android Back, backdrop/swipe dismissal, and processing locks.
+  Send offers Share ecash and Tap to pay; Receive offers Request ecash and Bitcoin.
+  Scan remains on Home.
+  Mint selection has no search field. NFC sizes to its scrollable content, with status
+  in the header and compact instructions/details; Done closes a confirmed receipt.
+  `AppFullScreenModal` remains available for future use.
 
 - In Send/Receive, type and paste `name@domain`, including a Bey domain address and
   `lightning:name@domain`. Each must open Lightning payment review without querying
   Nostr identity data. Nostr identifiers and bare usernames should direct users to
   People. Verify accepted-person sends still work from a conversation.
 - Send/Receive use a 96-point bordered input with minimal padding and no leading
-  icon. Action labels/descriptions use 16/14-point text. Paste, Clear and Continue
-  stay at the bottom outside the scrolling choices; verify keyboard resizing, long
+  icon. Action labels/descriptions use 16/14-point text. A secondary Paste pill follows
+  the action list in the scrolling content, replaced by Continue when text is entered.
+  Clear sits inside the field on the right; verify keyboard resizing, long
   payment details, loading/disabled states, and correction of invalid input.
+- Paste a complete payment using both the pill and Android's long-press Paste menu.
+  Both must process automatically, dismiss the sheet, and open the appropriate payment
+  screen once. Native text echoes must not cancel a pending lookup. Single-character
+  typing and deletions retain Continue; invalid pasted details stay editable.
 - On Android, NFC must show **Starting NFC** during reader registration or sender
   startup, then **Hold phones together** only when ready. Check the distinct reader
   and sender instructions, disabled NFC, a canceled startup, and background/resume.
@@ -49,8 +56,8 @@ Native acceptance below has not been performed in this workspace.
   Confirm smooth scrolling, correct primary/hidden balances, check placement, and
   large-text layouts. Payment selectors must keep the Home mint unchanged.
 
-- Open Send, Receive, and Fund & withdraw. Check the two-column action cards, icons above
-  wrapping labels, and larger input with controls below it in light/dark themes, on a small
+- Open Send, Receive, and Fund & withdraw. Check single-column Send/Receive cards and
+  the existing two-column Fund & withdraw cards in light/dark themes, on a small
   screen, and with large text. Expand the sheet and open the keyboard; every action must
   remain reachable without overlapping content.
 - Receive → Ecash must open request creation directly. Paste a token into the sheet input

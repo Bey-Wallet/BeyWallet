@@ -1,5 +1,5 @@
 import React from 'react';
-import { H1, H2, Paragraph, Text, View, XStack, YStack } from 'tamagui';
+import { H1, H2, Paragraph, Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -11,6 +11,8 @@ import { appTypography } from '~/shared/theme/appearance';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 
 export default function Balance() {
+  const theme = useTheme();
+  const hiddenBalanceBackground = String(theme.gray3.val);
   const balances = useWalletStore((s) => s.balances);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const isOffline = useOfflineStatus();
@@ -73,14 +75,7 @@ export default function Balance() {
       {/* Connection and sync status share the same space above the balance. */}
       {(isOffline || isRestoring) && (
         <XStack position="absolute" z={100} top={15} items="center" gap="$2" self="center">
-          <View
-            width={8}
-            height={8}
-            rounded="$10"
-            bg={isOffline ? '$gray10' : '$accent10'}
-            animation="lazy"
-            opacity={0.8}
-          />
+          <View width={8} height={8} rounded="$10" bg="$gray10" animation="lazy" opacity={0.8} />
           <Text fontSize="$2" color="$gray10" fontWeight="600" accessibilityLiveRegion="polite">
             {isOffline ? 'Offline' : 'Syncing...'}
           </Text>
@@ -101,17 +96,17 @@ export default function Balance() {
             prefix={hideBalance ? '' : showBitcoinSymbol ? '₿' : ''}
             suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sat'}
             trigger={`${hideBalance ? 'hidden' : 'visible_sats'}_${showBitcoinSymbol}`}
-            letterSpacing={appTypography.display.letterSpacing}
+
             fontSize={appTypography.display.fontSize}
-            fontWeight={500}
-            color="$accent1"
+            fontWeight={600}
+            color="$color"
 
             decimalOpacity={0.4}
             showDecimals={false}
             style={
               hideBalance
                 ? {
-                    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+                    backgroundColor: hiddenBalanceBackground,
                     borderRadius: 120,
                     paddingHorizontal: 16,
                     paddingTop: 10,
@@ -126,17 +121,17 @@ export default function Balance() {
           <RollingNumber
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
             trigger={hideBalance ? 'hidden' : 'visible_fiat'}
-            letterSpacing={appTypography.display.letterSpacing}
+
             fontSize={appTypography.display.fontSize}
-            fontWeight={500}
-            color="$accent1"
+            fontWeight={600}
+            color="$color"
 
             decimalOpacity={0.4}
             showDecimals={true}
             style={
               hideBalance
                 ? {
-                    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+                    backgroundColor: hiddenBalanceBackground,
                     borderRadius: 120,
                     paddingHorizontal: 16,
                     paddingTop: 10,
@@ -166,7 +161,7 @@ export default function Balance() {
           }
           fontSize={appTypography.body1.fontSize}
           fontWeight={500}
-          color="$accent7"
+          color="$gray10"
           letterSpacing={appTypography.body1.letterSpacing}
 
           decimalOpacity={0.4}

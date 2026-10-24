@@ -36,6 +36,8 @@ export interface UniversalInputCardProps {
   layout?: 'inline' | 'stacked' | 'screen';
   children?: React.ReactNode;
   scrollComponent?: React.ElementType;
+  inputComponent?: React.ElementType;
+  bottomInset?: number;
   onProcessingChange?: (processing: boolean) => void;
   label?: string;
   placeholder?: string;
@@ -53,6 +55,8 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       layout = 'inline',
       children,
       scrollComponent: ScrollComponent = ScrollView,
+      inputComponent: InputComponent,
+      bottomInset = 0,
       onProcessingChange,
       label = 'Payment details',
       placeholder = 'Token, request, invoice, address, LNURL or link',
@@ -189,6 +193,19 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     };
 
     const handleInputChange = (text: string) => {
+      // Native inputs can echo the text written by Paste while its lookup is pending.
+      if (text === inputTextRef.current) return;
+      const previous = inputTextRef.current;
+      let start = 0;
+      while (start < previous.length && start < text.length && previous[start] === text[start]) {
+        start++;
+      }
+      let end = text.length;
+      let previousEnd = previous.length;
+      while (end > start && previousEnd > start && text[end - 1] === previous[previousEnd - 1]) {
+        end--;
+        previousEnd--;
+      }
       if (processing.current) clearInput();
       inputTextRef.current = text;
       const empty = !text.trim();
@@ -199,6 +216,9 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         setValidationError(null);
         setDetectedType(null);
       }
+      // Android exposes context-menu paste as a multi-character text insertion.
+      // Single-character typing and deletions keep the explicit Continue action.
+      if (screen && !empty && end - start > 1) void processInput(text, true);
     };
 
     useImperativeHandle(ref, () => ({
@@ -226,9 +246,11 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     };
 
     const badge = showBadge && detectedType ? getTypeBadge(detectedType) : null;
+    const showContinue = hasText && !(isValidating && automaticProcessing);
 
     const input = (
       <Input
+        asChild={InputComponent ? true : undefined}
         ref={inputRef}
         accessibilityLabel={label}
         onChangeText={handleInputChange}
@@ -252,7 +274,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         numberOfLines={stacked ? 2 : 3}
         style={
           screen
-            ? { padding: 8 }
+            ? { padding: 8, paddingRight: 56 }
             : compact && !stacked
               ? { padding: 0, paddingTop: 12 }
               : { padding: 0 }
@@ -262,66 +284,59 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus={autoFocus}
-      />
+      >
+        {InputComponent ? <InputComponent /> : undefined}
+      </Input>
     );
 
     if (screen)
       return (
-        <YStack flex={1}>
-          <ScrollComponent
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <YStack gap="$4" pb="$4">
+        <ScrollComponent
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <YStack gap="$4" pb={Math.max(bottomInset, 16)}>
+            <View position="relative" testID="payment-input-field">
               {input}
-              {validationError && (
-                <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
-                  {validationError}
-                </Text>
+              {hasText && (
+                <View position="absolute" top={4} right={4}>
+                  <AppIconButton
+                    variant="default"
+                    emphasis="tertiary"
+                    size="small"
+                    shape="circular"
+                    accessibilityLabel="Clear input"
+                    icon={<X size={20} color="$gray10" />}
+                    disabled={isValidating}
+                    onPress={clearInput}
+                  />
+                </View>
               )}
-              {children}
-            </YStack>
-          </ScrollComponent>
-          <XStack testID="payment-input-actions" gap="$2" pt="$3" pb="$4" items="center">
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              size="small"
-              flex={1}
-              icon={<Clipboard size={22} />}
-              disabled={isValidating}
-              loading={isValidating && automaticProcessing}
-              loadingText="Reading payment"
-              onPress={handlePaste}
-            >
-              Paste
-            </AppButton>
-            {hasText && (
-              <AppIconButton
+            </View>
+            {validationError && (
+              <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
+                {validationError}
+              </Text>
+            )}
+            {children}
+            <XStack testID="payment-input-actions" justify="center" items="center">
+              <AppButton
                 variant="default"
                 emphasis="secondary"
                 size="small"
-                accessibilityLabel="Clear input"
-                icon={<X size={22} color="$color" />}
+                style={{ borderRadius: 100, minHeight: 48, paddingHorizontal: 24 }}
+                icon={showContinue ? undefined : <Clipboard size={18} />}
                 disabled={isValidating}
-                onPress={clearInput}
-              />
-            )}
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              size="small"
-              flex={1}
-              disabled={!hasText || isValidating}
-              loading={isValidating && !automaticProcessing}
-              loadingText="Reading payment"
-              onPress={() => processInput()}
-            >
-              Continue
-            </AppButton>
-          </XStack>
-        </YStack>
+                loading={isValidating}
+                loadingText="Reading payment"
+                onPress={hasText ? () => processInput() : handlePaste}
+              >
+                {showContinue ? 'Continue' : 'Paste'}
+              </AppButton>
+            </XStack>
+          </YStack>
+        </ScrollComponent>
       );
 
     if (stacked)

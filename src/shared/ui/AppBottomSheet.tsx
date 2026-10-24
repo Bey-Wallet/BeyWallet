@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
   useEffect,
+  useLayoutEffect,
   useState,
 } from 'react';
 import { StyleSheet, BackHandler, Platform } from 'react-native';
@@ -27,6 +28,8 @@ interface AppBottomSheetProps {
   backgroundColor?: string;
   bottomInset?: number;
   containerComponent?: React.ComponentType<React.PropsWithChildren>;
+  /** A Gorhom scrollable owns its content measurement instead of BottomSheetView. */
+  scrollable?: boolean;
 }
 
 export interface AppBottomSheetRef {
@@ -46,16 +49,31 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       backgroundColor,
       bottomInset = 0,
       containerComponent,
+      scrollable = false,
     },
     ref,
   ) => {
     const bottomSheetRef = useRef<BottomSheetModal>(null);
     const theme = useTheme();
     const [isOpen, setIsOpen] = useState(false);
+    const canDismissRef = useRef(canDismiss);
+    const dismissRequested = useRef(false);
+
+    useLayoutEffect(() => {
+      canDismissRef.current = canDismiss;
+    }, [canDismiss]);
+
+    const dismissSheet = useCallback(() => {
+      if (!canDismissRef.current) return;
+      dismissRequested.current = true;
+      bottomSheetRef.current?.dismiss();
+    }, []);
 
     const handleSheetChanges = useCallback(
       (index: number) => {
-        if (index === -1 && !canDismiss) {
+        // Animation callbacks may come from a render that was still locked.
+        // An approved close must finish without being presented again.
+        if (index === -1 && !canDismissRef.current && !dismissRequested.current) {
           bottomSheetRef.current?.present();
           return;
         }
@@ -67,7 +85,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       },
-      [onClose, onOpenChange, canDismiss],
+      [onClose, onOpenChange],
     );
 
     const renderBackdrop = useCallback(
@@ -86,11 +104,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
 
     useImperativeHandle(ref, () => ({
       present: () => {
+        dismissRequested.current = false;
         bottomSheetRef.current?.present();
       },
-      dismiss: () => {
-        if (canDismiss) bottomSheetRef.current?.dismiss();
-      },
+      dismiss: dismissSheet,
     }));
 
     // Handle Android back button
@@ -98,12 +115,12 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       if (!isOpen) return;
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (canDismiss) bottomSheetRef.current?.dismiss();
+        dismissSheet();
         return true;
       });
 
       return () => backHandler.remove();
-    }, [isOpen, canDismiss]);
+    }, [isOpen, dismissSheet]);
 
     const enableDynamicSizing = !snapPoints;
 
@@ -138,7 +155,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         }}
         containerStyle={{ zIndex: 1000 }}
       >
-        {enableDynamicSizing ? (
+        {enableDynamicSizing && !scrollable ? (
           <BottomSheetView style={styles.contentContainer}>{children}</BottomSheetView>
         ) : (
           children

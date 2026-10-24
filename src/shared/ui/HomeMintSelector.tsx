@@ -2,10 +2,11 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { Check, ChevronDown, Sprout, Plus, Landmark, X, Search } from '@tamagui/lucide-icons';
-import { Text, YStack, XStack, View, Avatar, Square, Input } from 'tamagui';
-import { FlatList } from 'react-native';
-import { AppFullScreenModal } from '~/shared/ui/AppFullScreenModal';
+import { Check, ChevronDown, Sprout, Plus, Landmark, X } from '@tamagui/lucide-icons';
+import { Text, YStack, XStack, View, Avatar, Square } from 'tamagui';
+import { useWindowDimensions } from 'react-native';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import React, {
@@ -19,7 +20,7 @@ import React, {
 import * as Network from 'expo-network';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
-import type { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
 import { supportsPaymentMethod, type PaymentMintMethod } from '~/services/wallet/paymentMintPolicy';
@@ -142,9 +143,10 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     const secondaryCurrency = useSettingsStore((s) => s.secondaryCurrency);
     const showBitcoinSymbol = useSettingsStore((s) => s.showBitcoinSymbol);
     const hideBalance = useSettingsStore((s) => s.hideBalance);
-    const [visible, setVisible] = useState(false);
+    const sheetRef = useRef<AppBottomSheetRef>(null);
+    const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
     const visibleRef = useRef(false);
-    const [search, setSearch] = useState('');
     const selectionLock = useRef(false);
     const mounted = useRef(true);
     const [switchingUrl, setSwitchingUrl] = useState<string | null>(null);
@@ -158,7 +160,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       (open: boolean) => {
         if (visibleRef.current === open) return;
         visibleRef.current = open;
-        setVisible(open);
         if (!open) {
           selectionLock.current = false;
           setSwitchingUrl(null);
@@ -176,6 +177,18 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       };
     }, []);
 
+    useEffect(() => {
+      if (completedUrl === null) return;
+      let active = true;
+      // Wait until the completed render has released the sheet's dismissal guard.
+      void afterPaint().then(() => {
+        if (active && mounted.current) sheetRef.current?.dismiss();
+      });
+      return () => {
+        active = false;
+      };
+    }, [completedUrl]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -183,14 +196,13 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           if (selectionLock.current) return;
           setSelectionError(null);
           setCompletedUrl(null);
-          setSearch('');
-          handleOpenChange(true);
+          sheetRef.current?.present();
         },
         dismiss: () => {
-          if (!selectionLock.current) handleOpenChange(false);
+          if (!selectionLock.current) sheetRef.current?.dismiss();
         },
       }),
-      [handleOpenChange],
+      [],
     );
 
     const candidates = useMemo(
@@ -279,12 +291,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           ]
         : rows;
     }, [mints, balances, showAllOption]);
-    const filteredChoices = useMemo(() => {
-      const query = search.trim().toLowerCase();
-      return query
-        ? choices.filter((mint) => `${mint.name} ${mint.url}`.toLowerCase().includes(query))
-        : choices;
-    }, [choices, search]);
 
     const handleSelectMint = useCallback(
       async (mintUrl: string) => {
@@ -295,7 +301,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           mintUrl !== 'all' &&
           mintUrlKey(useWalletStore.getState().activeMintUrl || '') === mintUrlKey(mintUrl)
         ) {
-          handleOpenChange(false);
+          sheetRef.current?.dismiss();
           return;
         }
         selectionLock.current = true;
@@ -319,8 +325,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           if (!mounted.current) return;
           setSwitchingUrl(null);
           setCompletedUrl(mintUrl);
-          await afterPaint();
-          if (mounted.current) handleOpenChange(false);
         } catch (error) {
           selectionLock.current = false;
           if (mounted.current) {
@@ -332,18 +336,32 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           }
         }
       },
-      [setActiveMint, onSelect, changeGlobalActiveMint, handleOpenChange],
+      [setActiveMint, onSelect, changeGlobalActiveMint],
     );
 
     const handleClose = useCallback(() => {
-      if (!selectionLock.current) handleOpenChange(false);
-    }, [handleOpenChange]);
+      if (!selectionLock.current) sheetRef.current?.dismiss();
+    }, []);
     const handleAddMint = useCallback(() => {
       if (selectionLock.current) return;
-      handleOpenChange(false);
+      sheetRef.current?.dismiss();
       router.push('/(modals)/add-mint');
-    }, [router, handleOpenChange]);
+    }, [router]);
     const checkingMethods = !!method && candidates.length > 0 && capabilities.isPending;
+    const snapPoints = useMemo(
+      () => [
+        Math.min(
+          height * 0.85,
+          Math.max(
+            220,
+            88 +
+              Math.max(choices.length, checkingMethods ? candidates.length : 1) * 76 +
+              Math.max(insets.bottom, 16),
+          ),
+        ),
+      ],
+      [height, choices.length, checkingMethods, candidates.length, insets.bottom],
+    );
     const renderItem = useCallback(
       ({ item }: { item: MintChoice }) => (
         <MintChoiceRow
@@ -361,69 +379,46 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     );
 
     return (
-      <AppFullScreenModal
-        visible={visible}
-        title="Choose mint"
-        closeLabel="Close mint selector"
-        onClose={handleClose}
-        canDismiss={!locked}
-        headerRight={
-          <HeaderIconButton
-            accessibilityLabel="Add mint"
-            disabled={locked}
-            icon={Plus}
-            onPress={handleAddMint}
-          />
-        }
+      <AppBottomSheet
+        ref={sheetRef}
+        snapPoints={snapPoints}
+        canDismiss={switchingUrl === null}
+        onOpenChange={handleOpenChange}
       >
         <YStack flex={1} minWidth={0}>
+          <XStack px="$4" py="$2" items="center" gap="$3">
+            <HeaderIconButton
+              accessibilityLabel="Close mint selector"
+              disabled={locked}
+              icon={X}
+              onPress={handleClose}
+            />
+            <Text
+              accessibilityRole="header"
+              flex={1}
+              textAlign="center"
+              fontFamily="$heading"
+              fontSize="$6"
+              fontWeight="500"
+              color="$color"
+            >
+              Choose mint
+            </Text>
+            <HeaderIconButton
+              accessibilityLabel="Add mint"
+              disabled={locked}
+              icon={Plus}
+              onPress={handleAddMint}
+            />
+          </XStack>
           {selectionError && (
             <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
               {selectionError}
             </Text>
           )}
-          <XStack
-            mx="$4"
-            mb="$3"
-            px="$3"
-            minHeight={56}
-            items="center"
-            gap="$2"
-            rounded="$6"
-            bg="$buttonDefaultSecondary"
-          >
-            <Search size={20} color="$gray10" />
-            <Input
-              accessibilityLabel="Search mints"
-              placeholder="Search mints"
-              placeholderTextColor="$gray10"
-              color="$color"
-              fontFamily="$body"
-              fontSize={14}
-              bg="transparent"
-              borderWidth={0}
-              p={0}
-              minWidth={0}
-              height={48}
-              flex={1}
-              value={search}
-              onChangeText={setSearch}
-              editable={!locked}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {search.length > 0 && (
-              <HeaderIconButton
-                accessibilityLabel="Clear mint search"
-                disabled={locked}
-                icon={X}
-                onPress={() => setSearch('')}
-              />
-            )}
-          </XStack>
-          <FlatList
+          <BottomSheetFlatList
             style={{ flex: 1 }}
-            data={filteredChoices}
+            data={choices}
             keyExtractor={(item: MintChoice) => item.url}
             renderItem={renderItem}
             extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
@@ -433,20 +428,18 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
             ListEmptyComponent={
               <YStack px="$5" py="$6" gap="$3" items="center">
                 {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
                 <Text textAlign="center" color="$gray10">
-                  {search.trim()
-                    ? 'No mints match your search.'
-                    : checkingMethods
-                      ? 'Checking available mints…'
-                      : capabilities.isError && method
-                        ? 'Could not check available mints.'
-                        : storedMints.length
-                          ? 'No mints match this selection.'
-                          : 'No connected mints yet.'}
+                  {checkingMethods
+                    ? 'Checking available mints…'
+                    : capabilities.isError && method
+                      ? 'Could not check available mints.'
+                      : storedMints.length
+                        ? 'No mints match this selection.'
+                        : 'No connected mints yet.'}
                 </Text>
                 {method && capabilities.isError && (
                   <AppButton
@@ -462,7 +455,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             }
           />
         </YStack>
-      </AppFullScreenModal>
+      </AppBottomSheet>
     );
   },
 );

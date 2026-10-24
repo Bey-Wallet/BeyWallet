@@ -76,7 +76,11 @@ async function open(compact = false) {
   });
 }
 async function type(value: string) {
-  await act(async () => field().props.onChangeText(value));
+  await act(async () => {
+    for (let length = 1; length <= value.length; length++) {
+      field().props.onChangeText(value.slice(0, length));
+    }
+  });
 }
 beforeEach(() => {
   jest.clearAllMocks();
@@ -141,13 +145,13 @@ it.each([
   );
 });
 
-it('keeps an icon-free bordered field above the choices and input controls in a separate footer', async () => {
+it('places one pill after the choices and switches from Paste to Continue with an inline clear control', async () => {
   await open(true);
   expect(field().props).toMatchObject({
     bg: 'transparent',
     width: '100%',
     height: 96,
-    style: { padding: 8 },
+    style: { padding: 8, paddingRight: 56 },
     lineHeight: 20,
     placeholder: 'Token, request, invoice, address, LNURL or link',
   });
@@ -155,23 +159,32 @@ it('keeps an icon-free bordered field above the choices and input controls in a 
   expect(tree.root.findAllByType('Search' as any)).toHaveLength(0);
   const scroll = tree.root.findByType(ScrollView);
   expect(scroll.findByType('ActionChoices' as any)).toBeTruthy();
-  expect(scroll.findAllByType('Button' as any)).toHaveLength(0);
-  const footer = tree.root.findByProps({ testID: 'payment-input-actions' });
-  expect(footer.findAllByType('Button' as any).map((node) => node.props.children)).toEqual([
-    'Paste',
-    'Continue',
-  ]);
-  expect(button('Continue').props.disabled).toBe(true);
-  for (const action of footer.findAllByType('Button' as any)) {
-    expect(action.props).toMatchObject({
-      variant: 'default',
-      emphasis: 'secondary',
-      size: 'small',
-    });
-  }
+  const actions = scroll.findByProps({ testID: 'payment-input-actions' });
+  const choices = scroll.findByType('ActionChoices' as any);
+  expect(actions.parent === choices.parent).toBe(true);
+  expect(actions.parent!.children.indexOf(actions)).toBeGreaterThan(
+    actions.parent!.children.indexOf(choices),
+  );
+  expect(actions.findAllByType('Button' as any)).toHaveLength(1);
+  expect(button('Continue')).toBeUndefined();
+  expect(button('Paste').props).toMatchObject({
+    variant: 'default',
+    emphasis: 'secondary',
+    size: 'small',
+    style: { borderRadius: 100, minHeight: 48 },
+  });
   await type('draft');
+  expect(button('Paste')).toBeUndefined();
   expect(button('Continue').props.disabled).toBe(false);
-  expect(footer.findByProps({ accessibilityLabel: 'Clear input' })).toBeTruthy();
+  const clear = scroll
+    .findByProps({ testID: 'payment-input-field' })
+    .findByProps({ accessibilityLabel: 'Clear input' });
+  expect(clear.props.disabled).toBe(false);
+  expect(actions.findAllByProps({ accessibilityLabel: 'Clear input' })).toHaveLength(0);
+  await act(async () => clear.props.onPress());
+  expect(button('Continue')).toBeUndefined();
+  expect(button('Paste')).toBeTruthy();
+  expect(field().props.nativeText).toBe('');
 });
 
 it('retains manual entry and Continue in the action input', async () => {
@@ -181,6 +194,55 @@ it('retains manual entry and Continue in the action input', async () => {
   expect(resolver).toHaveBeenCalledWith('cashu-complete-token');
   expect(mockPush).toHaveBeenCalledTimes(1);
 });
+
+it('keeps automatic Paste processing when the native field echoes the pasted value', async () => {
+  let finish!: (result: any) => void;
+  resolver.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+  await open(true);
+  await act(async () => {
+    void button('Paste').props.onPress();
+  });
+  expect(resolver).toHaveBeenCalledWith('cashu-complete-token');
+  expect(button('Paste').props.loading).toBe(true);
+  expect(button('Continue')).toBeUndefined();
+  await act(async () => field().props.onChangeText('cashu-complete-token'));
+  await act(async () => {
+    finish({ type: 'cashu_token', raw: 'fixture', cleaned: 'cashu-complete-token' });
+  });
+  expect(mockBeforeRedirect).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/receive',
+    params: { mode: 'receive', scannedToken: 'cashu-complete-token' },
+  });
+});
+
+it.each([
+  [
+    'cashu_token',
+    { pathname: '/(modals)/receive', params: { mode: 'receive', scannedToken: 'payment-value' } },
+  ],
+  ['cashu_request', { pathname: '/(modals)/send', params: { paymentRequest: 'payment-value' } }],
+  ['lightning_address', '/(modals)/melt'],
+  ['bitcoin_onchain', '/(modals)/melt?mode=onchain'],
+] as const)(
+  'automatically routes a native pasted %s and dismisses the sheet',
+  async (inputType, destination) => {
+    resolver.mockResolvedValueOnce({
+      type: inputType,
+      raw: 'payment-value',
+      cleaned: 'payment-value',
+    });
+    await open(true);
+    await act(async () => field().props.onChangeText('payment-value'));
+    expect(resolver).toHaveBeenCalledWith('payment-value');
+    expect(mockClipboard).not.toHaveBeenCalled();
+    expect(mockBeforeRedirect).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith(destination);
+    expect(mockBeforeRedirect.mock.invocationCallOrder[0]).toBeLessThan(
+      mockPush.mock.invocationCallOrder[0],
+    );
+  },
+);
 
 it.each(['paste', 'type'] as const)(
   'routes a domain username via Lightning when users %s',

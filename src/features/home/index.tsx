@@ -1,5 +1,5 @@
 import { RefreshControl, Animated, Easing } from 'react-native';
-import { YStack, ScrollView, XStack, Text, View } from 'tamagui';
+import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';
@@ -52,7 +52,14 @@ function HomeSkeleton() {
   }, [pulseAnim]);
 
   return (
-    <YStack width="100%" height={300} bg="$gray2" rounded="$5" items="center" justify="center">
+    <YStack
+      width="100%"
+      height={300}
+      bg="$buttonDefaultSecondary"
+      rounded="$6"
+      items="center"
+      justify="center"
+    >
       <Animated.View style={{ opacity: pulseAnim }}>
         <BeyIcon size={40} />
       </Animated.View>
@@ -61,6 +68,7 @@ function HomeSkeleton() {
 }
 
 export function HomeTabScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
@@ -130,7 +138,13 @@ export function HomeTabScreen() {
       bg="$background"
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={String(theme.iconSecondary.val)}
+          colors={[String(theme.iconSecondary.val)]}
+          progressBackgroundColor={String(theme.background.val)}
+        />
       }
     >
       <YStack flex={1} items="center" gap="$4" px="$4" pt="$2" pb="$20">

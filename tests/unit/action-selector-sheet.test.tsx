@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Platform, ScrollView } from 'react-native';
+import { Modal, Platform } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import ActionSelectorSheet, {
   type ActionSelectorSheetRef,
@@ -30,7 +31,10 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Nfc: 'Nfc',
   ArrowLeft: 'ArrowLeft',
 }));
-jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'ScrollView' }));
+jest.mock('@gorhom/bottom-sheet', () => ({
+  BottomSheetScrollView: 'ScrollView',
+  BottomSheetTextInput: 'SheetInput',
+}));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'ListTable' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Option' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
@@ -39,7 +43,12 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
   return {
     __esModule: true,
     default: React.forwardRef((props: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({ present: mockPresent, dismiss: mockDismiss }));
+      React.useImperativeHandle(ref, () => ({
+        present: mockPresent,
+        dismiss: () => {
+          if (props.canDismiss !== false) mockDismiss();
+        },
+      }));
       return React.createElement('Sheet', props, props.children);
     }),
   };
@@ -79,39 +88,52 @@ afterEach(async () => {
   Platform.OS = originalPlatform;
 });
 
-it.each(['send', 'receive'] as const)('opens %s as a full-screen Android modal', async (type) => {
+it.each(['send', 'receive'] as const)('opens %s as an Android bottom sheet', async (type) => {
   Platform.OS = 'android';
   await open(type);
-  expect(tree.root.findByType(Modal).props).toMatchObject({
-    visible: true,
-    presentationStyle: 'fullScreen',
-    animationType: 'slide',
-  });
-  expect(mockPresent).not.toHaveBeenCalled();
-  expect(tree.root.findByType('Sheet' as any).props.children).toBeNull();
-  expect(input().props.scrollComponent).toBe(ScrollView);
+  expect(tree.root.findAllByType(Modal)).toHaveLength(0);
+  expect(mockPresent).toHaveBeenCalledTimes(1);
+  expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(true);
+  expect(tree.root.findByType('Sheet' as any).props.backgroundColor).toBe('$background');
+  expect(input().props.scrollComponent).toBe(BottomSheetScrollView);
   expect(labels()).toEqual(
-    type === 'send' ? ['Scan', 'Share ecash', 'Tap to pay'] : ['Scan', 'Request ecash', 'Bitcoin'],
+    type === 'send' ? ['Share ecash', 'Tap to pay'] : ['Request ecash', 'Bitcoin'],
   );
   await press('Close');
-  expect(tree.root.findByType(Modal).props.visible).toBe(false);
+  expect(mockDismiss).toHaveBeenCalledTimes(1);
   await act(async () => ref.current!.present(type));
-  expect(tree.root.findByType(Modal).props.visible).toBe(true);
-  await act(async () => tree.root.findByType(Modal).props.onRequestClose!());
-  expect(tree.root.findByType(Modal).props.visible).toBe(false);
+  expect(mockPresent).toHaveBeenCalledTimes(2);
+  await act(async () => input().props.onProcessingChange(true));
+  expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(false);
 });
 
-it('preserves Receive Bitcoin navigation inside the Android modal', async () => {
+it.each(['send', 'receive'] as const)(
+  'dismisses %s when a paste lookup resolves using its original callbacks',
+  async (type) => {
+    await open(type);
+    const { onBeforeRedirect, onProcessingChange } = input().props;
+    await act(async () => input().props.onProcessingChange(true));
+    expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(false);
+    await act(async () => {
+      onProcessingChange(false);
+      onBeforeRedirect();
+    });
+    expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(true);
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('preserves Receive Bitcoin navigation inside the Android bottom sheet', async () => {
   Platform.OS = 'android';
   await open('receive');
   await press('Bitcoin');
   expect(labels()).toEqual(['Lightning', 'On-chain']);
   await press('Back');
-  expect(labels()).toEqual(['Scan', 'Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
   await press('Bitcoin');
   await press('On-chain');
   expect(mockPush).toHaveBeenCalledWith('/(modals)/mint?mode=onchain');
-  expect(tree.root.findByType(Modal).props.visible).toBe(false);
+  expect(mockDismiss).toHaveBeenCalledTimes(1);
 });
 
 it('keeps Mint as an Android bottom sheet', async () => {
@@ -124,7 +146,7 @@ it('keeps Mint as an Android bottom sheet', async () => {
 
 it('shares ecash directly from the Send action list', async () => {
   await open('send');
-  expect(labels()).toEqual(['Scan', 'Share ecash', 'Tap to pay']);
+  expect(labels()).toEqual(['Share ecash', 'Tap to pay']);
   await press('Share ecash');
   expect(mockDismiss).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenCalledWith('/(modals)/send?mode=standard');
@@ -138,7 +160,7 @@ it.each([
   ['receive', 'On-chain', '/(modals)/mint?mode=onchain'],
 ] as const)('routes %s Bitcoin via %s to the correct flow', async (type, method, path) => {
   await open(type);
-  expect(labels()).toEqual(['Scan', 'Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
   await press('Bitcoin');
   expect(labels()).toEqual(['Lightning', 'On-chain']);
   expect(mockPush).not.toHaveBeenCalled();
@@ -159,10 +181,10 @@ it('keeps the input draft across choices and Back, then resets on reopening', as
   await press('Bitcoin');
   expect(input().props.value).toBe('payment draft');
   await press('Back');
-  expect(labels()).toEqual(['Scan', 'Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
   expect(input().props.value).toBe('payment draft');
   await act(async () => ref.current!.present('send'));
-  expect(labels()).toEqual(['Scan', 'Share ecash', 'Tap to pay']);
+  expect(labels()).toEqual(['Share ecash', 'Tap to pay']);
   expect(input().props.value).toBe('');
 });
 
@@ -191,8 +213,15 @@ it.each(['send', 'receive'] as const)(
   'uses separate action cards with History icon styling for %s',
   async (type) => {
     await open(type);
-    expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['60%', '90%']);
-    expect(input().props).toMatchObject({ layout: 'screen', compact: true });
+    const [initialHeight, expandedHeight] = tree.root.findByType('Sheet' as any).props.snapPoints;
+    expect(initialHeight).toBeGreaterThan(0);
+    expect(expandedHeight).toBe('90%');
+    expect(input().props).toMatchObject({
+      layout: 'screen',
+      compact: true,
+      inputComponent: BottomSheetTextInput,
+      bottomInset: 16,
+    });
     const group = options()[0].parent!;
     expect(group.props.gap).toBe(12);
     expect(group.props.separator).toBeUndefined();
@@ -224,18 +253,6 @@ it.each(['send', 'receive'] as const)(
     }
   },
 );
-
-it.each([
-  ['send', '/(modals)/scanner'],
-  ['receive', { pathname: '/(modals)/scanner', params: { returnTo: '/receive' } }],
-] as const)('opens the existing %s scanner after dismissing the sheet', async (type, path) => {
-  await open(type);
-  await press('Scan');
-  expect(mockPush).toHaveBeenCalledWith(path);
-  expect(mockDismiss.mock.invocationCallOrder[0]).toBeLessThan(
-    mockPush.mock.invocationCallOrder[0],
-  );
-});
 
 it('dismisses Send before opening the existing NFC reader and ignores repeated taps', async () => {
   await open('send');

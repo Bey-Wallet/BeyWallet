@@ -89,7 +89,8 @@ const RowContainer = styled(XStack, {
   items: 'center',
   justify: 'space-between',
   gap: '$2',
-  pressStyle: { opacity: 0.7 },
+  hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
+  pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
 });
 
 function SenderAvatar({
@@ -107,7 +108,7 @@ function SenderAvatar({
 
   return (
     <View position="relative">
-      <View width={45} height={45} rounded="$3" overflow="hidden" bg="$gray4">
+      <View width={45} height={45} rounded="$3" overflow="hidden" bg="$gray3">
         {person?.picture && !pictureFailed ? (
           <RemoteImage
             identity={pubkey}
@@ -130,7 +131,7 @@ function SenderAvatar({
           height={8}
           rounded="$10"
           borderWidth={1.5}
-          borderColor="$color2"
+          borderColor="$buttonDefaultSecondary"
         />
       )}
     </View>
@@ -223,13 +224,15 @@ export default function NostrActivity() {
   if (unclaimed.length === 0) return null;
 
   return (
-    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg={'$color2'}>
+    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg="$buttonDefaultSecondary">
       {/* Section header */}
       <XStack items="center" justify="space-between">
         <XStack items="center" gap="$2">
-          <H6 color="$gray10">Incoming</H6>
+          <H6 color="$color" fontWeight="600">
+            Incoming
+          </H6>
           <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
-            <Text color="white" fontSize={10} fontWeight="900">
+            <Text color="white" fontSize={10} fontWeight="600">
               {unclaimed.length}
             </Text>
           </View>
@@ -279,7 +282,7 @@ export default function NostrActivity() {
                 <SenderAvatar person={person} pubkey={item.senderPubkey} unseen={!item.seen} />
                 <YStack gap="$0.5" mr="$2" flex={1} style={{ minWidth: 0 }}>
                   <XStack items="center" gap="$1" style={{ minWidth: 0 }}>
-                    <H6 color="$color" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    <H6 color="$color" fontWeight="600" numberOfLines={1} style={{ flexShrink: 1 }}>
                       {displayName}
                     </H6>
                     {person?.nip05Verified === true && <Nip05VerifiedBadge size={14} />}
@@ -289,7 +292,7 @@ export default function NostrActivity() {
                       {fullUsername}
                     </Text>
                   ) : null}
-                  <Text fontSize="$2" color="$gray9">
+                  <Text fontSize="$2" color="$gray10">
                     {people[normalizeNpub(item.senderPubkey)]?.contactStatus !== 'accepted'
                       ? 'Contact acceptance needed · '
                       : item.status === 'approval_required'
@@ -305,7 +308,7 @@ export default function NostrActivity() {
               </XStack>
 
               <YStack items="flex-end" justify="center" flexShrink={0}>
-                <Text fontWeight="900" fontSize={20} color="$color">
+                <Text fontWeight="600" fontSize={20} color="$color">
                   {primaryAmount}
                 </Text>
                 {secondaryAmount ? (

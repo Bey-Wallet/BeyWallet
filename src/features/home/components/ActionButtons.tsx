@@ -24,7 +24,7 @@ function HomeAction({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const iconColor = String(theme.buttonDefaultSecondaryText?.val ?? theme.color?.val);
+  const iconColor = String(theme.iconSecondary?.val ?? theme.gray10?.val ?? theme.color?.val);
 
   return (
     <AppPressable
@@ -51,16 +51,10 @@ function HomeAction({
         <Icon
           size={iconSize}
           color={iconColor}
-          {...(iconStrokeWidth !== undefined ? { strokeWidth: 2 } : {})}
+          {...(iconStrokeWidth !== undefined ? { strokeWidth: iconStrokeWidth } : {})}
         />
       </View>
-      <Text
-        color="$buttonDefaultSecondaryText"
-        fontSize={14}
-        lineHeight={20}
-        fontWeight="600"
-        flexShrink={1}
-      >
+      <Text color="$color" fontSize={14} lineHeight={20} fontWeight="600" flexShrink={1}>
         {label}
       </Text>
     </AppPressable>
@@ -97,7 +91,7 @@ export default React.memo(function ActionButtons() {
           accessibilityLabel="Scan QR code"
           icon={Scan}
           iconSize={20}
-          iconStrokeWidth={2}
+          iconStrokeWidth={3}
           onPress={handleScan}
         />
         <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
