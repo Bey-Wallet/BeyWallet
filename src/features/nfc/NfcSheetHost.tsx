@@ -3,9 +3,9 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { formatPaymentDateTime } from '~/shared/utils/time';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useEffect, useRef, useSyncExternalStore } from 'react';
-import { AppState, Platform } from 'react-native';
-import { FullWindowOverlay } from 'react-native-screens';
+import { AppFullScreenModal } from '~/shared/ui/AppFullScreenModal';
+import React, { useEffect, useSyncExternalStore } from 'react';
+import { AppState, ScrollView } from 'react-native';
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
 import {
   ArrowUpRight,
@@ -17,10 +17,9 @@ import {
 } from '@tamagui/lucide-icons';
 import NfcIcon from '~/shared/icons/NfcIcon';
 import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';
+import { appTypography } from '~/shared/theme/appearance';
 import { useAuthStore } from '~/state/authStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
@@ -47,15 +46,9 @@ export function useNfcPresentation() {
   return useSyncExternalStore(nfcFlow.subscribe, nfcFlow.getSnapshot, nfcFlow.getSnapshot);
 }
 
-function NfcWindowOverlay({ children }: React.PropsWithChildren) {
-  return <FullWindowOverlay>{children}</FullWindowOverlay>;
-}
-
 export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const state = useNfcPresentation();
   const theme = useTheme();
-  const ref = useRef<AppBottomSheetRef>(null);
-  const insets = useSafeAreaInsets();
   const authenticated = useAuthStore((store) => store.isAuthenticated);
   const biometric = useSettingsStore((store) => store.biometricEnabled);
   const settingsReady = useSettingsStore((store) => store.initialized);
@@ -72,10 +65,6 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
       nfcReceiveCoordinator.setReady(false);
     };
   }, []);
-  useEffect(() => {
-    if (state.visible) ref.current?.present();
-    else ref.current?.dismiss();
-  }, [state.visible]);
   useEffect(() => {
     if (state.status === 'confirmed' || state.hasPayment) {
       void queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -122,130 +111,152 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     if (nfcFlow.dismiss()) router.push('/(tabs)/history');
   };
   const retryDelivery = ['error', 'unconfirmed'].includes(state.status) && state.canRetryDelivery;
+  const close = () => {
+    if (!nfcFlow.getSnapshot().locked) nfcFlow.dismiss();
+  };
   const primaryAction =
-    state.status === 'disabled'
-      ? { label: 'Open NFC settings', run: () => nfcService.goToNfcSetting() }
-      : retryDelivery
-        ? { label: 'Retry delivery', run: nfcFlow.retry }
-        : state.status === 'error' && !state.hasPayment
-          ? { label: 'Try again', run: nfcFlow.retry }
-          : ['pending', 'unconfirmed'].includes(state.status) ||
-              (state.status === 'error' && state.hasPayment)
-            ? { label: 'Refresh status', run: nfcFlow.refresh }
-            : undefined;
+    state.status === 'confirmed'
+      ? { label: 'Done', run: close }
+      : state.status === 'disabled'
+        ? { label: 'Open NFC settings', run: () => nfcService.goToNfcSetting() }
+        : retryDelivery
+          ? { label: 'Retry delivery', run: nfcFlow.retry }
+          : state.status === 'error' && !state.hasPayment
+            ? { label: 'Try again', run: nfcFlow.retry }
+            : ['pending', 'unconfirmed'].includes(state.status) ||
+                (state.status === 'error' && state.hasPayment)
+              ? { label: 'Refresh status', run: nfcFlow.refresh }
+              : undefined;
   const showHistory = ['unconfirmed', 'error'].includes(state.status) && state.hasPayment;
   const showRefresh = retryDelivery && state.hasPayment;
   const showCheckNfc = state.status === 'disabled';
   return (
-    <AppBottomSheet
-      ref={ref}
-      containerComponent={Platform.OS === 'ios' ? NfcWindowOverlay : undefined}
-      canDismiss={!state.visible || !state.locked}
-      onClose={() => {
-        nfcFlow.dismiss();
-      }}
+    <AppFullScreenModal
+      visible={state.visible}
+      title="NFC"
+      closeLabel="Close NFC"
+      canDismiss={!state.locked}
+      onClose={close}
     >
-      <YStack px="$4" pt="$3" pb={Math.max(insets.bottom, 16)} gap="$3" items="center">
-        <Text
-          fontFamily="$heading"
-          fontSize="$6"
-          fontWeight="600"
-          textAlign="center"
-          accessibilityLiveRegion="polite"
-        >
-          {titles[state.status]}
-        </Text>
-        {state.status === 'confirmed' || state.status === 'error' ? (
-          <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
-        ) : (
-          <View
-            backgroundColor={badgeColor}
-            borderRadius={3000}
-            p="$4"
-            alignItems="center"
-            justifyContent="center"
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <YStack flex={1} px="$4" pt="$3" pb="$4" gap="$3" items="center">
+          <YStack
+            testID="nfc-modal-status"
+            width="100%"
+            flexGrow={1}
+            flexShrink={0}
+            py="$6"
+            gap="$4"
+            items="center"
+            justify="center"
           >
-            <StateIcon size={40} color={iconColor} />
-          </View>
-        )}
-        {state.amount !== undefined && (
-          <PaymentAmount
-            amount={state.amount}
-            compact
-            size={
-              state.status === 'confirmed' || state.status === 'error' ? 'prominent' : 'standard'
-            }
-          />
-        )}
-        <Text color="$color11" textAlign="center">
-          {state.message}
-        </Text>
-        <YStack width="100%" gap="$3" justifyContent="center" items="center" flex={1} mt="$2">
-          {state.mintUrl && (
-            <ListTable width="100%">
-              <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
-              {state.eventTime && (
-                <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
-              )}
-              {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
-                <ListTableRow label="Fee" value={`${state.fees} sat`} />
-              )}
-            </ListTable>
-          )}
-
-          {primaryAction && (
-            <XStack width="100%" gap="$3">
-              <AppButton
-                variant="branded"
-                emphasis="primary"
-                size="large"
-                flex={1}
-                disabled={state.locked}
-                onPress={primaryAction.run}
+            {state.status === 'confirmed' || state.status === 'error' ? (
+              <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
+            ) : (
+              <View
+                backgroundColor={badgeColor}
+                borderRadius={100}
+                width={88}
+                height={88}
+                alignItems="center"
+                justifyContent="center"
               >
-                {primaryAction.label}
-              </AppButton>
-            </XStack>
-          )}
-          {(showHistory || showRefresh || showCheckNfc) && (
-            <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
-              {showRefresh && (
+                <StateIcon size={40} color={iconColor} />
+              </View>
+            )}
+            <Text
+              fontFamily="$heading"
+              {...appTypography.title2}
+              color="$color"
+              textAlign="center"
+              accessibilityLiveRegion="polite"
+            >
+              {titles[state.status]}
+            </Text>
+            {state.amount !== undefined && (
+              <PaymentAmount amount={state.amount} compact size="prominent" />
+            )}
+            <Text
+              fontFamily="$body"
+              {...appTypography.body2}
+              color="$gray10"
+              textAlign="center"
+              maxWidth={360}
+            >
+              {state.message}
+            </Text>
+          </YStack>
+          <YStack width="100%" gap="$3" items="center">
+            {state.mintUrl && (
+              <ListTable width="100%">
+                <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
+                {state.eventTime && (
+                  <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
+                )}
+                {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
+                  <ListTableRow label="Fee" value={`${state.fees} sat`} />
+                )}
+              </ListTable>
+            )}
+
+            {primaryAction && (
+              <XStack width="100%" gap="$3">
                 <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
+                  variant="branded"
+                  emphasis="primary"
+                  size="large"
+                  flex={1}
                   disabled={state.locked}
-                  onPress={nfcFlow.refresh}
+                  onPress={primaryAction.run}
                 >
-                  Refresh status
+                  {primaryAction.label}
                 </AppButton>
-              )}
-              {showCheckNfc && (
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
-                  disabled={state.locked}
-                  onPress={nfcFlow.retry}
-                >
-                  Check NFC
-                </AppButton>
-              )}
-              {showHistory && (
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="xsmall"
-                  disabled={state.locked}
-                  onPress={viewHistory}
-                >
-                  View History
-                </AppButton>
-              )}
-            </XStack>
-          )}
+              </XStack>
+            )}
+            {(showHistory || showRefresh || showCheckNfc) && (
+              <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
+                {showRefresh && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
+                    disabled={state.locked}
+                    onPress={nfcFlow.refresh}
+                  >
+                    Refresh status
+                  </AppButton>
+                )}
+                {showCheckNfc && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
+                    disabled={state.locked}
+                    onPress={nfcFlow.retry}
+                  >
+                    Check NFC
+                  </AppButton>
+                )}
+                {showHistory && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
+                    disabled={state.locked}
+                    onPress={viewHistory}
+                  >
+                    View History
+                  </AppButton>
+                )}
+              </XStack>
+            )}
+          </YStack>
         </YStack>
-      </YStack>
-    </AppBottomSheet>
+      </ScrollView>
+    </AppFullScreenModal>
   );
 }

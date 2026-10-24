@@ -4,6 +4,14 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+- Send/Receive on Android, mint selection, and NFC share `AppFullScreenModal` for
+  the background, safe-area padding, centered header, close/back control, and native
+  Back handling. They have no drag handle or swipe-dismiss gesture. Check both
+  themes, large text, keyboard avoidance, and selection/payment dismissal guards.
+  Mint search filters saved names and URLs locally; clearing it must retain the
+  active mint. NFC centers status and instructions above its details/actions; Done
+  closes a confirmed receipt without repeating any payment.
+
 - In Send/Receive, type and paste `name@domain`, including a Bey domain address and
   `lightning:name@domain`. Each must open Lightning payment review without querying
   Nostr identity data. Nostr identifiers and bare usernames should direct users to

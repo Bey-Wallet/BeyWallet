@@ -14,7 +14,7 @@ jest.mock('~/shared/ui/ListTable', () => ({
 }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { AppState } from 'react-native';
+import { AppState, Modal } from 'react-native';
 import { appColors } from '~/shared/theme/appearance';
 
 let mockAppearance: 'dark' | 'light' = 'light';
@@ -31,7 +31,6 @@ jest.mock('tamagui', () => ({
     iconPrimary: { val: mockAppearance === 'dark' ? '#FFFFFF' : '#000000' },
   }),
 }));
-jest.mock('react-native-screens', () => ({ FullWindowOverlay: 'Overlay' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   ArrowUpRight: 'Icon',
   ArrowDownLeft: 'Icon',
@@ -39,21 +38,16 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Settings2: 'Icon',
   Ban: 'Icon',
   Check: 'Icon',
+  X: 'X',
 }));
 jest.mock('~/shared/icons/NfcIcon', () => 'Icon');
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
-jest.mock('~/shared/ui/AppBottomSheet', () => {
-  const React = require('react');
-  return {
-    __esModule: true,
-    default: React.forwardRef((props: any, _ref: any) =>
-      React.createElement('Sheet', props, props.children),
-    ),
-  };
-});
+jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderIconButton' }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 0 }),
+}));
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }));
@@ -114,6 +108,11 @@ it('shows startup progress before asking users to hold phones together', async (
     sheet.root.findAllByType('Text' as any).some((text) => text.props.children === 'Starting NFC'),
   ).toBe(true);
   expect(sheet.root.findAllByType('Spinner' as any)).toHaveLength(1);
+  expect(sheet.root.findByProps({ testID: 'nfc-modal-status' }).props).toMatchObject({
+    flexGrow: 1,
+    items: 'center',
+    justify: 'center',
+  });
   mockState = {
     ...mockState,
     status: 'ready',
@@ -127,6 +126,69 @@ it('shows startup progress before asking users to hold phones together', async (
       .findAllByType('Text' as any)
       .some((text) => text.props.children === 'Hold phones together'),
   ).toBe(true);
+  await act(async () => sheet.unmount());
+});
+
+it('offers Done after confirmation without retrying or refreshing the payment', async () => {
+  mockState = {
+    ...mockState,
+    status: 'confirmed',
+    canRetryDelivery: false,
+    amount: 21,
+    message: 'Payment confirmed.',
+  };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  const buttons = sheet.root.findAllByType('Button' as any);
+  expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Done']);
+  expect(sheet.root.findByType('PaymentAmount' as any).props).toMatchObject({
+    amount: 21,
+    size: 'prominent',
+  });
+  await act(async () => buttons[0].props.onPress({}));
+  expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
+  expect(nfcFlow.retry).not.toHaveBeenCalled();
+  expect(nfcFlow.refresh).not.toHaveBeenCalled();
+  await act(async () => sheet.unmount());
+});
+
+it('presents NFC as a full-screen modal and protects both close controls during a payment', async () => {
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  const modal = () => sheet.root.findByType(Modal);
+  const close = () => sheet.root.findByProps({ accessibilityLabel: 'Close NFC' });
+  expect(modal().props).toMatchObject({
+    visible: true,
+    presentationStyle: 'fullScreen',
+    animationType: 'slide',
+  });
+  await act(async () => modal().props.onRequestClose!());
+  expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
+  mockState = { ...mockState, locked: true };
+  // Read the current controller lock even before React has updated the button.
+  await act(async () => close().props.onPress());
+  expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    sheet.update(<NfcSheetHost walletReady />);
+  });
+  expect(close().props.disabled).toBe(true);
+  await act(async () => modal().props.onRequestClose!());
+  expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
+  mockState = { ...mockState, locked: false };
+  await act(async () => {
+    sheet.update(<NfcSheetHost walletReady />);
+  });
+  await act(async () => close().props.onPress());
+  expect(nfcFlow.dismiss).toHaveBeenCalledTimes(2);
+  mockState = { ...mockState, visible: false };
+  await act(async () => {
+    sheet.update(<NfcSheetHost walletReady />);
+  });
+  expect(modal().props.visible).toBe(false);
   await act(async () => sheet.unmount());
 });
 

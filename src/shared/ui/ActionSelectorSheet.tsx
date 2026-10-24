@@ -1,6 +1,5 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { Modal, Platform, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, ScrollView } from 'react-native';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
 import { Banknote, Bitcoin, Zap, ArrowLeft, X, Scan, Nfc } from '@tamagui/lucide-icons';
@@ -12,6 +11,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
+import { AppFullScreenModal } from '~/shared/ui/AppFullScreenModal';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
 export type ActionSheetStage = 'main' | 'bitcoin';
@@ -40,7 +40,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const [stage, setStage] = useState<ActionSheetStage>('main');
     const [processing, setProcessing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
-    const insets = useSafeAreaInsets();
     const fullScreen = Platform.OS === 'android' && type !== 'mint';
     const ScrollContainer = fullScreen ? ScrollView : BottomSheetScrollView;
 
@@ -177,41 +176,36 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     };
 
     const content = (
-      <YStack
-        flex={1}
-        px="$4"
-        gap="$3"
-        bg={fullScreen ? '$background' : undefined}
-        pt={fullScreen ? insets.top + appSpacing.gap : undefined}
-        pb={fullScreen ? insets.bottom : undefined}
-      >
-        <XStack items="center" justify="space-between">
-          <HeaderIconButton
-            accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
-            disabled={processing}
-            icon={stage === 'main' ? X : ArrowLeft}
-            onPress={() => {
-              if (processing || actionPending.current) return;
-              if (stage === 'main') dismiss();
-              else {
-                Haptics.selectionAsync();
-                setStage('main');
-              }
-            }}
-          />
-          <Text
-            accessibilityRole="header"
-            flex={1}
-            textAlign="center"
-            fontFamily="$heading"
-            fontSize="$6"
-            fontWeight="500"
-            color="$color"
-          >
-            {title}
-          </Text>
-          <View width={36} />
-        </XStack>
+      <YStack flex={1} px="$4" gap="$3">
+        {!fullScreen && (
+          <XStack items="center" justify="space-between">
+            <HeaderIconButton
+              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
+              disabled={processing}
+              icon={stage === 'main' ? X : ArrowLeft}
+              onPress={() => {
+                if (processing || actionPending.current) return;
+                if (stage === 'main') dismiss();
+                else {
+                  Haptics.selectionAsync();
+                  setStage('main');
+                }
+              }}
+            />
+            <Text
+              accessibilityRole="header"
+              flex={1}
+              textAlign="center"
+              fontFamily="$heading"
+              fontSize="$6"
+              fontWeight="500"
+              color="$color"
+            >
+              {title}
+            </Text>
+            <View width={36} />
+          </XStack>
+        )}
         <ScrollContainer showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <YStack gap="$4" pb="$4">
             <UniversalInputCard
@@ -334,16 +328,23 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           {fullScreen ? null : content}
         </AppBottomSheet>
         {fullScreen && (
-          <Modal
+          <AppFullScreenModal
             visible={modalVisible}
-            presentationStyle="fullScreen"
-            animationType="slide"
-            onRequestClose={() => {
-              if (!processing) dismiss();
-            }}
+            title={title}
+            canDismiss={!processing}
+            onClose={dismiss}
+            onBack={
+              stage === 'main'
+                ? undefined
+                : () => {
+                    if (actionPending.current || processing) return;
+                    Haptics.selectionAsync();
+                    setStage('main');
+                  }
+            }
           >
             {content}
-          </Modal>
+          </AppFullScreenModal>
         )}
       </>
     );
