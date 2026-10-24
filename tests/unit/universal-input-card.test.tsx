@@ -20,12 +20,24 @@ jest.mock('~/state/walletStore', () => ({
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
+jest.mock('@tamagui/lucide-icons', () => ({
+  X: 'X',
+  Clipboard: 'Clipboard',
+  ArrowRight: 'ArrowRight',
+  Zap: 'Zap',
+  Send: 'Send',
+  Bitcoin: 'Bitcoin',
+  Users: 'Users',
+  CheckCircle2: 'CheckCircle2',
+  Search: 'Search',
+}));
 jest.mock('tamagui', () => {
   const React = require('react');
   return {
     YStack: 'YStack',
     XStack: 'XStack',
     Text: 'Text',
+    View: 'View',
     Input: React.forwardRef((props: any, ref: any) => {
       const [text, setText] = React.useState('');
       React.useImperativeHandle(ref, () => ({
@@ -46,13 +58,14 @@ const resolver = jest.mocked(resolveUniversalInput);
 const field = () => tree.root.findByType('Input' as any);
 const button = (label: string) =>
   tree.root.findAllByType('Button' as any).find((node) => node.props.children === label)!;
-async function open() {
+async function open(compact = false) {
   ref = React.createRef<UniversalInputCardRef>();
   await act(async () => {
     tree = create(
       <UniversalInputCard
         ref={ref}
-        layout="stacked"
+        layout={compact ? 'inline' : 'stacked'}
+        compact={compact}
         label="Payment details"
         onBeforeRedirect={mockBeforeRedirect}
         onProcessingChange={mockBusy}
@@ -95,6 +108,78 @@ it('shows two full-width input lines above Paste, Clear, and Continue actions', 
   expect(mockPush).not.toHaveBeenCalled();
 });
 
+it.each([
+  [
+    'cashu_token',
+    { pathname: '/(modals)/receive', params: { mode: 'receive', scannedToken: 'payment-value' } },
+  ],
+  ['cashu_request', { pathname: '/(modals)/send', params: { paymentRequest: 'payment-value' } }],
+  ['lightning_invoice', '/(modals)/melt'],
+  ['lightning_address', '/(modals)/melt'],
+  ['bitcoin_onchain', '/(modals)/melt?mode=onchain'],
+] as const)('resolves pasted %s from the compact sheet input', async (inputType, destination) => {
+  mockClipboard.mockResolvedValueOnce('  payment-value  ');
+  resolver.mockResolvedValueOnce({
+    type: inputType,
+    raw: 'payment-value',
+    cleaned: 'payment-value',
+  });
+  await open(true);
+  expect(field().props).toMatchObject({
+    multiline: true,
+    numberOfLines: 3,
+    height: 96,
+    accessibilityLabel: 'Payment details',
+  });
+  await act(async () => button('Paste').props.onPress());
+  expect(resolver).toHaveBeenCalledWith('payment-value');
+  expect(mockPush).toHaveBeenCalledWith(destination);
+  expect(mockBeforeRedirect.mock.invocationCallOrder[0]).toBeLessThan(
+    mockPush.mock.invocationCallOrder[0],
+  );
+});
+
+it('retains manual entry and Go in the compact sheet input', async () => {
+  await open(true);
+  await type('cashu-complete-token');
+  await act(async () => button('Go').props.onPress());
+  expect(resolver).toHaveBeenCalledWith('cashu-complete-token');
+  expect(mockPush).toHaveBeenCalledTimes(1);
+});
+
+it.each(['paste', 'type'] as const)(
+  'routes a domain username via Lightning when users %s',
+  async (method) => {
+    resolver.mockImplementationOnce(
+      jest.requireActual('~/shared/utils/universalInputResolver').resolveUniversalInput,
+    );
+    await open(true);
+    if (method === 'paste') {
+      mockClipboard.mockResolvedValueOnce('  alice@bey.cash  ');
+      await act(async () => button('Paste').props.onPress());
+    } else {
+      await type('alice@bey.cash');
+      await act(async () => button('Go').props.onPress());
+    }
+    expect(mockScanner).toHaveBeenCalledWith('alice@bey.cash');
+    expect(mockPush).toHaveBeenCalledWith('/(modals)/melt');
+    expect(mockPush).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('keeps Nostr recipients in the input with guidance to use People', async () => {
+  resolver.mockImplementationOnce(
+    jest.requireActual('~/shared/utils/universalInputResolver').resolveUniversalInput,
+  );
+  await open(true);
+  await type('nostr:npub1-person');
+  await act(async () => button('Go').props.onPress());
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'To send to a person, use the People tab.',
+  );
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
 it('pastes the full trimmed token and routes directly to claiming, before clearing the input', async () => {
   await open();
   await act(async () => button('Paste').props.onPress());
@@ -115,7 +200,6 @@ it.each([
   ['lightning_invoice', '/(modals)/melt'],
   ['lightning_address', '/(modals)/melt'],
   ['bitcoin_onchain', '/(modals)/melt?mode=onchain'],
-  ['nostr_contact', { pathname: '/(modals)/send', params: { mode: 'nostr', to: 'payment-value' } }],
 ] as const)(
   'preserves typed %s routing through Continue',
   async (inputType: UniversalInputType, destination) => {

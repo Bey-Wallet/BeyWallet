@@ -61,21 +61,6 @@ export function handleUniversalRedirect(
       return true;
     }
 
-    case 'nostr_contact':
-    case 'bey_username': {
-      const npub = result.resolvedData?.npub || result.cleaned;
-      const username = result.resolvedData?.username;
-      nav({
-        pathname: '/(modals)/send',
-        params: {
-          mode: 'nostr',
-          to: npub,
-          ...(username ? { username } : {}),
-        },
-      });
-      return true;
-    }
-
     default:
       return false;
   }

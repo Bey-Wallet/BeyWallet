@@ -18,7 +18,7 @@ const isEnabled = function () {
 };
 
 export interface NfcPaymentSession {
-  read: () => Promise<TagEvent>;
+  read: (onReady?: () => void) => Promise<TagEvent>;
   write: (text: string) => Promise<void>;
   close: () => Promise<void>;
 }
@@ -33,11 +33,23 @@ const openPaymentSession = (): NfcPaymentSession => {
   let closed = false;
   let ready = false;
   let opening: Promise<TagEvent> | undefined;
+  let registering: Promise<void> | undefined;
+  let registered = false;
   const session: NfcPaymentSession = {
-    read: () =>
+    read: (onReady) =>
       (opening ??= (async () => {
         try {
           if (closed) throw new Error('NFC session closed');
+          if (Platform.OS === 'android') {
+            registering = NfcManager.registerTagEvent({
+              isReaderModeEnabled: true,
+              readerModeFlags: 0x1 | 0x2 | 0x100,
+            });
+            await registering;
+            registered = true;
+            if (closed) throw new Error('NFC session closed');
+            onReady?.();
+          }
           await NfcManager.requestTechnology(
             NfcTech.Ndef,
             Platform.OS === 'android'
@@ -88,7 +100,12 @@ const openPaymentSession = (): NfcPaymentSession => {
     close: async () => {
       if (closed) return;
       closed = true;
+      await registering?.catch(() => {});
       await NfcManager.cancelTechnologyRequest().catch(() => {});
+      if (registered) {
+        await NfcManager.unregisterTagEvent().catch(() => {});
+        registered = false;
+      }
       if (paymentSession === session) {
         paymentSession = null;
         useAuthStore.getState().setLockDisabled(previousLock);

@@ -105,6 +105,30 @@ it('clears progress and allows another scan when decoding fails', async () => {
   await act(async () => tree.unmount());
 });
 
+it.each([
+  ['send', {}, 'lightning_invoice'],
+  ['send', {}, 'lightning_address'],
+  ['send', {}, 'bitcoin_onchain'],
+  ['send', {}, 'cashu_request'],
+  ['receive', { returnTo: '/receive' }, 'cashu_token'],
+] as const)('resolves %s scans of %s through payment routing', async (_flow, params, type) => {
+  mockParams = params;
+  const result = { type, raw: 'payment-value', cleaned: 'payment-value' };
+  mockResolve.mockResolvedValueOnce(result);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () =>
+    tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: 'payment-value' }),
+  );
+  expect(mockResolve).toHaveBeenCalledWith('payment-value');
+  expect(mockRedirect).toHaveBeenCalledWith(result, expect.objectContaining({ replace: true }));
+  expect(mockBack).not.toHaveBeenCalled();
+  expect(mockSetScannerResult).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
 it('returns a public-key scan only to its key sheet without invoking payment routing', async () => {
   mockParams = { p2pkScanId: 'key-editor-1' };
   let tree!: ReactTestRenderer;

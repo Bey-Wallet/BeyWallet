@@ -1,5 +1,6 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Input,
@@ -687,6 +688,7 @@ export default function AddMintScreen() {
         }
       >
         {/* ─── Search Bar (Finding & Adding by URL) ───────────────────────────── */}
+        <FirstUseGuidance topic="mintTrust" spaceBelow />
         <YStack gap="$3" mb="$4">
           <XStack
             bg="$gray3"

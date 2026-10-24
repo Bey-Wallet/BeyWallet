@@ -29,6 +29,7 @@ import { nfcFlow } from './nfcFlow';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
 const stateIcons = {
+  starting: Spinner,
   ready: NfcIcon,
   reading: NfcIcon,
   sending: ArrowUpRight,
@@ -103,8 +104,9 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const badgeColor = theme.gray3.val;
   const iconColor = theme.iconPrimary.val;
   const titles = {
-    ready: state.direction === 'send' ? 'Send via NFC' : 'Receive / Pay',
-    reading: 'Reading',
+    starting: 'Starting NFC',
+    ready: 'Hold phones together',
+    reading: 'Receive ecash or pay',
     sending: 'Sending',
     receiving: 'Receiving',
     paying: 'Paying',
@@ -144,7 +146,13 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
       }}
     >
       <YStack px="$4" pt="$3" pb={Math.max(insets.bottom, 16)} gap="$3" items="center">
-        <Text fontSize="$6" fontWeight="700" textAlign="center">
+        <Text
+          fontFamily="$heading"
+          fontSize="$6"
+          fontWeight="600"
+          textAlign="center"
+          accessibilityLiveRegion="polite"
+        >
           {titles[state.status]}
         </Text>
         {state.status === 'confirmed' || state.status === 'error' ? (

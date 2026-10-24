@@ -6,8 +6,25 @@ import {
   isPendingHistory,
   type HistoryListEntry,
 } from '~/features/history/historyList';
+import { historyStatusLabel } from '~/features/history/transactionPresentation';
 
 const now = new Date(2026, 9, 22, 12);
+
+it('keeps ecash creation and delivery distinct from a verified claim', () => {
+  const created = { type: 'send', state: 'unclaimed' };
+  const delivered = { ...created, metadata: { delivery: 'delivered' } };
+  expect(historyStatusLabel(created)).toBe('Created');
+  expect(historyStatusLabel(delivered)).toBe('Delivered');
+  expect(historyStatusLabel(created, true)).toBe('Delivered');
+  expect(historyStatusLabel({ ...delivered, state: 'claimed' })).toBe('Claimed');
+  expect(historyStatusLabel({ ...delivered, state: 'refunded' }, true)).toBe('Refunded');
+});
+
+it('does not call a paid Lightning deposit confirmed before ecash is issued', () => {
+  expect(historyStatusLabel({ type: 'mint', state: 'paid' })).toBe('Awaiting ecash');
+  expect(historyStatusLabel({ type: 'mint', state: 'issued' })).toBe('Confirmed');
+  expect(historyStatusLabel({ type: 'melt', state: 'paid' })).toBe('Confirmed');
+});
 const makeEntry = (
   id: string,
   type: string,

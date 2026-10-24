@@ -11,6 +11,7 @@ export interface HistoryListEntry {
   metadata?: unknown;
   token?: unknown;
   quoteId?: string;
+  operationId?: string;
   paymentRequest?: string;
 }
 

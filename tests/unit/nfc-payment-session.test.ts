@@ -2,6 +2,7 @@ jest.mock('react-native-nfc-manager', () => ({
   __esModule: true,
   default: {
     requestTechnology: jest.fn(async () => {}),
+    registerTagEvent: jest.fn(async () => {}),
     getTag: jest.fn(async () => ({ ndefMessage: [] })),
     cancelTechnologyRequest: jest.fn(async () => {}),
     setEventListener: jest.fn(),
@@ -97,6 +98,47 @@ it('keeps the same native session open for confirmation and write-back', async (
   await session.close();
   await session.close();
   expect(NfcManager.cancelTechnologyRequest).toHaveBeenCalledTimes(1);
+  expect(useAuthStore.getState().isLockDisabled).toBe(false);
+});
+
+it('announces Android reader readiness only after native registration and cleans it up', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  let registered!: () => void;
+  jest.mocked(NfcManager.registerTagEvent).mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        registered = resolve;
+      }),
+  );
+  const ready = jest.fn();
+  const session = nfcService.openPaymentSession();
+  const reading = session.read(ready);
+  expect(ready).not.toHaveBeenCalled();
+  registered();
+  await reading;
+  expect(ready).toHaveBeenCalledTimes(1);
+  await session.close();
+  expect(NfcManager.unregisterTagEvent).toHaveBeenCalledTimes(1);
+});
+
+it('does not announce readiness if the reader is closed during registration', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  let registered!: () => void;
+  jest.mocked(NfcManager.registerTagEvent).mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        registered = resolve;
+      }),
+  );
+  const ready = jest.fn();
+  const session = nfcService.openPaymentSession();
+  const reading = session.read(ready);
+  const failed = expect(reading).rejects.toThrow('closed');
+  const closing = session.close();
+  registered();
+  await Promise.all([closing, failed]);
+  expect(ready).not.toHaveBeenCalled();
+  expect(NfcManager.unregisterTagEvent).toHaveBeenCalledTimes(1);
   expect(useAuthStore.getState().isLockDisabled).toBe(false);
 });
 it('distinguishes an unwritable tag from contact loss without logging native data', async () => {

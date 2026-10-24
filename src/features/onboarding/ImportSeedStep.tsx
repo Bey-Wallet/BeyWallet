@@ -1,4 +1,5 @@
 import { AppButton } from '~/shared/ui/AppButton';
+import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useRef } from 'react';
 import { YStack, XStack, Text, H2, Input, ScrollView, View } from 'tamagui';
 import {
@@ -173,7 +174,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
             </Text>
           </YStack>
 
-          {/* Action paste / clear button */}
+          <FirstUseGuidance topic="recovery" spaceBelow />
 
           {/* Word Tag Container (Variable Width Flow) */}
           <XStack flexWrap="wrap" gap="$2" mb="$4">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { RecoverFundsScreen } from '~/features/settings/RecoverFundsScreen';
+jest.mock('~/shared/ui/FirstUseGuidance', () => ({ FirstUseGuidance: 'FirstUseGuidance' }));
 
 const mockRecover = jest.fn();
 const mockAuth = jest.fn();

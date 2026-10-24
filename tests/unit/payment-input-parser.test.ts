@@ -129,6 +129,54 @@ describe('parsePaymentInput', () => {
 });
 
 describe('resolveUniversalInput', () => {
+  it.each(['alice@example.com', 'satoshi@bey.cash', 'LIGHTNING:alice@example.com'])(
+    'treats %s as a Lightning address without looking up a Nostr identity',
+    async (input) => {
+      const fetch = jest.spyOn(global, 'fetch');
+      try {
+        const address = input.replace(/^lightning:/i, '');
+        expect(await resolveUniversalInput(`  ${input}  `)).toMatchObject({
+          type: 'lightning_address',
+          cleaned: address,
+          resolvedData: { address },
+        });
+        expect(fetch).not.toHaveBeenCalled();
+      } finally {
+        fetch.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    'alice',
+    '@alice',
+    'npub1-person',
+    'nprofile1-person',
+    'nostr:alice@example.com',
+    'web+nostr:npub1-person',
+    'a'.repeat(64),
+    'https://bey.cash/u/alice',
+    'bey.cash/user/alice',
+  ])('directs Nostr recipient %s to People without a lookup', async (input) => {
+    const fetch = jest.spyOn(global, 'fetch');
+    try {
+      expect(await resolveUniversalInput(input)).toMatchObject({
+        type: 'unknown',
+        error: 'To send to a person, use the People tab.',
+      });
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      fetch.mockRestore();
+    }
+  });
+
+  it('keeps LNURL inputs on the Lightning path', async () => {
+    expect(await resolveUniversalInput('lnurl1-payment')).toMatchObject({
+      type: 'lightning_address',
+      cleaned: 'lnurl1-payment',
+    });
+  });
+
   it('routes a Numo unified URI as a Cashu request', async () => {
     const result = await resolveUniversalInput(
       `bitcoin:?lightning=${INVOICE}&creq=${encodeURIComponent(CREQB)}`,

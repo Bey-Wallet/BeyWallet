@@ -46,6 +46,7 @@ jest.mock('~/services/wallet/paymentRequestPayment', () => ({
 jest.mock('~/services/wallet/lightningPayment', () => ({ LightningPayment: jest.fn() }));
 jest.mock('~/services/wallet', () => ({
   walletService: { receive: jest.fn() },
+  historyService: { tagHistoryVia: jest.fn(async () => {}) },
   decodeToken: () => ({ mint: 'mint', proofs: [{ amount: 2 }, { amount: 2 }] }),
 }));
 jest.mock('~/services/wallet/proofService', () => ({
@@ -80,7 +81,7 @@ import { PaymentRequestPayment } from '~/services/wallet/paymentRequestPayment';
 import { parsePaymentRequest } from '~/services/wallet/paymentRequestModel';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
 import { proofService } from '~/services/wallet/proofService';
-import { walletService } from '~/services/wallet';
+import { walletService, historyService } from '~/services/wallet';
 import { initService } from '~/services/wallet/initService';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
@@ -150,6 +151,60 @@ afterEach(async () => {
   flow.background();
   await flush();
   jest.useRealTimers();
+});
+
+it('keeps NFC starting until Android reader registration reports readiness', async () => {
+  let ready!: () => void;
+  jest.mocked(nfcService.openPaymentSession).mockImplementationOnce(() => ({
+    read: (onReady) => {
+      ready = onReady!;
+      return new Promise(() => {});
+    },
+    close,
+    write,
+  }));
+  flow.openReader();
+  expect(flow.getSnapshot().status).toBe('starting');
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'starting', message: 'Starting NFC…' });
+  ready();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'ready', direction: 'receive' });
+  expect(flow.getSnapshot().message).toContain('receive ecash');
+});
+
+it('does not announce a sender as ready before HCE startup finishes', async () => {
+  let enable!: (session: any) => void;
+  jest.mocked(nfcService.startHceSimulation).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        enable = resolve;
+      }),
+  );
+  flow.openSend({ token: 'token', amount: 4, mintUrl: 'mint' });
+  await flush();
+  expect(flow.getSnapshot().status).toBe('starting');
+  enable({ on: jest.fn(() => jest.fn()) });
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'ready', direction: 'send' });
+  expect(flow.getSnapshot().message).toContain('other phone');
+});
+
+it('retries the same token when Android disconnects before delivery was observed', async () => {
+  flow.openSend({ token: 'token', amount: 4, mintUrl: 'mint' });
+  await flush();
+  events.connected();
+  events.disconnected();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'error',
+    canRetryDelivery: true,
+    locked: false,
+  });
+  await flow.retry();
+  expect(jest.mocked(nfcService.startHceSimulation).mock.calls.map(([token]) => token)).toEqual([
+    'token',
+    'token',
+  ]);
+  expect(PaymentRequestPayment).not.toHaveBeenCalled();
 });
 
 it('automatically pays once and keeps same-session Numo write-back open', async () => {
@@ -483,6 +538,13 @@ it('broadcasts the provided token once and confirms all spent proofs', async () 
     .mocked(proofService.checkProofStates)
     .mockResolvedValue([{ state: 'SPENT' }, { state: 'SPENT' }] as any);
   await flow.refresh();
+  expect(historyService.tagHistoryVia).toHaveBeenCalledWith(
+    'mint',
+    'send',
+    'nfc',
+    { delivery: 'delivered' },
+    'op',
+  );
   expect(flow.getSnapshot().status).toBe('confirmed');
   expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(1);
 });

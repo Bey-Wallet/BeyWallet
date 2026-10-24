@@ -31,6 +31,7 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' 
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/FirstUseGuidance', () => ({ FirstUseGuidance: 'FirstUseGuidance' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 
 const props = {

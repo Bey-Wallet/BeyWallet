@@ -4,6 +4,26 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+- In Send/Receive, type and paste `name@domain`, including a Bey domain address and
+  `lightning:name@domain`. Each must open Lightning payment review without querying
+  Nostr identity data. Nostr identifiers and bare usernames should direct users to
+  People. Verify accepted-person sends still work from a conversation.
+- On Android, NFC must show **Starting NFC** during reader registration or sender
+  startup, then **Hold phones together** only when ready. Check the distinct reader
+  and sender instructions, disabled NFC, a canceled startup, and background/resume.
+  Separate phones before delivery: **Retry delivery** must reuse the existing token.
+  Reconnect to the same request after an interrupted write; no second payment may be
+  created. A delivered token is not a confirmed claim.
+- In History, verify created ecash and observed delivery remain visibly pending.
+  Completed rows stay minimal without repeated claimed/confirmed labels; pending,
+  failed, and refunded rows retain useful status detail. Refresh remains observational. Reclaim stays in
+  transaction details with its existing eligibility checks. Match delivery evidence
+  by operation ID, including after restarting; never infer delivery from equal amounts.
+- On first recovery, offline send/receive confirmation, and mint selection, check
+  the short explanations and dismiss controls with large text and screen readers.
+  Dismiss each explanation, restart, and verify it stays dismissed without hiding
+  required security warnings or changing authentication, mint trust, or payment checks.
+
 - The mint selector uses flat, virtualized rows with icon, name, primary-currency
   balance and a bold branded check. Opening it uses the saved mint list and does
   not trigger a full refresh. Payment-method filtering reads SDK metadata locally;

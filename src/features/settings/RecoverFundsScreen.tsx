@@ -6,6 +6,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { biometricService } from '~/services/platform/biometricService';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { AppButton } from '~/shared/ui/AppButton';
+import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 import {
   SettingsDescription,
@@ -133,6 +134,7 @@ export function RecoverFundsScreen() {
         Check a mint for recoverable ecash using this wallet’s recovery phrase. Your existing wallet
         stays in place. Connect any missing mints before scanning.
       </SettingsDescription>
+      <FirstUseGuidance topic="recovery" />
       {trusted.length > 0 ? (
         <SettingsGroup>
           {trusted.length > 1 && (

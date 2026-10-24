@@ -7,6 +7,31 @@ interface PaymentHistory {
   paymentRequest?: string;
 }
 
+/** Presentation only: delivery is not proof that a recipient has claimed ecash. */
+export function historyStatusLabel(entry: PaymentHistory, delivered = false): string {
+  const state = entry.state?.trim().toLowerCase() || '';
+  if (state === 'refunded') return 'Refunded';
+  if (state === 'expired') return 'Expired';
+  if (['cancelled', 'canceled'].includes(state)) return 'Cancelled';
+  if (['failed', 'error', 'rolled_back', 'rolledback'].includes(state)) return 'Failed';
+  if (entry.type === 'send') {
+    if (state === 'claimed') return 'Claimed';
+    if (['pending', 'unclaimed', 'prepared', 'executing'].includes(state))
+      return delivered || historyMetadata(entry).delivery === 'delivered' ? 'Delivered' : 'Created';
+  }
+  if (['pending', 'unpaid', 'unclaimed', 'prepared', 'executing'].includes(state)) return 'Pending';
+  if (entry.type === 'mint' && state === 'paid' && !isOnchainHistory(entry))
+    return 'Awaiting ecash';
+  if (
+    ['claimed', 'paid', 'issued', 'received', 'completed', 'finalized', 'success'].includes(
+      state,
+    ) ||
+    (entry.type === 'receive' && !state)
+  )
+    return 'Confirmed';
+  return '';
+}
+
 export function historyMetadata(entry: PaymentHistory): Record<string, any> {
   if (typeof entry.metadata === 'string') {
     try {

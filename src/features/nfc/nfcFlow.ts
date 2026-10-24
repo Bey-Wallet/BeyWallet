@@ -14,13 +14,14 @@ import {
   areAllPaymentProofsSpent,
 } from '~/services/wallet/paymentRequestPayment';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
-import { walletService, decodeToken } from '~/services/wallet';
+import { walletService, decodeToken, historyService } from '~/services/wallet';
 import { proofService } from '~/services/wallet/proofService';
 import { useWalletStore } from '~/state/walletStore';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 import { PaymentRequest } from '@cashu/cashu-ts';
 
 export type NfcStatus =
+  | 'starting'
   | 'ready'
   | 'reading'
   | 'sending'
@@ -236,7 +237,10 @@ export class NfcFlow {
       (this.send && input !== 'reader' && input.token === this.send.token)
     ) {
       this.update({ visible: true });
-      if (this.send && ['ready', 'error', 'disabled', 'unsupported'].includes(this.state.status)) {
+      if (
+        this.send &&
+        ['starting', 'ready', 'error', 'disabled', 'unsupported'].includes(this.state.status)
+      ) {
         void this.start();
         return;
       }
@@ -251,12 +255,12 @@ export class NfcFlow {
       visible: true,
       requestStatus: this.requestBroadcast ? 'paused' : undefined,
       requestPauseReason: this.requestBroadcast ? 'session' : undefined,
-      status: 'ready',
+      status: 'starting',
       direction: this.send ? 'send' : 'receive',
       amount: this.send?.amount,
       mintUrl: this.send?.mintUrl,
       fees: this.send?.fees,
-      message: 'Hold the phones together',
+      message: 'Starting NFC…',
       hasPayment: !!this.send,
       canRetryDelivery: false,
     });
@@ -322,6 +326,7 @@ export class NfcFlow {
   private async start() {
     if (this.busy) return;
     this.busy = true;
+    this.update({ status: 'starting', message: 'Starting NFC…', canRetryDelivery: false });
     const generation = ++this.generation;
     try {
       await this.stopSession();
@@ -350,9 +355,26 @@ export class NfcFlow {
           return;
         }
         this.hce = session;
+        this.update({
+          status: 'ready',
+          message: 'Hold phones together. The other phone should be ready to receive ecash.',
+        });
+        let delivered = false;
         this.unlisteners.push(
-          session.on(HCESession.Events.HCE_STATE_READ, () => {
+          session.on(HCESession.Events.HCE_STATE_READ, async () => {
             if (!this.alive(generation)) return;
+            delivered = true;
+            const send = this.send;
+            if (send?.operationId) {
+              await historyService.tagHistoryVia(
+                send.mintUrl,
+                'send',
+                'nfc',
+                { delivery: 'delivered' },
+                send.operationId,
+              );
+            }
+            if (!this.alive(generation) || this.state.status === 'confirmed') return;
             this.update({
               status: 'pending',
               locked: false,
@@ -370,6 +392,16 @@ export class NfcFlow {
         this.unlisteners.push(
           session.on(HCESession.Events.HCE_STATE_DISCONNECTED, () => {
             if (this.alive(generation)) {
+              if (!delivered) {
+                this.update({
+                  status: 'error',
+                  locked: false,
+                  canRetryDelivery: true,
+                  message:
+                    'The tap was interrupted before delivery was confirmed. Retry delivery with the same payment.',
+                });
+                return;
+              }
               this.update({
                 status: 'pending',
                 locked: false,
@@ -381,10 +413,21 @@ export class NfcFlow {
         );
         return;
       }
-      this.update({ status: 'reading' });
       const session = nfcService.openPaymentSession();
       this.reader = session;
-      const tag = await session.read();
+      // iOS owns its native scanning prompt; Android reports when reader registration completes.
+      if (Platform.OS !== 'android')
+        this.update({
+          status: 'reading',
+          message: 'Follow the NFC prompt to receive ecash or pay a request.',
+        });
+      const tag = await session.read(() => {
+        if (this.alive(generation))
+          this.update({
+            status: 'ready',
+            message: 'Hold phones together to receive ecash or read a payment request.',
+          });
+      });
       if (!this.alive(generation)) return;
       const input = parsePaymentInput(decodePaymentNdef(tag));
       if (!input.matched || !input.ok)
@@ -546,11 +589,23 @@ export class NfcFlow {
     if (!this.reader) {
       await this.cleanup;
       if (!this.state.visible) throw new Error('NFC session closed');
+      this.update({ status: 'starting', message: 'Starting NFC…' });
       this.reader = nfcService.openPaymentSession();
-      const tag = await this.reader.read();
+      const tag = await this.reader.read(() => {
+        if (this.state.visible)
+          this.update({
+            status: 'ready',
+            message:
+              'Hold phones together. Reconnect to the same request to deliver the existing payment.',
+          });
+      });
       assertSameNfcPaymentRequest(tag, this.payment.request.raw);
     }
     if (!this.state.visible) throw new Error('NFC session closed');
+    this.update({
+      status: 'paying',
+      message: 'Delivering the existing payment. Keep the phones together.',
+    });
     await this.reader.write(token);
   };
   retry = async () => {

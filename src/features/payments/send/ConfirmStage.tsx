@@ -12,6 +12,7 @@ import type { SendMode } from '~/shared/ui/SendMethodSelector';
 import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
 import { PaymentNote } from '~/shared/ui/PaymentNote';
+import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 
 interface ConfirmStageProps {
   amount: string;
@@ -67,6 +68,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
           </AppButton>
         }
       >
+        {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
         {sendMode === 'standard' && props.setLockEcash && props.setReceiverPubkey && (
           <P2PKLockCard
             enabled={!!props.lockEcash}

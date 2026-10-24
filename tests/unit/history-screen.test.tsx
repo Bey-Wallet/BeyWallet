@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { HistoryScreen } from '~/features/history';
+import { HistoryItem } from '~/features/history/components/HistoryItem';
 import { checkHistoryStatus } from '~/features/history/checkHistoryStatus';
 
 const mockPush = jest.fn();
@@ -9,6 +10,7 @@ const mockPresent = jest.fn();
 const mockLoadRequests = jest.fn(async () => {});
 const mockMints: unknown[] = [];
 const mockRequests: unknown[] = [];
+const mockPayments: { operationId: string; published: boolean }[] = [];
 const mockHistory = [
   {
     id: 'send',
@@ -88,7 +90,11 @@ jest.mock('~/state/walletStore', () => ({
 }));
 jest.mock('~/state/nostrRequestStore', () => ({
   useNostrRequestStore: (selector: any) =>
-    selector({ pendingRequests: mockRequests, loadPendingRequests: mockLoadRequests }),
+    selector({
+      pendingRequests: mockRequests,
+      payments: mockPayments,
+      loadPendingRequests: mockLoadRequests,
+    }),
 }));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: () => ({ primaryCurrency: 'SATS', secondaryCurrency: 'NONE' }),
@@ -120,6 +126,7 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
 let screen: ReactTestRenderer;
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockPayments.length = 0;
   await act(async () => {
     screen = create(<HistoryScreen />);
   });
@@ -155,7 +162,7 @@ it('renders real rows, opens details and toggles quick filters back to all activ
   expect(transactionButtons()).toHaveLength(2);
   act(() => pressable('Pending').props.onPress());
   expect(transactionButtons()).toHaveLength(1);
-  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Pending');
+  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Created');
 });
 
 it('checks once per tap sequence, spins and keeps the status button separate from navigation', async () => {
@@ -165,11 +172,17 @@ it('checks once per tap sequence, spins and keeps the status button separate fro
       finish = resolve;
     }),
   );
-  const button = pressable('Check status of sent ecash');
+  const button = pressable('Check status of created ecash');
+  const title = screen.root
+    .findAllByType('Text' as any)
+    .find((text) => text.props.children === 'Ecash created')!;
+  expect(button.parent).toBe(title.parent);
+  const event = { stopPropagation: jest.fn() };
   act(() => {
-    button.props.onPress();
-    button.props.onPress();
+    button.props.onPress(event);
+    button.props.onPress(event);
   });
+  expect(event.stopPropagation).toHaveBeenCalledTimes(2);
   expect(checkHistoryStatus).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
   expect(screen.root.findAllByType('Spinner' as any)).toHaveLength(1);
@@ -184,6 +197,42 @@ it('opens advanced filters when requested by the route header', async () => {
     screen.update(<HistoryScreen showFilters />);
   });
   expect(mockPresent).toHaveBeenCalledTimes(1);
+});
+
+it('shows delivery only for the matching published operation and keeps claim separate', async () => {
+  let item!: ReactTestRenderer;
+  const entry = { ...mockHistory[0], operationId: 'expected-operation' };
+  const texts = () => item.root.findAllByType('Text' as any).map((text) => text.props.children);
+  mockPayments.push({ operationId: 'other-operation', published: true });
+  await act(async () => {
+    item = create(
+      <HistoryItem entry={entry} displayAmount={10} position="only" onPress={jest.fn()} />,
+    );
+  });
+  expect(texts()).toContain('Ecash created');
+  mockPayments.push({ operationId: 'expected-operation', published: true });
+  await act(async () => {
+    item.update(
+      <HistoryItem entry={{ ...entry }} displayAmount={10} position="only" onPress={jest.fn()} />,
+    );
+  });
+  expect(texts()).toContain('Ecash delivered');
+  expect(texts()).toContain('Ecash · Delivered');
+  await act(async () => {
+    item.update(
+      <HistoryItem
+        entry={{ ...entry, state: 'claimed' }}
+        displayAmount={10}
+        position="only"
+        onPress={jest.fn()}
+      />,
+    );
+  });
+  expect(texts()).toContain('Ecash');
+  expect(texts()).not.toContain('Ecash · Claimed');
+  expect(texts()).not.toContain('Ecash · Confirmed');
+  expect(item.root.findAllByType('RefreshCw' as any)).toHaveLength(0);
+  await act(async () => item.unmount());
 });
 
 it('keeps quick filters usable when no activity matches', () => {

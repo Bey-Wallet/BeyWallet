@@ -2,6 +2,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -235,6 +236,7 @@ export function ConfirmStage({
           </AppButton>
         }
       >
+        {offline && <FirstUseGuidance topic="offlineTokens" />}
         {!offline && (
           <AppButton
             variant="default"

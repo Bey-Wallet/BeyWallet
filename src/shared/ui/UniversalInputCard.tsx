@@ -2,7 +2,7 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, XStack, Text, Input, View } from 'tamagui';
 import {
   X,
   Clipboard,
@@ -10,8 +10,8 @@ import {
   Zap,
   Send,
   Bitcoin,
-  Users,
   CheckCircle2,
+  Search,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
@@ -49,8 +49,8 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       compact = false,
       layout = 'inline',
       onProcessingChange,
-      label = 'Enter Token, Address or Username',
-      placeholder = 'Paste or type Cashu token, LN invoice/address, Bitcoin address, Npub, or username...',
+      label = 'Payment details',
+      placeholder = 'Paste or type an ecash token, invoice or address',
       onBeforeRedirect,
       onResolved,
       autoFocus = false,
@@ -214,9 +214,6 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           return { label: 'Lightning', color: '$amber10', icon: Zap };
         case 'bitcoin_onchain':
           return { label: 'BTC On-Chain', color: '$orange10', icon: Bitcoin };
-        case 'nostr_contact':
-        case 'bey_username':
-          return { label: 'Nostr DM', color: '$purple10', icon: Users };
         default:
           return null;
       }
@@ -235,18 +232,18 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         fontFamily="$body"
         fontWeight="400"
         fontSize={compact && !stacked ? '$3' : '$4'}
-        lineHeight={stacked ? 24 : undefined}
+        lineHeight={stacked ? 24 : compact ? 20 : undefined}
         color="$color"
         p={0}
         flex={stacked ? undefined : 1}
         minWidth={0}
         width={stacked ? '100%' : undefined}
-        textAlignVertical={compact && !stacked ? 'center' : 'top'}
-        placeholderTextColor="$gray8"
-        multiline={stacked || !compact}
-        numberOfLines={stacked ? 2 : compact ? 1 : 3}
-        style={{ padding: 0 }}
-        height={stacked ? 56 : compact ? 40 : height}
+        textAlignVertical="top"
+        placeholderTextColor={compact ? '$gray10' : '$gray8'}
+        multiline
+        numberOfLines={stacked ? 2 : 3}
+        style={compact && !stacked ? { padding: 0, paddingTop: 12 } : { padding: 0 }}
+        height={stacked ? 56 : compact ? 96 : height}
         editable={!isValidating}
         autoCapitalize="none"
         autoCorrect={false}
@@ -323,16 +320,37 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     return (
       <YStack
         rounded="$6"
-        p={compact ? '$2' : '$3'}
-        minHeight={compact ? 64 : 120}
+        p="$3"
+        minHeight={120}
         borderWidth={1}
         items="center"
-        borderColor={validationError ? '$red8' : '$gray4'}
-        bg="$gray3"
+        borderColor={validationError ? '$red10' : compact ? 'transparent' : '$gray4'}
+        bg={compact ? '$buttonDefaultSecondary' : '$gray3'}
       >
-        <XStack justify="space-between" items="center" gap="$2" mb={compact ? 0 : '$2'}>
+        <XStack
+          width={compact ? '100%' : undefined}
+          justify="space-between"
+          items={compact ? 'flex-start' : 'center'}
+          gap="$2"
+          mb={compact ? 0 : '$2'}
+        >
           {compact ? (
-            input
+            <>
+              <View
+                width={44}
+                height={44}
+                rounded={100}
+                bg="$gray3"
+                items="center"
+                justify="center"
+                aria-hidden
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Search size={20} strokeWidth={2.5} color="$gray10" />
+              </View>
+              {input}
+            </>
           ) : (
             <XStack gap="$2" items="center">
               <Text color="$gray10" fontSize="$2" fontWeight="600">
@@ -353,7 +371,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                 <AppIconButton
                   variant="default"
                   emphasis="tertiary"
-                  size="xxsmall"
+                  size={compact ? 'xsmall' : 'xxsmall'}
 
                   shape="circular"
                   accessibilityLabel="Clear input"
@@ -364,7 +382,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                 <AppButton
                   variant="branded"
                   emphasis="primary"
-                  size="xxsmall"
+                  size={compact ? 'xsmall' : 'xxsmall'}
                   loading={isValidating && !automaticProcessing}
                   loadingText="Reading payment…"
                   icon={isValidating ? undefined : <ArrowRight size={14} />}
@@ -378,8 +396,11 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               <AppButton
                 variant="default"
                 emphasis="tertiary"
-                size="xxsmall"
-                icon={<Clipboard size={12} />}
+                size={compact ? 'xsmall' : 'xxsmall'}
+                icon={<Clipboard size={compact ? 16 : 12} />}
+                disabled={isValidating}
+                loading={isValidating && automaticProcessing}
+                loadingText="Reading payment"
                 onPress={handlePaste}
               >
                 Paste
@@ -389,7 +410,14 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         </XStack>
         {!compact && input}
         {validationError && (
-          <Text color="$red10" fontSize="$2" fontWeight="600" mt="$1.5" px="$1">
+          <Text
+            accessibilityRole="alert"
+            color="$red10"
+            fontSize="$2"
+            fontWeight="600"
+            mt="$1.5"
+            px="$1"
+          >
             {validationError}
           </Text>
         )}

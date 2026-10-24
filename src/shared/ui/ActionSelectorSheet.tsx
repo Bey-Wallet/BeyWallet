@@ -1,13 +1,17 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { Modal, Platform, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, ArrowLeft, X } from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, ArrowLeft, X, Scan, Nfc } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
+import { nfcFlow } from '~/features/nfc/nfcFlow';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
 export type ActionSheetStage = 'main' | 'bitcoin';
@@ -23,6 +27,7 @@ interface OptionConfig {
   description: string;
   path?: Href;
   stage?: ActionSheetStage;
+  action?: () => void;
 }
 
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
@@ -34,12 +39,17 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const [type, setType] = useState<ActionSheetType>('send');
     const [stage, setStage] = useState<ActionSheetStage>('main');
     const [processing, setProcessing] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const insets = useSafeAreaInsets();
+    const fullScreen = Platform.OS === 'android' && type !== 'mint';
+    const ScrollContainer = fullScreen ? ScrollView : BottomSheetScrollView;
 
     const dismiss = useCallback(() => {
       actionPending.current = true;
       inputRef.current?.clear();
-      sheetRef.current?.dismiss();
-    }, []);
+      setModalVisible(false);
+      if (!fullScreen) sheetRef.current?.dismiss();
+    }, [fullScreen]);
 
     useImperativeHandle(
       ref,
@@ -50,7 +60,12 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           setStage('main');
           inputRef.current?.clear();
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          sheetRef.current?.present();
+          if (Platform.OS === 'android' && sheetType !== 'mint') {
+            setModalVisible(true);
+          } else {
+            setModalVisible(false);
+            sheetRef.current?.present();
+          }
         },
         dismiss,
       }),
@@ -88,7 +103,16 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
         : stage === 'main'
           ? [
               {
-                label: 'Ecash',
+                label: 'Scan',
+                icon: Scan,
+                description: type === 'send' ? 'Scan a payment QR code' : 'Scan an ecash QR code',
+                path:
+                  type === 'send'
+                    ? '/(modals)/scanner'
+                    : { pathname: '/(modals)/scanner', params: { returnTo: '/receive' } },
+              },
+              {
+                label: type === 'send' ? 'Share ecash' : 'Request ecash',
                 icon: Banknote,
                 description:
                   type === 'send' ? 'Create a token to share' : 'Create a request to share',
@@ -97,12 +121,19 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                     ? '/(modals)/send?mode=standard'
                     : '/(modals)/receive?mode=request',
               },
-              {
-                label: 'Bitcoin',
-                icon: Bitcoin,
-                description: 'Lightning or on-chain',
-                stage: 'bitcoin',
-              },
+              type === 'send'
+                ? {
+                    label: 'Tap to pay',
+                    icon: Nfc,
+                    description: 'Pay with NFC',
+                    action: nfcFlow.openReader,
+                  }
+                : {
+                    label: 'Bitcoin',
+                    icon: Bitcoin,
+                    description: 'Lightning or on-chain',
+                    stage: 'bitcoin',
+                  },
             ]
           : [
               {
@@ -139,59 +170,60 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
       if (option.path) {
         dismiss();
         router.push(option.path);
+      } else if (option.action) {
+        dismiss();
+        option.action();
       }
     };
 
-    return (
-      <AppBottomSheet
-        ref={sheetRef}
-        snapPoints={type === 'mint' ? ['75%', '90%'] : ['60%', '90%']}
-        onClose={() => {
-          actionPending.current = true;
-          inputRef.current?.clear();
-        }}
+    const content = (
+      <YStack
+        flex={1}
+        px="$4"
+        gap="$3"
+        bg={fullScreen ? '$background' : undefined}
+        pt={fullScreen ? insets.top + appSpacing.gap : undefined}
+        pb={fullScreen ? insets.bottom : undefined}
       >
-        <YStack flex={1} px="$4" gap="$3">
-          <XStack items="center" justify="space-between">
-            <HeaderIconButton
-              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
-              disabled={processing}
-              icon={stage === 'main' ? X : ArrowLeft}
-              onPress={() => {
-                if (processing || actionPending.current) return;
-                if (stage === 'main') dismiss();
-                else {
-                  Haptics.selectionAsync();
-                  setStage('main');
-                }
-              }}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-            >
-              {title}
-            </Text>
-            <View width={36} />
-          </XStack>
-          <BottomSheetScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+        <XStack items="center" justify="space-between">
+          <HeaderIconButton
+            accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
+            disabled={processing}
+            icon={stage === 'main' ? X : ArrowLeft}
+            onPress={() => {
+              if (processing || actionPending.current) return;
+              if (stage === 'main') dismiss();
+              else {
+                Haptics.selectionAsync();
+                setStage('main');
+              }
+            }}
+          />
+          <Text
+            accessibilityRole="header"
+            flex={1}
+            textAlign="center"
+            fontFamily="$heading"
+            fontSize="$6"
+            fontWeight="500"
+            color="$color"
           >
-            <YStack gap="$4" pb="$4">
-              <UniversalInputCard
-                ref={inputRef}
-                layout="stacked"
-                label="Payment details"
-                placeholder="Paste or type payment details"
-                onBeforeRedirect={dismiss}
-                onProcessingChange={setProcessing}
-              />
+            {title}
+          </Text>
+          <View width={36} />
+        </XStack>
+        <ScrollContainer showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <YStack gap="$4" pb="$4">
+            <UniversalInputCard
+              ref={inputRef}
+              layout={type === 'mint' ? 'stacked' : 'inline'}
+              compact={type !== 'mint'}
+              label="Payment details"
+              placeholder={type === 'mint' ? 'Paste or type payment details' : 'Payment details'}
+              onBeforeRedirect={dismiss}
+              onProcessingChange={setProcessing}
+            />
+            {type === 'mint' ? (
               <YStack gap={12}>
                 {rows.map((row, index) => (
                   <XStack key={index} gap={12} items="stretch">
@@ -237,10 +269,83 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                   </XStack>
                 ))}
               </YStack>
-            </YStack>
-          </BottomSheetScrollView>
-        </YStack>
-      </AppBottomSheet>
+            ) : (
+              <YStack gap={appSpacing.gap}>
+                {options.map((option) => (
+                  <AppPressable
+                    key={option.label}
+                    minHeight={appDimensions.touchTarget}
+                    px={appSpacing.page}
+                    py={appSpacing.page}
+                    rounded="$6"
+                    overflow="hidden"
+                    flexDirection="row"
+                    items="center"
+                    gap={appSpacing.gap}
+                    bg="$buttonDefaultSecondary"
+                    hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                    pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+                    accessibilityLabel={option.label}
+                    accessibilityHint={option.description}
+                    accessibilityState={{ disabled: processing }}
+                    disabled={processing}
+                    onPress={() => handleOption(option)}
+                  >
+                    <View
+                      width={44}
+                      height={44}
+                      rounded={100}
+                      bg="$gray3"
+                      items="center"
+                      justify="center"
+                      aria-hidden
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                    >
+                      <option.icon size={22} strokeWidth={2.5} color="$gray10" />
+                    </View>
+                    <YStack flex={1} minWidth={0}>
+                      <Text fontFamily="$body" {...appTypography.label2} color="$color">
+                        {option.label}
+                      </Text>
+                      <Text fontFamily="$body" {...appTypography.body3} color="$gray10">
+                        {option.description}
+                      </Text>
+                    </YStack>
+                  </AppPressable>
+                ))}
+              </YStack>
+            )}
+          </YStack>
+        </ScrollContainer>
+      </YStack>
+    );
+
+    return (
+      <>
+        <AppBottomSheet
+          ref={sheetRef}
+          snapPoints={type === 'mint' ? ['75%', '90%'] : ['60%', '90%']}
+          onClose={() => {
+            actionPending.current = true;
+            inputRef.current?.clear();
+          }}
+        >
+          {fullScreen ? null : content}
+        </AppBottomSheet>
+        {fullScreen && (
+          <Modal
+            visible={modalVisible}
+            presentationStyle="fullScreen"
+            animationType="slide"
+            onRequestClose={() => {
+              if (!processing) dismiss();
+            }}
+          >
+            {content}
+          </Modal>
+        )}
+      </>
     );
   },
 );

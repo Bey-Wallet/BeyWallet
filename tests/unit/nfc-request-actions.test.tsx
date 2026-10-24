@@ -98,6 +98,38 @@ beforeEach(() => {
   };
 });
 
+it('shows startup progress before asking users to hold phones together', async () => {
+  mockState = {
+    ...mockState,
+    status: 'starting',
+    hasPayment: false,
+    canRetryDelivery: false,
+    message: 'Starting NFC…',
+  };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  expect(
+    sheet.root.findAllByType('Text' as any).some((text) => text.props.children === 'Starting NFC'),
+  ).toBe(true);
+  expect(sheet.root.findAllByType('Spinner' as any)).toHaveLength(1);
+  mockState = {
+    ...mockState,
+    status: 'ready',
+    message: 'Hold phones together to receive ecash or read a payment request.',
+  };
+  await act(async () => {
+    sheet.update(<NfcSheetHost walletReady />);
+  });
+  expect(
+    sheet.root
+      .findAllByType('Text' as any)
+      .some((text) => text.props.children === 'Hold phones together'),
+  ).toBe(true);
+  await act(async () => sheet.unmount());
+});
+
 it.each(['dark', 'light'] as const)(
   'keeps the NFC glyph visible on its neutral %s circle',
   async (appearance) => {
