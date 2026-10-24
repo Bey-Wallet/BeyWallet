@@ -9,6 +9,7 @@ import {
   nfcReceivingFeeNotice,
 } from '~/features/history/transactionPresentation';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
 import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
@@ -851,6 +852,15 @@ export function TransactionDetailsScreen() {
           onClose={() => router.back()}
           headerRight={headerOptions.headerRight}
           extraDetails={extraDetails}
+          transactionDetails={
+            <OnchainTransactionRows
+              direction={paymentLayout === 'onchain-deposit' ? 'deposit' : 'withdrawal'}
+              address={metadata.address || (entry as any).paymentRequest || ''}
+              mintUrl={entry.mintUrl}
+              quoteId={(entry as any).quoteId}
+              pending
+            />
+          }
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>
@@ -1103,6 +1113,12 @@ export function TransactionDetailsScreen() {
                           value={currencyService.formatSats(onchainFee)}
                         />
                       ) : null}
+                      <OnchainTransactionRows
+                        direction={entry.type === 'melt' ? 'withdrawal' : 'deposit'}
+                        address={btcAddress || ''}
+                        mintUrl={entry.mintUrl}
+                        quoteId={(entry as any).quoteId}
+                      />
                     </>
                   );
                 })()}

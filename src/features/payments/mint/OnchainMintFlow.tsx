@@ -1,5 +1,6 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
@@ -251,7 +252,7 @@ export function OnchainMintFlow() {
                 setCreating(true);
               }}
             >
-              Create deposit address
+              Show address
             </AppButton>
           }
         >
@@ -307,7 +308,9 @@ export function OnchainMintFlow() {
         time={eventTime}
         completed
         onClose={() => router.back()}
-      />
+      >
+        <OnchainTransactionRows direction="deposit" address={quoteData?.request || ''} />
+      </PaymentReceipt>
     );
 
   // Render deposit state (displays Bitcoin address and QR code)
@@ -322,6 +325,9 @@ export function OnchainMintFlow() {
       checking={isChecking}
       onClose={() => router.back()}
       inset={false}
+      transactionDetails={
+        <OnchainTransactionRows direction="deposit" address={quoteData?.request || ''} pending />
+      }
     />
   );
 }

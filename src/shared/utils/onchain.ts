@@ -11,6 +11,19 @@ export type MempoolTxMetadata = {
 
 export type OnchainNetwork = 'bitcoin' | 'mutinynet';
 
+export function transactionIdFromOutpoint(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  return /^([a-f0-9]{64})(?::\d+)?$/i.exec(value)?.[1];
+}
+
+export function blockchainTransactionUrl(txid: string, address: string): string | undefined {
+  if (!/^[a-f0-9]{64}$/i.test(txid)) return undefined;
+  const destination = normalizeBitcoinAddress(address);
+  // Blockchain.com does not index the app's Mutinynet or regtest networks.
+  if (!/^(bc1|[13])/i.test(destination)) return undefined;
+  return `https://www.blockchain.com/explorer/transactions/btc/${txid}`;
+}
+
 export function normalizeBitcoinAddress(value: string): string {
   const trimmed = value.trim();
   if (!trimmed.toLowerCase().startsWith('bitcoin:')) return trimmed;

@@ -7,6 +7,7 @@ import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
+import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
 import { onchainMeltOutcome } from '~/features/history/transactionPresentation';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -521,6 +522,15 @@ export function OnchainMeltFlow() {
       <PendingOnchainLayout
         navigationAction="close"
         direction="withdrawal"
+        transactionDetails={
+          <OnchainTransactionRows
+            direction="withdrawal"
+            address={address}
+            mintUrl={activeMintUrl || undefined}
+            quoteId={meltQuote?.quote}
+            pending
+          />
+        }
         amount={amountSats}
         address={address}
         mint={mintDisplayName}
@@ -544,6 +554,12 @@ export function OnchainMeltFlow() {
       >
         <ListTableRow label="Method" value="Bitcoin on-chain" />
         <ListTableRow label="Destination" value={address} isCopyable copyValue={address} />
+        <OnchainTransactionRows
+          direction="withdrawal"
+          address={address}
+          mintUrl={activeMintUrl || undefined}
+          quoteId={meltQuote?.quote}
+        />
       </PaymentReceipt>
     );
 

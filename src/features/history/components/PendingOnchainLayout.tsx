@@ -26,6 +26,7 @@ export function PendingOnchainLayout({
   headerRight,
   inset = true,
   extraDetails,
+  transactionDetails,
   navigationAction = 'back',
 }: {
   direction: 'deposit' | 'withdrawal';
@@ -38,6 +39,7 @@ export function PendingOnchainLayout({
   headerRight?: () => React.ReactNode;
   inset?: boolean;
   extraDetails?: React.ReactNode;
+  transactionDetails?: React.ReactNode;
   navigationAction?: 'back' | 'close';
 }) {
   const deposit = direction === 'deposit';
@@ -102,6 +104,7 @@ export function PendingOnchainLayout({
             copyValue={destination}
           />
           {extraDetails}
+          {transactionDetails}
         </ListTable>
       </PaymentStageLayout>
     </>

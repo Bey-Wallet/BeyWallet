@@ -24,7 +24,7 @@ function HomeAction({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const iconColor = String(theme.iconSecondary?.val ?? theme.gray10?.val ?? theme.color?.val);
+  const iconColor = String(theme.color.val);
 
   return (
     <AppPressable
