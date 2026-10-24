@@ -23,6 +23,7 @@ import {
   UniversalInputType,
 } from '~/shared/utils/universalInputResolver';
 import { handleUniversalRedirect } from '~/shared/utils/universalRedirect';
+import { ScrollView } from 'react-native';
 
 export interface UniversalInputCardRef {
   clear: () => void;
@@ -32,7 +33,9 @@ export interface UniversalInputCardRef {
 
 export interface UniversalInputCardProps {
   compact?: boolean;
-  layout?: 'inline' | 'stacked';
+  layout?: 'inline' | 'stacked' | 'screen';
+  children?: React.ReactNode;
+  scrollComponent?: React.ElementType;
   onProcessingChange?: (processing: boolean) => void;
   label?: string;
   placeholder?: string;
@@ -48,9 +51,11 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     {
       compact = false,
       layout = 'inline',
+      children,
+      scrollComponent: ScrollComponent = ScrollView,
       onProcessingChange,
       label = 'Payment details',
-      placeholder = 'Paste or type an ecash token, invoice or address',
+      placeholder = 'Token, request, invoice, address, LNURL or link',
       onBeforeRedirect,
       onResolved,
       autoFocus = false,
@@ -67,6 +72,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const processing = useRef(false);
     const navigating = useRef(false);
     const stacked = layout === 'stacked';
+    const screen = layout === 'screen';
     useEffect(
       () => () => {
         ++generation.current;
@@ -228,22 +234,30 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         onChangeText={handleInputChange}
         placeholder={placeholder}
         bg="transparent"
-        borderWidth={0}
+        borderWidth={screen ? 2 : 0}
+        borderColor={screen ? (validationError ? '$red10' : '$borderColor') : undefined}
+        rounded={screen ? '$6' : undefined}
         fontFamily="$body"
         fontWeight="400"
-        fontSize={compact && !stacked ? '$3' : '$4'}
-        lineHeight={stacked ? 24 : compact ? 20 : undefined}
+        fontSize={screen ? 14 : compact && !stacked ? '$3' : '$4'}
+        lineHeight={screen ? 20 : stacked ? 24 : compact ? 20 : undefined}
         color="$color"
-        p={0}
-        flex={stacked ? undefined : 1}
+        p={10}
+        flex={stacked || screen ? undefined : 1}
         minWidth={0}
-        width={stacked ? '100%' : undefined}
+        width={stacked || screen ? '100%' : undefined}
         textAlignVertical="top"
         placeholderTextColor={compact ? '$gray10' : '$gray8'}
         multiline
         numberOfLines={stacked ? 2 : 3}
-        style={compact && !stacked ? { padding: 0, paddingTop: 12 } : { padding: 0 }}
-        height={stacked ? 56 : compact ? 96 : height}
+        style={
+          screen
+            ? { padding: 8 }
+            : compact && !stacked
+              ? { padding: 0, paddingTop: 12 }
+              : { padding: 0 }
+        }
+        height={screen ? 96 : stacked ? 56 : compact ? 96 : height}
         editable={!isValidating}
         autoCapitalize="none"
         autoCorrect={false}
@@ -251,12 +265,72 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       />
     );
 
+    if (screen)
+      return (
+        <YStack flex={1}>
+          <ScrollComponent
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <YStack gap="$4" pb="$4">
+              {input}
+              {validationError && (
+                <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
+                  {validationError}
+                </Text>
+              )}
+              {children}
+            </YStack>
+          </ScrollComponent>
+          <XStack testID="payment-input-actions" gap="$2" pt="$3" pb="$4" items="center">
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="small"
+              flex={1}
+              icon={<Clipboard size={22} />}
+              disabled={isValidating}
+              loading={isValidating && automaticProcessing}
+              loadingText="Reading payment"
+              onPress={handlePaste}
+            >
+              Paste
+            </AppButton>
+            {hasText && (
+              <AppIconButton
+                variant="default"
+                emphasis="secondary"
+                size="small"
+                accessibilityLabel="Clear input"
+                icon={<X size={22} color="$color" />}
+                disabled={isValidating}
+                onPress={clearInput}
+              />
+            )}
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="small"
+              flex={1}
+              disabled={!hasText || isValidating}
+              loading={isValidating && !automaticProcessing}
+              loadingText="Reading payment"
+              onPress={() => processInput()}
+            >
+              Continue
+            </AppButton>
+          </XStack>
+        </YStack>
+      );
+
     if (stacked)
       return (
         <YStack
           rounded="$6"
           p="$3"
-          gap="$3"
+          pt="$5"
+          gap="$2"
           minHeight={132}
           borderWidth={1}
           borderColor={validationError ? '$red8' : '$borderColor'}

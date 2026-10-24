@@ -175,6 +175,101 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
       }
     };
 
+    const optionContent =
+      type === 'mint' ? (
+        <YStack gap={12}>
+          {rows.map((row, index) => (
+            <XStack key={index} gap={12} items="stretch">
+              {row.map((option) => (
+                <AppPressable
+                  key={option.label}
+                  flex={1}
+                  minWidth={0}
+                  minHeight={112}
+                  p={16}
+                  rounded="$6"
+                  gap={12}
+                  items="flex-start"
+                  justify="space-between"
+                  bg="$buttonDefaultSecondary"
+                  hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                  pressStyle={{ bg: '$buttonDefaultSecondaryPress', scale: 0.98 }}
+                  accessibilityLabel={option.label}
+                  accessibilityHint={option.description}
+                  accessibilityState={{ disabled: processing }}
+                  disabled={processing}
+                  onPress={() => handleOption(option)}
+                >
+                  <View
+                    aria-hidden
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    <option.icon size={28} color="$buttonDefaultSecondaryText" />
+                  </View>
+                  <Text
+                    fontFamily="$body"
+                    fontSize={16}
+                    lineHeight={22}
+                    fontWeight="500"
+                    color="$buttonDefaultSecondaryText"
+                    flexShrink={1}
+                  >
+                    {option.label}
+                  </Text>
+                </AppPressable>
+              ))}
+            </XStack>
+          ))}
+        </YStack>
+      ) : (
+        <YStack gap={appSpacing.gap}>
+          {options.map((option) => (
+            <AppPressable
+              key={option.label}
+              minHeight={appDimensions.touchTarget}
+              px={appSpacing.page}
+              py={appSpacing.page}
+              rounded="$6"
+              overflow="hidden"
+              flexDirection="row"
+              items="center"
+              gap={appSpacing.gap}
+              bg="$buttonDefaultSecondary"
+              hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+              pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+              accessibilityLabel={option.label}
+              accessibilityHint={option.description}
+              accessibilityState={{ disabled: processing }}
+              disabled={processing}
+              onPress={() => handleOption(option)}
+            >
+              <View
+                width={44}
+                height={44}
+                rounded={100}
+                bg="$gray3"
+                items="center"
+                justify="center"
+                aria-hidden
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <option.icon size={22} strokeWidth={2.5} color="$gray10" />
+              </View>
+              <YStack flex={1} minWidth={0}>
+                <Text fontFamily="$body" {...appTypography.label1} color="$color">
+                  {option.label}
+                </Text>
+                <Text fontFamily="$body" {...appTypography.body2} color="$gray10">
+                  {option.description}
+                </Text>
+              </YStack>
+            </AppPressable>
+          ))}
+        </YStack>
+      );
+
     const content = (
       <YStack flex={1} px="$4" gap="$3">
         {!fullScreen && (
@@ -206,112 +301,33 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
             <View width={36} />
           </XStack>
         )}
-        <ScrollContainer showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <YStack gap="$4" pb="$4">
-            <UniversalInputCard
-              ref={inputRef}
-              layout={type === 'mint' ? 'stacked' : 'inline'}
-              compact={type !== 'mint'}
-              label="Payment details"
-              placeholder={type === 'mint' ? 'Paste or type payment details' : 'Payment details'}
-              onBeforeRedirect={dismiss}
-              onProcessingChange={setProcessing}
-            />
-            {type === 'mint' ? (
-              <YStack gap={12}>
-                {rows.map((row, index) => (
-                  <XStack key={index} gap={12} items="stretch">
-                    {row.map((option) => (
-                      <AppPressable
-                        key={option.label}
-                        flex={1}
-                        minWidth={0}
-                        minHeight={112}
-                        p={16}
-                        rounded="$6"
-                        gap={12}
-                        items="flex-start"
-                        justify="space-between"
-                        bg="$buttonDefaultSecondary"
-                        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-                        pressStyle={{ bg: '$buttonDefaultSecondaryPress', scale: 0.98 }}
-                        accessibilityLabel={option.label}
-                        accessibilityHint={option.description}
-                        accessibilityState={{ disabled: processing }}
-                        disabled={processing}
-                        onPress={() => handleOption(option)}
-                      >
-                        <View
-                          aria-hidden
-                          accessibilityElementsHidden
-                          importantForAccessibility="no-hide-descendants"
-                        >
-                          <option.icon size={28} color="$buttonDefaultSecondaryText" />
-                        </View>
-                        <Text
-                          fontFamily="$body"
-                          fontSize={16}
-                          lineHeight={22}
-                          fontWeight="500"
-                          color="$buttonDefaultSecondaryText"
-                          flexShrink={1}
-                        >
-                          {option.label}
-                        </Text>
-                      </AppPressable>
-                    ))}
-                  </XStack>
-                ))}
-              </YStack>
-            ) : (
-              <YStack gap={appSpacing.gap}>
-                {options.map((option) => (
-                  <AppPressable
-                    key={option.label}
-                    minHeight={appDimensions.touchTarget}
-                    px={appSpacing.page}
-                    py={appSpacing.page}
-                    rounded="$6"
-                    overflow="hidden"
-                    flexDirection="row"
-                    items="center"
-                    gap={appSpacing.gap}
-                    bg="$buttonDefaultSecondary"
-                    hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-                    pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-                    accessibilityLabel={option.label}
-                    accessibilityHint={option.description}
-                    accessibilityState={{ disabled: processing }}
-                    disabled={processing}
-                    onPress={() => handleOption(option)}
-                  >
-                    <View
-                      width={44}
-                      height={44}
-                      rounded={100}
-                      bg="$gray3"
-                      items="center"
-                      justify="center"
-                      aria-hidden
-                      accessibilityElementsHidden
-                      importantForAccessibility="no-hide-descendants"
-                    >
-                      <option.icon size={22} strokeWidth={2.5} color="$gray10" />
-                    </View>
-                    <YStack flex={1} minWidth={0}>
-                      <Text fontFamily="$body" {...appTypography.label2} color="$color">
-                        {option.label}
-                      </Text>
-                      <Text fontFamily="$body" {...appTypography.body3} color="$gray10">
-                        {option.description}
-                      </Text>
-                    </YStack>
-                  </AppPressable>
-                ))}
-              </YStack>
-            )}
-          </YStack>
-        </ScrollContainer>
+        {type === 'mint' ? (
+          <ScrollContainer showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <YStack gap="$4" pb="$4">
+              <UniversalInputCard
+                ref={inputRef}
+                layout="stacked"
+                label="Payment details"
+                placeholder="Paste or type payment details"
+                onBeforeRedirect={dismiss}
+                onProcessingChange={setProcessing}
+              />
+              {optionContent}
+            </YStack>
+          </ScrollContainer>
+        ) : (
+          <UniversalInputCard
+            ref={inputRef}
+            layout="screen"
+            compact
+            scrollComponent={ScrollContainer}
+            label="Payment details"
+            onBeforeRedirect={dismiss}
+            onProcessingChange={setProcessing}
+          >
+            {optionContent}
+          </UniversalInputCard>
+        )}
       </YStack>
     );
 

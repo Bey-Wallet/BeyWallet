@@ -89,7 +89,7 @@ it.each(['send', 'receive'] as const)('opens %s as a full-screen Android modal',
   });
   expect(mockPresent).not.toHaveBeenCalled();
   expect(tree.root.findByType('Sheet' as any).props.children).toBeNull();
-  expect(tree.root.findByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+  expect(input().props.scrollComponent).toBe(ScrollView);
   expect(labels()).toEqual(
     type === 'send' ? ['Scan', 'Share ecash', 'Tap to pay'] : ['Scan', 'Request ecash', 'Bitcoin'],
   );
@@ -192,7 +192,7 @@ it.each(['send', 'receive'] as const)(
   async (type) => {
     await open(type);
     expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['60%', '90%']);
-    expect(input().props).toMatchObject({ layout: 'inline', compact: true });
+    expect(input().props).toMatchObject({ layout: 'screen', compact: true });
     const group = options()[0].parent!;
     expect(group.props.gap).toBe(12);
     expect(group.props.separator).toBeUndefined();
@@ -217,8 +217,8 @@ it.each(['send', 'receive'] as const)(
       });
       expect(option.findAllByType('ChevronRight' as any)).toHaveLength(0);
       const [label, description] = option.findAllByType('Text' as any);
-      expect(label.props).toMatchObject({ fontSize: 14, fontWeight: '500' });
-      expect(description.props).toMatchObject({ fontSize: 12, color: '$gray10' });
+      expect(label.props).toMatchObject({ fontSize: 16, fontWeight: '500' });
+      expect(description.props).toMatchObject({ fontSize: 14, color: '$gray10' });
       expect(description.props.children).toBe(option.props.accessibilityHint);
       expect(label.props.numberOfLines).toBeUndefined();
     }

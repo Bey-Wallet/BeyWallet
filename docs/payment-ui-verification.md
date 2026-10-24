@@ -16,6 +16,10 @@ Native acceptance below has not been performed in this workspace.
   `lightning:name@domain`. Each must open Lightning payment review without querying
   Nostr identity data. Nostr identifiers and bare usernames should direct users to
   People. Verify accepted-person sends still work from a conversation.
+- Send/Receive use a 96-point bordered input with minimal padding and no leading
+  icon. Action labels/descriptions use 16/14-point text. Paste, Clear and Continue
+  stay at the bottom outside the scrolling choices; verify keyboard resizing, long
+  payment details, loading/disabled states, and correction of invalid input.
 - On Android, NFC must show **Starting NFC** during reader registration or sender
   startup, then **Hold phones together** only when ready. Check the distinct reader
   and sender instructions, disabled NFC, a canceled startup, and background/resume.

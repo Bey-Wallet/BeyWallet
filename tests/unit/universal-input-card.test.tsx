@@ -1,4 +1,5 @@
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 import {
@@ -64,8 +65,9 @@ async function open(compact = false) {
     tree = create(
       <UniversalInputCard
         ref={ref}
-        layout={compact ? 'inline' : 'stacked'}
+        layout={compact ? 'screen' : 'stacked'}
         compact={compact}
+        children={compact ? React.createElement('ActionChoices') : undefined}
         label="Payment details"
         onBeforeRedirect={mockBeforeRedirect}
         onProcessingChange={mockBusy}
@@ -139,10 +141,43 @@ it.each([
   );
 });
 
-it('retains manual entry and Go in the compact sheet input', async () => {
+it('keeps an icon-free bordered field above the choices and input controls in a separate footer', async () => {
+  await open(true);
+  expect(field().props).toMatchObject({
+    bg: 'transparent',
+    width: '100%',
+    height: 96,
+    style: { padding: 8 },
+    lineHeight: 20,
+    placeholder: 'Token, request, invoice, address, LNURL or link',
+  });
+  expect(field().props.borderWidth).toBeGreaterThan(0);
+  expect(tree.root.findAllByType('Search' as any)).toHaveLength(0);
+  const scroll = tree.root.findByType(ScrollView);
+  expect(scroll.findByType('ActionChoices' as any)).toBeTruthy();
+  expect(scroll.findAllByType('Button' as any)).toHaveLength(0);
+  const footer = tree.root.findByProps({ testID: 'payment-input-actions' });
+  expect(footer.findAllByType('Button' as any).map((node) => node.props.children)).toEqual([
+    'Paste',
+    'Continue',
+  ]);
+  expect(button('Continue').props.disabled).toBe(true);
+  for (const action of footer.findAllByType('Button' as any)) {
+    expect(action.props).toMatchObject({
+      variant: 'default',
+      emphasis: 'secondary',
+      size: 'small',
+    });
+  }
+  await type('draft');
+  expect(button('Continue').props.disabled).toBe(false);
+  expect(footer.findByProps({ accessibilityLabel: 'Clear input' })).toBeTruthy();
+});
+
+it('retains manual entry and Continue in the action input', async () => {
   await open(true);
   await type('cashu-complete-token');
-  await act(async () => button('Go').props.onPress());
+  await act(async () => button('Continue').props.onPress());
   expect(resolver).toHaveBeenCalledWith('cashu-complete-token');
   expect(mockPush).toHaveBeenCalledTimes(1);
 });
@@ -159,7 +194,7 @@ it.each(['paste', 'type'] as const)(
       await act(async () => button('Paste').props.onPress());
     } else {
       await type('alice@bey.cash');
-      await act(async () => button('Go').props.onPress());
+      await act(async () => button('Continue').props.onPress());
     }
     expect(mockScanner).toHaveBeenCalledWith('alice@bey.cash');
     expect(mockPush).toHaveBeenCalledWith('/(modals)/melt');
@@ -173,7 +208,7 @@ it('keeps Nostr recipients in the input with guidance to use People', async () =
   );
   await open(true);
   await type('nostr:npub1-person');
-  await act(async () => button('Go').props.onPress());
+  await act(async () => button('Continue').props.onPress());
   expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
     'To send to a person, use the People tab.',
   );
