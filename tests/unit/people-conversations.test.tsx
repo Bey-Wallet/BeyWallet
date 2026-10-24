@@ -604,6 +604,21 @@ describe('People conversations and invitations', () => {
     expect(JSON.stringify(tree!.toJSON())).toContain('100,000 sat');
   });
 
+  it('hides conversion amounts for None and restores the saved fiat preference', async () => {
+    useSettingsStore.setState({ primaryCurrency: 'FIAT', secondaryCurrency: 'NONE' });
+    useNostrInboxStore.setState((state) => ({
+      items: state.items.map((item) => ({ ...item, amount: 100000 })),
+    }));
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    expect(JSON.stringify(tree!.toJSON())).toContain('100,000 sat');
+    expect(JSON.stringify(tree!.toJSON())).not.toMatch(/\$60\.00|rate unavailable/);
+    await act(async () => useSettingsStore.setState({ secondaryCurrency: 'USD' }));
+    expect(JSON.stringify(tree!.toJSON())).toContain('$60.00');
+    expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  });
+
   it('uses branded primary for sent payments and text with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [

@@ -15,6 +15,7 @@ interface NumericKeypadProps {
   loadingText?: string;
   maxAmount?: number;
   currency?: string;
+  allowDecimal?: boolean;
   showBalance?: boolean;
   showAmountDisplay?: boolean;
   showConfirmButton?: boolean;
@@ -73,6 +74,7 @@ export function NumericKeypad({
   loadingText,
   maxAmount,
   currency = 'SATS',
+  allowDecimal = true,
   showBalance = false,
   showAmountDisplay = true,
   showConfirmButton = true,
@@ -86,11 +88,11 @@ export function NumericKeypad({
 
   const handlePress = useCallback(
     (digit: string) => {
-      if (isLoading) return;
+      if (isLoading || (digit === '.' && !allowDecimal)) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onValueChange(value === '0' ? digit : value + digit);
     },
-    [value, onValueChange, isLoading],
+    [value, onValueChange, isLoading, allowDecimal],
   );
 
   const handleDelete = useCallback(() => {
@@ -151,7 +153,7 @@ export function NumericKeypad({
                 >
                   {digit === 'delete' ? (
                     <DeleteButton onPress={handleDelete} />
-                  ) : (
+                  ) : digit === '.' && !allowDecimal ? null : (
                     <NumButton digit={digit} onPress={handlePress} />
                   )}
                 </YStack>

@@ -176,6 +176,7 @@ export default function MeltScreen() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const activeMint = useMemo(() => {
@@ -192,6 +193,8 @@ export default function MeltScreen() {
   const totalCost = quoteAmount + feeReserve;
 
   const fiatValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '...';
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';
@@ -202,6 +205,8 @@ export default function MeltScreen() {
   }, [quoteAmount, btcData?.price, secondaryCurrency]);
 
   const totalFiatValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '...';
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';

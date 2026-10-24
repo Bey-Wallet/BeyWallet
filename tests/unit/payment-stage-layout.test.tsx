@@ -11,6 +11,13 @@ import {
 } from '~/shared/ui/PaymentStatusIcon';
 
 const mockRouter = { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn() };
+let mockCurrency = 'USD';
+jest.mock('~/state/settingsStore', () => ({
+  useSettingsStore: (select: any) => select({ secondaryCurrency: mockCurrency }),
+}));
+afterEach(() => {
+  mockCurrency = 'USD';
+});
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
   ScrollView: 'ScrollView',
@@ -34,6 +41,17 @@ async function render(element: React.ReactElement) {
   });
   return tree;
 }
+
+it.each([
+  ['confirm', 208],
+  ['receipt', 248],
+  ['qr', undefined],
+] as const)('tightens the %s hero only for None', async (variant, minHeight) => {
+  mockCurrency = 'NONE';
+  const tree = await render(<PaymentStageLayout variant={variant} hero="Amount" />);
+  expect(tree.root.findByProps({ testID: 'payment-stage-hero' }).props.minHeight).toBe(minHeight);
+  await act(async () => tree.unmount());
+});
 
 it.each(['confirm', 'qr', 'receipt'] as const)(
   'keeps %s content and its footer equally inset with the action outside scrolling',

@@ -41,7 +41,7 @@ export function CurrencySettingsScreen() {
       <SettingsGroup>
         <SettingsRow
           title="None"
-          description="Hide fiat conversion"
+          description="Show sats only"
           selected={currency === 'NONE'}
           onPress={() => void setCurrency('NONE')}
         />

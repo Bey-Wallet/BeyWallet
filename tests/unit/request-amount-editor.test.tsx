@@ -149,3 +149,30 @@ it('keeps sat entry available when a fiat exchange rate is unavailable', async (
   await act(async () => done().props.onPress());
   expect(mockChange).toHaveBeenCalledWith(123);
 });
+
+it('hides conversions and decimals for None even with FIAT saved, and rejects fractional input', async () => {
+  useSettingsStore.setState({ secondaryCurrency: 'NONE' });
+  mockPrice = undefined;
+  await open(123);
+  expect(value()).toBe('123');
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Switch amount currency' })).toHaveLength(
+    0,
+  );
+  expect(tree.root.findByType(NumericKeypad).props.allowDecimal).toBe(false);
+  expect(tree.root.findAllByType('Text' as any).some((node) => node.props.children === '.')).toBe(
+    false,
+  );
+  await act(async () => tree.root.findByType(NumericKeypad).props.onValueChange('1.5'));
+  expect(value()).toBe('123');
+  await act(async () => done().props.onPress());
+  expect(mockChange).toHaveBeenCalledWith(123);
+});
+
+it('keeps an open editor draft in exact sats when None is selected', async () => {
+  await open(1234);
+  await act(async () => useSettingsStore.setState({ secondaryCurrency: 'NONE' }));
+  expect(value()).toBe('1234');
+  await act(async () => done().props.onPress());
+  expect(mockChange).toHaveBeenCalledWith(1234);
+  expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+});

@@ -102,6 +102,7 @@ export function PaymentRequestStage({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const currencySymbol = useMemo(() => {
@@ -174,10 +175,12 @@ export function PaymentRequestStage({
   const isEnough = !!cost && currentMintBalance >= cost.totalDebit;
 
   const fiatValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price || !amountSats) return '—';
     const val = currencyService.convertSatsToCurrency(amountSats, btcData.price);
     return val.toFixed(2);
-  }, [btcData?.price, amountSats]);
+  }, [btcData?.price, amountSats, secondaryCurrency]);
 
   const formattedSatsString = useMemo(() => {
     return amountSats.toLocaleString('en-US');

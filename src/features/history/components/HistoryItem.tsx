@@ -50,7 +50,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     enabled: primaryCurrency !== 'SATS' && secondaryCurrency !== 'NONE',
   });
   const value =
-    primaryCurrency === 'SATS' || !btcData?.price
+    primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' || !btcData?.price
       ? currencyService.formatSats(amount)
       : currencyService.formatValue(
           currencyService.convertSatsToCurrency(amount, btcData.price),

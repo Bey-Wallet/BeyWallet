@@ -1,3 +1,4 @@
+import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { YStack, Text } from 'tamagui';
@@ -43,7 +44,6 @@ export function AmountStage({
 }: AmountStageProps) {
   const { mints, balances } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
 
   const sourceSheetRef = useRef<AppBottomSheetRef>(null);
   const targetSheetRef = useRef<AppBottomSheetRef>(null);
@@ -52,7 +52,10 @@ export function AmountStage({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
+  const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
+    useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
 
   const currencySymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
@@ -96,6 +99,8 @@ export function AmountStage({
   };
 
   const conversionValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '0';
     if (inputMode === 'SATS') {
       const sats = Number(amount) || 0;
@@ -109,8 +114,6 @@ export function AmountStage({
     }
   }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
-  const [localInputValue, setLocalInputValue] = useState(amount);
-
   useEffect(() => {
     if (inputMode === 'SATS') {
       setLocalInputValue(amount);
@@ -118,6 +121,7 @@ export function AmountStage({
   }, [amount, inputMode]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     let val = rawVal;
 
     if (val === '.') val = '0.';
@@ -226,24 +230,26 @@ export function AmountStage({
               color={isOverBalance ? '$red10' : '$color'}
             />
 
-            <AppPressable
-              px={12}
-              py={4}
-              rounded="$10"
-              bg="$gray3"
-              pressStyle={{ scale: 0.96, bg: '$gray5' }}
-              onPress={toggleMode}
-              minHeight={36}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text fontSize="$5" fontWeight="600" color="$accent10">
-                {conversionValue}
-              </Text>
-              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-            </AppPressable>
+            {fiatEnabled && (
+              <AppPressable
+                px={12}
+                py={4}
+                rounded="$10"
+                bg="$gray3"
+                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                onPress={toggleMode}
+                minHeight={36}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap={8}
+              >
+                <Text fontSize="$5" fontWeight="600" color="$accent10">
+                  {conversionValue}
+                </Text>
+                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+              </AppPressable>
+            )}
           </YStack>
         </YStack>
 
@@ -262,6 +268,7 @@ export function AmountStage({
 
       {/* Numeric Keypad */}
       <NumericKeypad
+        allowDecimal={fiatEnabled}
         showAmountDisplay={false}
         value={localInputValue}
         onValueChange={onKeypadChange}

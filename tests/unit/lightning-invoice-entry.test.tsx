@@ -26,13 +26,14 @@ const mockRequestInvoice = jest.fn();
 const mockParams = jest.fn();
 const mockClipboard = jest.fn();
 const mockRouter = { back: jest.fn(), push: jest.fn() };
+const mockSettings = { primaryCurrency: 'SATS', secondaryCurrency: 'USD' };
 
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select?: (s: typeof mockWallet) => unknown) =>
     select ? select(mockWallet) : mockWallet,
 }));
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: Object.assign(() => ({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' }), {
+  useSettingsStore: Object.assign(() => mockSettings, {
     getState: () => ({ biometricEnabled: false }),
   }),
 }));
@@ -128,6 +129,8 @@ const payButton = () => tree.root.findByProps({ children: 'Pay' });
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  mockSettings.primaryCurrency = 'SATS';
+  mockSettings.secondaryCurrency = 'USD';
   mockPayments.length = 0;
   mockWallet.scannerResult = null;
   mockWallet.balances['mint-a'] = 100;
@@ -140,6 +143,22 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree?.unmount());
   jest.useRealTimers();
+});
+
+it('uses integer sats and Max without a rate or a currency switch when None is selected', async () => {
+  mockSettings.primaryCurrency = 'FIAT';
+  mockSettings.secondaryCurrency = 'NONE';
+  await open();
+  expect(keypad().props.allowDecimal).toBe(false);
+  expect(tree.root.findByType('BouncyAmount' as any).props.suffix).toBe(' sat');
+  expect(tree.root.findAllByType('ArrowUpDown' as any)).toHaveLength(0);
+  await act(async () => keypad().props.onValueChange('42'));
+  expect(keypad().props.value).toBe('42');
+  await act(async () => keypad().props.onValueChange('1.5'));
+  expect(keypad().props.value).toBe('42');
+  await act(async () => tree.root.findByType('MintBalanceRow' as any).props.onMaxPress());
+  expect(keypad().props.value).toBe('100');
+  expect(mockSettings.primaryCurrency).toBe('FIAT');
 });
 
 it.each(['lnbc20n1invoice', 'LIGHTNING:LNBC20N1INVOICE', 'lntb20n1invoice', 'lnbcrt20n1invoice'])(

@@ -1,3 +1,4 @@
+import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -61,8 +62,6 @@ export function OnchainMeltFlow() {
   usePendingOperationToast({ active: step === 'paying', title: 'Sending on-chain payment…' });
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('0');
-  const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
-  const [localInputValue, setLocalInputValue] = useState('0');
   const [isPasting, setIsPasting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [supportsOnchain, setSupportsOnchain] = useState<boolean | null>(null);
@@ -78,7 +77,10 @@ export function OnchainMeltFlow() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
+  const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
+    useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
 
   const currencySymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
@@ -120,6 +122,8 @@ export function OnchainMeltFlow() {
 
   // Value derived for the non-active mode
   const conversionValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '0';
     if (inputMode === 'SATS') {
       const sats = Number(amount) || 0;
@@ -140,6 +144,7 @@ export function OnchainMeltFlow() {
   }, [amount, inputMode]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     let val = rawVal;
     if (val === '.') {
       val = '0.';
@@ -553,19 +558,23 @@ export function OnchainMeltFlow() {
     const total = meltQuote.amount + selectedFeeReserve;
     const shortAddress = `${address.substring(0, 10)}...${address.substring(address.length - 8)}`;
 
-    const fiatAmount = btcData?.price
-      ? currencyService.convertSatsToCurrency(meltQuote.amount, btcData.price)
-      : 0;
-    const formattedFiat = btcData?.price
-      ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-      : '—';
+    const fiatAmount =
+      fiatEnabled && btcData?.price
+        ? currencyService.convertSatsToCurrency(meltQuote.amount, btcData.price)
+        : 0;
+    const formattedFiat =
+      fiatEnabled && btcData?.price
+        ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
+        : '—';
 
-    const totalFiat = btcData?.price
-      ? currencyService.convertSatsToCurrency(total, btcData.price)
-      : 0;
-    const formattedTotalFiat = btcData?.price
-      ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
-      : '—';
+    const totalFiat =
+      fiatEnabled && btcData?.price
+        ? currencyService.convertSatsToCurrency(total, btcData.price)
+        : 0;
+    const formattedTotalFiat =
+      fiatEnabled && btcData?.price
+        ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
+        : '—';
 
     const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 32 : 40;
 
@@ -724,24 +733,26 @@ export function OnchainMeltFlow() {
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
 
-            <AppPressable
-              px={12}
-              py={4}
-              rounded="$10"
-              bg="$gray4"
-              pressStyle={{ scale: 0.96, bg: '$gray5' }}
-              onPress={toggleMode}
-              minHeight={36}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text fontSize="$3" fontWeight="600" color="$accent10">
-                {conversionValue}
-              </Text>
-              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-            </AppPressable>
+            {fiatEnabled && (
+              <AppPressable
+                px={12}
+                py={4}
+                rounded="$10"
+                bg="$gray4"
+                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                onPress={toggleMode}
+                minHeight={36}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap={8}
+              >
+                <Text fontSize="$3" fontWeight="600" color="$accent10">
+                  {conversionValue}
+                </Text>
+                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+              </AppPressable>
+            )}
           </YStack>
         </YStack>
 
@@ -793,6 +804,7 @@ export function OnchainMeltFlow() {
         </YStack>
       </YStack>
       <NumericKeypad
+        allowDecimal={fiatEnabled}
         showAmountDisplay={false}
         value={localInputValue}
         onValueChange={onKeypadChange}

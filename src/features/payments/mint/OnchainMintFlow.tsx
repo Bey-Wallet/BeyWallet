@@ -57,6 +57,7 @@ export function OnchainMintFlow() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const activeMint = useMemo(() => {

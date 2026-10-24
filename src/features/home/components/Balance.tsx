@@ -52,8 +52,9 @@ export default function Balance() {
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
-  const fiatText =
-    secondaryBalance === null
+  const fiatText = !isFiatEnabled
+    ? ''
+    : secondaryBalance === null
       ? isFetchingPrice
         ? 'Loading…'
         : 'Unavailable'
@@ -64,7 +65,7 @@ export default function Balance() {
       py="$2"
       gap="$3"
       z={1000}
-      height={200}
+      height={isFiatEnabled ? 200 : 160}
       justify="center"
       items="center"
       position="relative"

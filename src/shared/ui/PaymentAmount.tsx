@@ -6,6 +6,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { appTypography } from '~/shared/theme/appearance';
+import { getCurrencyDisplayMode } from '~/shared/utils/currencyDisplay';
 
 export function paymentAmounts(
   sats: number,
@@ -14,6 +15,7 @@ export function paymentAmounts(
   bitcoinSymbol: boolean,
   price?: number,
 ) {
+  const display = getCurrencyDisplayMode(primary, currency);
   const bitcoin = bitcoinSymbol
     ? `₿${sats.toLocaleString('en-US')}`
     : `${sats.toLocaleString('en-US')} sat`;
@@ -24,7 +26,7 @@ export function paymentAmounts(
           currency as CurrencyCode,
         )
       : null;
-  return primary === 'FIAT' && currency !== 'NONE'
+  return display.primaryCurrency === 'FIAT'
     ? { primary: fiat, secondary: bitcoin }
     : { primary: bitcoin, secondary: fiat };
 }
@@ -85,21 +87,23 @@ export function PaymentAmount({
           amountStyle.fontSize,
         )}
       </Text>
-      <Text
-        testID={testID ? `${testID}-secondary-amount` : undefined}
-        {...conversionStyle}
-        color="$gray10"
-        textAlign="center"
-      >
-        {amountLabel(
-          values.secondary
-            ? `≈ ${values.secondary}`
-            : isFetching
-              ? 'Loading…'
-              : 'Conversion unavailable',
-          conversionStyle.fontSize,
-        )}
-      </Text>
+      {secondaryCurrency !== 'NONE' && (
+        <Text
+          testID={testID ? `${testID}-secondary-amount` : undefined}
+          {...conversionStyle}
+          color="$gray10"
+          textAlign="center"
+        >
+          {amountLabel(
+            values.secondary
+              ? `≈ ${values.secondary}`
+              : isFetching
+                ? 'Loading…'
+                : 'Conversion unavailable',
+            conversionStyle.fontSize,
+          )}
+        </Text>
+      )}
     </YStack>
   );
 }

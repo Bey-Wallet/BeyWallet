@@ -364,6 +364,7 @@ export function SendModalScreen() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const activeMint = React.useMemo(() => {
@@ -378,6 +379,8 @@ export function SendModalScreen() {
     'Unknown Mint';
 
   const fiatValue = React.useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '...';
     const sats = parseInt(amount, 10) || 0;
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);

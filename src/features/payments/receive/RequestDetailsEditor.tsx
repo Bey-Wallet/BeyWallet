@@ -14,6 +14,7 @@ import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 
 const editableFiatAmount = (sats: number, price: number) =>
   String(Number(currencyService.convertSatsToCurrency(sats, price).toFixed(2)));
@@ -31,8 +32,6 @@ export function RequestAmountEditor({
   const insets = useSafeAreaInsets();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const fiatEnabled = secondaryCurrency !== 'NONE';
-  const [mode, setMode] = useState<'SATS' | 'FIAT'>('SATS');
-  const [draft, setDraft] = useState('0');
   const [draftSats, setDraftSats] = useState(0);
   const { data } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -41,6 +40,12 @@ export function RequestAmountEditor({
     staleTime: 30000,
   });
   const price = data?.price;
+  const {
+    inputMode: mode,
+    setInputMode: setMode,
+    localInputValue: draft,
+    setLocalInputValue: setDraft,
+  } = useCurrencyInput(primaryCurrency, secondaryCurrency, String(draftSats), price);
   const hasPrice = fiatEnabled && !!price && Number.isFinite(price) && price > 0;
   const displayAmount = paymentAmounts(
     amount,
@@ -121,6 +126,7 @@ export function RequestAmountEditor({
             </AppPressable>
           )}
           <NumericKeypad
+            allowDecimal={fiatEnabled}
             showAmountDisplay={false}
             showConfirmButton={false}
             value={draft}

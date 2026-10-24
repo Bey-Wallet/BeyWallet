@@ -157,6 +157,7 @@ export default function NostrActivityModal() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   // Nostr history from SDK
@@ -267,7 +268,7 @@ export default function NostrActivityModal() {
   }, [detailItem]);
 
   const fiatValue = useMemo(() => {
-    if (!btcData?.price || !detailItem?.amount) return null;
+    if (secondaryCurrency === 'NONE' || !btcData?.price || !detailItem?.amount) return null;
     const val = currencyService.convertSatsToCurrency(detailItem.amount, btcData.price);
     return currencyService.formatValue(val, secondaryCurrency as any);
   }, [btcData?.price, detailItem?.amount, secondaryCurrency]);
@@ -384,7 +385,7 @@ export default function NostrActivityModal() {
               <>
                 {/* Amount */}
                 <YStack items="center" gap="$1">
-                  {primaryCurrency === 'SATS' ? (
+                  {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
                       <Text
                         fontSize={32}
@@ -405,7 +406,7 @@ export default function NostrActivityModal() {
                           </Text>
                         )}
                       </Text>
-                      {fiatValue && (
+                      {secondaryCurrency !== 'NONE' && fiatValue && (
                         <Text fontSize="$3" color="$gray10">
                           {detailItem.type === 'sent' ? '−' : '+'}
                           {fiatValue}
@@ -555,10 +556,14 @@ function PendingTab({
   return (
     <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
       {items.map((item, idx) => {
-        const fiatAmount = btcData?.price
-          ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
-          : 0;
-        const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+        const fiatAmount =
+          secondaryCurrency !== 'NONE' && btcData?.price
+            ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+            : 0;
+        const formattedFiat =
+          secondaryCurrency === 'NONE'
+            ? null
+            : currencyService.formatValue(fiatAmount, secondaryCurrency as any);
 
         return (
           <React.Fragment key={item.id}>
@@ -627,7 +632,7 @@ function PendingTab({
                 cursor="pointer"
               >
                 <YStack items="flex-end" justify="center">
-                  {primaryCurrency === 'SATS' ? (
+                  {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
                       <Text fontSize={14} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
                         +{showBitcoinSymbol ? '₿' : ''}
@@ -699,10 +704,14 @@ function ReceivedTab({
   return (
     <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
       {items.map((item, idx) => {
-        const fiatAmount = btcData?.price
-          ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
-          : 0;
-        const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+        const fiatAmount =
+          secondaryCurrency !== 'NONE' && btcData?.price
+            ? currencyService.convertSatsToCurrency(item.amount, btcData.price)
+            : 0;
+        const formattedFiat =
+          secondaryCurrency === 'NONE'
+            ? null
+            : currencyService.formatValue(fiatAmount, secondaryCurrency as any);
 
         return (
           <React.Fragment key={item.id}>
@@ -735,7 +744,7 @@ function ReceivedTab({
 
               <XStack items="center" gap="$2.5">
                 <YStack items="flex-end" justify="center">
-                  {primaryCurrency === 'SATS' ? (
+                  {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
                       <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
                         +{showBitcoinSymbol ? '₿' : ''}
@@ -807,10 +816,14 @@ function SentTab({
   return (
     <YStack gap="$0" rounded="$4" overflow="hidden" borderWidth={1} borderColor="$borderColor">
       {entries.map((entry: any, idx: number) => {
-        const fiatAmount = btcData?.price
-          ? currencyService.convertSatsToCurrency(entry.amount ?? 0, btcData.price)
-          : 0;
-        const formattedFiat = currencyService.formatValue(fiatAmount, secondaryCurrency as any);
+        const fiatAmount =
+          secondaryCurrency !== 'NONE' && btcData?.price
+            ? currencyService.convertSatsToCurrency(entry.amount ?? 0, btcData.price)
+            : 0;
+        const formattedFiat =
+          secondaryCurrency === 'NONE'
+            ? null
+            : currencyService.formatValue(fiatAmount, secondaryCurrency as any);
 
         return (
           <React.Fragment key={`hist-${idx}`}>
@@ -839,7 +852,7 @@ function SentTab({
               </XStack>
 
               <YStack items="flex-end" justify="center">
-                {primaryCurrency === 'SATS' ? (
+                {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                   <>
                     <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
                       -{showBitcoinSymbol ? '₿' : ''}

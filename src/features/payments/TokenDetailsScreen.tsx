@@ -132,6 +132,7 @@ export default function TokenDetailsModal() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   useEffect(() => {
@@ -450,17 +451,19 @@ export default function TokenDetailsModal() {
       <YStack px="$4">
         <ListTable compact>
           <ListTableRow label="Unit" value="SAT" />
-          <ListTableRow
-            label="Fiat"
-            value={
-              btcData?.price
-                ? currencyService.formatValue(
-                    currencyService.convertSatsToCurrency(Number(amount), btcData.price),
-                    secondaryCurrency as CurrencyCode,
-                  )
-                : '$0.00'
-            }
-          />
+          {secondaryCurrency !== 'NONE' && (
+            <ListTableRow
+              label="Fiat"
+              value={
+                btcData?.price
+                  ? currencyService.formatValue(
+                      currencyService.convertSatsToCurrency(Number(amount), btcData.price),
+                      secondaryCurrency as CurrencyCode,
+                    )
+                  : '$0.00'
+              }
+            />
+          )}
           <ListTableRow label="Mint" value={mintUrl ? getMintDisplayName(mintUrl) : 'Unknown'} />
         </ListTable>
       </YStack>

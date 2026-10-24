@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import Balance from '~/features/home/components/Balance';
 import { useWalletStore } from '~/state/walletStore';
@@ -67,6 +68,30 @@ it('shows a real zero without requiring an exchange rate', async () => {
     tree = create(<Balance />);
   });
   expect(displayed()[0].children).toBe('$0.00');
+});
+
+it('collapses to one sats balance for None and restores the saved fiat presentation', async () => {
+  useSettingsStore.setState({ secondaryCurrency: 'NONE' });
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  expect(displayed()).toHaveLength(1);
+  expect(displayed()[0].value).toBe(10_000);
+  const hasHeight = (height: number) =>
+    tree.root.findAll(
+      (node) => (node.props.height ?? StyleSheet.flatten(node.props.style)?.height) === height,
+    ).length > 0;
+  expect(hasHeight(160)).toBe(true);
+  await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true, hideBalance: true }));
+  expect(displayed()[0].value).toBe('****');
+  expect(displayed()).toHaveLength(1);
+  await act(async () =>
+    useSettingsStore.setState({ secondaryCurrency: 'USD', hideBalance: false }),
+  );
+  expect(displayed()).toHaveLength(2);
+  expect(displayed()[0].children).toBe('$10.00');
+  expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  expect(hasHeight(200)).toBe(true);
 });
 
 it('shows Offline in the sync status area and restores the correct status on reconnection', async () => {

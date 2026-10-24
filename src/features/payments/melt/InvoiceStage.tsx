@@ -1,3 +1,4 @@
+import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -62,7 +63,6 @@ export function InvoiceStage({
   } = useWalletStore();
   const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const router = useRouter();
 
@@ -84,7 +84,10 @@ export function InvoiceStage({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
+  const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
+    useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
 
   const currencySymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
@@ -117,6 +120,8 @@ export function InvoiceStage({
   const isValidAmount = parsedAmountSats > 0 && !isOverBalance && isValidInvoice;
 
   const conversionValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '0';
     if (inputMode === 'SATS') {
       const sats = Number(amount) || 0;
@@ -130,8 +135,6 @@ export function InvoiceStage({
     }
   }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
-  const [localInputValue, setLocalInputValue] = useState(amount);
-
   useEffect(() => {
     if (inputMode === 'SATS') {
       setLocalInputValue(amount);
@@ -143,6 +146,7 @@ export function InvoiceStage({
   }, [amount, inputMode, btcData?.price]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     if (isBolt11) return; // Keypad is locked for bolt11 invoice
 
     let val = rawVal;
@@ -333,26 +337,28 @@ export function InvoiceStage({
                 suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
               />
 
-              <AppPressable
-                px={12}
-                py={4}
-                rounded="$10"
-                bg="$gray5"
-                pressStyle={{ scale: 0.96, bg: '$gray5' }}
-                onPress={toggleMode}
-                disabled={isBolt11}
-                opacity={isBolt11 ? 0.6 : 1}
-                minHeight={36}
-                flexDirection="row"
-                items="center"
-                justify="center"
-                gap={8}
-              >
-                <Text color="$color" fontSize="$3" fontWeight="600">
-                  {conversionValue}
-                </Text>
-                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-              </AppPressable>
+              {fiatEnabled && (
+                <AppPressable
+                  px={12}
+                  py={4}
+                  rounded="$10"
+                  bg="$gray5"
+                  pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                  onPress={toggleMode}
+                  disabled={isBolt11}
+                  opacity={isBolt11 ? 0.6 : 1}
+                  minHeight={36}
+                  flexDirection="row"
+                  items="center"
+                  justify="center"
+                  gap={8}
+                >
+                  <Text color="$color" fontSize="$3" fontWeight="600">
+                    {conversionValue}
+                  </Text>
+                  <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+                </AppPressable>
+              )}
             </YStack>
           )}
         </YStack>
@@ -383,6 +389,7 @@ export function InvoiceStage({
         </AppButton>
       ) : (
         <NumericKeypad
+          allowDecimal={fiatEnabled}
           showAmountDisplay={false}
           value={localInputValue}
           onValueChange={onKeypadChange}

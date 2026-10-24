@@ -7,11 +7,23 @@ const mockSettings = {
   secondaryCurrency: 'USD',
   showBitcoinSymbol: false,
 };
+const mockQuery = jest.fn();
 
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: () => mockSettings }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: { price: 100000 } }) }));
+jest.mock('@tanstack/react-query', () => ({
+  useQuery: (options: unknown) => {
+    mockQuery(options);
+    return { data: { price: 100000 } };
+  },
+}));
+beforeEach(() => {
+  mockSettings.primaryCurrency = 'SATS';
+  mockSettings.secondaryCurrency = 'USD';
+  mockSettings.showBitcoinSymbol = false;
+  jest.clearAllMocks();
+});
 
 it.each([
   ['standard', false, 32, 14],
@@ -50,6 +62,34 @@ it.each(['USD', 'EUR', 'INR'])(
     expect(sats.primary).toBe('10,000 sat');
     expect(fiat.primary).toBe(sats.secondary);
     expect(fiat.secondary).toBe('₿10,000');
+  },
+);
+
+it.each(['SATS', 'FIAT'] as const)(
+  'shows only sats for None with saved %s primary and disables quotes',
+  async (primary) => {
+    mockSettings.primaryCurrency = primary;
+    mockSettings.secondaryCurrency = 'NONE';
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(<PaymentAmount amount={10000} testID="amount" />);
+    });
+    expect(paymentAmounts(10000, primary, 'NONE', false, 100000)).toEqual({
+      primary: '10,000 sat',
+      secondary: null,
+    });
+    expect(paymentAmounts(-10000, primary, 'NONE', true)).toEqual({
+      primary: '₿-10,000',
+      secondary: null,
+    });
+    expect(tree.root.findAllByProps({ testID: 'amount-secondary-amount' })).toHaveLength(0);
+    expect(mockQuery).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
+    expect(JSON.stringify(tree.toJSON())).not.toMatch(/Loading|Conversion unavailable|≈/);
+    mockSettings.secondaryCurrency = 'EUR';
+    await act(async () => tree.update(<PaymentAmount amount={10000} testID="amount" />));
+    expect(tree.root.findAllByProps({ testID: 'amount-secondary-amount' })).toHaveLength(1);
+    expect(mockSettings.primaryCurrency).toBe(primary);
+    await act(async () => tree.unmount());
   },
 );
 

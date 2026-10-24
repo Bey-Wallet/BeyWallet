@@ -10,6 +10,11 @@ const mockSheetPresent = jest.fn();
 const mockRecheckConnection = jest.fn();
 let mockEditName: string | undefined;
 const mockToast = { show: jest.fn() };
+const mockSettings = {
+  primaryCurrency: 'SATS',
+  secondaryCurrency: 'USD',
+  showBitcoinSymbol: false,
+};
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
@@ -73,11 +78,7 @@ jest.mock('@tanstack/react-query', () => ({
 }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: () => ({
-    primaryCurrency: 'SATS',
-    secondaryCurrency: 'USD',
-    showBitcoinSymbol: false,
-  }),
+  useSettingsStore: () => mockSettings,
 }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: { convertSatsToCurrency: () => 0, formatValue: () => '0 USD' },
@@ -133,6 +134,11 @@ const render = async () => {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  Object.assign(mockSettings, {
+    primaryCurrency: 'SATS',
+    secondaryCurrency: 'USD',
+    showBitcoinSymbol: false,
+  });
   mockEditName = undefined;
   useWalletStore.setState({
     mints: [{ mintUrl: url, nickname: 'My mint', name: 'Original mint', trusted: true }],
@@ -150,6 +156,31 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
+});
+
+it('shows only a sats balance for None with FIAT saved and restores fiat when selected again', async () => {
+  Object.assign(mockSettings, { primaryCurrency: 'FIAT', secondaryCurrency: 'NONE' });
+  useWalletStore.setState({ balances: { [url]: 10000 } });
+  await render();
+  const fiatLabels = () =>
+    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '0 USD');
+  expect(fiatLabels()).toHaveLength(0);
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some(
+        (node) =>
+          node.props.children === 10000 ||
+          (Array.isArray(node.props.children) && node.props.children.includes('10,000')),
+      ),
+  ).toBe(true);
+  expect(useQuery).toHaveBeenCalledWith(
+    expect.objectContaining({ queryKey: ['bitcoinPrice', 'NONE'], enabled: false }),
+  );
+  mockSettings.secondaryCurrency = 'USD';
+  await act(async () => tree.update(<MintDetailsScreen />));
+  expect(fiatLabels().length).toBeGreaterThan(0);
+  expect(mockSettings.primaryCurrency).toBe('FIAT');
 });
 
 it('edits the header name inline and saves its trimmed nickname on the check button', async () => {

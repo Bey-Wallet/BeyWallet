@@ -1,3 +1,4 @@
+import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 /**
@@ -122,7 +123,6 @@ export function NostrSendStage({
   const activeMintUrl = mintUrl === undefined ? globalMintUrl : mintUrl;
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const people = usePeopleStore((s) => s.people);
-  const [inputMode, setInputMode] = useState<'SATS' | 'FIAT'>(primaryCurrency);
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
   const contactSheetRef = useRef<AppBottomSheetRef>(null);
   const router = useRouter();
@@ -238,7 +238,10 @@ export function NostrSendStage({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
+  const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
+    useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
 
   const currencySymbol = useMemo(
     () => SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$',
@@ -270,6 +273,8 @@ export function NostrSendStage({
     parsedAmountSats > 0 && !isOverBalance && hasRecipient && !isInvalidRecipient;
 
   const conversionValue = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '0';
     if (inputMode === 'SATS') {
       const sats = Number(amount) || 0;
@@ -282,13 +287,12 @@ export function NostrSendStage({
     }
   }, [amount, btcData?.price, inputMode, secondaryCurrency]);
 
-  const [localInputValue, setLocalInputValue] = useState(amount);
-
   useEffect(() => {
     if (inputMode === 'SATS') setLocalInputValue(amount);
   }, [amount, inputMode]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     let val = rawVal;
 
     if (val === '.') {
@@ -427,24 +431,26 @@ export function NostrSendStage({
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
 
-            <AppPressable
-              px={12}
-              py={4}
-              rounded="$10"
-              bg="$gray5"
-              pressStyle={{ scale: 0.96, bg: '$gray5' }}
-              onPress={toggleMode}
-              minHeight={36}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$3" fontWeight="600">
-                {conversionValue}
-              </Text>
-              <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-            </AppPressable>
+            {fiatEnabled && (
+              <AppPressable
+                px={12}
+                py={4}
+                rounded="$10"
+                bg="$gray5"
+                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                onPress={toggleMode}
+                minHeight={36}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap={8}
+              >
+                <Text color="$color" fontSize="$3" fontWeight="600">
+                  {conversionValue}
+                </Text>
+                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+              </AppPressable>
+            )}
           </YStack>
         </YStack>
 
@@ -471,6 +477,7 @@ export function NostrSendStage({
       </YStack>
 
       <NumericKeypad
+        allowDecimal={fiatEnabled}
         showAmountDisplay={false}
         value={localInputValue}
         onValueChange={onKeypadChange}

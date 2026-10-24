@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, YStack } from 'tamagui';
+import { useSettingsStore } from '~/state/settingsStore';
 
 /** Confirmations center their amount above bottom details; QR screens follow mint payment. */
 export function PaymentStageLayout({
@@ -18,6 +19,7 @@ export function PaymentStageLayout({
   inset?: boolean;
 }) {
   const centered = variant !== 'qr';
+  const satsOnly = useSettingsStore((state) => state.secondaryCurrency === 'NONE');
   return (
     <YStack testID="payment-stage-layout" flex={1} bg="$background" px={inset ? '$4' : 0}>
       <ScrollView
@@ -30,7 +32,9 @@ export function PaymentStageLayout({
           <YStack
             testID="payment-stage-hero"
             flex={centered ? 1 : undefined}
-            minHeight={centered ? (variant === 'receipt' ? 280 : 240) : undefined}
+            minHeight={
+              centered ? (variant === 'receipt' ? 280 : 240) - (satsOnly ? 32 : 0) : undefined
+            }
             gap={centered ? '$3' : '$4'}
             items="center"
             justify="center"

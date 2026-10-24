@@ -102,6 +102,7 @@ export default function MintDetailsModal() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const {
@@ -125,9 +126,11 @@ export default function MintDetailsModal() {
   }, [balances, mintUrl]);
 
   const fiatBalance = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return 0;
+
     if (!btcData?.price) return 0;
     return currencyService.convertSatsToCurrency(balance, btcData.price);
-  }, [balance, btcData?.price]);
+  }, [balance, btcData?.price, secondaryCurrency]);
 
   const name =
     walletMint?.nickname ||
@@ -336,7 +339,7 @@ export default function MintDetailsModal() {
             <XStack justify="space-between" items="center" pt="$4">
               <YStack gap="$2">
                 <XStack items="baseline" gap="$1">
-                  {primaryCurrency === 'SATS' ? (
+                  {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <Text fontSize={36} fontWeight="900" color="$color">
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
@@ -348,13 +351,15 @@ export default function MintDetailsModal() {
                     </Text>
                   )}
                 </XStack>
-                <Text fontSize="$6" color="$gray12" fontWeight="600">
-                  {primaryCurrency === 'SATS'
-                    ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
-                    : showBitcoinSymbol
-                      ? `₿${balance.toLocaleString()}`
-                      : `${balance.toLocaleString()} sat`}
-                </Text>
+                {secondaryCurrency !== 'NONE' && (
+                  <Text fontSize="$6" color="$gray12" fontWeight="600">
+                    {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
+                      ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
+                      : showBitcoinSymbol
+                        ? `₿${balance.toLocaleString()}`
+                        : `${balance.toLocaleString()} sat`}
+                  </Text>
+                )}
 
                 {/* Trust badges */}
                 <XStack mt="$2" gap="$2" items="center">

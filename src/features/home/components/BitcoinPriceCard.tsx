@@ -22,6 +22,7 @@ export default function BitcoinPriceCard() {
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     refetchInterval: 300000,
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const handleRefresh = () => {
@@ -66,6 +67,8 @@ export default function BitcoinPriceCard() {
   }, [data?.updatedAt, now]);
 
   const isPositive = data ? data.change24h >= 0 : true;
+
+  if (secondaryCurrency === 'NONE') return null;
 
   return (
     <YStack

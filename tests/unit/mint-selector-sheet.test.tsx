@@ -336,6 +336,17 @@ it('shows sats instead of inventing a fiat value when no exchange rate is saved'
   expect(row(b).props.accessibilityLabel).toBe('Beta, $0.00');
 });
 
+it('uses sats for None with a saved FIAT preference without fetching quotes while online', async () => {
+  useSettingsStore.setState({ primaryCurrency: 'FIAT', secondaryCurrency: 'NONE' });
+  await render();
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, 10,000 sat');
+  expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
+  expect(mockFetchPrice).not.toHaveBeenCalled();
+  await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true }));
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, ₿10,000');
+  expect(mockFetchPrice).not.toHaveBeenCalled();
+});
+
 it('selects all mints as a filter without changing the active mint', async () => {
   const onSelect = jest.fn();
   await render({ showAllOption: true, onSelect });

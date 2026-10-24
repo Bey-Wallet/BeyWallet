@@ -59,14 +59,17 @@ export default function SwapScreen() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const fiatValue = React.useMemo(() => {
+    if (secondaryCurrency === 'NONE') return '';
+
     if (!btcData?.price) return '—';
     const sats = Number(amount) || 0;
     const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
     return fiat.toFixed(2);
-  }, [amount, btcData?.price]);
+  }, [amount, btcData?.price, secondaryCurrency]);
 
   const amountNum = parseInt(amount, 10) || 0;
   const sourceBalance = sourceMintUrl ? balances[sourceMintUrl] || 0 : 0;

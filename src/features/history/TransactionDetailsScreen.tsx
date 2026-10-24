@@ -189,19 +189,22 @@ export function TransactionDetailsScreen() {
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
+    enabled: secondaryCurrency !== 'NONE',
   });
 
   const displayedAmount = entry ? historyDisplayAmount(entry) : 0;
   const receivingFeeNotice = entry ? nfcReceivingFeeNotice(entry) : undefined;
   const fiatAmount = useMemo(() => {
+    if (secondaryCurrency === 'NONE') return 0;
+
     if (!btcData?.price || !entry?.amount) return 0;
     return currencyService.convertSatsToCurrency(displayedAmount, btcData.price);
-  }, [displayedAmount, btcData?.price]);
+  }, [displayedAmount, btcData?.price, secondaryCurrency]);
 
   const formattedAmountTitle = useMemo(() => {
     if (!entry) return '';
     const amt = displayedAmount;
-    if (primaryCurrency === 'SATS') {
+    if (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE') {
       return currencyService.formatSats(Number(amt));
     } else {
       return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
@@ -722,13 +725,15 @@ export function TransactionDetailsScreen() {
 
   // Shared header amount title (primary + secondary)
   const headerPrimaryAmount =
-    primaryCurrency === 'SATS'
+    primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
       ? currencyService.formatSats(Number(entry?.amount || 0))
       : currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
   const headerSecondaryAmount =
-    primaryCurrency === 'SATS'
-      ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-      : currencyService.formatSats(Number(entry?.amount || 0));
+    secondaryCurrency === 'NONE'
+      ? null
+      : primaryCurrency === 'SATS'
+        ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
+        : currencyService.formatSats(Number(entry?.amount || 0));
 
   // Derive badge status from entry state
   const badgeStatus: BadgeStatus = (() => {
