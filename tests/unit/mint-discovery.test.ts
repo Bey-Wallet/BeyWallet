@@ -18,6 +18,8 @@ const radarMint = (index: number): RadarDiscoveryMint => ({
   name: `Mint ${index}`,
   status: 'online',
   score: 90,
+  scoreStale: false,
+  downSince: null,
   scoreCappedNew: false,
   isTest: false,
   uptime24hPct: 100,

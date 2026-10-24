@@ -15,6 +15,15 @@ let mockScore: number | null = 98;
 let mockMetadataError: Error | null = null;
 let mockCheckingConnection = false;
 let mockProviderError = false;
+let mockRadarRefreshError = false;
+let mockRadarFetching = false;
+let mockRadarUntracked = false;
+let mockRadarHealth = {
+  scoreStale: false as boolean | null,
+  status: 'online' as string | null,
+  downSince: null as string | null,
+  scoreCappedNew: false,
+};
 let mockUptime24 = 100;
 let mockDaily = [
   { day: '2026-10-18', uptime: 100, checks: 288 },
@@ -59,8 +68,11 @@ jest.mock('@tanstack/react-query', () => ({
         ...base,
         data: mockProviderError
           ? undefined
-          : { url, score: mockScore, lastCheckedAt: '2026-10-20T05:25:00Z' },
-        isError: mockProviderError,
+          : mockRadarUntracked
+            ? null
+            : { url, score: mockScore, lastCheckedAt: '2026-10-20T05:25:00Z', ...mockRadarHealth },
+        isError: mockProviderError || mockRadarRefreshError,
+        isFetching: mockRadarFetching,
       };
     if (key[1] === 'cashu-info-list')
       return {
@@ -191,6 +203,10 @@ beforeEach(() => {
   mockMetadataError = null;
   mockCheckingConnection = false;
   mockProviderError = false;
+  mockRadarRefreshError = false;
+  mockRadarFetching = false;
+  mockRadarUntracked = false;
+  mockRadarHealth = { scoreStale: false, status: 'online', downSince: null, scoreCappedNew: false };
   mockUptime24 = 100;
   mockDaily = [
     { day: '2026-10-18', uptime: 100, checks: 288 },
@@ -233,6 +249,83 @@ it('shows independent uptime and payment results, MintRadar score, and actual ad
   expect(row('Mint balance / reserves').props.value).toBe('Not published');
   expect(row('Units').props.value).toBe('sat');
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+});
+
+it.each(['offline', 'degraded', 'archived'])(
+  'labels a %s mint score as historical while keeping device connection independent',
+  async (status) => {
+    const downSince = '2026-10-20T04:00:00Z';
+    mockRadarHealth = { ...mockRadarHealth, status, scoreStale: true, downSince };
+    await render();
+    expect(row('Last measured score').props).toMatchObject({ value: '98%', valueColor: '$gray10' });
+    expect(row('MintRadar offline since').props.value).toBe(new Date(downSince).toLocaleString());
+    expect(row('Connection').props.value).toBe('Online');
+    expect(score()).toBeUndefined();
+  },
+);
+
+it('restores the current score presentation and removes outage timing after recovery', async () => {
+  mockRadarHealth = {
+    ...mockRadarHealth,
+    status: 'offline',
+    scoreStale: true,
+    downSince: '2026-10-20T04:00:00Z',
+  };
+  await render();
+  mockRadarHealth = { ...mockRadarHealth, status: 'online', scoreStale: false, downSince: null };
+  await act(async () => {
+    tree.update(<MintProfileScreen url={url} />);
+  });
+  expect(score().props).toMatchObject({ value: '98%', valueColor: '$green11' });
+  expect(row('MintRadar offline since')).toBeUndefined();
+  expect(row('Last measured score')).toBeUndefined();
+});
+
+it('keeps unknown freshness and a historical zero score neutral without inventing outage timing', async () => {
+  mockScore = 0;
+  mockRadarHealth = { ...mockRadarHealth, status: null, scoreStale: null };
+  await render();
+  expect(row('Last measured score').props).toMatchObject({ value: '0%', valueColor: '$gray10' });
+  expect(row('MintRadar offline since')).toBeUndefined();
+});
+
+it('shows saved scores as historical after a failed refresh without marking the mint offline', async () => {
+  mockRadarRefreshError = true;
+  await render();
+  expect(row('Last measured score').props).toMatchObject({ value: '98%', valueColor: '$gray10' });
+  expect(row('Connection').props.value).toBe('Online');
+  expect(row('MintRadar offline since')).toBeUndefined();
+});
+
+it('does not infer an outage from a stale score alone or an inconsistent online outage timestamp', async () => {
+  mockRadarHealth = { ...mockRadarHealth, scoreStale: true, downSince: '2026-10-20T04:00:00Z' };
+  await render();
+  expect(row('Last measured score').props.value).toBe('98%');
+  expect(row('MintRadar offline since')).toBeUndefined();
+});
+
+it.each([
+  ['checking', true, false, 'Checking…'],
+  ['untracked', false, true, 'Not rated'],
+  ['unscored', false, false, 'Unavailable'],
+] as const)('preserves the %s score state', async (_state, fetching, untracked, value) => {
+  mockScore = null;
+  mockRadarFetching = fetching;
+  mockRadarUntracked = untracked;
+  await render();
+  expect(score().props.value).toBe(value);
+  expect(row('Last measured score')).toBeUndefined();
+});
+
+it('retains the new-mint cap explanation with historical scores', async () => {
+  mockRadarHealth = { ...mockRadarHealth, scoreStale: true, scoreCappedNew: true };
+  await render();
+  expect(row('Last measured score').props.valueColor).toBe('$gray10');
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'New mint · Score capped'),
+  ).toBe(true);
 });
 
 it('expands only the advertised NUTs with numbers, names, and checks, then collapses', async () => {

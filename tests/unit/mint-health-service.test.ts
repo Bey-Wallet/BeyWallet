@@ -16,6 +16,9 @@ const radar = {
   mint: {
     url,
     score: 98,
+    status: 'online',
+    scoreStale: false,
+    downSince: null,
     uptime24hPct: 100,
     uptime7dPct: 99.5,
     lastCheckedAt: '2026-10-20T05:25:00Z',
@@ -98,6 +101,73 @@ it('loads the unfiltered directory including offline, test and unscored mints an
   expect(requested.searchParams.get('limit')).toBe('200');
   expect(mintHealthService.cachedRadarList()?.data).toEqual(result);
   expect(() => parseRadarList({})).toThrow('Invalid MintRadar mint list');
+});
+
+it.each([
+  [{ scoreStale: false, status: 'online' }, false],
+  [{ scoreStale: true, status: 'online' }, true],
+  [{ scoreStale: false, status: 'offline' }, true],
+  [{ status: 'offline' }, true],
+  [{ status: 'degraded' }, true],
+  [{ status: 'archived' }, true],
+  [{ status: 'online' }, false],
+  [{ scoreStale: true }, true],
+  [{ scoreStale: false }, false],
+  [{ scoreStale: 'false', status: 'unknown' }, null],
+  [{ scoreStale: 0 }, null],
+  [{}, null],
+] as const)('normalizes score freshness from %j to %s', (fields, expected) => {
+  expect(parseRadarHealth({ mint: { url, score: 0, ...fields } }, url)).toMatchObject({
+    score: 0,
+    scoreStale: expected,
+  });
+});
+
+it.each([undefined, null, 'not a date', 1792454400000])(
+  'rejects an invalid outage timestamp %s',
+  (downSince) => {
+    expect(parseRadarHealth({ mint: { url, downSince } }, url).downSince).toBeNull();
+  },
+);
+
+it('preserves outage metadata in both caches and retains it after a failed refresh', async () => {
+  const downSince = '2026-10-20T04:00:00Z';
+  const mint = { ...radar.mint, status: 'offline', scoreStale: true, downSince };
+  fetchMock
+    .mockResolvedValueOnce(response({ mint }))
+    .mockResolvedValueOnce(response({ mints: [mint] }));
+  const report = await mintHealthService.radar(url);
+  const directory = await mintHealthService.radarList();
+  expect(report).toMatchObject({ score: 98, scoreStale: true, downSince });
+  expect(directory[0]).toMatchObject({ scoreStale: true, downSince });
+  expect(mintHealthService.cachedRadar(url)?.data).toEqual(report);
+  expect(mintHealthService.cachedRadarList()?.data).toEqual(directory);
+  fetchMock.mockResolvedValueOnce(response(null, 503));
+  await expect(mintHealthService.radar(url)).rejects.toThrow('503');
+  expect(mintHealthService.cachedRadar(url)?.data).toEqual(report);
+});
+
+it.each([
+  ['offline', true],
+  ['online', false],
+  [undefined, null],
+] as const)('reads legacy caches without freshness fields (status: %s)', (status, scoreStale) => {
+  const mint = { url, score: 98, status };
+  storage[`mint-health-v1:radar:${url}`] = JSON.stringify({ savedAt: Date.now(), data: { mint } });
+  storage['mint-health-v1:radar-list:'] = JSON.stringify({
+    savedAt: Date.now(),
+    data: { mints: [mint] },
+  });
+  expect(mintHealthService.cachedRadar(url)?.data).toMatchObject({
+    score: 98,
+    scoreStale,
+    downSince: null,
+  });
+  expect(mintHealthService.cachedRadarList()?.data[0]).toMatchObject({
+    score: 98,
+    scoreStale,
+    downSince: null,
+  });
 });
 
 it('loads the independent auditor and keeps uptime, route failures, and attributed failures separate', async () => {

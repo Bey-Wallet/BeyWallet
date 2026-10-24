@@ -65,11 +65,24 @@ when the other fails, with the saved MintRadar directory as an offline fallback.
 
 - Connection is a direct, read-only `/v1/info` check from this device. A service
   failure from either monitoring provider does not mark the mint offline.
+- Home marks an unreachable connected mint's name and amount red and replaces its
+  Lightning/on-chain badges with an accessible error icon. A successful metadata
+  check restores the normal row. Device-wide loss of connectivity does not mark
+  every mint down; balances, privacy settings, and navigation stay unchanged.
 - MintRadar's stable `/api/v1/wallets/mints/{encoded URL}` supplies the published
   reliability score out of 100, displayed as a percentage in a ListTable row
   below the mint identity. The reliability details explain that it measures
   observed operation rather than reserves or fund safety.
   New-mint score caps remain identified.
+- MintRadar's `scoreStale` flag and `downSince` timestamp survive directory and
+  single-mint caching. Offline, degraded, and archived statuses also identify
+  historical scores in older cache records. Explicitly stale flags take precedence;
+  missing freshness metadata remains unknown instead of assuming a current score.
+  Historical scores and saved scores after a failed refresh retain their percentage
+  as **Last measured score** in muted text. Current scores keep their existing colors.
+  **MintRadar offline since** appears only for a non-online monitoring status with a
+  valid timestamp; it reports the observed outage, not the device connection or the
+  time the score was measured. An online report removes that row on refresh.
 - `https://cashu.info/api/v1/mints` resolves the exact URL to its auditor ID.
   `/api/v1/mints/{id}` supplies independent uptime and seven-day payment tests.
 - Its `daily` history supplies a chronological outage strip on both mint

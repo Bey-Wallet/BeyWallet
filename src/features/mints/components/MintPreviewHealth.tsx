@@ -106,6 +106,10 @@ export function MintReliabilityRow({
 }) {
   const radar = useRadarHealth(url);
   const score = radar.data?.score;
+  const historicalScore = score != null && (radar.data?.scoreStale !== false || radar.isError);
+  const offlineSince = ['offline', 'degraded', 'archived'].includes(radar.data?.status ?? '')
+    ? radar.data?.downSince
+    : null;
   const value =
     score == null
       ? radar.isFetching
@@ -118,12 +122,27 @@ export function MintReliabilityRow({
     <YStack gap="$2">
       <ListTable {...tableProps}>
         <ListTableRow
-          label="Reliability score"
+          label={historicalScore ? 'Last measured score' : 'Reliability score'}
           value={value}
           valueColor={
-            score == null ? '$color' : score < 75 ? '$red11' : score > 75 ? '$green11' : '$color'
+            score == null
+              ? '$color'
+              : historicalScore
+                ? '$gray10'
+                : score < 75
+                  ? '$red11'
+                  : score > 75
+                    ? '$green11'
+                    : '$color'
           }
         />
+        {offlineSince && (
+          <ListTableRow
+            label="MintRadar offline since"
+            value={time(offlineSince)}
+            valueColor="$gray10"
+          />
+        )}
         <ListTableRow
           label="Connection"
           value={

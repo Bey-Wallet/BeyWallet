@@ -8,6 +8,9 @@ import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
 const mockPush = jest.fn();
 let mockDiscoveredMints: { url: string; name: string }[] = [];
 let mockMintMetadata: Record<string, Record<string, unknown>> = {};
+let mockMintErrors: Record<string, Error> = {};
+let mockDeviceOffline = false;
+let mockHideBalance = false;
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('tamagui', () => ({
@@ -29,13 +32,19 @@ jest.mock('@tanstack/react-query', () => ({
           ? mockMintMetadata[queryKey[1]]
           : undefined,
     isLoading: false,
+    error: queryKey[0] === 'mint-metadata' ? mockMintErrors[queryKey[1]] : undefined,
   }),
   useQueryClient: () => ({}),
 }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: () => ({ primaryCurrency: 'SATS', secondaryCurrency: 'NONE' }),
+  useSettingsStore: () => ({
+    primaryCurrency: 'SATS',
+    secondaryCurrency: 'NONE',
+    hideBalance: mockHideBalance,
+  }),
 }));
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockDeviceOffline }));
 jest.mock('~/services/wallet/currencyService', () => ({ currencyService: {} }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendationService: {} }));
@@ -62,9 +71,13 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockDiscoveredMints = [];
   mockMintMetadata = {};
+  mockMintErrors = {};
+  mockDeviceOffline = false;
+  mockHideBalance = false;
   useWalletStore.setState({
     mints: [],
     balances: {},
+    refreshCounter: 0,
     scannerResult: null,
     setScannerResult: (scannerResult) => useWalletStore.setState({ scannerResult }),
   });
@@ -72,6 +85,76 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree.unmount());
 });
+
+const connectedRow = (mintUrl: string) =>
+  tree.root
+    .findAllByType('RowContainer' as any)
+    .find((row) =>
+      row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
+    )!;
+
+it('marks an unreachable connected mint red, replaces its payment badges, and keeps its balance and navigation', async () => {
+  const mintUrl = 'https://mint.example';
+  useWalletStore.setState({
+    mints: [{ mintUrl, name: 'Example mint', trusted: true }],
+    balances: { [mintUrl]: 4200 },
+  });
+  mockMintMetadata[mintUrl] = {
+    nuts: { '4': { methods: [{ method: 'bolt11', unit: 'sat' }] }, '30': { supported: true } },
+  };
+  mockMintErrors[mintUrl] = new Error('Mint unreachable');
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const row = connectedRow(mintUrl);
+  expect(row.findByType('Text' as any).props.color).toBe('$red11');
+  expect(row.findByType('RollingNumber' as any).props).toMatchObject({
+    color: '$red11',
+    children: 4200,
+    suffix: ' sat',
+  });
+  expect(row.findByType('CircleAlert' as any).props).toMatchObject({ size: 18, color: '$red11' });
+  expect(
+    row
+      .findAllByProps({ accessibilityRole: 'image' })
+      .map((badge) => badge.props.accessibilityLabel),
+  ).toEqual(['Mint unreachable']);
+  await act(async () => row.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl },
+  });
+  delete mockMintErrors[mintUrl];
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 1 });
+  });
+  expect(connectedRow(mintUrl).findByType('Text' as any).props.color).toBe('$color');
+  expect(connectedRow(mintUrl).findByType('RollingNumber' as any).props.color).toBe('$color');
+  expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
+  expect(
+    connectedRow(mintUrl)
+      .findAllByProps({ accessibilityRole: 'image' })
+      .map((badge) => badge.props.accessibilityLabel),
+  ).toEqual(['Lightning supported', 'On-chain supported']);
+});
+
+it('does not mark individual mints down when the device is offline, and keeps hidden balances hidden', async () => {
+  const mintUrl = 'https://mint.example';
+  mockDeviceOffline = true;
+  mockHideBalance = true;
+  mockMintErrors[mintUrl] = new Error('Network unavailable');
+  useWalletStore.setState({ mints: [{ mintUrl, trusted: true }], balances: { [mintUrl]: 4200 } });
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  expect(connectedRow(mintUrl).findByType('RollingNumber' as any).props).toMatchObject({
+    color: '$color',
+    children: '****',
+    suffix: '',
+  });
+  expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
+});
+
 const render = async () => {
   await act(async () => {
     tree = create(<AddMintScreen />);

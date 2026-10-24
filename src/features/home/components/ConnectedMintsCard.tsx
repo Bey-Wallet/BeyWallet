@@ -3,7 +3,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
-import { Plus, Landmark, Zap, Bitcoin } from '@tamagui/lucide-icons';
+import { Plus, Landmark, Zap, Bitcoin, CircleAlert } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { appTypography } from '~/shared/theme/appearance';
 import {
@@ -87,6 +88,7 @@ interface MintRowItemProps {
   secondaryCurrency: string;
   refreshCounter: number;
   loading: boolean;
+  deviceOffline: boolean;
   onPress: (mintUrl: string) => void;
 }
 
@@ -101,9 +103,12 @@ const MintRowItem = React.memo(
     secondaryCurrency,
     refreshCounter,
     loading,
+    deviceOffline,
     onPress,
   }: MintRowItemProps) => {
-    const { data: metadata } = useMintInfo(mint.mintUrl);
+    const { data: metadata, error: connectionError } = useMintInfo(mint.mintUrl);
+    const unavailable = !deviceOffline && !!connectionError;
+    const textColor = unavailable ? '$red11' : '$color';
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -146,7 +151,10 @@ const MintRowItem = React.memo(
     const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? 'hidden' : 'visible'}_${displayAsSats ? 'SATS' : 'FIAT'}_${showBitcoinSymbol}`;
 
     return (
-      <RowContainer onPress={() => onPress(mint.mintUrl)}>
+      <RowContainer
+        onPress={() => onPress(mint.mintUrl)}
+        accessibilityHint={unavailable ? 'Mint unreachable. Open details to recheck.' : undefined}
+      >
         <XStack items="center" gap="$2.5" flex={1} mr="$0">
           <MintImage
             mintUrl={mint.mintUrl}
@@ -164,13 +172,19 @@ const MintRowItem = React.memo(
             <XStack items="center" gap="$1.5" flexWrap="wrap">
               <Text
                 {...appTypography.label1}
-                color="$color"
+                color={textColor}
                 numberOfLines={1}
                 style={{ maxWidth: 140 }}
               >
                 {displayName}
               </Text>
-              <MintPaymentBadges metadata={metadata} />
+              {unavailable ? (
+                <View accessible accessibilityRole="image" accessibilityLabel="Mint unreachable">
+                  <CircleAlert size={18} color="$red11" />
+                </View>
+              ) : (
+                <MintPaymentBadges metadata={metadata} />
+              )}
             </XStack>
           </YStack>
         </XStack>
@@ -180,7 +194,7 @@ const MintRowItem = React.memo(
             <RollingNumber
               fontSize={appTypography.label1.fontSize}
               fontWeight="600"
-              color="$color"
+              color={textColor}
               decimalOpacity={0.4}
               showDecimals={!displayAsSats}
               prefix={prefix}
@@ -271,6 +285,7 @@ export const ConnectedMintsCard = () => {
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
+  const deviceOffline = useOfflineStatus();
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
@@ -345,6 +360,7 @@ export const ConnectedMintsCard = () => {
                   secondaryCurrency={secondaryCurrency}
                   refreshCounter={refreshCounter}
                   loading={!displayAsSats && isFetchingPrice}
+                  deviceOffline={deviceOffline}
                   onPress={handleMintPress}
                 />
               );

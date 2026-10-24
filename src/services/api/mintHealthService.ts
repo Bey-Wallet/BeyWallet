@@ -32,6 +32,8 @@ const matches = (a: unknown, b: string) => {
 export interface RadarHealth {
   url: string;
   score: number | null;
+  scoreStale: boolean | null;
+  downSince: string | null;
   scoreCappedNew: boolean;
   isTest: boolean;
   status: string | null;
@@ -84,12 +86,21 @@ export interface CachedHealth<T> {
 export function parseRadarHealth(value: unknown, url: string): RadarHealth {
   const mint = record(record(value).mint);
   if (!matches(mint.url, url)) throw new Error('MintRadar returned a different mint');
+  const status = text(mint.status);
+  const offline = ['offline', 'degraded', 'archived'].includes(status ?? '');
   return {
     url: mintHealthUrl(url),
     score: percent(mint.score),
+    scoreStale:
+      mint.scoreStale === true || offline
+        ? true
+        : mint.scoreStale === false || status === 'online'
+          ? false
+          : null,
+    downSince: date(mint.downSince),
     scoreCappedNew: mint.scoreCappedNew === true,
     isTest: mint.isTest === true,
-    status: text(mint.status),
+    status,
     uptime24hPct: percent(mint.uptime24hPct),
     uptime7dPct: percent(mint.uptime7dPct),
     lastCheckedAt: date(mint.lastCheckedAt),
