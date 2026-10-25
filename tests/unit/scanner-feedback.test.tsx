@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import ScannerScreen from '~/features/payments/ScannerScreen';
 import { useP2PKScanStore } from '~/state/p2pkScanStore';
+import { URDecoder } from '@gandlaf21/bc-ur';
 
 const mockResolve = jest.fn();
 const mockFeedback = jest.fn();
@@ -39,8 +40,12 @@ jest.mock('~/state/authStore', () => ({ useAuthStore: () => ({ setLockDisabled: 
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: { getState: () => ({ setScannerResult: mockSetScannerResult }) },
 }));
-jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: 'SafeAreaView',
+  useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }),
+}));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
@@ -57,6 +62,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
   ZapOff: 'ZapOff',
   RefreshCcw: 'RefreshCcw',
   Clipboard: 'Clipboard',
+  ScanLine: 'ScanLine',
 }));
 
 it.each(['creqA-scanned-request', 'https://bey.cash/r/#shared-request'])(
@@ -146,5 +152,30 @@ it('returns a public-key scan only to its key sheet without invoking payment rou
   expect(mockSetScannerResult).not.toHaveBeenCalled();
   expect(mockResolve).not.toHaveBeenCalled();
   expect(mockRedirect).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('shows animated QR progress without resolving an incomplete payload', async () => {
+  const decoder = {
+    receivedPartIndexes: [] as number[],
+    receivePart: jest.fn(() => decoder.receivedPartIndexes.push(1)),
+    estimatedPercentComplete: () => 0.42,
+    isComplete: () => false,
+  };
+  jest.mocked(URDecoder).mockImplementation(() => decoder as unknown as URDecoder);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () =>
+    tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: 'ur:bytes/1-5/part' }),
+  );
+  expect(decoder.receivePart).toHaveBeenCalledWith('ur:bytes/1-5/part');
+  const progress = tree.root
+    .findAllByType('View' as any)
+    .find((node) => node.props.accessibilityRole === 'progressbar');
+  expect(progress?.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 42 });
+  expect(mockResolve).not.toHaveBeenCalled();
+  expect(tree.root.findByType('CameraView' as any).props.onBarcodeScanned).toBeDefined();
   await act(async () => tree.unmount());
 });

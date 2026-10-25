@@ -4,14 +4,17 @@ import { useToastController } from '@tamagui/toast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions, Animated } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
 import { YStack, XStack, Text, View, ZStack, Theme } from 'tamagui';
-import { X, Zap, ZapOff, RefreshCcw } from '@tamagui/lucide-icons';
+import { X, Zap, ZapOff, ScanLine } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { appColors, appTypography } from '~/shared/theme/appearance';
+import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { useAuthStore } from '~/state/authStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useP2PKScanStore } from '~/state/p2pkScanStore';
@@ -21,9 +24,6 @@ import { nip19 } from 'nostr-tools';
 import { Buffer } from 'buffer';
 import { resolveUniversalInput } from '~/shared/utils/universalInputResolver';
 import { handleUniversalRedirect } from '~/shared/utils/universalRedirect';
-
-const { width, height } = Dimensions.get('window');
-const SCAN_AREA_SIZE = width * 0.7;
 
 async function tryResolveContact(
   data: string,
@@ -163,6 +163,10 @@ async function tryResolveContact(
 }
 
 export default function ScannerScreen() {
+  const window = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
+  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
   const router = useRouter();
   const params = useLocalSearchParams();
   const [permission, requestPermission] = useCameraPermissions();
@@ -178,6 +182,18 @@ export default function ScannerScreen() {
   const [progress, setProgress] = useState(0);
   const [isUR, setIsUR] = useState(false);
   const decoderRef = useRef<URDecoder>(new URDecoder());
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const progressPercent = Math.round(Math.max(0, Math.min(1, progress || 0)) * 100);
+
+  useEffect(() => {
+    const animation = Animated.timing(progressWidth, {
+      toValue: progressPercent,
+      duration: reducedMotion ? 0 : 180,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progressPercent, progressWidth, reducedMotion]);
 
   const { setLockDisabled } = useAuthStore();
 
@@ -204,7 +220,7 @@ export default function ScannerScreen() {
   if (!permission.granted) {
     return (
       <YStack flex={1} bg="black" items="center" justify="center" p="$4" gap="$4">
-        <Text color="white" fontSize="$6" fontWeight="700" style={{ textAlign: 'center' }}>
+        <Text color="white" fontSize="$6" fontWeight="600" style={{ textAlign: 'center' }}>
           Camera Permission Required
         </Text>
         <Text color="$gray10" style={{ textAlign: 'center' }}>
@@ -374,100 +390,250 @@ export default function ScannerScreen() {
     }
   };
 
+  const compact = viewport.height < 600;
+  const availableHeight = viewport.height - insets.top - insets.bottom;
+  const scanSize = Math.min(viewport.width * 0.72, 320, availableHeight * (compact ? 0.34 : 0.44));
+  const left = (viewport.width - scanSize) / 2;
+  const top = Math.max(insets.top + 64, (viewport.height - scanSize) / 2 - (compact ? 48 : 64));
+  const right = left + scanSize;
+  const bottom = top + scanSize;
+  const radius = 16;
+  const corner = 32;
+  const cutout = [
+    'M',
+    left + radius,
+    top,
+    'H',
+    right - radius,
+    'Q',
+    right,
+    top,
+    right,
+    top + radius,
+    'V',
+    bottom - radius,
+    'Q',
+    right,
+    bottom,
+    right - radius,
+    bottom,
+    'H',
+    left + radius,
+    'Q',
+    left,
+    bottom,
+    left,
+    bottom - radius,
+    'V',
+    top + radius,
+    'Q',
+    left,
+    top,
+    left + radius,
+    top,
+    'Z',
+  ].join(' ');
+  const corners = [
+    'M',
+    left,
+    top + corner,
+    'V',
+    top + radius,
+    'Q',
+    left,
+    top,
+    left + radius,
+    top,
+    'H',
+    left + corner,
+    'M',
+    right - corner,
+    top,
+    'H',
+    right - radius,
+    'Q',
+    right,
+    top,
+    right,
+    top + radius,
+    'V',
+    top + corner,
+    'M',
+    right,
+    bottom - corner,
+    'V',
+    bottom - radius,
+    'Q',
+    right,
+    bottom,
+    right - radius,
+    bottom,
+    'H',
+    right - corner,
+    'M',
+    left + corner,
+    bottom,
+    'H',
+    left + radius,
+    'Q',
+    left,
+    bottom,
+    left,
+    bottom - radius,
+    'V',
+    bottom - corner,
+  ].join(' ');
+  const statusTitle = isResolving
+    ? resolutionOrigin === 'paste'
+      ? 'Reading clipboard'
+      : 'Reading QR code'
+    : isUR
+      ? 'Reading animated QR'
+      : 'Align QR inside the corners';
+
   return (
     <Theme name="dark">
-      <ZStack flex={1} bg="black">
+      <ZStack
+        flex={1}
+        bg="$background"
+        onLayout={({ nativeEvent: { layout } }) =>
+          setViewport({ width: layout.width, height: layout.height })
+        }
+      >
         <CameraView
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash === 'on'}
           onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-          barcodeScannerSettings={{
-            barcodeTypes: ['qr'],
-          }}
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
 
-        {/* Overlay UI */}
+        <Svg
+          width={viewport.width}
+          height={viewport.height}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Path
+            testID="scanner-outside-mask"
+            d={'M 0 0 H ' + viewport.width + ' V ' + viewport.height + ' H 0 Z ' + cutout}
+            fill={appColors.dark.overlayStrong}
+            fillRule="evenodd"
+          />
+          <Path
+            testID="scanner-corners"
+            d={corners}
+            fill="none"
+            stroke={appColors.dark.accent}
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        </Svg>
+
         <SafeAreaView style={{ flex: 1 }}>
           <YStack flex={1} justify="space-between" p="$4">
-            {/* Header */}
-            <XStack justify="space-between" items="center">
-              <HeaderIconButton
-                accessibilityLabel="Close"
-                icon={<X color="white" />}
-                onPress={() => router.back()}
-              />
-              <XStack gap="$2">
+            <XStack items="center" gap="$2">
+              <YStack width={48} items="center">
                 <HeaderIconButton
-                  accessibilityLabel="Paste"
-                  loading={isResolving && resolutionOrigin === 'paste'}
-                  loadingText="Reading payment…"
-                  disabled={isResolving}
-                  icon={<ClipboardIcon color="white" />}
-                  onPress={handlePaste}
+                  accessibilityLabel="Close scanner"
+                  icon={X}
+                  onPress={() => router.back()}
                 />
-                <HeaderIconButton
-                  accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
-                  icon={flash === 'on' ? <Zap color="#FFD700" /> : <ZapOff color="white" />}
-                  onPress={() => setFlash((f) => (f === 'on' ? 'off' : 'on'))}
-                />
-              </XStack>
+              </YStack>
+              <Text
+                {...appTypography.title3}
+                fontWeight="500"
+                color="$color"
+                flex={1}
+                textAlign="center"
+              >
+                Scan QR code
+              </Text>
+              <View width={48} />
             </XStack>
 
-            {/* Middle - Scan Frame */}
-            <YStack items="center">
-              <View
-                width={SCAN_AREA_SIZE}
-                height={SCAN_AREA_SIZE}
-                borderWidth={2}
-                borderColor="white"
-                rounded="$6"
-                style={{
-                  borderStyle: 'dashed',
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                }}
-              />
-              <Text
-                color="white"
-                mt="$4"
-                fontWeight="600"
-                style={{ textAlign: 'center', textShadowColor: 'black', textShadowRadius: 2 }}
-              >
-                {isUR ? 'Scanning animated QR...' : 'Align QR code within the frame'}
-              </Text>
-            </YStack>
-
-            {/* Footer - Progress */}
-            <YStack gap="$4" items="center" pb="$8">
-              {progress > 0 && (
-                <YStack width="80%" gap="$2">
-                  <XStack justify="space-between">
-                    <Text color="white" fontWeight="700">
-                      Reading Fragments...
+            <YStack gap="$3" width="100%" maxWidth={420} self="center">
+              <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$3" gap="$2">
+                <XStack items="center" gap="$3">
+                  {isResolving || isUR ? (
+                    <Spinner size={20} color="$iconPrimary" />
+                  ) : (
+                    <ScanLine size={20} color="$iconSecondary" />
+                  )}
+                  <YStack flex={1} accessibilityLiveRegion="polite">
+                    <Text {...appTypography.label2} color="$color">
+                      {statusTitle}
                     </Text>
-                    <Text color="white" fontWeight="700">
-                      {Math.round(progress * 100)}%
+                  </YStack>
+                  {isUR && !isResolving && (
+                    <Text {...appTypography.label2} color="$gray10">
+                      {progressPercent}%
                     </Text>
-                  </XStack>
-                  <View height={10} bg="rgba(255,255,255,0.2)" rounded="$5" overflow="hidden">
-                    <View
-                      height="100%"
-                      bg="$accentColor"
-                      width={`${progress * 100}%`}
-                      rounded="$5"
+                  )}
+                </XStack>
+                {isUR && !isResolving && (
+                  <View
+                    height={4}
+                    bg="$gray3"
+                    rounded={2}
+                    overflow="hidden"
+                    accessible
+                    accessibilityRole="progressbar"
+                    accessibilityLabel="Animated QR scan progress"
+                    accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
+                  >
+                    <Animated.View
+                      style={{
+                        height: '100%',
+                        backgroundColor: appColors.dark.accent,
+                        borderRadius: 2,
+                        width: progressWidth.interpolate({
+                          inputRange: [0, 100],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      }}
                     />
                   </View>
-                </YStack>
-              )}
+                )}
+              </YStack>
 
-              {scanned && (
+              <XStack gap="$3">
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="medium"
+                  flex={1}
+                  icon={ClipboardIcon}
+                  loading={isResolving && resolutionOrigin === 'paste'}
+                  loadingText="Reading clipboard"
+                  disabled={isResolving}
+                  onPress={handlePaste}
+                >
+                  Paste
+                </AppButton>
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="medium"
+                  flex={1}
+                  icon={flash === 'on' ? Zap : ZapOff}
+                  accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
+                  accessibilityState={{ selected: flash === 'on' }}
+                  onPress={() => setFlash((f) => (f === 'on' ? 'off' : 'on'))}
+                >
+                  {flash === 'on' ? 'Light on' : 'Flashlight'}
+                </AppButton>
+              </XStack>
+              {scanned && !isResolving && (
                 <AppButton
                   variant="branded"
                   emphasis="primary"
-                  size="large"
+                  size="medium"
                   onPress={() => setScanned(false)}
                 >
-                  Scan Again
+                  Scan again
                 </AppButton>
               )}
             </YStack>

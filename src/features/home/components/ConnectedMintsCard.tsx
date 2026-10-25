@@ -3,7 +3,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, styled } from 'tamagui';
-import { Plus, Landmark, Zap, Bitcoin, CircleAlert, ChevronRight } from '@tamagui/lucide-icons';
+import { Plus, Landmark, CircleAlert, ChevronRight } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -14,7 +14,6 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
-import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { appTypography } from '~/shared/theme/appearance';
 import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
 import {
@@ -32,52 +31,6 @@ const RowContainer = styled(XStack, {
   hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
   pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
 });
-
-function MintPaymentBadges({ metadata }: { metadata?: Record<string, any> }) {
-  const lightning =
-    supportsPaymentMethod(metadata, 'mint-lightning') ||
-    supportsPaymentMethod(metadata, 'melt-lightning');
-  const onchain =
-    supportsPaymentMethod(metadata, 'mint-onchain') ||
-    supportsPaymentMethod(metadata, 'melt-onchain');
-  if (!lightning && !onchain) return null;
-  return (
-    <XStack gap="$1.5" items="center">
-      {lightning && (
-        <View
-          width={18}
-          height={18}
-          rounded={100}
-          borderWidth={1}
-          borderColor="$gray7"
-          items="center"
-          justify="center"
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel="Lightning supported"
-        >
-          <Zap size={10} color="$gray10" fill="gray" />
-        </View>
-      )}
-      {onchain && (
-        <View
-          width={18}
-          height={18}
-          rounded={100}
-          borderWidth={1}
-          borderColor="$gray7"
-          items="center"
-          justify="center"
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel="On-chain supported"
-        >
-          <Bitcoin size={10} color="$gray10" />
-        </View>
-      )}
-    </XStack>
-  );
-}
 
 interface MintRowItemProps {
   mint: any;
@@ -107,7 +60,7 @@ const MintRowItem = React.memo(
     deviceOffline,
     onPress,
   }: MintRowItemProps) => {
-    const { data: metadata, error: connectionError } = useMintInfo(mint.mintUrl);
+    const { error: connectionError } = useMintInfo(mint.mintUrl);
     const unavailable = !deviceOffline && !!connectionError;
     const textColor = unavailable ? '$red11' : '$color';
     const displayName =
@@ -174,12 +127,10 @@ const MintRowItem = React.memo(
               <Text {...appTypography.label1} color={textColor} numberOfLines={1} flexShrink={1}>
                 {displayName}
               </Text>
-              {unavailable ? (
+              {unavailable && (
                 <View accessible accessibilityRole="image" accessibilityLabel="Mint unreachable">
                   <CircleAlert size={18} color="$red11" />
                 </View>
-              ) : (
-                <MintPaymentBadges metadata={metadata} />
               )}
             </XStack>
           </YStack>
@@ -253,7 +204,6 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
             <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
               {mint.name}
             </Text>
-            <MintPaymentBadges metadata={metadata} />
           </XStack>
           <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
             {hostname}
