@@ -3,11 +3,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { getCurrencyDisplayMode } from '~/shared/utils/currencyDisplay';
 
-jest.mock('~/services/wallet/currencyService', () => ({
-  currencyService: {
-    convertSatsToCurrency: (sats: number, price: number) => (sats * price) / 100000000,
-  },
-}));
+jest.mock('~/state/settingsStore', () => ({ useSettingsStore: { getState: jest.fn() } }));
+jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 let input: ReturnType<typeof useCurrencyInput>;
 let tree: ReactTestRenderer;
 function Editor({
@@ -44,7 +41,7 @@ it.each(['SATS', 'FIAT'] as const)(
       tree.update(<Editor primary={primary} currency="USD" amount="12345" price={100000} />),
     );
     expect(input.inputMode).toBe(primary);
-    expect(input.localInputValue).toBe(primary === 'FIAT' ? '12.35' : '12345');
+    expect(input.localInputValue).toBe(primary === 'FIAT' ? '12.34' : '12345');
     await act(async () =>
       tree.update(<Editor primary={primary} currency="NONE" amount="12345" price={100000} />),
     );
@@ -68,3 +65,28 @@ it('ignores stale fiat drafts in None mode and waits for a valid quote before re
   expect(input.inputMode).toBe('FIAT');
   expect(input.localInputValue).toBe('24.69');
 });
+
+it('restores two-decimal fiat drafts for small amounts', async () => {
+  await act(async () => {
+    tree = create(<Editor primary="FIAT" currency="NONE" amount="1" />);
+  });
+  await act(async () =>
+    tree.update(<Editor primary="FIAT" currency="USD" amount="1" price={100000} />),
+  );
+  expect(input.inputMode).toBe('FIAT');
+  expect(input.localInputValue).toBe('0.00');
+});
+
+it.each(['USD', 'EUR', 'JPY', 'INR', 'KWD'])(
+  'keeps two-decimal numeric drafts for %s',
+  async (currency) => {
+    await act(async () => {
+      tree = create(<Editor primary="FIAT" currency="NONE" amount="1" />);
+    });
+    await act(async () =>
+      tree.update(<Editor primary="FIAT" currency={currency} amount="1" price={32100} />),
+    );
+    expect(input.localInputValue).toBe('0.00');
+    expect(input.localInputValue).not.toContain('<');
+  },
+);

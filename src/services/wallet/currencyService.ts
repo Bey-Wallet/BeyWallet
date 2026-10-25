@@ -21,6 +21,12 @@ export type CurrencyCode =
   | 'SEK'
   | 'KRW'
   | 'TRY'
+  | 'THB'
+  | 'PHP'
+  | 'IDR'
+  | 'VND'
+  | 'NGN'
+  | 'ARS'
   | 'AED'
   | 'KWD';
 
@@ -29,6 +35,7 @@ export interface Currency {
   symbol: string;
   name: string;
   locale: string;
+  codeSuffix?: boolean;
 }
 
 export const SUPPORTED_CURRENCIES: Currency[] = [
@@ -44,15 +51,21 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', locale: 'pt-BR' },
   { code: 'RUB', symbol: '₽', name: 'Russian Ruble', locale: 'ru-RU' },
   { code: 'ZAR', symbol: 'R', name: 'South African Rand', locale: 'en-ZA' },
-  { code: 'MXN', symbol: '$', name: 'Mexican Peso', locale: 'es-MX' },
+  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', locale: 'es-MX' },
   { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', locale: 'en-SG' },
   { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar', locale: 'zh-HK' },
   { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', locale: 'en-NZ' },
   { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', locale: 'sv-SE' },
   { code: 'KRW', symbol: '₩', name: 'South Korean Won', locale: 'ko-KR' },
   { code: 'TRY', symbol: '₺', name: 'Turkish Lira', locale: 'tr-TR' },
-  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-US' },
-  { code: 'KWD', symbol: 'KWD', name: 'Kuwaiti Dinar', locale: 'en-US' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-US', codeSuffix: true },
+  { code: 'KWD', symbol: 'KWD', name: 'Kuwaiti Dinar', locale: 'en-US', codeSuffix: true },
+  { code: 'THB', symbol: '฿', name: 'Thai Baht', locale: 'th-TH' },
+  { code: 'PHP', symbol: '₱', name: 'Philippine Peso', locale: 'en-PH' },
+  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', locale: 'id-ID' },
+  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong', locale: 'vi-VN' },
+  { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', locale: 'en-NG' },
+  { code: 'ARS', symbol: 'AR$', name: 'Argentine Peso', locale: 'es-AR' },
 ];
 
 // Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.
@@ -78,9 +91,13 @@ export const currencyService = {
   },
 
   formatValue(value: number, currencyCode: CurrencyCode): string {
+    // Show the magnitude bound before rounding so a nonzero value never looks like zero.
+    if (Math.abs(value) > 0 && Math.abs(value) < 0.01) {
+      return `${value < 0 ? '-' : ''}<${currencyService.formatValue(0.01, currencyCode)}`;
+    }
     const currency =
       SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode) || SUPPORTED_CURRENCIES[0];
-    const useCodeSuffix = currency.code === 'AED' || currency.code === 'KWD';
+    const useCodeSuffix = currency.codeSuffix === true;
     try {
       const cacheKey = `${currency.locale}_${currency.code}`;
       let formatter = currencyFormatterCache.get(cacheKey);
@@ -141,8 +158,8 @@ export const currencyService = {
       }
 
       // Determine symbol position based on currency convention
-      const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR', 'AED', 'KWD'];
-      if (suffixCurrencies.includes(currency.code)) {
+      const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR', 'AED', 'KWD', 'VND'];
+      if (useCodeSuffix || suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {
         return `${currency.symbol}${decimalPart}`;

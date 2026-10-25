@@ -34,12 +34,37 @@ build will also include the updated embedded-font configuration from `app.json`.
 
 The user supplied Funnel Display by NORD ID and Kristian Möller in
 `C:\Users\Zaheer\Downloads\Funnel_Display`. The final production assets are the approved design;
-temporary HTML previews, generators, screenshots, and comparison fonts have been removed.
+earlier temporary HTML previews, generators, screenshots, and comparison fonts have been removed.
 
 The modified fonts add Bitcoin `₿` U+20BF, rupee `₹` U+20B9, ruble `₽` U+20BD, won `₩` U+20A9,
 lira `₺` U+20BA, and full-width yen `￥` U+FFE5. Original dollar, euro, pound and yen glyphs remain
-unchanged. Coverage checks include the symbols and formatted values for Bey's 21 fiat currencies.
+unchanged. Coverage checks include the symbols and formatted values for Bey's fiat currencies.
 Native Intl implementations can vary, so device checks remain necessary.
+
+The currency extension adds naira `₦` U+20A6, baht `฿` U+0E3F, Philippine peso `₱` U+20B1,
+and dong `₫` U+20AB. Their shapes derive from each weight's existing `N`, `B`, `P`, `đ`
+and underscore outlines, with matching crossbars. Intersections are merged only in these
+four new glyphs. All 376 pre-existing outlines, character mappings, advance widths and
+line metrics are preserved, including the approved Bitcoin and revision-5 rupee.
+THB, PHP, VND and NGN now use these symbols; IDR uses `Rp`, ARS uses `AR$`, and MXN uses `MX$`.
+
+Regular, Medium, SemiBold and the inactive Bold asset all contain the extension. Bold
+remains unregistered. The existing combined SIL license and embedded copyright notices
+are retained; no additional source font is used.
+
+The maintained generator is `scripts/add-currency-glyphs.py`. It uses isolated font-editing
+tools and does not add runtime app dependencies:
+
+```sh
+uv run --no-project --with fonttools --with pillow --with skia-pathops python scripts/add-currency-glyphs.py
+```
+
+This creates candidate fonts, a preservation manifest and a PNG preview in
+`.tmp/currency-glyphs/`. After reviewing the preview, pass `--apply` to write the assets.
+The generator verifies the existing outlines and metrics before finishing. Update the
+production-file hashes in `tests/unit/font-assets.test.ts` after intentional font changes;
+the original currency-outline hashes in `tests/fixtures/approved-currency-glyphs.json`
+must remain unchanged.
 
 Rupee revision 5 adapts the matching Special Gothic upper outline to Funnel's cap height and keeps
 the approved straight diagonal leg. Both source families use SIL OFL 1.1; their copyright notices
@@ -60,7 +85,7 @@ Device acceptance checks:
 
 - Review Home, payment entry/results, Settings, onboarding, messages, and navigation headers.
 - Check bottom-sheet/native inputs, button labels, long text, both themes, and larger system text.
-- Inspect `₿`, `₹`, `₽`, `₩`, `₺`, and both yen variants at row and balance sizes.
+- Inspect `₿`, `₹`, `₽`, `₩`, `₺`, `₦`, `฿`, `₱`, `₫`, and both yen variants at row and balance sizes.
 - Confirm Regular/Medium/SemiBold render distinctly, no text clips, and 700 remains mapped to 600.
 
 The user confirmed the current Expo dev-client appearance. The full screen/accessibility matrix,

@@ -155,6 +155,28 @@ it('returns a public-key scan only to its key sheet without invoking payment rou
   await act(async () => tree.unmount());
 });
 
+it('toggles the camera torch from the header without a paste action', async () => {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  expect(tree.root.findByType('CameraView' as any).props.enableTorch).toBe(false);
+  const buttons = tree.root.findAllByType('AppIconButton' as any);
+  const flashButton = buttons.find(
+    (node) => node.props.accessibilityLabel === 'Turn flashlight on',
+  )!;
+  await act(async () => flashButton.props.onPress());
+  expect(tree.root.findByType('CameraView' as any).props.enableTorch).toBe(true);
+  const offButton = tree.root
+    .findAllByType('AppIconButton' as any)
+    .find((node) => node.props.accessibilityLabel === 'Turn flashlight off')!;
+  expect(offButton.props.accessibilityState).toEqual({ selected: true });
+  await act(async () => offButton.props.onPress());
+  expect(tree.root.findByType('CameraView' as any).props.enableTorch).toBe(false);
+  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+  await act(async () => tree.unmount());
+});
+
 it('shows animated QR progress without resolving an incomplete payload', async () => {
   const decoder = {
     receivedPartIndexes: [] as number[],
@@ -171,10 +193,13 @@ it('shows animated QR progress without resolving an incomplete payload', async (
     tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: 'ur:bytes/1-5/part' }),
   );
   expect(decoder.receivePart).toHaveBeenCalledWith('ur:bytes/1-5/part');
-  const progress = tree.root
-    .findAllByType('View' as any)
-    .find((node) => node.props.accessibilityRole === 'progressbar');
-  expect(progress?.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 42 });
+  const progress = tree.root.findByProps({ accessibilityLabel: 'Reading animated QR' });
+  expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 42 });
+  expect(tree.root.findByType('Spinner' as any)).toBeDefined();
+  expect(tree.root.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0);
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children.includes?.(42)),
+  ).toBe(true);
   expect(mockResolve).not.toHaveBeenCalled();
   expect(tree.root.findByType('CameraView' as any).props.onBarcodeScanned).toBeDefined();
   await act(async () => tree.unmount());

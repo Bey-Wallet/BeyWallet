@@ -27,9 +27,6 @@ const RowContainer = styled(XStack, {
   gap: '$2',
   py: '$1',
   minHeight: 56,
-  rounded: '$4',
-  hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
-  pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
 });
 
 interface MintRowItemProps {
@@ -62,7 +59,7 @@ const MintRowItem = React.memo(
   }: MintRowItemProps) => {
     const { error: connectionError } = useMintInfo(mint.mintUrl);
     const unavailable = !deviceOffline && !!connectionError;
-    const textColor = unavailable ? '$red11' : '$color';
+    const textColor = unavailable ? '$red10' : '$color';
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -105,54 +102,68 @@ const MintRowItem = React.memo(
     const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? 'hidden' : 'visible'}_${displayAsSats ? 'SATS' : 'FIAT'}_${showBitcoinSymbol}`;
 
     return (
-      <RowContainer
+      <AppPressable
+        minHeight={56}
+        rounded="$6"
+        hoverStyle={{ opacity: 0.85 }}
+        pressStyle={{ opacity: 0.7 }}
         onPress={() => onPress(mint.mintUrl)}
+        accessibilityLabel={`Open ${displayName} mint details`}
         accessibilityHint={unavailable ? 'Mint unreachable. Open details to recheck.' : undefined}
       >
-        <XStack items="center" gap="$2" flex={1} minWidth={0}>
-          <MintImage
-            mintUrl={mint.mintUrl}
-            src={mint.icon}
-            width={44}
-            height={44}
-            alt={displayName}
-            borderRadius={12}
-            borderColor="$borderColor"
-            borderWidth={mint.icon ? 1 : 0}
-            fallback={<Landmark size={22} color="$iconSecondary" />}
-          />
+        <RowContainer>
+          <XStack items="center" gap="$2" flex={1} minWidth={0}>
+            <MintImage
+              mintUrl={mint.mintUrl}
+              src={mint.icon}
+              width={44}
+              height={44}
+              alt={displayName}
+              borderRadius={12}
+              borderColor="$borderColor"
+              borderWidth={mint.icon ? 1 : 0}
+              fallback={<Landmark size={22} color="$iconSecondary" />}
+            />
 
-          <YStack gap="$0.5" flex={1} minWidth={0}>
-            <XStack items="center" gap="$1.5">
-              <Text {...appTypography.label1} color={textColor} numberOfLines={1} flexShrink={1}>
-                {displayName}
-              </Text>
-              {unavailable && (
-                <View accessible accessibilityRole="image" accessibilityLabel="Mint unreachable">
-                  <CircleAlert size={18} color="$red11" />
-                </View>
-              )}
-            </XStack>
-          </YStack>
-        </XStack>
+            <YStack gap="$0.5" flex={1} minWidth={0}>
+              <XStack items="center" gap="$1.5">
+                <Text
+                  {...appTypography.label1}
+                  fontWeight="500"
+                  color={textColor}
+                  numberOfLines={1}
+                  flexShrink={1}
+                >
+                  {displayName}
+                </Text>
+                {unavailable && (
+                  <View accessible accessibilityRole="image" accessibilityLabel="Mint unreachable">
+                    <CircleAlert size={18} color="$red11" />
+                  </View>
+                )}
+              </XStack>
+            </YStack>
+          </XStack>
 
-        <XStack items="center" gap="$1.5">
-          <YStack items="flex-end" justify="center">
-            <RollingNumber
-              fontSize={appTypography.label1.fontSize}
-              fontWeight="600"
-              color={textColor}
-              decimalOpacity={0.4}
-              showDecimals={!displayAsSats}
-              prefix={prefix}
-              suffix={suffix}
-              trigger={currentTrigger}
-            >
-              {displayValue}
-            </RollingNumber>
-          </YStack>
-        </XStack>
-      </RowContainer>
+          <XStack items="center" gap="$1.5">
+            <YStack items="flex-end" justify="center">
+              <RollingNumber
+                fontSize={appTypography.label1.fontSize}
+                lineHeight={appTypography.label1.lineHeight}
+                fontWeight="500"
+                color={textColor}
+                decimalOpacity={0.4}
+                showDecimals={!displayAsSats}
+                prefix={prefix}
+                suffix={suffix}
+                trigger={currentTrigger}
+              >
+                {displayValue}
+              </RollingNumber>
+            </YStack>
+          </XStack>
+        </RowContainer>
+      </AppPressable>
     );
   },
 );
@@ -201,7 +212,13 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
           <XStack items="center" gap="$1.5">
-            <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
+            <Text
+              {...appTypography.label1}
+              fontWeight="500"
+              color="$color"
+              numberOfLines={1}
+              flexShrink={1}
+            >
               {mint.name}
             </Text>
           </XStack>

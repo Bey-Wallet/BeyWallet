@@ -109,7 +109,7 @@ it('does not pad a fiat draft with zeros that block the next digit', async () =>
   expect(mockChange).toHaveBeenCalledWith(12_000);
 });
 
-it('keeps decimal validation and permits typing again after deleting back to zero', async () => {
+it('accepts two decimal places and permits typing again after deleting back to zero', async () => {
   await open();
   await type('1.23');
   await type('4');
@@ -135,6 +135,14 @@ it('preserves exact sats when toggling a sub-cent amount without editing it', as
   expect(value()).toBe('0');
   await act(async () => done().props.onPress());
   expect(mockChange).toHaveBeenCalledWith(1);
+});
+
+it('rejects a third decimal place in fiat entry', async () => {
+  await open();
+  await type('.001');
+  expect(value()).toBe('0.00');
+  expect(done().props.disabled).toBe(true);
+  expect(mockChange).not.toHaveBeenCalled();
 });
 
 it('keeps sat entry available when a fiat exchange rate is unavailable', async () => {

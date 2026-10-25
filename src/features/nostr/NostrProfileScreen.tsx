@@ -16,9 +16,9 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import { Spinner } from '~/shared/ui/Spinner';
-import Blockies from '~/shared/ui/Blockies';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
 import { lightningAddress, lightningAddressQr } from '~/services/api/npubCashClient';
+import { appColors } from '~/shared/theme/appearance';
 
 export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
@@ -38,6 +38,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   const npub = useSettingsStore((state) => state.npub);
   const isLightning = tab === 'lightning';
   const address = npub ? lightningAddress(npub) : '';
+  const copyValue = isLightning ? address : npub;
   const canShare = !!npub && (!isLightning || (lightning.loaded && lightning.enabled));
   const { nip05, loading, status, refresh } = useNip05Lookup();
   const verified = status === 'verified' && !!nip05;
@@ -83,6 +84,36 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
     }
   };
 
+  const tabs = (
+    <XStack self="center" maxWidth="100%" accessibilityRole="tablist" gap="$3">
+      {(['ecash', 'lightning'] as const).map((value) => (
+        <AppPressable
+          key={value}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === value }}
+          accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
+          onPress={() => setTab(value)}
+          px="$3"
+          minWidth={48}
+          minHeight={36}
+          rounded="$4"
+          items="center"
+          justify="center"
+          bg={tab === value ? appColors.dark.pressed : '$background'}
+          pressStyle={{ opacity: 0.8 }}
+        >
+          <Text
+            fontSize={13}
+            fontWeight="500"
+            color={tab === value ? appColors.dark.buttonForeground : '$gray10'}
+          >
+            {value === 'ecash' ? 'Ecash' : 'Lightning'}
+          </Text>
+        </AppPressable>
+      ))}
+    </XStack>
+  );
+
   return (
     <YStack flex={1} bg="$background">
       <Stack.Screen
@@ -90,9 +121,10 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           ...(!settingsMode && {
             headerShown: true,
             title: 'My addresses',
-            headerTitleAlign: 'center' as const,
             headerShadowVisible: false,
           }),
+          headerTitle: () => tabs,
+          headerTitleAlign: 'center',
           headerRight: () => (
             <HeaderIconButton
               accessibilityLabel={isLightning ? 'Share Lightning address' : 'Share ecash address'}
@@ -121,41 +153,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           gap="$4"
           items="center"
         >
-          <XStack width="100%" accessibilityRole="tablist" gap="$2">
-            {(['ecash', 'lightning'] as const).map((value) => (
-              <AppPressable
-                key={value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === value }}
-                accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
-                onPress={() => setTab(value)}
-                flex={1}
-                minHeight={48}
-                rounded="$6"
-                items="center"
-                justify="center"
-                bg={tab === value ? '$buttonDefaultSecondary' : '$background'}
-                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-              >
-                <Text fontSize={14} color={tab === value ? '$color' : '$gray10'}>
-                  {value === 'ecash' ? 'Ecash' : 'Lightning'}
-                </Text>
-              </AppPressable>
-            ))}
-          </XStack>
           <YStack items="center" gap="$3" maxWidth="100%">
-            {npub && (
-              <View
-                width={56}
-                height={56}
-                flexShrink={0}
-                rounded={28}
-                overflow="hidden"
-                accessibilityLabel="Your addresses avatar"
-              >
-                <Blockies seed={npub} size={8} scale={7} />
-              </View>
-            )}
             {isLightning ? (
               <Text fontSize={14} color="$color" textAlign="center">
                 Lightning address
@@ -241,28 +239,41 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               )}
             </View>
           )}
+          {copyValue && canShare && (
+            <AppPressable
+              width="100%"
+              rounded="$6"
+              bg="$buttonDefaultSecondary"
+              p="$4"
+              minHeight={48}
+              onPress={() => copy(copyValue)}
+              accessibilityLabel={isLightning ? 'Copy Lightning address' : 'Copy public key'}
+              hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+              pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            >
+              <Text fontSize={14} color="$color" textAlign="center">
+                {copyValue}
+              </Text>
+              <XStack justify="center" gap="$2" mt="$2">
+                {copied === copyValue ? (
+                  <Check size={16} color="$gray10" />
+                ) : (
+                  <Copy size={16} color="$gray10" />
+                )}
+                <Text fontSize={12} color="$gray10">
+                  {isLightning
+                    ? copied === copyValue
+                      ? 'Address copied'
+                      : 'Copy address'
+                    : copied === copyValue
+                      ? 'Public key copied'
+                      : 'Copy public key'}
+                </Text>
+              </XStack>
+            </AppPressable>
+          )}
           {isLightning && canShare && (
             <YStack gap="$3" width="100%" items="center">
-              <AppPressable
-                width="100%"
-                rounded="$6"
-                bg="$buttonDefaultSecondary"
-                p="$4"
-                minHeight={48}
-                onPress={() => copy(address)}
-                accessibilityLabel="Copy Lightning address"
-                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-              >
-                <Text fontSize={14} color="$color" textAlign="center">
-                  {address}
-                </Text>
-                <XStack justify="center" gap="$2" mt="$2">
-                  <Copy size={16} color="$gray10" />
-                  <Text fontSize={12} color="$gray10">
-                    {copied === address ? 'Address copied' : 'Copy address'}
-                  </Text>
-                </XStack>
-              </AppPressable>
               <Text fontSize={12} color="$gray10" textAlign="center">
                 Receiving mint: {lightning.receivingMint}
               </Text>
@@ -281,51 +292,9 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               )}
             </YStack>
           )}
-          {!isLightning && npub && (
-            <AppPressable
-              width="100%"
-              rounded="$6"
-              borderWidth={1}
-              borderColor="$borderColor"
-              px="$4"
-              py="$5"
-              mt="$3"
-              minHeight={48}
-              onPress={() => copy(npub)}
-              accessibilityLabel="Copy public key"
-            >
-              <XStack
-                position="absolute"
-                top={-12}
-                self="center"
-                items="center"
-                gap="$2"
-                px="$2"
-                bg="$background"
-              >
-                <Text fontSize={14} color="$gray10">
-                  Public key
-                </Text>
-                {copied === npub ? (
-                  <Check size={16} color="$color" />
-                ) : (
-                  <Copy size={16} color="$gray10" />
-                )}
-              </XStack>
-              <Text
-                fontSize={14}
-                fontWeight="500"
-                lineHeight={24}
-                color="$color"
-                textAlign="center"
-              >
-                {npub}
-              </Text>
-            </AppPressable>
-          )}
           {!isLightning && (
             <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={280} lineHeight={18}>
-              {copied === npub ? 'Public key copied' : 'Receive ecash over Nostr.'}
+              Receive ecash over Nostr.
             </Text>
           )}
 

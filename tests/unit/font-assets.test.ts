@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import approvedCurrencyGlyphs from '../fixtures/approved-currency-glyphs.json';
 
 // Approved production files: lock the glyphs without retaining preview assets.
 const approvedFontHashes = {
-  Regular: 'f2e607f2bcb8cae25a5a6d404bcc53215506adff8b7da01ad04458c1b542696e',
-  Medium: 'dcd39846547fdf7e19db865987d520ef589f591f54d281e4ef2a26b9b2b86ee4',
-  SemiBold: '01b46e562208ee7c7d60779f7714ac753fc2567edbd6f61b8bd95245e1eb3132',
-  Bold: '18f7100d66022eb8b1511bf1e86a1b2dd81a929b033054238990ebbc967c4bbe',
+  Regular: 'a3e44caaead40019c5771b9c986f9d4b7999bf7cea74b72548c2237eb29a60d1',
+  Medium: '668992f15b7af6eab354ae3d800f1135c0efbf1c3abd0fd95cc9ff16a82057f9',
+  SemiBold: 'bccb9fb5dd42e61e532569ca43bdb83ab5893daa8354ec1b79a30a9b008687e0',
+  Bold: 'af2a8e1f4c6f413ae8cc86c68d80e16a09a88f4044848260abb8cd5dc41c8390',
 };
 
 function tableOffset(font: Buffer, tag: string) {
@@ -18,7 +19,7 @@ function tableOffset(font: Buffer, tag: string) {
   throw new Error(`Missing font table: ${tag}`);
 }
 
-function hasGlyph(font: Buffer, codePoint: number) {
+function glyphIndex(font: Buffer, codePoint: number) {
   const cmap = tableOffset(font, 'cmap');
   for (let i = 0; i < font.readUInt16BE(cmap + 2); i++) {
     const record = cmap + 4 + i * 8;
@@ -37,7 +38,7 @@ function hasGlyph(font: Buffer, codePoint: number) {
           codePoint <= last &&
           font.readUInt32BE(entry + 8) + codePoint - first !== 0
         )
-          return true;
+          return font.readUInt32BE(entry + 8) + codePoint - first;
       }
     } else if (format === 4 && codePoint <= 0xffff) {
       const count = font.readUInt16BE(start + 6) / 2;
@@ -51,11 +52,12 @@ function hasGlyph(font: Buffer, codePoint: number) {
         const glyph = range
           ? font.readUInt16BE(location + range + (codePoint - first) * 2)
           : codePoint;
-        if ((!range || glyph !== 0) && ((glyph + delta) & 0xffff) !== 0) return true;
+        if ((!range || glyph !== 0) && ((glyph + delta) & 0xffff) !== 0)
+          return (glyph + delta) & 0xffff;
       }
     }
   }
-  return false;
+  return 0;
 }
 
 it.each([
@@ -70,11 +72,24 @@ it.each([
       path.join(process.cwd(), 'src/assets/fonts', `BeyFunnelDisplay-${name}.ttf`),
     );
     expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(weight);
-    for (const symbol of '$€£¥₿₹₽₩₺￥') {
-      expect({ symbol, covered: hasGlyph(font, symbol.codePointAt(0)!) }).toEqual({
+    for (const symbol of '$€£¥₿₹₽₩₺￥₦฿₱₫') {
+      expect({ symbol, covered: glyphIndex(font, symbol.codePointAt(0)!) !== 0 }).toEqual({
         symbol,
         covered: true,
       });
+    }
+    const loca = tableOffset(font, 'loca');
+    const glyf = tableOffset(font, 'glyf');
+    const longOffsets = font.readInt16BE(tableOffset(font, 'head') + 50) === 1;
+    const offset = (index: number) =>
+      longOffsets ? font.readUInt32BE(loca + index * 4) : font.readUInt16BE(loca + index * 2) * 2;
+    for (const [codePoint, expected] of Object.entries(approvedCurrencyGlyphs[name])) {
+      const index = glyphIndex(font, Number(codePoint));
+      const start = glyf + offset(index);
+      let end = glyf + offset(index + 1);
+      // Ignore alignment padding; pin the pre-existing approved outline bytes.
+      while (end > start && font[end - 1] === 0) end--;
+      expect(createHash('sha256').update(font.subarray(start, end)).digest('hex')).toBe(expected);
     }
     expect(createHash('sha256').update(font).digest('hex')).toBe(approvedFontHashes[name]);
   },

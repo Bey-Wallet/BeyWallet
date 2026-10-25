@@ -11,7 +11,14 @@ let mockStatus = 'verified';
 let mockTab = 'ecash';
 let mockLightningEnabled = false;
 jest.mock('expo-router', () => ({
-  Stack: { Screen: ({ options }: any) => options.headerRight?.() },
+  Stack: {
+    Screen: ({ options }: any) => (
+      <>
+        {options.headerTitle?.()}
+        {options.headerRight?.()}
+      </>
+    ),
+  },
   useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => ({ tab: mockTab }),
   useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
@@ -93,7 +100,7 @@ it('keeps the full QR and copy payload, removes the logo and respects the bottom
   expect(qr.props.logo).toBeUndefined();
   expect(qr.props.color).toBe('#ffffff');
   expect(qr.props.backgroundColor).toBe('#000000');
-  expect(tree.root.findByType('Blockies' as any).props.seed).toBe(mockNpub);
+  expect(tree.root.findAllByType('Blockies' as any)).toHaveLength(0);
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
   expect(labels).toContain('alice');
   expect(labels).toContain(mockNpub);

@@ -104,3 +104,14 @@ it.each([undefined, 0, NaN, Infinity, -1])(
 it('retains a real zero amount with an available conversion', () => {
   expect(paymentAmounts(0, 'FIAT', 'USD', false, 100000).primary).toBe('$0.00');
 });
+
+it('shows sub-cent conversions in both primary and secondary payment amounts', () => {
+  expect(paymentAmounts(1, 'SATS', 'USD', false, 100000)).toEqual({
+    primary: '1 sat',
+    secondary: '<$0.01',
+  });
+  expect(paymentAmounts(1, 'FIAT', 'USD', false, 100000)).toEqual({
+    primary: '<$0.01',
+    secondary: '1 sat',
+  });
+});
