@@ -6,6 +6,7 @@ import { notificationService } from '~/services/platform/notificationService';
 import { DeviceEventEmitter } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 import { useRouter } from 'expo-router';
+import { subscribeMintTransfers } from '~/services/wallet/mintTransferService';
 
 /**
  * Hook to subscribe to coco CoreEvents and trigger wallet updates.
@@ -38,8 +39,11 @@ export function useCocoEvents() {
       refreshBalance();
       queryClient.invalidateQueries({ queryKey: ['history'] });
       queryClient.invalidateQueries({ queryKey: ['history-volume'] });
+      queryClient.invalidateQueries({ queryKey: ['mintTransfer'] });
     }, 300);
   }, [refreshBalance, queryClient]);
+
+  useEffect(() => subscribeMintTransfers(handleBalanceUpdate), [handleBalanceUpdate]);
 
   const handleMintQuoteRedeemed = useCallback(
     (payload: any) => {

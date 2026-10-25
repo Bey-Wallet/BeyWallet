@@ -6,6 +6,7 @@ import type {
   SendHistoryEntry,
 } from 'coco-cashu-core';
 import { ExpoSqliteDb } from '~/storage/sqlite/db';
+import { MintTransferRepository } from './MintTransferRepository';
 
 type MintQuoteState = MintHistoryEntry['state'];
 type MeltQuoteState = MeltHistoryEntry['state'];
@@ -95,13 +96,19 @@ export class ExpoHistoryRepository {
 
   async getPaginatedHistoryEntries(limit: number, offset: number): Promise<HistoryEntry[]> {
     const rows = await this.db.all<Row>(
-      `SELECT id, mintUrl, type, unit, amount, createdAt, quoteId, state, paymentRequest, tokenJson, metadata, operationId
-       FROM coco_cashu_history
-       ORDER BY createdAt DESC, id DESC
+      `SELECT h.* FROM coco_cashu_history h
+       WHERE NOT EXISTS (
+         SELECT 1 FROM bey_mint_transfers t WHERE
+           (h.type = 'mint' AND h.mintUrl = t.targetMintUrl AND h.quoteId = t.mintQuoteId)
+           OR (h.type = 'melt' AND h.mintUrl = t.sourceMintUrl AND h.quoteId = t.meltQuoteId
+               AND t.state IN ('draft', 'prepared', 'discarded'))
+       )
+       ORDER BY h.createdAt DESC, h.id DESC
        LIMIT ? OFFSET ?`,
       [limit, offset],
     );
-    return rows.map((r) => this.rowToEntry(r));
+    const transfers = new MintTransferRepository(this.db);
+    return Promise.all(rows.map((r) => transfers.project(this.rowToEntry(r))));
   }
 
   async getHistoryEntryById(id: string): Promise<HistoryEntry | null> {
@@ -111,7 +118,7 @@ export class ExpoHistoryRepository {
       [id],
     );
     if (!row) return null;
-    return this.rowToEntry(row);
+    return new MintTransferRepository(this.db).project(this.rowToEntry(row));
   }
 
   /** Coco writes successful receives with a null state; offline offers are unclaimed. */
@@ -344,6 +351,13 @@ export class ExpoHistoryRepository {
   async deleteHistoryEntriesByIds(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     const placeholders = ids.map(() => '?').join(',');
+    const pending = await this.db.get(
+      `SELECT t.id FROM bey_mint_transfers t JOIN coco_cashu_history h
+       ON h.type = 'melt' AND h.mintUrl = t.sourceMintUrl AND h.quoteId = t.meltQuoteId
+       WHERE h.id IN (${placeholders}) AND t.state = 'committed' LIMIT 1`,
+      ids,
+    );
+    if (pending) throw new Error('Wait for the pending transfer to finish before erasing it.');
     await this.db.run(`DELETE FROM coco_cashu_history WHERE id IN (${placeholders})`, ids);
   }
 

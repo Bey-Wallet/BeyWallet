@@ -66,11 +66,17 @@ export function filterHistory(
           : 0;
   return entries
     .filter((entry) => {
+      const targetMint = historyMetadata(entry).targetMintUrl;
       // Address creation is persisted for recovery, but is not payment activity.
       if (isOnchainHistory(entry) && !(entry.amount > 0)) return false;
       if (
         filters.mint !== 'all' &&
-        entry.mintUrl.replace(/\/$/, '') !== filters.mint.replace(/\/$/, '')
+        entry.mintUrl.replace(/\/$/, '') !== filters.mint.replace(/\/$/, '') &&
+        !(
+          historyRail(entry) === 'transfer' &&
+          typeof targetMint === 'string' &&
+          targetMint.replace(/\/$/, '') === filters.mint.replace(/\/$/, '')
+        )
       )
         return false;
       if (historyTimestamp(entry.createdAt) < cutoff) return false;

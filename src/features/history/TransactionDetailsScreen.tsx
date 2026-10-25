@@ -11,6 +11,7 @@ import {
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
+import { TransferHistoryReceipt } from './components/TransferHistoryReceipt';
 import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
@@ -811,6 +812,22 @@ export function TransactionDetailsScreen() {
           </Text>
         </YStack>
       </SafeAreaView>
+    );
+  }
+
+  if (metadata.transferId) {
+    return (
+      <>
+        <TransferHistoryReceipt
+          id={metadata.transferId}
+          amount={entry.amount}
+          sourceMintUrl={entry.mintUrl}
+          targetMintUrl={metadata.targetMintUrl}
+          onClose={() => router.back()}
+          headerRight={headerOptions.headerRight}
+        />
+        {renderDeleteBottomSheet()}
+      </>
     );
   }
 

@@ -1,183 +1,148 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { YStack, Text } from 'tamagui';
+import { useWalletStore } from '~/state/walletStore';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useCallback } from 'react';
-import { InteractionManager } from 'react-native';
-import { useRouter } from 'expo-router';
-import { YStack } from 'tamagui';
-
-import * as Haptics from 'expo-haptics';
-import { useWalletStore } from '~/state/walletStore';
-import { walletService, quotesService, initService } from '~/services/wallet';
+import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
-import { useSettingsStore } from '~/state/settingsStore';
-import { useQuery } from '@tanstack/react-query';
-import { bitcoinService } from '~/services/api/bitcoinService';
-
-import { AmountStage } from '~/features/payments/swap/AmountStage';
-import { ResultStage } from '~/features/payments/swap/ResultStage';
-
-type SwapStep = 'amount' | 'confirm' | 'result';
+import {
+  getMintTransferService,
+  type MintTransferRecord,
+} from '~/services/wallet/mintTransferService';
+import { AmountStage } from './AmountStage';
+import { ResultStage } from './ResultStage';
 
 export default function SwapScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
-  const refreshBalance = useWalletStore((s) => s.refreshBalance);
-
-  const [step, setStep] = useState<SwapStep>('amount');
-  const [amount, setAmount] = useState('0');
-
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
-
-  // We auto-select the first mint with balance as source, or active
-  const firstFunded = React.useMemo(() => {
-    return (
-      activeMintUrl ||
+  const service = useMemo(() => getMintTransferService(), []);
+  const [step, setStep] = useState<'amount' | 'confirm' | 'result'>('amount');
+  const [amount, setAmount] = useState('0');
+  const [sourceMintUrl, setSourceMintUrl] = useState(
+    () =>
+      mints.find((m) => m.mintUrl === activeMintUrl && (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
       mints.find((m) => (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
-      mints[0]?.mintUrl
-    );
-  }, [activeMintUrl, mints, balances]);
-
-  const defaultTarget = React.useMemo(() => {
-    return mints.find((m) => m.mintUrl !== firstFunded)?.mintUrl || mints[0]?.mintUrl || '';
-  }, [mints, firstFunded]);
-
-  const [sourceMintUrl, setSourceMintUrl] = useState<string>(firstFunded || '');
-  const [targetMintUrl, setTargetMintUrl] = useState<string>(defaultTarget || '');
-
-  const [status, setStatus] = useState<'success' | 'error' | 'cancelled'>('success');
+      activeMintUrl ||
+      '',
+  );
+  const [targetMintUrl, setTargetMintUrl] = useState(
+    () => mints.find((m) => m.mintUrl !== sourceMintUrl)?.mintUrl || '',
+  );
+  const [record, setRecord] = useState<MintTransferRecord>();
   const [error, setError] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const submitting = useRef(false);
+  usePreventRemove(isProcessing, () => {});
 
-  const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+  useEffect(() => {
+    if (step !== 'confirm') return;
+    let active = true;
+    let prepared: MintTransferRecord | undefined;
+    setRecord(undefined);
+    setError(null);
+    setQuoting(true);
+    void service.prepare(sourceMintUrl, targetMintUrl, Number(amount)).then(
+      (value) => {
+        prepared = value;
+        if (active) {
+          setRecord(value);
+          setQuoting(false);
+        } else void service.discard(value.id).catch(() => {});
+      },
+      (failure) => {
+        if (active) {
+          setError(failure instanceof Error ? failure.message : 'Could not prepare transfer.');
+          setQuoting(false);
+        }
+      },
+    );
+    return () => {
+      active = false;
+      if (prepared) void service.discard(prepared.id).catch(() => {});
+    };
+  }, [step, sourceMintUrl, targetMintUrl, amount, service]);
 
-  const { data: btcData } = useQuery({
-    queryKey: ['bitcoinPrice', secondaryCurrency],
-    queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
-    staleTime: 30000,
-    enabled: secondaryCurrency !== 'NONE',
+  const result = useQuery({
+    queryKey: ['mintTransfer', record?.id],
+    queryFn: () => service.refresh(record!.id),
+    enabled:
+      step === 'result' && !!record && !['failed', 'completed', 'discarded'].includes(record.state),
+    refetchInterval: (query) =>
+      query.state.data && !['failed', 'completed', 'discarded'].includes(query.state.data.state)
+        ? 10_000
+        : false,
+    initialData: record,
   });
+  const displayed = result.data?.id === record?.id ? result.data : record;
+  const pending = !!displayed && !['failed', 'completed', 'discarded'].includes(displayed.state);
+  useEffect(() => {
+    if (step !== 'result') return;
+    void queryClient.invalidateQueries({ queryKey: ['history'] });
+    void useWalletStore.getState().refreshBalance();
+  }, [step, displayed?.state, queryClient]);
 
-  const fiatValue = React.useMemo(() => {
-    if (secondaryCurrency === 'NONE') return '';
-
-    if (!btcData?.price) return '—';
-    const sats = Number(amount) || 0;
-    const fiat = currencyService.convertSatsToCurrency(sats, btcData.price);
-    return fiat.toFixed(2);
-  }, [amount, btcData?.price, secondaryCurrency]);
-
-  const amountNum = parseInt(amount, 10) || 0;
-  const sourceBalance = sourceMintUrl ? balances[sourceMintUrl] || 0 : 0;
-
-  // Derived selected Mint objects
-  const sourceMint = mints.find((m) => m.mintUrl === sourceMintUrl);
-  const targetMint = mints.find((m) => m.mintUrl === targetMintUrl);
-
-  const handleSwap = useCallback(async () => {
-    if (!sourceMintUrl || !targetMintUrl) {
-      setError('Please select both source and target mints');
-      return;
-    }
-
-    if (amountNum <= 0) {
-      setError('Invalid amount');
-      return;
-    }
-
-    if (amountNum > sourceBalance) {
-      setError('Insufficient balance in source mint');
-      return;
-    }
-
+  const submit = async () => {
+    if (!record || submitting.current) return;
+    submitting.current = true;
     setIsProcessing(true);
     setError(null);
-
     try {
-      if (sourceMintUrl === targetMintUrl) {
-        // Same-mint swap: simple refresh
-        console.log(`[Swap] Single-mint swapping ${amountNum} sat on ${sourceMintUrl}`);
-        const token = await walletService.send(sourceMintUrl, amountNum);
-        await walletService.receive(token.token as any);
-      } else {
-        // Cross-mint swap via NUT-19 (Direct Atomic Swap or Optimized Route)
-        console.log(
-          `[Swap] Executing NUT-19 cross-mint swap (${amountNum} sat) from ${sourceMintUrl} to ${targetMintUrl}`,
-        );
-        await quotesService.swapMintToMint(sourceMintUrl, targetMintUrl, amountNum);
-      }
-
-      // Record transaction history entry for NUT-19 atomic swap
-      try {
-        const repo = initService.getRepo();
-        if (repo?.historyRepository) {
-          await (repo.historyRepository as any).addHistoryEntry({
-            mintUrl: sourceMintUrl,
-            type: 'swap',
-            unit: 'sat',
-            amount: amountNum,
-            createdAt: Date.now(),
-            state: 'completed',
-            metadata: {
-              via: 'swap',
-              protocol: 'NUT-19',
-              sourceMintUrl,
-              targetMintUrl,
-              sourceMintName:
-                sourceMint?.name || sourceMintUrl.replace(/^https?:\/\//, '').split('/')[0],
-              targetMintName:
-                targetMint?.name || targetMintUrl.replace(/^https?:\/\//, '').split('/')[0],
-            },
-          });
-        }
-      } catch (histErr) {
-        console.warn('[Swap] Failed to record history entry:', histErr);
-      }
-
-      setStatus('success');
-      refreshBalance(); // fire-and-forget — don't block UI
-      setStep('result');
-    } catch (err: any) {
-      console.error('[Swap] Failed:', err);
-      setError(err.message || 'Transfer failed');
-      setStatus('error');
-      setStep('result');
+      const value = await service.execute(record.id);
+      setRecord(value);
+      queryClient.setQueryData(['mintTransfer', value.id], value);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Could not complete transfer.');
+      setRecord(undefined);
     } finally {
+      setStep('result');
       setIsProcessing(false);
-    }
-  }, [sourceMintUrl, targetMintUrl, amountNum, sourceBalance, refreshBalance]);
-
-  const handleConfirmSubmit = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await handleSwap();
-  };
-
-  const handleNext = () => {
-    if (step === 'amount') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setStep('confirm');
+      submitting.current = false;
     }
   };
 
-  const handleClose = () => {
-    router.back();
-    InteractionManager.runAfterInteractions(() => refreshBalance());
-  };
-
+  const close = () => router.back();
+  if (step === 'result') {
+    const completed = displayed?.state === 'completed';
+    return (
+      <ResultStage
+        status={completed ? 'success' : pending ? 'pending' : 'error'}
+        amount={amount}
+        sourceMintUrl={sourceMintUrl}
+        targetMintUrl={targetMintUrl}
+        record={displayed}
+        error={
+          displayed?.state === 'failed' ? 'The source mint did not complete the payment.' : error
+        }
+        onCheckStatus={() => result.refetch().then(() => {})}
+        checking={result.isFetching}
+        onRetry={
+          !pending && !completed
+            ? () => {
+                setError(null);
+                setStep('amount');
+              }
+            : undefined
+        }
+        onClose={close}
+      />
+    );
+  }
   return (
     <YStack flex={1} bg="$background">
-      {step === 'amount' && (
+      {step === 'amount' ? (
         <YStack flex={1} px="$4">
-          <PaymentFlowHeader
-            title="Transfer"
-            navigationAction="close"
-            onBack={handleClose}
-            disabled={isProcessing}
-          />
+          <PaymentFlowHeader title="Transfer" navigationAction="close" onBack={close} />
           <AmountStage
             amount={amount}
             setAmount={setAmount}
@@ -185,14 +150,11 @@ export default function SwapScreen() {
             setSourceMintUrl={setSourceMintUrl}
             targetMintUrl={targetMintUrl}
             setTargetMintUrl={setTargetMintUrl}
-            onContinue={handleNext}
-            isLoading={isProcessing}
+            onContinue={() => setStep('confirm')}
             error={error}
           />
         </YStack>
-      )}
-
-      {step === 'confirm' && (
+      ) : (
         <>
           <PaymentFlowHeader
             title="Confirm transfer"
@@ -202,7 +164,19 @@ export default function SwapScreen() {
           <PaymentStageLayout
             disabled={isProcessing}
             hero={
-              <PaymentAmount amount={Number(amount)} size="prominent" label="You're transferring" />
+              <>
+                <PaymentAmount
+                  amount={Number(amount)}
+                  size="prominent"
+                  label="You're transferring"
+                />
+                {quoting && <Spinner size="small" />}
+                {error && (
+                  <Text color="$red10" textAlign="center" accessibilityRole="alert">
+                    {error}
+                  </Text>
+                )}
+              </>
             }
             footer={
               <AppButton
@@ -210,8 +184,8 @@ export default function SwapScreen() {
                 fullWidth
                 loading={isProcessing}
                 loadingText="Transferring ecash…"
-                onPress={handleConfirmSubmit}
-                disabled={isProcessing}
+                disabled={quoting || isProcessing || !record}
+                onPress={submit}
               >
                 Transfer
               </AppButton>
@@ -232,24 +206,26 @@ export default function SwapScreen() {
                 disabled={isProcessing}
                 method="mint-lightning"
               />
-              <ListTableRow label="Method" value="Mint transfer" />
-              <ListTableRow label="Fee" value="Calculated during transfer" />
+              <ListTableRow
+                label="Maximum fee"
+                value={record ? currencyService.formatSats(record.feeReserve) : 'Unavailable'}
+              />
+              <ListTableRow
+                label="Maximum total"
+                value={
+                  record
+                    ? currencyService.formatSats(record.amount + record.feeReserve)
+                    : 'Unavailable'
+                }
+              />
             </ListTable>
+            {!quoting && error && (
+              <AppButton size="medium" emphasis="secondary" onPress={() => setStep('amount')}>
+                Change amount or retry
+              </AppButton>
+            )}
           </PaymentStageLayout>
         </>
-      )}
-
-      {step === 'result' && (
-        <YStack flex={1}>
-          <ResultStage
-            status={status}
-            amount={amount}
-            sourceMintUrl={sourceMintUrl}
-            targetMintUrl={targetMintUrl}
-            error={error}
-            onClose={handleClose}
-          />
-        </YStack>
       )}
     </YStack>
   );

@@ -155,6 +155,8 @@ function setupAppStateListener(): void {
  * transaction conflicts. Matches Sovran's pattern.
  */
 async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): Promise<void> {
+  const { getMintTransferService } = await import('./mintTransferService');
+  getMintTransferService().start();
   const delay = options.fast ? 0 : 50;
 
   // Enable mint quote watcher
@@ -403,6 +405,8 @@ export const initService = {
    * Useful for background syncs where we just need to refresh proof/counter state.
    */
   reinitFast: async (): Promise<Manager> => {
+    const { stopMintTransferService } = await import('./mintTransferService');
+    stopMintTransferService();
     const { requestLifecycleService: previousRequestLifecycle } =
       await import('./requestLifecycleService');
     previousRequestLifecycle.stop();
@@ -523,6 +527,8 @@ export const initService = {
    * Properly cleanup watchers and reset state.
    */
   cleanup: async (): Promise<void> => {
+    const { stopMintTransferService } = await import('./mintTransferService');
+    stopMintTransferService();
     const { requestLifecycleService } = await import('./requestLifecycleService');
     requestLifecycleService.stop();
     const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
@@ -551,6 +557,8 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
+    const { stopMintTransferService } = await import('./mintTransferService');
+    stopMintTransferService();
     const { requestLifecycleService } = await import('./requestLifecycleService');
     requestLifecycleService.stop();
     const { useNostrRequestStore } = await import('~/state/nostrRequestStore');

@@ -433,6 +433,30 @@ const MIGRATIONS: readonly Migration[] = [
         WHERE state IN ('prepared', 'submitted');
     `,
   },
+  {
+    id: '020_mint_transfers',
+    sql: `
+      CREATE TABLE bey_mint_transfers (
+        id TEXT PRIMARY KEY NOT NULL,
+        sourceMintUrl TEXT NOT NULL,
+        targetMintUrl TEXT NOT NULL,
+        mintQuoteId TEXT NOT NULL,
+        meltQuoteId TEXT,
+        operationId TEXT,
+        amount INTEGER NOT NULL,
+        feeReserve INTEGER NOT NULL DEFAULT 0,
+        feePaid INTEGER,
+        expiresAt INTEGER,
+        state TEXT NOT NULL,
+        stage TEXT NOT NULL DEFAULT 'payment',
+        createdAt INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX bey_mint_transfers_destination
+        ON bey_mint_transfers(targetMintUrl, mintQuoteId);
+      CREATE UNIQUE INDEX bey_mint_transfers_source
+        ON bey_mint_transfers(sourceMintUrl, meltQuoteId);
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {
