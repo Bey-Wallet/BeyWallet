@@ -13,7 +13,9 @@ import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
-import { AppButton } from '~/shared/ui/AppButton';
+import { ChevronRight, Zap } from '@tamagui/lucide-icons';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { appTypography } from '~/shared/theme/appearance';
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -156,11 +158,30 @@ export function HomeTabScreen() {
         <WalletCard />
         <ActionButtons />
         {pendingLightning > 0 && (
-          <AppButton
-            size="small"
-            emphasis="secondary"
+          <AppPressable
+            width="100%"
+            minHeight={56}
+            rounded="$6"
+            bg="$buttonDefaultSecondary"
+            px="$4"
+            py="$3"
+            flexDirection="row"
+            items="center"
+            gap="$3"
+            hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            accessibilityLabel={`Pending Lightning payments (${pendingLightning})`}
+            accessibilityHint="View incoming Lightning payments awaiting collection"
             onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
-          >{`Pending Lightning payments (${pendingLightning})`}</AppButton>
+          >
+            <View width={24} items="center" justify="center" aria-hidden>
+              <Zap size={22} color="$color" strokeWidth={1.8} />
+            </View>
+            <Text {...appTypography.label2} color="$color" flex={1}>
+              {`Pending Lightning payments (${pendingLightning})`}
+            </Text>
+            <ChevronRight size={20} color="$gray10" aria-hidden />
+          </AppPressable>
         )}
         <SupporterCard />
 
