@@ -64,6 +64,7 @@ const expectedRoutes = [
   '(tabs)/settings/restore-backup.tsx',
   '(tabs)/settings/secret-key.tsx',
   '(tabs)/settings/security.tsx',
+  '(tabs)/settings/supporter.tsx',
   '(tabs)/settings/theme.tsx',
   '(tabs)/settings/updates.tsx',
   '(tabs)/settings/username.tsx',

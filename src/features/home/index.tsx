@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
+import { SupporterCard } from '~/features/supporter/SupporterCard';
 import BackupWarningCard from '~/features/home/components/BackupWarningCard';
 import ClaimUsernameCard from '~/features/home/components/ClaimUsernameCard';
 import RestoreProgressCard from '~/features/home/components/RestoreProgressCard';
@@ -151,6 +152,7 @@ export function HomeTabScreen() {
         {/* Above-the-fold: renders immediately */}
         <WalletCard />
         <ActionButtons />
+        <SupporterCard />
 
         <RestoreProgressCard />
 

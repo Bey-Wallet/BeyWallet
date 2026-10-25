@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="760" viewBox="0 0 1080 760" role="img" aria-labelledby="title description">
+  <title id="title">Bey Spotlight: deferred design reference</title>
+  <desc id="description">Schematic reconstruction of compact normal, gold, and electric-blue card stacks, plus a native full-screen project detail modal. This is not a device screenshot. Project images and fonts are illustrative.</desc>
+  <defs>
+    <clipPath id="card-clip"><rect width="360" height="84" rx="16"/></clipPath>
+    <clipPath id="panel-clip"><rect width="328" height="302" rx="16"/></clipPath>
+    <linearGradient id="blue-wash" x1="0" y1="0" x2="1" y2="0.7">
+      <stop stop-color="#174BFF" stop-opacity="0.04"/>
+      <stop offset="0.45" stop-color="#174BFF" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#174BFF" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="gold-wash" x1="0" y1="0" x2="1" y2="0.7">
+      <stop stop-color="#FFB800" stop-opacity="0.04"/>
+      <stop offset="0.45" stop-color="#FFB800" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#FFB800" stop-opacity="0.55"/>
+    </linearGradient>
+    <radialGradient id="blue-glow" cx="96%" cy="104%" r="70%" gradientTransform="translate(0.96 1.04) scale(0.72 2) translate(-0.96 -1.04)">
+      <stop stop-color="#174BFF"/>
+      <stop offset="0.4" stop-color="#174BFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#174BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gold-glow" cx="96%" cy="104%" r="70%" gradientTransform="translate(0.96 1.04) scale(0.72 2) translate(-0.96 -1.04)">
+      <stop stop-color="#FFB800"/>
+      <stop offset="0.4" stop-color="#FFB800" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFB800" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue-bloom" cx="100%" cy="5%" r="75%">
+      <stop stop-color="#00D4FF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#174BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gold-bloom" cx="100%" cy="5%" r="75%">
+      <stop stop-color="#FFE258" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#FFB800" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blue-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#B9F3FF"/>
+      <stop offset="0.3" stop-color="#174BFF" stop-opacity="0.35"/>
+      <stop offset="0.58" stop-color="#008CFF" stop-opacity="0.7"/>
+      <stop offset="0.82" stop-color="#B9F3FF"/>
+      <stop offset="1" stop-color="#174BFF"/>
+    </linearGradient>
+    <linearGradient id="gold-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFF3BC"/>
+      <stop offset="0.3" stop-color="#FFB800" stop-opacity="0.35"/>
+      <stop offset="0.58" stop-color="#FFCD38" stop-opacity="0.7"/>
+      <stop offset="0.82" stop-color="#FFF3BC"/>
+      <stop offset="1" stop-color="#FF9500"/>
+    </linearGradient>
+    <g id="backing-cards">
+      <rect x="16" y="12" width="328" height="84" rx="16" fill="#17171A" stroke="#343438"/>
+      <rect x="8" y="6" width="344" height="84" rx="16" fill="#17171A" stroke="#343438"/>
+    </g>
+    <g id="close">
+      <circle r="17" fill="#222224"/>
+      <path d="M-5-5 5 5M5-5-5 5" fill="none" stroke="#D9D9D9" stroke-width="2" stroke-linecap="round"/>
+    </g>
+    <symbol id="website-art" viewBox="0 0 200 95">
+      <rect width="200" height="95" rx="4" fill="#D7C8AD"/>
+      <path d="M0 66Q50 43 94 63T200 55V95H0Z" fill="#066070"/>
+      <text x="100" y="20" fill="#17171A" text-anchor="middle" font-size="12" font-weight="600">BEY CASH</text>
+      <text x="100" y="34" fill="#17171A" text-anchor="middle" font-size="7">Everyday payments</text>
+      <rect x="80" y="45" width="40" height="60" rx="7" fill="#000" stroke="#444"/>
+      <text x="100" y="70" fill="#D9D9D9" text-anchor="middle" font-size="9">Bey</text>
+    </symbol>
+  </defs>
+  <rect width="1080" height="760" fill="#09090B"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#D9D9D9">
+    <text x="32" y="45" font-size="26" font-weight="600">Bey Spotlight · Design reference</text>
+    <text x="32" y="72" font-size="13" fill="#8D8D93">Deferred · Prototype reverted · Schematic reconstruction, not a device screenshot</text>
+
+    <text x="32" y="119" font-size="13" fill="#8D8D93">NORMAL · DEFAULT</text>
+    <g transform="translate(32 150)">
+      <text y="-12" font-size="12" fill="#8D8D93">Bey Spotlight</text>
+      <text x="360" y="-12" text-anchor="end" font-size="10" fill="#8D8D93">1/7</text>
+      <use href="#backing-cards"/>
+      <rect width="360" height="84" rx="16" fill="#17171A" stroke="#343438"/>
+      <text x="12" y="26" font-size="10" fill="#8D8D93">Pocket Grove</text>
+      <text x="84" y="26" font-size="10" fill="#8D8D93">Sponsored</text>
+      <text x="12" y="46" font-size="14" font-weight="600">Small tokens.</text>
+      <text x="12" y="64" font-size="14" font-weight="600">Everyday possibilities.</text>
+      <rect x="248" y="16" width="36" height="50" rx="8" fill="#222224" transform="rotate(-16 266 41)"/>
+      <circle cx="285" cy="49" r="23" fill="#FFF"/>
+      <path d="M283 60V41M283 48Q270 47 273 36Q284 36 283 48M284 43Q295 41 296 32Q283 32 284 43" fill="none" stroke="#000" stroke-width="2"/>
+      <use href="#close" x="334" y="24"/>
+    </g>
+
+    <text x="32" y="280" font-size="13" fill="#8D8D93">GOLD · WARM GLOW + GRADIENT RIM</text>
+    <g transform="translate(32 310)">
+      <text y="-12" font-size="12" fill="#8D8D93">Bey Spotlight</text>
+      <text x="360" y="-12" text-anchor="end" font-size="10" fill="#8D8D93">2/7</text>
+      <use href="#backing-cards"/>
+      <g clip-path="url(#card-clip)">
+        <rect width="360" height="84" fill="#17171A"/>
+        <rect width="360" height="84" fill="url(#gold-wash)"/>
+        <rect width="360" height="84" fill="url(#gold-glow)"/>
+        <rect width="360" height="84" fill="url(#gold-bloom)"/>
+        <rect width="360" height="84" rx="16" fill="none" stroke="url(#gold-rim)" stroke-width="8" opacity="0.12"/>
+        <rect width="360" height="84" rx="16" fill="none" stroke="url(#gold-rim)" stroke-width="2.5"/>
+      </g>
+      <text x="12" y="26" font-size="10" fill="#8D8D93">Bey Cash</text>
+      <text x="12" y="46" font-size="14" font-weight="600">Private Bitcoin.</text>
+      <text x="12" y="64" font-size="14" font-weight="600">Everyday payments.</text>
+      <use href="#website-art" x="244" y="27" width="64" height="31"/>
+      <use href="#close" x="334" y="24"/>
+    </g>
+
+    <text x="32" y="440" font-size="13" fill="#8D8D93">ELECTRIC BLUE · VIBRANT GLOW + GRADIENT RIM</text>
+    <g transform="translate(32 470)">
+      <text y="-12" font-size="12" fill="#8D8D93">Bey Spotlight</text>
+      <text x="360" y="-12" text-anchor="end" font-size="10" fill="#8D8D93">3/7</text>
+      <use href="#backing-cards"/>
+      <g clip-path="url(#card-clip)">
+        <rect width="360" height="84" fill="#17171A"/>
+        <rect width="360" height="84" fill="url(#blue-wash)"/>
+        <rect width="360" height="84" fill="url(#blue-glow)"/>
+        <rect width="360" height="84" fill="url(#blue-bloom)"/>
+        <rect width="360" height="84" rx="16" fill="none" stroke="url(#blue-rim)" stroke-width="8" opacity="0.12"/>
+        <rect width="360" height="84" rx="16" fill="none" stroke="url(#blue-rim)" stroke-width="2.5"/>
+      </g>
+      <text x="12" y="26" font-size="10" fill="#8D8D93">Bey Cash</text>
+      <text x="12" y="46" font-size="14" font-weight="600">Private Bitcoin.</text>
+      <text x="12" y="64" font-size="14" font-weight="600">Everyday payments.</text>
+      <use href="#website-art" x="244" y="27" width="64" height="31"/>
+      <use href="#close" x="334" y="24"/>
+    </g>
+
+    <text x="32" y="610" font-size="14" font-weight="600">Final compact layout</text>
+    <text x="32" y="635" font-size="12" fill="#8D8D93">84 dp card · 14-point headline · no CTA line</text>
+    <text x="32" y="655" font-size="12" fill="#8D8D93">Swipe both ways · counter only · no automatic rotation</text>
+    <text x="32" y="675" font-size="12" fill="#8D8D93">Normal stays neutral; green and pink were removed.</text>
+    <text x="32" y="695" font-size="12" fill="#8D8D93">Full geometry and animation values are in the companion doc.</text>
+
+    <text x="490" y="119" font-size="13" fill="#8D8D93">NATIVE FULL-SCREEN DETAIL MODAL</text>
+    <g transform="translate(490 135)">
+      <rect width="360" height="580" rx="20" fill="#000" stroke="#343438"/>
+      <use href="#close" x="36" y="34"/>
+      <text x="180" y="40" text-anchor="middle" font-size="18" font-weight="500">Bey Spotlight</text>
+      <g transform="translate(16 72)">
+        <g clip-path="url(#panel-clip)">
+          <rect width="328" height="302" fill="#17171A"/>
+          <rect width="328" height="302" fill="url(#gold-wash)"/>
+          <rect width="328" height="302" fill="url(#gold-glow)"/>
+          <rect width="328" height="302" fill="url(#gold-bloom)"/>
+          <rect width="328" height="302" rx="16" fill="none" stroke="url(#gold-rim)" stroke-width="8" opacity="0.12"/>
+          <rect width="328" height="302" rx="16" fill="none" stroke="url(#gold-rim)" stroke-width="2.5"/>
+        </g>
+        <text x="20" y="29" font-size="12" fill="#8D8D93">Bitcoin · Cashu</text>
+        <use href="#website-art" x="20" y="45" width="288" height="137"/>
+        <text x="20" y="215" font-size="24" font-weight="600">Bey Cash</text>
+        <text x="20" y="247" font-size="20" font-weight="500">Private Bitcoin.</text>
+        <text x="20" y="273" font-size="20" font-weight="500">Everyday payments.</text>
+      </g>
+      <text x="16" y="405" font-size="14" fill="#8D8D93">Project description and a fitted local image.</text>
+      <text x="16" y="430" font-size="12" fill="#8D8D93">Gold · Mock subscription tier</text>
+      <text x="16" y="458" font-size="12" fill="#8D8D93">UI prototype · Real project, illustrative artwork.</text>
+      <text x="16" y="478" font-size="12" fill="#8D8D93">No payment or sponsorship system implemented.</text>
+      <rect x="16" y="512" width="328" height="48" rx="12" fill="#FFF"/>
+      <text x="180" y="542" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Back to wallet</text>
+    </g>
+    <g fill="#8D8D93" font-size="12">
+      <text x="878" y="168">Presentation notes</text>
+      <text x="878" y="197">Left-side modal close</text>
+      <text x="878" y="221">Safe areas + scroll</text>
+      <text x="878" y="245">Matching tier treatment</text>
+      <text x="878" y="269">Uncropped local images</text>
+      <text x="878" y="309">One mounted modal</text>
+      <text x="878" y="333">Guard repeated taps</text>
+      <text x="878" y="357">Freeze entry animation</text>
+      <text x="878" y="381">Respect reduced motion</text>
+      <text x="878" y="429">No desktop frame</text>
+      <text x="878" y="453">No live WebView</text>
+      <text x="878" y="477">No real subscriptions</text>
+      <text x="878" y="533">Diagram uses system</text>
+      <text x="878" y="553">fonts and simplified</text>
+      <text x="878" y="573">project artwork.</text>
+    </g>
+    <text x="32" y="739" font-size="11" fill="#8D8D93">Recorded 2026-10-25 · Documentation only · Device appearance, font fit, and frame rate still require validation</text>
+  </g>
+</svg>

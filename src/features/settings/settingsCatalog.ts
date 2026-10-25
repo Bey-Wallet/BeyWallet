@@ -118,6 +118,7 @@ export const settingsTitles: Record<string, string> = {
   index: 'Settings',
   help: 'Help & support',
   about: 'About Bey Wallet',
+  supporter: 'Support Bey',
   updates: 'App updates',
   ...Object.fromEntries(
     Object.entries(settingsCategories).map(([key, value]) => [key, value.title]),

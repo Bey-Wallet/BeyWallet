@@ -2,7 +2,7 @@ import React from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Text, XStack, YStack } from 'tamagui';
-import { ChevronRight } from '@tamagui/lucide-icons';
+import { ChevronRight, HeartHandshake } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -81,6 +81,11 @@ export function SettingsScreen() {
       <SettingsGroup>{category('nostr')}</SettingsGroup>
       <SettingsGroup>{category('advanced')}</SettingsGroup>
       <SettingsGroup>
+        <SettingsRow
+          title="Support Bey"
+          icon={HeartHandshake}
+          onPress={() => navigate('supporter')}
+        />
         <SettingsRow title="Help & support" icon={CircleHelp} onPress={() => navigate('help')} />
         <SettingsRow title="About Bey Wallet" icon={Info} onPress={() => navigate('about')} />
       </SettingsGroup>

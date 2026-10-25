@@ -6,8 +6,8 @@ export const RECOMMENDED_MINTS = [
     mintUrl: 'https://mint.minibits.cash/Bitcoin',
   },
   {
-    name: 'LNServer Mint',
-    mintUrl: 'https://mint.lnserver.com',
+    name: 'LemonFizz Mint',
+    mintUrl: 'https://mint.lemonfizz.st',
   },
   {
     name: 'Macadamia Mint',

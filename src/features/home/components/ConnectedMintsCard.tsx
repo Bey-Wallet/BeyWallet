@@ -1,9 +1,9 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
-import { View, Text, YStack, XStack, H6, styled, Separator } from 'tamagui';
-import { Plus, Landmark, Zap, Bitcoin, CircleAlert } from '@tamagui/lucide-icons';
+import { View, Text, YStack, XStack, styled } from 'tamagui';
+import { Plus, Landmark, Zap, Bitcoin, CircleAlert, ChevronRight } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -16,6 +16,7 @@ import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { appTypography } from '~/shared/theme/appearance';
+import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -25,11 +26,11 @@ const RowContainer = styled(XStack, {
   items: 'center',
   justify: 'space-between',
   gap: '$2',
-  py: '$2',
+  py: '$1',
+  minHeight: 56,
   rounded: '$4',
-  theme: 'gray',
-  hoverStyle: { bg: '$backgroundHover' },
-  pressStyle: { opacity: 0.7, bg: '$backgroundPress' },
+  hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
+  pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
 });
 
 function MintPaymentBadges({ metadata }: { metadata?: Record<string, any> }) {
@@ -155,27 +156,22 @@ const MintRowItem = React.memo(
         onPress={() => onPress(mint.mintUrl)}
         accessibilityHint={unavailable ? 'Mint unreachable. Open details to recheck.' : undefined}
       >
-        <XStack items="center" gap="$2.5" flex={1} mr="$0">
+        <XStack items="center" gap="$2" flex={1} minWidth={0}>
           <MintImage
             mintUrl={mint.mintUrl}
             src={mint.icon}
-            width={40}
-            height={40}
+            width={44}
+            height={44}
             alt={displayName}
-            borderRadius={8}
+            borderRadius={12}
             borderColor="$borderColor"
             borderWidth={mint.icon ? 1 : 0}
-            fallback={<Landmark size={20} color="$color11" />}
+            fallback={<Landmark size={22} color="$iconSecondary" />}
           />
 
-          <YStack gap="$0.5" flex={1} theme="gray">
-            <XStack items="center" gap="$1.5" flexWrap="wrap">
-              <Text
-                {...appTypography.label1}
-                color={textColor}
-                numberOfLines={1}
-                style={{ maxWidth: 140 }}
-              >
+          <YStack gap="$0.5" flex={1} minWidth={0}>
+            <XStack items="center" gap="$1.5">
+              <Text {...appTypography.label1} color={textColor} numberOfLines={1} flexShrink={1}>
                 {displayName}
               </Text>
               {unavailable ? (
@@ -189,7 +185,7 @@ const MintRowItem = React.memo(
           </YStack>
         </XStack>
 
-        <XStack items="center" gap="$1.5" pr="$2" theme="gray">
+        <XStack items="center" gap="$1.5">
           <YStack items="flex-end" justify="center">
             <RollingNumber
               fontSize={appTypography.label1.fontSize}
@@ -229,13 +225,13 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
 
   return (
     <RowContainer>
-      <XStack items="center" gap="$2.5" flex={1} mr="$2" opacity={0.48}>
+      <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2" opacity={0.48}>
         <View
-          width={40}
-          height={40}
+          width={44}
+          height={44}
           justify="center"
-          bg="$color5"
-          rounded={8}
+          bg="$gray3"
+          rounded={12}
           items="center"
           overflow="hidden"
         >
@@ -243,17 +239,17 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
             <MintImage
               mintUrl={mint.mintUrl}
               src={iconUrl}
-              width={40}
-              height={40}
+              width={44}
+              height={44}
               alt={`${mint.name} icon`}
               onError={() => setIconFailed(true)}
             />
           ) : (
-            <Landmark size={20} color="$color11" />
+            <Landmark size={22} color="$iconSecondary" />
           )}
         </View>
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
-          <XStack items="center" gap="$1.5" flexWrap="wrap">
+          <XStack items="center" gap="$1.5">
             <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
               {mint.name}
             </Text>
@@ -268,8 +264,9 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
       <AppButton
         variant="default"
         emphasis="secondary"
+        rounded={1000}
         size="xsmall"
-        icon={<Plus size={14} strokeWidth={3} />}
+        icon={Plus}
         onPress={() => onAdd(mint.mintUrl)}
       >
         Add
@@ -315,6 +312,12 @@ export const ConnectedMintsCard = () => {
     router.push('/(modals)/add-mint');
   }, [router]);
 
+  const handleManageMints = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    rememberSettingsOrigin('index');
+    router.push('/(tabs)/settings/mints');
+  }, [router]);
+
   const handleAddRecommendedMint = useCallback(
     (mintUrl: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -326,68 +329,71 @@ export const ConnectedMintsCard = () => {
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
-    <>
-      <YStack width="100%" gap="$3" p="$0" rounded="$6">
-        <XStack items="center" my="$-2" justify="space-between">
-          <H6 {...appTypography.label2} fontWeight="600" color="$color">
+    <YStack width="100%" gap="$2" p="$0" rounded="$6">
+      <XStack items="center" justify="space-between" gap="$3">
+        <AppPressable
+          minHeight={0}
+          flexDirection="row"
+          items="center"
+          gap="$1"
+          bg="transparent"
+          hoverStyle={{ opacity: 0.85 }}
+          pressStyle={{ opacity: 0.6 }}
+          accessibilityLabel="Manage connected mints"
+          onPress={handleManageMints}
+        >
+          <Text color="$gray10" fontSize="$4" fontWeight="600" accessibilityRole="header">
             Mints
-          </H6>
-          <AppIconButton
-            variant="default"
-            emphasis="tertiary"
-            size="xxsmall"
-
-            shape="circular"
-            accessibilityLabel="Add mint"
-            icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
-            onPress={handleAddMint}
-          />
-        </XStack>
-        <YStack>
-          {[
-            ...mints.map((mint) => {
-              const balance = balances[mint.mintUrl] || 0;
-
-              return (
-                <MintRowItem
-                  key={mint.mintUrl}
-                  mint={mint}
-                  balance={balance}
-                  hideBalance={hideBalance}
-                  displayAsSats={displayAsSats}
-                  showBitcoinSymbol={showBitcoinSymbol}
-                  btcPrice={btcData?.price}
-                  secondaryCurrency={secondaryCurrency}
-                  refreshCounter={refreshCounter}
-                  loading={!displayAsSats && isFetchingPrice}
-                  deviceOffline={deviceOffline}
-                  onPress={handleMintPress}
-                />
-              );
-            }),
-            ...placeholders.map((mint) => (
-              <MintPlaceholderItem
-                key={mint.mintUrl}
-                mint={mint}
-                onAdd={handleAddRecommendedMint}
-              />
-            )),
-          ]}
-        </YStack>
-      </YStack>
-      <XStack gap="$2">
-        {/* Add Mint Button at bottom */}
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="medium"
-          icon={<Plus strokeWidth={3} size={18} color="$accent2" />}
+          </Text>
+          <ChevronRight size={18} color="$gray10" aria-hidden />
+        </AppPressable>
+        <AppPressable
+          minHeight={0}
+          minWidth={48}
+          flexDirection="row"
+          items="center"
+          justify="center"
+          gap="$1"
+          bg="transparent"
+          hoverStyle={{ opacity: 0.85 }}
+          pressStyle={{ opacity: 0.6 }}
+          accessibilityLabel="Add mint"
           onPress={handleAddMint}
         >
-          Add Mint
-        </AppButton>
+          <Plus size={20} color="$gray10" aria-hidden />
+          <Text fontSize="$3" fontWeight="600" color="$gray10">
+            Add
+          </Text>
+        </AppPressable>
       </XStack>
-    </>
+      <YStack>
+        {[
+          ...mints.map((mint) => {
+            const balance = balances[mint.mintUrl] || 0;
+
+            return (
+              <MintRowItem
+                key={mint.mintUrl}
+                mint={mint}
+                balance={balance}
+                hideBalance={hideBalance}
+                displayAsSats={displayAsSats}
+                showBitcoinSymbol={showBitcoinSymbol}
+                btcPrice={btcData?.price}
+                secondaryCurrency={secondaryCurrency}
+                refreshCounter={refreshCounter}
+                loading={!displayAsSats && isFetchingPrice}
+                deviceOffline={deviceOffline}
+                onPress={handleMintPress}
+              />
+            );
+          }),
+          ...placeholders.map((mint) => (
+            <MintPlaceholderItem key={mint.mintUrl} mint={mint} onAdd={handleAddRecommendedMint} />
+          )),
+        ]}
+      </YStack>
+    </YStack>
   );
 };
 

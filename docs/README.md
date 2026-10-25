@@ -19,6 +19,16 @@ disagree, and update both in the same change.
 - [Nostr and People checklist](testing/nostr-people-checklist.md) — manual and device validation
   that is not fully covered by unit tests.
 
+## Deferred designs and product exploration
+
+- [Spotlight design reference](plans/bey-spotlight-design-reference.md) — deferred, reverted UI
+  experiment; final compact cards, gradient treatments, gestures, modal behavior, and a visual
+  reconstruction for later reference.
+- [Supporter membership exploration](plans/bey-supporter-membership.md) — comparison of voluntary
+  support and cosmetic membership, pricing hypotheses, privacy, payment-channel constraints,
+  and validation questions, plus the current informational Home-card UI mock. No paid membership
+  model or payment implementation is approved.
+
 ## Project documents
 
 - [README](../README.md) — product overview and local setup.

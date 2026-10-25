@@ -8,6 +8,7 @@ import { HeaderIconButton } from './HeaderIconButton';
 
 interface AppFullScreenModalProps {
   visible: boolean;
+  animationType?: 'none' | 'slide' | 'fade';
   title: string;
   onClose: () => void;
   onBack?: () => void;
@@ -20,6 +21,7 @@ interface AppFullScreenModalProps {
 /** Native modal presentation; each flow continues to own its operation and dismissal guards. */
 export function AppFullScreenModal({
   visible,
+  animationType = 'slide',
   title,
   onClose,
   onBack,
@@ -33,7 +35,7 @@ export function AppFullScreenModal({
     <Modal
       visible={visible}
       presentationStyle="fullScreen"
-      animationType="slide"
+      animationType={animationType}
       onRequestClose={() => {
         if (canDismiss) onClose();
       }}
