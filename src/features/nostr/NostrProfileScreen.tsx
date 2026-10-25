@@ -2,7 +2,7 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { InteractionManager, Share, useWindowDimensions } from 'react-native';
 import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
-import { Check, Copy, RefreshCw, Scan, Share2 } from '@tamagui/lucide-icons';
+import { Check, Copy, RefreshCw, Share2 } from '@tamagui/lucide-icons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -16,6 +16,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import { Spinner } from '~/shared/ui/Spinner';
+import Blockies from '~/shared/ui/Blockies';
 
 export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
@@ -71,24 +72,24 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
 
   return (
     <YStack flex={1} bg="$background">
-      {!settingsMode && (
-        <Stack.Screen
-          options={{
+      <Stack.Screen
+        options={{
+          ...(!settingsMode && {
             headerShown: true,
             title: 'My profile',
-            headerTitleAlign: 'center',
+            headerTitleAlign: 'center' as const,
             headerShadowVisible: false,
-            headerRight: () => (
-              <HeaderIconButton
-                accessibilityLabel="Share profile"
-                icon={<Share2 />}
-                disabled={!npub}
-                onPress={share}
-              />
-            ),
-          }}
-        />
-      )}
+          }),
+          headerRight: () => (
+            <HeaderIconButton
+              accessibilityLabel="Share profile"
+              icon={<Share2 />}
+              disabled={!npub}
+              onPress={share}
+            />
+          ),
+        }}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -107,40 +108,67 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           gap="$4"
           items="center"
         >
-          {status === 'not_found' && !loading ? (
-            <AppButton
-              variant="default"
-              emphasis="text-only"
-              size="xxsmall"
-              minHeight={48}
-              onPress={() =>
-                router.push(settingsMode ? '/(tabs)/settings/username' : '/(modals)/nostr-username')
-              }
-            >
-              Claim username
-            </AppButton>
-          ) : (
-            <AppPressable
-              onPress={() => verified && copy(nip05!)}
-              disabled={!verified}
-              minHeight={48}
-              accessibilityLabel={verified ? 'Copy Nostr address' : 'My Nostr profile'}
-              justify="center"
-            >
-              <XStack items="center" justify="center" gap="$2">
-                <Text fontSize={22} fontWeight="600" color="$color" text="center" flexShrink={1}>
-                  {verified ? nip05 : 'My Nostr profile'}
-                </Text>
-                {verified &&
-                  (copied === nip05 ? (
-                    <Check size={18} color="$color" />
-                  ) : (
-                    <Nip05VerifiedBadge size={18} />
-                  ))}
-              </XStack>
-            </AppPressable>
-          )}
-
+          <YStack items="center" gap="$3" maxWidth="100%">
+            {npub && (
+              <View
+                width={56}
+                height={56}
+                flexShrink={0}
+                rounded={28}
+                overflow="hidden"
+                accessibilityLabel="Your profile avatar"
+              >
+                <Blockies seed={npub} size={8} scale={7} />
+              </View>
+            )}
+            {status === 'not_found' && !loading ? (
+              <AppButton
+                variant="default"
+                emphasis="text-only"
+                size="small"
+                onPress={() =>
+                  router.push(
+                    settingsMode ? '/(tabs)/settings/username' : '/(modals)/nostr-username',
+                  )
+                }
+              >
+                Claim username
+              </AppButton>
+            ) : (
+              <AppPressable
+                onPress={() => verified && copy(nip05!)}
+                disabled={!verified}
+                minHeight={48}
+                accessibilityLabel={verified ? 'Copy Nostr address' : 'My Nostr profile'}
+                flexShrink={1}
+                items="center"
+                justify="center"
+              >
+                <XStack items="center" gap="$2">
+                  <Text
+                    fontSize={20}
+                    fontWeight="600"
+                    color="$color"
+                    textAlign="center"
+                    flexShrink={1}
+                  >
+                    {verified ? nip05!.split('@')[0] : 'My Nostr profile'}
+                  </Text>
+                  {verified &&
+                    (copied === nip05 ? (
+                      <Check size={18} color="$color" />
+                    ) : (
+                      <Nip05VerifiedBadge size={18} />
+                    ))}
+                </XStack>
+                {verified && (
+                  <Text fontSize={14} color="$gray10" textAlign="center">
+                    @{nip05!.split('@').slice(1).join('@')}
+                  </Text>
+                )}
+              </AppPressable>
+            )}
+          </YStack>
           <View bg="$background" width={qrSize} height={qrSize} items="center" justify="center">
             {npub && isQrReady ? (
               <CustomQRCode
@@ -191,63 +219,37 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   <Copy size={16} color="$gray10" />
                 )}
               </XStack>
-              <Text fontSize={14} fontWeight="500" lineHeight={24} color="$color" text="center">
+              <Text
+                fontSize={14}
+                fontWeight="500"
+                lineHeight={24}
+                color="$color"
+                textAlign="center"
+              >
                 {npub}
               </Text>
             </AppPressable>
           )}
-          <Text fontSize={14} color="$gray10" text="center" maxWidth={300} lineHeight={20}>
-            Scan or share this public key to connect with me on Nostr.
+          <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={280} lineHeight={18}>
+            {copied === npub ? 'Public key copied' : 'Receive ecash through your Nostr profile.'}
           </Text>
 
-          {!verified && status !== 'not_found' && (
-            <XStack width="100%" items="center" gap="$3">
-              <Text flex={1} fontSize={12} color="$gray10">
-                {status === 'error'
-                  ? 'Could not check your Nostr address. Your QR code still works.'
-                  : 'Checking your Nostr address…'}
-              </Text>
-              {loading ? (
-                <Spinner size="small" />
-              ) : status === 'error' ? (
-                <AppIconButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="small"
-                  shape="circular"
-                  accessibilityLabel="Retry NIP-05 lookup"
-                  icon={<RefreshCw size={20} />}
-                  onPress={refresh}
-                />
-              ) : null}
-            </XStack>
-          )}
+          {!verified &&
+            (loading || status === 'error') &&
+            (loading ? (
+              <Spinner size="small" />
+            ) : (
+              <AppIconButton
+                variant="default"
+                emphasis="tertiary"
+                size="small"
+                shape="circular"
+                accessibilityLabel="Retry NIP-05 lookup"
+                icon={<RefreshCw size={20} />}
+                onPress={refresh}
+              />
+            ))}
         </YStack>
-        <XStack self="center" items="center" gap="$2">
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            rounded="$10"
-            px="$5"
-            icon={<Scan />}
-            onPress={() => router.push('/(modals)/scanner')}
-          >
-            Scan a QR code
-          </AppButton>
-          {settingsMode && (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="small"
-              shape="circular"
-              iconSize={18}
-              icon={<Share2 />}
-              accessibilityLabel="Share profile"
-              disabled={!npub}
-              onPress={share}
-            />
-          )}
-        </XStack>
       </ScrollView>
     </YStack>
   );
