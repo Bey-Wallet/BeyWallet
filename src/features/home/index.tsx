@@ -12,6 +12,8 @@ import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import { useLightningAddressStore } from '~/state/lightningAddressStore';
+import { AppButton } from '~/shared/ui/AppButton';
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -19,7 +21,7 @@ import BeyIcon from '~/shared/icons/BeyIcon';
 import ConnectedMintsCard from '~/features/home/components/ConnectedMintsCard';
 import NostrActivity from '~/features/home/components/NostrActivity';
 import { useAuthStore } from '~/state/authStore';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 const LazyBitcoinPriceCard = React.lazy(
   () => import('~/features/home/components/BitcoinPriceCard'),
@@ -71,6 +73,7 @@ function HomeSkeleton() {
 export function HomeTabScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const pendingLightning = useLightningAddressStore((s) => s.pending.length);
   const queryClient = useQueryClient();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const error = useWalletStore((s) => s.error);
@@ -152,6 +155,13 @@ export function HomeTabScreen() {
         {/* Above-the-fold: renders immediately */}
         <WalletCard />
         <ActionButtons />
+        {pendingLightning > 0 && (
+          <AppButton
+            size="small"
+            emphasis="secondary"
+            onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
+          >{`Pending Lightning payments (${pendingLightning})`}</AppButton>
+        )}
         <SupporterCard />
 
         <RestoreProgressCard />

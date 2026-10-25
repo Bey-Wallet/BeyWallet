@@ -81,6 +81,7 @@ export const settingsCategories = {
     items: [
       { path: 'mints', title: 'Connected mints', icon: Landmark },
       { path: 'fallback-mint', title: 'Fallback mint', icon: Pin },
+      { path: 'lightning-address', title: 'Lightning address', icon: AtSign },
       { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
       { path: 'optimize-wallet', title: 'Optimize wallet', icon: Sparkles },
     ],
@@ -106,7 +107,7 @@ export const settingsCategories = {
     title: 'Profile & identity',
     icon: UserRound,
     items: [
-      { path: 'profile', title: 'Profile', icon: UserRound },
+      { path: 'profile', title: 'My addresses', icon: UserRound },
       { path: 'username', title: 'Nostr username', icon: AtSign },
       { path: 'public-key', title: 'Public key', icon: KeyRound },
     ],

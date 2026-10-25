@@ -22,6 +22,10 @@ import { CustomTabBar } from '~/shared/ui/CustomTabBar';
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
   <XStack
+    accessibilityRole="button"
+    accessibilityLabel="My addresses"
+    minHeight={48}
+    minWidth={48}
     pressStyle={{ opacity: 0.7, scale: 0.95 }}
     onPress={() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

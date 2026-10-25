@@ -6840,7 +6840,6 @@ __metadata:
     cbor-x: "npm:^1.6.0"
     coco-cashu-core: "npm:1.1.2-rc.47"
     coco-cashu-expo-sqlite: "npm:1.1.2-rc.47"
-    coco-cashu-plugin-npc: "npm:^2.3.1"
     coco-cashu-react: "npm:1.1.2-rc.47"
     eslint-config-prettier: "npm:^10.1.8"
     events: "npm:^3.3.0"
@@ -6882,6 +6881,7 @@ __metadata:
     jest: "npm:^29.7.0"
     jest-expo: "npm:~54.0.16"
     nostr-tools: "npm:^2.22.1"
+    npubcash-sdk: "npm:0.3.2"
     prettier: "npm:^3.9.6"
     qrcode: "npm:^1.5.4"
     react: "npm:19.1.0"
@@ -7516,18 +7516,6 @@ __metadata:
     expo-sqlite: "*"
     typescript: ^5
   checksum: 10/c56ad4e324f860b8f3dc8001a5c94e5a86698929374c2d592022906dc43141822ab8649896251124562fbbc443f5d5bc0951168cb75063bd553502c2735e4b77
-  languageName: node
-  linkType: hard
-
-"coco-cashu-plugin-npc@npm:^2.3.1":
-  version: 2.4.1
-  resolution: "coco-cashu-plugin-npc@npm:2.4.1"
-  dependencies:
-    npubcash-sdk: "npm:^0.3.2"
-  peerDependencies:
-    coco-cashu-core: ^1.1.2-rc.50
-    typescript: ^5.0.0
-  checksum: 10/0253002ae9e2edeef9dcb0eeb40e8bdc9cbf1c5438d5713f00704f9fbbf8527f7c2cdddeb55562bac766ef0fe3f37b97ad4effd1dad3f3ac9d2d49462ceff900
   languageName: node
   linkType: hard
 
@@ -12353,7 +12341,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"npubcash-sdk@npm:^0.3.2":
+"npubcash-sdk@npm:0.3.2":
   version: 0.3.2
   resolution: "npubcash-sdk@npm:0.3.2"
   dependencies:

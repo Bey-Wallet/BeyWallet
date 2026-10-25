@@ -3,7 +3,7 @@ import React from 'react';
 import { InteractionManager, Share, useWindowDimensions } from 'react-native';
 import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { Check, Copy, RefreshCw, Share2 } from '@tamagui/lucide-icons';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -17,15 +17,28 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import { Spinner } from '~/shared/ui/Spinner';
 import Blockies from '~/shared/ui/Blockies';
+import { useLightningAddressStore } from '~/state/lightningAddressStore';
+import { lightningAddress, lightningAddressQr } from '~/services/api/npubCashClient';
 
 export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = React.useState<'ecash' | 'lightning'>(
+    params.tab === 'lightning' ? 'lightning' : 'ecash',
+  );
+  const lightning = useLightningAddressStore();
+  React.useEffect(() => {
+    setTab(params.tab === 'lightning' ? 'lightning' : 'ecash');
+  }, [params.tab]);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const qrSize = Math.max(120, Math.min(height < 700 ? 240 : 280, width - 64));
   const theme = useTheme();
   const toast = useToastController();
   const npub = useSettingsStore((state) => state.npub);
+  const isLightning = tab === 'lightning';
+  const address = npub ? lightningAddress(npub) : '';
+  const canShare = !!npub && (!isLightning || (lightning.loaded && lightning.enabled));
   const { nip05, loading, status, refresh } = useNip05Lookup();
   const verified = status === 'verified' && !!nip05;
   const [isQrReady, setIsQrReady] = React.useState(false);
@@ -62,11 +75,11 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   };
 
   const share = async () => {
-    if (!npub) return;
+    if (!npub || !canShare) return;
     try {
-      await Share.share({ message: verified ? `${nip05}\n${npub}` : npub });
+      await Share.share({ message: isLightning ? address : verified ? `${nip05}\n${npub}` : npub });
     } catch {
-      toast.show('Could not share profile. Please try again.');
+      toast.show('Could not share address. Please try again.');
     }
   };
 
@@ -76,15 +89,15 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
         options={{
           ...(!settingsMode && {
             headerShown: true,
-            title: 'My profile',
+            title: 'My addresses',
             headerTitleAlign: 'center' as const,
             headerShadowVisible: false,
           }),
           headerRight: () => (
             <HeaderIconButton
-              accessibilityLabel="Share profile"
+              accessibilityLabel={isLightning ? 'Share Lightning address' : 'Share ecash address'}
               icon={<Share2 />}
-              disabled={!npub}
+              disabled={!canShare}
               onPress={share}
             />
           ),
@@ -108,6 +121,28 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           gap="$4"
           items="center"
         >
+          <XStack width="100%" accessibilityRole="tablist" gap="$2">
+            {(['ecash', 'lightning'] as const).map((value) => (
+              <AppPressable
+                key={value}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === value }}
+                accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
+                onPress={() => setTab(value)}
+                flex={1}
+                minHeight={48}
+                rounded="$6"
+                items="center"
+                justify="center"
+                bg={tab === value ? '$buttonDefaultSecondary' : '$background'}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+              >
+                <Text fontSize={14} color={tab === value ? '$color' : '$gray10'}>
+                  {value === 'ecash' ? 'Ecash' : 'Lightning'}
+                </Text>
+              </AppPressable>
+            ))}
+          </XStack>
           <YStack items="center" gap="$3" maxWidth="100%">
             {npub && (
               <View
@@ -116,12 +151,16 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 flexShrink={0}
                 rounded={28}
                 overflow="hidden"
-                accessibilityLabel="Your profile avatar"
+                accessibilityLabel="Your addresses avatar"
               >
                 <Blockies seed={npub} size={8} scale={7} />
               </View>
             )}
-            {status === 'not_found' && !loading ? (
+            {isLightning ? (
+              <Text fontSize={14} color="$color" textAlign="center">
+                Lightning address
+              </Text>
+            ) : status === 'not_found' && !loading ? (
               <AppButton
                 variant="default"
                 emphasis="text-only"
@@ -139,7 +178,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 onPress={() => verified && copy(nip05!)}
                 disabled={!verified}
                 minHeight={48}
-                accessibilityLabel={verified ? 'Copy Nostr address' : 'My Nostr profile'}
+                accessibilityLabel={verified ? 'Copy Nostr address' : 'My ecash address'}
                 flexShrink={1}
                 items="center"
                 justify="center"
@@ -152,7 +191,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                     textAlign="center"
                     flexShrink={1}
                   >
-                    {verified ? nip05!.split('@')[0] : 'My Nostr profile'}
+                    {verified ? nip05!.split('@')[0] : 'My ecash address'}
                   </Text>
                   {verified &&
                     (copied === nip05 ? (
@@ -169,26 +208,80 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               </AppPressable>
             )}
           </YStack>
-          <View bg="$background" width={qrSize} height={qrSize} items="center" justify="center">
-            {npub && isQrReady ? (
-              <CustomQRCode
-                value={npub}
-                size={qrSize}
-                color={String(theme.color.val)}
-                backgroundColor={String(theme.background.val)}
-                dotShape="circle"
-                finderStyle="rounded"
-              />
-            ) : (
-              <YStack items="center" gap="$3">
-                <Spinner size="large" color="$color" />
-                <Text fontSize={12} color="$gray10">
-                  {npub ? 'Loading QR code…' : 'Loading public key…'}
+          {isLightning && !canShare ? (
+            <YStack gap="$3" items="center">
+              <Text fontSize={12} color="$gray10" textAlign="center">
+                Set up a receiving mint to enable your Lightning address.
+              </Text>
+              <AppButton
+                size="small"
+                onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
+              >
+                Enable Lightning address
+              </AppButton>
+            </YStack>
+          ) : (
+            <View bg="$background" width={qrSize} height={qrSize} items="center" justify="center">
+              {npub && isQrReady ? (
+                <CustomQRCode
+                  value={isLightning ? lightningAddressQr(npub) : npub}
+                  size={qrSize}
+                  color={String(theme.color.val)}
+                  backgroundColor={String(theme.background.val)}
+                  dotShape="circle"
+                  finderStyle="rounded"
+                />
+              ) : (
+                <YStack items="center" gap="$3">
+                  <Spinner size="large" color="$color" />
+                  <Text fontSize={12} color="$gray10">
+                    {npub ? 'Loading QR code…' : 'Loading public key…'}
+                  </Text>
+                </YStack>
+              )}
+            </View>
+          )}
+          {isLightning && canShare && (
+            <YStack gap="$3" width="100%" items="center">
+              <AppPressable
+                width="100%"
+                rounded="$6"
+                bg="$buttonDefaultSecondary"
+                p="$4"
+                minHeight={48}
+                onPress={() => copy(address)}
+                accessibilityLabel="Copy Lightning address"
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+              >
+                <Text fontSize={14} color="$color" textAlign="center">
+                  {address}
                 </Text>
-              </YStack>
-            )}
-          </View>
-          {npub && (
+                <XStack justify="center" gap="$2" mt="$2">
+                  <Copy size={16} color="$gray10" />
+                  <Text fontSize={12} color="$gray10">
+                    {copied === address ? 'Address copied' : 'Copy address'}
+                  </Text>
+                </XStack>
+              </AppPressable>
+              <Text fontSize={12} color="$gray10" textAlign="center">
+                Receiving mint: {lightning.receivingMint}
+              </Text>
+              <Text fontSize={12} color="$gray10" textAlign="center">
+                {lightning.connection}.{' '}
+                {lightning.autoCollect
+                  ? 'Payments are collected when your wallet is open and unlocked.'
+                  : 'Collect incoming payments in Lightning address settings.'}
+              </Text>
+              {lightning.pending.length > 0 && (
+                <AppButton
+                  size="small"
+                  emphasis="tertiary"
+                  onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
+                >{`Pending incoming payments (${lightning.pending.length})`}</AppButton>
+              )}
+            </YStack>
+          )}
+          {!isLightning && npub && (
             <AppPressable
               width="100%"
               rounded="$6"
@@ -230,11 +323,14 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               </Text>
             </AppPressable>
           )}
-          <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={280} lineHeight={18}>
-            {copied === npub ? 'Public key copied' : 'Receive ecash through your Nostr profile.'}
-          </Text>
+          {!isLightning && (
+            <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={280} lineHeight={18}>
+              {copied === npub ? 'Public key copied' : 'Receive ecash over Nostr.'}
+            </Text>
+          )}
 
-          {!verified &&
+          {!isLightning &&
+            !verified &&
             (loading || status === 'error') &&
             (loading ? (
               <Spinner size="small" />

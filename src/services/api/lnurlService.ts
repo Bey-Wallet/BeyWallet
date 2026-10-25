@@ -141,6 +141,19 @@ export async function getLnurlPayParams(lnUrlOrAddress: string): Promise<LnUrlPa
     return null;
   }
   const data = await response.json();
+  if (data.status === 'ERROR') throw new Error('Lightning address provider returned an error');
+  if (
+    data.tag !== 'payRequest' ||
+    !Number.isSafeInteger(data.minSendable) ||
+    !Number.isSafeInteger(data.maxSendable) ||
+    data.minSendable <= 0 ||
+    data.maxSendable < data.minSendable ||
+    typeof data.callback !== 'string'
+  )
+    throw new Error('Invalid LNURL payment parameters');
+  const callback = new URL(data.callback);
+  if (!['https:', 'http:'].includes(callback.protocol) || callback.username || callback.password)
+    throw new Error('Invalid LNURL callback');
   return data as LnUrlPayParams;
 }
 
@@ -161,6 +174,8 @@ export async function requestInvoiceFromLnurl(
   }
 
   const amountMsats = amountSats * 1000;
+  if (!Number.isSafeInteger(amountSats) || amountSats <= 0 || !Number.isSafeInteger(amountMsats))
+    throw new Error('Enter a positive whole number of satoshis');
 
   if (amountMsats < params.minSendable || amountMsats > params.maxSendable) {
     throw new Error(
@@ -170,11 +185,26 @@ export async function requestInvoiceFromLnurl(
 
   const separator = params.callback.includes('?') ? '&' : '?';
   const response = await fetch(`${params.callback}${separator}amount=${amountMsats}`);
+  if (!response.ok) throw new Error('Could not request a Lightning invoice');
   const data = await response.json();
 
-  if (!data.pr) {
+  if (data.status === 'ERROR' || typeof data.pr !== 'string') {
     throw new Error('No invoice returned from LNURL endpoint');
   }
+  // Validate the checksummed BOLT11 amount before asking the mint for a melt quote.
+  const { prefix } = bech32.decode(data.pr, 32000);
+  const match = /^ln(?:bc|tb|bcrt)(\d+)([munp]?)$/.exec(prefix);
+  if (!match) throw new Error('Invalid Lightning invoice amount');
+  const scales: Record<string, bigint> = {
+    '': 1000000000000n,
+    m: 1000000000n,
+    u: 1000000n,
+    n: 1000n,
+    p: 1n,
+  };
+  // Compare in tenths of a millisatoshi so pico-BTC values remain exact.
+  if (BigInt(match[1]) * scales[match[2]] !== BigInt(amountMsats) * 10n)
+    throw new Error('Lightning invoice amount does not match the requested amount');
 
   return data.pr;
 }

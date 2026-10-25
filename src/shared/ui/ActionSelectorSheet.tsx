@@ -148,12 +148,22 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
             ]
           : [
               {
-                label: 'Lightning',
+                label: type === 'send' ? 'Lightning' : 'Create invoice',
                 icon: Zap,
                 description:
                   type === 'send' ? 'Pay an invoice or Lightning address' : 'Create an invoice',
                 path: type === 'send' ? '/(modals)/melt' : '/(modals)/mint',
               },
+              ...(type === 'receive'
+                ? [
+                    {
+                      label: 'Lightning address',
+                      icon: Zap,
+                      description: 'Receive with your permanent address',
+                      path: '/(modals)/nostr-profile?tab=lightning' as Href,
+                    },
+                  ]
+                : []),
               {
                 label: 'On-chain',
                 icon: Bitcoin,

@@ -46,7 +46,7 @@ export function SettingsScreen() {
         flexDirection="row"
         items="center"
         gap="$3"
-        accessibilityLabel="Profile and identity"
+        accessibilityLabel="My addresses and identity"
         hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
         pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
         onPress={() => navigate('identity')}
@@ -55,7 +55,7 @@ export function SettingsScreen() {
         <YStack flex={1} gap="$1">
           <XStack gap="$2" items="center">
             <Text fontSize="$6" fontWeight="700" color="$color" numberOfLines={1} flexShrink={1}>
-              {username ? `@${username}` : nip05 ? `@${nip05.split('@')[0]}` : 'Your profile'}
+              {username ? `@${username}` : nip05 ? `@${nip05.split('@')[0]}` : 'My addresses'}
             </Text>
             {status === 'verified' && !!nip05 && <Nip05VerifiedBadge size={18} />}
           </XStack>

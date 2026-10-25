@@ -13,7 +13,7 @@
  * `new Manager()` constructor with explicit watcher enabling.
  */
 
-import { Manager, ConsoleLogger, type Plugin } from 'coco-cashu-core';
+import { Manager } from 'coco-cashu-core';
 import { ExpoSqliteRepositories } from '~/storage/sqlite';
 import * as SQLite from 'expo-sqlite';
 import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
@@ -23,9 +23,6 @@ import { HistoryWatcherPlugin } from '~/services/wallet/plugins/HistoryWatcherPl
 import { OfflineChangePlugin } from '~/services/wallet/plugins/OfflineChangePlugin';
 import { LocalSendEventsPlugin } from '~/services/wallet/plugins/LocalSendEventsPlugin';
 import { ChangePreparationPlugin } from '~/services/wallet/plugins/ChangePreparationPlugin';
-import { NPCPlugin } from 'coco-cashu-plugin-npc';
-import { finalizeEvent } from 'nostr-tools/pure';
-import { Buffer } from 'buffer';
 import { nostrService } from '~/services/wallet/nostrService';
 import { Keyset } from '@cashu/cashu-ts';
 
@@ -283,18 +280,8 @@ async function initializeWithMnemonic(
   const repositories = new ExpoSqliteRepositories({ database: db });
   await repositories.init();
 
-  // Setup Nostr listener & NPC Plugin
+  // Reuse the existing seed-derived Nostr identity for both receiving protocols.
   const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
-  const privateKeyBytes = Buffer.from(privkey, 'hex');
-
-  const signerFunction = async (eventTemplate: any) => {
-    return finalizeEvent(eventTemplate, privateKeyBytes);
-  };
-
-  const npcPlugin = new NPCPlugin('https://npubx.cash', signerFunction, {
-    syncIntervalMs: 30000,
-    useWebsocket: true,
-  });
 
   // Using the shared customLogger declared at module scope
 
@@ -304,13 +291,7 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [
-      OfflineChangePlugin,
-      LocalSendEventsPlugin,
-      ChangePreparationPlugin,
-      HistoryWatcherPlugin,
-      npcPlugin as unknown as Plugin,
-    ],
+    [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
   );
 
   repo = repositories;
@@ -339,15 +320,8 @@ async function initializeWithMnemonic(
 
     console.log('[InitService] Manager ready with watchers and processors');
 
-    // Trigger initial NPC sync (NON-BLOCKING)
-    (async () => {
-      try {
-        await npcPlugin.sync();
-        console.log('[InitService] ✅ Initial NPC sync completed');
-      } catch (error) {
-        console.error('[InitService] Initial NPC sync failed:', error);
-      }
-    })();
+    const { startLightningAddress } = await import('./lightningAddressLifecycle');
+    await startLightningAddress(repositories, privkey, pubkey);
   } else {
     console.log('[InitService] Manager ready (quiet mode)');
   }
@@ -405,6 +379,8 @@ export const initService = {
    * Useful for background syncs where we just need to refresh proof/counter state.
    */
   reinitFast: async (): Promise<Manager> => {
+    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+    await stopLightningAddress();
     const { stopMintTransferService } = await import('./mintTransferService');
     stopMintTransferService();
     const { requestLifecycleService: previousRequestLifecycle } =
@@ -435,26 +411,13 @@ export const initService = {
     await repositories.init();
 
     const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
-    const privateKeyBytes = Buffer.from(privkey, 'hex');
-    const signerFunction = async (eventTemplate: any) =>
-      finalizeEvent(eventTemplate, privateKeyBytes);
-    const npcPlugin = new NPCPlugin('https://npubx.cash', signerFunction, {
-      syncIntervalMs: 30000,
-      useWebsocket: true,
-    });
 
     manager = new Manager(
       repositories,
       async () => new Uint8Array(seed),
       customLogger as any,
       undefined,
-      [
-        OfflineChangePlugin,
-        LocalSendEventsPlugin,
-        ChangePreparationPlugin,
-        HistoryWatcherPlugin,
-        npcPlugin as unknown as Plugin,
-      ],
+      [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
     );
 
     repo = repositories;
@@ -479,6 +442,8 @@ export const initService = {
     const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.startSweeper();
 
+    const { startLightningAddress } = await import('./lightningAddressLifecycle');
+    await startLightningAddress(repositories, privkey, pubkey);
     return manager;
   },
 
@@ -527,6 +492,8 @@ export const initService = {
    * Properly cleanup watchers and reset state.
    */
   cleanup: async (): Promise<void> => {
+    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+    await stopLightningAddress();
     const { stopMintTransferService } = await import('./mintTransferService');
     stopMintTransferService();
     const { requestLifecycleService } = await import('./requestLifecycleService');
@@ -557,6 +524,8 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
+    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+    await stopLightningAddress();
     const { stopMintTransferService } = await import('./mintTransferService');
     stopMintTransferService();
     const { requestLifecycleService } = await import('./requestLifecycleService');

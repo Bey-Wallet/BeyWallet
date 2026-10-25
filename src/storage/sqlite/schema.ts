@@ -457,6 +457,19 @@ const MIGRATIONS: readonly Migration[] = [
         ON bey_mint_transfers(sourceMintUrl, meltQuoteId);
     `,
   },
+  {
+    id: '021_lightning_address',
+    sql: `
+      CREATE TABLE IF NOT EXISTS bey_lightning_receipts (
+        owner TEXT NOT NULL, mintUrl TEXT NOT NULL, quoteId TEXT NOT NULL,
+        data TEXT NOT NULL, PRIMARY KEY (owner, mintUrl, quoteId)
+      );
+      CREATE TABLE IF NOT EXISTS bey_lightning_discovery (
+        owner TEXT NOT NULL, provider TEXT NOT NULL, checkpoint INTEGER NOT NULL,
+        PRIMARY KEY (owner, provider)
+      );
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

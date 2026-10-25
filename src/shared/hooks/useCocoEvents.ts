@@ -139,6 +139,17 @@ export function useCocoEvents() {
       });
       handleBalanceUpdate();
     });
+    const lightningAddressSub = DeviceEventEmitter.addListener(
+      'lightning-address:received',
+      (payload: { amount: number }) => {
+        notificationService.sendLocalNotification(
+          'Payment Received',
+          `You received ${payload.amount} sat via your Lightning address.`,
+        );
+        toast.show(`Received ${payload.amount} sat via Lightning`, { kind: 'success' });
+        handleBalanceUpdate();
+      },
+    );
 
     const nostrIncomingSub = DeviceEventEmitter.addListener(
       'nostr:incoming',
@@ -180,6 +191,7 @@ export function useCocoEvents() {
     return () => {
       unsubs.forEach((unsub) => unsub());
       nostrSub.remove();
+      lightningAddressSub.remove();
       nostrIncomingSub.remove();
       nostrAutoClaimPausedSub.remove();
       if (debounceRef.current) clearTimeout(debounceRef.current);
