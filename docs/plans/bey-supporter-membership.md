@@ -37,9 +37,12 @@ that Bey's users will buy cosmetic membership. [Alby pricing](https://getalby.co
 
 ## Proposed discovery and experience
 
-The current UI experiment places a single compact `Become a Bey supporter` row directly below
-Home's action buttons. It uses the neutral card surface, a heart-and-handshake icon, a 14-point label, a
-chevron, and a minimum 56 dp row height, inspired by the supplied compact navigation-card image.
+The current UI experiment includes `Become a Bey supporter` in Home's compact swipeable prompt
+stack alongside wallet backup and username claiming. It uses a subtly bordered neutral surface,
+a heart-and-handshake icon aligned with the title, a 14-point heading, and a 12-point description.
+The next card peeks below the foreground card; there is no section heading or visible counter.
+The muted X dismisses only the current prompt. The persisted supporter dismissal and its
+dedicated Settings destination remain available; no paid offering has been introduced.
 Tapping opens a native full-screen `Support Bey` modal explaining developer time, maintenance,
 testing, documentation, and open-source contributions. It states that support is optional, core
 wallet use stays free, and memberships/payments are not yet available. Mock plans show $3/month

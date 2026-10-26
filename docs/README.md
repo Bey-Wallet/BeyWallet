@@ -16,6 +16,8 @@ disagree, and update both in the same change.
 
 ## Testing
 
+- [Home prompt stack](testing/home-prompt-stack-checklist.md) — compact stacked prompts,
+  independent dismissal, and remaining native layout/gesture checks.
 - [Local development memory](development-memory.md) — low-memory Expo startup, measured process
   usage, and remaining device checks for an 8 GB machine.
 - [Nostr and People checklist](testing/nostr-people-checklist.md) — manual and device validation

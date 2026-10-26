@@ -4,9 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
-import { SupporterCard } from '~/features/supporter/SupporterCard';
-import BackupWarningCard from '~/features/home/components/BackupWarningCard';
-import ClaimUsernameCard from '~/features/home/components/ClaimUsernameCard';
+import { HomePromptStack } from '~/features/home/components/HomePromptStack';
 import RestoreProgressCard from '~/features/home/components/RestoreProgressCard';
 import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
@@ -183,13 +181,9 @@ export function HomeTabScreen() {
             <ChevronRight size={20} color="$gray10" aria-hidden />
           </AppPressable>
         )}
-        <SupporterCard />
+        <HomePromptStack />
 
         <RestoreProgressCard />
-
-        <BackupWarningCard />
-
-        <ClaimUsernameCard />
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

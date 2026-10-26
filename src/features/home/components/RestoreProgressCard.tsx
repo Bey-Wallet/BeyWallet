@@ -158,7 +158,7 @@ export default function RestoreProgressCard() {
 
   return (
     <>
-      {/* Clickable Card on Home Dashboard (Matches BackupWarningCard exactly) */}
+      {/* Keep live restore progress visible independently of dismissible Home prompts. */}
       <YStack
         width="100%"
         p="$3.5"
