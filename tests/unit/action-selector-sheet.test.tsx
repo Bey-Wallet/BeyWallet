@@ -127,7 +127,7 @@ it('preserves Receive Bitcoin navigation inside the Android bottom sheet', async
   Platform.OS = 'android';
   await open('receive');
   await press('Bitcoin');
-  expect(labels()).toEqual(['Lightning', 'On-chain']);
+  expect(labels()).toEqual(['Create invoice', 'Lightning address', 'On-chain']);
   await press('Back');
   expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
   await press('Bitcoin');
@@ -156,13 +156,14 @@ it('shares ecash directly from the Send action list', async () => {
 });
 
 it.each([
-  ['receive', 'Lightning', '/(modals)/mint'],
+  ['receive', 'Create invoice', '/(modals)/mint'],
+  ['receive', 'Lightning address', '/(modals)/nostr-profile?tab=lightning'],
   ['receive', 'On-chain', '/(modals)/mint?mode=onchain'],
 ] as const)('routes %s Bitcoin via %s to the correct flow', async (type, method, path) => {
   await open(type);
   expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
   await press('Bitcoin');
-  expect(labels()).toEqual(['Lightning', 'On-chain']);
+  expect(labels()).toEqual(['Create invoice', 'Lightning address', 'On-chain']);
   expect(mockPush).not.toHaveBeenCalled();
   await press(method);
   expect(mockPush).toHaveBeenCalledWith(path);

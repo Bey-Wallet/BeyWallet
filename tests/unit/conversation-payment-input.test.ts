@@ -55,7 +55,12 @@ it('rejects invalid checksums and does not downgrade unsupported payment formats
 it('resolves encoded LNURL through the existing payment service only when requested', async () => {
   const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
-    json: async () => ({ tag: 'payRequest', callback: 'https://example.com/callback' }),
+    json: async () => ({
+      tag: 'payRequest',
+      callback: 'https://example.com/callback',
+      minSendable: 1000,
+      maxSendable: 1000000,
+    }),
   } as Response);
   try {
     const encoded = lnurl('https://example.com/Pay');
