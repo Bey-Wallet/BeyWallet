@@ -16,6 +16,8 @@ disagree, and update both in the same change.
 
 ## Testing
 
+- [Local development memory](development-memory.md) — low-memory Expo startup, measured process
+  usage, and remaining device checks for an 8 GB machine.
 - [Nostr and People checklist](testing/nostr-people-checklist.md) — manual and device validation
   that is not fully covered by unit tests.
 

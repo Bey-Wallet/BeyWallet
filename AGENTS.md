@@ -9,7 +9,9 @@ Bey Wallet is a TypeScript React Native app using Expo Router, Tamagui, Cashu, a
 Use Yarn 4.5.0, as pinned in `package.json`.
 
 - `yarn install`: install dependencies and apply patches.
-- `yarn start`: start Expo with a cleared cache; this script requires Bun (`bunx`).
+- `yarn start`: start the installed Expo CLI while preserving Metro's cache.
+- `yarn start:clean`: start Expo with an explicit cache reset.
+- `yarn start:low-memory`: start Expo with one Metro worker, a process-specific 3 GB Node heap, and preserve its cache; preferred on 8 GB machines. Append `--clear` only when a cache reset is needed. Bun is not required.
 - `yarn android` / `yarn ios`: build and run native apps with Expo.
 - `yarn web`: start web development; `yarn build:web`: export the web app.
 - `yarn test:ci`: run Jest once; `yarn test` enables watch mode.

@@ -66,7 +66,6 @@ See [People and Nostr](docs/features/people-and-nostr.md) for behavior and secur
 
 - Node.js
 - Yarn 4.5.0, pinned in `package.json`
-- Bun, required by the cache-clearing `yarn start` command
 - Android Studio or Xcode for native development
 - EAS CLI for hosted production builds
 
@@ -84,17 +83,42 @@ development build, not only in a web browser or Expo Go.
 
 ### Common commands
 
-| Command                | Purpose                                           |
-| ---------------------- | ------------------------------------------------- |
-| `yarn start`           | Start Expo with a cleared cache                   |
-| `yarn android`         | Build and run the Android app                     |
-| `yarn ios`             | Build and run the iOS app                         |
-| `yarn web`             | Start the web app                                 |
-| `yarn typecheck`       | Check TypeScript without emitting files           |
-| `yarn test:ci`         | Run Jest once                                     |
-| `yarn check:structure` | Validate routes and feature ownership             |
-| `yarn validate`        | Run type checking, tests, and the structure check |
-| `yarn format:check`    | Check repository formatting                       |
+| Command                 | Purpose                                           |
+| ----------------------- | ------------------------------------------------- |
+| `yarn start`            | Start Expo and reuse Metro's cache                |
+| `yarn start:clean`      | Start Expo with an explicit cache reset           |
+| `yarn start:low-memory` | Start Expo with one worker and a 3 GB Node heap   |
+| `yarn android`          | Build and run the Android app                     |
+| `yarn ios`              | Build and run the iOS app                         |
+| `yarn web`              | Start the web app                                 |
+| `yarn typecheck`        | Check TypeScript without emitting files           |
+| `yarn test:ci`          | Run Jest once                                     |
+| `yarn check:structure`  | Validate routes and feature ownership             |
+| `yarn validate`         | Run type checking, tests, and the structure check |
+| `yarn format:check`     | Check repository formatting                       |
+
+### Development on an 8 GB machine
+
+Use `yarn start:low-memory` for local development. It preserves Metro's cache, limits
+transformation to one worker, and sets a 3 GB old-generation heap limit for Expo's Node process.
+The heap limit allows headroom above the observed 2 GB allocation failure; it is not an upfront
+allocation or a limit on total process-tree memory. One worker trades some cold-bundle speed
+for less concurrent memory use.
+Use a physical Android device with a development build and run native builds on EAS to avoid
+running an emulator and Gradle alongside Metro.
+
+Ordinary `yarn start` also preserves the cache, but keeps Expo's default worker count and Node
+heap limit. Reset
+the cache only when troubleshooting stale transforms: `yarn start:clean`, or
+`yarn start:low-memory --clear` to reset it while keeping one worker. Stop the existing Expo
+server before starting another; use Ctrl+C in its terminal.
+
+These commands use the locally installed Expo CLI through Yarn and do not require Bun. They
+do not change production/EAS builds or global Node settings. If a process still crashes,
+record the exact error and whether it is Node, esbuild, or Gradle before changing memory limits.
+Node's heap setting does not increase esbuild's memory allowance. See
+[the local memory verification notes](docs/development-memory.md) for measurements and remaining
+device checks.
 
 ### Project structure
 

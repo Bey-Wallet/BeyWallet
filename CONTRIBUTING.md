@@ -19,7 +19,10 @@ yarn install
 yarn start
 ```
 
-Yarn 4.5.0 is pinned in `package.json`. The development start command also requires Bun.
+Yarn 4.5.0 is pinned in `package.json`. Start commands use the installed Expo CLI and preserve
+Metro's cache by default. On an 8 GB machine, use `yarn start:low-memory` to limit Metro to one
+worker and give Expo's Node process a 3 GB heap. Use `yarn start:clean` only when a cache reset is needed. See
+[development memory notes](docs/development-memory.md) for verification and troubleshooting.
 
 ## Architecture and style
 
