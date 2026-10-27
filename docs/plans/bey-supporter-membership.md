@@ -1,6 +1,34 @@
 # Bey supporter membership exploration
 
-Status: **Exploration with a UI-only mock — no paid membership model approved.** Recorded 2026-10-25.
+Status: **Superseded by one-time Lightning support.** Updated 2026-10-27.
+
+## Current implementation
+
+Support Bey retains its introduction, funding areas and free-wallet reassurance, and adds a static Lightning-address QR, the copyable
+recipient `beywallet@blitzwalletapp.com`, and Pay now. The recipient was explicitly confirmed
+by the project owner. Monthly/yearly previews, USD entry and membership wording have been removed
+from the app. The existing explanatory content remains, with one-time support wording.
+
+The QR encodes `lightning:beywallet@blitzwalletapp.com`; it contains no invoice or amount.
+Opening Support Bey and copying the address do not request an invoice or initiate payment.
+Pay now opens the existing Lightning melt flow with the recipient prefilled and 1k, 5k and
+10k sat presets alongside custom amount entry. The presets are limited to this support entry;
+ordinary Lightning payment entry is unchanged. The existing LNURL amount limits, invoice amount
+validation, mint selection, fee review, authentication and explicit payment confirmation remain
+in effect. The support flow introduces no subscription, automatic debit or paid entitlement.
+
+Home's native support modal dismisses before presenting payment on iOS. Settings opens the same
+payment flow directly. Home dismissal remains a device-local preference and does not remove
+the Settings destination. Both entry points retain their existing close/back controls.
+
+A read-only LNURL discovery check succeeded; no invoice was requested and no payment was made.
+Device validation is tracked in [the support checklist](../testing/support-bey-checklist.md).
+The store-distribution policy notes below remain relevant; this implementation does not establish
+App Store or Google Play acceptance.
+
+## Historical membership research
+
+The following records the earlier exploration and mock, rather than the current offering.
 
 Spotlight has been deferred and its prototype reverted. Preserve the
 [Spotlight design reference](bey-spotlight-design-reference.md) for later. The user subsequently

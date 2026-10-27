@@ -11,6 +11,7 @@ interface AppFullScreenModalProps {
   animationType?: 'none' | 'slide' | 'fade';
   title: string;
   onClose: () => void;
+  onDismiss?: () => void;
   onBack?: () => void;
   canDismiss?: boolean;
   closeLabel?: string;
@@ -24,6 +25,7 @@ export function AppFullScreenModal({
   animationType = 'slide',
   title,
   onClose,
+  onDismiss,
   onBack,
   canDismiss = true,
   closeLabel = 'Close',
@@ -36,6 +38,7 @@ export function AppFullScreenModal({
       visible={visible}
       presentationStyle="fullScreen"
       animationType={animationType}
+      onDismiss={onDismiss}
       onRequestClose={() => {
         if (canDismiss) onClose();
       }}

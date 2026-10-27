@@ -3,6 +3,7 @@ import { AlertTriangle, AtSign, HeartHandshake } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { SupporterModal } from '~/features/supporter/SupporterModal';
+import { SUPPORT_PAYMENT_ROUTE } from '~/features/supporter/supporterPayment';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -93,6 +94,7 @@ export function HomePromptStack() {
         visible={supporterVisible}
         animationType={animationType}
         onClose={closeSupporter}
+        onPay={() => router.push(SUPPORT_PAYMENT_ROUTE)}
         onDoNotShowAgain={() => {
           closeSupporter();
           dismissSupporter();

@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { Keyboard } from 'react-native';
-import { Code2, HeartHandshake, ShieldCheck } from '@tamagui/lucide-icons';
-import { Input, ScrollView, Text, View, XStack, YStack } from 'tamagui';
-import { appTypography } from '~/shared/theme/appearance';
+import React, { useEffect, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
+import { useWindowDimensions } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { ClipboardCheck, Code2, Copy, HeartHandshake } from '@tamagui/lucide-icons';
+import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import { AppButton } from '~/shared/ui/AppButton';
+import { CustomQRCode } from '~/shared/ui/CustomQRCode';
+import { isLightningAddress } from '~/services/api/lnurlService';
+import { SUPPORT_LIGHTNING_ADDRESS } from './supporterPayment';
 
 const supportAreas = [
   {
@@ -12,7 +17,7 @@ const supportAreas = [
     description: 'Help developers improve Bey, fix bugs, and keep the wallet working well.',
   },
   {
-    icon: ShieldCheck,
+    icon: ClipboardCheck,
     title: 'Care in the details',
     description: 'Make room for code reviews, device testing, accessibility, and clearer guides.',
   },
@@ -24,43 +29,28 @@ const supportAreas = [
   },
 ] as const;
 
-const mockPlans = [
-  {
-    id: 'monthly',
-    title: 'Monthly',
-    price: '$3',
-    period: '/ month',
-    note: 'Support a little each month',
-    button: 'Preview monthly support',
-  },
-  {
-    id: 'yearly',
-    title: 'Yearly',
-    price: '$30',
-    period: '/ year',
-    note: 'Equivalent to $2.50 per month',
-    button: 'Preview yearly support',
-  },
-] as const;
-
 export function SupporterContent({
-  onClose,
+  onPay,
   onDoNotShowAgain,
+  bottomInset = 0,
 }: {
-  onClose: () => void;
+  onPay: () => void;
   onDoNotShowAgain?: () => void;
+  bottomInset?: number;
 }) {
-  const [selectedPlan, setSelectedPlan] = useState<(typeof mockPlans)[number]['id'] | null>(null);
-  const [donationAmount, setDonationAmount] = useState('');
-  const [donationPreview, setDonationPreview] = useState<string | null>(null);
-  const normalizedDonation = donationAmount.trim().replace(',', '.');
-  const donationValue = Number(normalizedDonation);
-  const validDonation =
-    /^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(normalizedDonation) && donationValue > 0;
-
+  const { width } = useWindowDimensions();
+  const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const opening = useRef(false);
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (focused) opening.current = false;
+  }, [focused]);
+  const address = SUPPORT_LIGHTNING_ADDRESS;
+  const available = isLightningAddress(address);
   return (
-    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <YStack px="$4" pt="$4" pb="$6" gap="$5">
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <YStack px="$4" pt="$4" pb={appSpacing.large + bottomInset} gap="$5">
         <YStack gap="$3">
           <View
             width={56}
@@ -86,116 +76,75 @@ export function SupporterContent({
             investigating bugs, and making everyday experiences better.
           </Text>
           <Text {...appTypography.body2} color="$gray10">
-            A Bey supporter membership could help fund that ongoing work, giving developers more
-            time to care for the wallet and contribute to the open-source tools it relies on.
+            Your support helps fund that ongoing work, giving developers more time to care for the
+            wallet and contribute to the open-source tools it relies on.
           </Text>
         </YStack>
-
-        <YStack gap="$3">
-          <Text {...appTypography.label2} color="$color" accessibilityRole="header">
-            Choose how you’d like to support
-          </Text>
-          <Text {...appTypography.body3} color="$gray10">
-            Mock pricing · USD · Nothing will be charged
-          </Text>
-          <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden">
-            {mockPlans.map((plan, index) => (
-              <React.Fragment key={plan.id}>
-                {index > 0 && <View height={2} width="100%" bg="$background" />}
-                <YStack p="$4" gap="$3">
-                  <XStack items="center" justify="space-between" gap="$3" flexWrap="wrap">
-                    <Text {...appTypography.label2} color="$color">
-                      {plan.title}
-                    </Text>
-                    <XStack items="baseline" gap="$1">
-                      <Text {...appTypography.title2} fontFamily="$heading" color="$color">
-                        {plan.price}
-                      </Text>
-                      <Text {...appTypography.body3} color="$gray10">
-                        {plan.period}
-                      </Text>
-                    </XStack>
-                  </XStack>
-                  <Text {...appTypography.body3} color="$gray10">
-                    {plan.note}
-                  </Text>
-                  <AppButton
-                    variant={selectedPlan === plan.id ? 'branded' : 'default'}
-                    emphasis={selectedPlan === plan.id ? 'primary' : 'secondary'}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setSelectedPlan(plan.id);
-                      setDonationPreview(null);
-                    }}
-                    accessibilityState={{ selected: selectedPlan === plan.id }}
-                  >
-                    {selectedPlan === plan.id ? 'Selected · Preview only' : plan.button}
-                  </AppButton>
-                </YStack>
-              </React.Fragment>
-            ))}
-          </YStack>
-          {selectedPlan && (
-            <Text {...appTypography.body3} color="$gray10" accessibilityLiveRegion="polite">
-              {selectedPlan === 'monthly' ? 'Monthly' : 'Yearly'} support preview selected. No
-              payment was made and no membership was activated.
+        <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$4">
+          {available ? (
+            <YStack items="center" gap="$3">
+              <YStack
+                accessibilityRole="image"
+                accessibilityLabel={`Lightning address QR: ${address}`}
+              >
+                <CustomQRCode
+                  value={`lightning:${address}`}
+                  size={Math.min(320, Math.max(120, width - 64))}
+                  dotShape="square"
+                  finderStyle="square"
+                />
+              </YStack>
+              <Text {...appTypography.label2} color="$color" textAlign="center" selectable>
+                {address}
+              </Text>
+              <AppButton
+                variant="default"
+                emphasis="text-only"
+                icon={Copy}
+                onPress={async () => {
+                  try {
+                    await Clipboard.setStringAsync(address);
+                    setCopied(true);
+                    setCopyFailed(false);
+                  } catch {
+                    setCopied(false);
+                    setCopyFailed(true);
+                  }
+                }}
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </AppButton>
+              {copyFailed && (
+                <Text {...appTypography.body3} color="$red10" accessibilityRole="alert">
+                  Could not copy. Try again.
+                </Text>
+              )}
+            </YStack>
+          ) : (
+            <Text {...appTypography.body3} color="$gray10" textAlign="center">
+              Support payments are not available yet.
             </Text>
           )}
-          <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$3">
-            <Text {...appTypography.label2} color="$color">
-              Or give once
-            </Text>
-            <Text {...appTypography.body3} color="$gray10">
-              Choose your own amount. A one-time donation with no renewal or subscription.
-            </Text>
-            <XStack items="center" gap="$3">
-              <Text {...appTypography.label2} color="$color">
-                USD $
-              </Text>
-              <Input
-                flex={1}
-                minWidth={0}
-                minHeight={48}
-                value={donationAmount}
-                onChangeText={(value) => {
-                  setDonationAmount(value);
-                  setDonationPreview(null);
-                }}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-                inputMode="decimal"
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-                autoCorrect={false}
-                maxLength={12}
-                accessibilityLabel="One-time donation amount in US dollars"
-              />
-            </XStack>
-            {normalizedDonation !== '' && !validDonation && (
-              <Text {...appTypography.body3} color="$red10" accessibilityLiveRegion="polite">
-                Enter an amount greater than zero, with up to two decimal places.
-              </Text>
-            )}
+          <YStack gap="$2" items="center">
             <AppButton
-              disabled={!validDonation}
+              variant="default"
+              emphasis="primary"
+              size="medium"
+              fullWidth={false}
+              disabled={!available}
               onPress={() => {
-                if (!validDonation) return;
-                Keyboard.dismiss();
-                setSelectedPlan(null);
-                setDonationPreview(donationValue.toFixed(2));
+                if (!available || opening.current) return;
+                opening.current = true;
+                onPay();
               }}
             >
-              Preview one-time donation
+              Pay now
             </AppButton>
-            {donationPreview && (
-              <Text {...appTypography.body3} color="$gray10" accessibilityLiveRegion="polite">
-                ${donationPreview} one-time donation preview. No payment was made and nothing will
-                recur.
-              </Text>
-            )}
+            <Text {...appTypography.body3} color="$gray10" textAlign="center">
+              One-time support. No subscription.
+            </Text>
           </YStack>
         </YStack>
-
         <YStack gap="$3">
           <Text {...appTypography.label2} color="$color" accessibilityRole="header">
             What your support could help with
@@ -221,35 +170,19 @@ export function SupporterContent({
             ))}
           </YStack>
         </YStack>
-
         <YStack gap="$2">
           <Text {...appTypography.label2} color="$color" accessibilityRole="header">
             Always optional. Still your wallet.
           </Text>
           <Text {...appTypography.body2} color="$gray10">
-            Sending, receiving, recovery, and security stay available to everyone. Supporting Bey
-            would be a choice, with no change to how you use your money.
+            Sending, receiving, recovery, and security stay available to everyone. Supporting Bey is
+            a choice, with no change to how you use your money.
           </Text>
         </YStack>
-
-        <YStack gap="$1">
-          <Text {...appTypography.label3} color="$gray10">
-            Membership preview
-          </Text>
-          <Text {...appTypography.body3} color="$gray10">
-            We’re exploring this idea. Memberships and payments aren’t available yet.
-          </Text>
-        </YStack>
-        <AppButton onPress={onClose}>Back to wallet</AppButton>
         {onDoNotShowAgain && (
-          <YStack gap="$1">
-            <AppButton variant="default" emphasis="text-only" onPress={onDoNotShowAgain}>
-              Do not show again
-            </AppButton>
-            <Text {...appTypography.body3} color="$gray10" textAlign="center">
-              Hide this card from Home. Support Bey stays available in Settings.
-            </Text>
-          </YStack>
+          <AppButton variant="default" emphasis="text-only" onPress={onDoNotShowAgain}>
+            Do not show again
+          </AppButton>
         )}
       </YStack>
     </ScrollView>

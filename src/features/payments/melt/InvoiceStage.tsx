@@ -2,7 +2,7 @@ import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { YStack, Text } from 'tamagui';
+import { XStack, YStack, Text } from 'tamagui';
 import { ArrowUpDown, Zap } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +36,7 @@ interface InvoiceStageProps {
   isLoading?: boolean;
   disabled?: boolean;
   error?: string | null;
+  amountPresets?: readonly number[];
 }
 
 export function InvoiceStage({
@@ -50,6 +51,7 @@ export function InvoiceStage({
   isLoading,
   disabled,
   error,
+  amountPresets,
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
   const {
@@ -374,6 +376,37 @@ export function InvoiceStage({
           isError={invoice.trim().length > 0 && !isValidInvoice}
           multiline={true}
         />
+        {!isBolt11 && amountPresets && (
+          <XStack width="100%" gap="$1.5">
+            {amountPresets.map((sats) => (
+              <AppPressable
+                key={sats}
+                accessibilityRole="button"
+                accessibilityLabel={`${sats.toLocaleString('en-US')} sat`}
+                flex={1}
+                minHeight={48}
+                rounded="$6"
+                bg="$gray2"
+                items="center"
+                justify="center"
+                disabled={disabled || isLoading}
+                pressStyle={{ bg: '$gray3' }}
+                onPress={() => {
+                  setAmount(String(sats));
+                  setLocalInputValue(
+                    inputMode === 'SATS'
+                      ? String(sats)
+                      : btcData?.price
+                        ? currencyService.convertSatsToCurrency(sats, btcData.price).toFixed(2)
+                        : '0',
+                  );
+                }}
+              >
+                <Text fontSize={14} color="$color" fontWeight="500">{`${sats / 1000}k sat`}</Text>
+              </AppPressable>
+            ))}
+          </XStack>
+        )}
       </YStack>
 
       {isBolt11 ? (

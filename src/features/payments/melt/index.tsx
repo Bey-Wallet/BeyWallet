@@ -34,7 +34,11 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currenc
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode, lightningAddress, source } = useLocalSearchParams<{
+    mode?: string;
+    lightningAddress?: string;
+    source?: string;
+  }>();
 
   if (mode === 'onchain') {
     return (
@@ -46,7 +50,11 @@ export default function MeltScreen() {
   }
 
   const [step, setStep] = useState<MeltStep>('invoice');
-  const [invoice, setInvoice] = useState('');
+  const [invoice, setInvoice] = useState(() =>
+    typeof lightningAddress === 'string' && detectLightningInputType(lightningAddress) === 'address'
+      ? normalizeLightningInput(lightningAddress)
+      : '',
+  );
   const [resolvedInvoice, setResolvedInvoice] = useState<string | null>(null);
   const [lnAddress, setLnAddress] = useState<string | null>(null);
   const [lnAddressAmount, setLnAddressAmount] = useState('0');
@@ -481,6 +489,7 @@ export default function MeltScreen() {
             isLoading={isResolvingAddress || isManualQuote || isGettingQuote}
             disabled={isGettingQuote || isManualQuote}
             error={error}
+            amountPresets={source === 'support' ? [1000, 5000, 10000] : undefined}
           />
         </YStack>
       )}

@@ -26,6 +26,7 @@ const mockRequestInvoice = jest.fn();
 const mockParams = jest.fn();
 const mockClipboard = jest.fn();
 const mockRouter = { back: jest.fn(), push: jest.fn() };
+let mockRouteParams: Record<string, string> = {};
 const mockSettings = { primaryCurrency: 'SATS', secondaryCurrency: 'USD' };
 
 jest.mock('~/state/walletStore', () => ({
@@ -68,11 +69,11 @@ jest.mock('~/features/payments/melt/OnchainMeltFlow', () => ({
 jest.mock('~/features/payments/melt/ResultStage', () => ({ MeltResultStage: 'MeltResultStage' }));
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockRouteParams,
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }));
-jest.mock('tamagui', () => ({ YStack: 'YStack', Text: 'Text' }));
+jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text' }));
 jest.mock('@tamagui/lucide-icons', () => ({ Zap: 'Zap', ArrowUpDown: 'ArrowUpDown' }));
 jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: undefined }) }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
@@ -129,6 +130,7 @@ const payButton = () => tree.root.findByProps({ children: 'Pay' });
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  mockRouteParams = {};
   mockSettings.primaryCurrency = 'SATS';
   mockSettings.secondaryCurrency = 'USD';
   mockPayments.length = 0;
@@ -159,6 +161,29 @@ it('uses integer sats and Max without a rate or a currency switch when None is s
   await act(async () => tree.root.findByType('MintBalanceRow' as any).props.onMaxPress());
   expect(keypad().props.value).toBe('100');
   expect(mockSettings.primaryCurrency).toBe('FIAT');
+});
+
+it('opens support with its address and presets without requesting an invoice or paying', async () => {
+  mockRouteParams = { lightningAddress: 'beywallet@blitzwalletapp.com', source: 'support' };
+  mockWallet.balances['mint-a'] = 20000;
+  await open();
+  expect(destination().props.value).toBe('beywallet@blitzwalletapp.com');
+  expect(keypad().props.value).toBe('0');
+  expect(mockRequestInvoice).not.toHaveBeenCalled();
+  expect(mockPreview).not.toHaveBeenCalled();
+  expect(mockPay).not.toHaveBeenCalled();
+  const preset = tree.root.findByProps({ accessibilityLabel: '5,000 sat' });
+  await act(async () => preset.props.onPress());
+  expect(keypad().props.value).toBe('5000');
+  expect(mockRequestInvoice).not.toHaveBeenCalled();
+  await act(async () => keypad().props.onValueChange('2500'));
+  expect(keypad().props.value).toBe('2500');
+  expect(mockPay).not.toHaveBeenCalled();
+});
+
+it('does not show support presets in ordinary Lightning payments', async () => {
+  await open();
+  expect(tree.root.findAllByProps({ accessibilityLabel: '5,000 sat' })).toHaveLength(0);
 });
 
 it.each(['lnbc20n1invoice', 'LIGHTNING:LNBC20N1INVOICE', 'lntb20n1invoice', 'lnbcrt20n1invoice'])(
