@@ -340,13 +340,13 @@ export default function MintDetailsModal() {
               <YStack gap="$2">
                 <XStack items="baseline" gap="$1">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                    <Text fontSize={36} fontWeight="900" color="$color">
+                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
                       {!showBitcoinSymbol && <Text fontSize={20}>{' sat'}</Text>}
                     </Text>
                   ) : (
-                    <Text fontSize={36} fontWeight="900" color="$color">
+                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
                       {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
                     </Text>
                   )}

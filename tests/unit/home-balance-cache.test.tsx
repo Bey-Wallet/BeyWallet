@@ -18,13 +18,14 @@ jest.mock('~/state/settingsStore', () => ({
 }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(
     ['H1', 'H2', 'Paragraph', 'Text', 'View', 'XStack', 'YStack'].map((name) => [name, name]),
   ),
   useTheme: () => ({ gray3: { val: '#222224' } }),
 }));
-jest.mock('expo-haptics', () => ({}));
+jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(), ImpactFeedbackStyle: { Medium: 1 } }));
 
 let tree: ReactTestRenderer;
 const displayed = () => tree.root.findAllByType('RollingNumber' as any).map((node) => node.props);
@@ -38,7 +39,32 @@ beforeEach(() => {
     secondaryCurrency: 'USD',
     hideBalance: false,
     showBitcoinSymbol: false,
+    setPrimaryCurrency: async (primaryCurrency: 'SATS' | 'FIAT') =>
+      useSettingsStore.setState({ primaryCurrency }),
   });
+});
+
+it('swaps sats and fiat from the secondary pill and blocks switching while hidden', async () => {
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  const pill = () => tree.root.findByProps({ testID: 'home-balance-currency-toggle' });
+  expect(pill().props.accessibilityLabel).toBe('Display balance in sats');
+  await act(async () => pill().props.onPress());
+  expect(useSettingsStore.getState().primaryCurrency).toBe('SATS');
+  expect(displayed()[0].value).toBe(10_000);
+  expect(displayed()[1].children).toBe('$10.00');
+  await act(async () => pill().props.onPress());
+  expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  await act(async () => useSettingsStore.setState({ hideBalance: true }));
+  expect(pill().props.disabled).toBe(true);
+  expect(displayed().map((props) => props.value)).toEqual(['****', '****']);
+  await act(async () => pill().props.onPress());
+  expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  await act(async () =>
+    useSettingsStore.setState({ secondaryCurrency: 'NONE', hideBalance: false }),
+  );
+  expect(tree.root.findAllByProps({ testID: 'home-balance-currency-toggle' })).toHaveLength(0);
 });
 afterEach(async () => {
   await act(async () => tree.unmount());

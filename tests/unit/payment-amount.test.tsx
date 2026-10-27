@@ -41,7 +41,8 @@ it.each([
     });
     expect(tree.root.findByProps({ testID: 'amount-primary-amount' }).props).toMatchObject({
       fontSize: primary,
-      fontWeight: '500',
+      fontWeight: '600',
+      fontFamily: '$display',
       color: '$color',
       numberOfLines: 1,
       adjustsFontSizeToFit: true,

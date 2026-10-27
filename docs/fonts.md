@@ -1,92 +1,107 @@
 # App fonts
 
-Body text and headings use the approved, modified Funnel Display family, named **Bey Funnel
-Display** internally to distinguish it from the upstream font:
+The app uses **Inter 4.1** throughout, with two optical designs:
 
-| Weight       | Runtime name               | Asset                           |
-| ------------ | -------------------------- | ------------------------------- |
-| Regular 400  | `BeyFunnelDisplayRegular`  | `BeyFunnelDisplay-Regular.ttf`  |
-| Medium 500   | `BeyFunnelDisplayMedium`   | `BeyFunnelDisplay-Medium.ttf`   |
-| SemiBold 600 | `BeyFunnelDisplaySemiBold` | `BeyFunnelDisplay-SemiBold.ttf` |
+| Role                                          | Tamagui family      | Optical size        | Registered faces                                                    |
+| --------------------------------------------- | ------------------- | ------------------- | ------------------------------------------------------------------- |
+| Body, UI copy, inputs, buttons and navigation | `$body`, `$heading` | Text (`opsz=14`)    | `InterTextRegular`, `InterTextMedium`, `InterTextSemiBold`          |
+| Large text, amounts and balances              | `$display`          | Display (`opsz=32`) | `InterDisplayRegular`, `InterDisplayMedium`, `InterDisplaySemiBold` |
 
-`BeyFunnelDisplay-Bold.ttf` (700) is retained as an inactive asset. It is not registered in Expo
-runtime loading, native embedding, or Tamagui face mappings. Requests for 700 and `bold` continue
-to render using SemiBold 600.
+Regular/Medium/SemiBold use weights 400/500/600. Body text uses 400, labels and buttons
+use 500, and headings/amounts/balances use 600. Requests below 400 map to Regular;
+requests above 600 map to SemiBold. Existing
+sizes, spacing, line heights, scaling and amount animations remain unchanged.
+
+## Number and character features
+
+Both families enable the same upstream OpenType features by default:
+
+- `tnum`: tabular numbers.
+- `zero`: slashed zero.
+- `ss01`: open/alternate digits.
+- `ss02`: disambiguation of similar characters, including slashed zero.
+
+These are font defaults, including on native inputs and navigation titles. React Native
+0.81 exposes `tnum` and stylistic sets through `fontVariant`, but has no separate `zero`
+option; relying only on component props would miss some surfaces. The prepared fonts
+include the four upstream feature lookup lists in default-on `ccmp`. The preparation
+script verifies with HarfBuzz that default shaping matches upstream shaping with all
+four features enabled, and that explicitly enabling them again is idempotent. No
+letter or digit outlines are redrawn. This is an intentional app-wide feature policy.
+
+The existing tabular-number props are retained. `$mono` is a compatibility alias to
+Inter Text; no separate Mono or Funnel font is registered or loaded by the app.
 
 ## Integration
 
-The `$body` and `$heading` families share these three static faces. Requests below 400 resolve to
-Regular, and requests above 600 resolve to SemiBold. Weight tokens `$4`, `$5`, and `$6` select
-400/500/600. Existing text sizes, line heights, letter spacing, tabular numeral requests, and
-accessibility scaling are preserved. Dedicated `Mono` text remains unchanged.
+- Runtime assets: `src/shared/layout/RootLayout.tsx`.
+- Native embedding: the six Inter TTF files in the Expo Font plugin in `app.json`.
+- Global defaults and weight mappings: `src/tamagui.config.ts`.
+- Large styles: `appTypography.display`, `.amount`, `.title1`, and H1/H2/H3 defaults.
+- Shared payment/amount components, large mint/Nostr amounts, and rolling balances
+  explicitly use Display. Smaller secondary values and labels use Text.
+- Native bottom-sheet and public-key inputs explicitly use Inter Text Regular.
 
-Runtime loading is in `src/shared/layout/RootLayout.tsx`; native embedding is configured in
-`app.json`. Navigation fonts and header titles use the same family. Native bottom-sheet inputs
-and the public-key input explicitly select Regular. Plain Tamagui Text, named text components,
-inputs, and toasts use the existing `$body` defaults. OS-owned permission dialogs, share sheets,
-and keyboards retain the platform font.
+Runtime loading supports a reload in an existing compatible Expo development client.
+A subsequent native build includes the updated embedding configuration. OS-owned
+permission dialogs, keyboards and share sheets continue to use platform fonts.
 
-The user confirmed the fonts work in the existing Expo dev client through runtime asset loading.
-A reload can load these new font files without rebuilding a compatible dev client. A future native
-build will also include the updated embedded-font configuration from `app.json`.
+## Source, reproducibility and license
 
-## Approved glyphs and provenance
-
-The user supplied Funnel Display by NORD ID and Kristian Möller in
-`C:\Users\Zaheer\Downloads\Funnel_Display`. The final production assets are the approved design;
-earlier temporary HTML previews, generators, screenshots, and comparison fonts have been removed.
-
-The modified fonts add Bitcoin `₿` U+20BF, rupee `₹` U+20B9, ruble `₽` U+20BD, won `₩` U+20A9,
-lira `₺` U+20BA, and full-width yen `￥` U+FFE5. Original dollar, euro, pound and yen glyphs remain
-unchanged. Coverage checks include the symbols and formatted values for Bey's fiat currencies.
-Native Intl implementations can vary, so device checks remain necessary.
-
-The currency extension adds naira `₦` U+20A6, baht `฿` U+0E3F, Philippine peso `₱` U+20B1,
-and dong `₫` U+20AB. Their shapes derive from each weight's existing `N`, `B`, `P`, `đ`
-and underscore outlines, with matching crossbars. Intersections are merged only in these
-four new glyphs. All 376 pre-existing outlines, character mappings, advance widths and
-line metrics are preserved, including the approved Bitcoin and revision-5 rupee.
-THB, PHP, VND and NGN now use these symbols; IDR uses `Rp`, ARS uses `AR$`, and MXN uses `MX$`.
-
-Regular, Medium, SemiBold and the inactive Bold asset all contain the extension. Bold
-remains unregistered. The existing combined SIL license and embedded copyright notices
-are retained; no additional source font is used.
-
-The maintained generator is `scripts/add-currency-glyphs.py`. It uses isolated font-editing
-tools and does not add runtime app dependencies:
+Source: [official Inter 4.1](https://github.com/rsms/inter/tree/v4.1), by the Inter Project
+Authors. See the [upstream feature descriptions](https://rsms.me/inter/#features).
+The variable source is pinned by SHA-256 in `scripts/prepare-inter-fonts.py`.
 
 ```sh
-uv run --no-project --with fonttools --with pillow --with skia-pathops python scripts/add-currency-glyphs.py
+uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-inter-fonts.py
 ```
 
-This creates candidate fonts, a preservation manifest and a PNG preview in
-`.tmp/currency-glyphs/`. After reviewing the preview, pass `--apply` to write the assets.
-The generator verifies the existing outlines and metrics before finishing. Update the
-production-file hashes in `tests/unit/font-assets.test.ts` after intentional font changes;
-the original currency-outline hashes in `tests/fixtures/approved-currency-glyphs.json`
-must remain unchanged.
+This downloads the pinned source into `.tmp/inter-fonts/`, instantiates static Text
+and Display faces, sets the feature defaults, and validates their shaping before
+writing the six assets and `inter-manifest.json`. The manifest records hashes, optical
+sizes, weights, default lookup indexes, tabular advances and the slashed-zero glyph.
+These are isolated build tools; no app dependency is added.
 
-Rupee revision 5 adapts the matching Special Gothic upper outline to Funnel's cap height and keeps
-the approved straight diagonal leg. Both source families use SIL OFL 1.1; their copyright notices
-and the license are consolidated in `src/assets/fonts/BeyFunnelDisplay-OFL.txt`.
-The derivative also embeds attribution to both families.
-These licenses remain separate from the application's Apache 2.0 license.
+The prepared derivatives use internal names `Bey Inter Text` / `Bey Inter Display` and
+the runtime names above. Original copyright and license metadata are retained.
+`src/assets/fonts/Inter-OFL.txt` contains the upstream SIL OFL 1.1 license, separate
+from the application's Apache 2.0 license.
 
-Special Gothic font binaries have been removed. The adapted rupee's original source is
-[Special Gothic revision 17774cf97eec75a115aebc7ed66a57ce67b88177](https://github.com/AlistairMcCready/Special-Gothic/tree/17774cf97eec75a115aebc7ed66a57ce67b88177).
+Inter's own currency glyphs cover the supported currencies. U+FFE5 (full-width yen)
+is mapped to Inter's existing yen glyph because Inter lacks a separate full-width
+yen. All other glyph coverage and outlines come from Inter. The former modified
+Funnel currency shapes, including the custom rupee, are superseded by Inter.
+The obsolete Funnel/Mono binaries, Funnel license, currency-glyph generator and its
+fixture have been removed. Only the six active Inter font binaries are bundled.
+Stale Basel, TT Firs and Mono copies in the ignored local Android source assets were
+also removed and replaced with the six Inter faces. New EAS native projects obtain
+the same fonts from `app.json`; existing installed APKs require a rebuild to remove
+their old embedded resources.
 
-## Validation
+## Validation and device checks
 
-The font asset regression tests check weights, currency coverage, and SHA-256 hashes of the
-approved production files, without depending on temporary design files.
-Typography and appearance tests check rendered family selection and the existing weight mappings.
+Asset tests check all six fonts, weights, currency coverage, default feature lookups,
+hashes, native embedding and runtime registration. Rendered typography tests check
+Text/Display weight selection, inputs, buttons, text variants and amount styles.
 
-Device acceptance checks:
+Check Home, payment entry/results, Settings, onboarding, chat, navigation, native
+inputs, both themes and larger system text on Android and iOS. Review `0123469`,
+`Il1O0`, tabular alignment, currency symbols and clipping at row and balance sizes.
+Browser/specimen checks and unit tests do not establish native device rendering.
 
-- Review Home, payment entry/results, Settings, onboarding, messages, and navigation headers.
-- Check bottom-sheet/native inputs, button labels, long text, both themes, and larger system text.
-- Inspect `₿`, `₹`, `₽`, `₩`, `₺`, `₦`, `฿`, `₱`, `₫`, and both yen variants at row and balance sizes.
-- Confirm Regular/Medium/SemiBold render distinctly, no text clips, and 700 remains mapped to 600.
+Local checks: font shaping/currency/registration tests and rendered Text/Display weight
+tests pass. The browser specimen loaded the prepared faces at 728- and 360-pixel widths,
+and measured identical default advances for all ten digits. Typecheck, button and
+structure checks pass. Native Android/iOS rendering and accessibility checks remain
+pending.
 
-The user confirmed the current Expo dev-client appearance. The full screen/accessibility matrix,
-iOS-specific behavior, and a newly embedded native build have not been independently verified.
+Full regression run after the Home pill and final weight selection: 148 suites / 1,247 tests passed. Three previously reproduced
+baseline failures remain: `mint-details-screen` expects a 14-point icon instead of 22;
+`mint-url-navigation` lacks the Tamagui pressable mock; `header-navigation` lacks the
+native NFC emitter mock. All font, typography, amount and appearance tests pass.
+
+After obsolete-font removal and the seed-import pause correction, the final focused
+run passed 98 tests across 15 suites. Typecheck, scoped formatting and structure checks
+also passed. The newly added onboarding tests cover pause handoff and failure release.
+
+See [restore and Home acceptance checks](restore-and-home-acceptance.md) for device steps.

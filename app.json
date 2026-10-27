@@ -109,10 +109,12 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/BeyFunnelDisplay-Regular.ttf",
-            "./src/assets/fonts/BeyFunnelDisplay-Medium.ttf",
-            "./src/assets/fonts/BeyFunnelDisplay-SemiBold.ttf",
-            "./src/assets/fonts/Mono.otf"
+            "./src/assets/fonts/InterText-Regular.ttf",
+            "./src/assets/fonts/InterText-Medium.ttf",
+            "./src/assets/fonts/InterText-SemiBold.ttf",
+            "./src/assets/fonts/InterDisplay-Regular.ttf",
+            "./src/assets/fonts/InterDisplay-Medium.ttf",
+            "./src/assets/fonts/InterDisplay-SemiBold.ttf"
           ]
         }
       ],

@@ -8,6 +8,7 @@ export function ModalHeaderTitle({ children }: { children: string }) {
       accessibilityRole="header"
       fontFamily="$body"
       {...appTypography.title3}
+      fontWeight="600"
       color="$color"
       numberOfLines={1}
     >

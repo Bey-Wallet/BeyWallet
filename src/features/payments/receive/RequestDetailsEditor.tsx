@@ -98,6 +98,7 @@ export function RequestAmountEditor({
           </Text>
           <Text
             textAlign="center"
+            fontFamily="$display"
             fontSize={40}
             fontWeight="500"
             color="$color"

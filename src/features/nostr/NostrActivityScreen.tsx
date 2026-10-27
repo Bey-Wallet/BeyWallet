@@ -388,6 +388,7 @@ export default function NostrActivityModal() {
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
                       <Text
+                        fontFamily="$display"
                         fontSize={32}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
@@ -416,6 +417,7 @@ export default function NostrActivityModal() {
                   ) : (
                     <>
                       <Text
+                        fontFamily="$display"
                         fontSize={32}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}

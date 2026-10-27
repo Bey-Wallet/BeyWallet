@@ -1,3 +1,5 @@
+import { invalidateWalletSnapshot } from '~/storage/sqlite/sqliteStorage';
+import { recoveryCoordinator } from './recoveryCoordinator';
 /**
  * Initialization service — manages Manager lifecycle.
  *
@@ -378,73 +380,83 @@ export const initService = {
    * Fast re-initialization. Skips staggered delays in enableWatchers.
    * Useful for background syncs where we just need to refresh proof/counter state.
    */
-  reinitFast: async (): Promise<Manager> => {
-    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
-    await stopLightningAddress();
-    const { stopMintTransferService } = await import('./mintTransferService');
-    stopMintTransferService();
-    const { requestLifecycleService: previousRequestLifecycle } =
-      await import('./requestLifecycleService');
-    previousRequestLifecycle.stop();
-    console.log('[InitService] Performing fast-path re-initialization...');
-    const mnemonic = await seedService.getMnemonic();
-    if (!mnemonic) throw new Error('No mnemonic found');
+  reinitFast: async (options: { withinWalletOperation?: boolean } = {}): Promise<Manager> => {
+    const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
+    invalidateWalletSnapshot();
+    try {
+      // Keyset repair can be called by the very claim/event whose promise a full
+      // drain would await. That caller retains its existing operation ownership.
+      if (options.withinWalletOperation) await recoveryCoordinator.drainMaintenance();
+      else await recoveryCoordinator.drainBackground();
+      const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+      await stopLightningAddress();
+      const { stopMintTransferService } = await import('./mintTransferService');
+      stopMintTransferService();
+      const { requestLifecycleService: previousRequestLifecycle } =
+        await import('./requestLifecycleService');
+      previousRequestLifecycle.stop();
+      console.log('[InitService] Performing fast-path re-initialization...');
+      const mnemonic = await seedService.getMnemonic();
+      if (!mnemonic) throw new Error('No mnemonic found');
 
-    const seed = await seedService.deriveSeed(mnemonic);
+      const seed = await seedService.deriveSeed(mnemonic);
 
-    // If a manager already exists, we must disable its watchers first
-    if (manager) {
-      try {
-        await disableWatchers(manager);
-        await manager.dispose?.();
-      } catch (e) {}
-      manager = null;
+      // If a manager already exists, we must disable its watchers first
+      if (manager) {
+        try {
+          await disableWatchers(manager);
+          await manager.dispose?.();
+        } catch (e) {}
+        manager = null;
+      }
+
+      // Expo SQLite: Do not close the database instance forcefully here. Use the existing one to avoid
+      // crashing background plugins (like proof watchers) with NullPointerExceptions.
+      if (!dbInstance) {
+        dbInstance = getDb();
+      }
+      const db = dbInstance;
+      const repositories = new ExpoSqliteRepositories({ database: db });
+      await repositories.init();
+
+      const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+
+      manager = new Manager(
+        repositories,
+        async () => new Uint8Array(seed),
+        customLogger as any,
+        undefined,
+        [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
+      );
+
+      repo = repositories;
+      setupAppStateListener();
+
+      // Enable watchers WITHOUT staggered delays
+      await enableWatchers(manager, { fast: true });
+
+      // Start Nostr background receiver and repair the public username profile.
+      const nip05 = await repositories.settingsRepository.getSetting('nip05');
+      nostrService.start(privkey, pubkey, nip05 || undefined);
+      const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+      nostrClaimService.start(privkey);
+      const { requestLifecycleService } = await import('./requestLifecycleService');
+      requestLifecycleService.start(manager);
+      const { getChangePreparation } = await import('./changePreparationService');
+      void getChangePreparation()
+        .recoverPending()
+        .catch(() => {});
+
+      // Start pending tokens sweeper
+      const { expiryService } = await import('~/services/wallet/expiryService');
+      expiryService.startSweeper();
+
+      const { startLightningAddress } = await import('./lightningAddressLifecycle');
+      await startLightningAddress(repositories, privkey, pubkey);
+      return manager;
+    } finally {
+      releaseRecoveryLock();
     }
-
-    // Expo SQLite: Do not close the database instance forcefully here. Use the existing one to avoid
-    // crashing background plugins (like proof watchers) with NullPointerExceptions.
-    if (!dbInstance) {
-      dbInstance = getDb();
-    }
-    const db = dbInstance;
-    const repositories = new ExpoSqliteRepositories({ database: db });
-    await repositories.init();
-
-    const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
-
-    manager = new Manager(
-      repositories,
-      async () => new Uint8Array(seed),
-      customLogger as any,
-      undefined,
-      [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
-    );
-
-    repo = repositories;
-    setupAppStateListener();
-
-    // Enable watchers WITHOUT staggered delays
-    await enableWatchers(manager, { fast: true });
-
-    // Start Nostr background receiver and repair the public username profile.
-    const nip05 = await repositories.settingsRepository.getSetting('nip05');
-    nostrService.start(privkey, pubkey, nip05 || undefined);
-    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
-    nostrClaimService.start(privkey);
-    const { requestLifecycleService } = await import('./requestLifecycleService');
-    requestLifecycleService.start(manager);
-    const { getChangePreparation } = await import('./changePreparationService');
-    void getChangePreparation()
-      .recoverPending()
-      .catch(() => {});
-
-    // Start pending tokens sweeper
-    const { expiryService } = await import('~/services/wallet/expiryService');
-    expiryService.startSweeper();
-
-    const { startLightningAddress } = await import('./lightningAddressLifecycle');
-    await startLightningAddress(repositories, privkey, pubkey);
-    return manager;
   },
 
   createWallet: async (mnemonic: string): Promise<Manager> => {
@@ -492,31 +504,38 @@ export const initService = {
    * Properly cleanup watchers and reset state.
    */
   cleanup: async (): Promise<void> => {
-    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
-    await stopLightningAddress();
-    const { stopMintTransferService } = await import('./mintTransferService');
-    stopMintTransferService();
-    const { requestLifecycleService } = await import('./requestLifecycleService');
-    requestLifecycleService.stop();
-    const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
-    useNostrRequestStore.getState().clear();
-    nostrService.stop();
-    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
-    nostrClaimService.stop();
-    const { expiryService } = await import('~/services/wallet/expiryService');
-    expiryService.stopSweeper();
-    if (manager) {
-      await disableWatchers(manager);
+    const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
+    invalidateWalletSnapshot();
+    try {
+      await recoveryCoordinator.drainBackground();
+      const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+      await stopLightningAddress();
+      const { stopMintTransferService } = await import('./mintTransferService');
+      stopMintTransferService();
+      const { requestLifecycleService } = await import('./requestLifecycleService');
+      requestLifecycleService.stop();
+      const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+      useNostrRequestStore.getState().clear();
+      nostrService.stop();
+      const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+      nostrClaimService.stop();
+      const { expiryService } = await import('~/services/wallet/expiryService');
+      expiryService.stopSweeper();
+      if (manager) {
+        await disableWatchers(manager);
+      }
+      if (appStateSubscription) {
+        appStateSubscription.remove();
+        appStateSubscription = null;
+      }
+      closeDb();
+      dbInstance = null;
+      manager = null;
+      repo = null;
+      isInitializing = false;
+    } finally {
+      releaseRecoveryLock();
     }
-    if (appStateSubscription) {
-      appStateSubscription.remove();
-      appStateSubscription = null;
-    }
-    closeDb();
-    dbInstance = null;
-    manager = null;
-    repo = null;
-    isInitializing = false;
   },
 
   /**
@@ -524,31 +543,38 @@ export const initService = {
    * Cleans up AppState listener, disables watchers, and nullifies references.
    */
   reset: async (): Promise<void> => {
-    const { stopLightningAddress } = await import('./lightningAddressLifecycle');
-    await stopLightningAddress();
-    const { stopMintTransferService } = await import('./mintTransferService');
-    stopMintTransferService();
-    const { requestLifecycleService } = await import('./requestLifecycleService');
-    requestLifecycleService.stop();
-    const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
-    useNostrRequestStore.getState().clear();
-    nostrService.stop();
-    const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
-    nostrClaimService.stop();
-    const { expiryService } = await import('~/services/wallet/expiryService');
-    expiryService.stopSweeper();
-    if (appStateSubscription) {
-      appStateSubscription.remove();
-      appStateSubscription = null;
+    const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
+    invalidateWalletSnapshot();
+    try {
+      await recoveryCoordinator.drainBackground();
+      const { stopLightningAddress } = await import('./lightningAddressLifecycle');
+      await stopLightningAddress();
+      const { stopMintTransferService } = await import('./mintTransferService');
+      stopMintTransferService();
+      const { requestLifecycleService } = await import('./requestLifecycleService');
+      requestLifecycleService.stop();
+      const { useNostrRequestStore } = await import('~/state/nostrRequestStore');
+      useNostrRequestStore.getState().clear();
+      nostrService.stop();
+      const { nostrClaimService } = await import('~/services/wallet/nostrClaimService');
+      nostrClaimService.stop();
+      const { expiryService } = await import('~/services/wallet/expiryService');
+      expiryService.stopSweeper();
+      if (appStateSubscription) {
+        appStateSubscription.remove();
+        appStateSubscription = null;
+      }
+      if (manager) {
+        await disableWatchers(manager);
+      }
+      manager = null;
+      repo = null;
+      closeDb();
+      dbInstance = null;
+      isInitializing = false;
+    } finally {
+      releaseRecoveryLock();
     }
-    if (manager) {
-      await disableWatchers(manager);
-    }
-    manager = null;
-    repo = null;
-    closeDb();
-    dbInstance = null;
-    isInitializing = false;
   },
 
   restoreWallet: async (mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> => {
@@ -569,50 +595,67 @@ export const initService = {
    * Used for "Delete Wallet" in settings.
    */
   destroyWallet: async (): Promise<void> => {
-    console.log('[InitService] Destroying wallet...');
-    const { resetMintBackup } =
-      require('./mintBackupService') as typeof import('./mintBackupService');
-    const { useMintBackupStore, mintBackupDefaults } =
-      require('~/state/mintBackupStore') as typeof import('~/state/mintBackupStore');
-    resetMintBackup();
-    useMintBackupStore.setState({ ...mintBackupDefaults, publishing: false });
-
-    // These account-scoped stores must not carry acceptance or messages into
-    // the next wallet in the same process. Clear while storage is still open.
-    const { usePeopleStore } =
-      require('~/state/peopleStore') as typeof import('~/state/peopleStore');
-    const { useNostrInboxStore } =
-      require('~/state/nostrInboxStore') as typeof import('~/state/nostrInboxStore');
-    const { useNostrReceiveSettingsStore } =
-      require('~/state/nostrReceiveSettingsStore') as typeof import('~/state/nostrReceiveSettingsStore');
-    usePeopleStore.setState({ people: {} });
-    useNostrInboxStore.setState({ items: [], activeClaimId: null });
-    useNostrReceiveSettingsStore.setState({ policy: 'ask' });
-
-    // 1. Cleanup watchers and manager
-    await initService.cleanup();
-
-    // 2. Delete the SQLite databases (both main and restore)
-    const { useNostrRelayStore } =
-      require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
-    useNostrRelayStore.getState().resetRelays();
+    const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
+    invalidateWalletSnapshot();
     try {
-      await SQLite.deleteDatabaseAsync('coco_wallet.db');
-      console.log('[InitService] Main database deleted');
-    } catch (e) {
-      console.warn('[InitService] DB delete error (may not exist):', e);
-    }
-    try {
-      await SQLite.deleteDatabaseAsync('cashu_wallet_restore.db');
-      console.log('[InitService] Restore database deleted');
-    } catch (e) {
-      console.warn('[InitService] Restore DB delete error (may not exist):', e);
-    }
+      await recoveryCoordinator.drainBackground();
+      console.log('[InitService] Destroying wallet...');
+      const { resetMintBackup } =
+        require('./mintBackupService') as typeof import('./mintBackupService');
+      const { useMintBackupStore, mintBackupDefaults } =
+        require('~/state/mintBackupStore') as typeof import('~/state/mintBackupStore');
+      resetMintBackup();
+      useMintBackupStore.setState({ ...mintBackupDefaults, publishing: false });
 
-    // 3. Clear the seed from secure storage
-    await seedService.clearWallet();
-    console.log('[InitService] Seed cleared');
+      // These account-scoped stores must not carry acceptance or messages into
+      // the next wallet in the same process. Clear while storage is still open.
+      const { usePeopleStore } =
+        require('~/state/peopleStore') as typeof import('~/state/peopleStore');
+      const { useNostrInboxStore } =
+        require('~/state/nostrInboxStore') as typeof import('~/state/nostrInboxStore');
+      const { useNostrReceiveSettingsStore } =
+        require('~/state/nostrReceiveSettingsStore') as typeof import('~/state/nostrReceiveSettingsStore');
+      usePeopleStore.setState({ people: {} });
+      useNostrInboxStore.setState({ items: [], activeClaimId: null });
+      useNostrReceiveSettingsStore.setState({ policy: 'ask' });
 
-    console.log('[InitService] Wallet destroyed');
+      const { useWalletStore } =
+        require('~/state/walletStore') as typeof import('~/state/walletStore');
+      useWalletStore.setState({
+        isRestoring: false,
+        restoreQueue: [],
+        mintRestoreStatuses: [],
+        restoringMintUrl: null,
+        restoringMintKeysetProgress: null,
+      });
+
+      // 1. Cleanup watchers and manager after account-scoped store writes.
+      await initService.cleanup();
+
+      // 2. Delete the SQLite databases (both main and restore)
+      const { useNostrRelayStore } =
+        require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
+      useNostrRelayStore.getState().resetRelays();
+      try {
+        await SQLite.deleteDatabaseAsync('coco_wallet.db');
+        console.log('[InitService] Main database deleted');
+      } catch (e) {
+        console.warn('[InitService] DB delete error (may not exist):', e);
+      }
+      try {
+        await SQLite.deleteDatabaseAsync('cashu_wallet_restore.db');
+        console.log('[InitService] Restore database deleted');
+      } catch (e) {
+        console.warn('[InitService] Restore DB delete error (may not exist):', e);
+      }
+
+      // 3. Clear the seed from secure storage
+      await seedService.clearWallet();
+      console.log('[InitService] Seed cleared');
+
+      console.log('[InitService] Wallet destroyed');
+    } finally {
+      releaseRecoveryLock();
+    }
   },
 };

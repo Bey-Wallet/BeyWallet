@@ -1,4 +1,6 @@
 import { Spinner } from '~/shared/ui/Spinner';
+import { AppButton } from '~/shared/ui/AppButton';
+import { useRouter } from 'expo-router';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useRef } from 'react';
 import { YStack, XStack, Text, View, H6 } from 'tamagui';
@@ -27,6 +29,7 @@ function MintProgressItem({
 
   const isDone = entry.status === 'done';
   const isError = entry.status === 'error';
+  const isPartial = entry.status === 'partial';
   const isPending = entry.status === 'pending';
 
   const progressPercent =
@@ -50,13 +53,14 @@ function MintProgressItem({
             {isActive && <Spinner size={18} color="$iconSecondary" />}
             {isDone && <CheckCircle2 size={18} color="$green10" />}
             {isError && <AlertCircle size={18} color="$red10" />}
+            {isPartial && <AlertCircle size={18} color="$orange10" />}
             {isPending && <Clock size={18} color="$gray10" />}
           </View>
           <YStack flex={1} gap="$0.5">
             <Text fontWeight="600" fontSize="$4" color="$color" numberOfLines={1}>
               {hostname}
             </Text>
-            {isDone && entry.restoredBalance > 0 && (
+            {(isDone || isPartial) && entry.restoredBalance > 0 && (
               <Text fontSize="$2" color="$green10" fontWeight="600">
                 Restored +{entry.restoredBalance.toLocaleString()} sat
               </Text>
@@ -71,6 +75,11 @@ function MintProgressItem({
                 {entry.error || 'Sync failed'}
               </Text>
             )}
+            {isPartial && (
+              <Text fontSize="$2" color="$orange10">
+                Some keysets need another scan. Recovered funds are saved.
+              </Text>
+            )}
             {isPending && (
               <Text fontSize="$2" color="$gray10">
                 Waiting to scan…
@@ -78,7 +87,7 @@ function MintProgressItem({
             )}
             {isActive && (
               <Text fontSize="$2" color="$gray10" fontWeight="600">
-                Scanning keysets…
+                {entry.slow ? 'Still scanning. This mint is taking longer…' : 'Scanning keysets…'}
               </Text>
             )}
           </YStack>
@@ -110,6 +119,7 @@ function MintProgressItem({
 }
 
 export default function RestoreProgressCard() {
+  const router = useRouter();
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
   const isRestoring = useWalletStore((s) => s.isRestoring);
@@ -133,12 +143,15 @@ export default function RestoreProgressCard() {
     }
   }, [isRestoring, mintRestoreStatuses.length]);
 
-  if (!isRestoring || mintRestoreStatuses.length === 0) {
+  const hasIssues = mintRestoreStatuses.some(
+    (entry) => entry.status === 'partial' || entry.status === 'error',
+  );
+  if ((!isRestoring && !hasIssues) || mintRestoreStatuses.length === 0) {
     return null;
   }
 
   const doneCount = mintRestoreStatuses.filter(
-    (e) => e.status === 'done' || e.status === 'error',
+    (e) => e.status === 'done' || e.status === 'partial' || e.status === 'error',
   ).length;
   const totalCount = mintRestoreStatuses.length;
 
@@ -172,14 +185,20 @@ export default function RestoreProgressCard() {
         <XStack items="flex-start" justify="space-between">
           <XStack items="flex-start" gap="$2.5" flex={1}>
             <View p="$2" bg="$gray3" rounded="$3" items="center" justify="center">
-              <Spinner size={20} color="$iconSecondary" />
+              {isRestoring ? (
+                <Spinner size={20} color="$iconSecondary" />
+              ) : (
+                <AlertCircle size={20} color="$orange10" />
+              )}
             </View>
             <YStack flex={1} gap="$0.5">
               <H6 color="$color" fontWeight="600">
-                Restoring Wallet Balances
+                {isRestoring ? 'Restoring Wallet Balances' : 'Recovery needs review'}
               </H6>
               <Text fontSize="$2" overflow="hidden" color="$gray10" lineHeight={16}>
-                Scanning {currentMintHost}… ({doneCount}/{totalCount} done)
+                {isRestoring
+                  ? `Scanning ${currentMintHost}… (${doneCount}/${totalCount} done)`
+                  : 'Recovered funds are saved. Review incomplete mint scans.'}
               </Text>
             </YStack>
           </XStack>
@@ -222,6 +241,18 @@ export default function RestoreProgressCard() {
               })}
             </YStack>
           </BottomSheetScrollView>
+          {!isRestoring && hasIssues && (
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              onPress={() => {
+                sheetRef.current?.dismiss();
+                router.push('/(tabs)/settings/recover-funds');
+              }}
+            >
+              Recover funds
+            </AppButton>
+          )}
         </YStack>
       </AppBottomSheet>
     </>

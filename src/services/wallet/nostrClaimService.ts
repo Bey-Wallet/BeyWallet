@@ -1,3 +1,4 @@
+import { recoveryCoordinator } from './recoveryCoordinator';
 import { AppState, type AppStateStatus, DeviceEventEmitter } from 'react-native';
 import { nip19 } from 'nostr-tools';
 import { getTokenMetadata } from '@cashu/cashu-ts';
@@ -103,7 +104,24 @@ class NostrClaimService {
   private policyWorkQueued = false;
   private generation = 0;
 
+  private pendingPass: Promise<void> | null = null;
+  private pendingAgain = false;
+
+  constructor() {
+    recoveryCoordinator.registerDrain(async () => {
+      await this.pendingPass;
+      await this.queue;
+    });
+    recoveryCoordinator.subscribe(() => {
+      if (recoveryCoordinator.paused) {
+        if (this.retryTimer) clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+      } else if (this.running) void this.processPending();
+    });
+  }
+
   public start(privateKeyHex: string): void {
+    if (this.running && this.privateKeyHex === privateKeyHex) return;
     this.stop();
     this.privateKeyHex = privateKeyHex;
     this.running = true;
@@ -173,11 +191,11 @@ class NostrClaimService {
   }
 
   public enqueue(eventId: string): Promise<NostrClaimResult> {
-    return this.enqueueTask(() => this.claim(eventId, {}));
+    return this.enqueueTask(() => this.claim(eventId, {}), eventId);
   }
 
   public retry(eventId: string, options: NostrClaimRetryOptions = {}): Promise<NostrClaimResult> {
-    return this.enqueueTask(() => this.claim(eventId, { ...options, force: true }));
+    return this.enqueueTask(() => this.claim(eventId, { ...options, force: true }), eventId);
   }
 
   /** Read-only receipt recovery: spent proofs alone never prove receipt ownership. */
@@ -238,12 +256,40 @@ class NostrClaimService {
         /* Unavailable local history or mint: leave receipt uncertainty intact. */
       }
       return { eventId, status: 'deferred' };
-    });
+    }, eventId);
   }
 
-  public async processPending(): Promise<void> {
-    if (!this.running || !this.privateKeyHex || !contactPolicyReady()) return;
+  public processPending(): Promise<void> {
+    if (this.pendingPass) {
+      this.pendingAgain = true;
+      return this.pendingPass;
+    }
+    const pass = Promise.resolve()
+      .then(async () => {
+        do {
+          this.pendingAgain = false;
+          await this.processPendingPass(this.generation);
+        } while (this.pendingAgain && this.running && !recoveryCoordinator.paused);
+      })
+      .finally(() => {
+        if (this.pendingPass === pass) this.pendingPass = null;
+      });
+    this.pendingPass = pass;
+    return pass;
+  }
+
+  private async processPendingPass(generation: number): Promise<void> {
+    if (
+      generation !== this.generation ||
+      recoveryCoordinator.paused ||
+      !this.running ||
+      !this.privateKeyHex ||
+      !contactPolicyReady()
+    )
+      return;
+    if (this.canUseWallet()) return;
     for (const item of useNostrInboxStore.getState().items) {
+      if (generation !== this.generation || recoveryCoordinator.paused) return;
       if (
         item.type !== 'request' &&
         ((item.status === 'claimed' && !item.receiptVerified) ||
@@ -280,13 +326,22 @@ class NostrClaimService {
       .sort((a, b) => a.receivedAt - b.receivedAt);
 
     for (const item of items) {
+      if (generation !== this.generation || recoveryCoordinator.paused) return;
       await this.enqueue(item.id);
     }
     this.scheduleNextRetry();
   }
 
-  private enqueueTask(task: () => Promise<NostrClaimResult>): Promise<NostrClaimResult> {
-    const result = this.queue.then(task, task);
+  private enqueueTask(
+    task: () => Promise<NostrClaimResult>,
+    eventId: string,
+  ): Promise<NostrClaimResult> {
+    const generation = this.generation;
+    const guarded = (): Promise<NostrClaimResult> =>
+      generation !== this.generation || recoveryCoordinator.paused
+        ? Promise.resolve({ eventId, status: 'deferred' })
+        : task();
+    const result = this.queue.then(guarded, guarded);
     this.queue = result.then(
       () => undefined,
       () => undefined,
@@ -305,7 +360,12 @@ class NostrClaimService {
   }
 
   private canUseWallet(): NostrClaimFailure | null {
-    if (!this.running || !this.privateKeyHex || !initService.isInitialized()) {
+    if (
+      recoveryCoordinator.paused ||
+      !this.running ||
+      !this.privateKeyHex ||
+      !initService.isInitialized()
+    ) {
       return {
         code: 'wallet_unavailable',
         message: 'Wallet is not ready yet.',
@@ -506,7 +566,7 @@ class NostrClaimService {
 
   private scheduleNextRetry(): void {
     if (this.retryTimer) clearTimeout(this.retryTimer);
-    if (!this.running) return;
+    if (!this.running || recoveryCoordinator.paused) return;
     const next = useNostrInboxStore
       .getState()
       .items.filter(

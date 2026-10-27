@@ -31,10 +31,12 @@ export function RootLayout() {
   useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
-    BeyFunnelDisplayRegular: require('~/assets/fonts/BeyFunnelDisplay-Regular.ttf'),
-    BeyFunnelDisplayMedium: require('~/assets/fonts/BeyFunnelDisplay-Medium.ttf'),
-    BeyFunnelDisplaySemiBold: require('~/assets/fonts/BeyFunnelDisplay-SemiBold.ttf'),
-    Mono: require('~/assets/fonts/Mono.otf'),
+    InterTextRegular: require('~/assets/fonts/InterText-Regular.ttf'),
+    InterTextMedium: require('~/assets/fonts/InterText-Medium.ttf'),
+    InterTextSemiBold: require('~/assets/fonts/InterText-SemiBold.ttf'),
+    InterDisplayRegular: require('~/assets/fonts/InterDisplay-Regular.ttf'),
+    InterDisplayMedium: require('~/assets/fonts/InterDisplay-Medium.ttf'),
+    InterDisplaySemiBold: require('~/assets/fonts/InterDisplay-SemiBold.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

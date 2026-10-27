@@ -1,3 +1,4 @@
+import { recoveryCoordinator, yieldWalletWork } from '~/services/wallet/recoveryCoordinator';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
@@ -8,13 +9,14 @@ import { DEFAULT_MINT } from '~/state/constants';
 import { InteractionManager } from 'react-native';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
-export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'error';
+export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'partial' | 'error';
 export type MintRecoveryResult = 'completed' | 'partial' | 'queued' | 'failed';
 
 export interface MintRestoreEntry {
   mintUrl: string;
   status: MintRestoreStatus;
   restoredBalance: number;
+  slow?: boolean;
   error?: string;
 }
 
@@ -145,11 +147,17 @@ export const useWalletStore = create<WalletState>()(
           // Defer keyset repair to background — never blocks startup
           // Only run if there are mints to repair
           if (allMints.length > 0) {
+            const generation = recoveryCoordinator.generation;
             InteractionManager.runAfterInteractions(async () => {
               try {
-                const repairResults = await Promise.all(
-                  allMints.map((mint) => mintManager.repairMintKeysets(mint.mintUrl, 'sat')),
-                );
+                const repairResults: boolean[] = [];
+                for (const mint of allMints) {
+                  if (generation !== recoveryCoordinator.generation) return;
+                  await recoveryCoordinator.maintenance(`repair:${mint.mintUrl}`, async () => {
+                    repairResults.push(await mintManager.repairMintKeysets(mint.mintUrl, 'sat'));
+                  });
+                }
+                if (generation !== recoveryCoordinator.generation) return;
                 if (repairResults.some((r) => r === true)) {
                   console.log('[WalletStore] Keysets repaired in background, refreshing...');
                   await get().refreshBalance();
@@ -191,7 +199,11 @@ export const useWalletStore = create<WalletState>()(
           // This matches Sovran — addMint never blocks the UI thread
           InteractionManager.runAfterInteractions(() => {
             console.log(`[WalletStore] 🔄 Background: repair keysets for: ${url}`);
-            mintManager.repairMintKeysets(url, 'sat').catch(console.warn);
+            void recoveryCoordinator
+              .maintenance(`repair:${url}`, async () => {
+                await mintManager.repairMintKeysets(url, 'sat');
+              })
+              .catch(() => console.warn('[WalletStore] Keyset repair failed.'));
             get().syncMintsToNostr();
           });
         } catch (err: any) {
@@ -254,71 +266,12 @@ export const useWalletStore = create<WalletState>()(
       },
 
       restoreFromSeed: async (mintUrl: string) => {
-        const state = get();
-        if (state.restoreQueue.includes(mintUrl)) return 'queued';
-
-        set({ restoreQueue: [...state.restoreQueue, mintUrl] });
-
-        if (state.isRestoring || state.restoreQueue.length > 1) {
-          console.log(`[WalletStore] ${mintUrl} added to background sync queue`);
+        if (get().restoreQueue.includes(mintUrl)) return 'queued';
+        const alreadyRunning = get().restoreQueue.length > 0;
+        const result = queueMintRecovery(mintUrl);
+        if (alreadyRunning) {
+          void result;
           return 'queued';
-        }
-
-        let result: MintRecoveryResult = 'completed';
-        while (get().restoreQueue.length > 0) {
-          const nextUrl = get().restoreQueue[0];
-          let timeout: ReturnType<typeof setTimeout> | undefined;
-          try {
-            set({
-              isRestoring: true,
-              restoringMintUrl: nextUrl,
-              restoringMintKeysetProgress: null,
-            });
-
-            // Wait for all React Native animations/sheet transitions to complete
-            // before starting heavy restore work — same philosophy as Sovran
-            await new Promise<void>((resolve) => InteractionManager.runAfterInteractions(resolve));
-
-            console.log(`[WalletStore] 🔄 Deterministic Restore: ${nextUrl}`);
-
-            // Ensure we have all current keysets for this mint
-            await mintManager.addMint(nextUrl, { trusted: true });
-
-            // Perform NIP-06 deterministic restore (10 min safety timeout)
-            const timeoutPromise = new Promise<never>(
-              (_, reject) =>
-                (timeout = setTimeout(
-                  () => reject(new Error('Deep restore timed out after 10 minutes')),
-                  600000,
-                )),
-            );
-
-            const report = await Promise.race([walletService.restore(nextUrl), timeoutPromise]);
-            if (nextUrl === mintUrl && report?.partial) result = 'partial';
-
-            console.log(`[WalletStore] ✅ Restore complete for: ${nextUrl}`);
-          } catch (err: any) {
-            if (nextUrl === mintUrl) result = 'failed';
-            console.warn(`[WalletStore] ⚠️ Restore partial/failed for ${nextUrl}:`, err?.message);
-          } finally {
-            if (timeout) clearTimeout(timeout);
-            // Rescue any valid proofs stuck in 'inflight' state
-            await walletService.restoreInflightProofs(nextUrl);
-
-            // Refresh balances to show restored funds — no reinit needed,
-            // the SDK's watchers continue working without a restart
-            await get().refreshBalance();
-
-            set((s) => ({
-              restoreQueue: s.restoreQueue.filter((u) => u !== nextUrl),
-              isRestoring: false,
-              restoringMintUrl: null,
-              restoringMintKeysetProgress: null,
-            }));
-
-            // Yield before processing next mint in queue
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
         }
         return result;
       },
@@ -395,86 +348,32 @@ export const useWalletStore = create<WalletState>()(
        * + any extra mint URLs passed in (e.g. from a backup file).
        * Populates mintRestoreStatuses for progress UI.
        */
-      restoreAllMints: async (extraMintUrls: string[] = []) => {
-        // Feature/Popular mints to check by default to aid discovery
-        const FEATURED_MINTS = ['https://mint.minibits.cash/Bitcoin'];
-
-        // Build deduplicated list of mints to restore
-        const urlSet = new Set<string>([DEFAULT_MINT, ...FEATURED_MINTS, ...extraMintUrls]);
-        try {
-          const trustedMints = await mintManager.getAllTrustedMints();
-          for (const m of trustedMints) urlSet.add(m.mintUrl);
-        } catch (e) {
-          console.warn('[WalletStore] Could not fetch trusted mints for restore:', e);
+      restoreAllMints: (extraMintUrls: string[] = []) => {
+        if (batchRestore) {
+          return Promise.all([batchRestore, ...extraMintUrls.map(queueMintRecovery)]).then(
+            () => undefined,
+          );
         }
-
-        const mintUrls = Array.from(urlSet);
-
-        // Initialise status entries
-        set({
-          mintRestoreStatuses: mintUrls.map((url) => ({
-            mintUrl: url,
-            status: 'pending',
-            restoredBalance: 0,
-          })),
-          isRestoring: true,
-        });
-
-        // Process sequentially to prevent DB locking and UI freezes from heavy crypto operations
-        for (const mintUrl of mintUrls) {
-          // Mark as scanning
-          set((s) => ({
-            mintRestoreStatuses: s.mintRestoreStatuses.map((e) =>
-              e.mintUrl === mintUrl ? { ...e, status: 'scanning' } : e,
-            ),
-            restoringMintUrl: mintUrl, // purely aesthetic, tracks the last one
-          }));
-
+        const resume = recoveryCoordinator.pause();
+        const generation = recoveryCoordinator.generation;
+        batchRestore = (async () => {
+          const urls = new Set([
+            DEFAULT_MINT,
+            'https://mint.minibits.cash/Bitcoin',
+            ...extraMintUrls,
+          ]);
           try {
-            // Ensure mint is added and trusted before restoring
-            await mintManager.addMint(mintUrl, { trusted: true });
-
-            // Restore with a strict 12-second timeout to prevent unresponsive or slow mints from blocking onboarding forever
-            const restorePromise = walletService.restore(mintUrl);
-            await Promise.race([
-              restorePromise,
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Restore timeout')), 12000),
-              ),
-            ]);
-
-            // Get restored balance for this mint
-            const allBalances = await walletService.getBalances();
-            const restoredBalance = allBalances[mintUrl] ?? 0;
-
-            set((s) => ({
-              mintRestoreStatuses: s.mintRestoreStatuses.map((e) =>
-                e.mintUrl === mintUrl ? { ...e, status: 'done', restoredBalance } : e,
-              ),
-            }));
-          } catch (err: any) {
-            console.warn(`[WalletStore] Restore failed for ${mintUrl}:`, err?.message);
-            set((s) => ({
-              mintRestoreStatuses: s.mintRestoreStatuses.map((e) =>
-                e.mintUrl === mintUrl ? { ...e, status: 'error', error: err?.message } : e,
-              ),
-            }));
+            for (const mint of await mintManager.getAllTrustedMints()) urls.add(mint.mintUrl);
+          } catch {
+            console.warn('[WalletStore] Could not load trusted mints for recovery.');
           }
-
-          // Small delay to let the UI breathe and update animations between heavy tasks
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-
-        // Re-initialize the core Manager to pick up all restored counters and proofs
-        // FAST path to keep UI alive
-        console.log('[WalletStore] Batch restore complete. Syncing Manager...');
-        await initService.reinitFast();
-
-        // Final refresh
-        await get().refreshBalance();
-        const mintInfos = await mintManager.getMintInfoList();
-        set({ isRestoring: false, restoringMintUrl: null, mints: mintInfos });
-        console.log('[WalletStore] ✅ All mints restored');
+          if (generation !== recoveryCoordinator.generation) return;
+          await Promise.all([...urls].map(queueMintRecovery));
+        })().finally(() => {
+          batchRestore = null;
+          resume();
+        });
+        return batchRestore;
       },
 
       setScannerResult: (result: string | null) => {
@@ -640,39 +539,41 @@ export const useWalletStore = create<WalletState>()(
         const activeUrl = get().activeMintUrl;
         if (!activeUrl || !initService.isInitialized()) return;
 
-        try {
-          const repo = initService.getRepo();
-          const m = initService.getManager() as any;
-          const readyProofs = await repo.proofRepository.getReadyProofs(activeUrl);
-          if (readyProofs.length === 0) return;
+        return recoveryCoordinator.maintenance(`cleanup:${activeUrl}`, async () => {
+          try {
+            const repo = initService.getRepo();
+            const m = initService.getManager() as any;
+            const readyProofs = await repo.proofRepository.getReadyProofs(activeUrl);
+            if (readyProofs.length === 0) return;
 
-          console.log(
-            `[WalletStore] Checking spendable state for ${readyProofs.length} ready proofs on ${activeUrl}...`,
-          );
-          const wallet = new Wallet(new CashuMint(activeUrl));
-          const states = await wallet.checkProofsStates(
-            readyProofs.map((p) => ({ secret: p.secret, amount: p.amount, C: p.C, id: p.id })),
-          );
-
-          const spentSecrets: string[] = [];
-          states.forEach((s, idx) => {
-            if (s.state === 'SPENT') {
-              spentSecrets.push(readyProofs[idx].secret);
-            }
-          });
-
-          if (spentSecrets.length > 0) {
             console.log(
-              `[WalletStore] Found ${spentSecrets.length} spent proofs locally. Setting them to spent...`,
+              `[WalletStore] Checking spendable state for ${readyProofs.length} ready proofs on ${activeUrl}...`,
             );
-            await m.proofService.setProofState(activeUrl, spentSecrets, 'spent');
-            await get().refreshBalance();
-          } else {
-            console.log('[WalletStore] All local proofs are fresh and unspent!');
+            const wallet = new Wallet(new CashuMint(activeUrl));
+            const states = await wallet.checkProofsStates(
+              readyProofs.map((p) => ({ secret: p.secret, amount: p.amount, C: p.C, id: p.id })),
+            );
+
+            const spentSecrets: string[] = [];
+            states.forEach((s, idx) => {
+              if (s.state === 'SPENT') {
+                spentSecrets.push(readyProofs[idx].secret);
+              }
+            });
+
+            if (spentSecrets.length > 0) {
+              console.log(
+                `[WalletStore] Found ${spentSecrets.length} spent proofs locally. Setting them to spent...`,
+              );
+              await m.proofService.setProofState(activeUrl, spentSecrets, 'spent');
+              await get().refreshBalance();
+            } else {
+              console.log('[WalletStore] All local proofs are fresh and unspent!');
+            }
+          } catch (e) {
+            console.warn('[WalletStore] Failed to clean spent proofs:', e);
           }
-        } catch (e) {
-          console.warn('[WalletStore] Failed to clean spent proofs:', e);
-        }
+        });
       },
     }),
     {
@@ -687,3 +588,78 @@ export const useWalletStore = create<WalletState>()(
     },
   ),
 );
+
+let batchRestore: Promise<void> | null = null;
+
+function queueMintRecovery(mintUrl: string): Promise<MintRecoveryResult> {
+  if (recoveryCoordinator.has(mintUrl)) {
+    return recoveryCoordinator.enqueue(mintUrl, async () => 'failed' as MintRecoveryResult);
+  }
+  const store = useWalletStore;
+  store.setState((state) => ({
+    isRestoring: true,
+    restoreQueue: [...state.restoreQueue, mintUrl],
+    mintRestoreStatuses: [
+      ...state.mintRestoreStatuses.filter((entry) => entry.mintUrl !== mintUrl),
+      { mintUrl, status: 'pending', restoredBalance: 0 },
+    ],
+  }));
+  const updateEntry = (change: Partial<MintRestoreEntry>) =>
+    store.setState((state) => ({
+      mintRestoreStatuses: state.mintRestoreStatuses.map((entry) =>
+        entry.mintUrl === mintUrl ? { ...entry, ...change } : entry,
+      ),
+    }));
+  const finish = () =>
+    store.setState((state) => {
+      const restoreQueue = state.restoreQueue.filter((url) => url !== mintUrl);
+      return {
+        restoreQueue,
+        isRestoring: restoreQueue.length > 0,
+        restoringMintUrl: null,
+        restoringMintKeysetProgress: null,
+      };
+    });
+  return recoveryCoordinator
+    .enqueue(mintUrl, async (): Promise<MintRecoveryResult> => {
+      let result: MintRecoveryResult = 'completed';
+      store.setState({ restoringMintUrl: mintUrl, restoringMintKeysetProgress: null });
+      updateEntry({ status: 'scanning', slow: false, error: undefined });
+      const slow = setTimeout(() => updateEntry({ slow: true }), 12_000);
+      try {
+        await new Promise<void>((resolve) => InteractionManager.runAfterInteractions(resolve));
+        await mintManager.addMint(mintUrl, { trusted: true });
+        const report = await walletService.restore(mintUrl);
+        result = report.partial ? 'partial' : 'completed';
+        updateEntry({
+          status: report.partial ? 'partial' : 'done',
+          error: report.partial ? 'Some keysets could not be scanned. Retry recovery.' : undefined,
+        });
+      } catch {
+        result = 'failed';
+        updateEntry({
+          status: 'error',
+          error: 'Recovery could not finish. Retry when the mint is available.',
+        });
+        // Retain the existing failure recovery path, after the scan has actually settled.
+        await walletService.restoreInflightProofs(mintUrl).catch(() => undefined);
+      } finally {
+        clearTimeout(slow);
+        try {
+          await store.getState().refreshBalance();
+          const balances = await walletService.getBalances();
+          updateEntry({ restoredBalance: balances[mintUrl] ?? 0, slow: false });
+          await store.getState().refreshMintList();
+        } finally {
+          finish();
+        }
+        await yieldWalletWork();
+      }
+      return result;
+    })
+    .catch(() => {
+      updateEntry({ status: 'error', error: 'Wallet is unavailable. Retry recovery.' });
+      finish();
+      return 'failed';
+    });
+}

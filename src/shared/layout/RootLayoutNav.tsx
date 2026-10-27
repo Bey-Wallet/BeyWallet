@@ -36,7 +36,7 @@ export function RootLayoutNav() {
   const theme = useTheme();
   const { isAuthenticated, setAuthenticated, lock, markBackgrounded } = useAuthStore();
   const { isOnboarded } = useOnboardingStore();
-  const { biometricEnabled } = useSettingsStore();
+  const biometricEnabled = useSettingsStore((state) => state.biometricEnabled);
   const appState = useRef(AppState.currentState);
   const router = useRouter();
 
@@ -191,10 +191,10 @@ export function RootLayoutNav() {
     ...(resolvedTheme === 'dark' ? DarkTheme : DefaultTheme),
     // Registered static faces already contain their weight; avoid Android fallback/synthesis.
     fonts: {
-      regular: { fontFamily: 'BeyFunnelDisplayRegular', fontWeight: 'normal' as const },
-      medium: { fontFamily: 'BeyFunnelDisplayMedium', fontWeight: 'normal' as const },
-      bold: { fontFamily: 'BeyFunnelDisplaySemiBold', fontWeight: 'normal' as const },
-      heavy: { fontFamily: 'BeyFunnelDisplaySemiBold', fontWeight: 'normal' as const },
+      regular: { fontFamily: 'InterTextRegular', fontWeight: 'normal' as const },
+      medium: { fontFamily: 'InterTextMedium', fontWeight: 'normal' as const },
+      bold: { fontFamily: 'InterTextSemiBold', fontWeight: 'normal' as const },
+      heavy: { fontFamily: 'InterTextSemiBold', fontWeight: 'normal' as const },
     },
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
@@ -217,8 +217,8 @@ export function RootLayoutNav() {
       <YStack flex={1} bg="$background">
         <Stack
           screenOptions={{
-            headerTitleStyle: { fontFamily: 'BeyFunnelDisplayMedium', fontWeight: 'normal' },
-            headerBackTitleStyle: { fontFamily: 'BeyFunnelDisplayRegular' },
+            headerTitleStyle: { fontFamily: 'InterTextSemiBold', fontWeight: 'normal' },
+            headerBackTitleStyle: { fontFamily: 'InterTextRegular' },
             contentStyle: {
               backgroundColor: theme.background?.val,
             },

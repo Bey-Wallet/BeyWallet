@@ -38,11 +38,6 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
       requiresApproval?: boolean;
     }
   > = {
-    'display-unit': {
-      checked: settings.primaryCurrency === 'FIAT',
-      description: 'Use fiat currency instead of Sat',
-      save: (next) => settings.setPrimaryCurrency(next ? 'FIAT' : 'SATS'),
-    },
     'bitcoin-symbol': {
       checked: settings.showBitcoinSymbol,
       description: 'Use ₿ instead of the sat label',

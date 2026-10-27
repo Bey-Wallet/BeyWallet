@@ -2,7 +2,16 @@
 
 Investigation date: 23 October 2026.
 
-Status: source audit complete; remediation and device validation have not started.
+Status (27 October 2026): remediation implemented with local regression coverage;
+ordinary preview device comparisons remain pending. The findings below describe the
+original implementation; the implementation record describes the changes.
+
+Device procedure: [restore, Nostr and Home acceptance checks](../restore-and-home-acceptance.md).
+Final review corrected the seed-import completion handler to acquire its pause before
+initialization, in addition to resume setup. Rendered onboarding regressions verify
+pause handoff to the full recovery queue and release on initialization failure. Partial
+recovery balances are included in the onboarding total. The final focused run covering
+recovery, Nostr, onboarding, fonts and Home passed 98 tests across 15 suites.
 
 ## Observed behavior and baseline
 
@@ -92,10 +101,86 @@ mint and eventually reinitialize the manager before earlier timed-out work settl
 This can defeat the intended sequential scanning. It does not, by itself, explain lag
 that survives a full app restart. Track and fix it separately from responsiveness work.
 
-## Proposed remediation sequence
+## Agreed remediation scope
 
 Implement each stage as a focused, independently reviewable change. Record correctness
 and responsiveness results before proceeding to the next stage.
+
+## Implementation record — 27 October 2026
+
+The user approved the recovery and Nostr scheduling plan. Recovery remains on the
+existing Coco stack, with unchanged derivation, 200-output batches, 200-counter gap,
+active/inactive SAT keyset coverage, proof checks and counter handling. No dependency
+or native implementation changes were made.
+
+- Both recovery entry points use a shared serialized queue with mint deduplication.
+  Slow scans stay exclusive until the underlying scan settles. The 12-second timer
+  displays a slow-mint message; it no longer abandons an operation. Partial keyset
+  failures remain visible, with saved results retained. Batch completion refreshes
+  the existing manager rather than replacing it.
+- Seed import acquires the Nostr pause before initialization. Existing-wallet recovery
+  pauses incoming event processing and new claims, drains submitted work, and defers
+  maintenance. Essential backup mint discovery remains available. Resume respects
+  foreground state, authentication, wallet identity and the complete queue.
+- Manager cleanup/replacement rejects requests during queued or active scans, pauses
+  background processing and invalidates deferred callbacks. Internal keyset-repair
+  reinitialization avoids waiting on the claim that requested it. Wallet deletion
+  clears recovery UI state before a subsequent wallet starts.
+- Nostr events run serially with event-loop yields and queued-ID deduplication. The
+  existing seven-day replay window and payment validation remain intact. Same-identity
+  starts preserve a healthy listener; reconnect requests coalesce and preserve session
+  event deduplication. Routine event/payment-content logs were removed.
+- Message insertion reports whether a row was inserted. Duplicate text/payment copies
+  skip repeated contact and list updates. Message refreshes use one active read plus a
+  trailing read, publishing only changed results and rejecting old-session results.
+- Startup keyset repair runs sequentially; proof cleanup is single-flight per mint with
+  a trailing run. Maintenance waits through recovery. Theme/navigation subscriptions
+  are narrowed. Unchanged serialized wallet snapshots skip SQLite writes; changed
+  persistent data still saves synchronously and failed wallet writes are surfaced.
+- Loaded recovery keys are reused; missing keys are fetched only for keysets eligible
+  for the existing SAT path. Work yields between keysets and mint jobs. JavaScript
+  cryptography itself still runs on the JavaScript thread.
+
+Local validation uses synthetic fixtures: slow scans exceeding both former timeouts,
+late completion, duplicate requests, partial keyset failures, SDK result retention,
+protected proofs/history, maintenance invalidation across wallet changes, Nostr bursts,
+failed-event retries, duplicate insertion, active-claim draining, pause/auth/foreground
+eligibility, trailing message refreshes and immediate changed-snapshot persistence.
+These fixtures verify scheduling and wrapper behavior; they do not establish real-mint
+cryptographic correctness or device performance.
+
+The full-suite run exposed four unrelated failing suites, reproduced independently on
+an untouched `HEAD` archive using the same installed dependencies: `appearance` (font
+expectations), `mint-details-screen` (14 vs 22 icon size), `mint-url-navigation` (missing
+Tamagui mock), and `header-navigation` (native NFC emitter mock). These are outside this
+change. The reconnect test was updated for the intentional 250-ms coalescing delay.
+The final full run reports 146 passing suites and 5 failing suites (1,237 passing tests,
+11 failures). The fifth suite, `font-assets`, fails on unrelated working-tree font
+replacements missing the full-width yen glyph; its four tests pass on the untouched
+archive. Those font files were left untouched by this work.
+
+The final focused recovery/Nostr/storage run passed all 74 tests across 10 suites.
+`yarn typecheck`, `yarn check:buttons`, `yarn check:structure` (72 routes), scoped Prettier
+checks and `git diff --check` passed.
+
+Changed implementation files are `recoveryCoordinator.ts`, `walletService.ts`,
+`initService.ts`, `nostrService.ts`, `nostrClaimService.ts`, `walletStore.ts`,
+`messageStore.ts`, `nostrInboxStore.ts`, `MessageRepository.ts`, `sqliteStorage.ts`,
+`ThemeContext.tsx`, `RootLayoutNav.tsx`, onboarding `index.tsx` and
+`RestoreProgressStep.tsx`, `RestoreProgressCard.tsx`, and `RecoverFundsScreen.tsx`.
+Regression coverage is in `recovery-coordinator`, `wallet-recovery-service`,
+`wallet-recovery-result`, `nostr-work-scheduling`, `nostr-chat-service`,
+`nostr-claim-service`, `nostr-relay-settings`, `message-refresh`,
+`wallet-snapshot-storage`, and integration `messages` tests.
+
+Device measurements are not available. Before acceptance, compare ordinary preview
+builds on the same device, network, mints and affected wallet. Record time until the
+first recovered balance, total scan time, responsiveness during scans, and interaction
+latency after catch-up settles. Repeat with a fresh wallet. No speedup percentage is
+claimed. If cryptography remains dominant, use those results to scope off-thread/native
+work separately.
+
+## Original remediation stages (reference)
 
 ### Stage 1: control Nostr processing
 
@@ -184,6 +269,8 @@ published as part of creating this document.
 | Restored wallet: sheets and scrolling             | Sheet opening reported delayed; scrolling unmeasured | Not tested        | Device validation required  |
 | Restored wallet: full app restart                 | Lag reportedly persists                              | Not tested        | Device validation required  |
 | Fresh wallet responsiveness                       | User reports normal behavior                         | Not tested        | Retain as comparison        |
+| First recovered balance / total scan duration     | Not measured                                         | Not tested        | Same-wallet timing required |
+| Responsiveness while recovering / catching up     | User reports lag                                     | Not tested        | Device validation required  |
 | Payment, NFC, biometric, and recovery correctness | Not established by this audit                        | Not tested        | Separate correctness checks |
 
 Without tracing, report these as repeatable qualitative observations rather than
@@ -195,12 +282,12 @@ device responsiveness.
 - [x] Record user observations and tested APK identity.
 - [x] Audit wallet-dependent background work and shared interaction paths.
 - [x] Separate verified code behavior from unconfirmed performance hypotheses.
-- [ ] Implement and validate Stage 1.
-- [ ] Implement and validate Stage 2.
-- [ ] Implement and validate Stage 3.
-- [ ] Review Stage 4 separately and obtain approval for recovery-semantic changes.
+- [x] Implement Stage 1 with automated regression coverage.
+- [x] Implement Stage 2 with automated regression coverage.
+- [x] Implement Stage 3 for message updates, wallet persistence and theme/navigation subscriptions.
+- [x] Obtain explicit approval and implement recovery lifecycle coordination (Stage 4).
 - [ ] Compare a candidate ordinary preview on the affected restored wallet.
-- [ ] Record completed changes, checks, limitations, and remaining symptoms here.
+- [x] Record completed changes, local checks and limitations here.
 
 Remaining unknowns include the affected wallet's mint/proof/activity counts, event
 replay volume, frequency of balance refreshes, database contention, and time spent in

@@ -82,11 +82,29 @@ export const appRadii = { tiny: 4, small: 8, control: 12, card: 16, sheet: 20 } 
 export const appSpacing = { tiny: 2, small: 4, compact: 8, gap: 12, page: 16, large: 32 } as const;
 export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
 
-/** Shared text metrics for the bundled Bey Funnel Display family. */
+/** Shared metrics: Inter Text for UI copy, Inter Display for large text and amounts. */
 export const appTypography = {
-  display: { fontSize: 40, lineHeight: 50, fontWeight: '500', letterSpacing: -1.5 },
-  amount: { fontSize: 32, lineHeight: 40, fontWeight: '500', letterSpacing: 0 },
-  title1: { fontSize: 32, lineHeight: 40, fontWeight: '600', letterSpacing: 0 },
+  display: {
+    fontFamily: '$display',
+    fontSize: 40,
+    lineHeight: 50,
+    fontWeight: '600',
+    letterSpacing: -1.5,
+  },
+  amount: {
+    fontFamily: '$display',
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '600',
+    letterSpacing: 0,
+  },
+  title1: {
+    fontFamily: '$display',
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '600',
+    letterSpacing: 0,
+  },
   title2: { fontSize: 24, lineHeight: 32, fontWeight: '600', letterSpacing: 0 },
   title3: { fontSize: 20, lineHeight: 28, fontWeight: '600', letterSpacing: 0 },
   label1: { fontSize: 16, lineHeight: 24, fontWeight: '500', letterSpacing: 0.08 },
@@ -96,7 +114,7 @@ export const appTypography = {
   body2: { fontSize: 14, lineHeight: 20, fontWeight: '400', letterSpacing: 0.07 },
   body3: { fontSize: 12, lineHeight: 16, fontWeight: '400', letterSpacing: 0.12 },
   caption: { fontSize: 10, lineHeight: 14, fontWeight: '500', letterSpacing: 0.1 },
-  mono: { fontSize: 16, lineHeight: 24, fontWeight: '500', letterSpacing: 0.5 },
+  mono: { fontSize: 16, lineHeight: 24, fontWeight: '400', letterSpacing: 0.5 },
 } as const;
 
 export function createAppColorTheme(appearance: keyof typeof appColors) {

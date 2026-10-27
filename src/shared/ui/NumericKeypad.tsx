@@ -47,7 +47,13 @@ const NumButton = React.memo(
       justify="center"
       gap={8}
     >
-      <Text fontSize={32} fontVariant={['tabular-nums']} fontWeight="500" color="$color">
+      <Text
+        fontFamily="$display"
+        fontSize={32}
+        fontVariant={['tabular-nums']}
+        fontWeight="500"
+        color="$color"
+      >
         {digit}
       </Text>
     </AppPressable>
@@ -120,7 +126,7 @@ export function NumericKeypad({
       {showAmountDisplay && (
         <YStack items="center" py="$6" gap="$1">
           <XStack items="baseline" gap="$2">
-            <Text fontSize={56} fontWeight="500" color={amountColor}>
+            <Text fontFamily="$display" fontSize={56} fontWeight="600" color={amountColor}>
               {value}
             </Text>
             <Text fontSize={20} fontWeight="500" color="$gray10" mb="$2">

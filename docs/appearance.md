@@ -29,12 +29,13 @@ active/inactive tab icons, and enabled/highlighted/disabled button states. Succe
 and error retain their semantic colors. Neutral cards use the base surface; branded secondary
 buttons use their own fill, avoiding gray backgrounds on large payment cards.
 
-Bey Funnel Display 400/500/600 is active. The 700 asset stays unregistered. Common text sizes
+Inter Text and Inter Display 400/500/600 are active, with tabular numbers, slashed zero,
+open digits (`ss01`) and disambiguation (`ss02`) enabled by default. Common text sizes
 use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
 primary text and 14-point secondary conversion text. Confirmation screens, final results, and
 transaction details use 40-point primary amounts and 16-point secondary conversions.
-Body text uses 400, labels use 500, and headings use 600. Explicit larger amount-input and
-screen-specific amount-entry sizes remain supported. Button labels use SemiBold (600).
+Body text uses 400, labels and buttons use 500, and headings and amounts use 600. Explicit larger amount-input and
+screen-specific amount-entry sizes remain supported. Button labels use Medium (500).
 
 Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Grouped
 cards retain 16-point outer corners and clipped rows; circular controls remain circular.
@@ -45,12 +46,19 @@ Explicit regular-size tables can use 16-point text and a 56-point minimum. The t
 plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Bey Funnel Display is the bundled family. Home balances and editable amount inputs retain their
+Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
+Home balances and editable amount inputs retain their
 existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
 component gallery or alternate root provider is required.
+
+Home's smaller balance is a neutral pill with a minimum 48-point touch area. Tapping
+it swaps the primary sats/fiat presentation using the existing saved display preference.
+Switching is disabled while balances are hidden; when fiat currency is None the pill
+is absent. Settings retains the fiat-currency picker and removes the redundant Display
+unit toggle. The Home-only visibility guard does not change other currency controls.
 
 Existing payment Status rows go first in their detail lists, before Mint, Date, fees, or token
 details. Completed success/failure screens retain the status above the amount without an extra

@@ -1,4 +1,5 @@
 import { usePeopleStore } from '~/state/peopleStore';
+import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import { nostrClaimService } from '~/services/wallet/nostrClaimService';
 import { mintManager } from '~/services/wallet/mintManager';
@@ -372,6 +373,41 @@ describe('nostrClaimService', () => {
     hydration.mockRestore();
     await nostrClaimService.processPending();
     expect(receive).toHaveBeenCalledTimes(1);
+  });
+
+  it('drains a submitted redemption before restoration and defers new claims', async () => {
+    addPayment('before-recovery');
+    let finish!: () => void;
+    let submitted!: () => void;
+    const began = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    receive.mockImplementationOnce(() => {
+      submitted();
+      return new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    });
+    const claiming = nostrClaimService.enqueue('before-recovery');
+    await began;
+    const scan = jest.fn(async () => undefined);
+    const restoration = recoveryCoordinator.enqueue('synthetic-mint', scan);
+    await Promise.resolve();
+    expect(scan).not.toHaveBeenCalled();
+    addPayment('during-recovery');
+    const deferred = nostrClaimService.enqueue('during-recovery');
+    finish();
+    await claiming;
+    expect(await deferred).toMatchObject({ status: 'deferred' });
+    await restoration;
+    expect(scan).toHaveBeenCalledTimes(1);
+    expect(
+      useNostrInboxStore.getState().items.find((item) => item.id === 'before-recovery')?.status,
+    ).toBe('claimed');
+    await nostrClaimService.processPending();
+    expect(
+      useNostrInboxStore.getState().items.find((item) => item.id === 'during-recovery')?.status,
+    ).toBe('claimed');
   });
 
   it('finishes redemption already submitted before a block', async () => {

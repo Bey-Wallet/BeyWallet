@@ -16,7 +16,9 @@ jest.mock('~/services/wallet/nostrClaimService', () => ({
 const mockRepository = {
   recover: jest.fn(async () => undefined),
   insert: jest.fn(async (message: ChatMessage) => {
-    if (!mockMessages.has(message.id)) mockMessages.set(message.id, { ...message });
+    if (mockMessages.has(message.id)) return false;
+    mockMessages.set(message.id, { ...message });
+    return true;
   }),
   findRequest: jest.fn(async () => undefined),
   setPublication: jest.fn(async (id: string, publication: ChatMessage['publication']) => {
@@ -27,7 +29,10 @@ const mockRepository = {
   }),
 };
 jest.mock('~/services/wallet/initService', () => ({
-  initService: { getRepo: () => ({ messageRepository: mockRepository }) },
+  initService: {
+    isInitialized: () => true,
+    getRepo: () => ({ messageRepository: mockRepository }),
+  },
 }));
 jest.mock('~/state/messageStore', () => ({
   useMessageStore: {
@@ -310,6 +315,9 @@ describe('persistent chat publication and sender copies', () => {
   });
 
   it('recovers interrupted publications on wallet startup and closes subscriptions on stop', async () => {
+    const { AppState } = require('react-native');
+    const previousAppState = AppState.currentState;
+    AppState.currentState = 'active';
     const close = jest.fn();
     const subscribe = jest.spyOn(service, '_subscribe').mockImplementation(() => {
       service.subscription = { close };
@@ -329,5 +337,6 @@ describe('persistent chat publication and sender copies', () => {
     advertise.mockRestore();
     reconnect.mockRestore();
     appState.mockRestore();
+    AppState.currentState = previousAppState;
   });
 });

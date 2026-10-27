@@ -53,18 +53,11 @@ it('edits binary preferences inline and keeps multi-choice preferences navigable
     tree = create(<SettingsCategoryScreen category="preferences" />);
   });
   const rows = tree.root.findAllByType(SettingsToggleRow);
-  expect(rows.map((row) => row.props.title)).toEqual([
-    'Display unit',
-    'Bitcoin symbol',
-    'Notifications',
-  ]);
+  expect(rows.map((row) => row.props.title)).toEqual(['Bitcoin symbol', 'Notifications']);
+  expect(mockSettings.setPrimaryCurrency).not.toHaveBeenCalled();
   await act(async () => rows[0].props.save(true));
-  expect(mockSettings.setPrimaryCurrency).toHaveBeenLastCalledWith('FIAT');
-  await act(async () => rows[0].props.save(false));
-  expect(mockSettings.setPrimaryCurrency).toHaveBeenLastCalledWith('SATS');
-  await act(async () => rows[1].props.save(true));
   expect(mockSettings.setShowBitcoinSymbol).toHaveBeenCalledWith(true);
-  await act(async () => rows[2].props.save(false));
+  await act(async () => rows[1].props.save(false));
   expect(mockSettings.setNotificationsEnabled).toHaveBeenCalledWith(false);
   expect(mockPush).not.toHaveBeenCalled();
   const navigation = tree.root.findAllByType('Row' as any);

@@ -20,7 +20,7 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
   const statusAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (entry.status === 'done' || entry.status === 'error') {
+    if (entry.status === 'done' || entry.status === 'partial' || entry.status === 'error') {
       Animated.spring(statusAnim, {
         toValue: 1,
         useNativeDriver: true,
@@ -41,6 +41,7 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
   const isActive = entry.status === 'scanning';
   const isDone = entry.status === 'done';
   const isError = entry.status === 'error';
+  const isPartial = entry.status === 'partial';
   const isPending = entry.status === 'pending';
 
   return (
@@ -69,6 +70,7 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
             </Animated.View>
           )}
           {isPending && <Clock size={20} color="$gray8" />}
+          {isPartial && <AlertCircle size={22} color="$orange10" />}
         </View>
 
         {/* Mint info */}
@@ -81,17 +83,21 @@ function MintRow({ entry }: { entry: MintRestoreEntry }) {
             color={isActive ? '$blue10' : isDone ? '$green10' : isError ? '$red10' : '$gray9'}
           >
             {isActive
-              ? 'Scanning for proofs…'
-              : isDone
-                ? `Restored`
-                : isError
-                  ? (entry.error ?? 'Failed')
-                  : 'Waiting…'}
+              ? entry.slow
+                ? 'Still scanning. This mint is taking longer…'
+                : 'Scanning for proofs…'
+              : isPartial
+                ? 'Some keysets need another scan. Recovered funds are saved.'
+                : isDone
+                  ? `Restored`
+                  : isError
+                    ? (entry.error ?? 'Failed')
+                    : 'Waiting…'}
           </Text>
         </YStack>
 
         {/* Balance badge */}
-        {isDone && entry.restoredBalance > 0 && (
+        {(isDone || isPartial) && entry.restoredBalance > 0 && (
           <XStack bg="$green4" rounded="$3" px="$2" py="$1" items="center" gap="$1">
             <Text fontSize="$3" fontWeight="800" color="$green10">
               {entry.restoredBalance.toLocaleString()}
@@ -119,16 +125,21 @@ export function RestoreProgressStep({
   totalRestoredSats,
   onDone,
 }: RestoreProgressStepProps) {
-  const doneMints = entries.filter((e) => e.status === 'done').length;
+  const doneMints = entries.filter((e) => ['done', 'partial', 'error'].includes(e.status)).length;
   const totalMints = entries.length;
   const allDone = !isRestoring && entries.length > 0;
+  const hasIssues = entries.some((entry) => entry.status === 'partial' || entry.status === 'error');
 
   // Haptic on completion
   useEffect(() => {
     if (allDone) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(
+        hasIssues
+          ? Haptics.NotificationFeedbackType.Warning
+          : Haptics.NotificationFeedbackType.Success,
+      );
     }
-  }, [allDone]);
+  }, [allDone, hasIssues]);
 
   // Auto-scroll to currently scanning mint
   const scrollViewRef = useRef<any>(null);
@@ -179,12 +190,18 @@ export function RestoreProgressStep({
 
         <YStack items="center" gap="$1">
           <H2 fontSize="$8" fontWeight="800" style={{ textAlign: 'center' }}>
-            {allDone ? 'Restore Complete' : 'Restoring Wallet'}
+            {allDone
+              ? hasIssues
+                ? 'Recovery needs review'
+                : 'Restore Complete'
+              : 'Restoring Wallet'}
           </H2>
           <Text color="$gray10" fontSize="$3" style={{ textAlign: 'center' }} px="$4">
-            {allDone
-              ? 'Your proofs have been recovered. You can always restore balances from other mints later by adding them in the app.'
-              : 'Scanning popular mints for your proofs. This may take a moment. You can also restore other mints later!'}
+            {allDone && hasIssues
+              ? 'Recovered funds are saved. Retry incomplete scans from Settings → Recover funds.'
+              : allDone
+                ? 'Your proofs have been recovered. You can always restore balances from other mints later by adding them in the app.'
+                : 'Scanning popular mints for your proofs. This may take a moment. You can also restore other mints later!'}
           </Text>
         </YStack>
 

@@ -1,3 +1,4 @@
+import { recoveryCoordinator, yieldWalletWork } from './recoveryCoordinator';
 import {
   decryptAuthenticated,
   createChatCopies,
@@ -135,7 +136,20 @@ class NostrService {
   private generation = 0;
   private connectedRelays: string[] = [];
 
+  private eventQueue = new Map<string, Event>();
+  private draining: Promise<void> | null = null;
+  private reconnectRequested: ReturnType<typeof setTimeout> | null = null;
+  private unsubscribeEligibility: (() => void)[] = [];
+  private appState: AppStateStatus = AppState.currentState || 'active';
+  private inboxPublicationNeeded = false;
+  private pendingNip05: string | undefined;
+  private advertisedNip05: string | undefined;
+  private chatNeedsInitialization = false;
+  private chatInitialization: Promise<void> | null = null;
+
   constructor() {
+    recoveryCoordinator.subscribe(() => this.syncReceiving());
+    recoveryCoordinator.registerDrain(() => this.drain());
     useNostrRelayStore.subscribe((state, previous) => {
       if (state.relays === previous.relays || !this.isRunning) return;
       this.refresh();
@@ -146,11 +160,13 @@ class NostrService {
   private chatPublishing = new Set<string>();
 
   private async initializeChat(): Promise<void> {
+    const generation = this.generation;
     try {
       const { initService } =
         require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
       await initService.getRepo().messageRepository.recover();
-      if (this.isRunning) await useMessageStore.getState().refresh();
+      if (this.isRunning && generation === this.generation)
+        await useMessageStore.getState().refresh();
     } catch {
       console.warn('[NostrService] Chat storage is not ready.');
     }
@@ -411,28 +427,120 @@ class NostrService {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   public start(privkeyHex: string, pubkeyHex: string, nip05?: string): void {
-    if (this.isRunning) {
-      console.log('[NostrService] Already running — restarting with fresh subscription');
-      this._teardown();
+    if (this.isRunning && this.privkeyHex === privkeyHex && this.pubkeyHex === pubkeyHex) {
+      if (nip05 && nip05 !== this.advertisedNip05) this.pendingNip05 = nip05;
+      this.syncReceiving();
+      return;
     }
-
+    if (this.isRunning) this._teardown();
     this.privkeyHex = privkeyHex;
     this.pubkeyHex = pubkeyHex;
     this.privkeyBytes = hexToBytes(privkeyHex);
     this.isRunning = true;
-
-    console.log(
-      `[NostrService] Starting on ${getNostrRelays().length} relays for pubkey: ${pubkeyHex.slice(0, 8)}…`,
-    );
-
-    void this.initializeChat();
-    this._subscribe();
-    void this._publishInboxRelayList();
-    if (nip05) {
-      void this.publishProfile(nip05, privkeyHex, pubkeyHex);
-    }
+    this.inboxPublicationNeeded = true;
+    this.pendingNip05 = nip05;
+    this.chatNeedsInitialization = true;
+    this.appState = AppState.currentState || 'active';
+    const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
+    const { useSettingsStore } =
+      require('~/state/settingsStore') as typeof import('~/state/settingsStore');
+    this.unsubscribeEligibility = [
+      useAuthStore.subscribe?.(() => this.syncReceiving()),
+      useSettingsStore.subscribe?.((state, previous) => {
+        if (
+          state.initialized !== previous.initialized ||
+          state.biometricEnabled !== previous.biometricEnabled
+        )
+          this.syncReceiving();
+      }),
+    ].filter((unsubscribe): unsubscribe is () => void => !!unsubscribe);
+    this.syncReceiving();
     this._startReconnectLoop();
     this._listenAppState();
+  }
+
+  public async drain(): Promise<void> {
+    await this.chatInitialization;
+    await this.draining;
+  }
+
+  private canListen(): boolean {
+    if (!this.isRunning || recoveryCoordinator.paused || this.appState !== 'active') return false;
+    const { initService } =
+      require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
+    if (!initService.isInitialized()) return false;
+    const { useSettingsStore } =
+      require('~/state/settingsStore') as typeof import('~/state/settingsStore');
+    const { useAuthStore } = require('~/state/authStore') as typeof import('~/state/authStore');
+    const settings = useSettingsStore.getState();
+    return (
+      settings.initialized !== false &&
+      (!settings.biometricEnabled || useAuthStore.getState().isAuthenticated)
+    );
+  }
+
+  private syncReceiving(): void {
+    if (!this.canListen()) {
+      this.subscription?.close();
+      this.subscription = null;
+      return;
+    }
+    if (!this.subscription) this._subscribe();
+    if (this.chatNeedsInitialization && !this.chatInitialization) {
+      this.chatNeedsInitialization = false;
+      const initialization = this.initializeChat().finally(() => {
+        if (this.chatInitialization === initialization) this.chatInitialization = null;
+        this.syncReceiving();
+      });
+      this.chatInitialization = initialization;
+    }
+    if (this.inboxPublicationNeeded) {
+      this.inboxPublicationNeeded = false;
+      void this._publishInboxRelayList();
+    }
+    if (this.pendingNip05 && this.privkeyHex && this.pubkeyHex) {
+      const nip05 = this.pendingNip05;
+      this.pendingNip05 = undefined;
+      const generation = this.generation;
+      void this.publishProfile(nip05, this.privkeyHex, this.pubkeyHex).then((published) => {
+        if (published && generation === this.generation) this.advertisedNip05 = nip05;
+      });
+    }
+    this.drainEvents();
+  }
+
+  private enqueueEvent(event: Event): void {
+    if (
+      !this.isRunning ||
+      this.processedEvents.has(event.id) ||
+      this.processingEvents.has(event.id)
+    )
+      return;
+    this.eventQueue.set(event.id, event);
+    this.drainEvents();
+  }
+
+  private drainEvents(): void {
+    if (this.draining || this.chatInitialization || !this.canListen() || !this.eventQueue.size)
+      return;
+    const generation = this.generation;
+    const work = Promise.resolve()
+      .then(async () => {
+        while (generation === this.generation && this.canListen() && this.eventQueue.size) {
+          const event = this.eventQueue.values().next().value!;
+          this.eventQueue.delete(event.id);
+          await this._processEvent(event);
+          await yieldWalletWork();
+        }
+      })
+      .catch(() => {
+        console.warn('[NostrService] Inbox processing interrupted; relay events remain retryable.');
+      })
+      .finally(() => {
+        if (this.draining === work) this.draining = null;
+        this.drainEvents();
+      });
+    this.draining = work;
   }
 
   public stop(): void {
@@ -441,26 +549,34 @@ class NostrService {
   }
 
   public refresh(): void {
-    if (!this.isRunning) return;
-    void import('./requestLifecycleService')
-      .then(({ requestLifecycleService }) => requestLifecycleService.reconcile())
-      .catch(() => undefined);
-    console.log('[NostrService] Manual refresh requested.');
-    if (this.pool) {
-      try {
-        this.pool.close(this.connectedRelays);
-      } catch {
-        /* ignore */
-      }
+    if (!this.canListen() || this.reconnectRequested) return;
+    this.reconnectRequested = setTimeout(() => {
+      this.reconnectRequested = null;
+      if (!this.canListen()) return;
+      this.subscription?.close();
+      this.subscription = null;
+      this.pool?.close(this.connectedRelays);
       this.pool = null;
-    }
-    this._subscribe();
+      this._subscribe();
+      void import('./requestLifecycleService')
+        .then(({ requestLifecycleService }) => requestLifecycleService.reconcile())
+        .catch(() => undefined);
+    }, 250);
   }
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
   private _teardown(): void {
     this.generation++;
+    this.eventQueue.clear();
+    this.inboxPublicationNeeded = false;
+    this.pendingNip05 = undefined;
+    this.advertisedNip05 = undefined;
+    this.chatNeedsInitialization = false;
+    this.unsubscribeEligibility.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribeEligibility = [];
+    if (this.reconnectRequested) clearTimeout(this.reconnectRequested);
+    this.reconnectRequested = null;
     this.subscription?.close();
     this.subscription = null;
     if (this.reconnectTimer) {
@@ -489,10 +605,10 @@ class NostrService {
   }
 
   private _subscribe(): void {
-    if (!this.pubkeyHex) return;
+    if (!this.pubkeyHex || !this.canListen()) return;
     this.subscription?.close();
 
-    this.pool = new SimplePool();
+    this.pool ??= new SimplePool();
     this.connectedRelays = getNostrRelays();
 
     // Subscribe to ALL relevant kinds simultaneously
@@ -502,14 +618,10 @@ class NostrService {
       since: Math.floor(Date.now() / 1000) - SINCE_SECONDS,
     };
 
+    const generation = this.generation;
     this.subscription = this.pool.subscribeMany(this.connectedRelays, filter, {
       onevent: (event: Event) => {
-        this._processEvent(event).catch((error) => {
-          console.warn(
-            `[NostrService] Event ${event.id.slice(0, 8)}… escaped processing:`,
-            error instanceof Error ? error.message : 'unknown error',
-          );
-        });
+        if (generation === this.generation) this.enqueueEvent(event);
       },
       oneose: () => {
         console.log(
@@ -527,25 +639,9 @@ class NostrService {
     if (this.reconnectTimer) clearInterval(this.reconnectTimer);
 
     this.reconnectTimer = setInterval(() => {
-      if (!this.isRunning || !this.privkeyHex || !this.pubkeyHex) return;
-
-      // Check if any relay is disconnected
+      if (!this.canListen()) return;
       const statuses = this.pool?.listConnectionStatus?.();
-      if (!statuses) return;
-
-      const anyDisconnected = Array.from(statuses.values()).some((v) => v === false);
-      if (anyDisconnected) {
-        console.log('[NostrService] 🔄 Detected disconnected relay(s), refreshing subscription…');
-        if (this.pool) {
-          try {
-            this.pool.close(this.connectedRelays);
-          } catch {
-            /* ignore */
-          }
-          this.pool = null;
-        }
-        this._subscribe();
-      }
+      if (statuses && Array.from(statuses.values()).some((connected) => !connected)) this.refresh();
     }, RECONNECT_INTERVAL_MS);
   }
 
@@ -553,20 +649,8 @@ class NostrService {
     if (this.appStateSub) this.appStateSub.remove();
 
     this.appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (!this.isRunning) return;
-
-      if (state === 'active') {
-        console.log('[NostrService] App foregrounded — refreshing relay subscription');
-        if (this.pool) {
-          try {
-            this.pool.close(this.connectedRelays);
-          } catch {
-            /* ignore */
-          }
-          this.pool = null;
-        }
-        this._subscribe();
-      }
+      this.appState = state;
+      this.syncReceiving();
     });
   }
 
@@ -589,14 +673,7 @@ class NostrService {
           return; // Outgoing event to someone else — skip
         }
         // Self-send — continue processing as incoming payment
-        console.log(
-          `[NostrService] Self-send detected (event ${event.id.slice(0, 8)}…), processing as incoming`,
-        );
       }
-
-      console.log(
-        `[NostrService] Event ${event.id.slice(0, 8)}… kind=${event.kind} from ${event.pubkey.slice(0, 8)}…`,
-      );
 
       const decrypted = await this._decrypt(event);
       if (decrypted === null) {
@@ -625,7 +702,7 @@ class NostrService {
         const { initService } =
           require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
         if (generation !== this.generation) return;
-        await initService.getRepo().messageRepository.insert({
+        const inserted = await initService.getRepo().messageRepository.insert({
           id: decrypted.id,
           conversation,
           direction: outgoing ? 'outgoing' : 'incoming',
@@ -637,6 +714,10 @@ class NostrService {
           transport: decrypted.transport,
         });
         if (generation !== this.generation) return;
+        if (!inserted) {
+          this.processedEvents.add(event.id);
+          return;
+        }
         if (outgoing) {
           const { usePeopleStore } =
             require('~/state/peopleStore') as typeof import('~/state/peopleStore');
@@ -646,14 +727,13 @@ class NostrService {
         } else applyIncomingContactPolicy(decrypted.senderPubkey);
         await useMessageStore.getState().refresh();
       }
-      this.processedEvents.add(event.id);
-    } catch (error) {
+      if (generation === this.generation) this.processedEvents.add(event.id);
+    } catch {
       console.warn(
-        `[NostrService] Event ${event.id.slice(0, 8)}… processing failed; it remains retryable:`,
-        error instanceof Error ? error.message : 'unknown error',
+        `[NostrService] Event ${event.id.slice(0, 8)}… processing failed; it remains retryable.`,
       );
     } finally {
-      this.processingEvents.delete(event.id);
+      if (generation === this.generation) this.processingEvents.delete(event.id);
     }
   }
 
@@ -684,9 +764,6 @@ class NostrService {
     const creqMatch = text.match(/(creq[AB][A-Za-z0-9_=-]+)/i);
     if (creqMatch) {
       const creqString = creqMatch[1];
-      console.log(
-        `[NostrService] 🎉 Found incoming payment request in event ${sourceEvent.id.slice(0, 8)}…`,
-      );
       try {
         const { PaymentRequest } = require('@cashu/cashu-ts') as typeof import('@cashu/cashu-ts');
         const pr = PaymentRequest.fromEncodedRequest(creqString);
@@ -765,10 +842,6 @@ class NostrService {
         payload.proofs.length > 0 &&
         typeof payload.mint === 'string'
       ) {
-        console.log(
-          `[NostrService] 🎉 Found JSON PaymentRequestPayload in event ${sourceEvent.id.slice(0, 8)}…`,
-        );
-
         // Convert the payload to a V3 token, then pass it through the same decoder and
         // validation path used for cashuA/cashuB messages.
         const tokenStruct = {
@@ -792,9 +865,6 @@ class NostrService {
         return;
       }
       tokenString = tokenMatch[1];
-      console.log(
-        `[NostrService] 🎉 Found ecash token string in event ${sourceEvent.id.slice(0, 8)}…`,
-      );
     }
 
     try {
@@ -819,8 +889,6 @@ class NostrService {
       console.warn('[NostrService] Ignoring invalid payment token metadata');
       return;
     }
-
-    console.log(`[NostrService] Token: ${amount} sat from mint ${mintUrl}`);
 
     if (outgoingConversation) {
       await this.recordPaymentCopy(
@@ -874,10 +942,6 @@ class NostrService {
       senderUsername,
       requestId: requestIdFromPayload,
     });
-    console.log('[NostrService] Incoming payment handled', {
-      eventId: sourceEvent.id,
-      category: claimResult?.status || 'saved',
-    });
   }
 
   private async recordPaymentCopy(
@@ -896,7 +960,7 @@ class NostrService {
       (await initService.getRepo().messageRepository.findRequest(conversation, requestId))
     )
       return;
-    await initService.getRepo().messageRepository.insert({
+    const inserted = await initService.getRepo().messageRepository.insert({
       id: event.id,
       conversation,
       direction: 'outgoing',
@@ -911,7 +975,7 @@ class NostrService {
       paymentType: type,
       requestId,
     });
-    if (generation !== this.generation) return;
+    if (generation !== this.generation || !inserted) return;
     const { usePeopleStore } =
       require('~/state/peopleStore') as typeof import('~/state/peopleStore');
     if (usePeopleStore.getState().people[conversation]?.contactStatus !== 'blocked') {

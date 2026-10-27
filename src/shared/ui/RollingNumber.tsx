@@ -7,7 +7,7 @@ import Animated, {
   Easing,
   withDelay,
 } from 'react-native-reanimated';
-import { Text } from 'tamagui';
+import { Text, type TextProps } from 'tamagui';
 
 interface RollingDigitProps {
   digit: string | number;
@@ -15,7 +15,7 @@ interface RollingDigitProps {
   width?: number;
   color?: any;
   fontWeight?: any;
-  fontFamily?: string;
+  fontFamily?: TextProps['fontFamily'];
   fontSize?: number;
   index: number;
   letterSpacing?: number;
@@ -75,7 +75,7 @@ const RollingDigit = ({
             <Text
               color={color}
               fontWeight={fontWeight}
-
+              fontFamily={fontFamily}
               fontSize={fontSize}
               lineHeight={height}
               text="center"
@@ -96,7 +96,7 @@ export interface RollingNumberProps {
   fontSize?: number;
   color?: any;
   fontWeight?: any;
-  fontFamily?: string;
+  fontFamily?: TextProps['fontFamily'];
   style?: ViewStyle;
   letterSpacing?: number;
   lineHeight?: number;
@@ -144,6 +144,7 @@ export const RollingNumber = ({
   const hasSatsSuffix = suffix.trim() === 'sat';
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
   const itemHeight = lineHeight || fontSize * 1.1;
+  const resolvedFamily = fontFamily ?? (fontSize >= 28 ? '$display' : '$body');
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -169,7 +170,7 @@ export const RollingNumber = ({
               index={index}
               color={color}
               fontWeight={fontWeight}
-
+              fontFamily={resolvedFamily}
               fontSize={fontSize}
               letterSpacing={letterSpacing}
             />
@@ -188,6 +189,7 @@ export const RollingNumber = ({
               <Text
                 color={color}
                 fontWeight={fontWeight}
+                fontFamily={resolvedFamily}
                 fontSize={fontSize}
                 lineHeight={itemHeight}
 

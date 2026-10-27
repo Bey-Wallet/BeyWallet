@@ -51,7 +51,8 @@ from Android Google Play. Recheck those external facts before future reuse.
 | Layer transform at rest | `translateY = depth * 6`, `scale = 1 - depth * 0.045`                                   |
 | Dismiss control         | Shared `HeaderIconButton`, top/right 4 dp, 22-point X, minimum 48 dp touch area         |
 
-Use the approved Bey Funnel Display 400/500/600 families. Keep native text scaling, wrap
+Use Inter Text for UI copy and Inter Display for large text/amounts, in 400/500/600 with
+`tnum`, `zero`, `ss01` and `ss02` defaults. Keep native text scaling, wrap
 metadata where necessary, and validate small phones and larger accessibility sizes. The fixed
 art slot and reserved dismiss area must not compress or obscure the headline. See
 [appearance conventions](../appearance.md) for the rest of the design system.

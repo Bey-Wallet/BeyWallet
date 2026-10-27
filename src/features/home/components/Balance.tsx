@@ -1,7 +1,8 @@
 import React from 'react';
-import { H1, H2, Paragraph, Text, View, XStack, YStack, useTheme } from 'tamagui';
+import { Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { useQuery } from '@tanstack/react-query';
@@ -16,20 +17,16 @@ export default function Balance() {
   const balances = useWalletStore((s) => s.balances);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const isOffline = useOfflineStatus();
-  const {
-    primaryCurrency,
-    setPrimaryCurrency,
-    secondaryCurrency,
-    hideBalance,
-    setHideBalance,
-    showBitcoinSymbol,
-  } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, hideBalance, setHideBalance, showBitcoinSymbol } =
+    useSettingsStore();
 
   const handlePrimaryCurrencyToggle = React.useCallback(() => {
+    const current = useSettingsStore.getState();
+    if (current.hideBalance || current.secondaryCurrency === 'NONE') return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const nextVal = primaryCurrency === 'SATS' ? 'FIAT' : 'SATS';
-    setPrimaryCurrency(nextVal);
-  }, [primaryCurrency, setPrimaryCurrency]);
+    const nextVal = current.primaryCurrency === 'SATS' ? 'FIAT' : 'SATS';
+    void current.setPrimaryCurrency(nextVal);
+  }, []);
 
   const handleHideBalanceToggle = React.useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -99,6 +96,7 @@ export default function Balance() {
 
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
+            letterSpacing={-1.5}
             color="$color"
 
             decimalOpacity={0.4}
@@ -124,6 +122,7 @@ export default function Balance() {
 
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
+            letterSpacing={-1.5}
             color="$color"
 
             decimalOpacity={0.4}
@@ -149,27 +148,56 @@ export default function Balance() {
 
       {/* Secondary Balance */}
       {isFiatEnabled && (
-        <RollingNumber
-          value={
-            hideBalance ? '****' : displayAsSats ? (secondaryBalance ?? undefined) : currentBalance
+        <AppPressable
+          testID="home-balance-currency-toggle"
+          accessibilityLabel={
+            hideBalance
+              ? 'Show balance to switch currency'
+              : `Display balance in ${displayAsSats ? secondaryCurrency : 'sats'}`
           }
-          prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
-          suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
-          trigger={
-            (hideBalance ? '_hidden' : displayAsSats ? '_visible_fiat_sub' : '_visible_sats_sub') +
-            `_${showBitcoinSymbol}`
-          }
-          fontSize={appTypography.body1.fontSize}
-          fontWeight={500}
-          color="$gray10"
-          letterSpacing={appTypography.body1.letterSpacing}
-
-          decimalOpacity={0.4}
-          showDecimals={displayAsSats}
-          style={{ marginTop: 4 }}
+          accessibilityHint="Swaps the primary and secondary balance amounts"
+          disabled={hideBalance}
+          onPress={handlePrimaryCurrencyToggle}
+          minHeight={36}
+          minWidth={64}
+          px="$3"
+          py="$1"
+          rounded={100}
+          bg="$buttonDefaultSecondary"
+          hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+          pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+          items="center"
+          justify="center"
+          opacity={hideBalance ? 0.5 : 1}
         >
-          {!hideBalance && displayAsSats ? fiatText : undefined}
-        </RollingNumber>
+          <RollingNumber
+            value={
+              hideBalance
+                ? '****'
+                : displayAsSats
+                  ? (secondaryBalance ?? undefined)
+                  : currentBalance
+            }
+            prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
+            suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
+            trigger={
+              (hideBalance
+                ? '_hidden'
+                : displayAsSats
+                  ? '_visible_fiat_sub'
+                  : '_visible_sats_sub') + `_${showBitcoinSymbol}`
+            }
+            fontSize={appTypography.body1.fontSize}
+            fontWeight={500}
+            color="$gray10"
+            letterSpacing={appTypography.body1.letterSpacing}
+
+            decimalOpacity={0.4}
+            showDecimals={displayAsSats}
+          >
+            {!hideBalance && displayAsSats ? fiatText : undefined}
+          </RollingNumber>
+        </AppPressable>
       )}
     </YStack>
   );

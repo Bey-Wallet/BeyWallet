@@ -48,8 +48,8 @@ const decode = (row: MessageRow): ChatMessage => ({
 export class MessageRepository {
   constructor(private readonly db: ExpoSqliteDb) {}
 
-  async insert(message: ChatMessage): Promise<void> {
-    await this.db.run(
+  async insert(message: ChatMessage): Promise<boolean> {
+    const result = await this.db.run(
       `INSERT OR IGNORE INTO bey_messages
       (id, conversation, direction, createdAt, receivedAt, text, read, publication, transport, envelopes, paymentId, paymentAmount, paymentType, requestId)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -70,6 +70,7 @@ export class MessageRepository {
         message.requestId ?? null,
       ],
     );
+    return result.changes > 0;
   }
 
   async page(conversation: string, offset = 0): Promise<ChatMessage[]> {

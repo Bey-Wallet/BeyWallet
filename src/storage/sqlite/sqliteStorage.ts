@@ -8,6 +8,11 @@ type SynchronousStateStorage = Omit<StateStorage, 'getItem' | 'setItem' | 'remov
 };
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
+// Only wallet-storage is cached: progress updates repeatedly serialize the same snapshot.
+let lastWalletSnapshot: string | undefined;
+export function invalidateWalletSnapshot(): void {
+  lastWalletSnapshot = undefined;
+}
 
 /**
  * Lazy initializer for the shared SQLite database connection.
@@ -40,6 +45,7 @@ export function getDb(): SQLite.SQLiteDatabase {
  * Safely closes the shared SQLite database connection.
  */
 export function closeDb(): void {
+  invalidateWalletSnapshot();
   if (dbInstance) {
     try {
       dbInstance.closeSync();
@@ -62,6 +68,7 @@ export const sqliteStorage: SynchronousStateStorage = {
         'SELECT value FROM coco_cashu_settings WHERE key = ?',
         [name],
       );
+      if (name === 'wallet-storage') lastWalletSnapshot = row?.value;
       return row ? row.value : null;
     } catch (error) {
       console.warn(`[SqliteStorage] Failed to get item ${name}:`, error);
@@ -71,15 +78,20 @@ export const sqliteStorage: SynchronousStateStorage = {
   setItem: (name: string, value: string): void => {
     try {
       const db = getDb();
+      if (name === 'wallet-storage' && lastWalletSnapshot === value) return;
       db.runSync('INSERT OR REPLACE INTO coco_cashu_settings (key, value) VALUES (?, ?)', [
         name,
         value,
       ]);
+      if (name === 'wallet-storage') lastWalletSnapshot = value;
     } catch (error) {
+      if (name === 'wallet-storage') invalidateWalletSnapshot();
       console.warn(`[SqliteStorage] Failed to set item ${name}:`, error);
+      if (name === 'wallet-storage') throw error;
     }
   },
   removeItem: (name: string): void => {
+    if (name === 'wallet-storage') invalidateWalletSnapshot();
     try {
       const db = getDb();
       db.runSync('DELETE FROM coco_cashu_settings WHERE key = ?', [name]);

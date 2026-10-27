@@ -88,8 +88,10 @@ it('persists edits, validates hydration, and restores the original inbox default
   expect(getNostrInboxRelays()).toEqual(DEFAULT_NOSTR_INBOX_RELAYS);
 });
 
-it('closes the old relay snapshot, reconnects, and republishes the inbox list after edits', () => {
+it('closes the old relay snapshot, coalesces reconnects, and republishes the inbox list after edits', async () => {
+  jest.useFakeTimers();
   const service = nostrService as any;
+  jest.spyOn(service, 'canListen').mockReturnValue(true);
   const previous = getNostrRelays();
   const close = jest.fn();
   service.connectedRelays = previous;
@@ -98,6 +100,8 @@ it('closes the old relay snapshot, reconnects, and republishes the inbox list af
   const subscribe = jest.spyOn(service, '_subscribe').mockImplementation(() => {});
   const publish = jest.spyOn(service, '_publishInboxRelayList').mockResolvedValue(true);
   useNostrRelayStore.getState().removeRelay(previous[0]);
+  expect(close).not.toHaveBeenCalled();
+  await jest.advanceTimersByTimeAsync(250);
   expect(close).toHaveBeenCalledWith(previous);
   expect(subscribe).toHaveBeenCalledTimes(1);
   expect(publish).toHaveBeenCalledTimes(1);

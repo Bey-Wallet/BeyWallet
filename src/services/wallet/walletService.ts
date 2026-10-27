@@ -1,3 +1,4 @@
+import { yieldWalletWork } from './recoveryCoordinator';
 import { reclaimOptions, supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { seedService } from '~/services/platform/seedService';
 import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
@@ -145,7 +146,7 @@ async function withKeysetRecovery<T>(
       await purgeCorruptedKeysets(mintUrl, keysetId);
 
       // Re-initialize the Manager to clear in-memory cache and force re-fetch
-      await initService.reinitFast();
+      await initService.reinitFast({ withinWalletOperation: true });
 
       // Retry the operation once
       return await withKeysetRecovery(mintUrl, fn, retryCount + 1);
@@ -691,8 +692,8 @@ export const walletService = {
     console.log(`[WalletService] 🔄 Starting SDK restore for: ${mintUrl}`);
 
     if (unsafeManager.walletRestoreService) {
-      // Set batch size and gap limit to 200 to check exactly 1 batch of 200 per keyset.
-      // Helps avoid slow multiple sequential network checks and point derivation on mobile.
+      // Preserve the existing 200-counter gap and 200-output batch. A nonempty
+      // batch resets the gap: recovery must continue beyond the first batch.
       unsafeManager.walletRestoreService.restoreBatchSize = 200; // gapLimit
       unsafeManager.walletRestoreService.restoreGapLimit = 200; // batchSize
     }
@@ -720,6 +721,7 @@ export const walletService = {
 
         let current = 0;
         for (const keyset of satKeysets) {
+          await yieldWalletWork();
           current++;
           try {
             const { useWalletStore } = require('~/state/walletStore');
@@ -774,14 +776,16 @@ export const walletService = {
         const keysetRepo = unsafeManager.keysetRepository;
         if (keysetRepo?.getKeysets) {
           const keysets: any[] = await keysetRepo.getKeysets([mintUrl]);
-          const { Mint: CashuMint } = await import('@cashu/cashu-ts');
 
           for (const ks of keysets) {
+            const unit = (ks.unit || '').toLowerCase();
+            if (unit !== 'sat' && unit !== 'sats' && unit !== '') continue;
+            await yieldWalletWork();
             const hasKeys = ks.keypairs && Object.keys(ks.keypairs).length > 0;
             if (!hasKeys) {
               console.log(`[WalletService] Fetching missing keys for keyset: ${ks.id}`);
               try {
-                const mint = new CashuMint(mintUrl);
+                const mint = new Mint(mintUrl);
                 const keys = await mint.getKeys(ks.id);
                 // Write keys back into the keyset row
                 if (keysetRepo.updateKeysetKeys) {

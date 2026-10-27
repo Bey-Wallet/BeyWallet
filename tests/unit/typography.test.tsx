@@ -25,10 +25,10 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
 it.each([
-  ['400', 'BeyFunnelDisplayRegular'],
-  ['500', 'BeyFunnelDisplayMedium'],
-  ['600', 'BeyFunnelDisplaySemiBold'],
-  ['700', 'BeyFunnelDisplaySemiBold'],
+  ['400', 'InterTextRegular'],
+  ['500', 'InterTextMedium'],
+  ['600', 'InterTextSemiBold'],
+  ['700', 'InterTextSemiBold'],
 ] as const)('renders body and heading weight %s with %s', async (weight, family) => {
   let tree!: ReactTestRenderer;
   await act(async () => {
@@ -40,6 +40,9 @@ it.each([
         <Heading testID="heading-font" fontWeight={weight}>
           Bey 123
         </Heading>
+        <Text testID="display-font" fontFamily="$display" fontWeight={weight}>
+          103,469.00
+        </Text>
       </TamaguiProvider>,
     );
   });
@@ -49,6 +52,10 @@ it.each([
       .map((node) => StyleSheet.flatten(node.props.style)?.fontFamily);
     expect(families).toContain(family);
   }
+  const displayFamilies = tree.root
+    .findAll((node) => node.props.testID === 'display-font')
+    .map((node) => StyleSheet.flatten(node.props.style)?.fontFamily);
+  expect(displayFamilies).toContain(family.replace('InterText', 'InterDisplay'));
   await act(async () => tree.unmount());
 });
 
@@ -101,10 +108,8 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
     expect({
       id,
-      usesBeyFunnelDisplay: renderedStyles.some((style) =>
-        style?.fontFamily?.startsWith('BeyFunnelDisplay'),
-      ),
-    }).toEqual({ id, usesBeyFunnelDisplay: true });
+      usesInter: renderedStyles.some((style) => style?.fontFamily?.startsWith('Inter')),
+    }).toEqual({ id, usesInter: true });
   }
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(

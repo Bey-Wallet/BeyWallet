@@ -102,7 +102,6 @@ export const useNostrInboxStore = create<NostrInboxState>()(
       addIncoming: (item) => {
         // Deduplicate by event ID
         if (get().items.some((existing) => existing.id === item.id)) {
-          console.log(`[NostrInboxStore] Duplicate event ${item.id.slice(0, 8)}, skipping`);
           return false;
         }
 
@@ -127,9 +126,6 @@ export const useNostrInboxStore = create<NostrInboxState>()(
         } catch {
           // The payment is already persisted; contact hydration can retry later.
         }
-        console.log(
-          `[NostrInboxStore] Queued incoming: ${item.amount} sat from ${item.senderPubkey.slice(0, 8)}…`,
-        );
         return true;
       },
 

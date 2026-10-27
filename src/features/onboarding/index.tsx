@@ -1,3 +1,4 @@
+import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 import { useToastController } from '@tamagui/toast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState } from 'react';
@@ -125,6 +126,7 @@ export function OnboardingScreen() {
     if (busy) return;
     setSavedWalletAction('open');
     setIsFinishing(true);
+    const resumeRecoveryWork = isImportingFlow ? recoveryCoordinator.pause() : undefined;
     try {
       console.log('[Onboarding] Resuming saved wallet setup...');
       await initService.init();
@@ -139,6 +141,7 @@ export function OnboardingScreen() {
         'Failed to open saved wallet. You may need to delete it and start over.',
       );
     } finally {
+      resumeRecoveryWork?.();
       setIsFinishing(false);
       setSavedWalletAction(null);
     }
@@ -209,6 +212,7 @@ export function OnboardingScreen() {
       return;
     }
 
+    const resumeRecoveryWork = isImportingFlow ? recoveryCoordinator.pause() : undefined;
     setIsFinishing(true);
     try {
       const keys = await seedService.getNostrKeys(generatedMnemonic);
@@ -250,7 +254,9 @@ export function OnboardingScreen() {
 
         if (!hasFunds && !offline) {
           console.log('[Onboarding] Kicking off multi-mint scanning in background...');
-          restoreAllMints(extraRestoreMints);
+          void restoreAllMints(extraRestoreMints).catch(() => {
+            toast.show('Recovery could not finish. Retry from Recover funds.', { kind: 'error' });
+          });
         }
 
         setFinishingStatus('Finalizing setup…');
@@ -289,6 +295,7 @@ export function OnboardingScreen() {
         err instanceof Error ? err.message : 'Please try again.',
       );
     } finally {
+      resumeRecoveryWork?.();
       setIsFinishing(false);
     }
   };
@@ -493,7 +500,7 @@ export function OnboardingScreen() {
 
       case 'restoring': {
         const totalRestoredSats = mintRestoreStatuses
-          .filter((e) => e.status === 'done')
+          .filter((e) => e.status === 'done' || e.status === 'partial')
           .reduce((sum, e) => sum + e.restoredBalance, 0);
 
         // Fire restore on first render of this step

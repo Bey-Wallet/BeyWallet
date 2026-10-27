@@ -1,0 +1,55 @@
+{
+  "source": "https://raw.githubusercontent.com/rsms/inter/v4.1/docs/font-files/InterVariable.ttf",
+  "sourceSha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
+  "features": ["tnum", "zero", "ss01", "ss02"],
+  "fonts": {
+    "InterText-Regular.ttf": {
+      "sha256": "5e479fe8a938de75f493b24105a965e8acd23d7f0a91d9009cb16531fb26cf76",
+      "weight": 400,
+      "opticalSize": 14,
+      "digitAdvance": 1328,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    },
+    "InterText-Medium.ttf": {
+      "sha256": "aebb8c73386c95c69b67ff22985c26c1e7902ec3197811b788c0cde6b88880f5",
+      "weight": 500,
+      "opticalSize": 14,
+      "digitAdvance": 1327,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    },
+    "InterText-SemiBold.ttf": {
+      "sha256": "95e98521cc6d1400d92f4ea20ce19ac588dc03f2b5e3f362d7a92a004873ffe1",
+      "weight": 600,
+      "opticalSize": 14,
+      "digitAdvance": 1325,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    },
+    "InterDisplay-Regular.ttf": {
+      "sha256": "5386931e6c16412f6c7e6c0e00c4b3954da091178b438f17d58e53a36ba8b37c",
+      "weight": 400,
+      "opticalSize": 32,
+      "digitAdvance": 1320,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    },
+    "InterDisplay-Medium.ttf": {
+      "sha256": "ff9fc023e551faa754d03c42c06b250eafd2c9a6209ff2c9521a806bf70917e8",
+      "weight": 500,
+      "opticalSize": 32,
+      "digitAdvance": 1320,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    },
+    "InterDisplay-SemiBold.ttf": {
+      "sha256": "57b2ff5c3a09680b65b89ce5d62071d6bc0f1046702bbac7fa09e8aa94fa9905",
+      "weight": 600,
+      "opticalSize": 32,
+      "digitAdvance": 1320,
+      "zeroGlyph": "zero.tf.slash",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+    }
+  }
+}

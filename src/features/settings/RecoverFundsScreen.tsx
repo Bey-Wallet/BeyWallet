@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Landmark, Plus, ScanSearch } from '@tamagui/lucide-icons';
@@ -26,6 +27,11 @@ export function RecoverFundsScreen() {
   const isRestoring = useWalletStore((state) => state.isRestoring);
   const restoringMint = useWalletStore((state) => state.restoringMintUrl);
   const progress = useWalletStore((state) => state.restoringMintKeysetProgress);
+  const slow = useWalletStore((state) =>
+    state.mintRestoreStatuses?.some(
+      (entry) => entry.mintUrl === state.restoringMintUrl && entry.slow,
+    ),
+  );
   const trusted = mints.filter((mint) => mint.trusted);
   const [selection, setSelection] = useState(params.mintUrl ?? '');
   const selected =
@@ -53,6 +59,7 @@ export function RecoverFundsScreen() {
     setFailed(false);
   };
   const recover = async () => {
+    let resume: (() => void) | undefined;
     const wallet = useWalletStore.getState();
     if (
       locked.current ||
@@ -72,6 +79,7 @@ export function RecoverFundsScreen() {
         setMessage('Recovery cancelled.');
         return;
       }
+      resume = recoveryCoordinator.pause();
       for (const mint of chosen) {
         const current = useWalletStore.getState();
         if (current.isRestoring || current.restoreQueue.length) {
@@ -124,6 +132,7 @@ export function RecoverFundsScreen() {
         'Recovery could not finish. Reconnect and try again. Funds already recovered remain in your wallet.',
       );
     } finally {
+      resume?.();
       locked.current = false;
       setBusy(false);
     }
@@ -165,6 +174,7 @@ export function RecoverFundsScreen() {
         <SettingsMessage>
           {restoringMint ? `Scanning ${name(restoringMint)}…` : 'A recovery is already running…'}
           {progress && ` Checking keyset ${progress.current} of ${progress.total}.`}
+          {slow && ' This mint is taking longer. The scan is still running.'}
         </SettingsMessage>
       )}
       {results.map((result) => (
