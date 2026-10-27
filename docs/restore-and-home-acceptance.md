@@ -94,7 +94,7 @@ not remove font resources from an already installed native binary.
 - Body/UI copy: Inter Text Regular 400; labels/buttons: Medium 500; headings/balances:
   SemiBold 600. Large values use Inter Display. Only six Inter faces are bundled.
 - Inspect `0123469`, `Il1O0`, `$`, `€`, `₹`, `₿` and other selected currency symbols.
-  Check equal-width digits, slashed zero, open digits and disambiguation in both families.
+  Check equal-width digits, normal unslashed zero, open digits and disambiguation in both families.
 - Review dark/light modes, larger system text, Settings rows, navigation titles, text
   inputs, the Home pill and payment screens. Check for clipping and usable touch targets.
 - Home's main amount uses −0.5 spacing. Currency-symbol spacing has not been changed.

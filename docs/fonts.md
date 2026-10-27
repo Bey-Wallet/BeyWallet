@@ -17,16 +17,15 @@ sizes, spacing, line heights, scaling and amount animations remain unchanged.
 Both families enable the same upstream OpenType features by default:
 
 - `tnum`: tabular numbers.
-- `zero`: slashed zero.
 - `ss01`: open/alternate digits.
-- `ss02`: disambiguation of similar characters, including slashed zero.
+- `ss04`: disambiguation of similar characters, retaining a normal unslashed zero.
 
-These are font defaults, including on native inputs and navigation titles. React Native
-0.81 exposes `tnum` and stylistic sets through `fontVariant`, but has no separate `zero`
-option; relying only on component props would miss some surfaces. The prepared fonts
-include the four upstream feature lookup lists in default-on `ccmp`. The preparation
+These are font defaults, including on native inputs and navigation titles. `zero` and
+`ss02` are disabled by default: `ss04` supplies the same disambiguation as `ss02` without
+its slashed zero. Relying only on component props would miss some native surfaces.
+The prepared fonts include the three upstream feature lookup lists in default-on `ccmp`. The preparation
 script verifies with HarfBuzz that default shaping matches upstream shaping with all
-four features enabled, and that explicitly enabling them again is idempotent. No
+three features enabled, and that explicitly enabling them again is idempotent. No
 letter or digit outlines are redrawn. This is an intentional app-wide feature policy.
 
 The existing tabular-number props are retained. `$mono` is a compatibility alias to
@@ -59,7 +58,7 @@ uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scr
 This downloads the pinned source into `.tmp/inter-fonts/`, instantiates static Text
 and Display faces, sets the feature defaults, and validates their shaping before
 writing the six assets and `inter-manifest.json`. The manifest records hashes, optical
-sizes, weights, default lookup indexes, tabular advances and the slashed-zero glyph.
+sizes, weights, default lookup indexes, tabular advances and the normal-zero glyph.
 These are isolated build tools; no app dependency is added.
 
 The prepared derivatives use internal names `Bey Inter Text` / `Bey Inter Display` and

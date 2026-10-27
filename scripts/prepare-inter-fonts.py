@@ -19,7 +19,8 @@ ASSETS = ROOT / 'src/assets/fonts'
 CACHE = ROOT / '.tmp/inter-fonts'
 SOURCE = 'https://raw.githubusercontent.com/rsms/inter/v4.1/docs/font-files/InterVariable.ttf'
 SOURCE_HASH = '4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf'
-FEATURES = {'tnum': 1, 'zero': 1, 'ss01': 1, 'ss02': 1}
+# ss04 preserves ss02's disambiguation without substituting a slashed zero.
+FEATURES = {'tnum': 1, 'ss01': 1, 'ss04': 1}
 WEIGHTS = {'Regular': 400, 'Medium': 500, 'SemiBold': 600}
 SAMPLES = ['0123456789', 'Il1O0 3469', '$€£¥₿₹₽₩₺₦฿₱₫', 'Balance 10,346.90',
            'Illegal busineß βeta', 'éà ÎÏĪ ł ƚ', 'A -> B 12:34']
@@ -84,7 +85,7 @@ def prepare():
             assert len({item[1] for item in digits}) == 1, 'Digits must be tabular'
             zero_id = digits[0][0]
             zero_name = font.getGlyphName(zero_id)
-            assert 'slash' in zero_name.lower(), zero_name
+            assert zero_name == 'zero.tf', zero_name
             cmap = font.getBestCmap()
             # Inter has no full-width yen. Alias it to its own yen, preserving
             # wallet currency coverage without importing another typeface.

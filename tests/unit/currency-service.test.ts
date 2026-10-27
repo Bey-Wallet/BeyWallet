@@ -1,9 +1,36 @@
-import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  currencyService,
+  SUPPORTED_CURRENCIES,
+  SELECTABLE_CURRENCIES,
+} from '~/services/wallet/currencyService';
 
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: { getState: jest.fn() } }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 
 describe('fiat display', () => {
+  it('retires only the four requested picker options, keeping NGN, THB and saved-value formatting', () => {
+    expect(SELECTABLE_CURRENCIES).toHaveLength(25);
+    const retired = ['VND', 'PHP', 'IDR', 'ARS'];
+    expect(SELECTABLE_CURRENCIES.map(({ code }) => code)).toEqual(
+      SUPPORTED_CURRENCIES.filter(({ code }) => !retired.includes(code)).map(({ code }) => code),
+    );
+    expect(SELECTABLE_CURRENCIES.map(({ code }) => code)).toEqual(
+      expect.arrayContaining(['NGN', 'THB']),
+    );
+    expect(currencyService.getSymbol('NGN')).toBe('₦');
+    expect(currencyService.getSymbol('THB')).toBe('฿');
+  });
+
+  it.each([
+    ['PLN', 'zł'],
+    ['CZK', 'Kč'],
+  ] as const)('formats %s with its local symbol and decimal separator', (code, symbol) => {
+    expect(currencyService.formatValue(1234.5, code).replace(/[\s\u00a0\u202f]/g, ' ')).toMatch(
+      new RegExp(`^1 ?234,50 ${symbol}$`),
+    );
+    expect(currencyService.getSymbol(code)).toBe(symbol);
+    expect(currencyService.formatValue(0.001, code)).toContain(`0,01`);
+  });
   it.each(['AED', 'KWD'] as const)('uses Latin digits with a trailing %s code', (code) => {
     expect(currencyService.formatValue(1234.5, code)).toBe(`1,234.50 ${code}`);
     expect(currencyService.formatValue(0, code)).toBe(`0.00 ${code}`);
@@ -83,6 +110,8 @@ describe('fiat display', () => {
         expect(fallback.formatValue(12.5, 'IDR')).toBe('Rp12.50');
         expect(fallback.formatValue(12.5, 'ARS')).toBe('AR$12.50');
         expect(fallback.formatValue(12.5, 'MXN')).toBe('MX$12.50');
+        expect(fallback.formatValue(12.5, 'PLN')).toBe('12.50 zł');
+        expect(fallback.formatValue(12.5, 'CZK')).toBe('12.50 Kč');
       });
     } finally {
       formatter.mockRestore();

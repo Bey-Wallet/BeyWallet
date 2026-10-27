@@ -53,11 +53,11 @@ function glyphIndex(font: Buffer, codePoint: number) {
 }
 
 it.each(Object.entries(manifest.fonts))(
-  'bundles %s with currency coverage and default tnum/zero/ss01/ss02 lookups',
+  'bundles %s with currency coverage, normal zero and default tnum/ss01/ss04 lookups',
   (filename, expected) => {
     const font = readFileSync(path.join(process.cwd(), 'src/assets/fonts', filename));
     expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
-    for (const symbol of '$€£¥₿₹₽₩₺￥₦฿₱₫') {
+    for (const symbol of '$€£¥₿₹₽₩₺￥₦฿₱₫złKč') {
       expect({ symbol, covered: glyphIndex(font, symbol.codePointAt(0)!) !== 0 }).toEqual({
         symbol,
         covered: true,
@@ -78,9 +78,13 @@ it.each(Object.entries(manifest.fonts))(
     }
     const defaults = features.get('ccmp');
     expect(defaults).toEqual(expected.defaultLookups);
-    for (const feature of ['tnum', 'zero', 'ss01', 'ss02']) {
+    for (const feature of ['tnum', 'ss01', 'ss04']) {
       expect(features.get(feature)?.length).toBeGreaterThan(0);
       expect(defaults).toEqual(expect.arrayContaining(features.get(feature)!));
+    }
+    expect(expected.zeroGlyph).toBe('zero.tf');
+    for (const feature of ['zero', 'ss02']) {
+      expect(defaults?.some((index) => features.get(feature)?.includes(index))).toBe(false);
     }
     expect(createHash('sha256').update(font).digest('hex')).toBe(expected.sha256);
   },

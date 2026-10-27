@@ -29,8 +29,8 @@ active/inactive tab icons, and enabled/highlighted/disabled button states. Succe
 and error retain their semantic colors. Neutral cards use the base surface; branded secondary
 buttons use their own fill, avoiding gray backgrounds on large payment cards.
 
-Inter Text and Inter Display 400/500/600 are active, with tabular numbers, slashed zero,
-open digits (`ss01`) and disambiguation (`ss02`) enabled by default. Common text sizes
+Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
+open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
 use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
 primary text and 14-point secondary conversion text. Confirmation screens, final results, and
 transaction details use 40-point primary amounts and 16-point secondary conversions.
@@ -59,6 +59,11 @@ it swaps the primary sats/fiat presentation using the existing saved display pre
 Switching is disabled while balances are hidden; when fiat currency is None the pill
 is absent. Settings retains the fiat-currency picker and removes the redundant Display
 unit toggle. The Home-only visibility guard does not change other currency controls.
+
+The fiat picker shows all 25 current choices plus None without a More currencies step.
+VND, PHP, IDR and ARS are no longer offered. Their metadata remains available for saved
+preferences and imported backups; NGN and THB remain selectable. PLN and CZK use their
+localized trailing `zł` and `Kč` symbols.
 
 Existing payment Status rows go first in their detail lists, before Mint, Date, fees, or token
 details. Completed success/failure screens retain the status above the amount without an extra

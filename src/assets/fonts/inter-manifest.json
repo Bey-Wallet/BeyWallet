@@ -1,55 +1,55 @@
 {
   "source": "https://raw.githubusercontent.com/rsms/inter/v4.1/docs/font-files/InterVariable.ttf",
   "sourceSha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
-  "features": ["tnum", "zero", "ss01", "ss02"],
+  "features": ["tnum", "ss01", "ss04"],
   "fonts": {
     "InterText-Regular.ttf": {
-      "sha256": "5e479fe8a938de75f493b24105a965e8acd23d7f0a91d9009cb16531fb26cf76",
+      "sha256": "d121bf655a4f9d3b5a13f2ece8f31515d15c9735e661261657d300a2f0fc8fee",
       "weight": 400,
       "opticalSize": 14,
       "digitAdvance": 1328,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     },
     "InterText-Medium.ttf": {
-      "sha256": "aebb8c73386c95c69b67ff22985c26c1e7902ec3197811b788c0cde6b88880f5",
+      "sha256": "df14b65768947ff88415f41c738a805ae57d931437350f3da44c47db0a1c3fea",
       "weight": 500,
       "opticalSize": 14,
       "digitAdvance": 1327,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     },
     "InterText-SemiBold.ttf": {
-      "sha256": "95e98521cc6d1400d92f4ea20ce19ac588dc03f2b5e3f362d7a92a004873ffe1",
+      "sha256": "9e4501e090c388e702d0a30091afefcd28bc7b44d1c15eaa1ebbf97ea7cda7bf",
       "weight": 600,
       "opticalSize": 14,
       "digitAdvance": 1325,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     },
     "InterDisplay-Regular.ttf": {
-      "sha256": "5386931e6c16412f6c7e6c0e00c4b3954da091178b438f17d58e53a36ba8b37c",
+      "sha256": "24333a3fa33f78541817e5b04165754920c9182f68a8da2c715b5a42c816fbf7",
       "weight": 400,
       "opticalSize": 32,
       "digitAdvance": 1320,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     },
     "InterDisplay-Medium.ttf": {
-      "sha256": "ff9fc023e551faa754d03c42c06b250eafd2c9a6209ff2c9521a806bf70917e8",
+      "sha256": "ee138be74482052a2404653ce1d5107a443b8de0a82dcd219da3de30f30ae579",
       "weight": 500,
       "opticalSize": 32,
       "digitAdvance": 1320,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     },
     "InterDisplay-SemiBold.ttf": {
-      "sha256": "57b2ff5c3a09680b65b89ce5d62071d6bc0f1046702bbac7fa09e8aa94fa9905",
+      "sha256": "5619cbec285885aac7254f6955901980bf8d4700158713d864ee7348135227b2",
       "weight": 600,
       "opticalSize": 32,
       "digitAdvance": 1320,
-      "zeroGlyph": "zero.tf.slash",
-      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 63, 68, 69]
+      "zeroGlyph": "zero.tf",
+      "defaultLookups": [3, 5, 6, 8, 9, 11, 62, 68, 71]
     }
   }
 }

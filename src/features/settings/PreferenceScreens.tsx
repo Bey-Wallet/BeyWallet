@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSettingsStore, type ThemePreference } from '~/state/settingsStore';
-import { SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import { SELECTABLE_CURRENCIES } from '~/services/wallet/currencyService';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -45,7 +45,7 @@ export function CurrencySettingsScreen() {
           selected={currency === 'NONE'}
           onPress={() => void setCurrency('NONE')}
         />
-        {SUPPORTED_CURRENCIES.map((item) => (
+        {SELECTABLE_CURRENCIES.map((item) => (
           <SettingsRow
             key={item.code}
             title={item.name}

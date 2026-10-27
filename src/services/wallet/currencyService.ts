@@ -5,6 +5,8 @@ export type CurrencyCode =
   | 'USD'
   | 'EUR'
   | 'GBP'
+  | 'PLN'
+  | 'CZK'
   | 'JPY'
   | 'AUD'
   | 'CAD'
@@ -42,6 +44,8 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'USD', symbol: '$', name: 'US Dollar', locale: 'en-US' },
   { code: 'EUR', symbol: '€', name: 'Euro', locale: 'de-DE' },
   { code: 'GBP', symbol: '£', name: 'British Pound', locale: 'en-GB' },
+  { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', locale: 'pl-PL' },
+  { code: 'CZK', symbol: 'Kč', name: 'Czech Koruna', locale: 'cs-CZ' },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen', locale: 'ja-JP' },
   { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', locale: 'en-AU' },
   { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', locale: 'en-CA' },
@@ -67,6 +71,12 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', locale: 'en-NG' },
   { code: 'ARS', symbol: 'AR$', name: 'Argentine Peso', locale: 'es-AR' },
 ];
+
+// Preserve metadata for saved preferences/backups while retiring these picker options.
+const retiredPickerCodes = new Set<CurrencyCode>(['VND', 'PHP', 'IDR', 'ARS']);
+export const SELECTABLE_CURRENCIES = SUPPORTED_CURRENCIES.filter(
+  ({ code }) => !retiredPickerCodes.has(code),
+);
 
 // Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.
 const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
@@ -158,7 +168,18 @@ export const currencyService = {
       }
 
       // Determine symbol position based on currency convention
-      const suffixCurrencies = ['EUR', 'SEK', 'RUB', 'CHF', 'ZAR', 'AED', 'KWD', 'VND'];
+      const suffixCurrencies = [
+        'EUR',
+        'PLN',
+        'CZK',
+        'SEK',
+        'RUB',
+        'CHF',
+        'ZAR',
+        'AED',
+        'KWD',
+        'VND',
+      ];
       if (useCodeSuffix || suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {
