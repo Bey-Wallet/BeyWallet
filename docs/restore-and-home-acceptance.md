@@ -45,23 +45,42 @@ not remove font resources from an already installed native binary.
 1. On the test installation, choose Import wallet and enter the test recovery phrase.
 2. If the wallet has mint backups on Nostr, check that those mints are still discovered.
    Pausing the inbox must not prevent essential backup discovery.
-3. Complete permissions/setup. Observe recovery progress on Home; the seed-only path
-   scans in the background. A backup containing proofs can restore saved funds first
-   and skip the automatic deep scan; use Recover funds to exercise that scan explicitly.
-4. Measure time from starting the scan to the first recovered balance and to the last
+3. Complete permissions/setup. The finishing loader must hand off directly to the
+   full-screen Recover funds review without briefly showing Home or starting a scan.
+   Backed-up mints are all checked initially, with URL and discovery source. Only when
+   no backed-up mints exist should default/featured candidates appear. Repeat with a
+   file containing proofs: saved funds/history must be available before any scan.
+4. Deselect one mint, try Deselect all / Select all, and check the disabled empty-selection
+   and offline actions. Skip for now must open Home without scanning or removing funds.
+   Start explicitly with a subset and confirm only those mints are queued. Retry backup
+   discovery after a failure; existing deselections must survive updated results.
+5. Measure time from tapping Recover selected mints to the first recovered balance and to the last
    mint settling. Record skipped/unreachable/partial mints alongside the timing.
-5. Check Home, tabs, Settings/back, sheet opening and scrolling during and after recovery.
-6. Verify the expected mint balances and known history. A seed-only restore recovers
+6. Check touch feedback/scrolling during recovery. Back, swipe-back, deep links and other
+   navigation must not leave the screen until the complete queue settles. Selected mints
+   must be read-only; a slow scan remains active with the existing spinner. After settling,
+   normal navigation works and results show current balances, not newly recovered totals.
+7. Verify the expected mint balances and known history. A seed-only restore recovers
    deterministic proofs; it cannot recreate every historical payment or discover a
    mint that was never known/backed up. File backups can contain additional history.
-7. Reopen after completion and verify persistence. Repeat with a fresh wallet as a
-   responsiveness comparison; a fresh-wallet result alone does not establish a fix.
+8. Force-close during review after deselecting a mint. Reopen: review and selections must
+   return without scanning. Force-close a test scan: reopen shows Interrupted and requires
+   explicit Retry incomplete mints. Completed results remain completed. Verify partial/failed
+   retry only queues incomplete mints and Change selection returns to review.
+9. Skip or Go to Wallet, restart and confirm no automatic reopening. Leave a settled manual
+   Settings flow and check the same acknowledgment. Switch wallets and verify stale recovery
+   metadata never appears for the new wallet. Home's status row opens the full screen without
+   presenting any sheet. Verify Settings titles/back control, hidden tabs and checkbox announcements.
+10. Reopen after completion and verify persistence. Repeat with a fresh wallet as a
+    responsiveness comparison; a fresh-wallet result alone does not establish a fix.
 
 ## 3. Nostr catch-up and receiving
 
 1. Use a test identity with previous messages/activity. Start recovery and arrange for
    a test message to arrive while the scan runs.
-2. New inbox processing/automatic claims should wait during the recovery queue. A claim
+2. For import, new inbox processing/automatic claims should wait through initialization,
+   handoff, review and the complete recovery queue. Discovery must still work. Skip must
+   release the pause. For manual Settings recovery, pause begins when scanning starts. A claim
    already submitted before recovery may finish; scanning must wait for it to settle.
 3. Once every queued mint settles, the inbox should catch up gradually without a burst
    of overlapping work. Old messages must not duplicate or repeatedly refresh the list.

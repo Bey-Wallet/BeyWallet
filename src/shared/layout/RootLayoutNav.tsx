@@ -7,6 +7,9 @@ import {
   ThemeProvider as NavThemeProvider,
 } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
+import { useRecoveryHandoff } from '~/shared/hooks/useRecoveryHandoff';
+import { useRecoverySessionStore } from '~/state/recoverySessionStore';
+import { Spinner } from '~/shared/ui/Spinner';
 import { useTheme, YStack } from 'tamagui';
 import * as Linking from 'expo-linking';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
@@ -39,6 +42,7 @@ export function RootLayoutNav() {
   const biometricEnabled = useSettingsStore((state) => state.biometricEnabled);
   const appState = useRef(AppState.currentState);
   const router = useRouter();
+  const handingOff = useRecoveryHandoff();
 
   // Subscribe to coco events for automatic balance/history updates
   useCocoEvents();
@@ -64,6 +68,7 @@ export function RootLayoutNav() {
   // Global listener for deep links to handle direct ecash receiving/claiming
   useEffect(() => {
     const handleUrl = (url: string) => {
+      if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
       if (!url) return;
       if (isNfcIntent(url)) return;
 
@@ -91,6 +96,7 @@ export function RootLayoutNav() {
               );
               router.replace('/(tabs)');
               setTimeout(() => {
+                if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
                 router.push({
                   pathname: '/(modals)/receive',
                   params: { requestId: hashValue },
@@ -148,6 +154,7 @@ export function RootLayoutNav() {
         console.log('[RootLayoutNav] Redirecting to receive modal with token:', tokenFound);
         router.replace('/(tabs)');
         setTimeout(() => {
+          if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
           router.push({
             pathname: '/(modals)/receive',
             params: { scannedToken: tokenFound },
@@ -160,6 +167,7 @@ export function RootLayoutNav() {
         );
         router.replace('/(tabs)');
         setTimeout(() => {
+          if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
           router.push({
             pathname: '/(modals)/send',
             params: { paymentRequest: paymentRequestFound },
@@ -243,6 +251,11 @@ export function RootLayoutNav() {
             }}
           />
         </Stack>
+        {handingOff && (
+          <YStack position="absolute" inset={0} bg="$background" items="center" justify="center">
+            <Spinner />
+          </YStack>
+        )}
 
         {/* Lock overlay - only shows when onboarded and locked */}
         {showLockOverlay && <LockOverlay onUnlock={() => setAuthenticated(true)} />}

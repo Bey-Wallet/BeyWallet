@@ -7,11 +7,29 @@ ordinary preview device comparisons remain pending. The findings below describe 
 original implementation; the implementation record describes the changes.
 
 Device procedure: [restore, Nostr and Home acceptance checks](../restore-and-home-acceptance.md).
-Final review corrected the seed-import completion handler to acquire its pause before
-initialization, in addition to resume setup. Rendered onboarding regressions verify
-pause handoff to the full recovery queue and release on initialization failure. Partial
-recovery balances are included in the onboarding total. The final focused run covering
-recovery, Nostr, onboarding, fonts and Home passed 98 tests across 15 suites.
+The recovery UX now uses one Settings-style screen for import and manual recovery.
+Import finishes initialization and file-data import before opening mint review; scanning
+requires an explicit Recover selected mints action, including for files containing proofs.
+The import pause transfers from setup to the persisted review session and releases on
+Skip or when the entire selected queue settles. Manual recovery pauses only on execution.
+Session metadata stores the public wallet identity, candidates, selections, phase and
+terminal results; per-keyset progress and runtime callbacks are excluded. Startup validates
+the wallet identity before listeners and converts running work to Interrupted without retrying.
+Home uses a compact navigation row; the automatic progress sheet and onboarding progress
+screen have been removed. Exact-list execution retains the existing coordinator and Cashu
+derivation/validation. Results label current balances rather than newly recovered totals.
+
+Device validation and first-balance/total-scan timings remain **pending**. No ordinary
+preview build was installed or measured during this implementation. Use the linked device
+procedure to record seed/file import, restarted review/interruption, balances/history,
+responsiveness and Nostr catch-up. Record the selected mint set and timing origin (explicit
+Start) with each measurement; no speedup is claimed.
+
+Local validation for this recovery-screen change: 54 tests passed across 12 focused
+suites, including import/file proofs, discovery, handoff, recovery UI/session/queue,
+Cashu recovery, Nostr scheduling, Settings navigation, Home and wallet snapshot storage.
+Typecheck, button checks, structure checks (72 routes), scoped Prettier and diff whitespace
+checks passed. These checks do not substitute for the pending preview-device procedure.
 
 ## Observed behavior and baseline
 
@@ -167,7 +185,8 @@ Changed implementation files are `recoveryCoordinator.ts`, `walletService.ts`,
 `initService.ts`, `nostrService.ts`, `nostrClaimService.ts`, `walletStore.ts`,
 `messageStore.ts`, `nostrInboxStore.ts`, `MessageRepository.ts`, `sqliteStorage.ts`,
 `ThemeContext.tsx`, `RootLayoutNav.tsx`, onboarding `index.tsx` and
-`RestoreProgressStep.tsx`, `RestoreProgressCard.tsx`, and `RecoverFundsScreen.tsx`.
+the now-removed `RestoreProgressStep.tsx`, the Home recovery entry (now
+`RecoveryStatusRow.tsx`), and `RecoverFundsScreen.tsx`.
 Regression coverage is in `recovery-coordinator`, `wallet-recovery-service`,
 `wallet-recovery-result`, `nostr-work-scheduling`, `nostr-chat-service`,
 `nostr-claim-service`, `nostr-relay-settings`, `message-refresh`,

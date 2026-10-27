@@ -42,6 +42,7 @@ export function SettingsRow({
   selected,
   disabled,
   destructive,
+  selectionRole = 'radio',
 }: {
   title: string;
   value?: string;
@@ -52,13 +53,14 @@ export function SettingsRow({
   selected?: boolean;
   disabled?: boolean;
   destructive?: boolean;
+  selectionRole?: 'radio' | 'checkbox';
 }) {
   const color = destructive ? '$red10' : external ? '$blue10' : '$color';
   return (
     <AppPressable
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole={selected !== undefined ? 'radio' : external ? 'link' : 'button'}
+      accessibilityRole={selected !== undefined ? selectionRole : external ? 'link' : 'button'}
       accessibilityState={selected !== undefined ? { checked: selected } : undefined}
       accessibilityLabel={[title, value].filter(Boolean).join(', ')}
       minHeight={appDimensions.touchTarget}

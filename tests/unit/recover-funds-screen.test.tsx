@@ -1,55 +1,65 @@
 import React from 'react';
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { RecoverFundsScreen } from '~/features/settings/RecoverFundsScreen';
-jest.mock('~/shared/ui/FirstUseGuidance', () => ({ FirstUseGuidance: 'FirstUseGuidance' }));
-
+import {
+  holdRecoveryPause,
+  releaseRecoveryPause,
+  updateRecoverySession,
+  useRecoverySessionStore,
+} from '~/state/recoverySessionStore';
+import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 const mockRecover = jest.fn();
 const mockAuth = jest.fn();
-const mockPush = jest.fn();
-const mockInvalidate = jest.fn();
-const mockPreventRemove = jest.fn();
+const mockReplace = jest.fn();
+const mockGuard = jest.fn();
 let mockOffline = false;
 let mockParams: { mintUrl?: string } = {};
 const mockWallet = {
   mints: [
     { mintUrl: 'https://a.test', nickname: 'Mint A', trusted: true },
-    { mintUrl: 'https://b.test', nickname: 'Mint B', trusted: true },
-    { mintUrl: 'https://untrusted.test', nickname: 'Untrusted', trusted: false },
+    { mintUrl: 'https://b.test', trusted: true },
   ],
   activeMintUrl: 'https://a.test',
   isRestoring: false,
+  mintRestoreStatuses: [] as any[],
+  restoringMintKeysetProgress: null as any,
   restoringMintUrl: null as string | null,
-  restoringMintKeysetProgress: null as null | { current: number; total: number },
-  restoreQueue: [] as string[],
-  balances: { 'https://a.test': 100, 'https://b.test': 0 } as Record<string, number>,
-  restoreFromSeed: mockRecover,
+  balances: { 'https://a.test': 100 },
+  recoverSelectedMints: mockRecover,
 };
+jest.mock('~/storage/sqlite/sqliteStorage', () => ({
+  sqliteStorage: { getItem: () => null, setItem: jest.fn() },
+}));
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: Object.assign((selector: any) => selector(mockWallet), {
     getState: () => mockWallet,
   }),
 }));
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ replace: mockReplace }),
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('@react-navigation/native', () => ({
-  useIsFocused: () => true,
-  usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
+  usePreventRemove: (...args: any[]) => mockGuard(...args),
 }));
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mockInvalidate }),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
+jest.mock('~/services/platform/seedService', () => ({
+  seedService: {
+    getMnemonic: async () => 'fixture',
+    getNostrKeys: async () => ({ pubkey: 'public-id' }),
+  },
 }));
 jest.mock('~/services/platform/biometricService', () => ({
-  biometricService: { authenticateAsync: (...args: unknown[]) => mockAuth(...args) },
+  biometricService: { authenticateAsync: () => mockAuth() },
 }));
+jest.mock('~/services/wallet/recoveryDiscovery', () => ({ retryRecoveryDiscovery: jest.fn() }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockOffline }));
-jest.mock('@tamagui/lucide-icons', () => ({
-  Landmark: 'Landmark',
-  Plus: 'Plus',
-  ScanSearch: 'ScanSearch',
-}));
-jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('@tamagui/lucide-icons', () => ({ Landmark: 'Landmark', ScanSearch: 'ScanSearch' }));
+jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
+jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack', Text: 'Text' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',
   SettingsGroup: 'Group',
@@ -57,137 +67,123 @@ jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsMessage: 'Message',
   SettingsDescription: 'Description',
 }));
-
-async function open() {
-  let tree!: ReactTestRenderer;
+let tree: ReactTestRenderer;
+const button = (label: string) =>
+  tree.root.findAllByType('Button' as any).find((b) => b.props.children === label)!;
+const open = async () => {
   await act(async () => {
     tree = create(<RecoverFundsScreen />);
   });
-  return tree;
-}
-const primary = (tree: ReactTestRenderer) => tree.root.findAllByType('AppButton' as any)[0];
-const messages = (tree: ReactTestRenderer) =>
-  tree.root
-    .findAllByType('Message' as any)
-    .map((node) => React.Children.toArray(node.props.children).join(' '))
-    .join(' ');
+};
 beforeEach(() => {
   jest.clearAllMocks();
   mockOffline = false;
   mockParams = {};
   mockWallet.isRestoring = false;
-  mockWallet.restoringMintUrl = null;
-  mockWallet.restoringMintKeysetProgress = null;
-  mockWallet.restoreQueue = [];
-  mockWallet.balances['https://a.test'] = 100;
   mockAuth.mockResolvedValue(true);
-  mockRecover.mockResolvedValue('completed');
-});
-
-it('authenticates, prevents duplicate scans, shows real progress and refreshes recovered data', async () => {
-  let finish!: (value: string) => void;
-  mockRecover.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const tree = await open();
-  expect(tree.root.findAllByType('Row' as any).some((row) => row.props.title === 'Untrusted')).toBe(
-    false,
-  );
-  await act(async () => {
-    primary(tree).props.onPress();
-    primary(tree).props.onPress();
+  useRecoverySessionStore.setState({
+    session: {
+      walletId: 'public-id',
+      origin: 'import',
+      phase: 'review',
+      needsReview: true,
+      results: [],
+      candidates: mockWallet.mints.map((m) => ({ mintUrl: m.mintUrl, sources: ['File backup'] })),
+      selected: mockWallet.mints.map((m) => m.mintUrl),
+    },
   });
-  expect(mockAuth).toHaveBeenCalledTimes(1);
-  expect(mockRecover).toHaveBeenCalledTimes(1);
-  expect(mockRecover).toHaveBeenCalledWith('https://a.test');
-  expect(mockPreventRemove).toHaveBeenLastCalledWith(true, expect.any(Function));
-  mockWallet.isRestoring = true;
-  mockWallet.restoringMintUrl = 'https://a.test';
-  mockWallet.restoringMintKeysetProgress = { current: 2, total: 5 };
-  await act(async () => tree.update(<RecoverFundsScreen />));
-  expect(messages(tree)).toContain('Checking keyset 2 of 5');
-  mockWallet.balances['https://a.test'] = 132;
-  mockWallet.isRestoring = false;
-  await act(async () => finish('completed'));
-  expect(messages(tree)).toContain('balance increased by 32 sat');
-  expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['proofs'] });
-  expect(mockPreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
-  await act(async () => tree.unmount());
+});
+afterEach(async () => {
+  await act(async () => tree?.unmount());
+  releaseRecoveryPause();
 });
 
-it('does not scan offline, during another recovery, or after authentication cancellation', async () => {
-  mockOffline = true;
-  const tree = await open();
-  expect(primary(tree).props.disabled).toBe(true);
-  await act(async () => primary(tree).props.onPress());
+it('opens review with all candidates checked, supports deselection and disables an empty selection', async () => {
+  await open();
   expect(mockRecover).not.toHaveBeenCalled();
-  mockOffline = false;
-  mockWallet.isRestoring = true;
-  await act(async () => tree.update(<RecoverFundsScreen />));
-  await act(async () => primary(tree).props.onPress());
-  expect(mockAuth).not.toHaveBeenCalled();
-  mockWallet.isRestoring = false;
-  mockAuth.mockResolvedValueOnce(false);
-  await act(async () => tree.update(<RecoverFundsScreen />));
-  await act(async () => primary(tree).props.onPress());
-  expect(mockRecover).not.toHaveBeenCalled();
-  expect(messages(tree)).toContain('Recovery cancelled');
-  await act(async () => tree.unmount());
-});
-
-it('scans selected trusted mints sequentially and preserves per-mint failures for retry', async () => {
-  mockRecover.mockResolvedValueOnce('failed').mockResolvedValueOnce('completed');
-  const tree = await open();
-  await act(async () => tree.root.findAllByType('Row' as any)[0].props.onPress());
-  await act(async () => primary(tree).props.onPress());
-  expect(mockRecover.mock.calls).toEqual([['https://a.test'], ['https://b.test']]);
-  expect(messages(tree)).toContain('Scan could not complete');
-  expect(messages(tree)).toContain('no additional balance found');
-  expect(primary(tree).props.children).toBe('Scan again');
-  await act(async () => tree.unmount());
-});
-
-it('preselects a mint from its details route and links to connect missing mints', async () => {
-  mockParams = { mintUrl: 'https://b.test' };
-  const tree = await open();
   expect(
-    tree.root.findAllByType('Row' as any).find((row) => row.props.title === 'Mint B')!.props
-      .selected,
+    tree.root
+      .findAllByType('Row' as any)
+      .every((r) => r.props.selected && r.props.selectionRole === 'checkbox'),
   ).toBe(true);
-  await act(async () => primary(tree).props.onPress());
-  expect(mockRecover).toHaveBeenCalledWith('https://b.test');
-  tree.root.findAllByType('AppButton' as any)[1].props.onPress();
-  expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/mints');
-  await act(async () => tree.unmount());
+  await act(async () => tree.root.findAllByType('Row' as any)[1].props.onPress());
+  expect(useRecoverySessionStore.getState().session?.selected).toEqual(['https://a.test']);
+  await act(async () => button('Select all').props.onPress());
+  await act(async () => button('Deselect all').props.onPress());
+  expect(button('Recover selected mints').props.disabled).toBe(true);
+  await act(async () => button('Recover selected mints').props.onPress());
+  expect(mockAuth).not.toHaveBeenCalled();
 });
 
-it('does not enqueue work if another recovery starts during authentication', async () => {
-  let authorize!: (value: boolean) => void;
-  mockAuth.mockReturnValueOnce(
-    new Promise((resolve) => {
-      authorize = resolve;
+it('Skip releases the review pause and acknowledges without scanning or changing funds', async () => {
+  holdRecoveryPause();
+  await open();
+  await act(async () => button('Skip for now').props.onPress());
+  expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+  expect(mockRecover).not.toHaveBeenCalled();
+  expect(mockWallet.balances['https://a.test']).toBe(100);
+  expect(recoveryCoordinator.paused).toBe(false);
+  expect(useRecoverySessionStore.getState().session?.needsReview).toBe(false);
+});
+
+it('authenticates once on duplicate presses and guards the whole pending action', async () => {
+  let finish!: () => void;
+  mockRecover.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
     }),
   );
-  const tree = await open();
-  await act(async () => primary(tree).props.onPress());
-  mockWallet.isRestoring = true;
-  await act(async () => authorize(true));
-  expect(mockRecover).not.toHaveBeenCalled();
-  expect(messages(tree)).toContain('Another recovery is already running');
-  await act(async () => tree.unmount());
+  await open();
+  await act(async () => {
+    button('Recover selected mints').props.onPress();
+    button('Recover selected mints').props.onPress();
+  });
+  expect(mockAuth).toHaveBeenCalledTimes(1);
+  expect(mockRecover).toHaveBeenCalledWith(['https://a.test', 'https://b.test']);
+  expect(mockGuard).toHaveBeenLastCalledWith(true, expect.any(Function));
+  await act(async () => finish());
+  expect(mockGuard).toHaveBeenLastCalledWith(false, expect.any(Function));
 });
 
-it('shows partial recovery as a warning rather than a successful empty scan', async () => {
-  mockRecover.mockResolvedValueOnce('partial');
-  const tree = await open();
-  await act(async () => primary(tree).props.onPress());
-  expect(messages(tree)).toContain('Some keysets could not be checked');
-  expect(messages(tree)).not.toContain('no additional balance found');
-  expect(tree.root.findAllByType('Message' as any).some((message) => message.props.error)).toBe(
-    true,
-  );
-  await act(async () => tree.unmount());
+it('requires connectivity and honors authentication cancellation', async () => {
+  mockOffline = true;
+  await open();
+  expect(button('Recover selected mints').props.disabled).toBe(true);
+  await act(async () => button('Recover selected mints').props.onPress());
+  expect(mockAuth).not.toHaveBeenCalled();
+  mockOffline = false;
+  mockAuth.mockResolvedValueOnce(false);
+  await act(async () => tree.update(<RecoverFundsScreen />));
+  await act(async () => button('Recover selected mints').props.onPress());
+  expect(mockRecover).not.toHaveBeenCalled();
+});
+
+it('labels current balances accurately and retries only incomplete results', async () => {
+  updateRecoverySession({
+    phase: 'results',
+    results: [
+      { mintUrl: 'https://a.test', status: 'done', balance: 100 },
+      { mintUrl: 'https://b.test', status: 'partial', balance: 12 },
+    ],
+  });
+  await open();
+  expect(JSON.stringify(tree.toJSON())).toContain('Current balance: ');
+  await act(async () => button('Retry incomplete mints').props.onPress());
+  expect(mockRecover).toHaveBeenCalledWith(['https://b.test']);
+});
+
+it('manual Settings entry preselects the active trusted mint', async () => {
+  useRecoverySessionStore.setState({ session: null });
+  await open();
+  expect(useRecoverySessionStore.getState().session).toMatchObject({
+    origin: 'manual',
+    selected: ['https://a.test'],
+  });
+});
+
+it('preselects an explicitly requested trusted mint over the active mint', async () => {
+  useRecoverySessionStore.setState({ session: null });
+  mockParams = { mintUrl: 'https://b.test/' };
+  await open();
+  expect(useRecoverySessionStore.getState().session?.selected).toEqual(['https://b.test']);
 });

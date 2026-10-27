@@ -284,6 +284,8 @@ async function initializeWithMnemonic(
 
   // Reuse the existing seed-derived Nostr identity for both receiving protocols.
   const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+  const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
+  await prepareRecoverySession(pubkey);
 
   // Using the shared customLogger declared at module scope
 
@@ -420,6 +422,8 @@ export const initService = {
       await repositories.init();
 
       const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+      const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
+      await prepareRecoverySession(pubkey);
 
       manager = new Manager(
         repositories,
@@ -618,6 +622,10 @@ export const initService = {
       usePeopleStore.setState({ people: {} });
       useNostrInboxStore.setState({ items: [], activeClaimId: null });
       useNostrReceiveSettingsStore.setState({ policy: 'ask' });
+      const { useRecoverySessionStore, releaseRecoveryPause } =
+        await import('~/state/recoverySessionStore');
+      useRecoverySessionStore.setState({ session: null });
+      releaseRecoveryPause();
 
       const { useWalletStore } =
         require('~/state/walletStore') as typeof import('~/state/walletStore');

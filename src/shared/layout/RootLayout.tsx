@@ -13,6 +13,8 @@ import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
 import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
 import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
 import { hydrateBitcoinPriceCache } from '~/shared/utils/bitcoinPriceQueryCache';
+import { Spinner } from '~/shared/ui/Spinner';
+import { YStack } from 'tamagui';
 
 const queryClient = new QueryClient();
 hydrateBitcoinPriceCache(queryClient);
@@ -28,6 +30,7 @@ export function RootLayout() {
 
   // Cache manager in state instead of re-computing inside render body
   const [manager, setManager] = useState<any>(null);
+  const [walletReady, setWalletReady] = useState(false);
   useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
@@ -65,7 +68,7 @@ export function RootLayout() {
   useEffect(() => {
     if (isOnboarded && walletExists) {
       console.log('[RootLayout] ✅ Mnemonic found, initializing Coco...');
-      initialize();
+      void initialize().then(() => setWalletReady(true));
     }
   }, [isOnboarded, walletExists, initialize]);
 
@@ -110,7 +113,13 @@ export function RootLayout() {
 
   return (
     <Providers cocoManager={manager}>
-      <RootLayoutNav />
+      {walletReady ? (
+        <RootLayoutNav />
+      ) : (
+        <YStack flex={1} bg="$background" items="center" justify="center">
+          <Spinner />
+        </YStack>
+      )}
       <NfcSheetHost walletReady={!!manager && !isInitializing} />
       <NostrClaimSheet />
       <NostrPaymentReceived />

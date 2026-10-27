@@ -77,6 +77,7 @@ export function BouncyAmount({
       fontWeight="600"
       letterSpacing={-1}
       py="$2"
+      lineHeight={fontSize + 2}
       color={color}
       text="center"
       numberOfLines={1}

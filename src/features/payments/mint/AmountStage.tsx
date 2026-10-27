@@ -272,7 +272,7 @@ export function AmountStage({
             py={4}
             flex={1}
             rounded="$6"
-            bg="$gray3"
+            bg="$gray2"
             pressStyle={{ scale: 0.95 }}
             onPress={() => handlePreset('1000')}
             minHeight={64}
@@ -281,7 +281,7 @@ export function AmountStage({
             justify="center"
             gap={8}
           >
-            <Text color="$color" fontSize="$3" fontWeight="600">
+            <Text color="$color" fontSize="$4" fontWeight="600">
               1k
             </Text>
           </AppPressable>
@@ -290,7 +290,7 @@ export function AmountStage({
             py={4}
             flex={1}
             rounded="$6"
-            bg="$gray3"
+            bg="$gray2"
             pressStyle={{ scale: 0.95 }}
             onPress={() => handlePreset('5000')}
             minHeight={64}
@@ -299,7 +299,7 @@ export function AmountStage({
             justify="center"
             gap={8}
           >
-            <Text color="$color" fontSize="$3" fontWeight="600">
+            <Text color="$color" fontSize="$4" fontWeight="600">
               5k
             </Text>
           </AppPressable>
@@ -308,7 +308,7 @@ export function AmountStage({
             py={4}
             flex={1}
             rounded="$6"
-            bg="$gray3"
+            bg="$gray2"
             pressStyle={{ scale: 0.95 }}
             onPress={() => handlePreset('20000')}
             minHeight={64}
@@ -317,7 +317,7 @@ export function AmountStage({
             justify="center"
             gap={8}
           >
-            <Text color="$color" fontSize="$3" fontWeight="600">
+            <Text color="$color" fontSize="$4" fontWeight="600">
               20k
             </Text>
           </AppPressable>

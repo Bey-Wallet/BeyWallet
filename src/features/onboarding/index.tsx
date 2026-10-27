@@ -1,16 +1,17 @@
 import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
+import {
+  useRecoverySessionStore,
+  holdRecoveryPause,
+  releaseRecoveryPause,
+} from '~/state/recoverySessionStore';
+import { importRecoveryCandidates } from '~/services/wallet/recoveryDiscovery';
 import { useToastController } from '@tamagui/toast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState } from 'react';
 import { WelcomeStep } from '~/features/onboarding/WelcomeStep';
 import { WalletCreationTask } from '~/features/onboarding/WalletCreationTask';
-import { SeedStep } from '~/features/onboarding/SeedStep';
-import { BiometricStep } from '~/features/onboarding/BiometricStep';
-import { NotificationStep } from '~/features/onboarding/NotificationStep';
 import { networkService } from '~/services/platform/networkService';
-import { NostrStep } from '~/features/onboarding/NostrStep';
 import { ImportSeedStep } from '~/features/onboarding/ImportSeedStep';
-import { RestoreProgressStep } from '~/features/onboarding/RestoreProgressStep';
 import { ConsentStep } from '~/features/onboarding/ConsentStep';
 import { PermissionsStep } from '~/features/onboarding/PermissionsStep';
 import { useOnboardingStore } from '~/state/onboardingStore';
@@ -21,11 +22,10 @@ import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { Alert } from 'react-native';
-import { YStack, Text } from 'tamagui';
+import { YStack } from 'tamagui';
 import { DEFAULT_MINT } from '~/state/constants';
 import { generateDeterministicUsername } from '~/shared/utils/username';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
-import { Buffer } from 'buffer';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,9 +53,6 @@ export function OnboardingScreen() {
     resetOnboarding,
   } = useOnboardingStore();
   const initialize = useWalletStore((state) => state.initialize);
-  const restoreAllMints = useWalletStore((state) => state.restoreAllMints);
-  const mintRestoreStatuses = useWalletStore((state) => state.mintRestoreStatuses);
-  const isRestoring = useWalletStore((state) => state.isRestoring);
 
   const [isImporting, setIsImporting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -67,6 +64,8 @@ export function OnboardingScreen() {
   const [finishingStatus, setFinishingStatus] = useState('Setting up wallet…');
   // Extra mints from a backup file
   const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([]);
+  const [nostrRestoreMints, setNostrRestoreMints] = useState<string[]>([]);
+  const [discoveryMessage, setDiscoveryMessage] = useState<string>();
   const [hasSavedWallet, setHasSavedWallet] = useState(false);
   const [savedWalletAction, setSavedWalletAction] = useState<'open' | 'delete' | null>(null);
   const toast = useToastController();
@@ -132,7 +131,8 @@ export function OnboardingScreen() {
       await initService.init();
       await useSettingsStore.getState().initialize(true);
       await initialize();
-      setStep('restoring');
+      await completeOnboarding();
+      useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
       console.error('[Onboarding] Failed to resume wallet:', err);
       toast.show('Failed to open saved wallet.', { kind: 'error' });
@@ -221,6 +221,7 @@ export function OnboardingScreen() {
       const offline = await networkService.isOffline();
 
       if (isImportingFlow) {
+        const candidates = importRecoveryCandidates(extraRestoreMints, nostrRestoreMints);
         setFinishingStatus('Initializing wallet…');
         await initService.restoreWallet(generatedMnemonic, { quiet: !!tempBackupState });
 
@@ -238,6 +239,20 @@ export function OnboardingScreen() {
 
         await initialize();
 
+        holdRecoveryPause();
+        useRecoverySessionStore.setState({
+          session: {
+            walletId: pubkeyHex,
+            origin: 'import',
+            candidates,
+            selected: candidates.map((c) => c.mintUrl),
+            phase: 'review',
+            results: [],
+            needsReview: true,
+            discoveryMessage,
+          },
+        });
+
         await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
 
         // Only add default mint if online
@@ -247,16 +262,6 @@ export function OnboardingScreen() {
         } else {
           console.log('[Onboarding] Offline — skipping default mint, wallet starts with 0 mints');
           await useSettingsStore.getState().setDefaultMintUrl('');
-        }
-
-        const hasFunds =
-          tempBackupState && tempBackupState.proofs && tempBackupState.proofs.length > 0;
-
-        if (!hasFunds && !offline) {
-          console.log('[Onboarding] Kicking off multi-mint scanning in background...');
-          void restoreAllMints(extraRestoreMints).catch(() => {
-            toast.show('Recovery could not finish. Retry from Recover funds.', { kind: 'error' });
-          });
         }
 
         setFinishingStatus('Finalizing setup…');
@@ -285,6 +290,7 @@ export function OnboardingScreen() {
         useAuthStore.getState().setAuthenticated(true);
       }
     } catch (err) {
+      releaseRecoveryPause();
       console.error('[Onboarding] Onboarding completion failed:', err);
       toast.show(
         'Setup could not finish: ' + (err instanceof Error ? err.message : 'Please try again.'),
@@ -310,6 +316,7 @@ export function OnboardingScreen() {
     } = {},
   ) => {
     const { additionalMints = [], backupState } = options;
+    setIsImportingFlow(true);
     setIsImporting(true);
     setImportStatus('Initializing wallet…');
     try {
@@ -322,14 +329,18 @@ export function OnboardingScreen() {
         setImportStatus('Checking for Nostr backups…');
         keys = await seedService.getNostrKeys(mnemonic);
         const pubkeyHex = keys.pubkey;
-        nostrMints = await nostrService.fetchMintsFromNostr(pubkeyHex);
+        nostrMints = await nostrService.fetchMintsFromNostr(pubkeyHex, { throwOnFailure: true });
 
-        if (nostrMints.length === 0) {
-          Alert.alert('Nostr Restore', 'No mints found in Nostr backup.');
-        } else {
+        setDiscoveryMessage(
+          nostrMints.length || additionalMints.length
+            ? undefined
+            : 'No backup found. Review the available mints.',
+        );
+        if (nostrMints.length > 0) {
           console.log(`[Onboarding] Found ${nostrMints.length} mints in Nostr backup`);
         }
       } catch (err) {
+        setDiscoveryMessage('Backup discovery failed. You can retry.');
         console.warn('[Onboarding] Failed to fetch Nostr backup mints:', err);
       }
 
@@ -371,8 +382,8 @@ export function OnboardingScreen() {
       setTempNpub(keys.npub);
       setTempBackupState(backupState);
 
-      const combinedMints = Array.from(new Set([...additionalMints, ...nostrMints]));
-      setExtraRestoreMints(combinedMints);
+      setExtraRestoreMints(additionalMints);
+      setNostrRestoreMints(nostrMints);
 
       setIsImporting(false);
       setStep('permissions');
@@ -382,19 +393,6 @@ export function OnboardingScreen() {
       toast.show('Import failed. Please try again.', { kind: 'error' });
       setIsImporting(false);
     }
-  };
-
-  // Called when RestoreProgressStep mounts — start the actual multi-mint restore
-  const handleRestoreStart = () => {
-    restoreAllMints(extraRestoreMints);
-  };
-
-  // Called when user taps "Go to Wallet" on the progress screen
-  const handleRestoreDone = async () => {
-    console.log('[Onboarding] Restore done, going home');
-    await completeOnboarding();
-    useAuthStore.getState().setAuthenticated(true);
-    await initialize();
   };
 
   // ── File import (restore from .bey backup file) ─────────────
@@ -408,22 +406,20 @@ export function OnboardingScreen() {
       // In v3, backup.mints is already the full database records.
       const extraMints = (backup.mints ?? [])
         .map((m: any) => (typeof m === 'string' ? m : m.url || m.mintUrl))
-        .filter((url: string) => url && url !== DEFAULT_MINT);
+        .filter((url: string) => url);
 
-      // Package up the state if proofs exist in the backup (v3 or cashu.me compatible)
-      let backupState: any = undefined;
-      if (backup.proofs && backup.proofs.length > 0) {
-        backupState = {
-          mints: backup.mints,
-          keysets: backup.keysets,
-          proofs: backup.proofs,
-          counters: backup.counters,
-          history: backup.history,
-          mintQuotes: backup.mintQuotes,
-        };
-      }
+      // Import file records before offering an optional additional scan.
+      const backupState = {
+        mints: backup.mints,
+        keysets: backup.keysets,
+        proofs: backup.proofs,
+        counters: backup.counters,
+        history: backup.history,
+        mintQuotes: backup.mintQuotes,
+        changeOperations: backup.changeOperations,
+      };
 
-      // Standard seed restore — passes extra mints for the progress screen
+      // File data is imported before the shared mint-review handoff.
       await handleImportSeed(backup.mnemonic, {
         additionalMints: extraMints,
         backupState,
@@ -497,59 +493,8 @@ export function OnboardingScreen() {
             onBack={() => setStep('welcome')}
           />
         );
-
-      case 'restoring': {
-        const totalRestoredSats = mintRestoreStatuses
-          .filter((e) => e.status === 'done' || e.status === 'partial')
-          .reduce((sum, e) => sum + e.restoredBalance, 0);
-
-        // Fire restore on first render of this step
-        return (
-          <RestoreProgressStepWrapper
-            entries={mintRestoreStatuses}
-            isRestoring={isRestoring}
-            totalRestoredSats={totalRestoredSats}
-            onStart={handleRestoreStart}
-            onDone={handleRestoreDone}
-          />
-        );
-      }
     } // close switch
   }; // close renderStep
 
   return <YStack flex={1}>{renderStep()}</YStack>;
-}
-
-// ── Wrapper that fires restoreAllMints on mount ──────────────────────────────
-
-function RestoreProgressStepWrapper({
-  entries,
-  isRestoring,
-  totalRestoredSats,
-  onStart,
-  onDone,
-}: {
-  entries: ReturnType<typeof useWalletStore.getState>['mintRestoreStatuses'];
-  isRestoring: boolean;
-  totalRestoredSats: number;
-  onStart: () => void;
-  onDone: () => void;
-}) {
-  const [started, setStarted] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!started) {
-      setStarted(true);
-      onStart();
-    }
-  }, []);
-
-  return (
-    <RestoreProgressStep
-      entries={entries}
-      isRestoring={isRestoring}
-      totalRestoredSats={totalRestoredSats}
-      onDone={onDone}
-    />
-  );
 }

@@ -5,7 +5,7 @@ import { useToastController } from '@tamagui/toast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
 import { HomePromptStack } from '~/features/home/components/HomePromptStack';
-import RestoreProgressCard from '~/features/home/components/RestoreProgressCard';
+import RecoveryStatusRow from '~/features/home/components/RecoveryStatusRow';
 import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
@@ -183,7 +183,7 @@ export function HomeTabScreen() {
         )}
         <HomePromptStack />
 
-        <RestoreProgressCard />
+        <RecoveryStatusRow />
 
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>

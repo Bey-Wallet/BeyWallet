@@ -1353,7 +1353,10 @@ class NostrService {
   /**
    * Fetch the user's NIP-61 kind 10019 event to retrieve their backed-up mints.
    */
-  public async fetchMintsFromNostr(pubkeyHex: string): Promise<string[]> {
+  public async fetchMintsFromNostr(
+    pubkeyHex: string,
+    options: { throwOnFailure?: boolean } = {},
+  ): Promise<string[]> {
     console.log(`[NostrService] 📥 Fetching mints from Nostr for pubkey ${pubkeyHex.slice(0, 8)}…`);
     const pool = new SimplePool();
     const relays = getNostrRelays();
@@ -1385,6 +1388,7 @@ class NostrService {
       return mintUrls;
     } catch (err: any) {
       console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
+      if (options.throwOnFailure) throw new Error('Backup discovery failed.');
       return [];
     } finally {
       pool.close(relays);

@@ -5,18 +5,25 @@ import { OnboardingScreen } from '~/features/onboarding';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { useWalletStore } from '~/state/walletStore';
 import { initService } from '~/services/wallet';
+import { walletFileService } from '~/services/platform/walletFileService';
 import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
+import {
+  useRecoverySessionStore,
+  acknowledgeRecovery,
+  releaseRecoveryPause,
+} from '~/state/recoverySessionStore';
+jest.mock('~/storage/sqlite/sqliteStorage', () => ({
+  sqliteStorage: { getItem: () => null, setItem: jest.fn() },
+}));
+jest.mock('~/services/wallet/recoveryDiscovery', () => ({
+  importRecoveryCandidates: () => [{ mintUrl: 'https://synthetic.test', sources: ['Default'] }],
+}));
 
 jest.mock('~/features/onboarding/WelcomeStep', () => ({ WelcomeStep: 'Welcome' }));
 jest.mock('~/features/onboarding/ImportSeedStep', () => ({ ImportSeedStep: 'Import' }));
 jest.mock('~/features/onboarding/PermissionsStep', () => ({ PermissionsStep: 'Permissions' }));
 jest.mock('~/features/onboarding/WalletCreationTask', () => ({ WalletCreationTask: () => null }));
-jest.mock('~/features/onboarding/SeedStep', () => ({ SeedStep: () => null }));
-jest.mock('~/features/onboarding/BiometricStep', () => ({ BiometricStep: () => null }));
-jest.mock('~/features/onboarding/NotificationStep', () => ({ NotificationStep: () => null }));
-jest.mock('~/features/onboarding/NostrStep', () => ({ NostrStep: () => null }));
 jest.mock('~/features/onboarding/ConsentStep', () => ({ ConsentStep: () => null }));
-jest.mock('~/features/onboarding/RestoreProgressStep', () => ({ RestoreProgressStep: () => null }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
 jest.mock('~/shared/ui/Flex', () => ({ Flex: 'Flex' }));
@@ -25,7 +32,13 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('~/services/platform/networkService', () => ({
   networkService: { isOffline: async () => false },
 }));
-jest.mock('~/services/platform/walletFileService', () => ({ walletFileService: {} }));
+jest.mock('~/services/platform/walletFileService', () => ({
+  walletFileService: { importWalletFromFile: jest.fn() },
+}));
+const mockImportState = jest.fn();
+jest.mock('~/services/wallet/backupService', () => ({
+  backupService: { importState: (...args: any[]) => mockImportState(...args) },
+}));
 jest.mock('~/services/platform/seedService', () => ({
   seedService: {
     getNostrKeys: async () => ({
@@ -40,7 +53,7 @@ jest.mock('~/shared/utils/username', () => ({
 }));
 jest.mock('~/services/wallet/nostrIdentityService', () => ({ nostrIdentityService: {} }));
 jest.mock('~/services/wallet', () => ({
-  initService: { walletExists: async () => false, restoreWallet: jest.fn() },
+  initService: { walletExists: async () => false, restoreWallet: jest.fn(), reinitFast: jest.fn() },
   mintManager: { addMint: jest.fn() },
   nostrService: { fetchMintsFromNostr: async () => [] },
 }));
@@ -77,12 +90,14 @@ beforeEach(() => {
   });
   useWalletStore.setState({
     initialize: jest.fn(),
-    restoreAllMints: jest.fn(),
+    recoverSelectedMints: jest.fn(),
     mintRestoreStatuses: [],
     isRestoring: false,
   });
 });
 afterEach(async () => {
+  releaseRecoveryPause();
+  useRecoverySessionStore.setState({ session: null });
   await act(async () => tree?.unmount());
   jest.restoreAllMocks();
 });
@@ -97,7 +112,7 @@ async function importSeed() {
   );
 }
 
-it('pauses before seed-import initialization and hands the pause over to the full scan queue', async () => {
+it('pauses before import initialization and hands off to review without scanning', async () => {
   let finishInit!: () => void;
   const initialization = new Promise<void>((resolve) => {
     finishInit = resolve;
@@ -106,17 +121,6 @@ it('pauses before seed-import initialization and hands the pause over to the ful
     expect(recoveryCoordinator.paused).toBe(true);
     await initialization;
     return {} as any;
-  });
-  let finishScan!: () => void;
-  const scanning = new Promise<void>((resolve) => {
-    finishScan = resolve;
-  });
-  let job: Promise<void> | undefined;
-  useWalletStore.setState({
-    restoreAllMints: () => {
-      job = recoveryCoordinator.enqueue('https://synthetic.test', () => scanning);
-      return job;
-    },
   });
   await importSeed();
   let setup!: Promise<void>;
@@ -130,14 +134,18 @@ it('pauses before seed-import initialization and hands the pause over to the ful
       finishInit();
       await setup;
     });
-    expect(job).toBeDefined();
+    expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
+    expect(useRecoverySessionStore.getState().session).toMatchObject({
+      phase: 'review',
+      needsReview: true,
+      selected: ['https://synthetic.test'],
+    });
     expect(recoveryCoordinator.paused).toBe(true);
   } finally {
     finishInit();
-    finishScan();
     await setup;
-    await job;
   }
+  acknowledgeRecovery();
   expect(recoveryCoordinator.paused).toBe(false);
 });
 
@@ -150,5 +158,36 @@ it('releases the import pause if wallet initialization fails', async () => {
     tree.root.findByType('Permissions' as any).props.onComplete('', false, true),
   );
   expect(recoveryCoordinator.paused).toBe(false);
-  expect(useWalletStore.getState().restoreAllMints).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
+});
+
+it('imports file proofs before handing off to review and never starts a scan', async () => {
+  const proofs = [
+    { mintUrl: 'https://synthetic.test', secret: 'synthetic-proof-fixture', amount: 42 },
+  ];
+  jest.mocked(walletFileService.importWalletFromFile).mockResolvedValueOnce({
+    mnemonic: 'synthetic-seed-fixture',
+    mints: [{ mintUrl: 'https://synthetic.test' }],
+    proofs,
+  } as any);
+  jest.mocked(initService.restoreWallet).mockResolvedValueOnce({} as any);
+  await act(async () => {
+    tree = create(<OnboardingScreen />);
+  });
+  await act(async () => tree.root.findByType('Welcome' as any).props.onImportFromFile());
+  mockImportState.mockImplementationOnce(async (data: any) => {
+    expect(recoveryCoordinator.paused).toBe(true);
+    expect(data.proofs).toBe(proofs);
+    expect(useRecoverySessionStore.getState().session).toBeNull();
+  });
+  await act(async () =>
+    tree.root.findByType('Permissions' as any).props.onComplete('', false, true),
+  );
+  expect(mockImportState).toHaveBeenCalledTimes(1);
+  expect(initService.reinitFast).toHaveBeenCalledTimes(1);
+  expect(useRecoverySessionStore.getState().session?.phase).toBe('review');
+  expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
+  acknowledgeRecovery();
+  expect(proofs).toHaveLength(1);
+  expect(proofs[0].amount).toBe(42);
 });
