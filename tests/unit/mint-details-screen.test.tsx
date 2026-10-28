@@ -214,9 +214,10 @@ it('keeps the name editable when persistence fails', async () => {
   await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Draft'));
   await act(async () => iconButton('Save mint name').props.onPress());
   expect(tree.root.findByType('Input' as any).props.defaultValue).toBe('Draft');
-  expect(mockToast.show).toHaveBeenCalledWith('Could not save mint name. Please try again.', {
-    kind: 'error',
-  });
+  expect(mockToast.show).toHaveBeenCalledWith(
+    'Could not save name',
+    expect.objectContaining({ kind: 'error', duration: 4000 }),
+  );
 });
 
 it('keeps mint removal on its confirmation screen until persistence succeeds', async () => {
@@ -230,13 +231,20 @@ it('keeps mint removal on its confirmation screen until persistence succeeds', a
   expect(mockRouter.back).not.toHaveBeenCalled();
   expect(mockToast.show).toHaveBeenCalledTimes(1);
   expect(mockToast.show).toHaveBeenCalledWith(
-    'Could not remove this mint. Check its balance and try again.',
-    { kind: 'error' },
+    'Could not remove mint',
+    expect.objectContaining({
+      kind: 'error',
+      duration: 4000,
+      message: 'Check its balance and try again.',
+    }),
   );
   remove.mockResolvedValue(undefined);
   await act(async () => confirm.props.onPress());
   expect(mockRouter.back).toHaveBeenCalledTimes(1);
-  expect(mockToast.show).toHaveBeenLastCalledWith('Mint removed', { kind: 'success' });
+  expect(mockToast.show).toHaveBeenLastCalledWith(
+    'Mint removed',
+    expect.objectContaining({ kind: 'success', duration: 1000 }),
+  );
 });
 
 it('allows clearing a nickname to restore the original mint name', async () => {

@@ -15,7 +15,7 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Linking } from 'react-native';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 interface ConsentStepProps {
   onComplete: () => void;
@@ -23,6 +23,7 @@ interface ConsentStepProps {
 }
 
 export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
+  const toast = useAppToast();
   const insets = useSafeAreaInsets();
   const [checked, setChecked] = useState(false);
 
@@ -34,7 +35,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
 
   const handleOpenTerms = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Linking.openURL('http://bey.cash/privacy-policy').catch(() => {});
+    void toast.openExternal('http://bey.cash/privacy-policy');
   };
 
   return (

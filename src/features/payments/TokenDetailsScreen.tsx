@@ -32,7 +32,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { Spinner } from '~/shared/ui/Spinner';
 import { Buffer } from 'buffer';
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
@@ -71,7 +71,7 @@ interface HistoryEntry {
 export default function TokenDetailsModal() {
   const router = useRouter();
   const { id, token: paramToken } = useLocalSearchParams<{ id: string; token: string }>();
-  const toast = useToastController();
+  const toast = useAppToast();
   const insets = useSafeAreaInsets();
   const { secondaryCurrency } = useSettingsStore();
 
@@ -203,7 +203,7 @@ export default function TokenDetailsModal() {
       if (!(await copyWithFeedback(currentToken, toast))) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setCopied(true);
-      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
+      toast.showFeedback(interactionCopy.ecashCopied);
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -213,7 +213,7 @@ export default function TokenDetailsModal() {
       const peanut = encodePeanut(cleanToken(currentToken));
       if (!(await copyWithFeedback(peanut, toast))) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
+      toast.showFeedback(interactionCopy.ecashCopied);
     }
   };
 
@@ -234,9 +234,7 @@ export default function TokenDetailsModal() {
       }
     } catch (e) {
       console.error('Failed to toggle token version:', e);
-      toast.show(interactionCopy.failedToSwitchTokenVersion.title, {
-        kind: interactionCopy.failedToSwitchTokenVersion.severity,
-      });
+      toast.showFeedback(interactionCopy.failedToSwitchTokenVersion);
     }
   };
 
@@ -254,11 +252,10 @@ export default function TokenDetailsModal() {
           message: shareText,
         });
       } else {
-        handleCopy();
+        toast.showFeedback(interactionCopy.shareUnavailable);
       }
     } catch (error) {
-      console.error('Error sharing:', error);
-      handleCopy();
+      toast.showFeedback(interactionCopy.shareFailed);
     }
   };
 

@@ -1,3 +1,6 @@
+jest.mock('@tamagui/toast', () => ({
+  useToastController: () => ({ show: jest.fn(), hide: jest.fn() }),
+}));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PublicKeySettingsScreen } from '~/features/settings/IdentityScreens';

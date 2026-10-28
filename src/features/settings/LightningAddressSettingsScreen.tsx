@@ -2,7 +2,6 @@ import React from 'react';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { Text, YStack } from 'tamagui';
 import { AtSign, Download, Zap } from '@tamagui/lucide-icons';
-import * as Clipboard from 'expo-clipboard';
 import { AppButton } from '~/shared/ui/AppButton';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
@@ -20,6 +19,7 @@ import {
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 function useOperation() {
   const [busy, setBusy] = React.useState(false);
@@ -48,6 +48,7 @@ function useOperation() {
 }
 
 export default function LightningAddressSettingsScreen() {
+  const toast = useAppToast();
   const state = useLightningAddressStore();
   const npub = useSettingsStore((s) => s.npub);
   const router = useRouter();
@@ -93,7 +94,7 @@ export default function LightningAddressSettingsScreen() {
           <AppButton
             size="small"
             disabled={busy}
-            onPress={() => run(() => Clipboard.setStringAsync(lightningAddress(npub)))}
+            onPress={() => run(() => toast.copy(lightningAddress(npub)))}
           >
             Copy address
           </AppButton>

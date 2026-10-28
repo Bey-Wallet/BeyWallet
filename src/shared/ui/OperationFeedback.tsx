@@ -9,8 +9,10 @@ import React, {
 } from 'react';
 import { Toast } from '@tamagui/toast';
 import { NavigationContext } from '@react-navigation/native';
-import { XStack, YStack } from 'tamagui';
-import { Spinner } from '~/shared/ui/Spinner';
+import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ToastContent, toastSurfaceProps } from './ToastContent';
+import { getToastLayout } from './toastLayout';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 
 type PendingOperation = { title: string };
@@ -23,6 +25,9 @@ const OperationContext = createContext<Registry | null>(null);
 export function OperationFeedbackProvider({ children }: { children: React.ReactNode }) {
   const [operations, setOperations] = useState<Record<string, PendingOperation>>({});
   const reducedMotion = useReducedMotion();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const layout = getToastLayout(width, insets);
   const update = useCallback((id: string, operation: PendingOperation) => {
     setOperations((previous) => {
       if (previous[id]?.title === operation.title) return previous;
@@ -53,29 +58,11 @@ export function OperationFeedbackProvider({ children }: { children: React.ReactN
           onSwipeStart={(event) => event.preventDefault()}
           onSwipeMove={(event) => event.preventDefault()}
           onSwipeEnd={(event) => event.preventDefault()}
-          themeInverse
-          bg="$gray4"
-          rounded="$6"
-          px="$4"
-          py="$3"
-          mt="$2"
-          maxW={360}
-          alignSelf="center"
+          {...toastSurfaceProps}
+          animation={reducedMotion ? undefined : 'quick'}
+          maxW={layout.width}
         >
-          <XStack items="center" gap="$2">
-            <XStack
-              aria-hidden
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            >
-              <Spinner size={16} strokeWidth={3} color="$color" reduceMotion={reducedMotion} />
-            </XStack>
-            <YStack flexShrink={1} accessibilityLiveRegion="polite" aria-live="polite" aria-atomic>
-              <Toast.Title fontSize={16} lineHeight={22} fontWeight="800" color="$color">
-                {operation.title}
-              </Toast.Title>
-            </YStack>
-          </XStack>
+          <ToastContent kind="loading" title={operation.title} maxWidth={layout.width} />
         </Toast>
       ))}
     </OperationContext.Provider>

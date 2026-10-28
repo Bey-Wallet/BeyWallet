@@ -84,7 +84,7 @@ export default function ProofManagerScreen() {
         proofService.encodeProofsAsToken(url, proofs, 'sat'),
       );
       await Share.share({ message: tokens.join('\n\n') });
-      return 'Share dialog closed.';
+      return '';
     });
   const eraseSpent = () => {
     if (state !== 'spent') return;

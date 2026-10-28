@@ -1,11 +1,11 @@
-import React, { forwardRef, useEffect, useState } from 'react';
-import * as Clipboard from 'expo-clipboard';
+import React, { forwardRef } from 'react';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Text, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import type { ConversationActivity } from '../conversationActivity';
 import { ConversationItemCard } from './ConversationItemCard';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 export const ConversationMessageSheet = forwardRef<
   AppBottomSheetRef,
@@ -21,25 +21,14 @@ export const ConversationMessageSheet = forwardRef<
   { item, primaryAmount, secondaryAmount, bottomInset, actionLabel, onAction },
   ref,
 ) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState('');
-  useEffect(() => {
-    setCopied(false);
-    setCopyError('');
-  }, [item?.id]);
+  const toast = useAppToast();
   const copy = async () => {
     if (!item) return;
-    try {
-      await Clipboard.setStringAsync(
-        item.kind === 'text'
-          ? item.text
-          : `${item.type}\n${primaryAmount ?? 'Amount unavailable'}\n${item.status}`,
-      );
-      setCopied(true);
-      setCopyError('');
-    } catch {
-      setCopyError('Could not copy. Try again.');
-    }
+    await toast.copy(
+      item.kind === 'text'
+        ? item.text
+        : `${item.type}\n${primaryAmount ?? 'Amount unavailable'}\n${item.status}`,
+    );
   };
   return (
     <AppBottomSheet ref={ref} snapPoints={['65%', '90%']} bottomInset={bottomInset}>
@@ -56,21 +45,9 @@ export const ConversationMessageSheet = forwardRef<
               primaryAmount={primaryAmount}
               secondaryAmount={secondaryAmount}
             />
-            {copied && (
-              <Text accessibilityLiveRegion="polite" color="$gray10">
-                Copied
-              </Text>
-            )}
-            {!!copyError && (
-              <Text accessibilityLiveRegion="polite" color="$buttonWarningSecondaryText">
-                {copyError}
-              </Text>
-            )}
             <ListTable>
               <ListTableRow
-                label={
-                  copied ? 'Copied' : item.kind === 'text' ? 'Copy message' : 'Copy payment details'
-                }
+                label={item.kind === 'text' ? 'Copy message' : 'Copy payment details'}
                 labelColor="$color"
                 isCopyable
                 onCopy={() => void copy()}

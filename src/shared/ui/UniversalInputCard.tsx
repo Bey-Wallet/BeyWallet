@@ -17,7 +17,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import {
   resolveUniversalInput,
   UniversalInputResult,
@@ -70,7 +70,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     ref,
   ) => {
     const router = useRouter();
-    const toast = useToastController();
+    const toast = useAppToast();
     const inputRef = useRef<any>(null);
     const inputTextRef = useRef('');
     const generation = useRef(0);
@@ -179,9 +179,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           setHasText(true);
           await resolveInput(text.trim(), ticket);
         } else {
-          toast.show(interactionCopy.clipboardIsEmpty.title, {
-            kind: interactionCopy.clipboardIsEmpty.severity,
-          });
+          toast.showFeedback(interactionCopy.clipboardIsEmpty);
         }
       } catch {
         if (ticket === generation.current)

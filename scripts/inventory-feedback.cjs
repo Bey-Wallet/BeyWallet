@@ -21,7 +21,7 @@ for (const file of files('src').sort()) {
     const feedback = [
       ...new Set(
         body.match(
-          /(?:toast\.show|publishWalletFeedback|set\w*Error|set\w*Status|Alert\.alert|Haptics\.\w+|setCopied|setMessage|setLocalError|setStep)/g,
+          /(?:toast\.(?:showFeedback|show|copy|openExternal)|publishWalletFeedback|set\w*Error|set\w*Status|Alert\.alert|Haptics\.\w+|setCopied|setMessage|setLocalError|setStep)/g,
         ) || [],
       ),
     ];
@@ -36,7 +36,11 @@ for (const file of files('src').sort()) {
       /router\.(push|back|replace|navigate)|setStep|onBack|onClose|setSelected|onCheckedChange/.test(
         trigger,
       );
-    const clipboard = /copy|clipboard|paste/i.test(trigger);
+    const clipboard =
+      /copy|clipboard|paste/i.test(trigger) ||
+      /toast\.copy|copyWithFeedback|Clipboard\.(?:get|set)String|\btask\.copy|\boperation\.copy/.test(
+        body,
+      );
     const destructive = /delete|destroy|remove|reclaim/i.test(trigger);
     const result = financial && !clipboard && !navigation;
     const owner = passive
@@ -110,7 +114,7 @@ for (const file of files('src').sort()) {
             ? 'navigate/select'
             : 'correct input or retry safely',
       verification:
-        'source-indexed; see feedback-revamp.md for automated coverage and pending device checks',
+        'source-indexed; see feedback-revamp.md and interaction-feedback.md for automated coverage and pending device checks',
     });
   }
   if (relative.startsWith('src/app/')) record(tree, 'route', relative, tree);

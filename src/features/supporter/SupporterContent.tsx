@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { useWindowDimensions } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { ClipboardCheck, Code2, Copy, HeartHandshake } from '@tamagui/lucide-icons';
 import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 import { appSpacing, appTypography } from '~/shared/theme/appearance';
@@ -9,6 +8,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { CustomQRCode } from '~/shared/ui/CustomQRCode';
 import { isLightningAddress } from '~/services/api/lnurlService';
 import { SUPPORT_LIGHTNING_ADDRESS } from './supporterPayment';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 const supportAreas = [
   {
@@ -39,8 +39,7 @@ export function SupporterContent({
   bottomInset?: number;
 }) {
   const { width } = useWindowDimensions();
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
+  const toast = useAppToast();
   const opening = useRef(false);
   const focused = useIsFocused();
   useEffect(() => {
@@ -102,23 +101,11 @@ export function SupporterContent({
                 emphasis="text-only"
                 icon={Copy}
                 onPress={async () => {
-                  try {
-                    await Clipboard.setStringAsync(address);
-                    setCopied(true);
-                    setCopyFailed(false);
-                  } catch {
-                    setCopied(false);
-                    setCopyFailed(true);
-                  }
+                  await toast.copy(address);
                 }}
               >
-                {copied ? 'Copied' : 'Copy'}
+                Copy
               </AppButton>
-              {copyFailed && (
-                <Text {...appTypography.body3} color="$red10" accessibilityRole="alert">
-                  Could not copy. Try again.
-                </Text>
-              )}
             </YStack>
           ) : (
             <Text {...appTypography.body3} color="$gray10" textAlign="center">

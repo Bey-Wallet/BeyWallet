@@ -6,7 +6,7 @@ import { XStack, YStack, Text } from 'tamagui';
 import { Copy, ChevronRight } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 const CompactTableContext = createContext(true);
@@ -69,7 +69,7 @@ export function ListTableRow({
   compact?: boolean;
   disabled?: boolean;
 }) {
-  const toast = useToastController();
+  const toast = useAppToast();
   const inheritedCompact = useContext(CompactTableContext);
   const compact = compactProp ?? inheritedCompact;
   const wrap = compact || multiline;
@@ -84,9 +84,7 @@ export function ListTableRow({
     if (textToCopy) {
       if (!(await copyWithFeedback(textToCopy, toast))) return;
       Haptics.selectionAsync();
-      toast.show(interactionCopy.copiedToClipboard.title, {
-        kind: interactionCopy.copiedToClipboard.severity,
-      });
+      toast.showFeedback(interactionCopy.copiedToClipboard);
     }
   };
 

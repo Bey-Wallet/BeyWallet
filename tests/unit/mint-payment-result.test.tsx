@@ -175,7 +175,10 @@ it('keeps the invoice available after an unsuccessful payment check', async () =
   const refresh = () => tree.root.findByProps({ label: 'Status' }).props.rightContent;
   await act(async () => refresh().props.onPress());
   expect(onPaid).toHaveBeenCalledTimes(1);
-  expect(mockToastShow).toHaveBeenCalledWith(expect.any(String), { kind: 'info' });
+  expect(mockToastShow).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({ kind: 'info', duration: 3000 }),
+  );
   expect(refresh().props.loading).toBe(false);
   expect(tree.root.findByProps({ label: 'Invoice' }).props.disabled).toBe(false);
   await act(async () => tree.unmount());

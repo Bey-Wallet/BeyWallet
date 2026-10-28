@@ -6,7 +6,7 @@ import {
   releaseRecoveryPause,
 } from '~/state/recoverySessionStore';
 import { importRecoveryCandidates } from '~/services/wallet/recoveryDiscovery';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState } from 'react';
 import { WelcomeStep } from '~/features/onboarding/WelcomeStep';
@@ -70,7 +70,7 @@ export function OnboardingScreen() {
   const [discoveryMessage, setDiscoveryMessage] = useState<string>();
   const [hasSavedWallet, setHasSavedWallet] = useState(false);
   const [savedWalletAction, setSavedWalletAction] = useState<'open' | 'delete' | null>(null);
-  const toast = useToastController();
+  const toast = useAppToast();
   const busy = currentStep === 'creating' || isImporting || isFinishing;
   usePendingOperationToast({
     active:
@@ -137,13 +137,7 @@ export function OnboardingScreen() {
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
       console.error('[Onboarding] Failed to resume wallet:', err);
-      toast.show(interactionCopy.failedToOpenSavedWallet.title, {
-        kind: interactionCopy.failedToOpenSavedWallet.severity,
-      });
-      Alert.alert(
-        'Resume Failed',
-        'Failed to open saved wallet. You may need to delete it and start over.',
-      );
+      setSetupError('Could not open this wallet. Retry opening it.');
     } finally {
       resumeRecoveryWork?.();
       setIsFinishing(false);
@@ -161,15 +155,10 @@ export function OnboardingScreen() {
       await resetOnboarding();
       setHasSavedWallet(false);
       setStep('welcome');
-      toast.show(interactionCopy.walletDeleted.title, {
-        kind: interactionCopy.walletDeleted.severity,
-      });
+      toast.showFeedback(interactionCopy.walletDeleted);
     } catch (err) {
       console.error('[Onboarding] Failed to delete wallet:', err);
-      toast.show(interactionCopy.failedToCompletelyDeleteTheWallet.title, {
-        kind: interactionCopy.failedToCompletelyDeleteTheWallet.severity,
-      });
-      Alert.alert('Error', 'Failed to completely delete the wallet.');
+      setSetupError('Wallet deletion did not finish. Restart Bey and review the wallet.');
     } finally {
       setIsFinishing(false);
       setSavedWalletAction(null);
@@ -466,9 +455,7 @@ export function OnboardingScreen() {
             <WalletCreationTask
               open={currentStep === 'creating'}
               onError={() => {
-                toast.show(interactionCopy.walletCreationFailedPleaseTryAgain.title, {
-                  kind: interactionCopy.walletCreationFailedPleaseTryAgain.severity,
-                });
+                setSetupError(interactionCopy.walletCreationFailedPleaseTryAgain.title);
                 setStep('welcome');
               }}
               onComplete={handleCreatingComplete}

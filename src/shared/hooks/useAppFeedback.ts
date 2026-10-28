@@ -1,4 +1,8 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import {
+  interactionToastOptions,
+  toastDurations,
+} from '~/services/feedback/interactionPresentation';
 import { useEffect, useRef } from 'react';
 import { AppState, DeviceEventEmitter } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -80,9 +84,10 @@ export function useAppFeedback() {
         return;
       }
       if (target.type === 'transaction') router.push('/(tabs)/history');
-      toast.show(interactionCopy.thisItemIsNoLongerAvailable.title, {
-        kind: interactionCopy.thisItemIsNoLongerAvailable.severity,
-      });
+      toast.show(
+        interactionCopy.thisItemIsNoLongerAvailable.title,
+        interactionToastOptions(interactionCopy.thisItemIsNoLongerAvailable),
+      );
     };
     const disconnect = feedbackCoordinator.connect({
       foreground: () => AppState.currentState === 'active',
@@ -90,26 +95,23 @@ export function useAppFeedback() {
       toast: async (events) => {
         const event = events[0];
         const copy = feedbackCatalog[event.kind];
-        const settings = useSettingsStore.getState();
         const title = events.length > 1 ? 'New wallet activity' : copy.title;
-        // Foreground previews also respect hidden balances. No sender/message text.
-        const message =
-          !settings.hideBalance && event.details && events.length === 1
-            ? `${event.details.amount.toLocaleString()} sat`
-            : undefined;
+        const hasDestination = events.length > 1 || !!event.target;
         toast.show(title, {
           kind: copy.severity,
-          message,
+          duration: hasDestination ? toastDurations.action : toastDurations.normal,
           customData: {
             kind: copy.severity,
-            variant: 'action',
-            actionLabel: 'View',
-            onAction: () => {
-              void deliveryIdentifier(event).then((id) => {
-                if (events.length > 1) summaries.current.add(id);
-                responses.current.enqueue(id);
-              });
-            },
+            variant: hasDestination ? 'action' : 'default',
+            actionLabel: hasDestination ? 'View' : undefined,
+            onAction: hasDestination
+              ? () => {
+                  void deliveryIdentifier(event).then((id) => {
+                    if (events.length > 1) summaries.current.add(id);
+                    responses.current.enqueue(id);
+                  });
+                }
+              : undefined,
           },
         });
         await Haptics.notificationAsync(

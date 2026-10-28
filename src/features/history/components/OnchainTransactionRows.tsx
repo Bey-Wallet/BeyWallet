@@ -4,7 +4,7 @@ import { Linking } from 'react-native';
 import { YStack } from 'tamagui';
 import { ExternalLink } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import {
   normalizeBitcoinAddress,
@@ -27,7 +27,7 @@ export function OnchainTransactionRows({
   quoteId?: string;
   pending?: boolean;
 }) {
-  const toast = useToastController();
+  const toast = useAppToast();
   const destination = normalizeBitcoinAddress(address);
   const { data: transactionIds } = useQuery({
     queryKey: ['onchainTransactionIds', direction, destination, mintUrl, quoteId],
@@ -64,9 +64,7 @@ export function OnchainTransactionRows({
               url
                 ? () => {
                     void Linking.openURL(url).catch(() =>
-                      toast.show(interactionCopy.couldNotOpenBlockchainExplorer.title, {
-                        kind: interactionCopy.couldNotOpenBlockchainExplorer.severity,
-                      }),
+                      toast.showFeedback(interactionCopy.couldNotOpenBlockchainExplorer),
                     );
                   }
                 : undefined

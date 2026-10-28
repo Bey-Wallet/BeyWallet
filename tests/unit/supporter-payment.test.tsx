@@ -9,6 +9,10 @@ import {
 } from '~/features/supporter/supporterPayment';
 
 const mockCopy = jest.fn();
+const mockToastShow = jest.fn();
+jest.mock('@tamagui/toast', () => ({
+  useToastController: () => ({ show: mockToastShow, hide: jest.fn() }),
+}));
 const mockPay = jest.fn();
 const mockClose = jest.fn();
 const mockDismiss = jest.fn();
@@ -78,7 +82,10 @@ it('shows a static Lightning-address QR and copies the exact recipient without i
   expect(tree.root.findByType('QRCode' as any).props.size).toBeLessThanOrEqual(360 - 64);
   await act(async () => button('Copy').props.onPress());
   expect(mockCopy).toHaveBeenCalledWith('beywallet@blitzwalletapp.com');
-  expect(button('Copied')).toBeDefined();
+  expect(mockToastShow).toHaveBeenCalledWith(
+    'Copied',
+    expect.objectContaining({ duration: 1000, kind: 'success' }),
+  );
   expect(mockPay).not.toHaveBeenCalled();
   const content = JSON.stringify(tree.toJSON());
   expect(content).toContain('Built in the open.');
@@ -93,7 +100,11 @@ it('handles failed clipboard writes without showing a false copied confirmation'
   await open();
   await act(async () => button('Copy').props.onPress());
   expect(button('Copy')).toBeDefined();
-  expect(JSON.stringify(tree.toJSON())).toContain('Could not copy. Try again.');
+  expect(mockToastShow).toHaveBeenCalledWith(
+    'Could not copy',
+    expect.objectContaining({ duration: 4000, kind: 'error' }),
+  );
+  expect(mockToastShow).toHaveBeenCalledTimes(1);
 });
 
 it('guards duplicate Pay now presses and allows another payment after returning', async () => {

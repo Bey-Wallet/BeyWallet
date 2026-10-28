@@ -1,6 +1,5 @@
 import React, { forwardRef, useState } from 'react';
 import { Alert, Share } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
@@ -13,29 +12,27 @@ import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { ConversationAvatar } from './ConversationAvatar';
 import { syncConversationContact } from '../syncConversationContact';
 import { hasVerifiedNip05 } from '../nip05';
+import { useAppToast } from '~/shared/hooks/useAppToast';
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 
 export const ConversationContactSheet = forwardRef<
   AppBottomSheetRef,
   { npub: string; label: string; bottomInset: number }
 >(function ConversationContactSheet({ npub, label, bottomInset }, ref) {
+  const toast = useAppToast();
   const person = usePeopleStore((state) => state.people[npub]);
   const [feedback, setFeedback] = useState('');
   const [syncing, setSyncing] = useState(false);
   const address = person?.nip05 || (person?.username?.includes('@') ? person.username : undefined);
   const copy = async () => {
-    try {
-      await Clipboard.setStringAsync(npub);
-      setFeedback('Public key copied');
-    } catch {
-      setFeedback('Could not copy this public key. Try again.');
-    }
+    await toast.copy(npub);
   };
   const share = async () => {
     const url = Linking.createURL('/(modals)/conversation', { queryParams: { npub } });
     try {
       await Share.share({ message: `${address || label}\n${npub}\n${url}` });
     } catch {
-      setFeedback('Could not share this contact. Try again.');
+      toast.showFeedback(interactionCopy.shareFailed);
     }
   };
   const sync = async () => {

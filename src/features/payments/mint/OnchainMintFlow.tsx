@@ -17,7 +17,7 @@ import { YStack, Text, Paragraph } from 'tamagui';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService, initService } from '~/services/wallet';
@@ -30,7 +30,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 export function OnchainMintFlow() {
   const router = useRouter();
   const [eventTime, setEventTime] = useState<number>();
-  const toast = useToastController();
+  const toast = useAppToast();
   const { mintUrl: activeMintUrl, setMintUrl } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const { mints } = useWalletStore();
@@ -153,9 +153,7 @@ export function OnchainMintFlow() {
     if (!(await copyWithFeedback(quoteData.request, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show(interactionCopy.addressCopiedToClipboard.title, {
-      kind: interactionCopy.addressCopiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.addressCopiedToClipboard);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -200,17 +198,13 @@ export function OnchainMintFlow() {
           refreshBalance();
         } else {
           if (showToast) {
-            toast.show(interactionCopy.noNewPaymentsDetectedYet.title, {
-              kind: interactionCopy.noNewPaymentsDetectedYet.severity,
-            });
+            toast.showFeedback(interactionCopy.noNewPaymentsDetectedYet);
           }
         }
       } catch (err: any) {
         console.error('[OnchainMintFlow] Check payment error:', err);
         if (showToast) {
-          toast.show(interactionCopy.couldNotCheckPaymentStatusPleaseTry.title, {
-            kind: interactionCopy.couldNotCheckPaymentStatusPleaseTry.severity,
-          });
+          toast.showFeedback(interactionCopy.couldNotCheckPaymentStatusPleaseTry);
         }
       } finally {
         setIsChecking(false);

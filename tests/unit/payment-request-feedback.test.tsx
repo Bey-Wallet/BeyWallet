@@ -1,5 +1,8 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
 import React from 'react';
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }),
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentRequestStage } from '~/features/payments/send/PaymentRequestStage';
 import { OperationFeedbackProvider } from '~/shared/ui/OperationFeedback';

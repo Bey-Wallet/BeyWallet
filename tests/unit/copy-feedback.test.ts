@@ -16,7 +16,16 @@ it('reports native copy failure once without displaying the copied data or excep
   );
   expect(await copyWithFeedback('private-content', feedback)).toBe(false);
   expect(feedback.show).toHaveBeenCalledTimes(1);
-  expect(feedback.show).toHaveBeenCalledWith('Could not copy. Please try again.', {
+  expect(feedback.show).toHaveBeenCalledWith('Could not copy', {
     kind: 'error',
+    duration: 4000,
   });
+});
+
+it('does not show success when the web clipboard returns false', async () => {
+  const feedback = { show: jest.fn() };
+  (Clipboard.setStringAsync as jest.Mock).mockResolvedValueOnce(false);
+  expect(await copyWithFeedback('fixture', feedback)).toBe(false);
+  expect(feedback.show).toHaveBeenCalledTimes(1);
+  expect(feedback.show).toHaveBeenCalledWith('Could not copy', { kind: 'error', duration: 4000 });
 });

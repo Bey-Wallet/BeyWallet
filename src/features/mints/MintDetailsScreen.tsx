@@ -33,7 +33,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { SafeFlex } from '~/shared/ui/Flex';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintReliabilityRow, MintPreviewHealth } from './components/MintPreviewHealth';
@@ -47,7 +47,7 @@ const mintText = (value: unknown) => (typeof value === 'string' ? value : undefi
 
 export default function MintDetailsModal() {
   const router = useRouter();
-  const toast = useToastController();
+  const toast = useAppToast();
   const insets = useSafeAreaInsets();
   const { mintUrl, editName } = useLocalSearchParams<{ mintUrl: string; editName?: string }>();
   const {
@@ -88,13 +88,11 @@ export default function MintDetailsModal() {
       removeMintSheetRef.current?.dismiss();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeGoBack();
-      toast.show(interactionCopy.mintRemoved.title, { kind: interactionCopy.mintRemoved.severity });
+      toast.showFeedback(interactionCopy.mintRemoved);
     } catch (e: any) {
       isRemovingRef.current = false;
       console.error('Failed to remove mint:', e);
-      toast.show(interactionCopy.couldNotRemoveThisMintCheckIts.title, {
-        kind: interactionCopy.couldNotRemoveThisMintCheckIts.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotRemoveThisMintCheckIts);
     } finally {
       setIsRemoving(false);
     }
@@ -194,13 +192,9 @@ export default function MintDetailsModal() {
         throw new Error('Could not save mint name. Please try again.');
       setIsEditingName(false);
       Keyboard.dismiss();
-      toast.show(interactionCopy.mintNameUpdated.title, {
-        kind: interactionCopy.mintNameUpdated.severity,
-      });
+      toast.showFeedback(interactionCopy.mintNameUpdated);
     } catch (error) {
-      toast.show(interactionCopy.couldNotSaveMintNamePleaseTry.title, {
-        kind: interactionCopy.couldNotSaveMintNamePleaseTry.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotSaveMintNamePleaseTry);
     } finally {
       nameSaveLock.current = false;
       setIsSavingName(false);
@@ -276,9 +270,7 @@ export default function MintDetailsModal() {
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show(interactionCopy.copiedToClipboard.title, {
-      kind: interactionCopy.copiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.copiedToClipboard);
   };
 
   const handleShare = async () => {
@@ -286,7 +278,7 @@ export default function MintDetailsModal() {
     try {
       await RNShare.share({ message: mintUrl });
     } catch (error) {
-      handleCopy(mintUrl, 'Mint URL');
+      toast.showFeedback(interactionCopy.shareFailed);
     }
   };
 

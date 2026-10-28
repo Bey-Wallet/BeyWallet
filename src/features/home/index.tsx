@@ -2,7 +2,7 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { RefreshControl, Animated, Easing } from 'react-native';
 import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
 import { HomePromptStack } from '~/features/home/components/HomePromptStack';
@@ -80,7 +80,7 @@ export function HomeTabScreen() {
   const error = useWalletStore((s) => s.error);
   const [refreshing, setRefreshing] = React.useState(false);
   const [showStatus, setShowStatus] = React.useState<StatusType>(null);
-  const toast = useToastController();
+  const toast = useAppToast();
   const { lock } = useAuthStore();
 
   React.useEffect(() => {
@@ -94,9 +94,7 @@ export function HomeTabScreen() {
 
   React.useEffect(() => {
     if (error) {
-      toast.show(interactionCopy.couldNotRefreshYourWalletPleaseTry.title, {
-        kind: interactionCopy.couldNotRefreshYourWalletPleaseTry.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotRefreshYourWalletPleaseTry);
     }
   }, [error]);
 

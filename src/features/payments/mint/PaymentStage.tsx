@@ -9,7 +9,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useWalletStore } from '~/state/walletStore';
@@ -33,7 +33,7 @@ export function PaymentStage({
   onCancel,
 }: PaymentStageProps) {
   const sats = parseInt(amount, 10) || 0;
-  const toast = useToastController();
+  const toast = useAppToast();
   const [isChecking, setIsChecking] = useState(false);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const mints = useWalletStore((state) => state.mints);
@@ -55,13 +55,9 @@ export function PaymentStage({
     try {
       if (!(await copyWithFeedback(invoice, toast))) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show(interactionCopy.invoiceCopied.title, {
-        kind: interactionCopy.invoiceCopied.severity,
-      });
+      toast.showFeedback(interactionCopy.invoiceCopied);
     } catch {
-      toast.show(interactionCopy.couldNotCopyInvoicePleaseTryAgain.title, {
-        kind: interactionCopy.couldNotCopyInvoicePleaseTryAgain.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotCopyInvoicePleaseTryAgain);
     }
   };
 
@@ -73,9 +69,7 @@ export function PaymentStage({
       await onPaid();
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show(interactionCopy.paymentNotReceivedYetTryAgainShortly.title, {
-        kind: interactionCopy.paymentNotReceivedYetTryAgainShortly.severity,
-      });
+      toast.showFeedback(interactionCopy.paymentNotReceivedYetTryAgainShortly);
     } finally {
       setIsChecking(false);
     }

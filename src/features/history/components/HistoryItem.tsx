@@ -11,7 +11,7 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -42,7 +42,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   position,
 }) {
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
-  const toast = useToastController();
+  const toast = useAppToast();
   const queryClient = useQueryClient();
   const checking = useRef(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -127,11 +127,18 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       const message = await checkHistoryStatus(entry);
       await queryClient.invalidateQueries({ queryKey: ['history'] });
       await queryClient.invalidateQueries({ queryKey: ['transaction', entry.id] });
-      toast.show(message, { kind: 'info' });
-    } catch {
-      toast.show(interactionCopy.couldNotVerifyStatusPleaseTryAgain.title, {
-        kind: interactionCopy.couldNotVerifyStatusPleaseTryAgain.severity,
+      toast.show(message, {
+        kind: 'info',
+        duration: 6000,
+        customData: {
+          kind: 'info',
+          variant: 'action',
+          actionLabel: 'View',
+          onAction: () => onPress(entry.id, entry.type),
+        },
       });
+    } catch {
+      toast.showFeedback(interactionCopy.couldNotVerifyStatusPleaseTryAgain);
     } finally {
       checking.current = false;
       setIsChecking(false);

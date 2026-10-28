@@ -1,232 +1,113 @@
-import type { FeedbackSeverity } from './feedbackCatalog';
+import type { InteractionNotice } from './interactionPresentation';
 
 // Explicit copy/severity: presentation never infers severity from English text.
 export const interactionCopy = {
+  shareFailed: { title: 'Could not share', severity: 'error' },
+  linkFailed: { title: 'Could not open link', severity: 'error' },
+  shareUnavailable: { title: 'Sharing unavailable', severity: 'info' },
+  optimized: { title: 'Wallet optimized', severity: 'success', duration: 1000 },
+  optimizeFailed: { title: 'Could not optimize wallet', severity: 'error' },
+  // Field correction, not a transient toast.
   clipboardReadFailed: {
     title: 'Could not read the clipboard. Paste or type the details.',
     severity: 'error',
   },
-  usernameSaved: { title: 'Username saved', severity: 'success' },
+  usernameSaved: { title: 'Username saved', severity: 'success', duration: 1000 },
   usernameProfilePending: {
-    title: 'Username saved',
+    title: 'Profile update pending',
     body: 'Your profile will update when you reconnect.',
     severity: 'info',
   },
   usernameNeedsReview: {
     title: 'Username needs review',
-    body: 'Your new name is active. The previous name could not be released. Review it in Settings.',
+    body: 'Review your previous name in Settings.',
     severity: 'warning',
+    essentialDescription: true,
   },
-  copyFailed: {
-    title: 'Could not copy. Please try again.',
-    severity: 'error',
-  },
-  couldNotVerifyStatusPleaseTryAgain: {
-    title: 'Could not verify status. Please try again.',
-    severity: 'error',
-  },
-  couldNotOpenBlockchainExplorer: {
-    title: 'Could not open blockchain explorer',
-    severity: 'error',
-  },
-  invoiceCopiedToClipboard: {
-    title: 'Invoice copied to clipboard',
-    severity: 'success',
-  },
+  copyFailed: { title: 'Could not copy', severity: 'error' },
+  couldNotVerifyStatusPleaseTryAgain: { title: 'Could not check status', severity: 'error' },
+  couldNotOpenBlockchainExplorer: { title: 'Could not open explorer', severity: 'error' },
+  invoiceCopiedToClipboard: { title: 'Invoice copied', severity: 'success', duration: 1000 },
   transactionDetailsErasedFromDevice: {
-    title: 'Transaction details erased from device',
+    title: 'Details deleted',
     severity: 'success',
+    duration: 1000,
   },
-  failedToDeleteTransaction: {
-    title: 'Failed to delete transaction',
-    severity: 'error',
-  },
-  fundsReclaimedToYourWallet: {
-    title: 'Funds reclaimed to your wallet',
-    severity: 'success',
-  },
+  failedToDeleteTransaction: { title: 'Could not delete details', severity: 'error' },
+  fundsReclaimedToYourWallet: { title: 'Funds reclaimed', severity: 'success' },
   couldNotConfirmReclaimCheckHistoryBefore: {
-    title: 'Could not confirm reclaim. Check History before trying again.',
+    title: 'Reclaim status unknown',
     severity: 'warning',
+    body: 'Check History before retrying.',
+    essentialDescription: true,
   },
-  ecashCopied: {
-    title: 'Ecash copied',
-    severity: 'success',
-  },
-  failedToSwitchTokenVersion: {
-    title: 'Failed to switch token version',
-    severity: 'error',
-  },
+  ecashCopied: { title: 'Ecash copied', severity: 'success', duration: 1000 },
+  failedToSwitchTokenVersion: { title: 'Could not change format', severity: 'error' },
   paymentReceived: {
     title: 'Payment received',
     severity: 'success',
   },
   couldNotConfirmReceiptCheckHistoryBefore: {
-    title: 'Could not confirm receipt. Check History before trying again.',
+    title: 'Receipt not confirmed',
     severity: 'warning',
+    body: 'Check History before retrying.',
+    essentialDescription: true,
   },
-  depositRemovedFromPending: {
-    title: 'Deposit removed from pending',
-    severity: 'info',
-  },
-  invoiceNotPaidYetTryAgainShortly: {
-    title: 'Invoice not paid yet. Try again shortly.',
-    severity: 'info',
-  },
-  publicKeyCopied: {
-    title: 'Public key copied',
-    severity: 'success',
-  },
-  bitcoinAddressCopied: {
-    title: 'Bitcoin address copied',
-    severity: 'success',
-  },
-  invoiceCopied: {
-    title: 'Invoice copied',
-    severity: 'success',
-  },
-  priceUnavailablePleaseTryAgainLater: {
-    title: 'Price unavailable. Please try again later.',
-    severity: 'error',
-  },
-  couldNotRefreshYourWalletPleaseTry: {
-    title: 'Could not refresh your wallet. Please try again.',
-    severity: 'error',
-  },
-  couldNotOpenTermsOfService: {
-    title: 'Could not open terms of service',
-    severity: 'error',
-  },
-  mintConnected: {
-    title: 'Mint connected',
-    severity: 'success',
-  },
-  copiedToClipboard: {
-    title: 'Copied to clipboard',
-    severity: 'success',
-  },
-  mintRemoved: {
-    title: 'Mint removed',
-    severity: 'success',
-  },
+  depositRemovedFromPending: { title: 'Deposit dismissed', severity: 'info', duration: 1000 },
+  invoiceNotPaidYetTryAgainShortly: { title: 'Payment not received', severity: 'info' },
+  publicKeyCopied: { title: 'Public key copied', severity: 'success', duration: 1000 },
+  bitcoinAddressCopied: { title: 'Address copied', severity: 'success', duration: 1000 },
+  invoiceCopied: { title: 'Invoice copied', severity: 'success', duration: 1000 },
+  priceUnavailablePleaseTryAgainLater: { title: 'Price unavailable', severity: 'error' },
+  couldNotRefreshYourWalletPleaseTry: { title: 'Could not refresh wallet', severity: 'error' },
+  couldNotOpenTermsOfService: { title: 'Could not open terms', severity: 'error' },
+  mintConnected: { title: 'Mint connected', severity: 'success', duration: 1000 },
+  copiedToClipboard: { title: 'Copied', severity: 'success', duration: 1000 },
+  mintRemoved: { title: 'Mint removed', severity: 'success', duration: 1000 },
   couldNotRemoveThisMintCheckIts: {
-    title: 'Could not remove this mint. Check its balance and try again.',
+    title: 'Could not remove mint',
     severity: 'error',
+    body: 'Check its balance and try again.',
+    essentialDescription: true,
   },
-  mintNameUpdated: {
-    title: 'Mint name updated',
-    severity: 'success',
-  },
-  couldNotSaveMintNamePleaseTry: {
-    title: 'Could not save mint name. Please try again.',
-    severity: 'error',
-  },
-  missingKeysPleaseReauthenticate: {
-    title: 'Missing keys. Please re-authenticate.',
-    severity: 'error',
-  },
-  couldNotDecodeKeys: {
-    title: 'Could not decode keys',
-    severity: 'error',
-  },
-  couldNotRegisterThisUsernamePleaseTry: {
-    title: 'Could not register this username. Please try again.',
-    severity: 'error',
-  },
-  usernameDeleted: {
-    title: 'Username deleted',
-    severity: 'success',
-  },
-  localReferenceRemoved: {
-    title: 'Local reference removed',
-    severity: 'info',
-  },
-  couldNotDeleteThisUsernamePleaseTry: {
-    title: 'Could not delete this username. Please try again.',
-    severity: 'error',
-  },
-  couldNotShareAddressPleaseTryAgain: {
-    title: 'Could not share address. Please try again.',
-    severity: 'error',
-  },
-  failedToOpenSavedWallet: {
-    title: 'Failed to open saved wallet.',
-    severity: 'error',
-  },
+  mintNameUpdated: { title: 'Name saved', severity: 'success', duration: 1000 },
+  couldNotSaveMintNamePleaseTry: { title: 'Could not save name', severity: 'error' },
+  missingKeysPleaseReauthenticate: { title: 'Identity unavailable', severity: 'error' },
+  couldNotDecodeKeys: { title: 'Identity unavailable', severity: 'error' },
+  couldNotRegisterThisUsernamePleaseTry: { title: 'Could not save username', severity: 'error' },
+  usernameDeleted: { title: 'Username deleted', severity: 'success', duration: 1000 },
+  localReferenceRemoved: { title: 'Local reference removed', severity: 'info', duration: 1000 },
+  couldNotDeleteThisUsernamePleaseTry: { title: 'Could not remove username', severity: 'error' },
+  couldNotShareAddressPleaseTryAgain: { title: 'Could not share address', severity: 'error' },
+  failedToOpenSavedWallet: { title: 'Could not open wallet', severity: 'error' },
   walletDeleted: {
     title: 'Wallet deleted',
     severity: 'success',
   },
   failedToCompletelyDeleteTheWallet: {
-    title: 'Failed to completely delete the wallet.',
+    title: 'Wallet deletion incomplete',
     severity: 'error',
+    body: 'Restart Bey and review the wallet.',
+    essentialDescription: true,
   },
-  importFailedPleaseTryAgain: {
-    title: 'Import failed. Please try again.',
-    severity: 'error',
-  },
-  walletCreationFailedPleaseTryAgain: {
-    title: 'Wallet creation failed. Please try again.',
-    severity: 'error',
-  },
-  addressPastedFromClipboard: {
-    title: 'Address pasted from clipboard',
-    severity: 'info',
-  },
-  addressCopiedToClipboard: {
-    title: 'Address copied to clipboard',
-    severity: 'success',
-  },
-  noNewPaymentsDetectedYet: {
-    title: 'No new payments detected yet.',
-    severity: 'info',
-  },
-  couldNotCheckPaymentStatusPleaseTry: {
-    title: 'Could not check payment status. Please try again.',
-    severity: 'error',
-  },
-  couldNotCopyInvoicePleaseTryAgain: {
-    title: 'Could not copy invoice. Please try again.',
-    severity: 'error',
-  },
-  paymentNotReceivedYetTryAgainShortly: {
-    title: 'Payment not received yet. Try again shortly.',
-    severity: 'info',
-  },
-  walletAlreadyOptimized: {
-    title: 'Wallet already optimized',
-    severity: 'info',
-  },
-  paymentRequestCopiedToClipboard: {
-    title: 'Payment request copied to clipboard',
-    severity: 'success',
-  },
-  requestSent: {
-    title: 'Request sent',
-    severity: 'success',
-  },
-  couldNotSendRequestPleaseTryAgain: {
-    title: 'Could not send request. Please try again.',
-    severity: 'error',
-  },
-  unableToCheckPaymentPleaseTryAgain: {
-    title: 'Unable to check payment. Please try again.',
-    severity: 'error',
-  },
-  couldNotReadThisQRCodeScan: {
-    title: 'Could not read this QR code. Scan again or enter the payment details.',
-    severity: 'error',
-  },
-  receiptHasNotBeenConfirmedYet: {
-    title: 'Receipt has not been confirmed yet.',
-    severity: 'info',
-  },
-  thisItemIsNoLongerAvailable: {
-    title: 'This item is no longer available',
-    severity: 'info',
-  },
+  importFailedPleaseTryAgain: { title: 'Could not import wallet', severity: 'error' },
+  walletCreationFailedPleaseTryAgain: { title: 'Could not create wallet', severity: 'error' },
+  addressPastedFromClipboard: { title: 'Address pasted', severity: 'info', duration: 1000 },
+  addressCopiedToClipboard: { title: 'Address copied', severity: 'success', duration: 1000 },
+  noNewPaymentsDetectedYet: { title: 'No new payments', severity: 'info' },
+  couldNotCheckPaymentStatusPleaseTry: { title: 'Could not check payment', severity: 'error' },
+  couldNotCopyInvoicePleaseTryAgain: { title: 'Could not copy invoice', severity: 'error' },
+  paymentNotReceivedYetTryAgainShortly: { title: 'Payment not received', severity: 'info' },
+  walletAlreadyOptimized: { title: 'Wallet already optimized', severity: 'info', duration: 1000 },
+  paymentRequestCopiedToClipboard: { title: 'Request copied', severity: 'success', duration: 1000 },
+  requestSent: { title: 'Request sent', severity: 'success', duration: 1000 },
+  couldNotSendRequestPleaseTryAgain: { title: 'Could not send request', severity: 'error' },
+  unableToCheckPaymentPleaseTryAgain: { title: 'Could not check payment', severity: 'error' },
+  couldNotReadThisQRCodeScan: { title: 'QR code not recognized', severity: 'error' },
+  receiptHasNotBeenConfirmedYet: { title: 'Receipt not confirmed', severity: 'info' },
+  thisItemIsNoLongerAvailable: { title: 'Item no longer available', severity: 'info' },
   clipboardIsEmpty: {
     title: 'Clipboard is empty',
     severity: 'info',
   },
-} as const satisfies Record<string, { title: string; body?: string; severity: FeedbackSeverity }>;
+} as const satisfies Record<string, InteractionNotice>;

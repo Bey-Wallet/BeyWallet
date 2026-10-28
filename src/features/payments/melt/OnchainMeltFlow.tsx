@@ -24,7 +24,7 @@ import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService, initService } from '~/services/wallet';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery } from '@tanstack/react-query';
@@ -46,7 +46,7 @@ import { MeltQuoteState } from '@cashu/cashu-ts';
 export function OnchainMeltFlow() {
   const router = useRouter();
   const [eventTime, setEventTime] = useState<number>();
-  const toast = useToastController();
+  const toast = useAppToast();
 
   const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
   const quoteGeneration = useRef(0);
@@ -299,9 +299,7 @@ export function OnchainMeltFlow() {
         setAddress(text);
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show(interactionCopy.addressPastedFromClipboard.title, {
-        kind: interactionCopy.addressPastedFromClipboard.severity,
-      });
+      toast.showFeedback(interactionCopy.addressPastedFromClipboard);
     } catch (e) {
       console.warn('[OnchainMeltFlow] Clipboard read failed:', e);
     } finally {

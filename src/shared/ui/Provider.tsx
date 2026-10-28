@@ -1,17 +1,18 @@
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { TamaguiProvider, type TamaguiProviderProps } from 'tamagui';
-import { ToastProvider, ToastViewport } from '@tamagui/toast';
+import { ToastProvider } from '@tamagui/toast';
 import { ManagerProvider, MintProvider, BalanceProvider } from 'coco-cashu-react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { AppToast } from '~/shared/ui/AppToast';
+import { AppToastViewport } from '~/shared/ui/AppToastViewport';
 import { OperationFeedbackProvider } from '~/shared/ui/OperationFeedback';
 import { config } from '~/tamagui.config';
 import { ThemeProvider, useAppTheme } from '~/shared/theme/ThemeContext';
 
 export function Provider({ children, cocoManager, ...rest }: any) {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider>
           <InnerProvider cocoManager={cocoManager} {...rest}>
@@ -39,7 +40,7 @@ function InnerProvider({ children, cocoManager, ...rest }: any) {
             {children}
             <AppToast />
           </OperationFeedbackProvider>
-          <ToastViewport top="$3" left="$3" right="$3" />
+          <AppToastViewport />
         </ToastProvider>
       </BottomSheetModalProvider>
     </TamaguiProvider>

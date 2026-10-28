@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking } from 'react-native';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useQuery } from '@tanstack/react-query';
 import { Text, View, XStack, YStack } from 'tamagui';
 import { ExternalLink, RefreshCw } from '@tamagui/lucide-icons';
@@ -191,6 +191,7 @@ export function MintPreviewHealth({
   connectionCheckedAt?: number;
   onRecheck: () => void;
 }) {
+  const toast = useAppToast();
   const [listCache, detailCache] = React.useMemo(
     () => [mintHealthService.cachedCashuList(), mintHealthService.cachedCashuDetail(url)] as const,
     [url],
@@ -331,7 +332,7 @@ export function MintPreviewHealth({
           value="Open"
           rightContent={<ExternalLink size={18} color="$gray10" />}
           onPress={() => {
-            void Linking.openURL('https://mintradar.org/methodology').catch(() => {});
+            void toast.openExternal('https://mintradar.org/methodology');
           }}
         />
         <ListTableRow
@@ -339,11 +340,11 @@ export function MintPreviewHealth({
           value="Open"
           rightContent={<ExternalLink size={18} color="$gray10" />}
           onPress={() => {
-            void Linking.openURL(
+            void toast.openExternal(
               mint
                 ? `https://cashu.info/mint/${encodeURIComponent(mint.id)}`
                 : 'https://cashu.info',
-            ).catch(() => {});
+            );
           }}
         />
       </ListTable>

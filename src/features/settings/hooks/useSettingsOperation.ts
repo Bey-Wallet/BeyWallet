@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useSettingsBusy } from './useSettingsBusy';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 export function useSettingsOperation() {
+  const toast = useAppToast();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -27,5 +29,10 @@ export function useSettingsOperation() {
     setMessage(null);
     setError(false);
   };
-  return { busy, message, error, run, clear };
+  const copy = (text: string) =>
+    run(async () => {
+      await toast.copy(text);
+      return '';
+    });
+  return { busy, message, error, run, clear, copy };
 }

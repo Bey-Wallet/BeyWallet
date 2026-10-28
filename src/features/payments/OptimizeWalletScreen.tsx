@@ -30,8 +30,7 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
@@ -45,7 +44,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 export default function OptimizeWalletScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const toast = useToastController();
+  const toast = useAppToast();
   const queryClient = useQueryClient();
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const [mintSelectorExpanded, setMintSelectorExpanded] = useState(false);
@@ -54,6 +53,7 @@ export default function OptimizeWalletScreen() {
     useWalletStore();
   const [selectedMintUrl, setSelectedMintUrl] = useState(activeMintUrl || '');
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
   const isLoadingMint = isInitializing || isRefreshing;
   const insets = useSafeAreaInsets();
   const { showBitcoinSymbol } = useSettingsStore();
@@ -121,9 +121,7 @@ export default function OptimizeWalletScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!canOptimize) {
-      toast.show(interactionCopy.walletAlreadyOptimized.title, {
-        kind: interactionCopy.walletAlreadyOptimized.severity,
-      });
+      toast.showFeedback(interactionCopy.walletAlreadyOptimized);
       return;
     }
 
@@ -135,8 +133,9 @@ export default function OptimizeWalletScreen() {
     }
 
     setIsOptimizing(true);
+    setOptimizationError(null);
     try {
-      const result = await consolidationService.consolidateMint(selectedMintUrl);
+      await consolidationService.consolidateMint(selectedMintUrl);
       await refreshBalance();
       await refetchProofs();
       await refetchAnalysis();
@@ -144,15 +143,9 @@ export default function OptimizeWalletScreen() {
       queryClient.invalidateQueries({ queryKey: ['fragmentationAnalysis'] });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        'Wallet Optimized ✅',
-        `Saved ${result.savedProofs} proofs!\n` +
-          `Proofs reduced: ${result.before.count} → ${result.after.count}\n` +
-          `Balance unchanged: ${result.after.totalAmount} sat`,
-      );
+      toast.showFeedback(interactionCopy.optimized);
     } catch (err: any) {
-      console.error('[OptimizeWallet] Optimization failed:', err);
-      Alert.alert('Optimization Failed', err?.message || 'Could not optimize proofs.');
+      setOptimizationError('Could not optimize this wallet. Check your connection and try again.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsOptimizing(false);
@@ -167,6 +160,11 @@ export default function OptimizeWalletScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 120 }}
       >
         <YStack p="$4" gap="$4" flex={1}>
+          {optimizationError && (
+            <Text color="$red10" fontSize={12} accessibilityRole="alert">
+              {optimizationError}
+            </Text>
+          )}
           {/* Header Info Card */}
           <YStack gap="$2" items="center" py="$2" px="$3">
             <Sparkles size={32} color="$accent10" />

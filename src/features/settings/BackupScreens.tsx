@@ -1,7 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Alert, DevSettings } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
-import * as Clipboard from 'expo-clipboard';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import { Copy, EyeOff, FileDown, FileUp, ShieldCheck, Trash2 } from '@tamagui/lucide-icons';
@@ -27,7 +26,6 @@ export function RecoveryPhraseSettingsScreen() {
       return mnemonic;
     }, []),
   );
-  const [copied, setCopied] = useState(false);
   const operation = useSettingsOperation();
   return (
     <SettingsPage>
@@ -55,17 +53,9 @@ export function RecoveryPhraseSettingsScreen() {
             variant="default"
             emphasis="secondary"
             icon={Copy}
-            onPress={() =>
-              void operation.run(async () => {
-                if (secret.value) {
-                  await Clipboard.setStringAsync(secret.value);
-                  setCopied(true);
-                }
-                return 'Recovery phrase copied.';
-              })
-            }
+            onPress={() => (secret.value ? void operation.copy(secret.value) : undefined)}
           >
-            {copied ? 'Copied' : 'Copy recovery phrase'}
+            Copy recovery phrase
           </AppButton>
           <AppButton variant="default" emphasis="secondary" icon={EyeOff} onPress={secret.hide}>
             Hide phrase
@@ -278,12 +268,7 @@ export function DeleteWalletSettingsScreen() {
             emphasis="secondary"
             icon={Copy}
             disabled={task.busy || secret.value.length === 0}
-            onPress={() =>
-              void task.run(async () => {
-                if (secret.value) await Clipboard.setStringAsync(secret.value.join(' '));
-                return 'Recovery phrase copied.';
-              })
-            }
+            onPress={() => (secret.value ? void task.copy(secret.value.join(' ')) : undefined)}
           >
             Copy recovery phrase
           </AppButton>

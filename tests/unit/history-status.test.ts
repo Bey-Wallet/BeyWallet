@@ -65,7 +65,7 @@ it('updates only an outgoing token after every proof is confirmed spent', async 
   jest
     .mocked(proofService.checkProofStates)
     .mockResolvedValue([{ state: 'SPENT' }, { state: 'SPENT' }] as any);
-  await expect(checkHistoryStatus(entry)).resolves.toBe('Token has been claimed');
+  await expect(checkHistoryStatus(entry)).resolves.toBe('Ecash claimed');
   expect(mockUpdate).toHaveBeenCalledWith('1', 'claimed');
   mockUpdate.mockClear();
   await checkHistoryStatus({ ...entry, type: 'receive' });
@@ -75,13 +75,13 @@ it('leaves unspent and pending tokens unchanged', async () => {
   jest
     .mocked(proofService.checkProofStates)
     .mockResolvedValue([{ state: 'UNSPENT' }, { state: 'UNSPENT' }] as any);
-  await expect(checkHistoryStatus(entry)).resolves.toContain('not been claimed');
+  await expect(checkHistoryStatus(entry)).resolves.toBe('Ecash not claimed');
   expect(mockUpdate).not.toHaveBeenCalled();
 });
 it('checks Lightning quotes without redeeming or marking funds received', async () => {
   mockMintCheck.mockResolvedValue({ state: 'PAID' });
-  await expect(checkHistoryStatus({ ...entry, type: 'mint', quoteId: 'quote' })).resolves.toContain(
-    'Open details',
+  await expect(checkHistoryStatus({ ...entry, type: 'mint', quoteId: 'quote' })).resolves.toBe(
+    'Payment paid',
   );
   expect(Wallet).toHaveBeenCalledWith(entry.mintUrl);
   expect(mockMintCheck).toHaveBeenCalledWith('quote');
@@ -92,7 +92,7 @@ it('uses the onchain status endpoint for onchain payments', async () => {
   jest.mocked(quotesService.checkOnchainMeltQuote).mockResolvedValue({ state: 'PENDING' });
   await expect(
     checkHistoryStatus({ ...entry, type: 'melt', quoteId: 'quote', metadata: { via: 'onchain' } }),
-  ).resolves.toContain('still pending');
+  ).resolves.toBe('Payment pending');
   expect(quotesService.checkOnchainMeltQuote).toHaveBeenCalledWith(entry.mintUrl, 'quote');
   expect(mockMeltCheck).not.toHaveBeenCalled();
 });

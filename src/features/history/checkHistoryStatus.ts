@@ -12,25 +12,25 @@ export async function checkHistoryStatus(entry: HistoryListEntry): Promise<strin
   if (entry.type === 'receive-request') {
     await useNostrRequestStore.getState().loadPendingRequests();
     const request = useNostrRequestStore.getState().requests.find((item) => item.id === entry.id);
-    if (!request) return 'Unable to verify this request. Open details to check.';
+    if (!request) return 'Request unavailable';
     return request.state === 'received'
       ? 'Payment received'
       : request.state === 'pending'
-        ? 'Payment request is still pending'
+        ? 'Request pending'
         : `Payment request ${request.state}`;
   }
   if (['send', 'receive'].includes(entry.type)) {
     const token = getHistoryToken(entry);
-    if (!token) return 'Open transaction details to check this payment.';
+    if (!token) return 'Review payment details';
     const states = await proofService.checkProofStates(token);
     const state = getVerifiedTokenState(states, decodeToken(token).proofs.length);
     if (!state) throw new Error('Incomplete status response');
     if (entry.type === 'send' && state === 'claimed') {
       await initService.getRepo().historyRepository.updateHistoryEntryState(entry.id, 'claimed');
-      return 'Token has been claimed';
+      return 'Ecash claimed';
     }
-    if (state === 'claimed') return 'Token is spent. Open details to review the receipt.';
-    return state === 'unclaimed' ? 'Token has not been claimed yet' : 'Payment is still pending';
+    if (state === 'claimed') return 'Ecash already spent';
+    return state === 'unclaimed' ? 'Ecash not claimed' : 'Payment pending';
   }
   if (entry.quoteId && entry.mintUrl && ['mint', 'melt'].includes(entry.type)) {
     const onchain = historyRail(entry) === 'onchain';
@@ -46,10 +46,14 @@ export async function checkHistoryStatus(entry: HistoryListEntry): Promise<strin
     const state = typeof quote.state === 'string' ? quote.state.toLowerCase() : '';
     if (state === 'paid' || state === 'issued')
       return entry.type === 'mint'
-        ? 'Payment received. Open details to review your funds.'
-        : 'Payment paid. Open details to review settlement.';
-    if (['unpaid', 'pending'].includes(state)) return 'Payment is still pending';
+        ? state === 'issued'
+          ? 'Payment received'
+          : 'Payment paid'
+        : state === 'paid'
+          ? 'Payment sent'
+          : 'Review payment status';
+    if (['unpaid', 'pending'].includes(state)) return 'Payment pending';
     throw new Error('Unknown quote state');
   }
-  return 'Open transaction details to check this payment.';
+  return 'Review payment details';
 }

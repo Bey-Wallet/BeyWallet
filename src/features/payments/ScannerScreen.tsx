@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Spinner } from '~/shared/ui/Spinner';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
@@ -169,7 +169,7 @@ export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
-  const toast = useToastController();
+  const toast = useAppToast();
   usePendingOperationToast({
     active: isResolving,
     title: 'Reading QR code…',
@@ -358,9 +358,7 @@ export default function ScannerScreen() {
         router.back();
       }
     } catch (error: any) {
-      toast.show(interactionCopy.couldNotReadThisQRCodeScan.title, {
-        kind: interactionCopy.couldNotReadThisQRCodeScan.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotReadThisQRCodeScan);
       setScanned(false);
     } finally {
       setIsResolving(false);

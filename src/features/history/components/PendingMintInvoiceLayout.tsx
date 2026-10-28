@@ -11,7 +11,7 @@ import { Text } from 'tamagui';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 
@@ -49,16 +49,14 @@ export function PendingMintInvoiceLayout({
   onPaid,
   extraDetails,
 }: PendingMintInvoiceLayoutProps) {
-  const toast = useToastController();
+  const toast = useAppToast();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     if (!(await copyWithFeedback(savedInvoice, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show(interactionCopy.invoiceCopiedToClipboard.title, {
-      kind: interactionCopy.invoiceCopiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.invoiceCopiedToClipboard);
     setTimeout(() => setCopied(false), 2000);
   };
 

@@ -1,6 +1,7 @@
 import { Spinner } from '~/shared/ui/Spinner';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 /**
  * Nostr Activity Modal
  *
@@ -38,7 +39,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
@@ -139,6 +139,7 @@ function useResolveUsername(pubkey: string): string | undefined {
 // ─── Component ────────────────────────────────────────────────────────────
 
 export default function NostrActivityModal() {
+  const toast = useAppToast();
   const router = useRouter();
   const people = usePeopleStore((state) => state.people);
   const [activeTab, setActiveTab] = useState<Tab>('pending');
@@ -147,7 +148,6 @@ export default function NostrActivityModal() {
   const [detailLoading, setDetailLoading] = useState(false);
   const detailSheetRef = useRef<AppBottomSheetRef>(null);
   const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
 
   const items = useNostrInboxStore((s) => s.items);
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
@@ -262,16 +262,12 @@ export default function NostrActivityModal() {
 
   const handleCopyToken = useCallback(async () => {
     if (!detailItem?.tokenString) return;
-    setCopyError(false);
-    try {
-      await Clipboard.setStringAsync(detailItem.tokenString);
+    if (await toast.copy(detailItem.tokenString)) {
       setCopied(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopyError(true);
+      setTimeout(() => setCopied(false), 1000);
     }
-  }, [detailItem]);
+  }, [detailItem, toast]);
 
   const fiatValue = useMemo(() => {
     if (secondaryCurrency === 'NONE' || !btcData?.price || !detailItem?.amount) return null;
@@ -478,11 +474,6 @@ export default function NostrActivityModal() {
                 </Theme>
 
                 {/* Actions */}
-                {copyError && (
-                  <Text color="$red10" accessibilityRole="alert" accessibilityLiveRegion="polite">
-                    Could not copy. Please try again.
-                  </Text>
-                )}
                 <XStack width="100%" gap="$3">
                   {detailItem.tokenString && (
                     <AppButton

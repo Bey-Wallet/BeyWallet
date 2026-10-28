@@ -139,7 +139,10 @@ it('falls back from a deleted receipt with a brief explanation and never emits a
   mockResponse(response);
   await tick();
   expect(mockRouter.push).toHaveBeenCalledWith('/(tabs)/history');
-  expect(mockToast.show).toHaveBeenCalledWith('This item is no longer available', { kind: 'info' });
+  expect(mockToast.show).toHaveBeenCalledWith(
+    'Item no longer available',
+    expect.objectContaining({ kind: 'info', duration: 3000 }),
+  );
   expect(emit).not.toHaveBeenCalledWith('nostr:openClaim', expect.anything());
   emit.mockRestore();
 });

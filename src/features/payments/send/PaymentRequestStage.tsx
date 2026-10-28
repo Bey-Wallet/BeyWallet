@@ -8,7 +8,7 @@ import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { ChevronDown } from '@tamagui/lucide-icons';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
@@ -82,7 +82,7 @@ export function PaymentRequestStage({
   const [amountMode, setAmountMode] = useState<PaymentRequestAmountMode>('net');
   const [receipt, setReceipt] = useState<'awaiting' | 'unconfirmed' | null>(null);
   const [hasOperation, setHasOperation] = useState(false);
-  const toast = useToastController();
+  const toast = useAppToast();
   usePendingOperationToast({ active: isSending && automaticDelivery, title: 'Sending payment…' });
   const mounted = useRef(true);
   useEffect(() => {
@@ -229,9 +229,7 @@ export function PaymentRequestStage({
           ?.state !== 'paid' &&
         manual
       ) {
-        toast.show(interactionCopy.receiptHasNotBeenConfirmedYet.title, {
-          kind: interactionCopy.receiptHasNotBeenConfirmedYet.severity,
-        });
+        toast.showFeedback(interactionCopy.receiptHasNotBeenConfirmedYet);
       }
     } catch {
       if (mounted.current)

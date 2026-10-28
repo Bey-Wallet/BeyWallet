@@ -9,7 +9,7 @@ import { Stack, useFocusEffect, useRouter, useLocalSearchParams, type Href } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as Haptics from 'expo-haptics';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
@@ -36,7 +36,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   const { width, height } = useWindowDimensions();
   const qrSize = Math.max(120, Math.min(height < 700 ? 240 : 280, width - 64));
   const theme = useTheme();
-  const toast = useToastController();
+  const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
   const isLightning = tab === 'lightning';
   const address = npub ? lightningAddress(npub) : '';
@@ -70,9 +70,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
 
   const copy = async (value: string) => {
     if (!(await copyWithFeedback(value, toast))) return;
-    toast.show(interactionCopy.copiedToClipboard.title, {
-      kind: interactionCopy.copiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.copiedToClipboard);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(value);
     if (copyTimer.current) clearTimeout(copyTimer.current);
@@ -84,9 +82,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
     try {
       await Share.share({ message: isLightning ? address : verified ? `${nip05}\n${npub}` : npub });
     } catch {
-      toast.show(interactionCopy.couldNotShareAddressPleaseTryAgain.title, {
-        kind: interactionCopy.couldNotShareAddressPleaseTryAgain.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotShareAddressPleaseTryAgain);
     }
   };
 

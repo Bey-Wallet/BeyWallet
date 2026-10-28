@@ -18,7 +18,7 @@ import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 
 import { DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrRequestStore, type NostrRequestState } from '~/state/nostrRequestStore';
@@ -78,7 +78,7 @@ export function RequestEcashStage({
   const sessionRequestIds = useRef(new Set<string>());
   const generationLock = useRef(false);
   const failedDraft = useRef<Partial<RequestDraft>>({});
-  const toast = useToastController();
+  const toast = useAppToast();
   const router = useRouter();
   const openedNfcReceipt = useRef<string | undefined>(undefined);
 
@@ -263,9 +263,7 @@ export function RequestEcashStage({
     if (!creqString) return;
     if (!(await copyWithFeedback(creqString, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show(interactionCopy.paymentRequestCopiedToClipboard.title, {
-      kind: interactionCopy.paymentRequestCopiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.paymentRequestCopiedToClipboard);
   }, [creqString]);
 
   const isRequestBusy =
@@ -308,12 +306,10 @@ export function RequestEcashStage({
         displayName: recipientLabel.includes('@') ? null : recipientLabel || null,
         nip05: recipientLabel.includes('@') ? recipientLabel : null,
       });
-      toast.show(interactionCopy.requestSent.title, { kind: interactionCopy.requestSent.severity });
+      toast.showFeedback(interactionCopy.requestSent);
       onClose?.();
     } catch {
-      toast.show(interactionCopy.couldNotSendRequestPleaseTryAgain.title, {
-        kind: interactionCopy.couldNotSendRequestPleaseTryAgain.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotSendRequestPleaseTryAgain);
     } finally {
       setIsSending(false);
     }
@@ -392,22 +388,20 @@ export function RequestEcashStage({
       } else {
         toast.show(
           request?.state === 'cancelled'
-            ? 'Request cancelled.'
+            ? 'Request cancelled'
             : request?.state === 'expired'
-              ? 'Request expired.'
+              ? 'Request expired'
               : incomingPayment?.status === 'contact_required'
-                ? 'Payment arrived. Review the sender to receive it.'
+                ? 'Review incoming payment'
                 : incomingPayment
-                  ? 'Payment arrived. Check its receiving status below.'
-                  : 'Waiting for the payment response.',
+                  ? 'Payment needs review'
+                  : 'Waiting for payment',
           { kind: 'info' },
         );
       }
     } catch (e) {
       console.warn('[RequestEcashStage] check status error:', e);
-      toast.show(interactionCopy.unableToCheckPaymentPleaseTryAgain.title, {
-        kind: interactionCopy.unableToCheckPaymentPleaseTryAgain.severity,
-      });
+      toast.showFeedback(interactionCopy.unableToCheckPaymentPleaseTryAgain);
     } finally {
       setIsChecking(false);
     }

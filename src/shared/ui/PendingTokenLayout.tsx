@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
 
 import { Share as RNShare } from 'react-native';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 import { useSettingsStore } from '~/state/settingsStore';
 import { cleanToken, decodeToken } from '~/services/wallet';
@@ -77,7 +77,7 @@ export function PendingTokenLayout({
   customHeaderRight,
   extraDetails,
 }: PendingTokenLayoutProps) {
-  const toast = useToastController();
+  const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
   const { setLockDisabled } = useAuthStore();
 
@@ -161,7 +161,7 @@ export function PendingTokenLayout({
       if (!(await copyWithFeedback(currentToken, toast))) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCopied(true);
-      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
+      toast.showFeedback(interactionCopy.ecashCopied);
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -177,7 +177,7 @@ export function PendingTokenLayout({
         title: 'Share Token',
       });
     } catch (error) {
-      handleCopy();
+      toast.showFeedback(interactionCopy.shareFailed);
     } finally {
       setTimeout(() => setLockDisabled(false), 1000);
     }
@@ -318,9 +318,7 @@ export function PendingTokenLayout({
                       onCopy={async () => {
                         if (!(await copyWithFeedback(displayNpub, toast))) return;
                         Haptics.selectionAsync();
-                        toast.show(interactionCopy.publicKeyCopied.title, {
-                          kind: interactionCopy.publicKeyCopied.severity,
-                        });
+                        toast.showFeedback(interactionCopy.publicKeyCopied);
                       }}
                     />
                   )}

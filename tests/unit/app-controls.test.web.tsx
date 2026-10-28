@@ -1,6 +1,7 @@
 import React, { act } from 'react';
 import { H1, Input, Popover, TamaguiProvider, Text } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppTextButton } from '~/shared/ui/AppTextButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { config } from '~/tamagui.config';
@@ -13,6 +14,54 @@ const { createRoot } = require('react-dom/client') as {
 };
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+
+it.each(['light', 'dark'])(
+  'keeps custom-color text actions background-free and keyboard accessible in %s',
+  async (theme) => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onPress = jest.fn();
+    const render = (disabled = false) => (
+      <TamaguiProvider config={config} defaultTheme={theme}>
+        <AppTextButton color="#B6AEFF" onPress={onPress} disabled={disabled}>
+          Undo
+        </AppTextButton>
+      </TamaguiProvider>
+    );
+    await act(async () => root.render(render()));
+    const button = container.querySelector('[aria-label="Undo"]') as HTMLElement;
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('role')).toBe('button');
+    expect(container.querySelector('a')).toBeNull();
+    const expectNoBackground = () => {
+      expect(['transparent', 'rgba(0, 0, 0, 0)']).toContain(
+        getComputedStyle(button).backgroundColor,
+      );
+      const label = button.querySelector('span')!;
+      expect(getComputedStyle(label).color).toBe('rgb(182, 174, 255)');
+      expect(getComputedStyle(label).textDecorationLine).toBe('none');
+    };
+    expectNoBackground();
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    });
+    expectNoBackground();
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+      button.focus();
+      button.click();
+    });
+    expect(onPress).toHaveBeenCalledTimes(1);
+    await act(async () => root.render(render(true)));
+    await act(async () => button.click());
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expectNoBackground();
+    await act(async () => root.unmount());
+    container.remove();
+  },
+);
 
 it('applies tabular numerals to body text, headings and inputs on web', async () => {
   const container = document.createElement('div');

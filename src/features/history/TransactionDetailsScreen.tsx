@@ -56,7 +56,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/shared/ui/Spinner';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { BadgeStatus } from '~/shared/ui/StatusBadge';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -81,7 +81,7 @@ interface HistoryEntry {
 export function TransactionDetailsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const toast = useToastController();
+  const toast = useAppToast();
   const params = useLocalSearchParams<{ id: string }>();
   const id = params.id?.toString();
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
@@ -110,9 +110,7 @@ export function TransactionDetailsScreen() {
         }
       }
 
-      toast.show(interactionCopy.transactionDetailsErasedFromDevice.title, {
-        kind: interactionCopy.transactionDetailsErasedFromDevice.severity,
-      });
+      toast.showFeedback(interactionCopy.transactionDetailsErasedFromDevice);
       deleteSheetRef.current?.dismiss();
 
       // Go back
@@ -120,9 +118,7 @@ export function TransactionDetailsScreen() {
       queryClient.invalidateQueries({ queryKey: ['history'] });
     } catch (err: any) {
       console.error('[TransactionDetails] Failed to delete transaction:', err);
-      toast.show(interactionCopy.failedToDeleteTransaction.title, {
-        kind: interactionCopy.failedToDeleteTransaction.severity,
-      });
+      toast.showFeedback(interactionCopy.failedToDeleteTransaction);
     }
   };
 
@@ -336,9 +332,7 @@ export function TransactionDetailsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
       if (result === 'claimed') return;
-      toast.show(interactionCopy.fundsReclaimedToYourWallet.title, {
-        kind: interactionCopy.fundsReclaimedToYourWallet.severity,
-      });
+      toast.showFeedback(interactionCopy.fundsReclaimedToYourWallet);
 
       // Delete local inflight proofs if any
       try {
@@ -353,9 +347,7 @@ export function TransactionDetailsScreen() {
       }
     } catch (err: any) {
       console.error('[TransactionDetails] Reclaim failed:', err);
-      toast.show(interactionCopy.couldNotConfirmReclaimCheckHistoryBefore.title, {
-        kind: interactionCopy.couldNotConfirmReclaimCheckHistoryBefore.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotConfirmReclaimCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
       reclaimLock.current = false;
@@ -515,7 +507,7 @@ export function TransactionDetailsScreen() {
     if (token) {
       if (!(await copyWithFeedback(token, toast))) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
+      toast.showFeedback(interactionCopy.ecashCopied);
     }
   };
 
@@ -524,7 +516,7 @@ export function TransactionDetailsScreen() {
       const peanut = encodePeanut(cleanToken(token));
       if (!(await copyWithFeedback(peanut, toast))) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
+      toast.showFeedback(interactionCopy.ecashCopied);
     }
   };
 
@@ -545,9 +537,7 @@ export function TransactionDetailsScreen() {
       }
     } catch (e) {
       console.error('[TransactionDetails] Failed to toggle version:', e);
-      toast.show(interactionCopy.failedToSwitchTokenVersion.title, {
-        kind: interactionCopy.failedToSwitchTokenVersion.severity,
-      });
+      toast.showFeedback(interactionCopy.failedToSwitchTokenVersion);
     }
   };
 
@@ -639,14 +629,10 @@ export function TransactionDetailsScreen() {
       );
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
-      toast.show(interactionCopy.paymentReceived.title, {
-        kind: interactionCopy.paymentReceived.severity,
-      });
+      toast.showFeedback(interactionCopy.paymentReceived);
     } catch (err: any) {
       console.error('[TransactionDetails] Claim failed:', err);
-      toast.show(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore.title, {
-        kind: interactionCopy.couldNotConfirmReceiptCheckHistoryBefore.severity,
-      });
+      toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
       claimLock.current = false;
@@ -910,9 +896,7 @@ export function TransactionDetailsScreen() {
                   (entry as any).quoteId,
                   'failed',
                 );
-                toast.show(interactionCopy.depositRemovedFromPending.title, {
-                  kind: interactionCopy.depositRemovedFromPending.severity,
-                });
+                toast.showFeedback(interactionCopy.depositRemovedFromPending);
                 await handleRefresh();
               }
             } catch (e) {
@@ -924,15 +908,11 @@ export function TransactionDetailsScreen() {
             try {
               await quotesService.redeemMintQuote(entry.mintUrl, (entry as any).quoteId);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              toast.show(interactionCopy.paymentReceived.title, {
-                kind: interactionCopy.paymentReceived.severity,
-              });
+              toast.showFeedback(interactionCopy.paymentReceived);
               await handleRefresh();
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              toast.show(interactionCopy.invoiceNotPaidYetTryAgainShortly.title, {
-                kind: interactionCopy.invoiceNotPaidYetTryAgainShortly.severity,
-              });
+              toast.showFeedback(interactionCopy.invoiceNotPaidYetTryAgainShortly);
             } finally {
               setIsCheckingPaid(false);
             }
@@ -1077,9 +1057,7 @@ export function TransactionDetailsScreen() {
                           onCopy={async () => {
                             if (nostrPubkey) {
                               if (!(await copyWithFeedback(nostrPubkey, toast))) return;
-                              toast.show(interactionCopy.publicKeyCopied.title, {
-                                kind: interactionCopy.publicKeyCopied.severity,
-                              });
+                              toast.showFeedback(interactionCopy.publicKeyCopied);
                             }
                           }}
                         />
@@ -1099,9 +1077,7 @@ export function TransactionDetailsScreen() {
                     onCopy={async () => {
                       if (!(await copyWithFeedback(lockedToNpub, toast))) return;
                       Haptics.selectionAsync();
-                      toast.show(interactionCopy.publicKeyCopied.title, {
-                        kind: interactionCopy.publicKeyCopied.severity,
-                      });
+                      toast.showFeedback(interactionCopy.publicKeyCopied);
                     }}
                   />
                 )}
@@ -1133,9 +1109,7 @@ export function TransactionDetailsScreen() {
                           onCopy={async () => {
                             if (!(await copyWithFeedback(btcAddress, toast))) return;
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            toast.show(interactionCopy.bitcoinAddressCopied.title, {
-                              kind: interactionCopy.bitcoinAddressCopied.severity,
-                            });
+                            toast.showFeedback(interactionCopy.bitcoinAddressCopied);
                           }}
                         />
                       ) : null}
@@ -1163,9 +1137,7 @@ export function TransactionDetailsScreen() {
                     onCopy={async () => {
                       if (!(await copyWithFeedback(savedInvoice, toast))) return;
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      toast.show(interactionCopy.invoiceCopied.title, {
-                        kind: interactionCopy.invoiceCopied.severity,
-                      });
+                      toast.showFeedback(interactionCopy.invoiceCopied);
                     }}
                   />
                 )}

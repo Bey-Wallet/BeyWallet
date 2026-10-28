@@ -2,7 +2,7 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import React, { useMemo } from 'react';
 import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { H2, Text, View, XStack, YStack, Stack } from 'tamagui';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 
 export default function BitcoinPriceCard() {
   const { secondaryCurrency } = useSettingsStore();
-  const toast = useToastController();
+  const toast = useAppToast();
   const [showSats, setShowSats] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -56,9 +56,7 @@ export default function BitcoinPriceCard() {
 
   React.useEffect(() => {
     if (isError && error) {
-      toast.show(interactionCopy.priceUnavailablePleaseTryAgainLater.title, {
-        kind: interactionCopy.priceUnavailablePleaseTryAgainLater.severity,
-      });
+      toast.showFeedback(interactionCopy.priceUnavailablePleaseTryAgainLater);
     }
   }, [isError, error]);
 

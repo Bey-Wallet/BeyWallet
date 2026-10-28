@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Text, YStack } from 'tamagui';
-import * as Clipboard from 'expo-clipboard';
 import { Copy, EyeOff } from '@tamagui/lucide-icons';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
@@ -18,7 +17,6 @@ import { useSettingsOperation } from './hooks/useSettingsOperation';
 export function PublicKeySettingsScreen() {
   const task = useSettingsOperation();
   const npub = useSettingsStore((state) => state.npub);
-  const [copied, setCopied] = useState(false);
   return (
     <SettingsPage>
       <SettingsDescription>
@@ -51,17 +49,9 @@ export function PublicKeySettingsScreen() {
       <AppButton
         icon={Copy}
         disabled={!npub}
-        onPress={() =>
-          void task.run(async () => {
-            if (npub) {
-              await Clipboard.setStringAsync(npub);
-              setCopied(true);
-            }
-            return 'Public key copied.';
-          })
-        }
+        onPress={() => (npub ? void task.copy(npub) : undefined)}
       >
-        {copied ? 'Copied' : 'Copy public key'}
+        Copy public key
       </AppButton>
       {task.message && <SettingsMessage error={task.error}>{task.message}</SettingsMessage>}
     </SettingsPage>
@@ -81,7 +71,6 @@ export function SecretKeySettingsScreen() {
       return nsec;
     }, []),
   );
-  const [copied, setCopied] = useState(false);
   return (
     <SettingsPage>
       <SettingsMessage error>
@@ -98,17 +87,9 @@ export function SecretKeySettingsScreen() {
             icon={Copy}
             variant="default"
             emphasis="secondary"
-            onPress={() =>
-              void task.run(async () => {
-                if (secret.value) {
-                  await Clipboard.setStringAsync(secret.value);
-                  setCopied(true);
-                }
-                return 'Secret key copied.';
-              })
-            }
+            onPress={() => (secret.value ? void task.copy(secret.value) : undefined)}
           >
-            {copied ? 'Copied' : 'Copy secret key'}
+            Copy secret key
           </AppButton>
           <AppButton icon={EyeOff} variant="default" emphasis="secondary" onPress={secret.hide}>
             Hide secret key

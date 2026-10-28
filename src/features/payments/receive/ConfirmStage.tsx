@@ -14,7 +14,7 @@ import { RefreshCw } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
 
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
 import { mintManager, proofService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -54,7 +54,7 @@ export function ConfirmStage({
 }: ConfirmStageProps) {
   const { mints } = useWalletStore();
   const npub = useSettingsStore((state) => state.npub);
-  const toast = useToastController();
+  const toast = useAppToast();
   const [isSavingLater, setIsSavingLater] = React.useState(false);
   const [estimatedFee, setEstimatedFee] = React.useState(0);
 
@@ -190,9 +190,7 @@ export function ConfirmStage({
 
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
-    toast.show(interactionCopy.copiedToClipboard.title, {
-      kind: interactionCopy.copiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.copiedToClipboard);
     Haptics.selectionAsync();
   };
 

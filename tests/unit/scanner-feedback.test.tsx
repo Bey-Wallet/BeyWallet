@@ -103,7 +103,7 @@ it('clears progress and allows another scan when decoding fails', async () => {
     tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: 'invalid' }),
   );
   expect(mockToast.show).toHaveBeenCalledWith(
-    'Could not read this QR code. Scan again or enter the payment details.',
+    'QR code not recognized',
     expect.objectContaining({ kind: 'error' }),
   );
   expect(mockFeedback).toHaveBeenLastCalledWith(expect.objectContaining({ active: false }));

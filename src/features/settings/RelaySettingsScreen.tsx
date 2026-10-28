@@ -2,12 +2,12 @@ import React, { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Input, Text, XStack } from 'tamagui';
-import * as Clipboard from 'expo-clipboard';
 import { Copy, Plus, Radio, RefreshCw, RotateCcw, Trash2 } from '@tamagui/lucide-icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { nostrService } from '~/services/wallet/nostrService';
 import { useNostrRelayStore } from '~/state/nostrRelayStore';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -16,6 +16,7 @@ import {
 } from './components/SettingsLayout';
 
 export function RelaySettingsScreen() {
+  const toast = useAppToast();
   const relays = useNostrRelayStore((state) => state.relays);
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +66,7 @@ export function RelaySettingsScreen() {
               onPress={async () => {
                 setError(null);
                 setMessage(null);
-                try {
-                  await Clipboard.setStringAsync(relay);
-                  setMessage('Relay URL copied.');
-                } catch {
-                  setError('Could not copy relay URL.');
-                }
+                await toast.copy(relay);
               }}
             />
             <AppIconButton

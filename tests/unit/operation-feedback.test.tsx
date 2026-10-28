@@ -8,6 +8,9 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('@tamagui/toast', () => ({
   Toast: Object.assign((props: unknown) => require('react').createElement('Toast', props), {
     Title: 'ToastTitle',
@@ -49,11 +52,11 @@ it('keeps concurrent operations visible beyond timeouts and updates only the own
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(2);
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
   expect(tree.root.findAllByType('ToastTitle' as any)[0].props).toMatchObject({
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
   });
   expect(tree.root.findAllByType('Spinner' as any)[0].props).toMatchObject({
-    size: 16,
+    size: 22,
     strokeWidth: 3,
   });
   await act(async () => jest.advanceTimersByTime(120_000));

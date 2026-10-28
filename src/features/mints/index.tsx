@@ -10,7 +10,7 @@ import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import * as Haptics from 'expo-haptics';
-import { useToastController } from '@tamagui/toast';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -34,7 +34,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [showQr, setShowQr] = useState(false);
   const router = useRouter();
-  const toast = useToastController();
+  const toast = useAppToast();
   const { addMint, mints } = useWalletStore();
   const connectionSheetRef = React.useRef<AppBottomSheetRef>(null);
   const connectionLock = React.useRef(false);
@@ -84,9 +84,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       ) {
         throw new Error('Could not connect to this mint. Please try again.');
       }
-      toast.show(interactionCopy.mintConnected.title, {
-        kind: interactionCopy.mintConnected.severity,
-      });
+      toast.showFeedback(interactionCopy.mintConnected);
     } catch (error) {
       setConnectionError(
         error instanceof Error ? error.message : 'Could not connect to this mint.',
@@ -101,7 +99,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     try {
       await RNShare.share({ message: url });
     } catch (error) {
-      handleCopy(url, 'URL');
+      toast.showFeedback(interactionCopy.shareFailed);
     }
   };
   const safeGoBack = React.useCallback(() => {
@@ -124,9 +122,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show(interactionCopy.copiedToClipboard.title, {
-      kind: interactionCopy.copiedToClipboard.severity,
-    });
+    toast.showFeedback(interactionCopy.copiedToClipboard);
   };
   if (isLoading || (isAlreadyAdded && !isConnecting && !connectionError)) {
     return (

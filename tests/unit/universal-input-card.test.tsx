@@ -317,7 +317,10 @@ it('does not resolve empty clipboard contents and retains invalid input for corr
   await open();
   await act(async () => button('Paste').props.onPress());
   expect(resolver).not.toHaveBeenCalled();
-  expect(mockToast).toHaveBeenCalledWith('Clipboard is empty', { kind: 'info' });
+  expect(mockToast).toHaveBeenCalledWith(
+    'Clipboard is empty',
+    expect.objectContaining({ kind: 'info', duration: 3000 }),
+  );
   resolver.mockResolvedValueOnce({
     type: 'unknown',
     raw: 'invalid',
