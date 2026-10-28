@@ -70,7 +70,7 @@ export const PeopleListRow = React.memo(function PeopleListRow({
               width={8}
               height={8}
               rounded={4}
-              bg="$buttonBrandedPrimary"
+              bg="$buttonDefaultPrimary"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             />

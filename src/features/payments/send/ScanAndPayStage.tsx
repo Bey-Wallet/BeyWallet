@@ -1,9 +1,10 @@
+import { AppTextArea as TextArea } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
-import { YStack, XStack, Text, View, TextArea, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 
@@ -181,7 +182,7 @@ export function ScanAndPayStage({
       {isLikelyValid && (
         <View position="absolute" px="$0" bottom="$4" left="$0" right="$0">
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isLoading}

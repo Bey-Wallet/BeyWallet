@@ -22,7 +22,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { networkService } from '~/services/platform/networkService';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, ScrollView, Separator, YGroup } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, Separator } from 'tamagui';
 import { ArrowDownLeft, AlertCircle, Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -979,182 +979,176 @@ export function TransactionDetailsScreen() {
             </YStack>
 
             {/* Details table */}
-            <ListTable compact bg="$gray2" rounded="$6" overflow="hidden">
-              <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
-                <DetailItem label="Date" value={formatPaymentDateTime(entry.createdAt)} />
-                {metadata?.reclaimAt && (
-                  <DetailItem
-                    label="Reclaim eligible"
-                    value={formatPaymentDateTime(Number(metadata.reclaimAt))}
-                  />
-                )}
+            <ListTable>
+              <DetailItem label="Date" value={formatPaymentDateTime(entry.createdAt)} />
+              {metadata?.reclaimAt && (
                 <DetailItem
-                  label="Mint"
-                  value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
+                  label="Reclaim eligible"
+                  value={formatPaymentDateTime(Number(metadata.reclaimAt))}
                 />
-                {mintFee > 0 && (
-                  <DetailItem label="Fee" value={currencyService.formatSats(mintFee)} />
-                )}
-                {/* Via channel & contacts */}
-                {(() => {
-                  let meta = entry.metadata ?? {};
-                  if (typeof meta === 'string') {
-                    try {
-                      meta = JSON.parse(meta);
-                    } catch {
-                      meta = {};
-                    }
+              )}
+              <DetailItem
+                label="Mint"
+                value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
+              />
+              {mintFee > 0 && (
+                <DetailItem label="Fee" value={currencyService.formatSats(mintFee)} />
+              )}
+              {/* Via channel & contacts */}
+              {(() => {
+                let meta = entry.metadata ?? {};
+                if (typeof meta === 'string') {
+                  try {
+                    meta = JSON.parse(meta);
+                  } catch {
+                    meta = {};
                   }
-                  const via: string | undefined = (meta as any)?.via;
-                  const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
-                  const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
-                  const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
-                  const targetMintName: string | undefined = (meta as any)?.targetMintName;
+                }
+                const via: string | undefined = (meta as any)?.via;
+                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
+                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
+                const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
+                const targetMintName: string | undefined = (meta as any)?.targetMintName;
 
-                  if (via === 'swap') {
-                    return (
-                      <>
-                        <DetailItem label="Channel" value="Mint transfer" />
-                        {sourceMintName && (
-                          <DetailItem label="Source Mint" value={sourceMintName} />
-                        )}
-                        {targetMintName && (
-                          <DetailItem label="Target Mint" value={targetMintName} />
-                        )}
-                      </>
-                    );
-                  }
-
-                  if (!via) return null;
-                  const viaLabel =
-                    via === 'nostr'
-                      ? 'Nostr'
-                      : via === 'qr' || via === 'scan'
-                        ? 'QR Scan'
-                        : via === 'nfc'
-                          ? 'NFC'
-                          : via === 'ecash_create'
-                            ? 'Ecash Token'
-                            : via === 'paste'
-                              ? 'Paste'
-                              : via === 'lightning'
-                                ? 'Lightning'
-                                : via;
+                if (via === 'swap') {
                   return (
                     <>
-                      <DetailItem label="Channel" value={viaLabel} />
-                      {via === 'nostr' && (nostrUsername || nostrPubkey) && (
-                        <DetailItem
-                          label={entry.type === 'send' ? 'Recipient' : 'Sender'}
-                          value={
-                            nostrUsername
-                              ? `@${nostrUsername.replace('@bey.cash', '')}`
-                              : nostrPubkey
-                                ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
-                                : 'Unknown'
+                      <DetailItem label="Channel" value="Mint transfer" />
+                      {sourceMintName && <DetailItem label="Source Mint" value={sourceMintName} />}
+                      {targetMintName && <DetailItem label="Target Mint" value={targetMintName} />}
+                    </>
+                  );
+                }
+
+                if (!via) return null;
+                const viaLabel =
+                  via === 'nostr'
+                    ? 'Nostr'
+                    : via === 'qr' || via === 'scan'
+                      ? 'QR Scan'
+                      : via === 'nfc'
+                        ? 'NFC'
+                        : via === 'ecash_create'
+                          ? 'Ecash Token'
+                          : via === 'paste'
+                            ? 'Paste'
+                            : via === 'lightning'
+                              ? 'Lightning'
+                              : via;
+                return (
+                  <>
+                    <DetailItem label="Channel" value={viaLabel} />
+                    {via === 'nostr' && (nostrUsername || nostrPubkey) && (
+                      <DetailItem
+                        label={entry.type === 'send' ? 'Recipient' : 'Sender'}
+                        value={
+                          nostrUsername
+                            ? `@${nostrUsername.replace('@bey.cash', '')}`
+                            : nostrPubkey
+                              ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
+                              : 'Unknown'
+                        }
+                        isCopyable={!!nostrPubkey}
+                        onCopy={async () => {
+                          if (nostrPubkey) {
+                            if (!(await copyWithFeedback(nostrPubkey, toast))) return;
+                            toast.showFeedback(interactionCopy.publicKeyCopied);
                           }
-                          isCopyable={!!nostrPubkey}
-                          onCopy={async () => {
-                            if (nostrPubkey) {
-                              if (!(await copyWithFeedback(nostrPubkey, toast))) return;
-                              toast.showFeedback(interactionCopy.publicKeyCopied);
-                            }
-                          }}
-                        />
-                      )}
-                    </>
-                  );
-                })()}
-                {lockedToNpub && (
-                  <DetailItem
-                    label="Locked To"
-                    value={
-                      lockedToNpub === useSettingsStore.getState().npub
-                        ? 'You (Safe)'
-                        : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`
-                    }
-                    isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
-                    onCopy={async () => {
-                      if (!(await copyWithFeedback(lockedToNpub, toast))) return;
-                      Haptics.selectionAsync();
-                      toast.showFeedback(interactionCopy.publicKeyCopied);
-                    }}
-                  />
-                )}
-                {/* On-chain Details */}
-                {(() => {
-                  let meta = entry.metadata ?? {};
-                  if (typeof meta === 'string') {
-                    try {
-                      meta = JSON.parse(meta);
-                    } catch {
-                      meta = {};
-                    }
-                  }
-                  const via = (meta as any)?.via;
-                  if (!onchain) return null;
-
-                  const btcAddress =
-                    (meta as any)?.address ||
-                    ('paymentRequest' in entry ? entry.paymentRequest : undefined);
-                  const onchainFee = (meta as any)?.actualFee;
-
-                  return (
-                    <>
-                      {btcAddress ? (
-                        <DetailItem
-                          label="BTC Address"
-                          value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
-                          isCopyable
-                          onCopy={async () => {
-                            if (!(await copyWithFeedback(btcAddress, toast))) return;
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            toast.showFeedback(interactionCopy.bitcoinAddressCopied);
-                          }}
-                        />
-                      ) : null}
-                      {entry.type === 'melt' && onchainFee !== undefined ? (
-                        <DetailItem
-                          label="Network Fee"
-                          value={currencyService.formatSats(onchainFee)}
-                        />
-                      ) : null}
-                      <OnchainTransactionRows
-                        direction={entry.type === 'melt' ? 'withdrawal' : 'deposit'}
-                        address={btcAddress || ''}
-                        mintUrl={entry.mintUrl}
-                        quoteId={(entry as any).quoteId}
+                        }}
                       />
-                    </>
-                  );
-                })()}
-                {/* Invoice for mint txns */}
-                {!onchain && savedInvoice && (
-                  <DetailItem
-                    label="Invoice"
-                    value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
-                    isCopyable
-                    onCopy={async () => {
-                      if (!(await copyWithFeedback(savedInvoice, toast))) return;
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      toast.showFeedback(interactionCopy.invoiceCopied);
-                    }}
-                  />
-                )}
-                {/* Token for send/receive txns */}
-                {token && (entry.type === 'send' || entry.type === 'receive') && (
-                  <DetailItem
-                    label="Token"
-                    value={
-                      token
-                        ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
-                        : 'Unavailable'
-                    }
-                    isCopyable={!!token}
-                    onCopy={handleCopyToken}
-                  />
-                )}
-              </YGroup>
+                    )}
+                  </>
+                );
+              })()}
+              {lockedToNpub && (
+                <DetailItem
+                  label="Locked To"
+                  value={
+                    lockedToNpub === useSettingsStore.getState().npub
+                      ? 'You (Safe)'
+                      : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`
+                  }
+                  isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
+                  onCopy={async () => {
+                    if (!(await copyWithFeedback(lockedToNpub, toast))) return;
+                    Haptics.selectionAsync();
+                    toast.showFeedback(interactionCopy.publicKeyCopied);
+                  }}
+                />
+              )}
+              {/* On-chain Details */}
+              {(() => {
+                let meta = entry.metadata ?? {};
+                if (typeof meta === 'string') {
+                  try {
+                    meta = JSON.parse(meta);
+                  } catch {
+                    meta = {};
+                  }
+                }
+                const via = (meta as any)?.via;
+                if (!onchain) return null;
+
+                const btcAddress =
+                  (meta as any)?.address ||
+                  ('paymentRequest' in entry ? entry.paymentRequest : undefined);
+                const onchainFee = (meta as any)?.actualFee;
+
+                return (
+                  <>
+                    {btcAddress ? (
+                      <DetailItem
+                        label="BTC Address"
+                        value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
+                        isCopyable
+                        onCopy={async () => {
+                          if (!(await copyWithFeedback(btcAddress, toast))) return;
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          toast.showFeedback(interactionCopy.bitcoinAddressCopied);
+                        }}
+                      />
+                    ) : null}
+                    {entry.type === 'melt' && onchainFee !== undefined ? (
+                      <DetailItem
+                        label="Network Fee"
+                        value={currencyService.formatSats(onchainFee)}
+                      />
+                    ) : null}
+                    <OnchainTransactionRows
+                      direction={entry.type === 'melt' ? 'withdrawal' : 'deposit'}
+                      address={btcAddress || ''}
+                      mintUrl={entry.mintUrl}
+                      quoteId={(entry as any).quoteId}
+                    />
+                  </>
+                );
+              })()}
+              {/* Invoice for mint txns */}
+              {!onchain && savedInvoice && (
+                <DetailItem
+                  label="Invoice"
+                  value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
+                  isCopyable
+                  onCopy={async () => {
+                    if (!(await copyWithFeedback(savedInvoice, toast))) return;
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    toast.showFeedback(interactionCopy.invoiceCopied);
+                  }}
+                />
+              )}
+              {/* Token for send/receive txns */}
+              {token && (entry.type === 'send' || entry.type === 'receive') && (
+                <DetailItem
+                  label="Token"
+                  value={
+                    token
+                      ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
+                      : 'Unavailable'
+                  }
+                  isCopyable={!!token}
+                  onCopy={handleCopyToken}
+                />
+              )}
               {extraDetails}
             </ListTable>
 
@@ -1178,7 +1172,7 @@ export function TransactionDetailsScreen() {
                     />
                   ) : entry.type === 'receive' && status === 'unclaimed' ? (
                     <AppButton
-                      variant="branded"
+                      variant="default"
                       emphasis="primary"
                       size="large"
                       loading={isClaiming}

@@ -1,7 +1,8 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { Alert, FlatList } from 'react-native';
 import { Check, UserRound, UserRoundCheck } from '@tamagui/lucide-icons';
-import { getTokens, Input, Text, XStack, YStack, useTheme } from 'tamagui';
+import { getTokens, Text, XStack, YStack, useTheme } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePeopleStore, type Person } from '~/state/peopleStore';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -89,7 +90,7 @@ export function BlockedPeopleSettingsScreen() {
             <AppButton
               size="xsmall"
               variant="default"
-              emphasis="text-only"
+              emphasis="text"
               disabled={!matches.length}
               onPress={() =>
                 setSelection((current) => {
@@ -108,7 +109,7 @@ export function BlockedPeopleSettingsScreen() {
               <AppButton
                 size="xsmall"
                 variant="default"
-                emphasis="text-only"
+                emphasis="text"
                 onPress={() => setSelection(new Set())}
               >
                 Clear

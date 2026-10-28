@@ -10,27 +10,38 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 const CompactTableContext = createContext(true);
+const TableRowContext = createContext<string | null>(null);
+export type ListTableVariant = 'filled' | 'outlined';
 
 export function ListTable({
   children,
   compact = true,
+  variant = 'filled',
   ...props
 }: {
   children: React.ReactNode;
   compact?: boolean;
+  variant?: ListTableVariant;
   [key: string]: any;
 }) {
   return (
     <CompactTableContext.Provider value={compact}>
       <YStack
         gap="$0"
-        bg="$gray2"
+        bg={variant === 'outlined' ? 'transparent' : '$gray2'}
+        borderWidth={variant === 'outlined' ? 2 : 0}
+        borderColor="$borderColor"
         rounded="$6"
         overflow="hidden"
-        separator={<YStack height={2} width="100%" bg="$background" />}
         {...props}
       >
-        {children}
+        <TableRowContext.Provider value={variant === 'outlined' ? '$borderColor' : '$background'}>
+          {/* Each row owns its divider, including rows returned by fragments/helpers.
+              Clip the first divider above the group's top edge. */}
+          <YStack testID="list-table-rows" mt={-2}>
+            {children}
+          </YStack>
+        </TableRowContext.Provider>
       </YStack>
     </CompactTableContext.Provider>
   );
@@ -52,6 +63,7 @@ export function ListTableRow({
   multiline,
   compact: compactProp,
   disabled = false,
+  selected,
 }: {
   label: string;
   value?: React.ReactNode;
@@ -68,9 +80,11 @@ export function ListTableRow({
   multiline?: boolean;
   compact?: boolean;
   disabled?: boolean;
+  selected?: boolean;
 }) {
   const toast = useAppToast();
   const inheritedCompact = useContext(CompactTableContext);
+  const dividerColor = useContext(TableRowContext);
   const compact = compactProp ?? inheritedCompact;
   const wrap = compact || multiline;
 
@@ -91,76 +105,90 @@ export function ListTableRow({
   const hasTrailing = value != null || rightContent || isCopyable || onPress;
 
   const content = (
-    <XStack
-      justify="space-between"
-      items="center"
-      minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
-      py={appSpacing.gap}
-      px={appSpacing.page}
-      gap={appSpacing.compact}
-    >
-      <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>
-        {Icon && (
-          <XStack width={22} items="center" justify="center">
-            <Icon size={20} color={iconColor || '$iconSecondary'} />
+    <>
+      {dividerColor && (
+        <YStack
+          testID="list-table-divider"
+          height={2}
+          width="100%"
+          bg={dividerColor}
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      )}
+      <XStack
+        justify="space-between"
+        items="center"
+        minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
+        py={appSpacing.gap}
+        px={appSpacing.page}
+        gap={appSpacing.compact}
+      >
+        <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>
+          {Icon && (
+            <XStack width={22} items="center" justify="center">
+              <Icon size={20} color={iconColor || '$iconSecondary'} />
+            </XStack>
+          )}
+          <Text
+            fontFamily="$body"
+            {...(compact ? appTypography.body2 : appTypography.body1)}
+            color={labelColor || '$gray10'}
+            flex={1}
+            flexShrink={1}
+            numberOfLines={wrap ? undefined : 1}
+          >
+            {label}
+          </Text>
+        </XStack>
+
+        {hasTrailing && (
+          <XStack
+            gap="$2"
+            items="center"
+            minWidth={wrap ? 0 : undefined}
+            maxWidth={wrap ? '60%' : undefined}
+            flexShrink={wrap ? 1 : 0}
+            justify="flex-end"
+          >
+            {typeof value === 'string' || typeof value === 'number' ? (
+              <Text
+                fontFamily="$body"
+                {...(compact ? appTypography.label2 : appTypography.label1)}
+                text="right"
+                color={valueColor || '$color'}
+                numberOfLines={wrap ? undefined : 1}
+                flexShrink={wrap ? 1 : undefined}
+                style={wrap ? { minWidth: 0 } : { maxWidth: 200 }}
+              >
+                {value}
+              </Text>
+            ) : (
+              value
+            )}
+
+            {rightContent}
+            {iconAfter}
+
+            {isCopyable && (
+              <AppIconButton
+                variant="default"
+                emphasis="ghost"
+                size="xxsmall"
+
+                accessibilityLabel="Copy"
+                disabled={disabled}
+                icon={<Copy size={16} color="$gray10" />}
+                onPress={handleCopy}
+              />
+            )}
+            {onPress && !isCopyable && !rightContent && <ChevronRight size={16} color="$gray10" />}
           </XStack>
         )}
-        <Text
-          fontFamily="$body"
-          {...(compact ? appTypography.body2 : appTypography.body1)}
-          color={labelColor || '$gray10'}
-          flex={1}
-          flexShrink={1}
-          numberOfLines={wrap ? undefined : 1}
-        >
-          {label}
-        </Text>
       </XStack>
-
-      {hasTrailing && (
-        <XStack
-          gap="$2"
-          items="center"
-          minWidth={wrap ? 0 : undefined}
-          maxWidth={wrap ? '60%' : undefined}
-          flexShrink={wrap ? 1 : 0}
-          justify="flex-end"
-        >
-          {typeof value === 'string' || typeof value === 'number' ? (
-            <Text
-              fontFamily="$body"
-              {...(compact ? appTypography.label2 : appTypography.label1)}
-              text="right"
-              color={valueColor || '$color'}
-              numberOfLines={wrap ? undefined : 1}
-              flexShrink={wrap ? 1 : undefined}
-              style={wrap ? { minWidth: 0 } : { maxWidth: 200 }}
-            >
-              {value}
-            </Text>
-          ) : (
-            value
-          )}
-
-          {rightContent}
-          {iconAfter}
-
-          {isCopyable && (
-            <AppIconButton
-              variant="default"
-              emphasis="tertiary"
-              size="xxsmall"
-
-              accessibilityLabel="Copy"
-              disabled={disabled}
-              icon={<Copy size={16} color="$gray10" />}
-              onPress={handleCopy}
-            />
-          )}
-          {onPress && !isCopyable && !rightContent && <ChevronRight size={16} color="$gray10" />}
-        </XStack>
-      )}
-    </XStack>
+    </>
   );
 
   if (onPress) {
@@ -168,7 +196,7 @@ export function ListTableRow({
       <YStack
         accessibilityLabel={label}
         accessibilityRole="button"
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, ...(selected === undefined ? {} : { selected }) }}
         minHeight={48}
         disabled={disabled}
         opacity={disabled ? 0.5 : 1}

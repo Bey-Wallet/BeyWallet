@@ -41,6 +41,7 @@ const expectedRoutes = [
   '(tabs)/settings/advanced.tsx',
   '(tabs)/settings/backup.tsx',
   '(tabs)/settings/blocked-people.tsx',
+  '(tabs)/settings/component-playground.tsx',
   '(tabs)/settings/currency.tsx',
   '(tabs)/settings/delete-wallet.tsx',
   '(tabs)/settings/export-backup.tsx',

@@ -274,7 +274,7 @@ export function PermissionsStep({
         {/* Finish Button */}
         <AppButton
           disabled={isFinishing}
-          variant="branded"
+          variant="default"
           emphasis="primary"
           size="large"
           iconAfter={<ChevronRight size={18} />}
@@ -310,7 +310,7 @@ export function PermissionsStep({
           <YStack gap="$3" width="100%">
             <AppButton
               disabled={isFinishing}
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               onPress={handleEnableFromSheet}
@@ -320,7 +320,7 @@ export function PermissionsStep({
             <AppButton
               disabled={isFinishing}
               variant="default"
-              emphasis="text-only"
+              emphasis="text"
               size="large"
               onPress={handleSkipFromSheet}
             >

@@ -14,8 +14,15 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { YStack, XStack, Text, Separator, View, YGroup } from 'tamagui';
-import { AlertCircle, Landmark, ArrowUpDown, ShieldCheck, Bitcoin } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text, Separator, View } from 'tamagui';
+import {
+  AlertCircle,
+  Landmark,
+  ArrowUpDown,
+  ShieldCheck,
+  Bitcoin,
+  Check,
+} from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
@@ -619,94 +626,63 @@ export function OnchainMeltFlow() {
           {/* Fee Option Selection Selector */}
           {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
             <YStack gap="$2">
-              <Text fontSize="$3" color="$gray10" fontWeight="700" px="$1">
+              <Text fontSize={12} color="$gray10" px="$1">
                 Choose confirmation speed
               </Text>
-              <YStack gap="$2">
+              <ListTable>
                 {meltQuote.fee_options.map((option: any) => {
                   const isSelected = option.fee_index === selectedFeeIndex;
                   return (
-                    <XStack
+                    <ListTableRow
                       key={option.fee_index}
-                      borderWidth={2}
-                      borderColor={isSelected ? '$accent10' : '$gray5'}
-                      p="$3"
-                      rounded="$6"
-                      justify="space-between"
-                      items="center"
+                      label={`${option.estimated_blocks} ${option.estimated_blocks === 1 ? 'block' : 'blocks'}`}
+                      value={currencyService.formatSats(option.fee_reserve)}
+                      selected={isSelected}
                       onPress={() => setSelectedFeeIndex(option.fee_index)}
-                      pressStyle={{ opacity: 0.85 }}
-                    >
-                      <YStack>
-                        <Text fontWeight="700" fontSize="$4" color="$color">
-                          {option.estimated_blocks}{' '}
-                          {option.estimated_blocks === 1 ? 'block' : 'blocks'}
-                        </Text>
-                        <Text fontSize="$2" color="$gray10">
-                          Estimated confirmation
-                        </Text>
-                      </YStack>
-                      <XStack gap="$3" items="center">
-                        <YStack items="flex-end">
-                          <Text fontWeight="700" fontSize="$4" color="$color">
-                            {option.fee_reserve} sat
-                          </Text>
-                          <Text fontSize="$2" color="$gray10">
-                            fee reserve
-                          </Text>
-                        </YStack>
-                        <View
-                          width={22}
-                          height={22}
-                          rounded="$11"
-                          borderWidth={2}
-                          borderColor={isSelected ? '$accent10' : '$gray8'}
-                          items="center"
-                          justify="center"
-                        >
-                          {isSelected && (
-                            <View width={10} height={10} rounded="$6" bg="$accent10" />
-                          )}
+                      rightContent={
+                        <View width={20}>
+                          {isSelected ? <Check size={20} color="$color" /> : null}
                         </View>
-                      </XStack>
-                    </XStack>
+                      }
+                    />
                   );
                 })}
-              </YStack>
+              </ListTable>
+              <Text fontSize={12} color="$gray10" px="$1">
+                Estimated confirmation time and maximum network fee.
+              </Text>
             </YStack>
           )}
 
           {/* Details List */}
-          <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
-            <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
-              <PaymentMintRow
-                mintUrl={activeMintUrl || ''}
-                method="melt-onchain"
-                onSelect={(url) => {
-                  if (url === activeMintUrl) return;
-                  refreshReviewMint.current = url;
-                  setMintUrl(url);
-                  setMeltQuote(null);
-                }}
-              />
-              <DetailItem
-                label="Destination"
-                value={shortAddress}
-                icon={<Landmark size={16} color="$yellow10" />}
-              />
-              <DetailItem
-                label="Maximum network fee"
-                value={`${selectedFeeReserve} sat`}
-                valueColor="$orange10"
-                icon={<ShieldCheck size={16} color="$orange10" />}
-              />
-              <DetailItem
-                label="Maximum total"
-                value={`${total.toLocaleString()} sat (≈ ${formattedTotalFiat})`}
-                valueColor="$accent10"
-                icon={<ShieldCheck size={16} color="$accent10" />}
-              />
-            </YGroup>
+          <ListTable mb="$3">
+            <PaymentMintRow
+              mintUrl={activeMintUrl || ''}
+              method="melt-onchain"
+              onSelect={(url) => {
+                if (url === activeMintUrl) return;
+                refreshReviewMint.current = url;
+                setMintUrl(url);
+                setMeltQuote(null);
+              }}
+            />
+            <DetailItem
+              label="Destination"
+              value={shortAddress}
+              icon={<Landmark size={16} color="$yellow10" />}
+            />
+            <DetailItem
+              label="Maximum network fee"
+              value={`${selectedFeeReserve} sat`}
+              valueColor="$orange10"
+              icon={<ShieldCheck size={16} color="$orange10" />}
+            />
+            <DetailItem
+              label="Maximum total"
+              value={`${total.toLocaleString()} sat (≈ ${formattedTotalFiat})`}
+              valueColor="$accent10"
+              icon={<ShieldCheck size={16} color="$accent10" />}
+            />
           </ListTable>
           {errorMsg && (
             <Text color="$red10" p="$3">

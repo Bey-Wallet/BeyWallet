@@ -143,7 +143,7 @@ export function RecoverFundsScreen() {
       {session.origin === 'import' && review && session.discoveryMessage && (
         <AppButton
           variant="default"
-          emphasis="text-only"
+          emphasis="text"
           disabled={busy || discovering || offline}
           onPress={async () => {
             setDiscovering(true);
@@ -163,7 +163,7 @@ export function RecoverFundsScreen() {
           {session.candidates.length > 1 && (
             <AppButton
               variant="default"
-              emphasis="text-only"
+              emphasis="text"
               disabled={busy || discovering}
               onPress={() =>
                 select(
@@ -286,7 +286,7 @@ export function RecoverFundsScreen() {
       {!running && !review && (
         <AppButton
           variant="default"
-          emphasis="text-only"
+          emphasis="text"
           disabled={busy}
           onPress={() => updateRecoverySession({ phase: 'review' })}
         >
@@ -296,7 +296,7 @@ export function RecoverFundsScreen() {
       {!running && session?.origin === 'import' && (
         <AppButton
           variant="default"
-          emphasis={review ? 'text-only' : 'secondary'}
+          emphasis={review ? 'text' : 'secondary'}
           disabled={busy || discovering}
           onPress={leave}
         >

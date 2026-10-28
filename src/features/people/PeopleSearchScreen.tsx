@@ -1,7 +1,8 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, Input, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { Search, ClipboardPaste, QrCode, ScanQrCode } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -179,7 +180,7 @@ export default function PeopleSearchScreen() {
           <XStack>
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
 
               accessibilityLabel="Paste"
@@ -188,7 +189,7 @@ export default function PeopleSearchScreen() {
             />
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
 
               accessibilityLabel="Scan QR code"

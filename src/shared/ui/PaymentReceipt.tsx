@@ -81,7 +81,7 @@ export function PaymentReceipt({
             <>
               <AppButton
                 size="small"
-                emphasis="text-only"
+                emphasis="text"
                 accessibilityState={{ expanded: details }}
                 onPress={() => setDetails(!details)}
               >
@@ -98,7 +98,7 @@ export function PaymentReceipt({
       }
       footer={
         <AppButton
-          variant={actionEmphasis === 'secondary' ? 'default' : 'branded'}
+          variant="default"
           emphasis={actionEmphasis}
           size="large"
           fullWidth

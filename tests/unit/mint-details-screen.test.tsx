@@ -284,7 +284,7 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
       .findAllByType('AppButton' as any)
       .find((node) => node.props.children === label)!;
     expect(button.props).toMatchObject({
-      variant: 'branded',
+      variant: 'default',
       emphasis: 'secondary',
       size: 'medium',
     });

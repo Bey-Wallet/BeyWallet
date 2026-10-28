@@ -224,12 +224,7 @@ export function HistoryScreen({
                   {entries.length} {entries.length === 1 ? 'transaction' : 'transactions'}
                   {filterSummary ? ` · ${filterSummary}` : ''}
                 </Text>
-                <AppButton
-                  variant="default"
-                  emphasis="tertiary"
-                  size="xxsmall"
-                  onPress={resetFilters}
-                >
+                <AppButton variant="default" emphasis="ghost" size="xxsmall" onPress={resetFilters}>
                   Reset
                 </AppButton>
               </XStack>
@@ -306,7 +301,7 @@ export function HistoryScreen({
             </Text>
             <AppButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xsmall"
               icon={<RotateCcw size={16} />}
               onPress={resetFilters}

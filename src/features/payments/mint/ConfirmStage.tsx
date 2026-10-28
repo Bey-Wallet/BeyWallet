@@ -49,7 +49,7 @@ export function ConfirmStage({
         }
         footer={
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isLoading}

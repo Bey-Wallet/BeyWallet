@@ -242,7 +242,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
         </XStack>
 
         <AppButton
-          variant="branded"
+          variant="default"
           emphasis="primary"
           size="large"
           width="100%"

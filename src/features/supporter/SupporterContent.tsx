@@ -98,7 +98,7 @@ export function SupporterContent({
               </Text>
               <AppButton
                 variant="default"
-                emphasis="text-only"
+                emphasis="text"
                 icon={Copy}
                 onPress={async () => {
                   await toast.copy(address);
@@ -167,7 +167,7 @@ export function SupporterContent({
           </Text>
         </YStack>
         {onDoNotShowAgain && (
-          <AppButton variant="default" emphasis="text-only" onPress={onDoNotShowAgain}>
+          <AppButton variant="default" emphasis="text" onPress={onDoNotShowAgain}>
             Do not show again
           </AppButton>
         )}

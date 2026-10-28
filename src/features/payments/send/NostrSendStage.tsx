@@ -1,3 +1,4 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -12,7 +13,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, XStack, Text } from 'tamagui';
 import { Search, ClipboardPaste, User, ArrowUpDown } from '@tamagui/lucide-icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -518,7 +519,7 @@ export function NostrSendStage({
             ) : (
               <AppIconButton
                 variant="default"
-                emphasis="tertiary"
+                emphasis="ghost"
                 size="xxsmall"
 
                 accessibilityLabel="Paste"

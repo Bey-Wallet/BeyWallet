@@ -197,7 +197,7 @@ export default function StatusScreen({
         <AnimatedYStack style={contentAnimatedStyle} gap="$3" width="100%" maxW={400}>
           {onAction && (
             <AppButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               iconAfter={<ArrowRight size={20} />}

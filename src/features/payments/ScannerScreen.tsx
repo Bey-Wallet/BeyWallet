@@ -211,7 +211,7 @@ export default function ScannerScreen() {
         <Text color="$gray10" style={{ textAlign: 'center' }}>
           We need your permission to show the camera to scan QR codes.
         </Text>
-        <AppButton variant="branded" emphasis="primary" size="medium" onPress={requestPermission}>
+        <AppButton variant="default" emphasis="primary" size="medium" onPress={requestPermission}>
           Grant Permission
         </AppButton>
         <AppButton
@@ -563,7 +563,7 @@ export default function ScannerScreen() {
               </XStack>
               {scanned && !isResolving && (
                 <AppButton
-                  variant="branded"
+                  variant="default"
                   emphasis="primary"
                   size="medium"
                   onPress={() => setScanned(false)}

@@ -224,7 +224,6 @@ const blend = (background: string, foreground: string, amount: number) =>
 
 function createButtonTheme(dark: boolean) {
   const c = appColors[dark ? 'dark' : 'light'];
-  const neutral = [c.secondaryButton, c.secondaryButtonHighlighted, c.secondaryButtonHighlighted];
   const primary = [c.accent, c.accentHover, c.accentPress];
   const semantic = (background: string, color: string) => [
     background,
@@ -260,7 +259,6 @@ function createButtonTheme(dark: boolean) {
       c.buttonForeground,
       c.accent,
     ),
-    ...palette('Branded', primary, c.onAccent, neutral, c.buttonForeground, c.accent),
     ...palette(
       'Critical',
       ['#B91C1C', '#991B1B', '#7F1D1D'],
@@ -281,12 +279,8 @@ function createButtonTheme(dark: boolean) {
     buttonDisabledText: c.onAccent,
     buttonSecondaryDisabled: c.secondaryButtonDisabled,
     buttonSecondaryDisabledText: c.tertiaryText,
-    buttonTertiary: c.tertiaryButton,
-    buttonTertiaryHighlighted: c.tertiaryButtonHighlighted,
-    buttonTertiaryDisabled: c.tertiaryButtonDisabled,
+    buttonGhostHighlighted: c.ghostButtonHighlighted,
     buttonFocus: c.accent,
-    buttonBrandedTextHover: c.accent,
-    buttonBrandedTextPress: c.accent,
   };
 }
 

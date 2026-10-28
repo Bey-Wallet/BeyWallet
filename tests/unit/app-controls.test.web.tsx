@@ -167,7 +167,7 @@ it('opens a popover through an AppButton trigger and keeps its expanded state', 
           <Popover.Trigger asChild>
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               icon={() => null}
               accessibilityLabel="More options"
             />

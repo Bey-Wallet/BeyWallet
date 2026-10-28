@@ -1,5 +1,6 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import React, { useState } from 'react';
-import { Input, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 import { ChevronDown } from '@tamagui/lucide-icons';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -33,12 +34,7 @@ export function PaymentNote({
             disabled={disabled}
             placeholder="Add a note (optional)"
           />
-          <AppButton
-            size="small"
-            emphasis="text-only"
-            disabled={disabled}
-            onPress={() => onChange('')}
-          >
+          <AppButton size="small" emphasis="text" disabled={disabled} onPress={() => onChange('')}>
             Clear note
           </AppButton>
         </YStack>

@@ -67,7 +67,7 @@ export function OtaUpdateChecker() {
         <XStack space="$3" width="100%" justifyContent="center" marginTop="$2">
           <AppButton
             variant="default"
-            emphasis="text-only"
+            emphasis="text"
             size="medium"
             flex={1}
             onPress={() => sheetRef.current?.dismiss()}
@@ -75,7 +75,7 @@ export function OtaUpdateChecker() {
             Later
           </AppButton>
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="medium"
             flex={1}

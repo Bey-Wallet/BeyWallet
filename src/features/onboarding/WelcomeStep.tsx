@@ -126,7 +126,7 @@ export function WelcomeStep({
             </AppButton>
             <AppButton
               disabled={busy}
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               width="100%"
@@ -151,7 +151,7 @@ export function WelcomeStep({
             </AppButton>
             <AppButton
               disabled={busy}
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               width="100%"

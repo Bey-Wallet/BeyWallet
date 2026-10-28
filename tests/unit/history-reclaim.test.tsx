@@ -82,7 +82,10 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' 
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
-jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'Table',
+  ListTableRow: 'Row',
+}));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({ __esModule: true, default: 'Sheet' }));
 jest.mock('~/features/history/components/PendingOnchainLayout', () => ({

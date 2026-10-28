@@ -99,7 +99,7 @@ export function PaymentStage({
           size="large"
           fullWidth
           disabled={isChecking}
-          variant={isExpired ? 'default' : 'branded'}
+          variant="default"
           emphasis={isExpired ? 'secondary' : 'primary'}
           onPress={isExpired ? onCancel : handleCopy}
         >
@@ -138,7 +138,7 @@ export function PaymentStage({
       {!isExpired && (
         <AppButton
           variant="default"
-          emphasis="text-only"
+          emphasis="text"
           fullWidth
           disabled={isChecking}
           onPress={onCancel}

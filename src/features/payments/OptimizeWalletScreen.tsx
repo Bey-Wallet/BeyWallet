@@ -389,7 +389,7 @@ export default function OptimizeWalletScreen() {
       >
         {isOptimizing ? (
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isOptimizing}
@@ -399,7 +399,7 @@ export default function OptimizeWalletScreen() {
           </AppButton>
         ) : (
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             icon={<Sparkles size={20} color={canOptimize ? 'white' : '$gray9'} />}

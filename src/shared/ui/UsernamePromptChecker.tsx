@@ -76,7 +76,7 @@ export function UsernamePromptChecker() {
         <XStack space="$3" width="100%" justifyContent="center" marginTop="auto">
           <AppButton
             variant="default"
-            emphasis="text-only"
+            emphasis="text"
             size="medium"
             flex={1}
             onPress={() => {
@@ -87,7 +87,7 @@ export function UsernamePromptChecker() {
             Maybe Later
           </AppButton>
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="medium"
             flex={1}

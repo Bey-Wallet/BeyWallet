@@ -289,7 +289,7 @@ it('shows the row spinner until the switch commits, then a bold branded check be
   expect(row(b).props.accessibilityState.selected).toBe(true);
   expect(row(b).findAllByType('Spinner' as any)).toHaveLength(0);
   expect(row(b).findByType('Check' as any).props).toMatchObject({
-    color: '$buttonBrandedPrimary',
+    color: '$buttonDefaultPrimary',
     strokeWidth: 3.5,
   });
   expect(mockDismiss).not.toHaveBeenCalled();

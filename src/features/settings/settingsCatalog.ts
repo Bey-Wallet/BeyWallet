@@ -100,6 +100,7 @@ export const settingsCategories = {
     items: [
       { path: 'proofs', title: 'Proof manager', icon: Coins },
       { path: 'verify-proofs', title: 'Verify proofs offline', icon: ShieldCheck },
+      { path: 'component-playground', title: 'Component playground', icon: Palette },
     ],
   },
   identity: {

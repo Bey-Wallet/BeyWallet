@@ -1,3 +1,4 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { appTypography } from '~/shared/theme/appearance';
@@ -21,7 +22,7 @@ import {
   UserPlus,
   UserX,
 } from '@tamagui/lucide-icons';
-import { Input, ScrollView, Text, XStack, YStack } from 'tamagui';
+import { ScrollView, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -501,7 +502,7 @@ export default function ConversationScreen() {
               {moreActivity && (
                 <AppButton
                   variant="default"
-                  emphasis="tertiary"
+                  emphasis="ghost"
                   disabled={loadingMessages || !!fetchingHistory}
                   loading={loadingMessages || !!fetchingHistory}
                   onPress={loadOlder}
@@ -584,7 +585,7 @@ export default function ConversationScreen() {
               </AppButton>
               <AppButton
                 size="small"
-                variant="branded"
+                variant="default"
                 emphasis="secondary"
                 icon={ArrowUpRight}
                 accessibilityLabel="Send money"
@@ -634,7 +635,7 @@ export default function ConversationScreen() {
                   blurOnSubmit={false}
                 />
                 <AppIconButton
-                  variant="branded"
+                  variant="default"
                   emphasis="primary"
                   size="small"
                   shape="circular"

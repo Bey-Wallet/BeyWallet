@@ -232,7 +232,7 @@ export function PendingTokenLayout({
         footer={
           !hideActions && onClaim ? (
             <AppButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               fullWidth
@@ -244,7 +244,7 @@ export function PendingTokenLayout({
             </AppButton>
           ) : (
             <AppButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               fullWidth
@@ -335,7 +335,7 @@ export function PendingTokenLayout({
         {onReclaim && !onClaim && (
           <AppButton
             variant="warning"
-            emphasis="text-only"
+            emphasis="text"
             loading={isReclaiming}
             onPress={onReclaim}
             disabled={isReclaiming || (reclaimAt != null && Date.now() < reclaimAt)}

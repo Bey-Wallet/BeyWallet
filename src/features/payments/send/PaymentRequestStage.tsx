@@ -291,7 +291,7 @@ export function PaymentRequestStage({
         footer={
           (!autoPay || hasOperation || !!localError || (isSending && !automaticDelivery)) && (
             <AppButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               loading={isSending}
@@ -349,7 +349,7 @@ export function PaymentRequestStage({
         {(receipt || hasOperation) && (
           <Text color="$gray10">Payment pending. Do not pay this request again.</Text>
         )}
-        <ListTable compact bg="$gray2" rounded="$6" overflow="hidden" mb="$3">
+        <ListTable mb="$3">
           {(receipt || hasOperation) && (
             <PaymentStatusRow
               status="pending"
@@ -378,54 +378,52 @@ export function PaymentRequestStage({
               }
             />
           )}
-          <YStack separator={<YStack height={2} width="100%" bg="$background" />}>
-            {cost && (
-              <DetailItem label="Total debit (including fees)" value={`${cost.totalDebit} sat`} />
-            )}
-            {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sat`} />}
-            {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sat`} />}
-            {amountMode === 'exact' && cost && (
-              <DetailItem
-                label="Recipient receives after fees"
-                value={`${cost.grossAmount - cost.receiverFee} sat`}
-              />
-            )}
+          {cost && (
+            <DetailItem label="Total debit (including fees)" value={`${cost.totalDebit} sat`} />
+          )}
+          {cost && <DetailItem label="Receiver input fee" value={`${cost.receiverFee} sat`} />}
+          {cost && <DetailItem label="Wallet swap fee" value={`${cost.senderFee} sat`} />}
+          {amountMode === 'exact' && cost && (
             <DetailItem
-              label="Mint"
-              value={mintDisplayName}
-              onPress={() => {
-                if (isSending || hasOperation) return;
-                refreshMintList();
-                sheetRef.current?.present();
-              }}
-              isClickable
-              icon={
-                isCompatible ? (
-                  <Avatar rounded="$3" size="$1.5">
-                    <MintImage
-                      mintUrl={activeMintInfo?.mintUrl}
-                      width="100%"
-                      height="100%"
-                      src={activeMintInfo?.icon}
-                    />
-                  </Avatar>
-                ) : (
-                  <AlertCircle size={16} color="$red10" />
-                )
-              }
-              valueColor={isCompatible ? '$color' : '$red10'}
+              label="Recipient receives after fees"
+              value={`${cost.grossAmount - cost.receiverFee} sat`}
             />
-            <DetailItem
-              label="Method"
-              value={request.nostrTarget ? 'Payment Request via Nostr' : 'Direct Cashu Request'}
-              icon={<Zap size={16} color="$yellow10" />}
-            />
-            {request.nostrTarget && (
-              <XStack justify="space-between" items="center" py="$3" px="$4">
-                <Text fontFamily="$body" fontSize="$3" color="$gray10" fontWeight="400">
-                  Recipient
-                </Text>
-                <XStack gap="$2" items="center">
+          )}
+          <DetailItem
+            label="Mint"
+            value={mintDisplayName}
+            onPress={() => {
+              if (isSending || hasOperation) return;
+              refreshMintList();
+              sheetRef.current?.present();
+            }}
+            isClickable
+            icon={
+              isCompatible ? (
+                <Avatar rounded="$3" size="$1.5">
+                  <MintImage
+                    mintUrl={activeMintInfo?.mintUrl}
+                    width="100%"
+                    height="100%"
+                    src={activeMintInfo?.icon}
+                  />
+                </Avatar>
+              ) : (
+                <AlertCircle size={16} color="$red10" />
+              )
+            }
+            valueColor={isCompatible ? '$color' : '$red10'}
+          />
+          <DetailItem
+            label="Method"
+            value={request.nostrTarget ? 'Payment Request via Nostr' : 'Direct Cashu Request'}
+            icon={<Zap size={16} color="$yellow10" />}
+          />
+          {request.nostrTarget && (
+            <ListTableRow
+              label="Recipient"
+              value={
+                <XStack gap="$2" items="center" flexShrink={1} minWidth={0}>
                   <Blockies
                     seed={request.nostrTarget}
                     size={6}
@@ -433,25 +431,25 @@ export function PaymentRequestStage({
                     style={{ borderRadius: 2 }}
                   />
                   <Text
-                    fontSize="$3"
+                    fontSize={14}
                     fontFamily="$body"
                     fontWeight="500"
                     color="$color"
-                    numberOfLines={1}
-                    style={{ maxWidth: 180 }}
+                    flexShrink={1}
+                    textAlign="right"
                   >
                     {truncateTarget(request.nostrTarget)}
                   </Text>
                 </XStack>
-              </XStack>
-            )}
-            <DetailItem
-              label="Your Balance"
-              value={currencyService.formatSats(currentMintBalance)}
-              valueColor={isEnough ? '$green11' : '$red10'}
-              icon={<ShieldCheck size={16} color={isEnough ? '$green11' : '$red10'} />}
+              }
             />
-          </YStack>
+          )}
+          <DetailItem
+            label="Your Balance"
+            value={currencyService.formatSats(currentMintBalance)}
+            valueColor={isEnough ? '$green11' : '$red10'}
+            icon={<ShieldCheck size={16} color={isEnough ? '$green11' : '$red10'} />}
+          />
         </ListTable>
       </PaymentStageLayout>
       <MintSelectorSheet

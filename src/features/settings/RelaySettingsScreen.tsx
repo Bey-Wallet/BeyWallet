@@ -1,7 +1,8 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import React, { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Input, Text, XStack } from 'tamagui';
+import { Text, XStack } from 'tamagui';
 import { Copy, Plus, Radio, RefreshCw, RotateCcw, Trash2 } from '@tamagui/lucide-icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -60,7 +61,7 @@ export function RelaySettingsScreen() {
             <AppIconButton
               icon={Copy}
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
               accessibilityLabel={`Copy ${relay}`}
               onPress={async () => {
@@ -72,7 +73,7 @@ export function RelaySettingsScreen() {
             <AppIconButton
               icon={Trash2}
               variant="critical"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
               accessibilityLabel={`Remove ${relay}`}
               disabled={relays.length <= 1}
@@ -96,7 +97,7 @@ export function RelaySettingsScreen() {
         />
         <AppIconButton
           icon={Plus}
-          variant="branded"
+          variant="default"
           emphasis="primary"
           accessibilityLabel="Add relay"
           disabled={!url.trim()}

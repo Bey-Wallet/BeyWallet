@@ -1,9 +1,10 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { YStack, XStack, Text, Input, View } from 'tamagui';
+import { YStack, XStack, Text, View } from 'tamagui';
 import {
   X,
   Clipboard,
@@ -304,7 +305,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                 <View position="absolute" top={4} right={4}>
                   <AppIconButton
                     variant="default"
-                    emphasis="tertiary"
+                    emphasis="ghost"
                     size="small"
                     shape="circular"
                     accessibilityLabel="Clear input"
@@ -356,7 +357,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           <XStack width="100%" items="center" justify="space-between" gap="$2" flexWrap="wrap">
             <AppButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="small"
               icon={<Clipboard size={18} />}
               disabled={isValidating}
@@ -371,7 +372,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                 <>
                   <AppIconButton
                     variant="default"
-                    emphasis="tertiary"
+                    emphasis="ghost"
                     size="small"
                     accessibilityLabel="Clear input"
                     icon={<X size={18} color="$color" />}
@@ -379,7 +380,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                     onPress={clearInput}
                   />
                   <AppButton
-                    variant="branded"
+                    variant="default"
                     emphasis="primary"
                     size="small"
                     disabled={isValidating}
@@ -460,7 +461,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               <>
                 <AppIconButton
                   variant="default"
-                  emphasis="tertiary"
+                  emphasis="ghost"
                   size={compact ? 'xsmall' : 'xxsmall'}
 
                   shape="circular"
@@ -470,7 +471,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                   onPress={clearInput}
                 />
                 <AppButton
-                  variant="branded"
+                  variant="default"
                   emphasis="primary"
                   size={compact ? 'xsmall' : 'xxsmall'}
                   loading={isValidating && !automaticProcessing}
@@ -485,7 +486,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
             ) : (
               <AppButton
                 variant="default"
-                emphasis="tertiary"
+                emphasis="ghost"
                 size={compact ? 'xsmall' : 'xxsmall'}
                 icon={<Clipboard size={compact ? 16 : 12} />}
                 disabled={isValidating}

@@ -3,13 +3,13 @@
 Screen headers use centered `ModalHeaderTitle` text and the canvas background, without a
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
-neutral tertiary circular controls with 22-point icons and at least 48-point touch areas.
+neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
 step; `X` dismisses a standalone modal, scanner, root sheet, or finished flow. Nested sheet steps
 use a back arrow. Other header actions stay on the right. Screen-specific callbacks, loading
 and disabled states remain with each screen. Home and tab navigation keep their own styling.
 
-Utility icon buttons, including tertiary buttons, use proportional 14/16/18/20/24-point glyphs
+Utility icon buttons, including Ghost buttons, use proportional 14/16/18/20/24-point glyphs
 from xxsmall through large. An explicit `iconSize` overrides the glyph size without shrinking
 the touch target. Home action cards, tab icons, and status artwork retain their own sizing.
 
@@ -26,19 +26,33 @@ and disabled fills stay neutral, and separators remain subtle. Dark-mode colors 
 Color roles include page and alternate backgrounds, content and tinted surfaces, three text
 and icon levels, input backgrounds and error states, separators, three overlay strengths,
 active/inactive tab icons, and enabled/highlighted/disabled button states. Success, warning,
-and error retain their semantic colors. Neutral cards use the base surface; branded secondary
-buttons use their own fill, avoiding gray backgrounds on large payment cards.
+and error retain their semantic colors. Neutral cards and secondary buttons use the approved
+neutral surface palette. There is one neutral button family; the duplicate Branded family is removed.
+
+`AppButton` uses `variant="default" | "critical" | "warning"` for intent, and
+`emphasis="primary" | "secondary" | "ghost" | "text"` for presentation. Primary is filled;
+Secondary has a softer fill; Ghost is transparent with a touch highlight; Text stays transparent
+in idle, hover, and pressed states without an underline. `AppTextButton` is a convenience wrapper
+around that same Text implementation and accepts a custom foreground color. Sizes, icon placement,
+loading, disabled state, and native link semantics remain supported. Switch variants retain their API.
 
 Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
 open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
 use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
 primary text and 14-point secondary conversion text. Confirmation screens, final results, and
 transaction details use 40-point primary amounts and 16-point secondary conversions.
-Body text uses 400, labels and buttons use 500, and headings and amounts use 600. Explicit larger amount-input and
-screen-specific amount-entry sizes remain supported. Button labels use Medium (500).
+Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
+amount-input and screen-specific amount-entry sizes remain supported. All button styles use
+SemiBold (600) labels.
 
-Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Grouped
-cards retain 16-point outer corners and clipped rows; circular controls remain circular.
+Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Every rounded
+button size uses the same **16-point radius** (`$6`). `AppInput`/`AppTextArea` and mode-selector
+triggers default to 12 points (`$5`).
+Cards and grouped lists use **16 points** (`$6`) with clipped child rows; sheets use **20 points**.
+Circular icon controls, avatars, status badges, switch tracks, and the approved toast pill retain
+their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
+conversation cards use the shared card radius. Explicit caller shapes remain available for special
+input contexts; their sizing cannot silently change the default radius.
 Lists default to compact 14-point text with a 48-point minimum row height and 16-point
 horizontal padding. Settings descriptions use 12-point text. Mint details and previews share
 the same base surfaces, clipped corners and full-width 2-point separators as Settings.
@@ -52,7 +66,7 @@ existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `s
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
-component gallery or alternate root provider is required.
+or alternate root provider is required. The component playground uses the existing Settings stack.
 
 Home's smaller balance is a neutral pill with a minimum 48-point touch area. Tapping
 it swaps the primary sats/fiat presentation using the existing saved display preference.

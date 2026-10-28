@@ -1,8 +1,9 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
-import { XStack, YStack, Text, Avatar } from 'tamagui';
-import { ChevronDown, Sprout } from '@tamagui/lucide-icons';
+import { XStack, Text, Avatar } from 'tamagui';
+import { ChevronDown } from '@tamagui/lucide-icons';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
 import * as Haptics from 'expo-haptics';
@@ -61,71 +62,55 @@ export function MintBalanceRow({
   };
 
   return (
-    <XStack justify="space-between" items="center" width="100%" bg="$gray2" p="$4" rounded="$6">
-      <XStack
-        gap="$2"
-        items="center"
-        onPress={isSelector ? handlePress : undefined}
-        pressStyle={isSelector ? { opacity: 0.7 } : undefined}
-        flex={1}
-      >
-        {isLoadingMint ? (
-          <Spinner size="small" color="$accent10" />
-        ) : (
-          <Avatar rounded="$3" size="$2">
-            <MintImage
-              mintUrl={activeMint?.mintUrl}
-              width="100%"
-              height="100%"
-              src={activeMint?.icon}
-            />
-          </Avatar>
-        )}
-        {label ? (
-          <YStack flex={1}>
-            <Text fontSize="$1" fontWeight="800" color="$gray10" textTransform="uppercase">
-              {label}
-            </Text>
+    <ListTable width="100%">
+      <ListTableRow
+        label={label || 'Mint'}
+        onPress={isSelector && onPress ? handlePress : undefined}
+        value={
+          <XStack gap="$2" items="center" flexShrink={1} minWidth={0}>
+            {isLoadingMint ? (
+              <Spinner size="small" color="$color" />
+            ) : (
+              <Avatar rounded="$3" size={22} flexShrink={0}>
+                <MintImage
+                  mintUrl={activeMint?.mintUrl}
+                  width="100%"
+                  height="100%"
+                  src={activeMint?.icon}
+                />
+              </Avatar>
+            )}
             <Text
-              fontSize="$3"
-              fontWeight="800"
-              color="$accent6"
-              numberOfLines={1}
-              style={{ maxWidth: 140 }}
+              fontFamily="$body"
+              fontSize={14}
+              fontWeight="500"
+              color="$color"
+              textAlign="right"
+              flexShrink={1}
             >
-              {isLoadingMint ? 'Loading...' : resolvedDisplayName}
+              {isLoadingMint ? 'Loading…' : resolvedDisplayName}
             </Text>
-          </YStack>
-        ) : (
-          <Text
-            fontSize="$4"
-            fontWeight="800"
-            color="$accent6"
-            numberOfLines={1}
-            style={{ maxWidth: 140 }}
-          >
-            {isLoadingMint ? 'Loading...' : resolvedDisplayName}
-          </Text>
-        )}
-        {isSelector && <ChevronDown size={16} color="$gray10" strokeWidth={2.5} />}
-      </XStack>
-
-      <XStack gap="$2" items="center">
-        <Text fontSize="$4" color="$accent6" fontWeight="800">
-          {currencyService.formatSats(balance)}
-        </Text>
-        {showMax && (
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            size="xxsmall"
-            onPress={onMaxPress}
-            disabled={maxDisabled || balance === 0}
-          >
-            Max
-          </AppButton>
-        )}
-      </XStack>
-    </XStack>
+          </XStack>
+        }
+        rightContent={isSelector && onPress ? <ChevronDown size={16} color="$gray10" /> : undefined}
+      />
+      <ListTableRow
+        label="Available balance"
+        value={currencyService.formatSats(balance)}
+        rightContent={
+          showMax ? (
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              size="xxsmall"
+              onPress={onMaxPress}
+              disabled={maxDisabled || balance === 0}
+            >
+              Max
+            </AppButton>
+          ) : undefined
+        }
+      />
+    </ListTable>
   );
 }

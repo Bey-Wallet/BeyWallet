@@ -249,7 +249,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
               {primaryAction && (
                 <XStack width="100%" gap="$3">
                   <AppButton
-                    variant="branded"
+                    variant="default"
                     emphasis="primary"
                     size="large"
                     flex={1}

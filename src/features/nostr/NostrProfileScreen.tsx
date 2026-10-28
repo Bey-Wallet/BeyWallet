@@ -163,7 +163,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
             ) : status === 'not_found' && !loading ? (
               <AppButton
                 variant="default"
-                emphasis="text-only"
+                emphasis="text"
                 size="small"
                 onPress={() =>
                   router.push(
@@ -288,7 +288,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               {lightning.pending.length > 0 && (
                 <AppButton
                   size="small"
-                  emphasis="tertiary"
+                  emphasis="ghost"
                   onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
                 >{`Pending incoming payments (${lightning.pending.length})`}</AppButton>
               )}
@@ -308,7 +308,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
             ) : (
               <AppIconButton
                 variant="default"
-                emphasis="tertiary"
+                emphasis="ghost"
                 size="small"
                 shape="circular"
                 accessibilityLabel="Retry NIP-05 lookup"

@@ -1,10 +1,11 @@
+import { AppTextArea as TextArea } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router } from 'expo-router';
-import { YStack, XStack, Text, View, TextArea, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
@@ -206,7 +207,7 @@ export function InputStage({
       <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
         {isValidToken ? (
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isLoading && !automaticProgress}

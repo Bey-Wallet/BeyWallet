@@ -43,7 +43,7 @@ export function PaymentStatusRow({
         onRefresh && (
           <AppIconButton
             variant="default"
-            emphasis="tertiary"
+            emphasis="ghost"
             size="xxsmall"
             accessibilityLabel="Refresh status"
             loading={busy}

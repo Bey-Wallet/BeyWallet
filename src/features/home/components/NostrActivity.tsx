@@ -335,7 +335,7 @@ export default function NostrActivity() {
           </YStack>
           <YStack gap="$3">
             <AppButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="large"
               icon={<ArrowUpRight size={20} />}

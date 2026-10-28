@@ -1,3 +1,4 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { SettingsPage, SettingsDescription } from '~/features/settings/components/SettingsLayout';
@@ -7,7 +8,7 @@ import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { Spinner } from '~/shared/ui/Spinner';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, XStack, Text } from 'tamagui';
 import { Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';

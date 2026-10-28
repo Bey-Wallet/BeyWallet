@@ -16,7 +16,7 @@ export const HeaderIconButton = forwardRef<
       {...props}
       ref={ref}
       variant="default"
-      emphasis="tertiary"
+      emphasis="ghost"
       size="xsmall"
       shape="circular"
       iconSize={22}

@@ -146,7 +146,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         >
           Try again
         </AppButton>
-        <AppButton variant="default" emphasis="tertiary" size="medium" onPress={safeGoBack}>
+        <AppButton variant="default" emphasis="ghost" size="medium" onPress={safeGoBack}>
           Go Back
         </AppButton>
       </YStack>

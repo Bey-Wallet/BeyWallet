@@ -1,18 +1,9 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import {
-  Input,
-  Text,
-  YStack,
-  XStack,
-  Paragraph,
-  View,
-  useTheme,
-  ScrollView,
-  Separator,
-} from 'tamagui';
+import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
 import {
   Scan,
   ArrowLeft,
@@ -408,7 +399,7 @@ const DiscoveredMintRow = React.memo(
               </XStack>
             ) : (
               <AppButton
-                variant="branded"
+                variant="default"
                 emphasis="primary"
                 size="small"
                 icon={<Plus size={16} strokeWidth={2.5} />}
@@ -771,7 +762,7 @@ export default function AddMintScreen() {
                   </XStack>
                 ) : (
                   <AppButton
-                    variant="branded"
+                    variant="default"
                     emphasis="primary"
                     size="xsmall"
                     iconAfter={<ArrowRight size={14} />}
@@ -874,7 +865,7 @@ export default function AddMintScreen() {
                 Failed to discover mints
               </Text>
               <AppButton
-                variant="branded"
+                variant="default"
                 emphasis="primary"
                 size="xxsmall"
                 onPress={() => refetchDiscover()}

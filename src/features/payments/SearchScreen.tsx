@@ -1,9 +1,10 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, XStack, Text } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -368,7 +369,7 @@ export default function UniversalSearchScreen() {
           ) : search.length > 0 ? (
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
 
               accessibilityLabel="Clear input"
@@ -378,7 +379,7 @@ export default function UniversalSearchScreen() {
           ) : (
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
 
               accessibilityLabel="Scan QR code"

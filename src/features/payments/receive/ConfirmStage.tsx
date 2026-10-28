@@ -207,7 +207,7 @@ export function ConfirmStage({
         hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" label="You're receiving" />}
         footer={
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isLoading || isSavingLater}
@@ -242,7 +242,7 @@ export function ConfirmStage({
         {!offline && (
           <AppButton
             variant="default"
-            emphasis="text-only"
+            emphasis="text"
             flex={1}
             size="small"
             loading={isSavingLater}
@@ -296,7 +296,7 @@ export function ConfirmStage({
             rightContent={
               <AppIconButton
                 variant="default"
-                emphasis="tertiary"
+                emphasis="ghost"
                 size="xxsmall"
                 accessibilityLabel="Refresh status"
                 disabled={offline || isLoading || isSavingLater || proofStatus === 'checking'}

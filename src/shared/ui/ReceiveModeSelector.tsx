@@ -74,7 +74,7 @@ export default function ReceiveModeSelector({
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
           sheetRef.current?.present();
         }}
-        rounded="$10"
+        rounded="$5"
         pressStyle={{ scale: 0.97, opacity: 0.9 }}
         minHeight={36}
         flexDirection="row"
@@ -126,7 +126,7 @@ export default function ReceiveModeSelector({
                       <View
                         bg={'$gray4'}
                         p="$3"
-                        rounded="$10"
+                        rounded="$6"
                         width={50}
                         height={50}
                         items="center"
@@ -140,7 +140,7 @@ export default function ReceiveModeSelector({
                     </XStack>
                     <XStack items="center" justify="center">
                       {isActive ? (
-                        <View bg="$accentColor" p="$1.5" rounded="$10">
+                        <View bg="$accentColor" p="$1.5" rounded={999}>
                           <Check size={14} color="$onAccent" strokeWidth={3} />
                         </View>
                       ) : undefined}

@@ -132,7 +132,7 @@ export default function LightningAddressSettingsScreen() {
       )}
       <AppButton
         size="small"
-        emphasis="tertiary"
+        emphasis="ghost"
         disabled={busy}
         onPress={() => run(() => getLightningAddressService().sync(LEGACY_NPUB_CASH))}
       >

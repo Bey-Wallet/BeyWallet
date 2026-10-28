@@ -604,7 +604,7 @@ export function RequestEcashStage({
         )}
         {targetNpub && !!creqString && (
           <AppButton
-            emphasis="text-only"
+            emphasis="text"
             loading={isSending}
             disabled={isSending || isGenerating}
             onPress={handleSend}

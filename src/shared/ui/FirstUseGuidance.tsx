@@ -48,7 +48,7 @@ export function FirstUseGuidance({
         </Text>
         <AppIconButton
           variant="default"
-          emphasis="tertiary"
+          emphasis="ghost"
           size="xsmall"
           shape="circular"
           icon={<X size={22} color="$gray10" />}

@@ -1,3 +1,4 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,7 +12,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, X } from '@tamagui/lucide-icons';
-import { Input, Text, XStack, YStack } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -307,7 +308,7 @@ export default function PeopleScreen() {
                 <AppButton
                   size="small"
                   variant="default"
-                  emphasis="tertiary"
+                  emphasis="ghost"
                   onPress={model.retrySearch}
                 >
                   Retry search
@@ -315,7 +316,7 @@ export default function PeopleScreen() {
               </YStack>
             )}
             {total > limits[mode] && (
-              <AppButton size="small" variant="default" emphasis="tertiary" onPress={loadMore}>
+              <AppButton size="small" variant="default" emphasis="ghost" onPress={loadMore}>
                 Load more
               </AppButton>
             )}
@@ -365,7 +366,7 @@ export default function PeopleScreen() {
           {searching && (
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
               accessibilityLabel="Clear search"
               icon={X}

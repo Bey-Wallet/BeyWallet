@@ -4,6 +4,7 @@ import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import type { ConversationActivity } from '../conversationActivity';
+import { appRadii } from '~/shared/theme/appearance';
 
 export interface ConversationItemCardProps {
   item: ConversationActivity;
@@ -19,7 +20,7 @@ function palette(item: ConversationActivity) {
     return { background: '$buttonWarningSecondary', color: '$buttonWarningSecondaryText' } as const;
   if (item.direction === 'incoming')
     return { background: '$buttonDefaultSecondary', color: '$buttonDefaultSecondaryText' } as const;
-  return { background: '$buttonBrandedPrimary', color: '$buttonBrandedPrimaryText' } as const;
+  return { background: '$buttonDefaultPrimary', color: '$buttonDefaultPrimaryText' } as const;
 }
 
 export function ConversationTextBubble({ item }: ConversationItemCardProps) {
@@ -102,7 +103,7 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
       maxW={onPay ? '75%' : '85%'}
       px={14}
       py={payment ? 12 : 10}
-      rounded={16}
+      rounded={appRadii.card}
       bg={background}
     >
       {payment ? <ConversationPaymentCard {...props} /> : <ConversationTextBubble {...props} />}

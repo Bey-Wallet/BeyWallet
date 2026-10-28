@@ -619,7 +619,7 @@ describe('People conversations and invitations', () => {
     expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   });
 
-  it('uses branded primary for sent payments and text with equal corners', async () => {
+  it('uses neutral primary for sent payments and text with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [
       {
@@ -653,13 +653,13 @@ describe('People conversations and invitations', () => {
     });
     const cards = tree!.root.findAllByType('AppPressable' as any);
     const text = cards.find((node) => node.props.accessibilityLabel?.startsWith('Text bubble.'))!;
-    expect(text.props.bg).toBe('$buttonBrandedPrimary');
+    expect(text.props.bg).toBe('$buttonDefaultPrimary');
     expect(text.props.rounded).toBe(16);
     expect(text.props.borderBottomRightRadius).toBeUndefined();
     expect(text.props.borderBottomLeftRadius).toBeUndefined();
     expect(
       cards.find((node) => node.props.accessibilityLabel?.startsWith('Ecash,'))?.props.bg,
-    ).toBe('$buttonBrandedPrimary');
+    ).toBe('$buttonDefaultPrimary');
     expect(
       cards.some(
         (node) =>
@@ -744,7 +744,7 @@ describe('People conversations and invitations', () => {
     expect(close.props).toMatchObject({
       size: 'xsmall',
       shape: 'circular',
-      emphasis: 'tertiary',
+      emphasis: 'ghost',
       iconSize: 22,
     });
     close.props.onPress();

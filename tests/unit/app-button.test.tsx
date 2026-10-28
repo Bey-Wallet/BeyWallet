@@ -19,6 +19,7 @@ jest.mock('tamagui', () => ({
   createFont: (value: unknown) => value,
   createTamagui: (value: unknown) => value,
   useTheme: () => mockTheme,
+  getVariableValue: (value: unknown) => value,
 }));
 jest.mock('@tamagui/animations-react-native', () => ({ createAnimations: jest.fn() }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
@@ -111,12 +112,12 @@ it('centers only the loader, preserves label geometry, and restores icons after 
 });
 
 it.each([
-  ['xxsmall', '$3'],
-  ['xsmall', '$4'],
-  ['small', '$5'],
+  ['xxsmall', '$6'],
+  ['xsmall', '$6'],
+  ['small', '$6'],
   ['medium', '$6'],
   ['large', '$6'],
-] as const)('uses proportional corner rounding for %s buttons', async (size, radius) => {
+] as const)('keeps the control radius consistent for %s buttons', async (size, radius) => {
   const tree = await render({ size });
   expect(tree.root.findByType('Button' as any).props.rounded).toBe(radius);
   await act(async () => tree.unmount());
@@ -274,12 +275,12 @@ it.each([
   ['small', 18],
   ['medium', 20],
   ['large', 24],
-] as const)('uses proportional glyphs for %s tertiary icon buttons', async (size, iconSize) => {
+] as const)('uses proportional glyphs for %s ghost icon buttons', async (size, iconSize) => {
   const Icon = (_props: { size?: number }) => null;
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(
-      <AppIconButton size={size} emphasis="tertiary" icon={Icon} accessibilityLabel="Go back" />,
+      <AppIconButton size={size} emphasis="ghost" icon={Icon} accessibilityLabel="Go back" />,
     );
   });
   expect(tree.root.findByType(Icon).props.size).toBe(iconSize);
@@ -303,6 +304,29 @@ it('resolves the current theme, preserves loading colors and removes reduced-mot
   await act(async () => tree.unmount());
 });
 
+it('keeps Ghost touch feedback distinct from background-free Text actions', async () => {
+  const tree = await render({ emphasis: 'ghost' });
+  let button = tree.root.findByType('Button' as any);
+  expect(button.props.backgroundColor).toBe('transparent');
+  expect(button.props.pressStyle.backgroundColor).not.toBe('transparent');
+  await act(async () =>
+    tree.update(
+      <AppButton emphasis="text" textColor="#7654CC">
+        View
+      </AppButton>,
+    ),
+  );
+  button = tree.root.findByType('Button' as any);
+  expect(button.props.backgroundColor).toBe('transparent');
+  expect(button.props.hoverStyle.backgroundColor).toBe('transparent');
+  expect(button.props.pressStyle.backgroundColor).toBe('transparent');
+  expect(tree.root.findByType('Text' as any).props).toMatchObject({
+    color: '#7654CC',
+    textDecorationLine: 'none',
+  });
+  await act(async () => tree.unmount());
+});
+
 const luminance = (color: string) => {
   const parsed = processColor(color);
   if (typeof parsed !== 'number') throw new Error(`Invalid palette color: ${color}`);
@@ -314,7 +338,7 @@ const luminance = (color: string) => {
 };
 it('maintains readable contrast for enabled solid palettes in every state', () => {
   for (const palette of Object.values(buttonThemes)) {
-    for (const variant of ['Default', 'Branded', 'Critical', 'Warning']) {
+    for (const variant of ['Default', 'Critical', 'Warning']) {
       for (const emphasis of ['Primary', 'Secondary']) {
         for (const state of ['', 'Hover', 'Press']) {
           const prefix = `button${variant}${emphasis}`;
@@ -326,8 +350,7 @@ it('maintains readable contrast for enabled solid palettes in every state', () =
         }
       }
       for (const state of ['', 'Hover', 'Press']) {
-        const textKey =
-          variant === 'Branded' && state ? `buttonBrandedText${state}` : `button${variant}Text`;
+        const textKey = `button${variant}Text`;
         const foreground = luminance(palette[textKey]);
         const background = luminance(
           state

@@ -112,9 +112,9 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
       </YStack>
       <View width={24} height={24} items="center" justify="center" flexShrink={0}>
         {pending ? (
-          <Spinner size={22} color="$buttonBrandedPrimary" />
+          <Spinner size={22} color="$buttonDefaultPrimary" />
         ) : selected ? (
-          <Check size={22} color="$buttonBrandedPrimary" strokeWidth={3.5} />
+          <Check size={22} color="$buttonDefaultPrimary" strokeWidth={3.5} />
         ) : null}
       </View>
     </AppPressable>

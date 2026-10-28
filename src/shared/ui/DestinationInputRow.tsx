@@ -1,6 +1,7 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
-import { XStack, YStack, Text, View, Input } from 'tamagui';
+import { XStack, YStack, Text, View } from 'tamagui';
 import { Clipboard as ClipboardIcon, ScanLine, X as XIcon } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import * as Haptics from 'expo-haptics';
@@ -153,7 +154,7 @@ export function DestinationInputRow({
         {value.length > 0 ? (
           <AppIconButton
             variant="default"
-            emphasis="tertiary"
+            emphasis="ghost"
             size="xsmall"
 
             shape="circular"
@@ -165,7 +166,7 @@ export function DestinationInputRow({
           <>
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xsmall"
 
               shape="circular"
@@ -179,7 +180,7 @@ export function DestinationInputRow({
             />
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xsmall"
 
               shape="circular"

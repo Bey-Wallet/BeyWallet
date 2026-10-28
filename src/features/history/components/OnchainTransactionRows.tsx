@@ -1,7 +1,6 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
-import { YStack } from 'tamagui';
 import { ExternalLink } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -51,7 +50,7 @@ export function OnchainTransactionRows({
   }
 
   return (
-    <YStack separator={<YStack height={2} width="100%" bg="$background" />}>
+    <>
       {transactionIds.map((txid, index) => {
         const url = blockchainTransactionUrl(txid, destination);
         return (
@@ -72,6 +71,6 @@ export function OnchainTransactionRows({
           />
         );
       })}
-    </YStack>
+    </>
   );
 }

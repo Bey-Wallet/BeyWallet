@@ -63,7 +63,7 @@ const NumButton = React.memo(
 const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
   <AppIconButton
     variant="default"
-    emphasis="tertiary"
+    emphasis="ghost"
     size="large"
     icon={Delete}
     accessibilityLabel="Delete last digit"
@@ -169,7 +169,7 @@ export function NumericKeypad({
         </YStack>
         {showConfirmButton && (
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             loading={isLoading}

@@ -1,3 +1,4 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
@@ -7,7 +8,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, View, Separator, Input } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
 import {
   ArrowLeft,
   Share2,
@@ -537,7 +538,7 @@ export default function MintDetailsModal() {
           gap="$2.5"
         >
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="secondary"
             size="medium"
             loading={isRestoring && restoringMintUrl === mintUrl}
@@ -550,7 +551,7 @@ export default function MintDetailsModal() {
           </AppButton>
 
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="secondary"
             size="medium"
             icon={<Trash2 strokeWidth={2.5} />}

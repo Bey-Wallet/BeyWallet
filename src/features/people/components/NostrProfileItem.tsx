@@ -104,7 +104,7 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
           </TouchableOpacity>
           <XStack items="center" gap="$1.5">
             <AppIconButton
-              variant="branded"
+              variant="default"
               emphasis="primary"
               size="xsmall"
 

@@ -154,7 +154,7 @@ export function MintReliabilityRow({
           rightContent={
             <AppIconButton
               variant="default"
-              emphasis="tertiary"
+              emphasis="ghost"
               size="xxsmall"
               accessibilityLabel="Recheck mint connection"
               loadingText="Checking mint connection…"

@@ -111,7 +111,7 @@ export function PendingMintInvoiceLayout({
           {extraDetails}
         </ListTable>
         <AppButton
-          emphasis="text-only"
+          emphasis="text"
           disabled={isCheckingPaid}
           onPress={async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

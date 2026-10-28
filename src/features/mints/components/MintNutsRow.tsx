@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { YStack } from 'tamagui';
 import { Check, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { ListTableRow } from '~/shared/ui/ListTable';
@@ -58,7 +57,7 @@ export function MintNutsRow({ nuts }: { nuts: unknown }) {
   const [expanded, setExpanded] = useState(false);
   const entries = advertisedNuts(nuts);
   return (
-    <YStack separator={<YStack height={2} width="100%" bg="$background" />}>
+    <>
       <AppPressable
         minHeight={48}
         accessibilityLabel="Advertised NUTs"
@@ -86,6 +85,6 @@ export function MintNutsRow({ nuts }: { nuts: unknown }) {
             rightContent={<Check size={18} color="$green11" />}
           />
         ))}
-    </YStack>
+    </>
   );
 }

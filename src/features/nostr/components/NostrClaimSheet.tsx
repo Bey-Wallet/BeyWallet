@@ -343,7 +343,7 @@ export function NostrClaimSheet() {
               </AppButton>
               {claimStatus !== 'success' && (
                 <AppButton
-                  variant="branded"
+                  variant="default"
                   emphasis="primary"
                   size="large"
                   flex={1}

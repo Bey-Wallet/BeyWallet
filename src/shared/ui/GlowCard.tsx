@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import Svg, { Defs, Rect, RadialGradient, Stop } from 'react-native-svg';
 import { View, useTheme, getTokens, getVariableValue } from 'tamagui';
+import { appRadii } from '~/shared/theme/appearance';
 
 interface GlowCardProps {
   width?: number | string;
@@ -15,7 +16,7 @@ interface GlowCardProps {
 export default function GlowCard({
   width = 350,
   height = 400,
-  rounded = 30,
+  rounded = appRadii.card,
   gradientColor = '#ffffff',
   middleColor,
   bgColor = '#050505',

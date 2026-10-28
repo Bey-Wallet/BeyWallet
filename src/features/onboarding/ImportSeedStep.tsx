@@ -1,7 +1,8 @@
+import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppButton } from '~/shared/ui/AppButton';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useRef } from 'react';
-import { YStack, XStack, Text, H2, Input, ScrollView, View } from 'tamagui';
+import { YStack, XStack, Text, H2, ScrollView, View } from 'tamagui';
 import {
   KeyRound,
   ClipboardPaste,
@@ -327,7 +328,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
         <YStack gap="$2" mt="$4">
           {/* Confirm Button */}
           <AppButton
-            variant="branded"
+            variant="default"
             emphasis="primary"
             size="large"
             width="100%"
