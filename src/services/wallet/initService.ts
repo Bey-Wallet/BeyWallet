@@ -304,6 +304,10 @@ async function initializeWithMnemonic(
   );
 
   repo = repositories;
+  // Hydrate privacy/authentication settings and the identity cache before
+  // network watchers. A slow/offline mint must not gate the first Home paint.
+  const { useSettingsStore } = await import('~/state/settingsStore');
+  await useSettingsStore.getState().initialize(true);
   setupAppStateListener();
 
   if (!options.quiet) {

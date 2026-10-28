@@ -6,6 +6,7 @@ import { RootLayoutNav } from '~/shared/layout/RootLayoutNav';
 import { initService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { useOnboardingStore } from '~/state/onboardingStore';
+import { useSettingsStore } from '~/state/settingsStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OnboardingScreen } from '~/features/onboarding';
 import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentReceived';
@@ -13,8 +14,8 @@ import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
 import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
 import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
 import { hydrateBitcoinPriceCache } from '~/shared/utils/bitcoinPriceQueryCache';
-import { Spinner } from '~/shared/ui/Spinner';
-import { YStack } from 'tamagui';
+import { AppButton } from '~/shared/ui/AppButton';
+import { Text, YStack } from 'tamagui';
 
 const queryClient = new QueryClient();
 hydrateBitcoinPriceCache(queryClient);
@@ -30,7 +31,9 @@ export function RootLayout() {
 
   // Cache manager in state instead of re-computing inside render body
   const [manager, setManager] = useState<any>(null);
-  const [walletReady, setWalletReady] = useState(false);
+  const settingsReady = useSettingsStore((state) => state.initialized);
+  const [startupFinished, setStartupFinished] = useState(false);
+  const [startupAttempt, setStartupAttempt] = useState(0);
   useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
 
   const [loaded, error] = useFonts({
@@ -67,31 +70,56 @@ export function RootLayout() {
   // Initialize wallet only if onboarded and wallet exists
   useEffect(() => {
     if (isOnboarded && walletExists) {
+      let active = true;
+      setStartupFinished(false);
       console.log('[RootLayout] ✅ Mnemonic found, initializing Coco...');
-      void initialize().then(() => setWalletReady(true));
+      void (async () => {
+        try {
+          await initialize();
+          // Also permits retry after a transient local settings read failure.
+          await useSettingsStore.getState().initialize();
+        } catch {
+          console.warn('[RootLayout] Wallet startup unavailable; retry opening wallet.');
+        } finally {
+          if (active) setStartupFinished(true);
+        }
+      })();
+      return () => {
+        active = false;
+      };
     }
-  }, [isOnboarded, walletExists, initialize]);
+  }, [isOnboarded, walletExists, initialize, startupAttempt]);
 
-  // Cache manager once initialization completes
+  // The local manager/settings are ready before network watchers finish.
   useEffect(() => {
-    if (!isInitializing && isOnboarded && walletExists) {
+    if (settingsReady && isOnboarded && walletExists) {
       try {
         setManager(initService.getManager());
       } catch (e) {
         setManager(null);
       }
     }
-  }, [isInitializing, isOnboarded, walletExists]);
+  }, [settingsReady, isInitializing, isOnboarded, walletExists]);
 
   // Hide splash when ready
   useEffect(() => {
     const isReady = (loaded || error) && !isCheckingOnboarding && walletExists !== null;
-    const isAppReady = !isOnboarded || (!isInitializing && isOnboarded);
+    const isAppReady =
+      !isOnboarded || !walletExists || (!!manager && settingsReady) || startupFinished;
 
     if (isReady && isAppReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error, isCheckingOnboarding, walletExists, isOnboarded, isInitializing]);
+  }, [
+    loaded,
+    error,
+    isCheckingOnboarding,
+    walletExists,
+    isOnboarded,
+    manager,
+    settingsReady,
+    startupFinished,
+  ]);
 
   // Still loading fonts or checking onboarding
   if (!loaded && !error) {
@@ -113,16 +141,23 @@ export function RootLayout() {
 
   return (
     <Providers cocoManager={manager}>
-      {walletReady ? (
-        <RootLayoutNav />
-      ) : (
-        <YStack flex={1} bg="$background" items="center" justify="center">
-          <Spinner />
+      {manager && settingsReady ? (
+        <>
+          <RootLayoutNav />
+          <NfcSheetHost walletReady={!isInitializing} />
+          <NostrClaimSheet />
+          <NostrPaymentReceived />
+        </>
+      ) : startupFinished ? (
+        <YStack flex={1} bg="$background" justify="center" p="$4" gap="$4">
+          <Text color="$color" accessibilityLiveRegion="polite">
+            Your wallet could not be opened. Retry loading it.
+          </Text>
+          <AppButton onPress={() => setStartupAttempt((attempt) => attempt + 1)}>
+            Retry opening wallet
+          </AppButton>
         </YStack>
-      )}
-      <NfcSheetHost walletReady={!!manager && !isInitializing} />
-      <NostrClaimSheet />
-      <NostrPaymentReceived />
+      ) : null}
     </Providers>
   );
 }

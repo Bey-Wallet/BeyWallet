@@ -29,6 +29,25 @@ export function PublicKeySettingsScreen() {
           {npub || 'Public key unavailable.'}
         </Text>
       </YStack>
+      {!npub && (
+        <>
+          <SettingsMessage>
+            Your identity is restored from this wallet’s recovery phrase. Retry loading it here.
+          </SettingsMessage>
+          <AppButton
+            loading={task.busy}
+            onPress={() =>
+              void task.run(async () => {
+                await useSettingsStore.getState().initialize(true);
+                if (!useSettingsStore.getState().npub) throw new Error('Identity unavailable');
+                return 'Public key restored.';
+              })
+            }
+          >
+            Retry loading public key
+          </AppButton>
+        </>
+      )}
       <AppButton
         icon={Copy}
         disabled={!npub}
@@ -54,6 +73,9 @@ export function SecretKeySettingsScreen() {
   const secret = useProtectedValue(
     'Authenticate to view your secret nsec',
     useCallback(async () => {
+      if (!useSettingsStore.getState().nsec) {
+        await useSettingsStore.getState().initialize(true);
+      }
       const nsec = useSettingsStore.getState().nsec;
       if (!nsec) throw new Error('Secret key unavailable');
       return nsec;
