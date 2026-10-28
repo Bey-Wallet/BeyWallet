@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -18,6 +19,8 @@ import { AlertCircle, Landmark, ArrowUpDown, ShieldCheck, Bitcoin } from '@tamag
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService, initService } from '~/services/wallet';
@@ -70,6 +73,8 @@ export function OnchainMeltFlow() {
 
   // Quote details
   const [meltQuote, setMeltQuote] = useState<any>(null);
+  useFeedbackOwner(meltQuote?.quote);
+  useSettingsBusy(step === 'paying');
   const [selectedFeeIndex, setSelectedFeeIndex] = useState<number>(0);
 
   const isLoadingMint = isInitializing || isRefreshing;
@@ -294,7 +299,9 @@ export function OnchainMeltFlow() {
         setAddress(text);
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show('Address pasted from clipboard', { kind: 'info' });
+      toast.show(interactionCopy.addressPastedFromClipboard.title, {
+        kind: interactionCopy.addressPastedFromClipboard.severity,
+      });
     } catch (e) {
       console.warn('[OnchainMeltFlow] Clipboard read failed:', e);
     } finally {

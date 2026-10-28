@@ -17,6 +17,7 @@ import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -29,6 +30,7 @@ export function RecoverFundsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mintUrl?: string }>();
   const session = useRecoverySessionStore((s) => s.session);
+  useFeedbackOwner(session?.feedbackId);
   const mints = useWalletStore((s) => s.mints);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const entries = useWalletStore((s) => s.mintRestoreStatuses);

@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
@@ -8,7 +10,7 @@ import React, { useState } from 'react';
 import { Text } from 'tamagui';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+
 import { useToastController } from '@tamagui/toast';
 
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -51,10 +53,12 @@ export function PendingMintInvoiceLayout({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await Clipboard.setStringAsync(savedInvoice);
+    if (!(await copyWithFeedback(savedInvoice, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Invoice copied to clipboard', { kind: 'success' });
+    toast.show(interactionCopy.invoiceCopiedToClipboard.title, {
+      kind: interactionCopy.invoiceCopiedToClipboard.severity,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 

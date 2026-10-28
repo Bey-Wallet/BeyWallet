@@ -107,17 +107,19 @@ jest.mock('~/shared/ui/ListTable', () => ({
 }));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({
   __esModule: true,
-  default: require('react').forwardRef((_: unknown, ref: any) => {
+  default: require('react').forwardRef((props: any, ref: any) => {
     require('react').useImperativeHandle(ref, () => ({
       present: mockSheetPresent,
       dismiss: jest.fn(),
     }));
-    return null;
+    return require('react').createElement('Sheet', props, props.children);
   }),
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => mockToast }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn(async () => {}),
+  NotificationFeedbackType: { Success: 'success' },
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium' },
 }));
@@ -186,7 +188,7 @@ it('shows only a sats balance for None with FIAT saved and restores fiat when se
 it('edits the header name inline and saves its trimmed nickname on the check button', async () => {
   await render();
   expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
-  expect(iconButton('Edit mint name').props.iconSize).toBe(14);
+  expect(iconButton('Edit mint name').props.iconSize).toBe(22);
   await act(async () => iconButton('Edit mint name').props.onPress());
   const input = tree.root.findByType('Input' as any);
   expect(input.props.defaultValue).toBe('My mint');
@@ -212,7 +214,29 @@ it('keeps the name editable when persistence fails', async () => {
   await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Draft'));
   await act(async () => iconButton('Save mint name').props.onPress());
   expect(tree.root.findByType('Input' as any).props.defaultValue).toBe('Draft');
-  expect(mockToast.show).toHaveBeenCalledWith('Storage unavailable', { kind: 'error' });
+  expect(mockToast.show).toHaveBeenCalledWith('Could not save mint name. Please try again.', {
+    kind: 'error',
+  });
+});
+
+it('keeps mint removal on its confirmation screen until persistence succeeds', async () => {
+  const remove = jest.fn().mockRejectedValue(new Error('storage unavailable'));
+  useWalletStore.setState({ removeMint: remove });
+  await render();
+  const confirm = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Confirm Remove')!;
+  await act(async () => confirm.props.onPress());
+  expect(mockRouter.back).not.toHaveBeenCalled();
+  expect(mockToast.show).toHaveBeenCalledTimes(1);
+  expect(mockToast.show).toHaveBeenCalledWith(
+    'Could not remove this mint. Check its balance and try again.',
+    { kind: 'error' },
+  );
+  remove.mockResolvedValue(undefined);
+  await act(async () => confirm.props.onPress());
+  expect(mockRouter.back).toHaveBeenCalledTimes(1);
+  expect(mockToast.show).toHaveBeenLastCalledWith('Mint removed', { kind: 'success' });
 });
 
 it('allows clearing a nickname to restore the original mint name', async () => {

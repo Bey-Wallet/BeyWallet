@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -27,7 +29,7 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
-import * as Clipboard from 'expo-clipboard';
+
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useToastController } from '@tamagui/toast';
@@ -198,10 +200,10 @@ export default function TokenDetailsModal() {
 
   const handleCopy = async () => {
     if (currentToken) {
-      await Clipboard.setStringAsync(currentToken);
+      if (!(await copyWithFeedback(currentToken, toast))) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setCopied(true);
-      toast.show('Token copied to clipboard', { kind: 'success' });
+      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -209,9 +211,9 @@ export default function TokenDetailsModal() {
   const handleCopyEmoji = async () => {
     if (currentToken) {
       const peanut = encodePeanut(cleanToken(currentToken));
-      await Clipboard.setStringAsync(peanut);
+      if (!(await copyWithFeedback(peanut, toast))) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.show('Peanut token copied to clipboard', { kind: 'success' });
+      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
     }
   };
 
@@ -225,16 +227,16 @@ export default function TokenDetailsModal() {
         const encodedV4 = encodeTokenV4(decoded);
         setCurrentToken(encodedV4);
         setTokenVersion('V4');
-        toast.show('Switched to V4 (compact CBOR)', { kind: 'info' });
       } else {
         const encodedV3 = encodeTokenV3(decoded);
         setCurrentToken(encodedV3);
         setTokenVersion('V3');
-        toast.show('Switched to V3 (standard JSON)', { kind: 'info' });
       }
     } catch (e) {
       console.error('Failed to toggle token version:', e);
-      toast.show('Failed to switch token version', { kind: 'error' });
+      toast.show(interactionCopy.failedToSwitchTokenVersion.title, {
+        kind: interactionCopy.failedToSwitchTokenVersion.severity,
+      });
     }
   };
 

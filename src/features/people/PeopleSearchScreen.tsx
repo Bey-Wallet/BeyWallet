@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, Input, ScrollView } from 'tamagui';
@@ -41,11 +42,17 @@ export default function PeopleSearchScreen() {
     fetchDirectory();
   }, []);
 
+  const [pasteError, setPasteError] = React.useState<string | null>(null);
   const handlePaste = async () => {
-    const text = await Clipboard.getStringAsync();
-    if (text) {
-      setSearch(text);
-      doSearch(text, directory);
+    setPasteError(null);
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (text) {
+        setSearch(text);
+        doSearch(text, directory);
+      }
+    } catch {
+      setPasteError(interactionCopy.clipboardReadFailed.title);
     }
   };
 
@@ -142,6 +149,11 @@ export default function PeopleSearchScreen() {
 
   return (
     <YStack bg="$background" p="$4" gap="$4">
+      {pasteError && (
+        <Text color="$red10" accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {pasteError}
+        </Text>
+      )}
       <XStack items="center" gap="$2" width="100%">
         <XStack
           width="100%"

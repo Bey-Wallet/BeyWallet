@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -209,12 +210,18 @@ export function NostrSendStage({
     setSearch(text);
   };
 
+  const [pasteError, setPasteError] = React.useState<string | null>(null);
   const handlePaste = async () => {
-    const value = (await Clipboard.getStringAsync()).trim();
-    if (!value) return;
-    setSearch(value);
-    contactSheetRef.current?.present();
-    await resolveExactRecipient(value);
+    setPasteError(null);
+    try {
+      const value = (await Clipboard.getStringAsync()).trim();
+      if (!value) return;
+      setSearch(value);
+      contactSheetRef.current?.present();
+      await resolveExactRecipient(value);
+    } catch {
+      setPasteError(interactionCopy.clipboardReadFailed.title);
+    }
   };
 
   const handleOpenScanner = () => {
@@ -414,9 +421,9 @@ export function NostrSendStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
-            {error || isOverBalance ? (
+            {error || pasteError || isOverBalance ? (
               <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
-                {error || 'Exceeds available balance'}
+                {error || pasteError || 'Exceeds available balance'}
               </Text>
             ) : (
               <Text color="$gray10" fontSize="$3" fontWeight="500">

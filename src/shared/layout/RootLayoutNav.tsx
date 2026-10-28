@@ -22,7 +22,7 @@ import { useCocoEvents } from '~/shared/hooks/useCocoEvents';
 
 import { useColorScheme } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
-import { notificationService } from '~/services/platform/notificationService';
+import { useAppFeedback } from '~/shared/hooks/useAppFeedback';
 import { isNfcIntent } from '~/features/nfc/nativeIntent';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 
@@ -46,6 +46,7 @@ export function RootLayoutNav() {
 
   // Subscribe to coco events for automatic balance/history updates
   useCocoEvents();
+  useAppFeedback();
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -151,7 +152,7 @@ export function RootLayoutNav() {
       }
 
       if (tokenFound) {
-        console.log('[RootLayoutNav] Redirecting to receive modal with token:', tokenFound);
+        console.log('[RootLayoutNav] Opening receive flow');
         router.replace('/(tabs)');
         setTimeout(() => {
           if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
@@ -161,10 +162,7 @@ export function RootLayoutNav() {
           });
         }, 300);
       } else if (paymentRequestFound) {
-        console.log(
-          '[RootLayoutNav] Redirecting to send modal with payment request:',
-          paymentRequestFound,
-        );
+        console.log('[RootLayoutNav] Opening send flow');
         router.replace('/(tabs)');
         setTimeout(() => {
           if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;

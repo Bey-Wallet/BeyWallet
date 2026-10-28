@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import * as Haptics from 'expo-haptics';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 
@@ -21,15 +22,7 @@ export function ResultStage({
   onClose,
 }: ResultStageProps) {
   const [time] = useState(Date.now);
-  useEffect(() => {
-    if (status === 'success') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (status === 'error') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [status]);
+  useResultHaptic(status === 'error' ? 'error' : undefined);
 
   return (
     <PaymentReceipt

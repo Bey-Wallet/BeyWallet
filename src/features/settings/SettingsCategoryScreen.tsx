@@ -43,10 +43,6 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
       description: 'Use ₿ instead of the sat label',
       save: settings.setShowBitcoinSymbol,
     },
-    notifications: {
-      checked: settings.notificationsEnabled,
-      save: settings.setNotificationsEnabled,
-    },
     'hide-balance': { checked: settings.hideBalance, save: settings.setHideBalance },
     'app-lock': {
       checked: settings.biometricEnabled,

@@ -1,4 +1,5 @@
 import { AppState } from 'react-native';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
 import type { Manager, WalletService } from 'coco-cashu-core';
 import type { ExpoSqliteRepositories } from '~/storage/sqlite';
 import {
@@ -54,6 +55,7 @@ function authorize(): void {
 }
 
 export class MintTransferService {
+  private startedAt = Date.now();
   readonly journal: MintTransferRepository;
   private submissions = new Map<string, Promise<MintTransferRecord>>();
   private checks = new Map<string, Promise<MintTransferRecord>>();
@@ -256,6 +258,14 @@ export class MintTransferService {
       if (record.state !== 'committed' || record.stage !== previousStage) {
         await this.journal.save(record);
         changed();
+        if (record.state === 'completed')
+          await publishWalletFeedback({
+            entity: { type: 'operation', id: record.id },
+            kind: 'transfer',
+            state: 'completed',
+            origin: record.createdAt >= this.startedAt ? 'live' : 'catch-up',
+            target: { type: 'history' },
+          });
       }
     } catch {
       // Keep the journal and reserved proofs after network or storage ambiguity.

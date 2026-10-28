@@ -1,7 +1,7 @@
 import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { Alert, DeviceEventEmitter } from 'react-native';
 import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -25,6 +25,8 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { useNfcPresentation } from '~/features/nfc/NfcSheetHost';
+import { useSheetFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { feedbackNavigationGuard } from '~/services/feedback/navigationGuard';
 
 function safeNpub(pubkey: string): string {
   if (!pubkey) return '';
@@ -57,10 +59,14 @@ export function NostrClaimSheet() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const nfc = useNfcPresentation();
   const canPresent = (!biometricEnabled || isAuthenticated) && !nfc.visible;
+  useEffect(() => {
+    if (claimStatus === 'claiming') return feedbackNavigationGuard.acquire();
+  }, [claimStatus]);
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) || null,
     [activeId, items],
   );
+  useSheetFeedbackOwner(activeItem?.requestId ?? activeId, canPresent);
   const contactAccepted =
     !!activeItem && people[safeNpub(activeItem.senderPubkey)]?.contactStatus === 'accepted';
   const contactBlocked =
@@ -79,20 +85,6 @@ export function NostrClaimSheet() {
   }, []);
 
   useEffect(() => {
-    const incoming = DeviceEventEmitter.addListener(
-      'nostr:incoming',
-      ({ eventId }: { eventId: string }) => {
-        setTimeout(() => {
-          const item = useNostrInboxStore
-            .getState()
-            .items.find((candidate) => candidate.id === eventId);
-          if (!item || !canPresent || presented.current.has(eventId)) return;
-          if (people[safeNpub(item.senderPubkey)]?.contactStatus === 'blocked') return;
-          if (item.status === 'approval_required' || item.failure?.retryable === false)
-            present(item);
-        }, 100);
-      },
-    );
     const open = DeviceEventEmitter.addListener('nostr:openClaim', (item: NostrInboxItem) =>
       present(item),
     );
@@ -104,24 +96,12 @@ export function NostrClaimSheet() {
       },
     );
     return () => {
-      incoming.remove();
       open.remove();
       result.remove();
     };
   }, [activeId, canPresent, present, people]);
 
-  useEffect(() => {
-    if (!canPresent || activeItem) return;
-    const next = items.find(
-      (item) =>
-        item.type !== 'request' &&
-        people[safeNpub(item.senderPubkey)]?.contactStatus !== 'blocked' &&
-        !presented.current.has(item.id) &&
-        (item.status === 'approval_required' ||
-          (item.status === 'failed' && item.failure?.retryable === false)),
-    );
-    if (next) present(next);
-  }, [activeItem, canPresent, items, present, people]);
+  // Passive arrivals use the coordinator's View action. Only explicit review opens a sheet.
 
   useEffect(() => {
     if (!activeItem || !canPresent) return;
@@ -170,7 +150,6 @@ export function NostrClaimSheet() {
         : await nostrClaimService.retry(activeItem.id, { trustMint: mintTrusted === false });
     if (result.status === 'claimed') {
       setClaimStatus('success');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
       setClaimStatus('error');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -185,7 +164,7 @@ export function NostrClaimSheet() {
     setClaimStatus('idle');
   }, [activeItem, claimStatus, dismiss]);
 
-  if (!activeItem) return null;
+  if (!activeItem || !canPresent) return null;
   const npub = safeNpub(activeItem.senderPubkey);
   const storedUsername = activeItem.senderUsername
     ? activeItem.senderUsername.includes('@')
@@ -220,6 +199,7 @@ export function NostrClaimSheet() {
           setClaimStatus('idle');
         }}
         enablePanDownToClose={claimStatus !== 'claiming'}
+        canDismiss={claimStatus !== 'claiming'}
       >
         <BottomSheetScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 8 }}
@@ -345,7 +325,17 @@ export function NostrClaimSheet() {
                 onPress={
                   offline && claimStatus !== 'success'
                     ? () => sheetRef.current?.dismiss()
-                    : handleClose
+                    : claimStatus === 'success'
+                      ? handleClose
+                      : () =>
+                          Alert.alert(
+                            'Delete incoming payment?',
+                            'This removes the payment from your pending list. Only continue if you no longer need to claim it.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Delete', style: 'destructive', onPress: handleClose },
+                            ],
+                          )
                 }
                 disabled={claimStatus === 'claiming'}
               >

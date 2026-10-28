@@ -1,4 +1,6 @@
 import { recoveryCoordinator, yieldWalletWork } from '~/services/wallet/recoveryCoordinator';
+import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
+const feedbackStartedAt = Date.now();
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
@@ -303,6 +305,7 @@ export const useWalletStore = create<WalletState>()(
         } catch (err: any) {
           console.error('[WalletStore] Failed to remove mint:', err);
           set({ error: err.message });
+          throw err;
         }
       },
 
@@ -356,6 +359,7 @@ export const useWalletStore = create<WalletState>()(
           );
         holdRecoveryPause();
         updateRecoverySession({
+          feedbackId: session.feedbackId ?? `recovery-${Date.now()}`,
           phase: 'recovering',
           selected: session.phase === 'review' ? urls : session.selected,
           results:
@@ -370,6 +374,18 @@ export const useWalletStore = create<WalletState>()(
             updateRecoverySession({ phase: 'results' });
             batchRestore = null;
             releaseRecoveryPause();
+            const completed = useRecoverySessionStore.getState().session;
+            if (
+              completed?.feedbackId &&
+              completed.results.some((result) => result.status !== 'done')
+            )
+              void publishWalletFeedback({
+                entity: { type: 'recovery', id: completed.feedbackId },
+                kind: 'recovery',
+                state: 'review',
+                origin: 'live',
+                target: { type: 'recovery' },
+              });
           });
         return batchRestore;
       },
@@ -498,6 +514,14 @@ export const useWalletStore = create<WalletState>()(
                   entry.quoteId,
                   'paid',
                 );
+                await publishWalletFeedback({
+                  entity: { type: 'quote', id: quoteFeedbackId(entry.mintUrl, entry.quoteId) },
+                  parentOperationId: entry.quoteId,
+                  kind: 'sent',
+                  state: 'completed',
+                  origin: entry.createdAt >= feedbackStartedAt ? 'live' : 'catch-up',
+                  target: { type: 'transaction', id: String(entry.id) },
+                });
                 get().refreshBalance();
               } else if (status.state === 'UNPAID') {
                 console.log(

@@ -6,6 +6,9 @@
  */
 
 import { initService } from '~/services/wallet/initService';
+import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
+
+const feedbackStartedAt = Date.now();
 import { purgeCorruptedKeysets } from '~/services/wallet/initService';
 import {
   Wallet,
@@ -395,6 +398,17 @@ export const quotesService = {
         'paid',
         quoteStatus.amount_paid,
       );
+      const entry = await repo.historyRepository.getMintHistoryEntry(mintUrl, quoteId);
+      if (entry)
+        await publishWalletFeedback({
+          entity: { type: 'quote', id: quoteFeedbackId(mintUrl, quoteId) },
+          parentOperationId: quoteId,
+          kind: 'received',
+          state: 'completed',
+          origin: entry.createdAt >= feedbackStartedAt ? 'live' : 'catch-up',
+          target: { type: 'transaction', id: String(entry.id) },
+          details: { amount: delta },
+        });
     } catch (e) {
       console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
     }
@@ -516,7 +530,7 @@ export const quotesService = {
       fee_index: feeIndex,
     };
 
-    console.log('[QuotesService] Executing raw on-chain melt payload:', JSON.stringify(payload));
+    console.log('[QuotesService] Submitting on-chain payment');
     const res = await fetch(`${mintUrl.replace(/\/$/, '')}/v1/melt/onchain`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -529,7 +543,7 @@ export const quotesService = {
     }
 
     const meltResult = await res.json();
-    console.log('[QuotesService] Melt executed successfully:', JSON.stringify(meltResult));
+    console.log('[QuotesService] On-chain payment submission returned');
 
     // Construct change proofs if change is returned synchronously (usually empty for PENDING)
     const keyset = wallet.getKeyset(preview.keysetId);

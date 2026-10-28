@@ -322,3 +322,4 @@ it('keeps offline invoice input editable and does not prepare or execute payment
   expect(mockPay).not.toHaveBeenCalled();
   expect(destination()).toBeTruthy();
 });
+jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({ useSettingsBusy: jest.fn() }));

@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useToastController } from '@tamagui/toast';
@@ -357,8 +358,8 @@ export default function ScannerScreen() {
         router.back();
       }
     } catch (error: any) {
-      toast.show('Unable to read QR code: ' + (error?.message || 'Please try again.'), {
-        kind: 'error',
+      toast.show(interactionCopy.couldNotReadThisQRCodeScan.title, {
+        kind: interactionCopy.couldNotReadThisQRCodeScan.severity,
       });
       setScanned(false);
     } finally {

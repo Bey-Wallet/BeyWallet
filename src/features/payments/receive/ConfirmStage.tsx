@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -11,7 +13,7 @@ import { Text } from 'tamagui';
 import { RefreshCw } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+
 import { useToastController } from '@tamagui/toast';
 import { useWalletStore } from '~/state/walletStore';
 import { mintManager, proofService } from '~/services/wallet';
@@ -187,8 +189,10 @@ export function ConfirmStage({
   };
 
   const handleCopy = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
-    toast.show(`${label} copied to clipboard`, { kind: 'success' });
+    if (!(await copyWithFeedback(text, toast))) return;
+    toast.show(interactionCopy.copiedToClipboard.title, {
+      kind: interactionCopy.copiedToClipboard.severity,
+    });
     Haptics.selectionAsync();
   };
 

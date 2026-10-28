@@ -1,3 +1,5 @@
+import { feedbackCoordinator } from '~/services/feedback/feedbackCoordinator';
+
 /** Scheduling only: this boundary never reads seeds, proofs or wallet repositories. */
 export class RecoveryCoordinator {
   private pauses = new Set<symbol>();
@@ -45,11 +47,13 @@ export class RecoveryCoordinator {
   }
 
   pause(): () => void {
+    const releaseFeedback = feedbackCoordinator.suppress();
     const token = Symbol();
     this.pauses.add(token);
     this.listeners.forEach((listener) => listener());
     return () => {
       if (!this.pauses.delete(token)) return;
+      releaseFeedback();
       this.listeners.forEach((listener) => listener());
     };
   }

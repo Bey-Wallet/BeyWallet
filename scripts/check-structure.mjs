@@ -55,6 +55,7 @@ const expectedRoutes = [
   '(tabs)/settings/mint-backup.tsx',
   '(tabs)/settings/mints.tsx',
   '(tabs)/settings/nostr.tsx',
+  '(tabs)/settings/notifications.tsx',
   '(tabs)/settings/optimize-wallet.tsx',
   '(tabs)/settings/preferences.tsx',
   '(tabs)/settings/profile.tsx',

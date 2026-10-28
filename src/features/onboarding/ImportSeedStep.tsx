@@ -133,7 +133,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (e) {
-      console.error('[ImportSeedStep] Paste error:', e);
+      setError('Could not read the clipboard. Type your recovery phrase instead.');
     }
   };
 

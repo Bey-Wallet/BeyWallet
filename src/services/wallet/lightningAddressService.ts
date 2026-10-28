@@ -3,6 +3,7 @@ import type { CoreProof } from 'coco-cashu-core';
 import type { NPCClient } from 'npubcash-sdk';
 import { Buffer } from 'buffer';
 import { DeviceEventEmitter } from 'react-native';
+import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
 import type { ExpoSqliteRepositories } from '~/storage/sqlite';
 import {
   LightningAddressRepository,
@@ -22,6 +23,7 @@ type Preferences = {
 };
 export class LightningAddressError extends Error {}
 export class LightningAddressService {
+  private startedAt = Date.now();
   private queue: Promise<unknown> = Promise.resolve();
   private preferences: Preferences = {
     enabled: false,
@@ -398,6 +400,15 @@ export class LightningAddressService {
       await this.services.eventBus
         .emit('history:updated', { mintUrl: receipt.mintUrl, entry })
         .catch(() => {});
+      await publishWalletFeedback({
+        entity: { type: 'quote', id: quoteFeedbackId(receipt.mintUrl, receipt.quoteId) },
+        parentOperationId: receipt.quoteId,
+        kind: 'received',
+        state: 'completed',
+        origin: receipt.paidAt * 1000 >= this.startedAt ? 'live' : 'catch-up',
+        target: { type: 'transaction', id: String(entry.id) },
+        details: { amount: receipt.amount },
+      });
       DeviceEventEmitter.emit('lightning-address:received', { amount: receipt.amount });
     }
   }

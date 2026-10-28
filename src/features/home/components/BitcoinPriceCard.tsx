@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import React, { useMemo } from 'react';
 import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
@@ -55,7 +56,9 @@ export default function BitcoinPriceCard() {
 
   React.useEffect(() => {
     if (isError && error) {
-      toast.show(error.message, { kind: 'error' });
+      toast.show(interactionCopy.priceUnavailablePleaseTryAgainLater.title, {
+        kind: interactionCopy.priceUnavailablePleaseTryAgainLater.severity,
+      });
     }
   }, [isError, error]);
 

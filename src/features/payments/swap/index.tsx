@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useRouter } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +40,7 @@ export default function SwapScreen() {
     () => mints.find((m) => m.mintUrl !== sourceMintUrl)?.mintUrl || '',
   );
   const [record, setRecord] = useState<MintTransferRecord>();
+  useFeedbackOwner(record?.id);
   const [error, setError] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

@@ -26,6 +26,8 @@ import {
 import { biometricService } from '~/services/platform/biometricService';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { Text, YStack } from 'tamagui';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
@@ -72,6 +74,8 @@ export default function MeltScreen() {
   const [quoteAmount, setQuoteAmount] = useState(0);
   const [feeReserve, setFeeReserve] = useState(0);
   const [quoteId, setQuoteId] = useState<string | null>(null);
+  useFeedbackOwner(quoteId);
+  useSettingsBusy(isPaying);
   const router = useRouter();
   const paymentRef = useRef<LightningPayment | null>(null);
   const payLock = useRef(false);
@@ -326,7 +330,7 @@ export default function MeltScreen() {
         const bolt11 = await requestInvoiceFromLnurl(address, amountSats);
         if (generation !== quoteGeneration.current) return;
         setResolvedInvoice(bolt11);
-        console.log('[MeltScreen] Resolved to invoice:', bolt11.substring(0, 40) + '...');
+        console.log('[MeltScreen] Lightning address resolved');
         await getQuoteForInvoice(bolt11);
       } catch (err: any) {
         console.error('[MeltScreen] Resolution failed:', err);
@@ -421,7 +425,6 @@ export default function MeltScreen() {
       console.log('[MeltScreen] Paying melt quote:', quoteId);
       const result = await payment.pay();
       if (paymentRef.current !== payment) return;
-      if (result === 'paid') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setResultTime(Date.now());
       setStatus(result === 'paid' ? 'success' : result);
       refreshBalance();

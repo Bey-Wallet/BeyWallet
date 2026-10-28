@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { formatPaymentDateTime } from '~/shared/utils/time';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -13,7 +15,7 @@ import { YStack, XStack, Text, YGroup } from 'tamagui';
 import { Copy, Share2, Check, Nfc, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
-import * as Clipboard from 'expo-clipboard';
+
 import { Share as RNShare } from 'react-native';
 import { useToastController } from '@tamagui/toast';
 
@@ -156,10 +158,10 @@ export function PendingTokenLayout({
 
   const handleCopy = async () => {
     if (currentToken) {
-      await Clipboard.setStringAsync(currentToken);
+      if (!(await copyWithFeedback(currentToken, toast))) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCopied(true);
-      toast.show('Token copied to clipboard', { kind: 'success' });
+      toast.show(interactionCopy.ecashCopied.title, { kind: interactionCopy.ecashCopied.severity });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -192,7 +194,7 @@ export function PendingTokenLayout({
         ? 'Payment failed'
         : onClaim
           ? 'Receive ecash'
-          : 'Pending ecash';
+          : 'Ecash ready to share';
   return (
     <>
       <PaymentFlowHeader
@@ -314,9 +316,11 @@ export function PendingTokenLayout({
                       }
                       isCopyable={displayNpub !== npub}
                       onCopy={async () => {
-                        await Clipboard.setStringAsync(displayNpub);
+                        if (!(await copyWithFeedback(displayNpub, toast))) return;
                         Haptics.selectionAsync();
-                        toast.show('NPUB copied', { kind: 'success' });
+                        toast.show(interactionCopy.publicKeyCopied.title, {
+                          kind: interactionCopy.publicKeyCopied.severity,
+                        });
                       }}
                     />
                   )}

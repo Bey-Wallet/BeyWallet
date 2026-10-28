@@ -4,6 +4,13 @@ import { seedService } from '~/services/platform/seedService';
 import { DEFAULT_MINT } from '~/state/constants';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
+export const notificationDefaults = {
+  details: false,
+  payments: true,
+  messages: true,
+  review: true,
+};
+export type NotificationPreferences = typeof notificationDefaults;
 
 interface SettingsState {
   theme: ThemePreference;
@@ -25,6 +32,11 @@ interface SettingsState {
   setPrimaryCurrency: (val: 'SATS' | 'FIAT') => Promise<void>;
   setDefaultMintUrl: (url: string) => Promise<void>;
   notificationsEnabled: boolean;
+  notificationPreferences: NotificationPreferences;
+  setNotificationPreference: (
+    key: keyof NotificationPreferences,
+    enabled: boolean,
+  ) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
   biometricEnabled: boolean;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
@@ -44,6 +56,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   primaryCurrency: 'SATS',
   defaultMintUrl: '',
   notificationsEnabled: true,
+  notificationPreferences: { ...notificationDefaults },
   biometricEnabled: false,
   initialized: false,
   npub: null,
@@ -74,6 +87,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const repo = initService.getRepo();
 
         // Load all settings in parallel for speed
+        const savedPreferences =
+          await repo.settingsRepository.getSetting('notificationPreferences');
+        try {
+          const parsed = savedPreferences ? JSON.parse(savedPreferences) : {};
+          set({
+            notificationPreferences: Object.fromEntries(
+              Object.entries(notificationDefaults).map(([key, fallback]) => [
+                key,
+                typeof parsed[key] === 'boolean' ? parsed[key] : fallback,
+              ]),
+            ) as NotificationPreferences,
+          });
+        } catch {
+          set({ notificationPreferences: { ...notificationDefaults } });
+        }
         const [
           storedTheme,
           storedCurrency,
@@ -239,9 +267,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ notificationsEnabled: enabled });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set notifications enabled:', error);
-      set({ notificationsEnabled: enabled });
+      console.warn('[SettingsStore] Could not save notification preference');
+      throw new Error('Could not save notification preference. Try again.');
     }
+  },
+
+  setNotificationPreference: async (key, enabled) => {
+    const preferences = { ...get().notificationPreferences, [key]: enabled };
+    await initService
+      .getRepo()
+      .settingsRepository.setSetting('notificationPreferences', JSON.stringify(preferences));
+    set({ notificationPreferences: preferences });
   },
 
   setBiometricEnabled: async (enabled: boolean) => {

@@ -48,22 +48,27 @@ afterEach(async () => {
   await act(async () => tree?.unmount());
 });
 
-it('edits binary preferences inline and keeps multi-choice preferences navigable', async () => {
+it('keeps notifications navigable to its dedicated preferences screen', async () => {
   await act(async () => {
     tree = create(<SettingsCategoryScreen category="preferences" />);
   });
   const rows = tree.root.findAllByType(SettingsToggleRow);
-  expect(rows.map((row) => row.props.title)).toEqual(['Bitcoin symbol', 'Notifications']);
+  expect(rows.map((row) => row.props.title)).toEqual(['Bitcoin symbol']);
   expect(mockSettings.setPrimaryCurrency).not.toHaveBeenCalled();
   await act(async () => rows[0].props.save(true));
   expect(mockSettings.setShowBitcoinSymbol).toHaveBeenCalledWith(true);
-  await act(async () => rows[1].props.save(false));
-  expect(mockSettings.setNotificationsEnabled).toHaveBeenCalledWith(false);
+  expect(mockSettings.setNotificationsEnabled).not.toHaveBeenCalled();
   expect(mockPush).not.toHaveBeenCalled();
   const navigation = tree.root.findAllByType('Row' as any);
-  expect(navigation.map((row) => row.props.title)).toEqual(['Theme', 'Fiat currency']);
+  expect(navigation.map((row) => row.props.title)).toEqual([
+    'Theme',
+    'Fiat currency',
+    'Notifications',
+  ]);
   navigation[0].props.onPress();
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/theme');
+  navigation[2].props.onPress();
+  expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/notifications');
 });
 
 it('requires authentication before changing the inline biometric setting in either direction', async () => {

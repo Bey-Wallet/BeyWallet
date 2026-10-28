@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 
@@ -21,6 +22,7 @@ interface ResultStageProps {
 
 export function ResultStage(props: ResultStageProps) {
   const [time] = useState(Date.now);
+  useResultHaptic(props.status === 'error' ? 'error' : undefined);
   const [reclaiming, setReclaiming] = useState(false);
   if (props.status === 'success' && props.token)
     return (
@@ -54,7 +56,9 @@ export function ResultStage(props: ResultStageProps) {
   return (
     <PaymentReceipt
       status={props.status === 'success' ? 'success' : 'error'}
-      title={props.status === 'error' ? 'Send not completed' : props.title || 'Ecash sent'}
+      title={
+        props.status === 'error' ? 'Send not completed' : props.title || 'Ecash ready to share'
+      }
       amount={Number(props.amount)}
       mintUrl={props.mintUrl}
       time={time}

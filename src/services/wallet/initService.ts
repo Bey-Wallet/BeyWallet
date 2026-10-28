@@ -286,6 +286,11 @@ async function initializeWithMnemonic(
   const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
   const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
   await prepareRecoverySession(pubkey);
+  const { FeedbackRepository } = await import('~/storage/sqlite/repositories/FeedbackRepository');
+  const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
+  const feedback = new FeedbackRepository(repositories.db);
+  await feedback.init();
+  feedbackCoordinator.bind(pubkey, feedback);
 
   // Using the shared customLogger declared at module scope
 
@@ -512,6 +517,8 @@ export const initService = {
     invalidateWalletSnapshot();
     try {
       await recoveryCoordinator.drainBackground();
+      const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
+      feedbackCoordinator.clear();
       const { stopLightningAddress } = await import('./lightningAddressLifecycle');
       await stopLightningAddress();
       const { stopMintTransferService } = await import('./mintTransferService');
@@ -551,6 +558,8 @@ export const initService = {
     invalidateWalletSnapshot();
     try {
       await recoveryCoordinator.drainBackground();
+      const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
+      feedbackCoordinator.clear();
       const { stopLightningAddress } = await import('./lightningAddressLifecycle');
       await stopLightningAddress();
       const { stopMintTransferService } = await import('./mintTransferService');
@@ -603,6 +612,15 @@ export const initService = {
     invalidateWalletSnapshot();
     try {
       await recoveryCoordinator.drainBackground();
+      const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
+      feedbackCoordinator.clear();
+      const { notificationService } = await import('~/services/platform/notificationService');
+      await notificationService.clear();
+      const { useSettingsStore, notificationDefaults } = await import('~/state/settingsStore');
+      useSettingsStore.setState({
+        notificationPreferences: { ...notificationDefaults },
+        notificationsEnabled: true,
+      });
       console.log('[InitService] Destroying wallet...');
       const { resetMintBackup } =
         require('./mintBackupService') as typeof import('./mintBackupService');

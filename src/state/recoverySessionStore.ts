@@ -11,6 +11,8 @@ export type RecoveryResult = {
   balance: number;
 };
 export type RecoverySession = {
+  /** Presentation correlation only; never used for recovery or derivation. */
+  feedbackId?: string;
   walletId: string;
   origin: 'import' | 'manual';
   candidates: RecoveryCandidate[];

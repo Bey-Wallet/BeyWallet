@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { feedbackCoordinator } from '~/services/feedback/feedbackCoordinator';
+import { feedbackNavigationGuard } from '~/services/feedback/navigationGuard';
 import type { HCESession } from 'react-native-hce';
 import {
   nfcService,
@@ -34,6 +36,7 @@ export type NfcStatus =
   | 'disabled'
   | 'unsupported';
 export interface NfcPresentation {
+  feedbackId?: string;
   visible: boolean;
   status: NfcStatus;
   direction: 'send' | 'receive' | 'pay';
@@ -86,6 +89,8 @@ export class NfcFlow {
   private refreshing = false;
   private cleanup: Promise<void> = Promise.resolve();
   private requestBroadcast?: { value: string };
+  private releaseFeedback?: () => void;
+  private releaseNavigation?: () => void;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -100,6 +105,19 @@ export class NfcFlow {
     if (change.status === 'confirmed' && this.state.status !== 'confirmed')
       change.eventTime = Date.now();
     this.state = { ...this.state, ...change };
+    if (this.state.visible && this.state.locked)
+      this.releaseNavigation ??= feedbackNavigationGuard.acquire();
+    else {
+      this.releaseNavigation?.();
+      this.releaseNavigation = undefined;
+    }
+    if ('feedbackId' in change || 'visible' in change || !this.state.visible) {
+      this.releaseFeedback?.();
+      this.releaseFeedback =
+        this.state.visible && this.state.feedbackId
+          ? feedbackCoordinator.claim(this.state.feedbackId)
+          : undefined;
+    }
     this.listeners.forEach((listener) => listener());
   }
   setReady(ready: boolean) {
@@ -252,6 +270,7 @@ export class NfcFlow {
     }
     this.send = input === 'reader' ? undefined : input;
     this.update({
+      feedbackId: this.send?.operationId,
       visible: true,
       requestStatus: this.requestBroadcast ? 'paused' : undefined,
       requestPauseReason: this.requestBroadcast ? 'session' : undefined,
@@ -450,7 +469,12 @@ export class NfcFlow {
           this.update({ status: 'confirmed', message: 'Token received into your wallet.' });
       } else if (payment.type === 'cashu_request') {
         const request = parsePaymentRequest(payment.value, 'nfc');
-        this.update({ direction: 'pay', status: 'paying', amount: request.amount });
+        this.update({
+          feedbackId: request.id,
+          direction: 'pay',
+          status: 'paying',
+          amount: request.amount,
+        });
         const existing = this.requests.get(request.raw);
         if (existing) {
           this.payment = existing;
@@ -493,6 +517,7 @@ export class NfcFlow {
         this.payment = new PaymentRequestPayment(request, cost);
         this.requests.set(request.raw, this.payment);
         this.update({
+          feedbackId: request.id,
           mintUrl: cost.mintUrl,
           fees: cost.receiverFee + cost.senderFee,
           locked: true,
@@ -522,6 +547,7 @@ export class NfcFlow {
         this.invoices.set(payment.value, this.lightning);
         if (existing) {
           const preview = await existing.preview().catch(() => undefined);
+          this.update({ feedbackId: preview?.quote });
           const result = await existing.refresh();
           if (this.alive(generation))
             this.update({
@@ -539,7 +565,12 @@ export class NfcFlow {
         }
         const preview = await this.lightning.preview();
         if (!this.alive(generation)) return;
-        this.update({ amount: preview.amount, fees: preview.fee_reserve, hasPayment: true });
+        this.update({
+          feedbackId: preview.quote,
+          amount: preview.amount,
+          fees: preview.fee_reserve,
+          hasPayment: true,
+        });
         const result = await this.lightning.pay();
         if (this.alive(generation)) {
           this.update({

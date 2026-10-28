@@ -1,4 +1,7 @@
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
+import { findTokenReceiveReceipt } from '~/services/wallet/nostrReceiptService';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import React, { useState, useCallback, useEffect } from 'react';
 import { InteractionManager, BackHandler } from 'react-native';
@@ -36,6 +39,8 @@ interface TokenInfo {
 }
 
 export function ReceiveModalScreen() {
+  const presentationId = React.useRef(`receive-${Date.now()}`);
+  useFeedbackOwner(presentationId.current);
   const [step, setStep] = useState<ReceiveStep>('input');
   const [receiveMode, setReceiveMode] = useState<ReceiveMode>('receive');
   const [token, setToken] = useState('');
@@ -428,7 +433,24 @@ export function ReceiveModalScreen() {
         }
       }
 
-      // 4. Show success immediately — refresh balance in background
+      // Reserve presentation only after the existing receive has saved an exact receipt.
+      try {
+        const receipt = await findTokenReceiveReceipt(token.trim());
+        if (receipt)
+          await publishWalletFeedback({
+            entity: { type: 'receipt', id: String(receipt.id) },
+            parentOperationId: presentationId.current,
+            kind: 'received',
+            state: 'completed',
+            origin: 'live',
+            target: { type: 'transaction', id: String(receipt.id) },
+            details: { amount: receipt.amount },
+          });
+      } catch {
+        /* Presentation verification cannot undo a successful receive. */
+      }
+
+      // 4. Show success — refresh balance in background
       setStatus('success');
       setIsReceiveLater(false);
       setStep('result');

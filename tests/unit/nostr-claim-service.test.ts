@@ -12,7 +12,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useAuthStore } from '~/state/authStore';
 import { initService } from '~/services/wallet/initService';
 import { DeviceEventEmitter } from 'react-native';
-import { notificationService } from '~/services/platform/notificationService';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
 import { historyService } from '~/services/wallet/historyService';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
@@ -40,8 +40,9 @@ jest.mock('~/services/wallet/historyService', () => ({
 jest.mock('~/services/platform/networkService', () => ({
   networkService: { isOffline: jest.fn().mockResolvedValue(false) },
 }));
-jest.mock('~/services/platform/notificationService', () => ({
-  notificationService: { sendLocalNotification: jest.fn().mockResolvedValue(undefined) },
+jest.mock('~/services/feedback/feedbackCoordinator', () => ({
+  ...jest.requireActual('~/services/feedback/feedbackCoordinator'),
+  publishWalletFeedback: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: {
@@ -149,7 +150,7 @@ describe('nostrClaimService', () => {
     });
     expect(useNostrInboxStore.getState().items[0].receiptVerified).not.toBe(true);
     expect(events.mock.calls.some(([name]) => name === 'nostr:received')).toBe(false);
-    expect(notificationService.sendLocalNotification).not.toHaveBeenCalled();
+    expect(publishWalletFeedback).not.toHaveBeenCalled();
   });
 
   it('recovers a completed receive after an interrupted claim without a new receipt notification', async () => {
@@ -170,7 +171,9 @@ describe('nostrClaimService', () => {
       receiptVerified: true,
     });
     expect(events.mock.calls.some(([name]) => name === 'nostr:received')).toBe(false);
-    expect(notificationService.sendLocalNotification).not.toHaveBeenCalled();
+    expect(publishWalletFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({ origin: 'catch-up' }),
+    );
     expect(receive).toHaveBeenCalledTimes(1);
     nostrClaimService.stop();
     nostrClaimService.start('02'.repeat(32));

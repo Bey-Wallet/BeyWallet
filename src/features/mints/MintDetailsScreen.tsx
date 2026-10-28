@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
 import { appTypography } from '~/shared/theme/appearance';
@@ -21,7 +23,7 @@ import {
 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Share as RNShare, Keyboard } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -67,6 +69,7 @@ export default function MintDetailsModal() {
   const [showQr, setShowQr] = useState(false);
   const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
   const isRemovingRef = useRef(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const safeGoBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -79,16 +82,21 @@ export default function MintDetailsModal() {
   const handleRemoveMint = async () => {
     if (isRemovingRef.current) return;
     isRemovingRef.current = true;
+    setIsRemoving(true);
     try {
+      await removeMint(mintUrl || '');
       removeMintSheetRef.current?.dismiss();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeGoBack();
-      await removeMint(mintUrl || '');
-      toast.show('Mint removed', { kind: 'success' });
+      toast.show(interactionCopy.mintRemoved.title, { kind: interactionCopy.mintRemoved.severity });
     } catch (e: any) {
       isRemovingRef.current = false;
       console.error('Failed to remove mint:', e);
-      toast.show(e.message || 'Failed to remove mint.', { kind: 'error' });
+      toast.show(interactionCopy.couldNotRemoveThisMintCheckIts.title, {
+        kind: interactionCopy.couldNotRemoveThisMintCheckIts.severity,
+      });
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -186,10 +194,12 @@ export default function MintDetailsModal() {
         throw new Error('Could not save mint name. Please try again.');
       setIsEditingName(false);
       Keyboard.dismiss();
-      toast.show('Mint name updated', { kind: 'success' });
+      toast.show(interactionCopy.mintNameUpdated.title, {
+        kind: interactionCopy.mintNameUpdated.severity,
+      });
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : 'Could not save mint name.', {
-        kind: 'error',
+      toast.show(interactionCopy.couldNotSaveMintNamePleaseTry.title, {
+        kind: interactionCopy.couldNotSaveMintNamePleaseTry.severity,
       });
     } finally {
       nameSaveLock.current = false;
@@ -264,9 +274,11 @@ export default function MintDetailsModal() {
   const contacts = Array.isArray(info?.contact) ? info.contact : [];
 
   const handleCopy = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
+    if (!(await copyWithFeedback(text, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show(`${label} copied to clipboard`, { kind: 'success' });
+    toast.show(interactionCopy.copiedToClipboard.title, {
+      kind: interactionCopy.copiedToClipboard.severity,
+    });
   };
 
   const handleShare = async () => {
@@ -605,6 +617,8 @@ export default function MintDetailsModal() {
                 emphasis="primary"
                 size="large"
                 onPress={handleRemoveMint}
+                loading={isRemoving}
+                loadingText="Removing mint…"
               >
                 Confirm Remove
               </AppButton>

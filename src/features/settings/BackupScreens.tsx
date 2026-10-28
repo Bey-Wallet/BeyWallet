@@ -55,12 +55,15 @@ export function RecoveryPhraseSettingsScreen() {
             variant="default"
             emphasis="secondary"
             icon={Copy}
-            onPress={async () => {
-              if (secret.value) {
-                await Clipboard.setStringAsync(secret.value);
-                setCopied(true);
-              }
-            }}
+            onPress={() =>
+              void operation.run(async () => {
+                if (secret.value) {
+                  await Clipboard.setStringAsync(secret.value);
+                  setCopied(true);
+                }
+                return 'Recovery phrase copied.';
+              })
+            }
           >
             {copied ? 'Copied' : 'Copy recovery phrase'}
           </AppButton>
@@ -275,9 +278,12 @@ export function DeleteWalletSettingsScreen() {
             emphasis="secondary"
             icon={Copy}
             disabled={task.busy || secret.value.length === 0}
-            onPress={async () => {
-              if (secret.value) await Clipboard.setStringAsync(secret.value.join(' '));
-            }}
+            onPress={() =>
+              void task.run(async () => {
+                if (secret.value) await Clipboard.setStringAsync(secret.value.join(' '));
+                return 'Recovery phrase copied.';
+              })
+            }
           >
             Copy recovery phrase
           </AppButton>

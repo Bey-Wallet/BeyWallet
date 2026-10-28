@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { InteractionManager, Share, useWindowDimensions } from 'react-native';
@@ -5,7 +7,7 @@ import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { Check, Copy, RefreshCw, Share2 } from '@tamagui/lucide-icons';
 import { Stack, useFocusEffect, useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Clipboard from 'expo-clipboard';
+
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -67,8 +69,10 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   );
 
   const copy = async (value: string) => {
-    await Clipboard.setStringAsync(value);
-    toast.show('Copied to clipboard');
+    if (!(await copyWithFeedback(value, toast))) return;
+    toast.show(interactionCopy.copiedToClipboard.title, {
+      kind: interactionCopy.copiedToClipboard.severity,
+    });
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(value);
     if (copyTimer.current) clearTimeout(copyTimer.current);
@@ -80,7 +84,9 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
     try {
       await Share.share({ message: isLightning ? address : verified ? `${nip05}\n${npub}` : npub });
     } catch {
-      toast.show('Could not share address. Please try again.');
+      toast.show(interactionCopy.couldNotShareAddressPleaseTryAgain.title, {
+        kind: interactionCopy.couldNotShareAddressPleaseTryAgain.severity,
+      });
     }
   };
 

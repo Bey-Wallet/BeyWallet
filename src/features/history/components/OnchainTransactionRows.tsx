@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
 import { YStack } from 'tamagui';
@@ -63,7 +64,9 @@ export function OnchainTransactionRows({
               url
                 ? () => {
                     void Linking.openURL(url).catch(() =>
-                      toast.show('Could not open blockchain explorer', { kind: 'error' }),
+                      toast.show(interactionCopy.couldNotOpenBlockchainExplorer.title, {
+                        kind: interactionCopy.couldNotOpenBlockchainExplorer.severity,
+                      }),
                     );
                   }
                 : undefined

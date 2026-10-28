@@ -48,7 +48,7 @@ export function SettingsRow({
   value?: string;
   description?: string;
   icon?: AppButtonIcon;
-  onPress: () => void;
+  onPress?: () => void;
   external?: boolean;
   selected?: boolean;
   disabled?: boolean;
@@ -60,7 +60,9 @@ export function SettingsRow({
     <AppPressable
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole={selected !== undefined ? selectionRole : external ? 'link' : 'button'}
+      accessibilityRole={
+        selected !== undefined ? selectionRole : external ? 'link' : onPress ? 'button' : 'text'
+      }
       accessibilityState={selected !== undefined ? { checked: selected } : undefined}
       accessibilityLabel={[title, value].filter(Boolean).join(', ')}
       minHeight={appDimensions.touchTarget}
@@ -70,8 +72,8 @@ export function SettingsRow({
       items="center"
       gap={appSpacing.gap}
       opacity={disabled ? 0.5 : 1}
-      pressStyle={{ bg: '$gray4' }}
-      hoverStyle={{ bg: '$gray3' }}
+      pressStyle={onPress ? { bg: '$gray4' } : undefined}
+      hoverStyle={onPress ? { bg: '$gray3' } : undefined}
     >
       {Icon && (
         <XStack width={20} items="center" justify="center" aria-hidden>
@@ -103,9 +105,9 @@ export function SettingsRow({
         selected && <Check size={20} color="$blue10" />
       ) : external ? (
         <ExternalLink size={18} color="$gray10" />
-      ) : (
+      ) : onPress ? (
         <ChevronRight size={18} color="$gray10" />
-      )}
+      ) : null}
     </AppPressable>
   );
 }

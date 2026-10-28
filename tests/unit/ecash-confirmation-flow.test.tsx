@@ -1,4 +1,5 @@
 import React from 'react';
+jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({ useSettingsBusy: jest.fn() }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SendModalScreen } from '~/features/payments/send';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';

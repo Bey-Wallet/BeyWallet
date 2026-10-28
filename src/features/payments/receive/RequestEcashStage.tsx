@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { useRequestNfc, RequestNfcBadge } from './RequestNfcBadge';
 import { RequestAmountEditor, RequestDetailsEditor } from './RequestDetailsEditor';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
@@ -12,7 +14,8 @@ import React, { useState, useCallback, useRef, useSyncExternalStore, useMemo } f
 import { YStack, Text } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+
 import { DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useToastController } from '@tamagui/toast';
@@ -64,6 +67,7 @@ export function RequestEcashStage({
 
   const [creqString, setCreqString] = useState<string | null>(null);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+  useFeedbackOwner(currentRequestId);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [requestState, setRequestState] = useState<NostrRequestState>('pending');
@@ -234,9 +238,6 @@ export function RequestEcashStage({
         if (savedRequestId) setStep('result');
         console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
         setGenerateError(err?.message || 'Failed to generate request');
-        toast.show('Request failed: ' + (err?.message || 'Failed to generate request'), {
-          kind: 'error',
-        });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         generationLock.current = false;
@@ -260,9 +261,11 @@ export function RequestEcashStage({
 
   const handleCopy = useCallback(async () => {
     if (!creqString) return;
-    await Clipboard.setStringAsync(creqString);
+    if (!(await copyWithFeedback(creqString, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Payment request copied to clipboard', { kind: 'success' });
+    toast.show(interactionCopy.paymentRequestCopiedToClipboard.title, {
+      kind: interactionCopy.paymentRequestCopiedToClipboard.severity,
+    });
   }, [creqString]);
 
   const isRequestBusy =
@@ -305,10 +308,12 @@ export function RequestEcashStage({
         displayName: recipientLabel.includes('@') ? null : recipientLabel || null,
         nip05: recipientLabel.includes('@') ? recipientLabel : null,
       });
-      toast.show('Request sent', { kind: 'success' });
+      toast.show(interactionCopy.requestSent.title, { kind: interactionCopy.requestSent.severity });
       onClose?.();
     } catch {
-      toast.show('Could not send request. Please try again.', { kind: 'error' });
+      toast.show(interactionCopy.couldNotSendRequestPleaseTryAgain.title, {
+        kind: interactionCopy.couldNotSendRequestPleaseTryAgain.severity,
+      });
     } finally {
       setIsSending(false);
     }
@@ -383,7 +388,6 @@ export function RequestEcashStage({
         .getState()
         .requests.find((r) => r.id === currentRequestId);
       if (request?.state === 'received') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setStep('success');
       } else {
         toast.show(
@@ -401,7 +405,9 @@ export function RequestEcashStage({
       }
     } catch (e) {
       console.warn('[RequestEcashStage] check status error:', e);
-      toast.show('Unable to check payment. Please try again.', { kind: 'error' });
+      toast.show(interactionCopy.unableToCheckPaymentPleaseTryAgain.title, {
+        kind: interactionCopy.unableToCheckPaymentPleaseTryAgain.severity,
+      });
     } finally {
       setIsChecking(false);
     }
@@ -460,7 +466,7 @@ export function RequestEcashStage({
           status="success"
           amount={amtNum.toString()}
           mintUrl={activeMintUrl!}
-          title="Request claimed"
+          title="Payment received"
           onClose={onClose || handleReset}
         />
       </>

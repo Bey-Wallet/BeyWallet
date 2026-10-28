@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -6,7 +8,7 @@ import { YStack, XStack, Text, H2, H4, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
+
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
@@ -82,7 +84,9 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       ) {
         throw new Error('Could not connect to this mint. Please try again.');
       }
-      toast.show('Mint connected', { kind: 'success' });
+      toast.show(interactionCopy.mintConnected.title, {
+        kind: interactionCopy.mintConnected.severity,
+      });
     } catch (error) {
       setConnectionError(
         error instanceof Error ? error.message : 'Could not connect to this mint.',
@@ -118,9 +122,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
   } = useMintInfo(url, { enabled: validUrl && !isAlreadyAdded, refetchOnMount: 'always' });
   const info = fetchedInfo || {};
   const handleCopy = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
+    if (!(await copyWithFeedback(text, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show(`${label} copied to clipboard`, { kind: 'success' });
+    toast.show(interactionCopy.copiedToClipboard.title, {
+      kind: interactionCopy.copiedToClipboard.severity,
+    });
   };
   if (isLoading || (isAlreadyAdded && !isConnecting && !connectionError)) {
     return (

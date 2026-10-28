@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
@@ -12,9 +14,9 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, Text, Paragraph } from 'tamagui';
 
-import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import * as Haptics from 'expo-haptics';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useToastController } from '@tamagui/toast';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -45,6 +47,7 @@ export function OnchainMintFlow() {
     pubKey: string;
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  useFeedbackOwner(quoteData?.quote);
   const [copied, setCopied] = useState(false);
 
   // Payment status tracking
@@ -147,10 +150,12 @@ export function OnchainMintFlow() {
   // Handle copying Bitcoin address
   const handleCopy = async () => {
     if (!quoteData) return;
-    await Clipboard.setStringAsync(quoteData.request);
+    if (!(await copyWithFeedback(quoteData.request, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    toast.show('Address copied to clipboard', { kind: 'success' });
+    toast.show(interactionCopy.addressCopiedToClipboard.title, {
+      kind: interactionCopy.addressCopiedToClipboard.severity,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -190,20 +195,21 @@ export function OnchainMintFlow() {
             console.warn('[OnchainMintFlow] Failed to update history state to paid:', dbErr);
           }
 
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setEventTime(Date.now());
           setStep('success');
           refreshBalance();
         } else {
           if (showToast) {
-            toast.show('No new payments detected yet.', { kind: 'info' });
+            toast.show(interactionCopy.noNewPaymentsDetectedYet.title, {
+              kind: interactionCopy.noNewPaymentsDetectedYet.severity,
+            });
           }
         }
       } catch (err: any) {
         console.error('[OnchainMintFlow] Check payment error:', err);
         if (showToast) {
-          toast.show('Error checking payment: ' + (err.message || 'Failed to check status'), {
-            kind: 'error',
+          toast.show(interactionCopy.couldNotCheckPaymentStatusPleaseTry.title, {
+            kind: interactionCopy.couldNotCheckPaymentStatusPleaseTry.severity,
           });
         }
       } finally {

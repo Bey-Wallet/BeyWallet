@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -178,7 +179,9 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           setHasText(true);
           await resolveInput(text.trim(), ticket);
         } else {
-          toast.show('Clipboard is empty', { kind: 'info' });
+          toast.show(interactionCopy.clipboardIsEmpty.title, {
+            kind: interactionCopy.clipboardIsEmpty.severity,
+          });
         }
       } catch {
         if (ticket === generation.current)

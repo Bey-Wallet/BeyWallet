@@ -1,209 +1,85 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { initService, eventService, mintManager } from '~/services/wallet';
+import { initService, eventService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { useQueryClient } from '@tanstack/react-query';
-import { notificationService } from '~/services/platform/notificationService';
 import { DeviceEventEmitter } from 'react-native';
-import { useToastController } from '@tamagui/toast';
-import { useRouter } from 'expo-router';
 import { subscribeMintTransfers } from '~/services/wallet/mintTransferService';
+import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
 
-/**
- * Hook to subscribe to coco CoreEvents and trigger wallet updates.
- * Use this in your app's root component to enable real-time updates.
- *
- * Subscribed events:
- * - mint-quote:redeemed  → balance gained from paid Lightning invoice
- * - receive:created      → ecash token received
- * - send:created         → ecash token sent
- * - proofs:saved         → new proofs stored (covers mint redemption)
- * - proofs:state-changed → proof state transitions (spent, etc.)
- * - melt-quote:paid      → Lightning invoice paid from ecash
- * - history:updated      → any history entry changed
- *
- * PERF: handleBalanceUpdate is debounced (300ms) to batch rapid-fire events
- * (e.g. proofs:saved + history:updated + receive:created all fire within ms)
- * into a single refresh cycle.
- */
+const sessionStartedAt = Date.now();
+
+/** Raw SDK events are refresh signals. Quote outcomes require a saved receipt. */
 export function useCocoEvents() {
-  const { refreshBalance } = useWalletStore();
+  const refreshBalance = useWalletStore((state) => state.refreshBalance);
   const queryClient = useQueryClient();
-  const toast = useToastController();
-  const router = useRouter();
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleBalanceUpdate = useCallback(() => {
-    // Debounce: batch rapid-fire events into a single refresh
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      refreshBalance();
-      queryClient.invalidateQueries({ queryKey: ['history'] });
-      queryClient.invalidateQueries({ queryKey: ['history-volume'] });
-      queryClient.invalidateQueries({ queryKey: ['mintTransfer'] });
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refresh = useCallback(() => {
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => {
+      void refreshBalance();
+      for (const key of ['history', 'history-volume', 'mintTransfer']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
     }, 300);
   }, [refreshBalance, queryClient]);
-
-  useEffect(() => subscribeMintTransfers(handleBalanceUpdate), [handleBalanceUpdate]);
-
-  const handleMintQuoteRedeemed = useCallback(
-    (payload: any) => {
-      console.log('[useCocoEvents] Mint quote redeemed:', payload.quoteId);
-      notificationService.sendLocalNotification(
-        'Mint Completed',
-        'Your ecash has been minted successfully.',
-      );
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleReceiveCreated = useCallback(
-    (payload: any) => {
-      console.log('[useCocoEvents] Receive created:', payload.mintUrl);
-      notificationService.sendLocalNotification(
-        'Ecash Received',
-        'You have successfully received ecash tokens via Link / QR code.',
-      );
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleSendCreated = useCallback(
-    (payload: any) => {
-      console.log('[useCocoEvents] Send created:', payload.mintUrl);
-      notificationService.sendLocalNotification(
-        'Ecash Prepared',
-        'Your ecash tokens are ready to be sent.',
-      );
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleProofsSaved = useCallback(
-    (payload: any) => {
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleProofsStateChanged = useCallback(
-    (payload: any) => {
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleMeltQuotePaid = useCallback(
-    (payload: any) => {
-      console.log('[useCocoEvents] Melt quote paid:', payload.quoteId);
-      notificationService.sendLocalNotification(
-        'Payment Sent',
-        'Your Lightning invoice was paid successfully.',
-      );
-      handleBalanceUpdate();
-    },
-    [handleBalanceUpdate],
-  );
-
-  const handleHistoryUpdated = useCallback(
-    (payload: any) => {
-      queryClient.invalidateQueries({ queryKey: ['history'] });
-      queryClient.invalidateQueries({ queryKey: ['history-volume'] });
-    },
-    [queryClient],
-  );
-
+  useEffect(() => subscribeMintTransfers(refresh), [refresh]);
+  const ready = useWalletStore((state) => state.isInitializing);
+  // Fast manager replacement refreshes this counter without re-running initialize().
+  useWalletStore((state) => state.refreshCounter);
+  const manager = !ready && initService.isInitialized() ? initService.getManager() : null;
   useEffect(() => {
-    if (!initService.isInitialized()) {
-      return;
-    }
-
-    console.log('[useCocoEvents] Subscribing to CoreEvents');
-
-    // Listen for internal app events
-    const nostrSub = DeviceEventEmitter.addListener('nostr:received', (payload: any) => {
-      console.log('[useCocoEvents] Nostr received:', payload.amount);
-      notificationService.sendLocalNotification(
-        'Payment Received',
-        `You received ₿${payload.amount} sat via Nostr.`,
-      );
-      toast.show(`Received ${payload.amount} sat via Nostr`, {
-        customData: {
-          variant: 'action',
-          actionLabel: 'View',
-          onAction: () => router.push('/(tabs)/history'),
-        },
-        kind: 'success',
-      });
-      handleBalanceUpdate();
-    });
-    const lightningAddressSub = DeviceEventEmitter.addListener(
-      'lightning-address:received',
-      (payload: { amount: number }) => {
-        notificationService.sendLocalNotification(
-          'Payment Received',
-          `You received ${payload.amount} sat via your Lightning address.`,
+    if (!manager) return;
+    const quoteOutcome = async (type: 'mint' | 'melt', value: unknown) => {
+      refresh();
+      if (!value || typeof value !== 'object') return;
+      const payload = value as { mintUrl?: string; quoteId?: string };
+      if (typeof payload.mintUrl !== 'string' || typeof payload.quoteId !== 'string') return;
+      try {
+        const repo = initService.getRepo();
+        // Transfer owns the aggregate result, including late completion.
+        const leg = await repo.db.get(
+          'SELECT id FROM bey_mint_transfers WHERE (mintQuoteId = ? AND targetMintUrl = ?) OR (meltQuoteId = ? AND sourceMintUrl = ?)',
+          [payload.quoteId, payload.mintUrl, payload.quoteId, payload.mintUrl],
         );
-        toast.show(`Received ${payload.amount} sat via Lightning`, { kind: 'success' });
-        handleBalanceUpdate();
-      },
-    );
-
-    const nostrIncomingSub = DeviceEventEmitter.addListener(
-      'nostr:incoming',
-      async (payload: any) => {
-        console.log('[useCocoEvents] Nostr incoming:', payload.amount);
-        try {
-          if (await mintManager.isMintTrusted(payload.mintUrl)) return;
-        } catch {
-          // If trust cannot be verified, keep the safer pending-payment notification.
-        }
-        notificationService.sendLocalNotification(
-          'Payment Needs Review',
-          `Review a ₿${payload.amount} sat payment from an unknown mint.`,
-        );
-      },
-    );
-
-    const nostrAutoClaimPausedSub = DeviceEventEmitter.addListener(
-      'nostr:auto-claim-paused',
-      (payload: { amount: number }) => {
-        notificationService.sendLocalNotification(
-          'Payment Saved for Review',
-          `Automatic claiming was paused. Tap to review ₿${payload.amount} sat.`,
-        );
-      },
-    );
-
-    // Subscribe using typed eventService
-    const unsubs = [
-      eventService.on('mint-quote:redeemed', handleMintQuoteRedeemed),
-      eventService.on('receive:created', handleReceiveCreated),
-      eventService.on('send:created', handleSendCreated),
-      eventService.on('proofs:saved', handleProofsSaved),
-      eventService.on('proofs:state-changed', handleProofsStateChanged),
-      eventService.on('melt-quote:paid', handleMeltQuotePaid),
-      eventService.on('history:updated', handleHistoryUpdated),
-    ];
-
-    return () => {
-      unsubs.forEach((unsub) => unsub());
-      nostrSub.remove();
-      lightningAddressSub.remove();
-      nostrIncomingSub.remove();
-      nostrAutoClaimPausedSub.remove();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (leg) return;
+        const entry =
+          type === 'mint'
+            ? await repo.historyRepository.getMintHistoryEntry(payload.mintUrl, payload.quoteId)
+            : await repo.historyRepository.getMeltHistoryEntry(payload.mintUrl, payload.quoteId);
+        if (!entry || entry.state !== (type === 'mint' ? 'ISSUED' : 'PAID')) return;
+        await publishWalletFeedback({
+          entity: { type: 'quote', id: quoteFeedbackId(payload.mintUrl, payload.quoteId) },
+          parentOperationId: payload.quoteId,
+          kind: type === 'mint' ? 'received' : 'sent',
+          state: 'completed',
+          origin: entry.createdAt >= sessionStartedAt ? 'live' : 'catch-up',
+          target: { type: 'transaction', id: String(entry.id) },
+          details: { amount: entry.amount },
+        });
+      } catch {
+        /* Unverified events never become payment alerts. */
+      }
     };
-  }, [
-    handleMintQuoteRedeemed,
-    handleReceiveCreated,
-    handleSendCreated,
-    handleProofsSaved,
-    handleProofsStateChanged,
-    handleMeltQuotePaid,
-    handleHistoryUpdated,
-    router,
-  ]);
+    const unsubscribe = [
+      eventService.on('mint-quote:redeemed', (payload) => void quoteOutcome('mint', payload)),
+      eventService.on('melt-quote:paid', (payload) => void quoteOutcome('melt', payload)),
+      ...(
+        [
+          'receive:created',
+          'send:created',
+          'proofs:saved',
+          'proofs:state-changed',
+          'history:updated',
+        ] as const
+      ).map((name) => eventService.on(name, refresh)),
+    ];
+    const native = ['nostr:received', 'lightning-address:received'].map((name) =>
+      DeviceEventEmitter.addListener(name, refresh),
+    );
+    return () => {
+      unsubscribe.forEach((stop) => stop());
+      native.forEach((subscription) => subscription.remove());
+      if (debounce.current) clearTimeout(debounce.current);
+    };
+  }, [manager, refresh]);
 }

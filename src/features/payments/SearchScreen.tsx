@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
@@ -76,11 +77,17 @@ export default function UniversalSearchScreen() {
     sqliteStorage.setItem('recent_searches', JSON.stringify(updated));
   };
 
+  const [pasteError, setPasteError] = React.useState<string | null>(null);
   const handlePaste = async () => {
-    const text = await Clipboard.getStringAsync();
-    if (text) {
-      setSearch(text);
-      doSearch(text);
+    setPasteError(null);
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (text) {
+        setSearch(text);
+        doSearch(text);
+      }
+    } catch {
+      setPasteError(interactionCopy.clipboardReadFailed.title);
     }
   };
 
@@ -337,6 +344,11 @@ export default function UniversalSearchScreen() {
 
   return (
     <YStack flex={1} bg="$background" gap="$2">
+      {pasteError && (
+        <Text color="$red10" accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {pasteError}
+        </Text>
+      )}
       <XStack px="$4" py="$2" gap="$2" items="center">
         <XStack flex={1} bg="$gray3" rounded="$5" px="$3" height={50} items="center" gap="$2">
           <Search size={20} strokeWidth={3} color="$gray10" />

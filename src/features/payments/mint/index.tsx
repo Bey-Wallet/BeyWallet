@@ -1,4 +1,5 @@
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { YStack } from 'tamagui';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -41,6 +42,7 @@ export default function MintScreen() {
   const [amount, setAmount] = useState('0');
   const [status, setStatus] = useState<MintResultStatus>('success');
   const [quoteData, setQuoteData] = useState<MintQuoteData | null>(null);
+  useFeedbackOwner(quoteData?.quoteId);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const createLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function MintScreen() {
     if (!quoteData) return;
 
     const handleRedeemed = (payload: any) => {
-      console.log('[MintScreen] Mint quote redeemed event:', payload);
+      console.log('[MintScreen] Mint quote redeemed');
       if (payload.quoteId === quoteData.quoteId) {
         setStatus('success');
         setStep('result');

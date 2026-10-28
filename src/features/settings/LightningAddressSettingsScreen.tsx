@@ -19,6 +19,7 @@ import {
 } from './components/SettingsLayout';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 
 function useOperation() {
   const [busy, setBusy] = React.useState(false);
@@ -209,6 +210,7 @@ export function LightningAddressMintScreen() {
 
 export function LightningAddressPaymentsScreen() {
   const state = useLightningAddressStore();
+  useFeedbackOwner(state.pending.map((receipt) => receipt.quoteId));
   const { busy, message, run } = useOperation();
   return (
     <SettingsPage>

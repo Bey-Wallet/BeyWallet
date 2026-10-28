@@ -1,4 +1,5 @@
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { YStack, Text } from 'tamagui';
@@ -219,7 +220,9 @@ export function P2PKAmountStage({
     });
   };
 
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const handlePaste = async () => {
+    setPasteError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const text = await Clipboard.getStringAsync();
@@ -227,7 +230,7 @@ export function P2PKAmountStage({
         setReceiverPubkey(text.trim());
       }
     } catch (e) {
-      console.error('Failed to paste from clipboard:', e);
+      setPasteError(interactionCopy.clipboardReadFailed.title);
     }
   };
 
@@ -291,9 +294,9 @@ export function P2PKAmountStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
-            {error || isOverBalance ? (
+            {error || pasteError || isOverBalance ? (
               <Text color="$red10" fontSize="$3" fontWeight="600" text="center">
-                {error || 'Exceeds available balance'}
+                {error || pasteError || 'Exceeds available balance'}
               </Text>
             ) : (
               <Text color="$gray10" fontSize="$3" fontWeight="500">

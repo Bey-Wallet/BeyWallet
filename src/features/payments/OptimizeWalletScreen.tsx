@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -120,7 +121,9 @@ export default function OptimizeWalletScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!canOptimize) {
-      toast.show('Wallet already optimized', { kind: 'info' });
+      toast.show(interactionCopy.walletAlreadyOptimized.title, {
+        kind: interactionCopy.walletAlreadyOptimized.severity,
+      });
       return;
     }
 

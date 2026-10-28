@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
 import { ExternalLink } from '@tamagui/lucide-icons';
@@ -25,7 +26,9 @@ export function MintTermsRow({ url }: { url: unknown }) {
         try {
           await Linking.openURL(target.href);
         } catch {
-          toast.show('Could not open terms of service', { kind: 'error' });
+          toast.show(interactionCopy.couldNotOpenTermsOfService.title, {
+            kind: interactionCopy.couldNotOpenTermsOfService.severity,
+          });
         }
       }}
     />

@@ -1,8 +1,10 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { createContext, useContext } from 'react';
 import { XStack, YStack, Text } from 'tamagui';
 import { Copy, ChevronRight } from '@tamagui/lucide-icons';
-import * as Clipboard from 'expo-clipboard';
+
 import * as Haptics from 'expo-haptics';
 import { useToastController } from '@tamagui/toast';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
@@ -80,9 +82,11 @@ export function ListTableRow({
     }
     const textToCopy = copyValue || (typeof value === 'string' ? value : '');
     if (textToCopy) {
-      await Clipboard.setStringAsync(textToCopy);
+      if (!(await copyWithFeedback(textToCopy, toast))) return;
       Haptics.selectionAsync();
-      toast.show('Copied to clipboard', { kind: 'success' });
+      toast.show(interactionCopy.copiedToClipboard.title, {
+        kind: interactionCopy.copiedToClipboard.severity,
+      });
     }
   };
 

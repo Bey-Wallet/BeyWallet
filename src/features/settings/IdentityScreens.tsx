@@ -13,8 +13,10 @@ import {
   SettingsRow,
 } from './components/SettingsLayout';
 import { useProtectedValue } from './hooks/useProtectedValue';
+import { useSettingsOperation } from './hooks/useSettingsOperation';
 
 export function PublicKeySettingsScreen() {
+  const task = useSettingsOperation();
   const npub = useSettingsStore((state) => state.npub);
   const [copied, setCopied] = useState(false);
   return (
@@ -30,20 +32,25 @@ export function PublicKeySettingsScreen() {
       <AppButton
         icon={Copy}
         disabled={!npub}
-        onPress={async () => {
-          if (npub) {
-            await Clipboard.setStringAsync(npub);
-            setCopied(true);
-          }
-        }}
+        onPress={() =>
+          void task.run(async () => {
+            if (npub) {
+              await Clipboard.setStringAsync(npub);
+              setCopied(true);
+            }
+            return 'Public key copied.';
+          })
+        }
       >
         {copied ? 'Copied' : 'Copy public key'}
       </AppButton>
+      {task.message && <SettingsMessage error={task.error}>{task.message}</SettingsMessage>}
     </SettingsPage>
   );
 }
 
 export function SecretKeySettingsScreen() {
+  const task = useSettingsOperation();
   const secret = useProtectedValue(
     'Authenticate to view your secret nsec',
     useCallback(async () => {
@@ -69,12 +76,15 @@ export function SecretKeySettingsScreen() {
             icon={Copy}
             variant="default"
             emphasis="secondary"
-            onPress={async () => {
-              if (secret.value) {
-                await Clipboard.setStringAsync(secret.value);
-                setCopied(true);
-              }
-            }}
+            onPress={() =>
+              void task.run(async () => {
+                if (secret.value) {
+                  await Clipboard.setStringAsync(secret.value);
+                  setCopied(true);
+                }
+                return 'Secret key copied.';
+              })
+            }
           >
             {copied ? 'Copied' : 'Copy secret key'}
           </AppButton>
@@ -88,6 +98,7 @@ export function SecretKeySettingsScreen() {
         </AppButton>
       )}
       {secret.error && <SettingsMessage error>{secret.error}</SettingsMessage>}
+      {task.message && <SettingsMessage error={task.error}>{task.message}</SettingsMessage>}
     </SettingsPage>
   );
 }

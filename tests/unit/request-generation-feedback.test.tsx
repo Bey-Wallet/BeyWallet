@@ -198,10 +198,12 @@ it('opens directly on the QR screen and leaves a failed generation retryable', a
   ).toBe(false);
   await act(async () => tree.root.findByType('NumericKeypad' as any).props.onValueChange('10'));
   await act(async () => tree.root.findByType('NumericKeypad' as any).props.onConfirm());
-  expect(mockToast.show).toHaveBeenCalledWith(
-    'Request failed: Cannot encode request',
-    expect.objectContaining({ kind: 'error' }),
-  );
+  expect(mockToast.show).not.toHaveBeenCalled();
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'Cannot encode request'),
+  ).toBe(true);
   expect(useNostrRequestStore.getState().requests).toHaveLength(0);
   mockEncodingFails = false;
   await act(async () =>
@@ -343,7 +345,7 @@ it('refreshes the saved response through the claim service and reacts to a verif
       pendingRequests: [],
     });
   });
-  expect(tree.root.findByType('ResultStage' as any).props.title).toBe('Request claimed');
+  expect(tree.root.findByType('ResultStage' as any).props.title).toBe('Payment received');
   await act(async () => tree.unmount());
 });
 
@@ -398,7 +400,7 @@ it('reopens a received request as success instead of showing its unpaid QR again
   await act(async () => {
     restored = create(<RequestEcashStage initialRequestId={request.id} />);
   });
-  expect(restored.root.findByType('ResultStage' as any).props.title).toBe('Request claimed');
+  expect(restored.root.findByType('ResultStage' as any).props.title).toBe('Payment received');
   expect(restored.root.findAllByType('QRCode' as any)).toHaveLength(0);
   await act(async () => restored.unmount());
 });

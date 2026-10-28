@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { formatRelativeTime } from '~/shared/utils/time';
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack } from 'tamagui';
@@ -128,7 +129,9 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       await queryClient.invalidateQueries({ queryKey: ['transaction', entry.id] });
       toast.show(message, { kind: 'info' });
     } catch {
-      toast.show('Could not verify status. Please try again.', { kind: 'error' });
+      toast.show(interactionCopy.couldNotVerifyStatusPleaseTryAgain.title, {
+        kind: interactionCopy.couldNotVerifyStatusPleaseTryAgain.severity,
+      });
     } finally {
       checking.current = false;
       setIsChecking(false);

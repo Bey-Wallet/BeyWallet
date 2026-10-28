@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
@@ -30,11 +31,17 @@ export function InputStage({
   onContinue,
   onScanPress,
 }: InputStageProps) {
+  const [pasteError, setPasteError] = React.useState<string | null>(null);
   const handlePaste = async () => {
-    const text = await ClipboardAPI.getStringAsync();
-    if (text) {
-      setToken(text);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPasteError(null);
+    try {
+      const text = await ClipboardAPI.getStringAsync();
+      if (text) {
+        setToken(text);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    } catch {
+      setPasteError(interactionCopy.clipboardReadFailed.title);
     }
   };
 
@@ -118,11 +125,17 @@ export function InputStage({
           </YStack>
 
           {/* Error Display */}
-          {error && (
+          {(error || pasteError) && (
             <XStack bg="$red3" p="$3" rounded="$3" gap="$2" items="center">
               <AlertCircle size={18} color="$red10" />
-              <Text color="$red10" fontSize="$3" flex={1}>
-                {error}
+              <Text
+                color="$red10"
+                fontSize="$3"
+                flex={1}
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
+                {error || pasteError}
               </Text>
             </XStack>
           )}

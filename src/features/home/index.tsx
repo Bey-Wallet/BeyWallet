@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { RefreshControl, Animated, Easing } from 'react-native';
 import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
@@ -93,7 +94,9 @@ export function HomeTabScreen() {
 
   React.useEffect(() => {
     if (error) {
-      toast.show(error, { kind: 'error' });
+      toast.show(interactionCopy.couldNotRefreshYourWalletPleaseTry.title, {
+        kind: interactionCopy.couldNotRefreshYourWalletPleaseTry.severity,
+      });
     }
   }, [error]);
 

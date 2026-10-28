@@ -29,7 +29,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Info: 'Info',
 }));
 
-it('prefers explicit kinds, renders only a bold title and preserves reduced motion for loading', async () => {
+it('uses explicit severity, compact explanatory copy and reduced motion without producing haptics', async () => {
   mockToast = {
     id: 'one',
     title: 'Checking payment',
@@ -42,11 +42,11 @@ it('prefers explicit kinds, renders only a bold title and preserves reduced moti
   });
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);
   expect(tree.root.findAllByType('Info' as any)).toHaveLength(1);
-  expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
+  expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(1);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Checking payment',
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
   });
   expect(tree.root.findByType('Info' as any).props).toMatchObject({ size: 16, strokeWidth: 3 });
   mockToast = { id: 'two', title: 'Received', kind: 'loading' };
@@ -57,12 +57,13 @@ it('prefers explicit kinds, renders only a bold title and preserves reduced moti
     reduceMotion: true,
   });
   const calls = (Haptics.notificationAsync as jest.Mock).mock.calls.length;
+  expect(calls).toBe(0);
   await act(async () => tree.update(<AppToast />));
   expect(Haptics.notificationAsync).toHaveBeenCalledTimes(calls);
   await act(async () => tree.unmount());
 });
 
-it('uses the same bold title-only style for action toasts', async () => {
+it('uses the same compact style for action toasts with an accessible View target', async () => {
   mockToast = {
     id: 'action',
     title: 'Received 10 sat via Nostr',
@@ -75,13 +76,14 @@ it('uses the same bold title-only style for action toasts', async () => {
     tree = create(<AppToast />);
   });
   expect(tree.root.findAllByType('ToastTitle' as any)).toHaveLength(1);
-  expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
+  expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(1);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Received 10 sat via Nostr',
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
   });
   expect(tree.root.findByType('Check' as any).props).toMatchObject({ size: 16, strokeWidth: 3 });
   expect(tree.root.findByType('AppButton' as any).props.children).toBe('View');
+  expect(tree.root.findByType('AppButton' as any).props.minHeight).toBe(48);
   await act(async () => tree.unmount());
 });

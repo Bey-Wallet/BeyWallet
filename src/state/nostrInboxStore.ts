@@ -53,6 +53,7 @@ export interface NostrInboxItem {
   unit?: string; // Legacy inbox records default to sat.
   note?: string;
   receivedAt: number;
+  feedbackOrigin?: 'live' | 'catch-up';
   status: NostrInboxStatus;
   error?: string;
   failure?: NostrClaimFailure;

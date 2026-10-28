@@ -147,6 +147,7 @@ export default function NostrActivityModal() {
   const [detailLoading, setDetailLoading] = useState(false);
   const detailSheetRef = useRef<AppBottomSheetRef>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const items = useNostrInboxStore((s) => s.items);
   const refreshPendingStates = useNostrInboxStore((s) => s.refreshPendingStates);
@@ -261,10 +262,15 @@ export default function NostrActivityModal() {
 
   const handleCopyToken = useCallback(async () => {
     if (!detailItem?.tokenString) return;
-    await Clipboard.setStringAsync(detailItem.tokenString);
-    setCopied(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => setCopied(false), 2000);
+    setCopyError(false);
+    try {
+      await Clipboard.setStringAsync(detailItem.tokenString);
+      setCopied(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError(true);
+    }
   }, [detailItem]);
 
   const fiatValue = useMemo(() => {
@@ -472,6 +478,11 @@ export default function NostrActivityModal() {
                 </Theme>
 
                 {/* Actions */}
+                {copyError && (
+                  <Text color="$red10" accessibilityRole="alert" accessibilityLiveRegion="polite">
+                    Could not copy. Please try again.
+                  </Text>
+                )}
                 <XStack width="100%" gap="$3">
                   {detailItem.tokenString && (
                     <AppButton
@@ -482,7 +493,7 @@ export default function NostrActivityModal() {
                       flex={1}
                       onPress={handleCopyToken}
                     >
-                      {copied ? 'Copied!' : 'Copy Token'}
+                      {copied ? 'Copied' : 'Copy ecash'}
                     </AppButton>
                   )}
                   <AppButton

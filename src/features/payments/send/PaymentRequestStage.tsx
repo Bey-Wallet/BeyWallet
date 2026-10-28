@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
@@ -9,6 +10,7 @@ import { ChevronDown } from '@tamagui/lucide-icons';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { useToastController } from '@tamagui/toast';
 import { AppButton } from '~/shared/ui/AppButton';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { YStack, XStack, Text, Separator, Avatar } from 'tamagui';
@@ -62,6 +64,7 @@ export function PaymentRequestStage({
   autoPay = false,
 }: PaymentRequestStageProps) {
   const [isSending, setIsSending] = useState(false);
+  useSettingsBusy(isSending);
   const [automaticDelivery, setAutomaticDelivery] = useState(false);
   const [isRefreshingReceipt, setIsRefreshingReceipt] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -201,7 +204,6 @@ export function PaymentRequestStage({
       paymentRef.current ??= new PaymentRequestPayment(request, cost!, inboxItemId);
       await paymentRef.current.deliver(writeNfc);
       setReceipt('awaiting');
-      toast.show('Payment sent; awaiting receipt', { kind: 'info' });
     } catch (err: any) {
       const operationId = paymentRef.current?.operationId;
       const msg = operationId
@@ -209,7 +211,6 @@ export function PaymentRequestStage({
         : err?.message || 'Payment failed';
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setLocalError(msg);
-      toast.show('Payment delivery failed: ' + msg, { kind: 'error' });
     } finally {
       setHasOperation(!!paymentRef.current?.operationId);
       setIsSending(false);
@@ -228,13 +229,11 @@ export function PaymentRequestStage({
           ?.state !== 'paid' &&
         manual
       ) {
-        toast.show('Receipt has not been confirmed yet.', { kind: 'info' });
+        toast.show(interactionCopy.receiptHasNotBeenConfirmedYet.title, {
+          kind: interactionCopy.receiptHasNotBeenConfirmedYet.severity,
+        });
       }
     } catch {
-      if (manual)
-        toast.show('Receipt check unavailable; payment remains pending in History', {
-          kind: 'error',
-        });
       if (mounted.current)
         setLocalError(
           'Receipt check unavailable. The existing payment remains pending in History.',

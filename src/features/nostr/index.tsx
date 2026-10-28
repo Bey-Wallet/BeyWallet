@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { SettingsPage, SettingsDescription } from '~/features/settings/components/SettingsLayout';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
@@ -11,7 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
 import { AtSign, CheckCircle, XCircle, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+
 import { useToastController } from '@tamagui/toast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { nip19 } from 'nostr-tools';
@@ -187,7 +189,10 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
 
   const handleClaim = async () => {
     if (!npub || !nsec) {
-      toast.show('Missing keys. Please re-authenticate.', { duration: 3000, kind: 'error' });
+      toast.show(interactionCopy.missingKeysPleaseReauthenticate.title, {
+        duration: 3000,
+        kind: interactionCopy.missingKeysPleaseReauthenticate.severity,
+      });
       return;
     }
 
@@ -201,7 +206,10 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
     const hexPub = npubToHex(npub);
     const hexSec = nsecToHex(nsec);
     if (!hexPub || !hexSec) {
-      toast.show('Could not decode keys', { duration: 3000, kind: 'error' });
+      toast.show(interactionCopy.couldNotDecodeKeys.title, {
+        duration: 3000,
+        kind: interactionCopy.couldNotDecodeKeys.severity,
+      });
       return;
     }
 
@@ -223,14 +231,16 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
 
         await setNip05(identifier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.show(
-          oldUsernameReleaseError
-            ? `${identifier} is active, but ${oldUsername}@${DOMAIN} could not be released: ${oldUsernameReleaseError}`
-            : result.profilePublished
-              ? `You are now ${identifier}`
-              : `${identifier} was claimed. Your Nostr profile will retry on next startup.`,
-          { duration: oldUsernameReleaseError ? 6000 : 4000, kind: 'success' },
-        );
+        const copy = oldUsernameReleaseError
+          ? interactionCopy.usernameNeedsReview
+          : result.profilePublished
+            ? interactionCopy.usernameSaved
+            : interactionCopy.usernameProfilePending;
+        toast.show(copy.title, {
+          duration: oldUsernameReleaseError ? 6000 : 4000,
+          kind: copy.severity,
+          message: 'body' in copy ? copy.body : undefined,
+        });
         setInput('');
         setCheckState('idle');
         setIsEditing(false);
@@ -241,7 +251,10 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
             router.back();
           }, 1500);
       } else {
-        toast.show(result.error || 'Registration failed', { duration: 4000, kind: 'error' });
+        toast.show(interactionCopy.couldNotRegisterThisUsernamePleaseTry.title, {
+          duration: 4000,
+          kind: interactionCopy.couldNotRegisterThisUsernamePleaseTry.severity,
+        });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
@@ -268,7 +281,10 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
             const hexPub = npubToHex(npub);
             const hexSec = nsecToHex(nsec);
             if (!hexPub || !hexSec) {
-              toast.show('Could not decode keys', { duration: 3000, kind: 'error' });
+              toast.show(interactionCopy.couldNotDecodeKeys.title, {
+                duration: 3000,
+                kind: interactionCopy.couldNotDecodeKeys.severity,
+              });
               return;
             }
 
@@ -280,7 +296,10 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
               if (result.ok) {
                 await setNip05(null);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                toast.show('Username deleted successfully', { duration: 3000 });
+                toast.show(interactionCopy.usernameDeleted.title, {
+                  kind: interactionCopy.usernameDeleted.severity,
+                  duration: 3000,
+                });
               } else {
                 // If the server returned an error (e.g. rate limit, or registry server issue),
                 // offer user option to just clear it locally.
@@ -294,14 +313,20 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
                       style: 'destructive',
                       onPress: async () => {
                         await setNip05(null);
-                        toast.show('Local reference removed', { duration: 2500 });
+                        toast.show(interactionCopy.localReferenceRemoved.title, {
+                          kind: interactionCopy.localReferenceRemoved.severity,
+                          duration: 2500,
+                        });
                       },
                     },
                   ],
                 );
               }
             } catch (err: any) {
-              toast.show(err?.message || 'Deletion failed', { duration: 3000, kind: 'error' });
+              toast.show(interactionCopy.couldNotDeleteThisUsernamePleaseTry.title, {
+                duration: 3000,
+                kind: interactionCopy.couldNotDeleteThisUsernamePleaseTry.severity,
+              });
             } finally {
               setIsDeleting(false);
             }
@@ -321,9 +346,12 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
 
   const handleCopyIdentifier = async () => {
     if (!nip05) return;
-    await Clipboard.setStringAsync(nip05);
+    if (!(await copyWithFeedback(nip05, toast))) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.show('Copied ' + nip05, { duration: 2000, kind: 'success' });
+    toast.show(interactionCopy.copiedToClipboard.title, {
+      duration: 2000,
+      kind: interactionCopy.copiedToClipboard.severity,
+    });
   };
 
   // ─── Check icon ─────────────────────────────────────────────────────────

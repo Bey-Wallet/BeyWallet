@@ -8,6 +8,9 @@ import {
 import { applyIncomingContactPolicy, contactPolicyReady } from './contactPolicy';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { useMessageStore } from '~/state/messageStore';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
+
+const feedbackStartedAt = Date.now();
 import type { ChatEnvelope, ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { SimplePool, type Filter, type Event, nip04, nip44, finalizeEvent } from 'nostr-tools';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
@@ -726,6 +729,18 @@ class NostrService {
           }
         } else applyIncomingContactPolicy(decrypted.senderPubkey);
         await useMessageStore.getState().refresh();
+        if (!outgoing) {
+          const { usePeopleStore } = await import('~/state/peopleStore');
+          if (usePeopleStore.getState().people[conversation]?.contactStatus !== 'blocked')
+            await publishWalletFeedback({
+              entity: { type: 'message', id: decrypted.id },
+              parentOperationId: conversation,
+              kind: 'message',
+              state: 'completed',
+              origin: decrypted.createdAt * 1000 >= feedbackStartedAt ? 'live' : 'catch-up',
+              target: { type: 'conversation', id: conversation },
+            });
+        }
       }
       if (generation === this.generation) this.processedEvents.add(event.id);
     } catch {
@@ -806,7 +821,7 @@ class NostrService {
                 ((!!pr.id && item.requestId === pr.id) || item.tokenString === creqString),
             );
           if (duplicate) return;
-          useNostrInboxStore.getState().addIncoming({
+          const added = useNostrInboxStore.getState().addIncoming({
             id: sourceEvent.id,
             type: 'request',
             requestId: pr.id,
@@ -819,6 +834,17 @@ class NostrService {
             note: pr.description,
           });
           applyIncomingContactPolicy(senderPubkey);
+          const { usePeopleStore } = await import('~/state/peopleStore');
+          const conversation = normalizeNpub(senderPubkey);
+          if (added && usePeopleStore.getState().people[conversation]?.contactStatus !== 'blocked')
+            await publishWalletFeedback({
+              entity: { type: 'message', id: sourceEvent.id },
+              parentOperationId: conversation,
+              kind: 'message',
+              state: 'completed',
+              origin: sourceEvent.created_at * 1000 >= feedbackStartedAt ? 'live' : 'catch-up',
+              target: { type: 'conversation', id: conversation },
+            });
         }
       } catch {
         console.warn('[NostrService] Ignoring invalid payment request');
@@ -920,6 +946,7 @@ class NostrService {
       requestId: requestIdFromPayload,
       unit,
       note,
+      feedbackOrigin: sourceEvent.created_at * 1000 >= feedbackStartedAt ? 'live' : 'catch-up',
     });
 
     // Relays replay recent events whenever the app reconnects. A claimed or
@@ -930,6 +957,20 @@ class NostrService {
     // the Nostr transport independent from wallet lifecycle modules.
     const { nostrClaimService } = require('~/services/wallet/nostrClaimService');
     const claimResult = await nostrClaimService.enqueue(sourceEvent.id);
+    if (
+      claimResult?.status === 'approval_required' ||
+      claimResult?.status === 'failed' ||
+      claimResult?.status === 'contact_required'
+    ) {
+      await publishWalletFeedback({
+        entity: { type: 'nostr', id: sourceEvent.id },
+        parentOperationId: requestIdFromPayload,
+        kind: 'review',
+        state: 'review',
+        origin: sourceEvent.created_at * 1000 >= feedbackStartedAt ? 'live' : 'catch-up',
+        target: { type: 'incoming', id: sourceEvent.id },
+      });
+    }
 
     // The claim sheet reviews unknown mints or terminal errors; successful
     // automatic claims do not need a confirmation prompt.

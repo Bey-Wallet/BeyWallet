@@ -7,7 +7,7 @@ import { initService } from '~/services/wallet/initService';
 import { mintManager } from '~/services/wallet/mintManager';
 import { walletService } from '~/services/wallet/walletService';
 import { networkService } from '~/services/platform/networkService';
-import { notificationService } from '~/services/platform/notificationService';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
 import { isDuplicateOutputsError } from '~/services/wallet/cashuReceiveRecovery';
 import { applyIncomingContactPolicy, canReceiveFrom, contactPolicyReady } from './contactPolicy';
 import { usePeopleStore } from '~/state/peopleStore';
@@ -626,16 +626,15 @@ class NostrClaimService {
       /* Metadata failure cannot undo a verified receipt. */
     }
 
-    try {
-      const { useSettingsStore } = require('~/state/settingsStore');
-      if (!recovered && useSettingsStore.getState().notificationsEnabled) {
-        await notificationService.sendLocalNotification(
-          'Nostr payment received',
-          `${item.amount.toLocaleString()} sat were added to your wallet.`,
-          { eventId: item.id, type: 'nostr-payment' },
-        );
-      }
-    } catch {}
+    await publishWalletFeedback({
+      entity: historyId ? { type: 'receipt', id: historyId } : { type: 'nostr', id: item.id },
+      parentOperationId: item.requestId ?? item.id,
+      kind: 'received',
+      state: 'completed',
+      origin: recovered ? 'catch-up' : (item.feedbackOrigin ?? 'catch-up'),
+      target: historyId ? { type: 'transaction', id: historyId } : { type: 'history' },
+      details: { amount: item.amount },
+    });
 
     const result: NostrClaimResult = {
       eventId: item.id,

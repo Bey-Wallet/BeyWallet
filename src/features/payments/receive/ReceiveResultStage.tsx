@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Text } from 'tamagui';
@@ -36,6 +37,7 @@ export function ReceiveResultStage({
       error.includes('saved to your transaction history') ||
       error.includes('saved in your history'));
   const complete = status === 'success' && !isReceiveLater;
+  useResultHaptic(!complete && !isReceiveLater && !savedOffline ? 'error' : undefined);
   return (
     <PaymentReceipt
       status={complete ? 'success' : isReceiveLater || savedOffline ? 'pending' : 'error'}

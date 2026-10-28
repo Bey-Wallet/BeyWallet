@@ -1,4 +1,6 @@
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -33,7 +35,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
 import * as Network from 'expo-network';
-import { useToastController } from '@tamagui/toast';
 
 import { nip19 } from 'nostr-tools';
 import { eventService, proofService } from '~/services/wallet';
@@ -75,7 +76,6 @@ function parsePaymentRequest(raw: string): ParsedPaymentRequest | null {
 }
 
 export function SendModalScreen() {
-  const toast = useToastController();
   const [step, setStep] = useState<SendStep>('amount');
   const [amount, setAmount] = useState('0');
   const [note, setNote] = useState('');
@@ -95,6 +95,8 @@ export function SendModalScreen() {
   const [nostrRecipientUsername, setNostrRecipientUsername] = useState('');
   const [useP2PK, setUseP2PK] = useState(true); // Default ON for Nostr sends
   const [nostrSending, setNostrSending] = useState(false);
+  useFeedbackOwner(operationId);
+  useSettingsBusy(isProcessing || nostrSending);
   const [expiryHours, setExpiryHours] = useState(0);
   const [capability, setCapability] = useState<{ mint: string; supported: boolean } | null>(null);
   const reviewRef = React.useRef<EcashReview | null>(null);
@@ -595,7 +597,6 @@ export function SendModalScreen() {
         .catch(() => {});
 
       setStep('result');
-      toast.show('Payment sent; awaiting receipt', { kind: 'info' });
     } catch (err: any) {
       console.error('[SendModal] Nostr send failed:', err);
       setError(err.message || 'Failed to send via Nostr');
@@ -613,7 +614,6 @@ export function SendModalScreen() {
     refreshBalance,
     expiryHours,
     nostrRecipientUsername,
-    toast,
     note,
   ]);
 

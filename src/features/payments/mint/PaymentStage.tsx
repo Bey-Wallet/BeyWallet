@@ -1,3 +1,5 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import React, { useState, useEffect } from 'react';
@@ -6,7 +8,7 @@ import { Text } from 'tamagui';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+
 import { useToastController } from '@tamagui/toast';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -51,11 +53,15 @@ export function PaymentStage({
   const handleCopy = async () => {
     if (isExpired) return;
     try {
-      await Clipboard.setStringAsync(invoice);
+      if (!(await copyWithFeedback(invoice, toast))) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show('Invoice copied', { kind: 'success' });
+      toast.show(interactionCopy.invoiceCopied.title, {
+        kind: interactionCopy.invoiceCopied.severity,
+      });
     } catch {
-      toast.show('Could not copy invoice. Please try again.', { kind: 'error' });
+      toast.show(interactionCopy.couldNotCopyInvoicePleaseTryAgain.title, {
+        kind: interactionCopy.couldNotCopyInvoicePleaseTryAgain.severity,
+      });
     }
   };
 
@@ -65,10 +71,11 @@ export function PaymentStage({
     setIsChecking(true);
     try {
       await onPaid();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show('Payment not received yet. Try again shortly.', { kind: 'info' });
+      toast.show(interactionCopy.paymentNotReceivedYetTryAgainShortly.title, {
+        kind: interactionCopy.paymentNotReceivedYetTryAgainShortly.severity,
+      });
     } finally {
       setIsChecking(false);
     }

@@ -150,10 +150,7 @@ it('uses an automatic toast with no Pay button, then clears it while awaiting co
     mockResolveDelivery();
   });
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
-  expect(mockToast.show).toHaveBeenCalledWith(
-    'Payment sent; awaiting receipt',
-    expect.objectContaining({ kind: 'info' }),
-  );
+  expect(mockToast.show).not.toHaveBeenCalled();
   expect(onSuccess).not.toHaveBeenCalled();
   await act(async () => jest.advanceTimersByTime(9000));
   expect(onSuccess).not.toHaveBeenCalled();
@@ -173,10 +170,12 @@ it('keeps manual progress on Pay and reuses the existing payment for a failed de
   await render(false);
   const pay = tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
   await act(async () => pay.props.onPress());
-  expect(mockToast.show).toHaveBeenCalledWith(
-    'Payment delivery failed: Relay unavailable',
-    expect.objectContaining({ kind: 'error' }),
-  );
+  expect(mockToast.show).not.toHaveBeenCalled();
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'Relay unavailable'),
+  ).toBe(true);
   await act(async () => pay.props.onPress());
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
   expect(
@@ -238,3 +237,4 @@ it('never offers legacy mode for automatic NFC payments', async () => {
   expect(mockPreview).toHaveBeenLastCalledWith(expect.anything(), 'https://mint.test', 'net');
   await act(async () => mockResolveDelivery());
 });
+jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({ useSettingsBusy: jest.fn() }));

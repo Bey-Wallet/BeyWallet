@@ -1,3 +1,4 @@
+import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 import {
   useRecoverySessionStore,
@@ -22,7 +23,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { Alert } from 'react-native';
-import { YStack } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import { DEFAULT_MINT } from '~/state/constants';
 import { generateDeterministicUsername } from '~/shared/utils/username';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
@@ -56,6 +57,7 @@ export function OnboardingScreen() {
 
   const [isImporting, setIsImporting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState('');
   const [tempUsername, setTempUsername] = useState('anon');
   const [tempNpub, setTempNpub] = useState('');
@@ -135,7 +137,9 @@ export function OnboardingScreen() {
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
       console.error('[Onboarding] Failed to resume wallet:', err);
-      toast.show('Failed to open saved wallet.', { kind: 'error' });
+      toast.show(interactionCopy.failedToOpenSavedWallet.title, {
+        kind: interactionCopy.failedToOpenSavedWallet.severity,
+      });
       Alert.alert(
         'Resume Failed',
         'Failed to open saved wallet. You may need to delete it and start over.',
@@ -157,10 +161,14 @@ export function OnboardingScreen() {
       await resetOnboarding();
       setHasSavedWallet(false);
       setStep('welcome');
-      toast.show('Wallet deleted', { kind: 'success' });
+      toast.show(interactionCopy.walletDeleted.title, {
+        kind: interactionCopy.walletDeleted.severity,
+      });
     } catch (err) {
       console.error('[Onboarding] Failed to delete wallet:', err);
-      toast.show('Failed to completely delete the wallet.', { kind: 'error' });
+      toast.show(interactionCopy.failedToCompletelyDeleteTheWallet.title, {
+        kind: interactionCopy.failedToCompletelyDeleteTheWallet.severity,
+      });
       Alert.alert('Error', 'Failed to completely delete the wallet.');
     } finally {
       setIsFinishing(false);
@@ -292,14 +300,7 @@ export function OnboardingScreen() {
     } catch (err) {
       releaseRecoveryPause();
       console.error('[Onboarding] Onboarding completion failed:', err);
-      toast.show(
-        'Setup could not finish: ' + (err instanceof Error ? err.message : 'Please try again.'),
-        { kind: 'error' },
-      );
-      Alert.alert(
-        'Setup could not finish',
-        err instanceof Error ? err.message : 'Please try again.',
-      );
+      setSetupError('Setup could not finish. Check your connection and try again.');
     } finally {
       resumeRecoveryWork?.();
       setIsFinishing(false);
@@ -390,7 +391,7 @@ export function OnboardingScreen() {
     } catch (err) {
       console.error('[Onboarding] Import failed:', err);
       setImportStatus('Import failed. Please try again.');
-      toast.show('Import failed. Please try again.', { kind: 'error' });
+      setSetupError(interactionCopy.importFailedPleaseTryAgain.title);
       setIsImporting(false);
     }
   };
@@ -434,7 +435,9 @@ export function OnboardingScreen() {
     } catch (err: any) {
       const message = err?.message ?? 'Failed to import wallet from file.';
       if (message !== 'File selection was cancelled.') {
-        Alert.alert('Import Failed', message);
+        setSetupError(
+          'Could not import this backup. Choose a valid Bey backup file and try again.',
+        );
       }
     }
   };
@@ -463,7 +466,9 @@ export function OnboardingScreen() {
             <WalletCreationTask
               open={currentStep === 'creating'}
               onError={() => {
-                toast.show('Wallet creation failed. Please try again.', { kind: 'error' });
+                toast.show(interactionCopy.walletCreationFailedPleaseTryAgain.title, {
+                  kind: interactionCopy.walletCreationFailedPleaseTryAgain.severity,
+                });
                 setStep('welcome');
               }}
               onComplete={handleCreatingComplete}
@@ -496,5 +501,14 @@ export function OnboardingScreen() {
     } // close switch
   }; // close renderStep
 
-  return <YStack flex={1}>{renderStep()}</YStack>;
+  return (
+    <YStack flex={1}>
+      {setupError && (
+        <Text color="$red10" p="$4" accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {setupError}
+        </Text>
+      )}
+      {renderStep()}
+    </YStack>
+  );
 }

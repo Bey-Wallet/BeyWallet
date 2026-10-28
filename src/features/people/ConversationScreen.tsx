@@ -1,4 +1,5 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -55,6 +56,7 @@ import { hydrateSavedPerson, needsNostrProfileRefresh } from './peopleProfileCac
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ npub: string; displayName?: string; username?: string }>();
   const npub = normalizeNpub(params.npub || '');
+  useFeedbackOwner(npub);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
