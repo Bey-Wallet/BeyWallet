@@ -4,6 +4,7 @@ import path from 'node:path';
 const root = process.cwd();
 const expectedRoutes = [
   'txn-details.tsx',
+  'wallet-activity.tsx',
   '+html.tsx',
   '+native-intent.tsx',
   '(modals)/+not-found.tsx',
@@ -42,7 +43,6 @@ const expectedRoutes = [
   '(tabs)/settings/advanced.tsx',
   '(tabs)/settings/backup.tsx',
   '(tabs)/settings/blocked-people.tsx',
-  '(tabs)/settings/component-playground.tsx',
   '(tabs)/settings/currency.tsx',
   '(tabs)/settings/delete-wallet.tsx',
   '(tabs)/settings/export-backup.tsx',

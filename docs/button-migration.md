@@ -10,7 +10,7 @@ ProcessingSheet and PaymentStatusOverlay have been deleted. Visible initiating b
 
 AppToast accepts a typed explicit kind (loading, success, error, warning, info) before legacy title inference, renders only a bold title with a matching 16-point icon and heavier strokes, and uses the shared reduced-motion spinner. Ordinary, action, and pending toasts all use one title, with useful error details folded into that message. Pending hooks no longer accept descriptions. Payment-request delivery reports “Payment sent; awaiting receipt” as info. Receipt polling stays quiet and existing payment confirmation determines success. Request-generation failures remain inline with an error toast and the Generate Request retry action. WalletCreationTask retains the existing mnemonic callback sequence without simulated progress phases. No dependencies or wallet/recovery semantics changed.
 
-The development playground includes compact icon actions, button-owned loading, and a toggleable automatic-operation toast. Manual Android/browser layout, large text, NFC, biometrics, and real payment checks still require devices.
+The shared components retain compact icon actions and button-owned loading. The temporary development playground has been removed. Manual Android/browser layout, large text, NFC, biometrics, and real payment checks still require devices.
 
 ## Operation feedback verification (2026-10-15)
 

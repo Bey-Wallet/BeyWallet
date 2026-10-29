@@ -8,6 +8,8 @@ import {
   ArrowRightLeft,
   ReceiptText,
   RefreshCw,
+  Coins,
+  RotateCcw,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +22,9 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { historyStatusLabel } from '../transactionPresentation';
+import { historyMetadata } from '../transactionPresentation';
+import { walletActivityTitle, walletActivityStatus } from '../walletActivityPresentation';
+import type { WalletActivity } from '~/storage/sqlite/repositories/WalletActivityRepository';
 import { checkHistoryStatus } from '../checkHistoryStatus';
 import {
   historyRail,
@@ -52,13 +57,25 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     staleTime: 30000,
     enabled: primaryCurrency !== 'SATS' && secondaryCurrency !== 'NONE',
   });
-  const value =
+  const maintenance = entry.type === 'maintenance';
+  const activity = maintenance
+    ? (historyMetadata(entry).walletActivity as WalletActivity)
+    : undefined;
+  const shownAmount = activity ? Math.abs(activity.balanceDelta ?? 0) : amount;
+  const formattedValue =
     primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' || !btcData?.price
-      ? currencyService.formatSats(amount)
+      ? currencyService.formatSats(shownAmount)
       : currencyService.formatValue(
-          currencyService.convertSatsToCurrency(amount, btcData.price),
+          currencyService.convertSatsToCurrency(shownAmount, btcData.price),
           secondaryCurrency as CurrencyCode,
         );
+  const value = activity
+    ? activity.balanceDelta == null
+      ? '—'
+      : activity.balanceDelta === 0
+        ? 'No change'
+        : `${activity.balanceDelta < 0 ? '− ' : '+ '}${formattedValue}`
+    : formattedValue;
   const outgoing = ['send', 'melt'].includes(entry.type);
   const rail = historyRail(entry);
   const transfer = rail === 'transfer';
@@ -83,31 +100,43 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   ].includes(state);
   const statusLabel =
     pending || failed || state === 'refunded' ? historyStatusLabel(entry, delivered) : '';
-  const label = transfer
-    ? 'Transfer'
-    : request
-      ? 'Payment request'
-      : entry.type === 'send' && pending
-        ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
-        : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`;
-  const Icon = transfer
-    ? ArrowRightLeft
-    : request
-      ? ReceiptText
-      : outgoing
-        ? ArrowUpFromLine
-        : ArrowDownToLine;
-  const title = transfer
-    ? 'Transfer'
-    : request
-      ? 'Payment request'
-      : entry.type === 'send' && pending
-        ? statusLabel === 'Delivered'
-          ? 'Ecash delivered'
-          : 'Ecash created'
+  const label = activity
+    ? walletActivityTitle(activity)
+    : transfer
+      ? 'Transfer'
+      : request
+        ? 'Payment request'
+        : entry.type === 'send' && pending
+          ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
+          : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`;
+  const Icon = activity
+    ? activity.kind === 'recovery'
+      ? RotateCcw
+      : activity.kind === 'get-change'
+        ? Coins
+        : RefreshCw
+    : transfer
+      ? ArrowRightLeft
+      : request
+        ? ReceiptText
         : outgoing
-          ? 'Sent'
-          : 'Received';
+          ? ArrowUpFromLine
+          : ArrowDownToLine;
+  const title = activity
+    ? walletActivityTitle(activity)
+    : state === 'refunded'
+      ? 'Funds reclaimed'
+      : transfer
+        ? 'Transfer'
+        : request
+          ? 'Payment request'
+          : entry.type === 'send' && pending
+            ? statusLabel === 'Delivered'
+              ? 'Ecash delivered'
+              : 'Ecash created'
+            : outgoing
+              ? 'Sent'
+              : 'Received';
   const paymentType = transfer
     ? 'Between mints'
     : rail === 'onchain'
@@ -115,7 +144,14 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       : rail === 'lightning'
         ? 'Lightning'
         : 'Ecash';
-  const subtitle = [paymentType, statusLabel].filter(Boolean).join(' · ');
+  const subtitle = activity
+    ? [
+        walletActivityStatus(activity.state),
+        activity.kind === 'optimize' && activity.fee == null
+          ? 'Fee unavailable'
+          : 'Wallet maintenance',
+      ].join(' · ')
+    : [paymentType, statusLabel].filter(Boolean).join(' · ');
   const when = formatRelativeTime(historyTimestamp(entry.createdAt));
 
   const handleCheck = async () => {
@@ -166,7 +202,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
           bg="transparent"
           hoverStyle={{ opacity: 0.9 }}
           pressStyle={{ opacity: 0.8 }}
-          accessibilityLabel={`${label}, ${value}${statusLabel ? `, ${statusLabel}` : ''}. Open details`}
+          accessibilityLabel={`${label}, ${value}, ${activity ? walletActivityStatus(activity.state) : statusLabel || paymentType}. Open details`}
           onPress={() => {
             Haptics.selectionAsync();
             onPress(entry.id, entry.type);
@@ -180,7 +216,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
                 {title}
               </Text>
-              {pending && (
+              {pending && !maintenance && (
                 <AppPressable
                   minHeight={24}
                   minWidth={24}
@@ -223,7 +259,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               numberOfLines={1}
               style={{ fontVariant: ['tabular-nums'] }}
             >
-              {transfer || request ? '' : outgoing ? '− ' : '+ '}
+              {maintenance || transfer || request ? '' : outgoing ? '− ' : '+ '}
               {value}
             </Text>
             <Text {...appTypography.body3} color="$gray10" numberOfLines={1} textAlign="right">

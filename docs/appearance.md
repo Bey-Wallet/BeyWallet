@@ -66,7 +66,7 @@ existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `s
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
-or alternate root provider is required. The component playground uses the existing Settings stack.
+or alternate root provider is required.
 
 Home's smaller balance is a neutral pill with a minimum 48-point touch area. Tapping
 it swaps the primary sats/fiat presentation using the existing saved display preference.

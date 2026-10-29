@@ -19,6 +19,16 @@ import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'partial' | 'error';
 
+async function saveRecoveryActivity(session: import('./recoverySessionStore').RecoverySession) {
+  try {
+    const { recordRecoveryActivity } =
+      require('~/services/wallet/walletActivityService') as typeof import('~/services/wallet/walletActivityService');
+    await recordRecoveryActivity(session);
+  } catch {
+    // Activity bookkeeping must not change recovery execution or results.
+  }
+}
+
 export interface MintRestoreEntry {
   mintUrl: string;
   status: MintRestoreStatus;
@@ -368,6 +378,8 @@ export const useWalletStore = create<WalletState>()(
               : session.results.filter((result) => !urls.includes(result.mintUrl)),
           needsReview: true,
         });
+        const started = useRecoverySessionStore.getState().session;
+        if (started) void saveRecoveryActivity(started);
         batchRestore = Promise.all(urls.map(queueMintRecovery))
           .then(() => undefined)
           .finally(() => {
@@ -375,6 +387,7 @@ export const useWalletStore = create<WalletState>()(
             batchRestore = null;
             releaseRecoveryPause();
             const completed = useRecoverySessionStore.getState().session;
+            if (completed) void saveRecoveryActivity(completed);
             if (
               completed?.feedbackId &&
               completed.results.some((result) => result.status !== 'done')

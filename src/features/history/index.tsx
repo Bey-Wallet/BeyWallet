@@ -19,6 +19,7 @@ import { HistoryItem } from './components/HistoryItem';
 import { HistorySection } from './components/HistorySection';
 import { HistoryPageSkeleton } from './components/HistorySkeletonItem';
 import { historyDisplayAmount } from './transactionPresentation';
+import { subscribeWalletActivity } from '~/services/wallet/walletActivityService';
 import {
   defaultHistoryFilters,
   filterHistory,
@@ -35,7 +36,9 @@ const quickFilters = [
   { key: 'received', label: 'Received', icon: ArrowDownLeft },
 ] as const;
 const rails = [
-  { key: 'all', label: 'All types' },
+  { key: 'all', label: 'All activity' },
+  { key: 'payments', label: 'Payments' },
+  { key: 'maintenance', label: 'Wallet maintenance' },
   { key: 'ecash', label: 'Ecash' },
   { key: 'lightning', label: 'Lightning' },
   { key: 'onchain', label: 'Bitcoin' },
@@ -116,7 +119,7 @@ export function HistoryScreen({
     queryKey: ['history'],
     queryFn: async (): Promise<HistoryListEntry[]> => {
       if (!initService.isInitialized()) return [];
-      return historyService.getHistory(200, 0);
+      return historyService.getActivityHistory(200, 0);
     },
     enabled: initService.isInitialized(),
   });
@@ -142,6 +145,8 @@ export function HistoryScreen({
       eventService.on('receive:created', handleUpdate),
       eventService.on('send:created', handleUpdate),
       eventService.on('mint-quote:redeemed', handleUpdate),
+      eventService.on('proofs:saved', handleUpdate),
+      subscribeWalletActivity(handleUpdate),
     ];
     return () => unsubs.forEach((unsubscribe) => unsubscribe());
   }, [queryClient, loadPendingRequests]);
@@ -168,6 +173,8 @@ export function HistoryScreen({
     (id: string, type: string) => {
       if (type === 'receive-request')
         router.push({ pathname: '/(modals)/receive', params: { requestId: id } });
+      else if (type === 'maintenance')
+        router.push({ pathname: '/wallet-activity', params: { id } });
       else router.push({ pathname: '/txn-details', params: { id } });
     },
     [router],

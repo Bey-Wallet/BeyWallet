@@ -33,6 +33,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { consolidationService } from '~/services/wallet/consolidationService';
@@ -53,6 +54,7 @@ export default function OptimizeWalletScreen() {
     useWalletStore();
   const [selectedMintUrl, setSelectedMintUrl] = useState(activeMintUrl || '');
   const [isOptimizing, setIsOptimizing] = useState(false);
+  useSettingsBusy(isOptimizing);
   const [optimizationError, setOptimizationError] = useState<string | null>(null);
   const isLoadingMint = isInitializing || isRefreshing;
   const insets = useSafeAreaInsets();
@@ -145,7 +147,7 @@ export default function OptimizeWalletScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast.showFeedback(interactionCopy.optimized);
     } catch (err: any) {
-      setOptimizationError('Could not optimize this wallet. Check your connection and try again.');
+      setOptimizationError('Optimization needs review. Check History before trying again.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsOptimizing(false);
@@ -161,9 +163,14 @@ export default function OptimizeWalletScreen() {
       >
         <YStack p="$4" gap="$4" flex={1}>
           {optimizationError && (
-            <Text color="$red10" fontSize={12} accessibilityRole="alert">
-              {optimizationError}
-            </Text>
+            <YStack gap="$2">
+              <Text color="$orange10" fontSize={12} accessibilityRole="alert">
+                {optimizationError}
+              </Text>
+              <AppButton emphasis="text" onPress={() => router.push('/(tabs)/history')}>
+                View History
+              </AppButton>
+            </YStack>
           )}
           {/* Header Info Card */}
           <YStack gap="$2" items="center" py="$2" px="$3">

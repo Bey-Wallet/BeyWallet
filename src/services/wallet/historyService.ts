@@ -6,8 +6,18 @@
 
 import { initService } from '~/services/wallet/initService';
 import type { HistoryEntry } from 'coco-cashu-core';
+import {
+  getWalletActivities,
+  getOptimizationLinks,
+  mergeWalletActivity,
+} from './walletActivityService';
 
 export const historyService = {
+  getActivityHistory: async (limit = 200, offset = 0) => {
+    const payments = await initService.getManager().history.getPaginatedHistory(offset, limit);
+    const activities = await getWalletActivities(limit);
+    return mergeWalletActivity(payments, activities, await getOptimizationLinks());
+  },
   /**
    * Get paginated transaction history entries.
    *

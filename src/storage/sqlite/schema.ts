@@ -470,6 +470,32 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '022_wallet_activity',
+    sql: `
+      CREATE TABLE bey_wallet_activity (
+        id TEXT PRIMARY KEY NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('optimize', 'recovery')),
+        mintUrl TEXT NOT NULL,
+        state TEXT NOT NULL CHECK(state IN ('pending', 'review', 'completed', 'canceled')),
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        inputAmount INTEGER,
+        fee INTEGER,
+        balanceDelta INTEGER,
+        beforeCount INTEGER,
+        afterCount INTEGER,
+        operationId TEXT,
+        receiveHistoryId TEXT,
+        completedCount INTEGER,
+        totalCount INTEGER,
+        observedBalance INTEGER,
+        mintUrls TEXT NOT NULL DEFAULT '[]'
+      );
+      CREATE INDEX bey_wallet_activity_time ON bey_wallet_activity(createdAt DESC);
+      CREATE TABLE bey_hidden_activity (id TEXT PRIMARY KEY NOT NULL);
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

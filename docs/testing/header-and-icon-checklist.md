@@ -49,7 +49,7 @@ header size, with centered titles.
 - Nostr profile: retry lookup and share; Settings relays: copy and remove.
 - Payment inputs: clear, paste, scan, Nostr paste, and receive-preview refresh.
 - Payment details: table copy, status refresh, token options, and pending-token settings dismissal.
-- Universal input: clear and validation controls; button playground: tertiary icon examples.
+- Universal input: clear and validation controls; shared icon buttons: tertiary icon actions.
 
 Check enabled, disabled, loading, and pressed states. Home action cards, bottom-tab icons,
 avatars, status artwork, payment logic, and spinner animation are intentionally preserved.

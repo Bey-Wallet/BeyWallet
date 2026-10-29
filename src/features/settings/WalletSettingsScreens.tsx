@@ -127,6 +127,7 @@ function OperationMintList({
 }
 
 export function OptimizeSettingsScreen() {
+  const router = useRouter();
   const activeMint = useWalletStore((state) => state.activeMintUrl);
   const [mintUrl, setMintUrl] = useState(activeMint || '');
   const offline = useOfflineStatus();
@@ -181,12 +182,17 @@ export function OptimizeSettingsScreen() {
             await queryClient.invalidateQueries({ queryKey: ['readyProofs'] });
             await queryClient.invalidateQueries({ queryKey: ['fragmentationAnalysis'] });
             return `Proofs reduced from ${result.before.count} to ${result.after.count}. Balance: ${result.after.totalAmount} sat.`;
-          })
+          }, 'Optimization needs review. Check History before trying again.')
         }
       >
         Optimize wallet
       </AppButton>
       {task.message && <SettingsMessage error={task.error}>{task.message}</SettingsMessage>}
+      {task.error && (
+        <AppButton emphasis="text" onPress={() => router.push('/(tabs)/history')}>
+          View History
+        </AppButton>
+      )}
     </SettingsPage>
   );
 }

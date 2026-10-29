@@ -9,7 +9,10 @@ export function useSettingsOperation() {
   const [error, setError] = useState(false);
   const locked = useRef(false);
   useSettingsBusy(busy);
-  const run = async (operation: () => Promise<string>) => {
+  const run = async (
+    operation: () => Promise<string>,
+    errorMessage = 'The operation could not be completed. Please try again.',
+  ) => {
     if (locked.current) return;
     locked.current = true;
     setBusy(true);
@@ -19,7 +22,7 @@ export function useSettingsOperation() {
       setMessage(await operation());
     } catch {
       setError(true);
-      setMessage('The operation could not be completed. Please try again.');
+      setMessage(errorMessage);
     } finally {
       locked.current = false;
       setBusy(false);

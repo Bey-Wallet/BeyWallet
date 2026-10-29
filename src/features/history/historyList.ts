@@ -37,6 +37,7 @@ export function isPendingHistory(
   entry: Pick<HistoryListEntry, 'type' | 'state' | 'metadata' | 'paymentRequest'>,
 ): boolean {
   const state = entry.state?.toLowerCase() || '';
+  if (entry.type === 'maintenance') return ['pending', 'review'].includes(state);
   return (
     ['pending', 'unpaid', 'unclaimed', 'prepared', 'executing'].includes(state) ||
     (entry.type === 'mint' && state === 'paid' && !isOnchainHistory(entry))
@@ -44,6 +45,7 @@ export function isPendingHistory(
 }
 
 export function historyRail(entry: HistoryListEntry): string {
+  if (entry.type === 'maintenance') return 'maintenance';
   if (entry.type === 'swap' || historyMetadata(entry).via === 'swap') return 'transfer';
   if (entry.type === 'receive-request') return 'requests';
   if (isOnchainHistory(entry)) return 'onchain';
@@ -67,11 +69,19 @@ export function filterHistory(
   return entries
     .filter((entry) => {
       const targetMint = historyMetadata(entry).targetMintUrl;
+      const activityMints = historyMetadata(entry).walletActivity?.mintUrls;
       // Address creation is persisted for recovery, but is not payment activity.
       if (isOnchainHistory(entry) && !(entry.amount > 0)) return false;
       if (
         filters.mint !== 'all' &&
         entry.mintUrl.replace(/\/$/, '') !== filters.mint.replace(/\/$/, '') &&
+        !(
+          Array.isArray(activityMints) &&
+          activityMints.some(
+            (url: unknown) =>
+              typeof url === 'string' && url.replace(/\/$/, '') === filters.mint.replace(/\/$/, ''),
+          )
+        ) &&
         !(
           historyRail(entry) === 'transfer' &&
           typeof targetMint === 'string' &&
@@ -80,7 +90,9 @@ export function filterHistory(
       )
         return false;
       if (historyTimestamp(entry.createdAt) < cutoff) return false;
-      if (filters.rail !== 'all' && historyRail(entry) !== filters.rail) return false;
+      if (filters.rail === 'payments') {
+        if (['maintenance', 'requests'].includes(historyRail(entry))) return false;
+      } else if (filters.rail !== 'all' && historyRail(entry) !== filters.rail) return false;
       if (filters.quick === 'pending') return isPendingHistory(entry);
       if (filters.quick === 'sent')
         return ['send', 'melt'].includes(entry.type) && historyRail(entry) !== 'transfer';

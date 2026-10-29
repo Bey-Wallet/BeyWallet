@@ -16,6 +16,7 @@ import { walletService } from '~/services/wallet/walletService';
 import { proofService } from '~/services/wallet/proofService';
 import { initService } from '~/services/wallet/initService';
 import { decodeToken } from '~/services/wallet/tokenUtils';
+import { createWalletActivity, saveWalletActivity } from './walletActivityService';
 
 export interface FragmentationAnalysis {
   /** 0–100. Higher = more fragmented. >60 is worth consolidating. */
@@ -72,7 +73,7 @@ export const consolidationService = {
    *  2. walletService.send(total)  → creates an encoded token using those proofs
    *  3. walletService.receive(token) → mint issues fresh optimal proofs
    *
-   * The balance is unchanged. Only proof count changes.
+   * Proof denominations change. Mint input fees may reduce the balance.
    *
    * @throws if balance is 0 or already optimal (≤ 3 proofs)
    */
@@ -92,7 +93,21 @@ export const consolidationService = {
     );
 
     // Step 1: Send — this locks the proofs into an inflight token
-    const sendResult = await walletService.send(mintUrl, totalAmount);
+    let activity = {
+      ...createWalletActivity('optimize', mintUrl),
+      inputAmount: totalAmount,
+      beforeCount: beforeProofs.length,
+    };
+    await saveWalletActivity(activity);
+    let sendResult: Awaited<ReturnType<typeof walletService.send>>;
+    try {
+      sendResult = await walletService.send(mintUrl, totalAmount);
+      activity = { ...activity, operationId: sendResult.id };
+      await saveWalletActivity(activity);
+    } catch (error) {
+      await saveWalletActivity({ ...activity, state: 'review' });
+      throw error;
+    }
 
     // Step 2: Receive — mint re-issues optimally-denominated proofs.
     // If receive fails for any reason (not just network errors), persist
@@ -100,6 +115,7 @@ export const consolidationService = {
     try {
       await walletService.receive(sendResult.token);
     } catch (receiveErr: any) {
+      await saveWalletActivity({ ...activity, state: 'review' });
       console.error(`[Consolidation] ❌ Receive failed after send succeeded:`, receiveErr?.message);
       try {
         const repo = initService.getRepo();
@@ -135,6 +151,8 @@ export const consolidationService = {
 
     const afterProofs = await proofService.getReadyProofs(mintUrl);
     const afterAmount = afterProofs.reduce((s, p) => s + p.amount, 0);
+    // Wallet totals can include concurrent activity; never infer an operation fee from them.
+    await saveWalletActivity({ ...activity, state: 'completed', afterCount: afterProofs.length });
 
     console.log(
       `[Consolidation] ✅ Done: ${beforeProofs.length} → ${afterProofs.length} proofs, ${totalAmount} → ${afterAmount} sat`,
