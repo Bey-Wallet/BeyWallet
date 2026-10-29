@@ -25,6 +25,7 @@ interface MintBalanceRowProps {
   showMax?: boolean;
   onMaxPress?: () => void;
   maxDisabled?: boolean;
+  horizontalPadding?: number;
 }
 
 export function MintBalanceRow({
@@ -39,6 +40,7 @@ export function MintBalanceRow({
   showMax = false,
   onMaxPress,
   maxDisabled = false,
+  horizontalPadding,
 }: MintBalanceRowProps) {
   const resolvedDisplayName = React.useMemo(() => {
     if (displayName) return displayName;
@@ -65,6 +67,7 @@ export function MintBalanceRow({
     <ListTable width="100%">
       <ListTableRow
         label={label || 'Mint'}
+        horizontalPadding={horizontalPadding}
         onPress={isSelector && onPress ? handlePress : undefined}
         value={
           <XStack gap="$2" items="center" flexShrink={1} minWidth={0}>
@@ -96,6 +99,7 @@ export function MintBalanceRow({
       />
       <ListTableRow
         label="Available balance"
+        horizontalPadding={horizontalPadding}
         value={currencyService.formatSats(balance)}
         rightContent={
           showMax ? (

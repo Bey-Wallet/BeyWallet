@@ -69,6 +69,7 @@ export function ListTableRow({
   disabled = false,
   selected,
   expanded,
+  horizontalPadding = appSpacing.page,
 }: {
   label: string;
   value?: React.ReactNode;
@@ -87,6 +88,7 @@ export function ListTableRow({
   disabled?: boolean;
   selected?: boolean;
   expanded?: boolean;
+  horizontalPadding?: number;
 }) {
   const toast = useAppToast();
   const inheritedCompact = useContext(CompactTableContext);
@@ -130,7 +132,7 @@ export function ListTableRow({
         items="center"
         minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
         py={appSpacing.gap}
-        px={appSpacing.page}
+        px={horizontalPadding}
         gap={appSpacing.compact}
       >
         <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>

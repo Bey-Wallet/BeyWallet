@@ -51,6 +51,17 @@ request, `HomeMintSelector.tsx` is excluded from styling changes and remains unc
 
 ### 3. Payment entry
 
+Regular Send is the first review step. Its neutral amount card is retained, with tighter spacing,
+shared 14-point labels, and a neutral currency toggle with a 48-point touch target. Mint/balance
+rows opt into 12-point horizontal padding. Amount sizing, keypad handling, conversions, Max,
+validation, and Continue behavior retain their existing implementation. Review this screen on
+a device before applying the presentation to other entry flows. `HomeMintSelector.tsx` remains
+excluded from changes.
+
+- [x] Update regular Send for review.
+- [x] Pass type checking and 43 focused presentation, currency-input, payment-control, and
+      ecash-confirmation tests.
+- [ ] Review regular Send in light/dark themes, with large text, long amounts, and fiat disabled.
 - [ ] Review Send, Receive, Transfer, Lightning, on-chain, and Nostr amount/input stages.
 - [ ] Align amount typography, currency presentation, input spacing, mint selectors, and actions.
 - [ ] Keep shared bottom sheets and step-navigation conventions consistent.

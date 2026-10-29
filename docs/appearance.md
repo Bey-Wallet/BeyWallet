@@ -90,6 +90,12 @@ descriptions use compact grouped surfaces. Connection consent keeps its trust di
 warning colors, with a left close control disabled during connection. HomeMintSelector retains
 its existing layout.
 
+Regular Send retains its neutral amount-entry card and existing adaptive amount sizes. Its
+prompt/error labels use the shared 14-point body style; the secondary conversion is a muted
+neutral control with a 48-point touch target. Mint/balance rows opt into 12-point horizontal
+padding through `MintBalanceRow.horizontalPadding`, forwarded to `ListTableRow.horizontalPadding`.
+The shared row default remains 16 points. Other payment-entry variants await review of Send.
+
 The fiat picker shows all 25 current choices plus None without a More currencies step.
 VND, PHP, IDR and ARS are no longer offered. Their metadata remains available for saved
 preferences and imported backups; NGN and THB remain selectable. PLN and CZK use their

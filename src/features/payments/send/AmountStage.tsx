@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { Flex } from '~/shared/ui/Flex';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 
 interface AmountStageProps {
   mintUrl?: string | null;
@@ -207,9 +208,10 @@ export function AmountStage({
   }, [formattedDisplayValue]);
 
   return (
-    <Flex fill justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <Flex fill justify="space-between" gap="$4">
+      <YStack items="center" gap="$3" width="100%">
         <MintBalanceRow
+          horizontalPadding={appSpacing.gap}
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
           displayName={displayName}
@@ -230,20 +232,25 @@ export function AmountStage({
           width="100%"
           bg="$gray2"
           rounded="$6"
-          p="$3"
-          py={fiatEnabled ? '$8' : '$6'}
+          px="$3"
+          py="$5"
           items="center"
           gap="$3"
           borderWidth={0}
         >
           {/* Amount Display Section */}
-          <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+          <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
             {error || isOverBalance ? (
-              <Text color="$red10" fontSize="$3" fontWeight="400" text="center">
+              <Text
+                {...appTypography.body2}
+                color="$red10"
+                textAlign="center"
+                accessibilityRole="alert"
+              >
                 {error || 'Exceeds available balance'}
               </Text>
             ) : (
-              <Text color="$gray10" fontSize="$3" fontWeight="400">
+              <Text {...appTypography.body2} color="$gray10" textAlign="center">
                 How much to send?
               </Text>
             )}
@@ -257,22 +264,25 @@ export function AmountStage({
 
             {fiatEnabled && (
               <AppPressable
-                px={12}
-                py={4}
-                rounded="$10"
-                bg="$gray5"
-                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                accessibilityLabel={`Switch amount to ${inputMode === 'SATS' ? secondaryCurrency : 'sats'}`}
+                accessibilityHint="Changes the input currency while keeping the payment amount"
+                px="$3"
+                py="$1"
+                rounded={100}
+                bg="$gray3"
+                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
                 onPress={toggleMode}
-                minHeight={36}
+                minHeight={48}
                 flexDirection="row"
                 items="center"
                 justify="center"
                 gap={8}
               >
-                <Text color="$color" fontSize="$3" fontWeight="400">
+                <Text {...appTypography.label2} color="$gray10">
                   {conversionValue}
                 </Text>
-                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+                <ArrowUpDown size={16} color="$gray10" aria-hidden />
               </AppPressable>
             )}
           </YStack>
