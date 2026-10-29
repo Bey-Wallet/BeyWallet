@@ -20,30 +20,44 @@ export default function RecoveryStatusRow() {
     <AppPressable
       accessibilityRole="button"
       accessibilityLabel={title}
+      width="100%"
+      minWidth={0}
       minHeight={48}
-      p="$3.5"
+      px="$4"
+      py="$3"
+      flexDirection="row"
+      items="center"
+      gap="$3"
       rounded="$6"
       bg="$buttonDefaultSecondary"
       hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
       pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
       onPress={() => router.push('/(tabs)/settings/recover-funds')}
     >
-      <XStack items="center" gap="$3">
+      <XStack
+        width={24}
+        flexShrink={0}
+        items="center"
+        justify="center"
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         {session.phase === 'recovering' ? (
           <Spinner size={20} color="$iconSecondary" />
         ) : (
           <AlertCircle size={20} color="$iconSecondary" />
         )}
-        <YStack flex={1} gap="$1">
-          <Text fontSize={14} color="$color" fontWeight="600">
-            {title}
-          </Text>
-          <Text fontSize={12} color="$gray10">
-            Review selected mints and scan results.
-          </Text>
-        </YStack>
-        <ChevronRight size={20} color="$gray10" />
       </XStack>
+      <YStack flex={1} minWidth={0} gap="$1">
+        <Text fontSize={14} lineHeight={20} color="$color" fontWeight="600">
+          {title}
+        </Text>
+        <Text fontSize={12} lineHeight={16} color="$gray10">
+          Review selected mints and scan results.
+        </Text>
+      </YStack>
+      <ChevronRight size={20} color="$gray10" flexShrink={0} aria-hidden />
     </AppPressable>
   );
 }
