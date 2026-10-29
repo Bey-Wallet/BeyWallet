@@ -3,10 +3,13 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useState, useMemo } from 'react';
-import { YStack, XStack, Text, H2, H4, ScrollView, View } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
+import { Globe, Sprout, Share2, Plus, QrCode, X } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import * as Haptics from 'expo-haptics';
@@ -201,8 +204,8 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
           <YStack gap="$3">
             <XStack items="center" gap="$3">
               <View
-                width={64}
-                height={64}
+                width={48}
+                height={48}
                 flexShrink={0}
                 rounded="$6"
                 bg="$gray3"
@@ -210,25 +213,35 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 justify="center"
                 overflow="hidden"
                 borderWidth={1}
-                borderColor="$color5"
+                borderColor="$borderColor"
               >
                 <MintImage
                   mintUrl={url}
                   source={{
                     uri: iconToUse,
-                    width: 64,
-                    height: 64,
+                    width: 48,
+                    height: 48,
                   }}
-                  fallback={<Sprout size={32} color="$accentColor" />}
+                  fallback={<Sprout size={24} color="$iconSecondary" />}
                 />
               </View>
               <YStack flex={1} minWidth={0} gap="$2" items="stretch">
                 <XStack items="center" gap="$2">
-                  <H2 letterSpacing={-1} text="left" flexShrink={1} fontSize={24} lineHeight={30}>
+                  <Text
+                    {...appTypography.title2}
+                    color="$color"
+                    textAlign="left"
+                    flexShrink={1}
+                    accessibilityRole="header"
+                  >
                     {name}
-                  </H2>
+                  </Text>
                 </XStack>
-                <XStack
+                <AppPressable
+                  accessibilityLabel="Copy mint URL"
+                  minHeight={48}
+                  minWidth={0}
+                  flexDirection="row"
                   bg="transparent"
                   px={0}
                   py={0}
@@ -238,11 +251,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                   maxWidth="100%"
                   onPress={() => handleCopy(url, 'URL')}
                 >
-                  <Globe size={14} color="$gray10" />
-                  <Text color="$gray10" fontSize="$3" flexShrink={1}>
+                  <Globe size={20} color="$gray10" flexShrink={0} aria-hidden />
+                  <Text color="$gray10" fontSize={12} lineHeight={16} flexShrink={1}>
                     {url}
                   </Text>
-                </XStack>
+                </AppPressable>
               </YStack>
             </XStack>
             <XStack gap="$2" items="center">
@@ -279,9 +292,11 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               <Text color="$gray10" fontSize="$4" fontWeight="600">
                 About
               </Text>
-              <YStack gap="$2">
-                <Text lineHeight={22}>{description}</Text>
-              </YStack>
+              <ListTable {...previewTableProps}>
+                <YStack px="$page" py="$rowGap">
+                  <Text {...appTypography.body2}>{description}</Text>
+                </YStack>
+              </ListTable>
             </YStack>
           )}
           {/* MOTD */}
@@ -292,7 +307,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               </Text>
               <ListTable {...previewTableProps}>
                 <YStack px="$page" py="$rowGap" gap="$2">
-                  <Text lineHeight={22}>{motd}</Text>
+                  <Text {...appTypography.body2}>{motd}</Text>
                 </YStack>
               </ListTable>
             </YStack>
@@ -300,9 +315,9 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
 
           {/* General Metadata lists */}
           <YStack gap="$3">
-            <H4 color="$gray10" fontSize="$4">
+            <Text color="$gray10" fontSize={16} fontWeight="600" accessibilityRole="header">
               Mint Details
-            </H4>
+            </Text>
             <ListTable {...previewTableProps}>
               <ListTableRow label="URL" value={hostname} isCopyable copyValue={url} />
               {version && <ListTableRow label="Version" value={version} />}
@@ -351,25 +366,39 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
 
       <AppBottomSheet ref={connectionSheetRef} snapPoints={['65%']} canDismiss={!isConnecting}>
         <BottomSheetScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: Math.max(insets.bottom, 24) }}
+          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) }}
         >
           <YStack gap="$5">
-            <Text fontSize="$6" fontWeight="600" textAlign="center">
-              Connect to mint
-            </Text>
+            <XStack items="center" gap="$2">
+              <HeaderIconButton
+                accessibilityLabel="Close mint connection"
+                icon={X}
+                disabled={isConnecting}
+                onPress={() => connectionSheetRef.current?.dismiss()}
+              />
+              <Text
+                {...appTypography.title3}
+                textAlign="center"
+                flex={1}
+                accessibilityRole="header"
+              >
+                Connect to mint
+              </Text>
+              <View width={48} aria-hidden />
+            </XStack>
             <YStack items="center" gap="$2">
               <View width={64} height={64} rounded="$6" overflow="hidden" bg="$gray3">
                 <MintImage mintUrl={url} source={{ uri: iconToUse, width: 64, height: 64 }} />
               </View>
-              <Text fontSize="$5" fontWeight="600" textAlign="center">
+              <Text fontSize={16} fontWeight="600" textAlign="center">
                 {name}
               </Text>
-              <Text color="$gray10" textAlign="center" selectable>
+              <Text color="$gray10" fontSize={12} lineHeight={16} textAlign="center" selectable>
                 {url}
               </Text>
             </YStack>
-            <View p="$3" bg="$gray5" theme="orange" rounded="$6">
-              <Text color="$color" fontSize="$4">
+            <View p="$3" bg="$orange3" rounded="$6">
+              <Text color="$orange11" {...appTypography.body2}>
                 This mint holds the bitcoin backing your ecash. You depend on its operator to redeem
                 it. Bey Wallet does not operate this mint and is not responsible for losses caused
                 by it. Only connect if you trust the operator.

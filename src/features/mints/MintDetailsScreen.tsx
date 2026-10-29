@@ -7,8 +7,9 @@ import { appTypography } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
+import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import {
   ArrowLeft,
   Share2,
@@ -342,22 +343,32 @@ export default function MintDetailsModal() {
           <YStack px="$page" gap="$5">
             {/* Balance and Avatar Row */}
             <XStack justify="space-between" items="center" pt="$4">
-              <YStack gap="$2">
+              <YStack flex={1} minWidth={0} gap="$2">
                 <XStack items="baseline" gap="$1">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
+                    <Text
+                      {...appTypography.display}
+                      color="$color"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
                       {!showBitcoinSymbol && <Text fontSize={20}>{' sat'}</Text>}
                     </Text>
                   ) : (
-                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
+                    <Text
+                      {...appTypography.display}
+                      color="$color"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
                       {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
                     </Text>
                   )}
                 </XStack>
                 {secondaryCurrency !== 'NONE' && (
-                  <Text fontSize="$6" color="$gray12" fontWeight="600">
+                  <Text {...appTypography.body2} color="$gray10">
                     {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                       ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
                       : showBitcoinSymbol
@@ -367,23 +378,23 @@ export default function MintDetailsModal() {
                 )}
 
                 {/* Trust badges */}
-                <XStack mt="$2" gap="$2" items="center">
+                <XStack mt="$2" gap="$2" items="center" flexWrap="wrap">
                   {isTrusted ? (
                     <View bg="$green3" px="$2" py="$1" rounded="$3">
-                      <Text color="$green11" fontWeight="600">
+                      <Text fontSize={12} lineHeight={16} color="$green11" fontWeight="500">
                         Trusted
                       </Text>
                     </View>
                   ) : (
                     <View bg="$red3" px="$2" py="$1" rounded="$3">
-                      <Text color="$red11" fontWeight="600">
+                      <Text fontSize={12} lineHeight={16} color="$red11" fontWeight="500">
                         Untrusted
                       </Text>
                     </View>
                   )}
                   {isActive && (
-                    <View bg="$blue3" px="$2" py="$1" rounded="$3">
-                      <Text color="$blue11" fontWeight="600">
+                    <View bg="$gray3" px="$2" py="$1" rounded="$3">
+                      <Text fontSize={12} lineHeight={16} color="$gray10" fontWeight="500">
                         Active
                       </Text>
                     </View>
@@ -391,14 +402,14 @@ export default function MintDetailsModal() {
                 </XStack>
               </YStack>
 
-              <YStack items="center" gap="$2">
+              <YStack items="center" gap="$2" flexShrink={0} ml="$3">
                 <MintImage
                   mintUrl={mintUrl}
                   source={{ uri: iconToUse }}
                   style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 20,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 16,
                   }}
                 />
                 <XStack gap="$2" items="center">
@@ -423,45 +434,67 @@ export default function MintDetailsModal() {
             </XStack>
 
             {/* Action Columns Row */}
-            <XStack py="$4" justify="space-around" bg="$gray2" rounded="$6" mt="$2">
-              <YStack
-                items="center"
-                gap="$2"
+            <XStack gap="$2" items="stretch">
+              <AppPressable
+                accessibilityLabel="Deposit"
+                minWidth={0}
+                minHeight={80}
+                p={12}
+                rounded="$6"
+                bg="$buttonDefaultSecondary"
+                items="flex-start"
+                justify="space-between"
+                gap={12}
                 onPress={handleDeposit}
-                pressStyle={{ opacity: 0.7 }}
+                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
                 flex={1}
               >
-                <ArrowDownToLine size={24} color="$color" />
+                <ArrowDownToLine size={22} color="$color" aria-hidden />
                 <Text fontSize="$3" fontWeight="600" color="$color">
                   Deposit
                 </Text>
-              </YStack>
-              <Separator vertical borderColor="$borderColor" opacity={0.5} />
-              <YStack
-                items="center"
-                gap="$2"
+              </AppPressable>
+              <AppPressable
+                accessibilityLabel="Withdraw"
+                minWidth={0}
+                minHeight={80}
+                p={12}
+                rounded="$6"
+                bg="$buttonDefaultSecondary"
+                items="flex-start"
+                justify="space-between"
+                gap={12}
                 onPress={handleWithdraw}
-                pressStyle={{ opacity: 0.7 }}
+                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
                 flex={1}
               >
-                <ArrowUpFromLine size={24} color="$color" />
+                <ArrowUpFromLine size={22} color="$color" aria-hidden />
                 <Text fontSize="$3" fontWeight="600" color="$color">
                   Withdraw
                 </Text>
-              </YStack>
-              <Separator vertical borderColor="$borderColor" opacity={0.5} />
-              <YStack
-                items="center"
-                gap="$2"
+              </AppPressable>
+              <AppPressable
+                accessibilityLabel="Transfer"
+                minWidth={0}
+                minHeight={80}
+                p={12}
+                rounded="$6"
+                bg="$buttonDefaultSecondary"
+                items="flex-start"
+                justify="space-between"
+                gap={12}
                 onPress={handleTransfer}
-                pressStyle={{ opacity: 0.7 }}
+                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
                 flex={1}
               >
-                <ArrowRightLeft size={24} color="$color" />
+                <ArrowRightLeft size={22} color="$color" aria-hidden />
                 <Text fontSize="$3" fontWeight="600" color="$color">
                   Transfer
                 </Text>
-              </YStack>
+              </AppPressable>
             </XStack>
 
             {/* Mint information */}
@@ -480,7 +513,7 @@ export default function MintDetailsModal() {
                 </Text>
                 <ListTable {...tableProps}>
                   <YStack px="$page" py="$rowGap" gap="$2">
-                    <Text theme="orange" lineHeight={22}>
+                    <Text theme="orange" {...appTypography.body2}>
                       {motd}
                     </Text>
                   </YStack>
@@ -494,7 +527,7 @@ export default function MintDetailsModal() {
                 </Text>
                 <ListTable {...tableProps}>
                   <YStack px="$page" py="$rowGap" gap="$2">
-                    <Text lineHeight={22}>{description}</Text>
+                    <Text {...appTypography.body2}>{description}</Text>
                   </YStack>
                 </ListTable>
               </YStack>
@@ -567,11 +600,11 @@ export default function MintDetailsModal() {
         {/* Remove Mint Confirmation Bottom Sheet */}
         <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
           <YStack p="$4" gap="$4">
-            <View bg="$red3" p="$4" rounded="$4" borderWidth={1} borderColor="$red8">
+            <View bg="$red3" p="$4" rounded="$6" borderWidth={1} borderColor="$red8">
               <XStack gap="$3">
                 <AlertTriangle color="$red10" size={24} />
                 <YStack flex={1}>
-                  <Text color="$red10" fontWeight="700" fontSize="$5">
+                  <Text color="$red10" fontWeight="600" fontSize={16}>
                     Remove Mint
                   </Text>
                   <Text color="$red10" fontSize="$3" mt="$1">
@@ -583,16 +616,16 @@ export default function MintDetailsModal() {
             </View>
 
             {balance > 0 && (
-              <View bg="$orange3" p="$4" rounded="$4" borderWidth={1} borderColor="$orange8">
+              <View bg="$orange3" p="$4" rounded="$6" borderWidth={1} borderColor="$orange8">
                 <XStack gap="$3">
                   <AlertTriangle color="$orange10" size={24} />
                   <YStack flex={1}>
-                    <Text color="$orange10" fontWeight="700" fontSize="$5">
+                    <Text color="$orange10" fontWeight="600" fontSize={16}>
                       Active Balance Warning
                     </Text>
                     <Text color="$orange10" fontSize="$3" mt="$1">
                       You currently have a balance of{' '}
-                      <Text fontWeight="800">
+                      <Text fontWeight="600">
                         {showBitcoinSymbol
                           ? `₿${balance.toLocaleString()}`
                           : `${balance.toLocaleString()} sat`}

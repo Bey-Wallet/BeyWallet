@@ -33,13 +33,21 @@ each completed stage. Inspect each screen before editing; update only the incons
 - [x] Pass type checking, the structure check, and 36 focused tests.
 - [ ] Review light/dark appearance, large text, long amounts, and small screens on a device.
 
-### 2. Mints
+### 2. Mints — implemented
 
-- [ ] Review mint management, Add mint, discovery, profile, details, and mint selection.
-- [ ] Align grouped surfaces, row density, artwork slots, amount alignment, and metadata text.
-- [ ] Keep mint warnings, trust/consent information, and supported-method information clear.
-- [ ] Preserve whole-row navigation and mint selection behavior; selection remains a simple list.
-- [ ] Validate mint navigation and selection tests; review empty and unreachable states on device.
+- [x] Review mint management, Add mint, discovery, profile, details, and mint selection.
+- [x] Align grouped surfaces, row density, artwork slots, amount alignment, and metadata text.
+- [x] Keep mint warnings, trust/consent information, and supported-method information clear.
+- [x] Preserve whole-row navigation and mint selection behavior; selection remains a simple list.
+- [x] Pass type checking and 70 focused mint navigation, profile, details, contact, and selector tests.
+- [ ] Review light/dark appearance, large text, long amounts, empty/unreachable states, and real
+      connection/removal flows on a device.
+
+Connected/discovered mint rows and their loading placeholders use `px="$3"`, 14-point labels,
+12-point hostnames, and 32-point artwork in clipped neutral groups. Details use the approved
+balance typography and Home-style action cards. The connection sheet has a left close control
+that is disabled while connecting. Mint management already uses Settings groups. At the user's
+request, `HomeMintSelector.tsx` is excluded from styling changes and remains unchanged.
 
 ### 3. Payment entry
 

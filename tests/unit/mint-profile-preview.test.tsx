@@ -146,6 +146,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'ChevronUp',
       'ExternalLink',
       'RefreshCw',
+      'X',
     ].map((name) => [name, name]),
   ),
 );
@@ -384,7 +385,7 @@ it('opens the colored terms link in the browser with an external-link icon', asy
   const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
   await render();
   const terms = row('Terms of service');
-  expect(terms.props.valueColor).toBe('$accentColor');
+  expect(terms.props.valueColor).toBe('$gray10');
   expect(terms.props.rightContent.type).toBe('ExternalLink');
   expect(terms.props.isCopyable).toBeUndefined();
   await act(async () => terms.props.onPress());
@@ -497,6 +498,18 @@ it('shows mint identity and disclaimer, then connects only after confirmation', 
   });
 });
 
+it('lets users close the connection sheet without trusting or adding a mint', async () => {
+  await render();
+  await act(async () => button('Connect').props.onPress());
+  const close = tree.root
+    .findAllByType('AppIconButton' as any)
+    .find((node) => node.props.accessibilityLabel === 'Close mint connection')!;
+  await act(async () => close.props.onPress());
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
 it('keeps the confirmation open when the wallet reports an add error', async () => {
   useWalletStore.setState({
     addMint: jest.fn(async () => {
@@ -533,6 +546,11 @@ it('blocks duplicate confirmation and dismissal while connecting', async () => {
     void confirm();
   });
   expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(
+    tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Close mint connection')!.props.disabled,
+  ).toBe(true);
   expect(button('Confirm').props).toMatchObject({
     disabled: true,
     loading: true,

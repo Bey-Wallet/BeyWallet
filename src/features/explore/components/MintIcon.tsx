@@ -48,7 +48,7 @@ export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
       shrink={0}
     >
       {showLoading ? (
-        <Spinner size="small" color="#888" />
+        <Spinner size="small" color="$iconSecondary" />
       ) : showPrimary ? (
         <RemoteImage
           source={{ uri: primaryIcon, width: size, height: size }}

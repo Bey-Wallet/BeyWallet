@@ -82,6 +82,14 @@ username, or supporter prompt cards; their dedicated destinations remain availab
 Satoshi amounts default to the Bitcoin symbol (`₿`) rather than the `sat` suffix. An explicitly
 saved symbol preference is respected; this changes presentation only, not amount units.
 
+Add/Discover mint lists use the Home neutral palette, clipped `$6` groups, full-width 2-point
+separators, 32-point artwork, 14-point names/balances, and 12-point hostnames. Their rows and
+loading placeholders use `px="$3"`. Mint details use the shared 40-point balance typography,
+muted 14-point conversions, and Home-style Deposit/Withdraw/Transfer action cards. Profile
+descriptions use compact grouped surfaces. Connection consent keeps its trust disclaimer and
+warning colors, with a left close control disabled during connection. HomeMintSelector retains
+its existing layout.
+
 The fiat picker shows all 25 current choices plus None without a More currencies step.
 VND, PHP, IDR and ARS are no longer offered. Their metadata remains available for saved
 preferences and imported backups; NGN and THB remain selectable. PLN and CZK use their

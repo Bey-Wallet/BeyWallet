@@ -120,7 +120,7 @@ export function MintPreviewMethods({ info }: { info: Info }) {
           {expanded &&
             rows.map((row, index) => (
               <YStack key={index} gap="$2">
-                <Text color="$gray10" fontSize={13}>
+                <Text color="$gray10" fontSize={12} lineHeight={16}>
                   {row.direction} · {methodName(row.method)}
                   {row.unit ? ` · ${row.unit}` : ''}
                 </Text>
