@@ -259,78 +259,84 @@ export function PendingTokenLayout({
         }
       >
         {!hideDetails && (
-          <ListTable compact>
-            <PaymentStatusRow
-              status={
-                headerStatus === 'failed'
-                  ? 'error'
-                  : headerStatus === 'success'
-                    ? 'success'
-                    : 'pending'
-              }
-              value={
-                headerStatus === 'success'
-                  ? 'Claimed'
-                  : headerStatus === 'failed'
-                    ? 'Failed'
-                    : onClaim
-                      ? 'Unclaimed'
-                      : 'Awaiting recipient'
-              }
-              onRefresh={onCheckStatus}
-              checking={isCheckingStatus}
-              disabled={isClaiming || isReclaiming}
-              valueColor={headerStatus === 'failed' ? '$red10' : undefined}
-            />
-            <ListTableRow
-              label="Token"
-              value={
-                currentToken.length > 24
-                  ? currentToken.slice(0, 12) + '…' + currentToken.slice(-8)
-                  : currentToken
-              }
-              isCopyable
-              copyValue={currentToken}
-              onCopy={handleCopy}
-            />
-            <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
-              {!hideDetails && (
-                <>
-                  {displayFee > 0 && <DetailRowItem label="Mint Fee" value={`${displayFee} sat`} />}
-                  {!!reclaimAt && (
+          <>
+            <ListTable compact>
+              <PaymentStatusRow
+                status={
+                  headerStatus === 'failed'
+                    ? 'error'
+                    : headerStatus === 'success'
+                      ? 'success'
+                      : 'pending'
+                }
+                value={
+                  headerStatus === 'success'
+                    ? 'Claimed'
+                    : headerStatus === 'failed'
+                      ? 'Failed'
+                      : onClaim
+                        ? 'Unclaimed'
+                        : 'Awaiting recipient'
+                }
+                onRefresh={onCheckStatus}
+                checking={isCheckingStatus}
+                disabled={isClaiming || isReclaiming}
+                valueColor={headerStatus === 'failed' ? '$red10' : undefined}
+              />
+              <ListTableRow
+                label="Token"
+                value={
+                  currentToken.length > 24
+                    ? currentToken.slice(0, 12) + '…' + currentToken.slice(-8)
+                    : currentToken
+                }
+                isCopyable
+                copyValue={currentToken}
+                onCopy={handleCopy}
+              />
+              <YGroup separator={<YStack height={2} width="100%" bg="$background" />}>
+                {!hideDetails && (
+                  <>
+                    {displayFee > 0 && (
+                      <DetailRowItem label="Mint Fee" value={`${displayFee} sat`} />
+                    )}
+                    {!!reclaimAt && (
+                      <DetailRowItem
+                        label="Reclaim eligible"
+                        value={formatPaymentDateTime(reclaimAt)}
+                      />
+                    )}
+                    {!!expiresAt && (
+                      <DetailRowItem label="Expiry" value={timeLeftStr || 'Checking...'} />
+                    )}
+                    {displayNpub && (
+                      <DetailRowItem
+                        label="Locked To"
+                        value={
+                          displayNpub === npub
+                            ? 'You (Safe)'
+                            : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`
+                        }
+                        isCopyable={displayNpub !== npub}
+                        onCopy={async () => {
+                          if (!(await copyWithFeedback(displayNpub, toast))) return;
+                          Haptics.selectionAsync();
+                          toast.showFeedback(interactionCopy.publicKeyCopied);
+                        }}
+                      />
+                    )}
                     <DetailRowItem
-                      label="Reclaim eligible"
-                      value={formatPaymentDateTime(reclaimAt)}
-                    />
-                  )}
-                  {!!expiresAt && (
-                    <DetailRowItem label="Expiry" value={timeLeftStr || 'Checking...'} />
-                  )}
-                  {displayNpub && (
-                    <DetailRowItem
-                      label="Locked To"
+                      label="Mint"
                       value={
-                        displayNpub === npub
-                          ? 'You (Safe)'
-                          : `${displayNpub.substring(0, 10)}...${displayNpub.substring(displayNpub.length - 6)}`
+                        mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'
                       }
-                      isCopyable={displayNpub !== npub}
-                      onCopy={async () => {
-                        if (!(await copyWithFeedback(displayNpub, toast))) return;
-                        Haptics.selectionAsync();
-                        toast.showFeedback(interactionCopy.publicKeyCopied);
-                      }}
                     />
-                  )}
-                  <DetailRowItem
-                    label="Mint"
-                    value={mintUrl ? mintUrl.replace(/^https?:\/\//, '').split('/')[0] : 'Unknown'}
-                  />
-                </>
-              )}
-            </YGroup>
+                  </>
+                )}
+              </YGroup>
+            </ListTable>
             {extraDetails}
-          </ListTable>
+          </>
         )}
         {onReclaim && !onClaim && (
           <AppButton

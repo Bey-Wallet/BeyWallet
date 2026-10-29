@@ -110,7 +110,7 @@ it('holds cold-start taps behind authentication and clears the consumed native r
   mockAuthenticated = true;
   await tick();
   expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/(modals)/txn-details',
+    pathname: '/txn-details',
     params: { id: '12' },
   });
   expect(Notifications.clearLastNotificationResponseAsync).toHaveBeenCalled();

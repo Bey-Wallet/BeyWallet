@@ -12,6 +12,7 @@ export function TransferHistoryReceipt({
   targetMintUrl,
   onClose,
   headerRight,
+  extraDetails,
 }: {
   id: string;
   amount: number;
@@ -19,6 +20,7 @@ export function TransferHistoryReceipt({
   targetMintUrl: string;
   onClose: () => void;
   headerRight?: () => React.ReactNode;
+  extraDetails?: React.ReactNode;
 }) {
   const result = useQuery({
     queryKey: ['mintTransfer', id],
@@ -35,6 +37,10 @@ export function TransferHistoryReceipt({
         }}
       />
       <ResultStage
+        extraDetails={extraDetails}
+        headerRight={
+          record && ['completed', 'failed'].includes(record.state) ? headerRight : undefined
+        }
         status={
           record?.state === 'completed'
             ? 'success'

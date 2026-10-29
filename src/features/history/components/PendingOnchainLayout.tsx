@@ -103,9 +103,9 @@ export function PendingOnchainLayout({
             isCopyable={!!destination}
             copyValue={destination}
           />
-          {extraDetails}
           {transactionDetails}
         </ListTable>
+        {extraDetails}
       </PaymentStageLayout>
     </>
   );

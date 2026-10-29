@@ -402,7 +402,7 @@ export default function ConversationScreen() {
     actionLabel = 'View transaction';
     onAction = () => {
       messageSheet.current?.dismiss();
-      router.push({ pathname: '/(modals)/txn-details', params: { id: selected.history!.id } });
+      router.push({ pathname: '/txn-details', params: { id: selected.history!.id } });
     };
   }
 

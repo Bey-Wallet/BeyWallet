@@ -1,5 +1,6 @@
 import React from 'react';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { useLightningReceipt } from '../useLightningReceipt';
 export function MeltResultStage({
   status,
   amount,
@@ -9,6 +10,9 @@ export function MeltResultStage({
   error,
   onClose,
   onRefresh,
+  invoice,
+  quoteId,
+  recipient,
 }: {
   status: 'success' | 'error' | 'pending' | 'unresolved';
   amount: number;
@@ -19,9 +23,22 @@ export function MeltResultStage({
   error?: string | null;
   onClose: () => void;
   onRefresh?: () => void | Promise<void>;
+  invoice?: string;
+  quoteId?: string;
+  recipient?: string | null;
 }) {
+  const details = useLightningReceipt({
+    mintUrl,
+    quoteId,
+    invoice,
+    recipient,
+    incoming: false,
+    state: status === 'success' ? 'paid' : status,
+    amount,
+  });
   return (
     <PaymentReceipt
+      extraDetails={details.extraDetails}
       status={status === 'success' ? 'success' : status === 'error' ? 'error' : 'pending'}
       title={
         status === 'success'
@@ -41,6 +58,8 @@ export function MeltResultStage({
       onCheckStatus={status === 'pending' || status === 'unresolved' ? onRefresh : undefined}
       error={error}
       onClose={onClose}
-    />
+    >
+      {details.rows}
+    </PaymentReceipt>
   );
 }

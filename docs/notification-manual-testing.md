@@ -139,3 +139,9 @@ capability.
 
 For each check, record: platform/OS, build, wallet lock and hidden-balance state, permission settings,
 what event Bey actually detected, visual count, haptic count, tap destination, and pass/fail/not observed.
+
+Settled receipt destinations open as outlined bottom sheets; pending and review-needed destinations
+use full screens. Follow the
+[transaction receipt device checklist](transaction-receipts.md#manual-checks-on-android-and-ios-preview-builds)
+for cold/warm taps, nested details, locked state, gestures, and protected claim/reclaim actions.
+These native sheet checks remain **not observed** until performed on Android/iOS preview builds.

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const expectedRoutes = [
+  'txn-details.tsx',
   '+html.tsx',
   '+native-intent.tsx',
   '(modals)/+not-found.tsx',

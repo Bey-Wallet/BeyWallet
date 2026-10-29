@@ -7,9 +7,9 @@ The playground reflects the consolidated button styles and shared corner-radius 
 Under **List tables → Table style**, choose **Filled** or **Outlined**. Outlined tables have a
 transparent background and matching soft-contrast 2-point neutral outer borders and row dividers, retaining
 the same `$6` corners and compact spacing. Compare both styles in light and dark preview themes;
-copy, actions, disabled controls, and long values use the same shared rows. Filled remains the app
-default for payment flows and transaction details. The outlined style remains available in the
-playground for review through the explicit `variant="outlined"` prop.
+copy, actions, disabled controls, and long values use the same shared rows. Filled remains the base
+component default. Transaction receipt sheets and result receipts use the outlined style; both
+styles remain available in the playground. See [transaction receipts](transaction-receipts.md).
 
 Payment summaries and transaction details use the compact `ListTable` shown here: 14-point text,
 48-point minimum row height, `$6` grouped corners, and full-width separators. Mint/balance selectors,

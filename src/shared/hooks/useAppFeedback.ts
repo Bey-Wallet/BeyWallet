@@ -60,7 +60,7 @@ export function useAppFeedback() {
           return;
         }
         if (entry) {
-          router.push({ pathname: '/(modals)/txn-details', params: { id: target.id } });
+          router.push({ pathname: '/txn-details', params: { id: target.id } });
           return;
         }
       } else if (target.type === 'conversation') {

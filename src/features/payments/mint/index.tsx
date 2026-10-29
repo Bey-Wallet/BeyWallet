@@ -204,6 +204,8 @@ export default function MintScreen() {
 
       {step === 'result' && (
         <ResultStage
+          invoice={quoteData?.invoice}
+          quoteId={quoteData?.quoteId}
           status={status}
           amount={amount}
           mintUrl={activeMintUrl || undefined}

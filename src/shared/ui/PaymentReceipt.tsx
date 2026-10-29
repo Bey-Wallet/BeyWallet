@@ -11,6 +11,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { currencyService } from '~/services/wallet/currencyService';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { formatPaymentDateTime } from '~/shared/utils/time';
+import { useReceiptSheet } from '~/shared/ui/ReceiptSheetContext';
 
 export function PaymentReceipt({
   title,
@@ -31,6 +32,8 @@ export function PaymentReceipt({
   children,
   onClose,
   navigationAction = 'close',
+  extraDetails,
+  headerRight,
 }: {
   title: string;
   amount: number;
@@ -50,88 +53,99 @@ export function PaymentReceipt({
   children?: React.ReactNode;
   onClose: () => void;
   navigationAction?: 'back' | 'close';
+  extraDetails?: React.ReactNode;
+  headerRight?: () => React.ReactNode;
 }) {
   const mints = useWalletStore((s) => s.mints);
   const mint = mints.find((m) => m.mintUrl.replace(/\/$/, '') === mintUrl?.replace(/\/$/, ''));
   const [details, setDetails] = useState(false);
+  const sheet = useReceiptSheet();
   const receiptStatus = status ?? (completed ? 'success' : error ? 'error' : 'pending');
   return (
-    <PaymentStageLayout
-      variant="receipt"
-      inset={inset}
-      hero={
-        <>
-          <PaymentStatusIcon status={receiptStatus} />
-          <Text
-            accessibilityRole="header"
-            fontSize={16}
-            fontWeight="500"
-            color="$color"
-            textAlign="center"
+    <>
+      {sheet && <PaymentFlowHeader title={title} headerRight={headerRight} />}
+      <PaymentStageLayout
+        variant="receipt"
+        inset={inset}
+        hero={
+          <>
+            <PaymentStatusIcon status={receiptStatus} />
+            <Text
+              accessibilityRole="header"
+              fontSize={16}
+              fontWeight="500"
+              color="$color"
+              textAlign="center"
+            >
+              {title}
+            </Text>
+            <PaymentAmount
+              amount={amount}
+              size={receiptStatus === 'pending' ? 'standard' : 'prominent'}
+              compact
+              testID={amountTestID}
+            />
+            {!!error && (
+              <>
+                <AppButton
+                  size="small"
+                  emphasis="text"
+                  accessibilityState={{ expanded: details }}
+                  onPress={() => setDetails(!details)}
+                >
+                  {details ? 'Hide details' : 'View details'}
+                </AppButton>
+                {details && (
+                  <Text color="$gray10" selectable>
+                    {error}
+                  </Text>
+                )}
+              </>
+            )}
+          </>
+        }
+        footer={
+          <AppButton
+            variant="default"
+            emphasis={actionEmphasis}
+            size="large"
+            fullWidth
+            onPress={onClose}
           >
-            {title}
-          </Text>
-          <PaymentAmount
-            amount={amount}
-            size={receiptStatus === 'pending' ? 'standard' : 'prominent'}
-            compact
-            testID={amountTestID}
-          />
-          {!!error && (
-            <>
-              <AppButton
-                size="small"
-                emphasis="text"
-                accessibilityState={{ expanded: details }}
-                onPress={() => setDetails(!details)}
-              >
-                {details ? 'Hide details' : 'View details'}
-              </AppButton>
-              {details && (
-                <Text color="$gray10" selectable>
-                  {error}
-                </Text>
-              )}
-            </>
+            {actionLabel}
+          </AppButton>
+        }
+      >
+        {!sheet && (
+          <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
+        )}
+        <ListTable compact variant="outlined">
+          {receiptStatus === 'pending' && onCheckStatus && (
+            <PaymentStatusRow
+              status="pending"
+              value={statusLabel ?? 'Pending'}
+              onRefresh={onCheckStatus}
+              checking={isCheckingStatus}
+            />
           )}
-        </>
-      }
-      footer={
-        <AppButton
-          variant="default"
-          emphasis={actionEmphasis}
-          size="large"
-          fullWidth
-          onPress={onClose}
-        >
-          {actionLabel}
-        </AppButton>
-      }
-    >
-      <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
-      <ListTable compact>
-        {receiptStatus === 'pending' && onCheckStatus && (
-          <PaymentStatusRow
-            status="pending"
-            value={statusLabel ?? 'Pending'}
-            onRefresh={onCheckStatus}
-            checking={isCheckingStatus}
-          />
-        )}
-        {mintUrl && (
-          <ListTableRow
-            label="Mint"
-            value={
-              mint?.nickname || mint?.name || mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-            }
-          />
-        )}
-        {time != null && <ListTableRow label="Time" value={formatPaymentDateTime(time)} />}
-        {completed && fee != null && Number.isFinite(fee) && fee > 0 && (
-          <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
-        )}
-        {children}
-      </ListTable>
-    </PaymentStageLayout>
+          {mintUrl && (
+            <ListTableRow
+              label="Mint"
+              value={
+                mint?.nickname ||
+                mint?.name ||
+                mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+              }
+            />
+          )}
+          {time != null && <ListTableRow label="Time" value={formatPaymentDateTime(time)} />}
+          {completed && fee != null && Number.isFinite(fee) && fee > 0 && (
+            <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
+          )}
+          {children}
+        </ListTable>
+        {extraDetails}
+      </PaymentStageLayout>
+    </>
   );
 }

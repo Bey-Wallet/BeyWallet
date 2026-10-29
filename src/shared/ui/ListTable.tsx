@@ -12,11 +12,13 @@ import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appeara
 const CompactTableContext = createContext(true);
 const TableRowContext = createContext<string | null>(null);
 export type ListTableVariant = 'filled' | 'outlined';
+const ListTableVariantContext = createContext<ListTableVariant>('filled');
+export const ListTableVariantProvider = ListTableVariantContext.Provider;
 
 export function ListTable({
   children,
   compact = true,
-  variant = 'filled',
+  variant: variantProp,
   ...props
 }: {
   children: React.ReactNode;
@@ -24,6 +26,8 @@ export function ListTable({
   variant?: ListTableVariant;
   [key: string]: any;
 }) {
+  const inheritedVariant = useContext(ListTableVariantContext);
+  const variant = variantProp ?? inheritedVariant;
   return (
     <CompactTableContext.Provider value={compact}>
       <YStack
@@ -64,6 +68,7 @@ export function ListTableRow({
   compact: compactProp,
   disabled = false,
   selected,
+  expanded,
 }: {
   label: string;
   value?: React.ReactNode;
@@ -81,6 +86,7 @@ export function ListTableRow({
   compact?: boolean;
   disabled?: boolean;
   selected?: boolean;
+  expanded?: boolean;
 }) {
   const toast = useAppToast();
   const inheritedCompact = useContext(CompactTableContext);
@@ -88,7 +94,8 @@ export function ListTableRow({
   const compact = compactProp ?? inheritedCompact;
   const wrap = compact || multiline;
 
-  const handleCopy = async () => {
+  const handleCopy = async (event?: { stopPropagation?: () => void }) => {
+    event?.stopPropagation?.();
     if (disabled) return;
     if (onCopy) {
       onCopy();
@@ -196,7 +203,11 @@ export function ListTableRow({
       <YStack
         accessibilityLabel={label}
         accessibilityRole="button"
-        accessibilityState={{ disabled, ...(selected === undefined ? {} : { selected }) }}
+        accessibilityState={{
+          disabled,
+          ...(selected === undefined ? {} : { selected }),
+          ...(expanded === undefined ? {} : { expanded }),
+        }}
         minHeight={48}
         disabled={disabled}
         opacity={disabled ? 0.5 : 1}

@@ -138,7 +138,7 @@ export function RequestEcashStage({
     )
       return;
     openedNfcReceipt.current = receiptId;
-    router.replace({ pathname: '/(modals)/txn-details', params: { id: receiptId } });
+    router.replace({ pathname: '/txn-details', params: { id: receiptId } });
   }, [nfcIncoming, currentRequestId, router]);
   const nfcRequest = useMemo(() => {
     const request = useNostrRequestStore

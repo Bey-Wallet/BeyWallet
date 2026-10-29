@@ -15,11 +15,17 @@ const mockToast = jest.fn();
 const mockPreventRemove = jest.fn();
 const mockOffline = jest.fn();
 let mockEntry: any;
+let mockMintQuote: any = null;
+let mockSnapshotPending = false;
+const mockExpireUpdate = jest.fn();
 const mockSetQuery = jest.fn((_key: unknown, update: (entry: any) => any) => {
   mockEntry = update(mockEntry);
 });
 const mockRepo = {
-  historyRepository: { updateHistoryEntryState: mockUpdate },
+  historyRepository: {
+    updateHistoryEntryState: mockUpdate,
+    updateHistoryMintEntry: mockExpireUpdate,
+  },
   proofRepository: { deleteProofs: mockDeleteProofs },
 };
 jest.mock('~/services/wallet/reclaimPayment', () => ({
@@ -50,8 +56,16 @@ jest.mock('~/state/settingsStore', () => ({
 }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: any) => ({
-    data: queryKey[0] === 'transaction' ? mockEntry : null,
+    data:
+      queryKey[0] === 'transaction'
+        ? mockEntry
+        : queryKey[0] === 'receiptSnapshot'
+          ? {}
+          : queryKey[0] === 'mintQuote'
+            ? mockMintQuote
+            : null,
     refetch: mockRefetch,
+    isPending: queryKey[0] === 'receiptSnapshot' ? mockSnapshotPending : undefined,
     isRefetching: false,
   }),
   useQueryClient: () => ({
@@ -86,7 +100,14 @@ jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'Table',
   ListTableRow: 'Row',
 }));
+jest.mock('~/features/history/components/TransactionReceiptSheet', () => ({
+  TransactionReceiptSheet: ({ children, ...props }: any) =>
+    require('react').createElement('ReceiptSheet', props, children),
+}));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
+jest.mock('@gorhom/bottom-sheet', () => ({
+  BottomSheetModalProvider: ({ children }: any) => children,
+}));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({ __esModule: true, default: 'Sheet' }));
 jest.mock('~/features/history/components/PendingOnchainLayout', () => ({
   PendingOnchainLayout: 'Onchain',
@@ -121,6 +142,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 beforeEach(() => {
+  mockMintQuote = null;
+  mockSnapshotPending = false;
   jest.useFakeTimers({ doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
   jest.clearAllMocks();
   mockEntry = {
@@ -155,6 +178,48 @@ async function render() {
 }
 const pending = () => tree.root.findByType('PendingToken' as any);
 
+it('waits for local receipt details before opening the final presentation', async () => {
+  mockSnapshotPending = true;
+  await render();
+  expect(tree.root.findByType('ReceiptSheet' as any).props.ready).toBe(false);
+  mockSnapshotPending = false;
+  await act(async () => {
+    tree.update(<TransactionDetailsScreen />);
+  });
+  expect(tree.root.findByType('ReceiptSheet' as any).props.ready).toBe(true);
+});
+
+it('does not turn a paid invoice into failure when its display expiry passes', async () => {
+  mockEntry = { ...mockEntry, type: 'mint', state: 'PAID', quoteId: 'quote' };
+  mockMintQuote = { expiry: Math.floor(Date.now() / 1000) - 1, state: 'PAID' };
+  await render();
+  await act(async () => {
+    jest.advanceTimersByTime(1500);
+  });
+  expect(mockExpireUpdate).not.toHaveBeenCalled();
+  expect(mockEntry.state).toBe('PAID');
+});
+
+it('retires an expired invoice QR without writing a financial failure', async () => {
+  mockEntry = {
+    ...mockEntry,
+    type: 'mint',
+    state: 'UNPAID',
+    quoteId: 'quote',
+    paymentRequest: 'lnbc-synthetic-invoice',
+  };
+  // render() advances the initial polling clock by three seconds.
+  mockMintQuote = { expiry: Math.floor(Date.now() / 1000) + 5, state: 'UNPAID' };
+  await render();
+  expect(tree.root.findAllByType('Invoice' as any)).toHaveLength(1);
+  await act(async () => {
+    jest.advanceTimersByTime(2500);
+  });
+  expect(tree.root.findAllByType('Invoice' as any)).toHaveLength(0);
+  expect(mockExpireUpdate).not.toHaveBeenCalled();
+  expect(mockEntry.state).toBe('UNPAID');
+});
+
 it('guards duplicate taps, pauses polling, and immediately displays persisted reclaim success', async () => {
   const operation = deferred<string>();
   mockReclaim.mockReturnValueOnce(operation.promise);
@@ -177,6 +242,7 @@ it('guards duplicate taps, pauses polling, and immediately displays persisted re
     await Promise.all([first, second]);
   });
   expect(mockEntry.state).toBe('expired');
+  expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe('Reclaimed');
   expect(mockSetQuery).toHaveBeenCalledTimes(1);
   expect(mockCancelQueries).toHaveBeenCalledWith({
     queryKey: ['transaction', 'entry'],

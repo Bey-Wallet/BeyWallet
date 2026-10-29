@@ -643,7 +643,7 @@ it('replaces the request with the exact verified NFC transaction once', async ()
   mockNfcIncoming = { status: 'idle', requestId: request.id, receiptId: 'verified-nfc-receipt' };
   await act(async () => tree.update(<RequestEcashStage />));
   expect(mockRouter.replace).toHaveBeenCalledWith({
-    pathname: '/(modals)/txn-details',
+    pathname: '/txn-details',
     params: { id: 'verified-nfc-receipt' },
   });
   await act(async () => tree.update(<RequestEcashStage />));

@@ -22,25 +22,19 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { networkService } from '~/services/platform/networkService';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, ScrollView, Separator } from 'tamagui';
-import { ArrowDownLeft, AlertCircle, Trash2 } from '@tamagui/lucide-icons';
+import { YStack, XStack, Text } from 'tamagui';
+import { Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
-import QRCode from 'react-native-qrcode-svg';
-import { UR, UREncoder } from '@gandlaf21/bc-ur';
-import { Buffer } from 'buffer';
 import { formatPaymentDateTime } from '~/shared/utils/time';
+import { onchainNetwork, onchainNetworkDisplay } from '~/shared/utils/onchain';
 import {
   historyService,
   initService,
   proofService,
   cleanToken,
   decodeToken,
-  encodeToken,
-  encodePeanut,
-  encodeTokenV4,
-  encodeTokenV3,
   walletService,
   quotesService,
 } from '~/services/wallet';
@@ -49,7 +43,8 @@ import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import { PendingMintInvoiceLayout } from '~/features/history/components/PendingMintInvoiceLayout';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { usePreventRemove } from '@react-navigation/native';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
+import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useSettingsStore } from '~/state/settingsStore';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -57,13 +52,20 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
-import { BadgeStatus } from '~/shared/ui/StatusBadge';
+import { TransactionReceiptSheet } from './components/TransactionReceiptSheet';
+import { ReceiptExtraDetails } from './components/ReceiptExtraDetails';
+import {
+  buildReceiptDetails,
+  needsFullScreenReceipt,
+  type ReceiptSnapshot,
+} from './receiptDetails';
+import {
+  readLightningRecipient,
+  readLightningReceiptSnapshot,
+  removeLightningRecipient,
+} from '~/services/wallet/lightningReceiptContext';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-
-// Ensure Buffer is available globally
-if (typeof global.Buffer === 'undefined') {
-  global.Buffer = Buffer;
-}
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 interface HistoryEntry {
   id: string;
@@ -76,15 +78,25 @@ interface HistoryEntry {
   metadata?: any;
   token?: any;
   operationId?: string;
+  quoteId?: string;
+  paymentRequest?: string;
 }
 
 export function TransactionDetailsScreen() {
+  return (
+    <BottomSheetModalProvider>
+      <TransactionDetailsContent />
+    </BottomSheetModalProvider>
+  );
+}
+
+function TransactionDetailsContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const toast = useAppToast();
   const params = useLocalSearchParams<{ id: string }>();
   const id = params.id?.toString();
-  const { primaryCurrency, secondaryCurrency } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
   const deleteSheetRef = useRef<AppBottomSheetRef>(null);
 
   const handleDeleteTransaction = async () => {
@@ -93,6 +105,7 @@ export function TransactionDetailsScreen() {
     try {
       // Delete history entry
       await historyService.deleteHistoryEntries([String(entry.id)]);
+      removeLightningRecipient(npub, entry.mintUrl, entry.quoteId);
 
       // If it has proofs (tokens), delete them too if it's pending/expired
       if (token) {
@@ -126,6 +139,7 @@ export function TransactionDetailsScreen() {
     data: entry,
     refetch,
     isRefetching,
+    isPending: entryLoading,
   } = useQuery({
     queryKey: ['transaction', id],
     queryFn: async () => {
@@ -167,6 +181,9 @@ export function TransactionDetailsScreen() {
 
   // Fetch corresponding mint quote from DB to get the actual expiry
   const onchain = !!entry && isOnchainHistory(entry);
+  useFeedbackOwner(
+    [entry?.quoteId, entry?.operationId, entry?.id].filter((value): value is string => !!value),
+  );
   const { data: mintQuote, refetch: refetchMintQuote } = useQuery({
     queryKey: ['mintQuote', entry?.mintUrl, (entry as any)?.quoteId],
     queryFn: async () => {
@@ -188,6 +205,26 @@ export function TransactionDetailsScreen() {
     enabled: !!entry && !onchain && entry.type === 'mint' && !!(entry as any).quoteId,
   });
 
+  const { data: receiptSnapshot, isPending: receiptSnapshotLoading } = useQuery<ReceiptSnapshot>({
+    queryKey: ['receiptSnapshot', entry?.id, entry?.state, entry?.mintUrl, entry?.quoteId, npub],
+    enabled: !!entry,
+    queryFn: async () => {
+      if (!entry) return {};
+      const recipient = readLightningRecipient(
+        useSettingsStore.getState().npub,
+        entry.mintUrl,
+        entry.quoteId,
+      );
+      if (onchain || !entry.quoteId) return { recipient };
+      return readLightningReceiptSnapshot(
+        npub,
+        entry.mintUrl,
+        entry.quoteId,
+        entry.type === 'mint',
+      );
+    },
+  });
+
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -204,16 +241,6 @@ export function TransactionDetailsScreen() {
     return currencyService.convertSatsToCurrency(displayedAmount, btcData.price);
   }, [displayedAmount, btcData?.price, secondaryCurrency]);
 
-  const formattedAmountTitle = useMemo(() => {
-    if (!entry) return '';
-    const amt = displayedAmount;
-    if (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE') {
-      return currencyService.formatSats(Number(amt));
-    } else {
-      return currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
-    }
-  }, [entry, displayedAmount, primaryCurrency, fiatAmount, secondaryCurrency]);
-
   const [token, setToken] = useState('');
   const notes = useMemo(() => (entry ? getTransactionNotes(entry) : []), [entry]);
   useEffect(() => {
@@ -223,8 +250,8 @@ export function TransactionDetailsScreen() {
 
   const isQuoteExpired = useMemo(() => {
     if (!mintQuote?.expiry) return false;
-    return mintQuote.expiry < Date.now() / 1000;
-  }, [mintQuote?.expiry]);
+    return timeLeft === 0 || mintQuote.expiry <= Date.now() / 1000;
+  }, [mintQuote?.expiry, timeLeft]);
 
   useEffect(() => {
     if (onchain || !mintQuote?.expiry) {
@@ -245,43 +272,26 @@ export function TransactionDetailsScreen() {
       setTimeLeft(remaining);
       if (remaining <= 0) {
         clearInterval(timer);
-        // Mark in DB as failed if it is still UNPAID/pending in history
-        const repo = initService.getRepo();
-        if (
-          repo?.historyRepository &&
-          entry &&
-          (entry.state === 'UNPAID' || entry.state === 'PAID')
-        ) {
-          (repo.historyRepository as any)
-            .updateHistoryMintEntry(entry.mintUrl, (entry as any).quoteId, 'failed')
-            .then(() => {
-              console.log('[TransactionDetails] Marked expired quote as failed in database');
-              refetch();
-              refetchMintQuote();
-              queryClient.invalidateQueries({ queryKey: ['history'] });
-            })
-            .catch((e) =>
-              console.warn('[TransactionDetails] Failed to update expired quote in DB:', e),
-            );
-        } else {
-          refetch();
-          refetchMintQuote();
-          queryClient.invalidateQueries({ queryKey: ['history'] });
-        }
+        // Expiry is display information, not evidence that a payment failed.
+        // In particular, a paid invoice can still be awaiting ecash issuance.
+        void refetch();
+        void refetchMintQuote();
+        void queryClient.invalidateQueries({ queryKey: ['history'] });
       }
     }, 1000);
 
     return () => clearInterval(timer);
   }, [mintQuote?.expiry, entry?.id, onchain]);
-  const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const [isReclaiming, setIsReclaiming] = useState(false);
+  const [reclaimOutcome, setReclaimOutcome] = useState<'reclaimed' | 'claimed'>();
+  useEffect(() => setReclaimOutcome(undefined), [id]);
   const [isClaiming, setIsClaiming] = useState(false);
   const claimLock = useRef(false);
-  usePreventRemove(isReclaiming || isClaiming, () => {});
   const reclaimLock = useRef(false);
   const refreshLock = useRef(false);
   const refreshRevision = useRef(0);
   const [isCheckingPaid, setIsCheckingPaid] = useState(false);
+  useSettingsBusy(isReclaiming || isClaiming || isCheckingPaid);
 
   const status = (entry?.state || 'completed').trim().toLowerCase();
 
@@ -289,12 +299,6 @@ export function TransactionDetailsScreen() {
     if (!entry) return false;
     const s = (entry.state || '').toUpperCase();
     return entry.type === 'mint' && (s === 'UNPAID' || s === 'PAID');
-  }, [entry]);
-
-  const isPendingSend = useMemo(() => {
-    if (!entry) return false;
-    const s = (entry.state || '').toUpperCase();
-    return entry.type === 'send' && (s === 'PENDING' || s === 'UNCLAIMED');
   }, [entry]);
 
   const metadata = useMemo(() => {
@@ -310,6 +314,14 @@ export function TransactionDetailsScreen() {
   }, [entry?.metadata]);
 
   const expiresAt = metadata?.expiresAt ? Number(metadata.expiresAt) : undefined;
+  const { data: transferRecord, isPending: transferLoading } = useQuery({
+    queryKey: ['mintTransfer', metadata?.transferId],
+    enabled: !!metadata?.transferId,
+    queryFn: async () => {
+      const { getMintTransferService } = await import('~/services/wallet/mintTransferService');
+      return getMintTransferService().refresh(metadata.transferId);
+    },
+  });
 
   const handleReclaim = async () => {
     if (!entry || !token || reclaimLock.current || claimLock.current) return;
@@ -323,6 +335,7 @@ export function TransactionDetailsScreen() {
       const nextState =
         result === 'claimed' ? 'claimed' : metadata?.reclaimAt ? 'refunded' : 'expired';
       await repo.historyRepository.updateHistoryEntryState(entry.id, nextState);
+      setReclaimOutcome(result);
       // The mint operation and local write have finished. Update this screen without another
       // proof-state round-trip, which would mistake our own redemption for a recipient claim.
       await queryClient.cancelQueries({ queryKey: ['transaction', id], exact: true });
@@ -332,7 +345,6 @@ export function TransactionDetailsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
       if (result === 'claimed') return;
-      toast.showFeedback(interactionCopy.fundsReclaimedToYourWallet);
 
       // Delete local inflight proofs if any
       try {
@@ -360,9 +372,13 @@ export function TransactionDetailsScreen() {
   useEffect(() => {
     setSavedInvoice(null);
     if (onchain) return;
-    if (isPendingMint) {
+    if (entry?.type === 'mint' || entry?.type === 'melt') {
       if (!entry) return;
       try {
+        if (receiptSnapshot?.request) {
+          setSavedInvoice(receiptSnapshot.request);
+          return;
+        }
         if ((entry as any).paymentRequest) {
           setSavedInvoice((entry as any).paymentRequest);
           return;
@@ -379,93 +395,21 @@ export function TransactionDetailsScreen() {
         console.error('[TransactionDetails] Failed to read saved invoice:', e);
       }
     }
-  }, [entry, isPendingMint, onchain]);
-
-  // Animated QR states
-  const [qrCodeFragment, setQrCodeFragment] = useState<string>('');
-  // UR animated QR is opt-in — standard wallets (Minibits, cashu.me, Sovan) expect plain cashu: QR
-  const [showAnimatedQR, setShowAnimatedQR] = useState(false);
-  const [fragmentLength, setFragmentLength] = useState(150); // L=150, M=100, S=50
-  const [intervalMs, setIntervalMs] = useState(140); // F=140, M=250, S=500
-  const [tokenVersion, setTokenVersion] = useState<'V3' | 'V4'>('V4');
-  const encoderRef = useRef<UREncoder | null>(null);
-
-  // Initialize/Update token version when token changes
-  useEffect(() => {
-    if (token && typeof token === 'string') {
-      setTokenVersion(token.startsWith('cashuB') ? 'V4' : 'V3');
-    }
-  }, [token]);
+  }, [entry, isPendingMint, onchain, receiptSnapshot?.request]);
 
   const [lockedToNpub, setLockedToNpub] = useState<string | null>(null);
-
   useEffect(() => {
+    setLockedToNpub(null);
     if (!token) return;
-
     try {
-      const clean = cleanToken(token);
-      if (!clean || typeof clean !== 'string') {
-        setShowAnimatedQR(false);
-        setQrCodeFragment(typeof token === 'string' ? `cashu:${token}` : '');
-        setLockedToNpub(null);
-        return;
-      }
-
-      const decoded = decodeToken(clean);
-      const proofs = decoded.proofs || [];
-
-      // Check for P2PK pubkey in the first proof secret
-      try {
-        if (proofs.length > 0) {
-          const firstSecret = proofs[0]?.secret;
-          if (typeof firstSecret === 'string') {
-            if (firstSecret.startsWith('["P2PK"')) {
-              const parsed = JSON.parse(firstSecret);
-              const hexPubkey = parsed[1]?.data;
-              if (hexPubkey) {
-                setLockedToNpub(nip19.npubEncode(hexPubkey));
-              } else {
-                setLockedToNpub(null);
-              }
-            } else {
-              setLockedToNpub(null);
-            }
-          } else {
-            setLockedToNpub(null);
-          }
-        }
-      } catch (e) {
-        console.warn('[TransactionDetails] Failed to parse P2PK secret:', e);
-        setLockedToNpub(null);
-      }
-
-      if (showAnimatedQR) {
-        // Only build UR encoder when animated mode is explicitly ON
-        const { encode: cborEncode } = require('cbor-x');
-        const cborBuffer = cborEncode(clean);
-        const ur = new UR(Buffer.from(cborBuffer), 'cashu');
-        encoderRef.current = new UREncoder(ur, fragmentLength, 0);
-        setQrCodeFragment(encoderRef.current.nextPart());
-      } else {
-        // Static plain cashu: QR — compatible with Minibits, cashu.me, Sovan
-        setQrCodeFragment(clean.startsWith('cashu:') ? clean : `cashu:${clean}`);
-      }
-    } catch (e) {
-      console.error('[TransactionDetails] Failed to setup QR:', e);
-      setShowAnimatedQR(false);
-      setQrCodeFragment(typeof token === 'string' ? `cashu:${token}` : '');
+      const secret = decodeToken(cleanToken(token)).proofs[0]?.secret;
+      if (typeof secret !== 'string' || !secret.startsWith('["P2PK"')) return;
+      const pubkey = JSON.parse(secret)[1]?.data;
+      if (pubkey) setLockedToNpub(nip19.npubEncode(pubkey));
+    } catch {
+      /* Malformed history must not expose raw proof data in diagnostics. */
     }
-  }, [token, fragmentLength, showAnimatedQR]);
-
-  useEffect(() => {
-    if (!showAnimatedQR || !encoderRef.current) return;
-
-    const interval = setInterval(() => {
-      setQrCodeFragment(encoderRef.current!.nextPart());
-    }, intervalMs);
-
-    return () => clearInterval(interval);
-  }, [showAnimatedQR, intervalMs]);
+  }, [token]);
 
   const title = useMemo(() => {
     const type = entry?.type;
@@ -485,61 +429,23 @@ export function TransactionDetailsScreen() {
     switch (type.toLowerCase()) {
       case 'send':
         if (via === 'nostr') return 'Sent via Nostr';
-        if (via === 'ecash_create') return 'Created Ecash Token';
-        return 'Sent Ecash';
+        if (via === 'ecash_create') return 'Ecash';
+        return 'Ecash payment';
       case 'receive':
         if (via === 'nostr') return 'Received via Nostr';
         if (via === 'qr' || via === 'scan') return 'Received via QR';
         if (via === 'nfc') return 'Received via NFC';
-        return 'Received Ecash';
+        return 'Ecash received';
       case 'mint':
-        if (via === 'onchain') return 'On-chain → Ecash';
-        return 'Lightning → Ecash';
+        if (via === 'onchain') return 'Bitcoin received';
+        return 'Lightning received';
       case 'melt':
-        if (via === 'onchain') return 'Ecash → On-chain';
-        return 'Ecash → Lightning';
+        if (via === 'onchain') return 'Bitcoin payment';
+        return 'Lightning payment';
       default:
         return 'Transaction';
     }
   }, [entry?.type, entry?.metadata]);
-
-  const handleCopyToken = async () => {
-    if (token) {
-      if (!(await copyWithFeedback(token, toast))) return;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.showFeedback(interactionCopy.ecashCopied);
-    }
-  };
-
-  const handleCopyEmoji = async () => {
-    if (token) {
-      const peanut = encodePeanut(cleanToken(token));
-      if (!(await copyWithFeedback(peanut, toast))) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toast.showFeedback(interactionCopy.ecashCopied);
-    }
-  };
-
-  const handleToggleVersion = () => {
-    if (!token) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      const decoded = decodeToken(token);
-      if (tokenVersion === 'V3') {
-        const encodedV4 = encodeTokenV4(decoded);
-        setToken(encodedV4);
-        setTokenVersion('V4');
-      } else {
-        const encodedV3 = encodeTokenV3(decoded);
-        setToken(encodedV3);
-        setTokenVersion('V3');
-      }
-    } catch (e) {
-      console.error('[TransactionDetails] Failed to toggle version:', e);
-      toast.showFeedback(interactionCopy.failedToSwitchTokenVersion);
-    }
-  };
 
   const handleRefresh = async () => {
     if (!entry || isRefetching || reclaimLock.current || claimLock.current || refreshLock.current)
@@ -629,7 +535,6 @@ export function TransactionDetailsScreen() {
       );
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
-      toast.showFeedback(interactionCopy.paymentReceived);
     } catch (err: any) {
       console.error('[TransactionDetails] Claim failed:', err);
       toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
@@ -638,20 +543,6 @@ export function TransactionDetailsScreen() {
       claimLock.current = false;
       setIsClaiming(false);
     }
-  };
-
-  const changeSpeed = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (intervalMs === 250) setIntervalMs(500);
-    else if (intervalMs === 500) setIntervalMs(140);
-    else setIntervalMs(250);
-  };
-
-  const changeSize = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (fragmentLength === 100) setFragmentLength(50);
-    else if (fragmentLength === 50) setFragmentLength(150);
-    else setFragmentLength(100);
   };
 
   // Auto-refresh on mount and poll if pending — first check is immediate, then every 3s
@@ -703,9 +594,6 @@ export function TransactionDetailsScreen() {
     }
   }, [status]);
 
-  const speedLabel = intervalMs === 140 ? 'F' : intervalMs === 250 ? 'M' : 'S';
-  const sizeLabel = fragmentLength === 150 ? 'L' : fragmentLength === 100 ? 'M' : 'S';
-
   const showInvoiceLayout = useMemo(() => {
     return (
       !!entry &&
@@ -714,28 +602,6 @@ export function TransactionDetailsScreen() {
     );
   }, [entry, savedInvoice, isQuoteExpired]);
 
-  // Shared header amount title (primary + secondary)
-  const headerPrimaryAmount =
-    primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
-      ? currencyService.formatSats(Number(entry?.amount || 0))
-      : currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode);
-  const headerSecondaryAmount =
-    secondaryCurrency === 'NONE'
-      ? null
-      : primaryCurrency === 'SATS'
-        ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-        : currencyService.formatSats(Number(entry?.amount || 0));
-
-  // Derive badge status from entry state
-  const badgeStatus: BadgeStatus = (() => {
-    const s = (status || '').toLowerCase();
-    if (s === 'success' || s === 'claimed' || s === 'completed' || s === 'paid' || s === 'refunded')
-      return 'success';
-    if (s === 'pending' || s === 'unclaimed' || s === 'unpaid') return 'pending';
-    if (s === 'failed' || s === 'error' || s === 'expired') return 'failed';
-    return 'pending';
-  })();
-
   const headerOptions = {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
@@ -743,6 +609,7 @@ export function TransactionDetailsScreen() {
       <HeaderIconButton
         accessibilityLabel="Delete transaction"
         icon={<Trash2 />}
+        disabled={isReclaiming || isClaiming || isCheckingPaid}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           deleteSheetRef.current?.present();
@@ -752,7 +619,6 @@ export function TransactionDetailsScreen() {
   };
 
   const makeHeaderOptions = () => headerOptions;
-  const makeFinalizedHeaderOptions = () => headerOptions;
 
   const renderDeleteBottomSheet = () => (
     <AppBottomSheet ref={deleteSheetRef} snapPoints={['35%']}>
@@ -791,23 +657,57 @@ export function TransactionDetailsScreen() {
     </AppBottomSheet>
   );
 
+  const renderSheet = (content: React.ReactNode, expanded = false) => (
+    <TransactionReceiptSheet
+      active={!!entry && needsFullScreenReceipt(entry, transferRecord?.state)}
+      ready={
+        entry
+          ? !receiptSnapshotLoading && !(metadata.transferId && transferLoading)
+          : entryLoading === false || !id
+      }
+      expanded={expanded}
+      busy={isReclaiming || isClaiming || isCheckingPaid}
+    >
+      {content}
+    </TransactionReceiptSheet>
+  );
+
   if (!entry) {
-    return (
+    return renderSheet(
       <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <PaymentFlowHeader title="Transaction" />
         <YStack flex={1} bg="$background" items="center" justify="center" p="$4">
-          <Spinner size="large" />
+          {!!id && entryLoading !== false && <Spinner size="large" />}
           <Text mt="$4" color="$gray10">
-            Loading transaction details...
+            {entryLoading === false || !id
+              ? 'This transaction is unavailable. Close this receipt to return to History.'
+              : 'Loading transaction details…'}
           </Text>
         </YStack>
-      </SafeAreaView>
+      </SafeAreaView>,
+      false,
     );
   }
 
-  if (metadata.transferId) {
-    return (
+  if (metadata.transferId && transferLoading) {
+    return renderSheet(
+      <YStack gap="$3" py="$3">
+        <PaymentFlowHeader title="Transfer" />
+        <Spinner size="large" />
+        <Text color="$gray10" textAlign="center">
+          Loading Transfer details…
+        </Text>
+      </YStack>,
+    );
+  }
+
+  if (metadata.transferId && !['completed', 'failed'].includes(transferRecord?.state || '')) {
+    return renderSheet(
       <>
         <TransferHistoryReceipt
+          extraDetails={
+            <ReceiptExtraDetails fields={buildReceiptDetails(entry, receiptSnapshot).extra} />
+          }
           id={metadata.transferId}
           amount={entry.amount}
           sourceMintUrl={entry.mintUrl}
@@ -816,37 +716,41 @@ export function TransactionDetailsScreen() {
           headerRight={headerOptions.headerRight}
         />
         {renderDeleteBottomSheet()}
-      </>
+      </>,
+      true,
     );
   }
 
   const isOutgoing = entry.type === 'send' || entry.type === 'melt';
-  const amountColor = isOutgoing ? '$red10' : '$green11';
-  const amountSign = isOutgoing ? '-' : '+';
-  const receiptStatus = paymentReceiptStatus(status);
-  const statusLabel =
-    receiptStatus === 'success'
-      ? status === 'refunded'
-        ? 'Reclaimed'
-        : onchain && entry.type === 'melt'
-          ? 'Payment sent'
-          : 'Success'
-      : receiptStatus === 'error'
-        ? 'Failed'
-        : receiptStatus === 'cancelled'
-          ? status === 'expired'
-            ? 'Expired'
-            : 'Cancelled'
-          : 'Pending';
-
+  const receiptStatus = paymentReceiptStatus(
+    entry.type === 'mint' && status === 'paid'
+      ? 'pending'
+      : entry.state || (entry.type === 'receive' ? 'completed' : 'unknown'),
+  );
   const paymentLayout = historyPaymentLayout(entry);
-  const extraDetails = notes.length > 0 ? <TransactionNoteRows notes={notes} /> : undefined;
+  const receiptData = buildReceiptDetails(entry, {
+    ...receiptSnapshot,
+    request: receiptSnapshot?.request || savedInvoice || undefined,
+  });
+  const extraDetails = (
+    <YStack gap="$2">
+      {(notes.length > 0 || receiptData.description) && (
+        <ListTable variant="outlined">
+          {receiptData.description && (
+            <ListTableRow label="Description" value={receiptData.description} multiline />
+          )}
+          <TransactionNoteRows notes={notes} />
+        </ListTable>
+      )}
+      <ReceiptExtraDetails fields={receiptData.extra} />
+    </YStack>
+  );
   if (paymentLayout === 'onchain-deposit' || paymentLayout === 'onchain-withdrawal') {
     const mints = useWalletStore.getState().mints;
     const mint = mints.find(
       (item) => item.mintUrl.replace(/\/$/, '') === entry.mintUrl.replace(/\/$/, ''),
     );
-    return (
+    return renderSheet(
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <PendingOnchainLayout
           direction={paymentLayout === 'onchain-deposit' ? 'deposit' : 'withdrawal'}
@@ -869,12 +773,13 @@ export function TransactionDetailsScreen() {
           }
         />
         {renderDeleteBottomSheet()}
-      </SafeAreaView>
+      </SafeAreaView>,
+      true,
     );
   }
 
   if (showInvoiceLayout && savedInvoice) {
-    return (
+    return renderSheet(
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingMintInvoiceLayout
@@ -907,8 +812,6 @@ export function TransactionDetailsScreen() {
             setIsCheckingPaid(true);
             try {
               await quotesService.redeemMintQuote(entry.mintUrl, (entry as any).quoteId);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              toast.showFeedback(interactionCopy.paymentReceived);
               await handleRefresh();
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -919,12 +822,13 @@ export function TransactionDetailsScreen() {
           }}
         />
         {renderDeleteBottomSheet()}
-      </SafeAreaView>
+      </SafeAreaView>,
+      true,
     );
   }
 
   if (token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed')) {
-    return (
+    return renderSheet(
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingTokenLayout
@@ -947,297 +851,147 @@ export function TransactionDetailsScreen() {
           extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
-      </SafeAreaView>
+      </SafeAreaView>,
+      true,
     );
   }
 
-  try {
-    return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
-        <Stack.Screen options={headerOptions} />
-        <PaymentFlowHeader title="Transaction details" />
-        <ScrollView
-          flex={1}
-          bg="$background"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 24, paddingHorizontal: 16 } as any}
+  const detail = transferRecord
+    ? buildReceiptDetails({ ...entry, state: transferRecord.state }, receiptSnapshot)
+    : receiptData;
+  const mint = useWalletStore
+    .getState()
+    .mints?.find((item) => item.mintUrl.replace(/\/$/, '') === entry.mintUrl.replace(/\/$/, ''));
+  const fee = transferRecord ? transferRecord.feePaid : onchain ? metadata.actualFee : metadata.fee;
+  return renderSheet(
+    <YStack gap="$4" pb="$3">
+      <PaymentFlowHeader
+        title={detail.method === 'Transfer' ? 'Transfer' : title || 'Transaction'}
+        headerRight={headerOptions.headerRight}
+      />
+      <YStack items="center" gap="$3" py="$4">
+        <PaymentStatusIcon
+          status={
+            transferRecord
+              ? transferRecord.state === 'completed'
+                ? 'success'
+                : 'error'
+              : reclaimOutcome === 'reclaimed'
+                ? 'success'
+                : receiptStatus
+          }
+        />
+        <PaymentAmount amount={displayedAmount} size="prominent" compact />
+      </YStack>
+      {receivingFeeNotice && (
+        <Text color="$gray10" fontSize={12} accessibilityRole="alert">
+          {receivingFeeNotice}
+        </Text>
+      )}
+      <ListTable variant="outlined">
+        <ListTableRow
+          label="Status"
+          value={reclaimOutcome === 'reclaimed' ? 'Reclaimed' : detail.status}
+        />
+        <ListTableRow label="Date" value={formatPaymentDateTime(entry.createdAt)} />
+        {Number.isFinite(fee) && fee >= 0 && (
+          <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
+        )}
+        <ListTableRow
+          label={metadata.transferId ? 'From mint' : 'Mint'}
+          value={
+            mint?.nickname ||
+            mint?.name ||
+            entry.mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+          }
+        />
+        {metadata.targetMintUrl && (
+          <ListTableRow
+            label="To mint"
+            value={
+              useWalletStore
+                .getState()
+                .mints?.find((item) => item.mintUrl === metadata.targetMintUrl)?.nickname ||
+              useWalletStore
+                .getState()
+                .mints?.find((item) => item.mintUrl === metadata.targetMintUrl)?.name ||
+              metadata.targetMintUrl.replace(/^https?:\/\//, '')
+            }
+          />
+        )}
+        {detail.recipient && (
+          <ListTableRow
+            label={isOutgoing ? 'Recipient' : 'Sender'}
+            value={detail.recipient}
+            isCopyable
+            copyValue={detail.recipient}
+          />
+        )}
+        {detail.description && (
+          <ListTableRow label="Description" value={detail.description} multiline />
+        )}
+        {notes
+          .filter((note) => note.value !== detail.description)
+          .map((note, index) => (
+            <ListTableRow key={index} label={note.label} value={note.value} multiline />
+          ))}
+        {detail.address && (
+          <ListTableRow
+            label="Network"
+            value={onchainNetworkDisplay(onchainNetwork(detail.address))}
+          />
+        )}
+        {detail.address && (
+          <ListTableRow
+            label="Address"
+            value={detail.address}
+            isCopyable
+            copyValue={detail.address}
+            multiline
+          />
+        )}
+        {onchain && (
+          <OnchainTransactionRows
+            direction={entry.type === 'melt' ? 'withdrawal' : 'deposit'}
+            address={detail.address || ''}
+            mintUrl={entry.mintUrl}
+            quoteId={entry.quoteId}
+          />
+        )}
+        {lockedToNpub && (
+          <ListTableRow
+            label="Locked to"
+            value={lockedToNpub === useSettingsStore.getState().npub ? 'You' : lockedToNpub}
+            multiline
+            isCopyable
+            copyValue={lockedToNpub}
+          />
+        )}
+        {metadata.reclaimAt && (
+          <ListTableRow
+            label="Reclaim eligible"
+            value={formatPaymentDateTime(Number(metadata.reclaimAt))}
+          />
+        )}
+      </ListTable>
+      <ReceiptExtraDetails fields={detail.extra} />
+      {token && ['send', 'receive'].includes(entry.type) && receiptStatus === 'success' && (
+        <AppButton
+          emphasis="secondary"
+          onPress={async () => {
+            if (await copyWithFeedback(token, toast))
+              toast.showFeedback(interactionCopy.ecashCopied);
+          }}
         >
-          <YStack flex={1} bg="$background" gap="$6">
-            <YStack flex={1} minHeight={280} gap="$3" py="$7" items="center" justify="center">
-              <PaymentStatusIcon status={receiptStatus} />
-              <Text fontSize={16} fontWeight="500" color="$color" textAlign="center">
-                {statusLabel}
-              </Text>
-              <PaymentAmount amount={displayedAmount} size="prominent" compact />
-              {receivingFeeNotice && (
-                <XStack p="$2" bg="$gray3" rounded="$6">
-                  <Text accessibilityRole="alert" fontSize={13} color="$gray10" textAlign="center">
-                    {receivingFeeNotice}
-                  </Text>
-                </XStack>
-              )}
-            </YStack>
-
-            {/* Details table */}
-            <ListTable>
-              <DetailItem label="Date" value={formatPaymentDateTime(entry.createdAt)} />
-              {metadata?.reclaimAt && (
-                <DetailItem
-                  label="Reclaim eligible"
-                  value={formatPaymentDateTime(Number(metadata.reclaimAt))}
-                />
-              )}
-              <DetailItem
-                label="Mint"
-                value={(entry.mintUrl || 'Unknown').replace(/^https?:\/\//, '').split('/')[0]}
-              />
-              {mintFee > 0 && (
-                <DetailItem label="Fee" value={currencyService.formatSats(mintFee)} />
-              )}
-              {/* Via channel & contacts */}
-              {(() => {
-                let meta = entry.metadata ?? {};
-                if (typeof meta === 'string') {
-                  try {
-                    meta = JSON.parse(meta);
-                  } catch {
-                    meta = {};
-                  }
-                }
-                const via: string | undefined = (meta as any)?.via;
-                const nostrUsername: string | undefined = (meta as any)?.nostrUsername;
-                const nostrPubkey: string | undefined = (meta as any)?.nostrPubkey;
-                const sourceMintName: string | undefined = (meta as any)?.sourceMintName;
-                const targetMintName: string | undefined = (meta as any)?.targetMintName;
-
-                if (via === 'swap') {
-                  return (
-                    <>
-                      <DetailItem label="Channel" value="Mint transfer" />
-                      {sourceMintName && <DetailItem label="Source Mint" value={sourceMintName} />}
-                      {targetMintName && <DetailItem label="Target Mint" value={targetMintName} />}
-                    </>
-                  );
-                }
-
-                if (!via) return null;
-                const viaLabel =
-                  via === 'nostr'
-                    ? 'Nostr'
-                    : via === 'qr' || via === 'scan'
-                      ? 'QR Scan'
-                      : via === 'nfc'
-                        ? 'NFC'
-                        : via === 'ecash_create'
-                          ? 'Ecash Token'
-                          : via === 'paste'
-                            ? 'Paste'
-                            : via === 'lightning'
-                              ? 'Lightning'
-                              : via;
-                return (
-                  <>
-                    <DetailItem label="Channel" value={viaLabel} />
-                    {via === 'nostr' && (nostrUsername || nostrPubkey) && (
-                      <DetailItem
-                        label={entry.type === 'send' ? 'Recipient' : 'Sender'}
-                        value={
-                          nostrUsername
-                            ? `@${nostrUsername.replace('@bey.cash', '')}`
-                            : nostrPubkey
-                              ? `${nostrPubkey.slice(0, 12)}…${nostrPubkey.slice(-6)}`
-                              : 'Unknown'
-                        }
-                        isCopyable={!!nostrPubkey}
-                        onCopy={async () => {
-                          if (nostrPubkey) {
-                            if (!(await copyWithFeedback(nostrPubkey, toast))) return;
-                            toast.showFeedback(interactionCopy.publicKeyCopied);
-                          }
-                        }}
-                      />
-                    )}
-                  </>
-                );
-              })()}
-              {lockedToNpub && (
-                <DetailItem
-                  label="Locked To"
-                  value={
-                    lockedToNpub === useSettingsStore.getState().npub
-                      ? 'You (Safe)'
-                      : `${lockedToNpub.substring(0, 10)}...${lockedToNpub.substring(lockedToNpub.length - 6)}`
-                  }
-                  isCopyable={lockedToNpub !== useSettingsStore.getState().npub}
-                  onCopy={async () => {
-                    if (!(await copyWithFeedback(lockedToNpub, toast))) return;
-                    Haptics.selectionAsync();
-                    toast.showFeedback(interactionCopy.publicKeyCopied);
-                  }}
-                />
-              )}
-              {/* On-chain Details */}
-              {(() => {
-                let meta = entry.metadata ?? {};
-                if (typeof meta === 'string') {
-                  try {
-                    meta = JSON.parse(meta);
-                  } catch {
-                    meta = {};
-                  }
-                }
-                const via = (meta as any)?.via;
-                if (!onchain) return null;
-
-                const btcAddress =
-                  (meta as any)?.address ||
-                  ('paymentRequest' in entry ? entry.paymentRequest : undefined);
-                const onchainFee = (meta as any)?.actualFee;
-
-                return (
-                  <>
-                    {btcAddress ? (
-                      <DetailItem
-                        label="BTC Address"
-                        value={`${btcAddress.substring(0, 10)}...${btcAddress.substring(btcAddress.length - 8)}`}
-                        isCopyable
-                        onCopy={async () => {
-                          if (!(await copyWithFeedback(btcAddress, toast))) return;
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          toast.showFeedback(interactionCopy.bitcoinAddressCopied);
-                        }}
-                      />
-                    ) : null}
-                    {entry.type === 'melt' && onchainFee !== undefined ? (
-                      <DetailItem
-                        label="Network Fee"
-                        value={currencyService.formatSats(onchainFee)}
-                      />
-                    ) : null}
-                    <OnchainTransactionRows
-                      direction={entry.type === 'melt' ? 'withdrawal' : 'deposit'}
-                      address={btcAddress || ''}
-                      mintUrl={entry.mintUrl}
-                      quoteId={(entry as any).quoteId}
-                    />
-                  </>
-                );
-              })()}
-              {/* Invoice for mint txns */}
-              {!onchain && savedInvoice && (
-                <DetailItem
-                  label="Invoice"
-                  value={`${savedInvoice.substring(0, 10)}...${savedInvoice.substring(savedInvoice.length - 10)}`}
-                  isCopyable
-                  onCopy={async () => {
-                    if (!(await copyWithFeedback(savedInvoice, toast))) return;
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    toast.showFeedback(interactionCopy.invoiceCopied);
-                  }}
-                />
-              )}
-              {/* Token for send/receive txns */}
-              {token && (entry.type === 'send' || entry.type === 'receive') && (
-                <DetailItem
-                  label="Token"
-                  value={
-                    token
-                      ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
-                      : 'Unavailable'
-                  }
-                  isCopyable={!!token}
-                  onCopy={handleCopyToken}
-                />
-              )}
-              {extraDetails}
-            </ListTable>
-
-            {/* Pending actions */}
-            {token &&
-              typeof token === 'string' &&
-              (status === 'pending' || status === 'unclaimed') && (
-                <YStack gap="$3">
-                  {entry.type === 'send' ? (
-                    <PendingTokenLayout
-                      token={token}
-                      operationId={entry.operationId}
-                      amount={entry.amount}
-                      fee={mintFee}
-                      mintUrl={entry.mintUrl}
-                      lockedToNpub={lockedToNpub}
-                      hideDetails={true}
-                      onReclaim={handleReclaim}
-                      isReclaiming={isReclaiming}
-                      expiresAt={expiresAt}
-                    />
-                  ) : entry.type === 'receive' && status === 'unclaimed' ? (
-                    <AppButton
-                      variant="default"
-                      emphasis="primary"
-                      size="large"
-                      loading={isClaiming}
-                      icon={<ArrowDownLeft size={20} color="white" />}
-                      onPress={handleClaimNow}
-                      disabled={isClaiming}
-                    >
-                      CLAIM NOW
-                    </AppButton>
-                  ) : null}
-                </YStack>
-              )}
-          </YStack>
-        </ScrollView>
-        <YStack px="$4" pt="$3" pb="$4" bg="$background">
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            size="large"
-            fullWidth
-            onPress={() => router.back()}
-          >
-            Done
-          </AppButton>
-        </YStack>
-        {renderDeleteBottomSheet()}
-      </SafeAreaView>
-    );
-  } catch (e: any) {
-    console.error('[TransactionDetails] Error during render:', e);
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '$background' }}>
-        <YStack flex={1} items="center" justify="center" p="$6" gap="$4">
-          <AlertCircle size={48} color="$red10" />
-          <Text fontSize="$6" fontWeight="800">
-            Render Error
-          </Text>
-          <Text color="$gray10" text="center">
-            {e.message}
-          </Text>
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            size="medium"
-            mt="$4"
-            onPress={() => router.back()}
-          >
-            Go Back
-          </AppButton>
-        </YStack>
-      </SafeAreaView>
-    );
-  }
-}
-
-function DetailItem({
-  label,
-  value,
-  isCopyable,
-  onCopy,
-}: {
-  label: string;
-  value: string;
-  isCopyable?: boolean;
-  onCopy?: () => void;
-}) {
-  return <ListTableRow label={label} value={value} isCopyable={isCopyable} onCopy={onCopy} />;
+          Copy original token
+        </AppButton>
+      )}
+      {receiptStatus === 'pending' && (
+        <AppButton emphasis="secondary" loading={isRefetching} onPress={handleRefresh}>
+          Check status
+        </AppButton>
+      )}
+      {renderDeleteBottomSheet()}
+    </YStack>,
+  );
 }

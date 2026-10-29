@@ -237,7 +237,7 @@ it.each(['filled', 'outlined'] as const)(
   },
 );
 
-it('keeps shared receipts filled by default', async () => {
+it('uses outlined tables for shared receipts', async () => {
   await render(
     <PaymentReceipt
       title="Payment"
@@ -248,7 +248,7 @@ it('keeps shared receipts filled by default', async () => {
     />,
   );
   const divider = tree.root.findByProps({ testID: 'list-table-divider' });
-  expect(divider.props.bg ?? divider.props.backgroundColor).toBe('$background');
+  expect(divider.props.bg ?? divider.props.backgroundColor).toBe('$borderColor');
 });
 
 it('does not add table dividers to standalone rows', async () => {

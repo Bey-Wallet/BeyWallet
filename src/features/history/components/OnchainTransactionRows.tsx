@@ -58,6 +58,8 @@ export function OnchainTransactionRows({
             key={txid}
             label={transactionIds.length > 1 ? `Transaction hash ${index + 1}` : 'Transaction hash'}
             value={`${txid.slice(0, 10)}…${txid.slice(-8)}`}
+            isCopyable
+            copyValue={txid}
             rightContent={url ? <ExternalLink size={20} color="$gray10" /> : undefined}
             onPress={
               url

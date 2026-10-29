@@ -108,8 +108,8 @@ export function PendingMintInvoiceLayout({
             onCopy={handleCopy}
           />
           <ListTableRow label="Expires in" value={formatTime(timeLeft)} />
-          {extraDetails}
         </ListTable>
+        {extraDetails}
         <AppButton
           emphasis="text"
           disabled={isCheckingPaid}

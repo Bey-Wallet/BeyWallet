@@ -231,6 +231,16 @@ export function RootLayoutNav() {
           }}
         >
           <Stack.Screen
+            name="txn-details"
+            options={{
+              presentation: 'transparentModal',
+              headerShown: false,
+              animation: 'fade',
+              gestureEnabled: false,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          />
+          <Stack.Screen
             name="(tabs)"
             options={{
               headerShown: false,

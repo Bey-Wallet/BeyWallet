@@ -30,6 +30,7 @@ interface AppBottomSheetProps {
   containerComponent?: React.ComponentType<React.PropsWithChildren>;
   /** A Gorhom scrollable owns its content measurement instead of BottomSheetView. */
   scrollable?: boolean;
+  maxDynamicContentSize?: number;
 }
 
 export interface AppBottomSheetRef {
@@ -50,6 +51,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       bottomInset = 0,
       containerComponent,
       scrollable = false,
+      maxDynamicContentSize,
     },
     ref,
   ) => {
@@ -129,6 +131,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         ref={bottomSheetRef}
         enablePanDownToClose={enablePanDownToClose && canDismiss}
         enableDynamicSizing={enableDynamicSizing}
+        maxDynamicContentSize={maxDynamicContentSize}
         snapPoints={snapPoints}
         bottomInset={bottomInset}
         containerComponent={containerComponent}

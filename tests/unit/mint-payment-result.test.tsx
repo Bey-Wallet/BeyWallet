@@ -124,6 +124,8 @@ it.each(['SATS', 'FIAT'])(
     ).toEqual([
       ['Mint', 'My mint', undefined],
       ['Time', formatPaymentDateTime(Date.now()), undefined],
+      ['Method', 'Lightning', undefined],
+      ['Show details', undefined, undefined],
     ]);
     await act(async () => {
       payment.unmount();

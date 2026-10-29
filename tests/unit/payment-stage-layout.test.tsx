@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { ReceiptSheetContext } from '~/shared/ui/ReceiptSheetContext';
 import {
   PaymentStatusIcon,
   paymentReceiptStatus,
@@ -41,6 +42,18 @@ async function render(element: React.ReactElement) {
   });
   return tree;
 }
+
+it('uses the native scroll view for full-screen live transaction layouts', async () => {
+  const tree = await render(
+    <ReceiptSheetContext.Provider value={{ close: jest.fn(), presentation: 'screen' }}>
+      <PaymentStageLayout variant="qr" hero="QR">
+        Details
+      </PaymentStageLayout>
+    </ReceiptSheetContext.Provider>,
+  );
+  expect(tree.root.findAllByType('ScrollView' as any)).toHaveLength(1);
+  await act(async () => tree.unmount());
+});
 
 it.each([
   ['confirm', 208],

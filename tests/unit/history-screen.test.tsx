@@ -152,7 +152,7 @@ it('renders real rows, opens details and toggles quick filters back to all activ
   expect(transactionButtons()).toHaveLength(2);
   act(() => transactionButtons()[0].props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/txn-details',
+    pathname: '/txn-details',
     params: { id: 'send' },
   });
   act(() => pressable('Received').props.onPress());

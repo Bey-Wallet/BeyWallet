@@ -168,7 +168,7 @@ export function HistoryScreen({
     (id: string, type: string) => {
       if (type === 'receive-request')
         router.push({ pathname: '/(modals)/receive', params: { requestId: id } });
-      else router.push({ pathname: '/(modals)/txn-details', params: { id } });
+      else router.push({ pathname: '/txn-details', params: { id } });
     },
     [router],
   );

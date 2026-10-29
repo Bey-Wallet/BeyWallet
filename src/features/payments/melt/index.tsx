@@ -9,6 +9,7 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
+import { saveLightningRecipient } from '~/services/wallet/lightningReceiptContext';
 import { InteractionManager } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -423,6 +424,7 @@ export default function MeltScreen() {
 
     try {
       console.log('[MeltScreen] Paying melt quote:', quoteId);
+      saveLightningRecipient(useSettingsStore.getState().npub, activeMintUrl, quoteId, lnAddress);
       const result = await payment.pay();
       if (paymentRef.current !== payment) return;
       setResultTime(Date.now());
@@ -438,7 +440,7 @@ export default function MeltScreen() {
       setIsPaying(false);
       payLock.current = false;
     }
-  }, [activeMintUrl, quoteId, refreshBalance]);
+  }, [activeMintUrl, quoteId, refreshBalance, lnAddress]);
 
   // ─── Auth Handler ─────────────────────────────────────────
   const handleAuthenticate = async () => {
@@ -565,6 +567,9 @@ export default function MeltScreen() {
       {step === 'result' && (
         <YStack flex={1}>
           <MeltResultStage
+            invoice={paymentRef.current?.invoice || resolvedInvoice || invoice}
+            quoteId={quoteId || undefined}
+            recipient={lnAddress}
             status={status}
             amount={quoteAmount}
             feeReserve={feeReserve}

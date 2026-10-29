@@ -18,6 +18,8 @@ export function ResultStage({
   onCheckStatus,
   checking,
   onRetry,
+  extraDetails,
+  headerRight,
 }: {
   status: 'success' | 'error' | 'pending' | 'cancelled';
   amount: string;
@@ -29,6 +31,8 @@ export function ResultStage({
   onCheckStatus?: () => Promise<void>;
   checking?: boolean;
   onRetry?: () => void;
+  extraDetails?: React.ReactNode;
+  headerRight?: () => React.ReactNode;
 }) {
   const [time] = useState(Date.now);
   useResultHaptic(status === 'error' ? 'error' : undefined);
@@ -39,6 +43,8 @@ export function ResultStage({
   };
   return (
     <PaymentReceipt
+      extraDetails={extraDetails}
+      headerRight={headerRight}
       status={status}
       title={
         status === 'success'

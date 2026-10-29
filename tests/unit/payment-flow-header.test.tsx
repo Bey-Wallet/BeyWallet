@@ -1,6 +1,8 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { ReceiptSheetContext } from '~/shared/ui/ReceiptSheetContext';
+import { StyleSheet } from 'react-native';
 
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
@@ -19,6 +21,7 @@ jest.mock('expo-router', () => ({
 jest.mock('@tamagui/lucide-icons', () => ({ ArrowLeft: 'ArrowLeft', X: 'X' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/useScreenHeaderOptions', () => ({ useScreenHeaderOptions: () => ({}) }));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack' }));
 
 let tree: ReactTestRenderer;
 beforeEach(() => {
@@ -73,3 +76,30 @@ it('retains screen-specific header actions', async () => {
   await render({ title: 'Payment', headerRight: () => <>{'Details'}</> });
   expect(JSON.stringify(tree.toJSON())).toContain('Details');
 });
+
+it.each([16, 0])(
+  'aligns receipt navigation slots with a %s-point header inset',
+  async (headerInset) => {
+    const close = jest.fn();
+    await act(async () => {
+      tree = create(
+        <ReceiptSheetContext.Provider value={{ close, presentation: 'screen', headerInset }}>
+          <PaymentFlowHeader title="Pending payment" />
+        </ReceiptSheetContext.Provider>,
+      );
+    });
+    const header = tree.root.findByProps({ testID: 'receipt-header' });
+    expect(
+      header.props.px ??
+        header.props.paddingHorizontal ??
+        StyleSheet.flatten(header.props.style)?.paddingHorizontal,
+    ).toBe(headerInset);
+    for (const testID of ['receipt-header-leading', 'receipt-header-trailing']) {
+      const slot = tree.root.findByProps({ testID });
+      expect(slot.props.width ?? StyleSheet.flatten(slot.props.style)?.width).toBe(48);
+    }
+    expect(button().props).toMatchObject({ icon: 'X', iconSize: 22 });
+    button().props.onPress();
+    expect(close).toHaveBeenCalledTimes(1);
+  },
+);

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { useReceiptSheet } from '~/shared/ui/ReceiptSheetContext';
 
 /** Confirmations center their amount above bottom details; QR screens follow mint payment. */
 export function PaymentStageLayout({
@@ -20,9 +22,12 @@ export function PaymentStageLayout({
 }) {
   const centered = variant !== 'qr';
   const satsOnly = useSettingsStore((state) => state.secondaryCurrency === 'NONE');
+  const sheet = useReceiptSheet();
+  const ContentScrollView =
+    sheet && sheet.presentation !== 'screen' ? BottomSheetScrollView : ScrollView;
   return (
     <YStack testID="payment-stage-layout" flex={1} bg="$background" px={inset ? '$4' : 0}>
-      <ScrollView
+      <ContentScrollView
         flex={1}
         showsVerticalScrollIndicator={false}
         pointerEvents={disabled ? 'none' : 'auto'}
@@ -46,7 +51,7 @@ export function PaymentStageLayout({
             {children}
           </YStack>
         </YStack>
-      </ScrollView>
+      </ContentScrollView>
       {footer && (
         <YStack testID="payment-stage-footer" pt="$3" pb="$4" bg="$background" gap="$2">
           {footer}
