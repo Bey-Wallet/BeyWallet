@@ -33,6 +33,18 @@ beforeEach(() => {
   (initService.getRepo as jest.Mock).mockReturnValue({ settingsRepository });
 });
 
+it('uses the Bitcoin symbol when no display preference has been saved', async () => {
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(true);
+  await useSettingsStore.getState().initialize();
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(true);
+});
+
+it.each(['true', 'false'])('respects a saved Bitcoin symbol preference of %s', async (saved) => {
+  values.set('showBitcoinSymbol', saved);
+  await useSettingsStore.getState().initialize();
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(saved === 'true');
+});
+
 it('retries settings after a slow repository instead of marking defaults initialized', async () => {
   (initService.getRepo as jest.Mock).mockImplementationOnce(() => {
     throw new Error('Not ready');

@@ -5,7 +5,6 @@ import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
-import { HomePromptStack } from '~/features/home/components/HomePromptStack';
 import RecoveryStatusRow from '~/features/home/components/RecoveryStatusRow';
 import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
@@ -156,6 +155,8 @@ export function HomeTabScreen() {
         {/* Above-the-fold: renders immediately */}
         <WalletCard />
         <ActionButtons />
+        <ConnectedMintsCard />
+        <RecoveryStatusRow />
         {pendingLightning > 0 && (
           <AppPressable
             width="100%"
@@ -182,15 +183,10 @@ export function HomeTabScreen() {
             <ChevronRight size={20} color="$gray10" aria-hidden />
           </AppPressable>
         )}
-        <HomePromptStack />
-
-        <RecoveryStatusRow />
-
         {/* Below-the-fold: lazy-loaded with skeleton shimmer */}
         <React.Suspense fallback={<HomeSkeleton />}>
           {/* <LazyBitcoinPriceCard /> */}
           <NostrActivity />
-          <ConnectedMintsCard />
 
           {/* <LazySupportView /> */}
         </React.Suspense>

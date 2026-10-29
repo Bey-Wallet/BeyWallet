@@ -1,7 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SupporterContent } from '~/features/supporter/SupporterContent';
-import { SupporterModal } from '~/features/supporter/SupporterModal';
 import { SupporterSettingsScreen } from '~/features/supporter/SupporterSettingsScreen';
 import {
   SUPPORT_LIGHTNING_ADDRESS,
@@ -14,20 +13,12 @@ jest.mock('@tamagui/toast', () => ({
   useToastController: () => ({ show: mockToastShow, hide: jest.fn() }),
 }));
 const mockPay = jest.fn();
-const mockClose = jest.fn();
-const mockDismiss = jest.fn();
 const mockPush = jest.fn();
-let mockPlatform = 'ios';
 let mockFocused = true;
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
   StyleSheet: { create: (styles: unknown) => styles },
-  Platform: {
-    get OS() {
-      return mockPlatform;
-    },
-  },
   useWindowDimensions: () => ({ width: 360 }),
 }));
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }));
@@ -50,25 +41,19 @@ jest.mock('~/shared/theme/appearance', () => ({ appTypography: {}, appSpacing: {
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 24 }) }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/CustomQRCode', () => ({ CustomQRCode: 'QRCode' }));
-jest.mock('~/shared/ui/AppFullScreenModal', () => ({ AppFullScreenModal: 'Modal' }));
-jest.mock('~/state/supporterStore', () => ({
-  useSupporterStore: (selector: any) =>
-    selector({ homeCardDismissed: false, dismissHomeCard: mockDismiss }),
-}));
 
 let tree: ReactTestRenderer;
 const button = (label: string) =>
   tree.root.findAllByType('Button' as any).find((b) => b.props.children === label)!;
 beforeEach(() => {
   jest.clearAllMocks();
-  mockPlatform = 'ios';
   mockFocused = true;
   mockCopy.mockResolvedValue(undefined);
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
 });
-async function open(content = <SupporterContent onPay={mockPay} onDoNotShowAgain={mockDismiss} />) {
+async function open(content = <SupporterContent onPay={mockPay} />) {
   await act(async () => {
     tree = create(content);
   });
@@ -122,45 +107,9 @@ it('guards duplicate Pay now presses and allows another payment after returning'
   expect(mockPay).toHaveBeenCalledTimes(2);
 });
 
-it('dismisses the native iOS support modal before opening the payment route', async () => {
-  await open(
-    <SupporterModal
-      visible
-      animationType="slide"
-      onClose={mockClose}
-      onPay={mockPay}
-      onDoNotShowAgain={mockDismiss}
-    />,
-  );
-  await act(async () => button('Pay now').props.onPress());
-  expect(mockClose).toHaveBeenCalledTimes(1);
-  expect(mockPay).not.toHaveBeenCalled();
-  await act(async () => tree.root.findByType('Modal' as any).props.onDismiss());
-  expect(mockPay).toHaveBeenCalledTimes(1);
-  await act(async () => tree.root.findByType('Modal' as any).props.onDismiss());
-  expect(mockPay).toHaveBeenCalledTimes(1);
-});
-
-it('opens Android payment without relying on the iOS-only dismissal callback', async () => {
-  mockPlatform = 'android';
-  await open(
-    <SupporterModal
-      visible
-      animationType="none"
-      onClose={mockClose}
-      onPay={mockPay}
-      onDoNotShowAgain={mockDismiss}
-    />,
-  );
-  await act(async () => button('Pay now').props.onPress());
-  expect(mockClose).toHaveBeenCalledTimes(1);
-  expect(mockPay).toHaveBeenCalledTimes(1);
-});
-
-it('opens the same Lightning payment flow from Settings and retains Home dismissal', async () => {
+it('keeps support available in Settings without a Home dismissal control', async () => {
   await open(<SupporterSettingsScreen />);
-  await act(async () => button('Do not show again').props.onPress());
-  expect(mockDismiss).toHaveBeenCalledTimes(1);
+  expect(button('Do not show again')).toBeUndefined();
   expect(mockPush).not.toHaveBeenCalled();
   await act(async () => button('Pay now').props.onPress());
   expect(mockPush).toHaveBeenCalledWith(SUPPORT_PAYMENT_ROUTE);

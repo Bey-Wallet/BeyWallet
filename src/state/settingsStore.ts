@@ -65,7 +65,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   hideBalance: false,
   seedBackedUp: false,
   backupDismissedAt: 0,
-  showBitcoinSymbol: false,
+  showBitcoinSymbol: true,
   backupDirectoryUri: null,
   usernameClaimDismissedAt: 0,
 

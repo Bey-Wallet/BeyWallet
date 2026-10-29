@@ -53,6 +53,7 @@ jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('react-native-reanimated', () => ({
@@ -93,7 +94,7 @@ const connectedRow = (mintUrl: string) =>
       row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
     )!;
 
-it('marks an unreachable connected mint red, replaces its payment badges, and keeps its balance and navigation', async () => {
+it('flags an unreachable mint while keeping its balance readable and details reachable', async () => {
   const mintUrl = 'https://mint.example';
   useWalletStore.setState({
     mints: [{ mintUrl, name: 'Example mint', trusted: true }],
@@ -107,9 +108,9 @@ it('marks an unreachable connected mint red, replaces its payment badges, and ke
     tree = create(<ConnectedMintsCard />);
   });
   const row = connectedRow(mintUrl);
-  expect(row.findByType('Text' as any).props.color).toBe('$red11');
+  expect(row.findByType('Text' as any).props.color).toBe('$red10');
   expect(row.findByType('RollingNumber' as any).props).toMatchObject({
-    color: '$red11',
+    color: '$color',
     children: 4200,
     suffix: ' sat',
   });
@@ -119,7 +120,7 @@ it('marks an unreachable connected mint red, replaces its payment badges, and ke
       .findAllByProps({ accessibilityRole: 'image' })
       .map((badge) => badge.props.accessibilityLabel),
   ).toEqual(['Mint unreachable']);
-  await act(async () => row.props.onPress());
+  await act(async () => row.parent!.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
     params: { mintUrl },
@@ -135,7 +136,7 @@ it('marks an unreachable connected mint red, replaces its payment badges, and ke
     connectedRow(mintUrl)
       .findAllByProps({ accessibilityRole: 'image' })
       .map((badge) => badge.props.accessibilityLabel),
-  ).toEqual(['Lightning supported', 'On-chain supported']);
+  ).toEqual([]);
 });
 
 it('does not mark individual mints down when the device is offline, and keeps hidden balances hidden', async () => {
@@ -199,7 +200,7 @@ it('opens a scanned mint URL once and consumes the scanner result', async () => 
   expect(useWalletStore.getState().scannerResult).toBeNull();
 });
 
-it('shows Home payment badges only for the methods each mint advertises', async () => {
+it('keeps connected mints in order without recommendation filler or payment badges', async () => {
   const urls = [
     'https://lightning.example',
     'https://chain.example',
@@ -226,18 +227,18 @@ it('shows Home payment badges only for the methods each mint advertises', async 
   await act(async () => {
     tree = create(<ConnectedMintsCard />);
   });
-  const badges = (mintUrl: string) =>
-    tree.root
-      .findAllByType('RowContainer' as any)
-      .find((row) =>
-        row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
-      )!
-      .findAllByProps({ accessibilityRole: 'image' })
-      .map((badge) => badge.props.accessibilityLabel);
-  expect(badges(urls[0])).toEqual(['Lightning supported']);
-  expect(badges(urls[1])).toEqual(['On-chain supported']);
-  expect(badges(urls[2])).toEqual(['Lightning supported', 'On-chain supported']);
-  expect(badges(urls[3])).toEqual([]);
+  expect(tree.root.findAllByType('MintImage' as any).map((image) => image.props.mintUrl)).toEqual(
+    urls,
+  );
+  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+  for (const mintUrl of urls) {
+    expect(connectedRow(mintUrl).findAllByProps({ accessibilityRole: 'image' })).toEqual([]);
+    await act(async () => connectedRow(mintUrl).parent!.props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/mint-details',
+      params: { mintUrl },
+    });
+  }
 });
 
 it('sends Home recommendations through the same profile and consent flow', async () => {

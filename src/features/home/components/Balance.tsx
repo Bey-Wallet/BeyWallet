@@ -80,8 +80,10 @@ export default function Balance() {
       )}
 
       {/* Main Balance */}
-      <YStack
+      <AppPressable
         onPress={handleHideBalanceToggle}
+        accessibilityLabel={hideBalance ? 'Show balance' : 'Hide balance'}
+        minHeight={48}
         pressStyle={{ opacity: 0.7 }}
         items="center"
         justify="center"
@@ -144,7 +146,7 @@ export default function Balance() {
             {hideBalance ? undefined : fiatText}
           </RollingNumber>
         )}
-      </YStack>
+      </AppPressable>
 
       {/* Secondary Balance */}
       {isFiatEnabled && (
@@ -158,7 +160,7 @@ export default function Balance() {
           accessibilityHint="Swaps the primary and secondary balance amounts"
           disabled={hideBalance}
           onPress={handlePrimaryCurrencyToggle}
-          minHeight={36}
+          minHeight={48}
           minWidth={64}
           px="$3"
           py="$1"
