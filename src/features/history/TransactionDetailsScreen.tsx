@@ -14,6 +14,7 @@ import { PendingOnchainLayout } from '~/features/history/components/PendingOncha
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
 import { TransferHistoryReceipt } from './components/TransferHistoryReceipt';
+import { checkHistoryStatus } from './checkHistoryStatus';
 import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
@@ -289,8 +290,14 @@ function TransactionDetailsContent() {
   const claimLock = useRef(false);
   const reclaimLock = useRef(false);
   const refreshLock = useRef(false);
+  const mintQuoteLock = useRef(false);
   const refreshRevision = useRef(0);
   const [isCheckingPaid, setIsCheckingPaid] = useState(false);
+  const [latestCheck, setLatestCheck] = useState<{
+    id: string;
+    state?: string;
+    message: string;
+  } | null>(null);
   useSettingsBusy(isReclaiming || isClaiming || isCheckingPaid);
 
   const status = (entry?.state || 'completed').trim().toLowerCase();
@@ -515,6 +522,54 @@ function TransactionDetailsContent() {
   };
 
   const offline = useOfflineStatus();
+  const handleCollectMint = async () => {
+    if (
+      !entry?.quoteId ||
+      offline ||
+      claimLock.current ||
+      refreshLock.current ||
+      mintQuoteLock.current
+    )
+      return;
+    claimLock.current = true;
+    mintQuoteLock.current = true;
+    setIsCheckingPaid(true);
+    try {
+      if (await networkService.isOffline()) return;
+      await quotesService.redeemMintQuote(entry.mintUrl, entry.quoteId);
+      await refetch();
+      await refetchMintQuote();
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+    } catch {
+      toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
+    } finally {
+      claimLock.current = false;
+      mintQuoteLock.current = false;
+      setIsCheckingPaid(false);
+    }
+  };
+  const handleCheckReceipt = async () => {
+    if (!entry || offline || refreshLock.current || claimLock.current || reclaimLock.current)
+      return;
+    refreshLock.current = true;
+    setIsCheckingPaid(true);
+    try {
+      const message = await checkHistoryStatus(entry);
+      setLatestCheck({ id: entry.id, state: entry.state, message: `Latest check: ${message}.` });
+      await refetch();
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+    } catch {
+      setLatestCheck({
+        id: entry.id,
+        state: entry.state,
+        message:
+          'Could not verify the outcome. Reconnect and check again before retrying this payment.',
+      });
+    } finally {
+      refreshLock.current = false;
+      setIsCheckingPaid(false);
+    }
+  };
   const mintFee =
     metadata?.via !== 'onchain' && Number.isFinite(metadata?.fee) ? Number(metadata.fee) : 0;
 
@@ -558,9 +613,12 @@ function TransactionDetailsContent() {
     if (!isPendingSend && !isPendingMint && !isPendingOnchain) return;
 
     const poll = async () => {
+      if (claimLock.current || reclaimLock.current || refreshLock.current || mintQuoteLock.current)
+        return;
       if (isPendingOnchain || isPendingSend) {
         await handleRefresh();
       } else if (isPendingMint) {
+        mintQuoteLock.current = true;
         try {
           const qId = (entry as any).quoteId || '';
           if (qId && entry.mintUrl) {
@@ -571,6 +629,8 @@ function TransactionDetailsContent() {
           }
         } catch (e) {
           // Not paid yet — normal in background polling
+        } finally {
+          mintQuoteLock.current = false;
         }
       }
     };
@@ -759,6 +819,7 @@ function TransactionDetailsContent() {
           mint={mint?.nickname || mint?.name || entry.mintUrl.replace(/^https?:\/\//, '')}
           onRefresh={handleRefresh}
           checking={isRefetching}
+          offline={offline}
           onClose={() => router.back()}
           headerRight={headerOptions.headerRight}
           extraDetails={extraDetails}
@@ -791,6 +852,7 @@ function TransactionDetailsContent() {
           secondaryCurrency={secondaryCurrency}
           fiatAmount={fiatAmount}
           isCheckingPaid={isCheckingPaid}
+          offline={offline}
           extraDetails={extraDetails}
           onCancel={async () => {
             try {
@@ -808,18 +870,7 @@ function TransactionDetailsContent() {
               console.warn('[TransactionDetails] Failed to cancel quote:', e);
             }
           }}
-          onPaid={async () => {
-            setIsCheckingPaid(true);
-            try {
-              await quotesService.redeemMintQuote(entry.mintUrl, (entry as any).quoteId);
-              await handleRefresh();
-            } catch (err: any) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              toast.showFeedback(interactionCopy.invoiceNotPaidYetTryAgainShortly);
-            } finally {
-              setIsCheckingPaid(false);
-            }
-          }}
+          onPaid={handleCollectMint}
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
@@ -886,6 +937,17 @@ function TransactionDetailsContent() {
       {receivingFeeNotice && (
         <Text color="$gray10" fontSize={12} accessibilityRole="alert">
           {receivingFeeNotice}
+        </Text>
+      )}
+      {receiptStatus === 'pending' && (
+        <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
+          {latestCheck?.id === entry.id && latestCheck.state === entry.state
+            ? latestCheck.message
+            : offline
+              ? 'Reconnect to verify this payment before trying again.'
+              : entry.type === 'mint' && status === 'paid'
+                ? 'Payment received. Collect the ecash to finish this top-up.'
+                : 'The final outcome is not confirmed. Check status before trying another payment.'}
         </Text>
       )}
       <ListTable variant="outlined">
@@ -987,8 +1049,19 @@ function TransactionDetailsContent() {
         </AppButton>
       )}
       {receiptStatus === 'pending' && (
-        <AppButton emphasis="secondary" loading={isRefetching} onPress={handleRefresh}>
-          Check status
+        <AppButton
+          emphasis="secondary"
+          loading={isCheckingPaid || isRefetching}
+          disabled={offline || isCheckingPaid || isRefetching}
+          onPress={
+            entry.type === 'mint' && status === 'paid' && entry.quoteId
+              ? handleCollectMint
+              : handleCheckReceipt
+          }
+        >
+          {entry.type === 'mint' && status === 'paid' && entry.quoteId
+            ? 'Collect ecash'
+            : 'Check status'}
         </AppButton>
       )}
       {renderDeleteBottomSheet()}

@@ -34,6 +34,7 @@ interface PendingMintInvoiceLayoutProps {
   onCancel: () => Promise<void> | void;
   onPaid: () => Promise<void> | void;
   extraDetails?: React.ReactNode;
+  offline?: boolean;
 }
 
 export function PendingMintInvoiceLayout({
@@ -48,9 +49,11 @@ export function PendingMintInvoiceLayout({
   onCancel,
   onPaid,
   extraDetails,
+  offline = false,
 }: PendingMintInvoiceLayoutProps) {
   const toast = useAppToast();
   const [copied, setCopied] = useState(false);
+  const paid = entry.state?.trim().toLowerCase() === 'paid';
 
   const handleCopy = async () => {
     if (!(await copyWithFeedback(savedInvoice, toast))) return;
@@ -73,12 +76,28 @@ export function PendingMintInvoiceLayout({
       <PaymentFlowHeader title="Pending top-up" />
       <PaymentStageLayout
         variant="qr"
+        footer={
+          <AppButton
+            fullWidth
+            size="large"
+            loading={isCheckingPaid}
+            loadingText={paid ? 'Collecting ecash…' : 'Checking payment…'}
+            disabled={offline || isCheckingPaid}
+            onPress={onPaid}
+          >
+            {paid ? 'Collect ecash' : 'Check payment'}
+          </AppButton>
+        }
         hero={
           <>
             <Text fontSize={14} fontWeight="500" color="$gray10">
-              {timeLeft === 0 ? 'Invoice expired' : 'Pay with Lightning'}
+              {paid
+                ? 'Payment received'
+                : timeLeft === 0
+                  ? 'Invoice expired'
+                  : 'Pay with Lightning'}
             </Text>
-            {timeLeft !== 0 && (
+            {!paid && timeLeft !== 0 && (
               <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
                 {(size) => (
                   <QRCode value={savedInvoice} size={size} backgroundColor="white" color="black" />
@@ -89,11 +108,21 @@ export function PendingMintInvoiceLayout({
           </>
         }
       >
+        <Text fontFamily="$body" fontSize={12} color="$gray10">
+          {paid
+            ? offline
+              ? 'Payment received. Reconnect to collect the ecash into your wallet.'
+              : 'Payment received. Collect the ecash to finish this top-up.'
+            : offline
+              ? 'Reconnect to check whether this invoice was paid.'
+              : 'After paying this invoice, check payment to collect your ecash.'}
+        </Text>
         <ListTable compact>
           <PaymentStatusRow
-            status={timeLeft === 0 ? 'cancelled' : 'pending'}
-            value={timeLeft === 0 ? 'Expired' : 'Awaiting payment'}
+            status={!paid && timeLeft === 0 ? 'cancelled' : 'pending'}
+            value={paid ? 'Awaiting ecash' : timeLeft === 0 ? 'Expired' : 'Awaiting payment'}
             checking={isCheckingPaid}
+            disabled={offline}
             onRefresh={onPaid}
           />
           <ListTableRow
@@ -107,19 +136,21 @@ export function PendingMintInvoiceLayout({
             copyValue={savedInvoice}
             onCopy={handleCopy}
           />
-          <ListTableRow label="Expires in" value={formatTime(timeLeft)} />
+          {!paid && <ListTableRow label="Expires in" value={formatTime(timeLeft)} />}
         </ListTable>
         {extraDetails}
-        <AppButton
-          emphasis="text"
-          disabled={isCheckingPaid}
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await onCancel();
-          }}
-        >
-          Cancel
-        </AppButton>
+        {!paid && (
+          <AppButton
+            emphasis="text"
+            disabled={isCheckingPaid}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              await onCancel();
+            }}
+          >
+            Cancel
+          </AppButton>
+        )}
       </PaymentStageLayout>
     </>
   );

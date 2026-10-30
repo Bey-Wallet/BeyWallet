@@ -14,6 +14,8 @@ const mockCancelQueries = jest.fn();
 const mockToast = jest.fn();
 const mockPreventRemove = jest.fn();
 const mockOffline = jest.fn();
+const mockCheckHistory = jest.fn();
+const mockRedeemQuote = jest.fn();
 let mockEntry: any;
 let mockMintQuote: any = null;
 let mockSnapshotPending = false;
@@ -31,6 +33,9 @@ const mockRepo = {
 jest.mock('~/services/wallet/reclaimPayment', () => ({
   reclaimPayment: (...args: unknown[]) => mockReclaim(...args),
 }));
+jest.mock('~/features/history/checkHistoryStatus', () => ({
+  checkHistoryStatus: (...args: unknown[]) => mockCheckHistory(...args),
+}));
 jest.mock('~/services/wallet', () => ({
   initService: { getRepo: () => mockRepo, isInitialized: () => true },
   proofService: { checkProofStates: (...args: unknown[]) => mockStates(...args) },
@@ -38,10 +43,11 @@ jest.mock('~/services/wallet', () => ({
   decodeToken: () => ({ proofs: [{ secret: 'synthetic' }] }),
   historyService: {},
   walletService: { receive: (...args: unknown[]) => mockReceive(...args) },
-  quotesService: {},
+  quotesService: { redeemMintQuote: (...args: unknown[]) => mockRedeemQuote(...args) },
 }));
 jest.mock('~/features/history/historyToken', () => ({
-  getHistoryToken: () => 'synthetic-token',
+  getHistoryToken: (entry: { type: string }) =>
+    ['send', 'receive'].includes(entry.type) ? 'synthetic-token' : '',
   getVerifiedTokenState: (states: any[]) =>
     states[0]?.state === 'SPENT' ? 'claimed' : 'unclaimed',
 }));
@@ -164,6 +170,8 @@ beforeEach(() => {
   mockRefetch.mockReset().mockResolvedValue(undefined);
   mockReceive.mockReset().mockResolvedValue(undefined);
   mockOffline.mockReset().mockResolvedValue(false);
+  mockCheckHistory.mockReset().mockResolvedValue('Payment pending');
+  mockRedeemQuote.mockReset().mockRejectedValue(new Error('synthetic unpaid quote'));
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -218,6 +226,84 @@ it('retires an expired invoice QR without writing a financial failure', async ()
   expect(tree.root.findAllByType('Invoice' as any)).toHaveLength(0);
   expect(mockExpireUpdate).not.toHaveBeenCalled();
   expect(mockEntry.state).toBe('UNPAID');
+});
+
+it('checks an interrupted Lightning payment without redeeming or resubmitting it', async () => {
+  mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
+  await render();
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Check status')!;
+  await act(async () => button.props.onPress());
+  expect(mockCheckHistory).toHaveBeenCalledWith(mockEntry);
+  expect(mockRedeemQuote).not.toHaveBeenCalled();
+  expect(mockReceive).not.toHaveBeenCalled();
+  expect(mockEntry.state).toBe('pending');
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'Latest check: Payment pending.'),
+  ).toBe(true);
+});
+
+it('retains an uncertain payment state and offers guidance when its status check fails', async () => {
+  mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
+  mockCheckHistory.mockRejectedValueOnce(new Error('synthetic connection failure'));
+  await render();
+  await act(async () =>
+    tree.root
+      .findAllByType('Button' as any)
+      .find((node) => node.props.children === 'Check status')!
+      .props.onPress(),
+  );
+  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(mockEntry.state).toBe('pending');
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => String(node.props.children).includes('Could not verify the outcome')),
+  ).toBe(true);
+});
+
+it('offers collection for a paid top-up with no saved invoice and guards duplicate taps', async () => {
+  mockEntry = { ...mockEntry, type: 'mint', state: 'paid', quoteId: 'quote' };
+  await render();
+  const operation = deferred<void>();
+  mockRedeemQuote.mockClear().mockReturnValue(operation.promise);
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Collect ecash')!;
+  let first!: Promise<void>, second!: Promise<void>;
+  await act(async () => {
+    first = button.props.onPress();
+    second = button.props.onPress();
+  });
+  expect(mockRedeemQuote).toHaveBeenCalledTimes(1);
+  expect(mockRedeemQuote).toHaveBeenCalledWith(mockEntry.mintUrl, 'quote');
+  await act(async () => jest.advanceTimersByTime(9000));
+  expect(mockRedeemQuote).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    operation.resolve();
+    await Promise.all([first, second]);
+  });
+  expect(mockReceive).not.toHaveBeenCalled();
+});
+
+it('does not start a manual collection while a background quote redemption is unresolved', async () => {
+  mockEntry = { ...mockEntry, type: 'mint', state: 'paid', quoteId: 'quote' };
+  const operation = deferred<void>();
+  mockRedeemQuote.mockReturnValue(operation.promise);
+  await render();
+  expect(mockRedeemQuote).toHaveBeenCalledTimes(1);
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Collect ecash')!;
+  await act(async () => {
+    await button.props.onPress();
+    jest.advanceTimersByTime(9000);
+  });
+  expect(mockRedeemQuote).toHaveBeenCalledTimes(1);
+  await act(async () => operation.resolve());
 });
 
 it('guards duplicate taps, pauses polling, and immediately displays persisted reclaim success', async () => {

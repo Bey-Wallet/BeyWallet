@@ -28,6 +28,7 @@ export function PendingOnchainLayout({
   extraDetails,
   transactionDetails,
   navigationAction = 'back',
+  offline = false,
 }: {
   direction: 'deposit' | 'withdrawal';
   amount: number;
@@ -41,6 +42,7 @@ export function PendingOnchainLayout({
   extraDetails?: React.ReactNode;
   transactionDetails?: React.ReactNode;
   navigationAction?: 'back' | 'close';
+  offline?: boolean;
 }) {
   const deposit = direction === 'deposit';
   const destination = normalizeBitcoinAddress(address);
@@ -83,12 +85,20 @@ export function PendingOnchainLayout({
           </AppButton>
         }
       >
+        <Text fontFamily="$body" fontSize={12} color="$gray10">
+          {deposit
+            ? amount > 0
+              ? 'Funds become available after the mint confirms the Bitcoin deposit.'
+              : 'Send Bitcoin to this address, then check status for confirmation.'
+            : 'The final outcome is not confirmed. Check status before sending another payment.'}
+        </Text>
         <ListTable compact>
           <PaymentStatusRow
             status="pending"
             value={deposit ? (amount > 0 ? 'Payment detected' : 'Awaiting payment') : 'Pending'}
             checking={checking}
             onRefresh={onRefresh}
+            disabled={offline}
           />
           <ListTableRow label="Mint" value={mint} />
           <ListTableRow
@@ -105,6 +115,15 @@ export function PendingOnchainLayout({
           />
           {transactionDetails}
         </ListTable>
+        <AppButton
+          fullWidth
+          emphasis="secondary"
+          onPress={onRefresh}
+          loading={checking}
+          disabled={offline || checking}
+        >
+          {offline ? 'Check status when online' : 'Check status'}
+        </AppButton>
         {extraDetails}
       </PaymentStageLayout>
     </>

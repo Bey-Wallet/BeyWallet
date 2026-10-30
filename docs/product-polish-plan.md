@@ -121,15 +121,39 @@ Device review still needed: small screens, large text, light/dark themes, going 
 review, and returning from Prepare change. Native payment and connectivity behavior remains
 unverified locally.
 
+## 5. Actionable pending payment receipts
+
+- Paid Lightning top-ups show Payment received / Awaiting ecash and a Collect ecash action,
+  without a payable QR, expiry countdown, or Cancel action. Unpaid invoices retain their QR and
+  offer Check payment. Offline collection/check controls are disabled with reconnect guidance.
+- Paid top-ups without a saved invoice also offer collection in the normal receipt. This uses
+  the existing quote-redemption method; no second invoice or replacement payment is created.
+- Pending ecash explains that sharing/delivery does not prove recipient redemption. Saved
+  incoming ecash explains that claiming verifies and receives it. Add a visible Check status
+  action alongside the existing status-row refresh; online checks/reclaim stay disabled offline.
+- On-chain receipts explain confirmation requirements or an unconfirmed outgoing outcome, and
+  expose Check status using the existing refresh action.
+- Normal pending receipts now use the existing observational status checker rather than only
+  refetching saved history. Show its latest response or a clear verification failure. A failed
+  check does not mark the payment failed or initiate a retry.
+- Existing background top-up redemption remains in place. A shared guard prevents overlapping
+  background/manual redemption and duplicate collection taps. Existing token verification,
+  reclaim, expiry handling, and payment services retain their validations.
+
+Validation: 87 focused tests passed across top-up presentation, receipt interactions, status
+checking, reclaim, on-chain presentation, animated token QR, receipt details, and receipt sheets.
+Type checking, the button check, scoped formatting, and diff whitespace checks passed.
+Device review remains: paid/unpaid top-ups with a real mint, connectivity changes, native receipt
+layout, and actual claim/reclaim/Bitcoin settlement. Local checks mock network and native APIs.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Give pending/interrupted payments clear explanations and appropriate next actions.
-3. Add a focused merchant receiving mode.
-4. Add operating-system shortcuts for Scan and Receive.
-5. Improve empty states with useful next actions.
-6. Offer shareable receipt images containing an appropriate public payment summary.
-7. Show understandable backup status in Settings.
+2. Add a focused merchant receiving mode.
+3. Add operating-system shortcuts for Scan and Receive.
+4. Improve empty states with useful next actions.
+5. Offer shareable receipt images containing an appropriate public payment summary.
+6. Show understandable backup status in Settings.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark
