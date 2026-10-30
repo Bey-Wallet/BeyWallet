@@ -303,7 +303,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               </AppPressable>
             )}
             {isLightning && lightning.loaded && (canShare || lightning.pending.length > 0) && (
-              <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden">
+              <YStack bg="$buttonDefaultSecondary" width={'100%'} rounded="$6" overflow="hidden">
                 {canShare && (
                   <AppPressable
                     accessibilityLabel="Manage Lightning address"
@@ -360,7 +360,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
             {npub && (
               <AppButton
                 size="small"
-                emphasis="secondary"
+                emphasis="primary"
 
                 onPress={() =>
                   router.push(isLightning ? '/(modals)/mint' : '/(modals)/receive?mode=request')
