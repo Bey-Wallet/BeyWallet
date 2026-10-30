@@ -15,6 +15,7 @@ const mockWallet = {
   refreshBalance: jest.fn(async () => {}),
 };
 const mockPrepare = jest.fn();
+const mockParams: { mintUrl?: string } = {};
 let mockOffline = false;
 let mockFocused = true;
 const mockPreventRemove = jest.fn();
@@ -22,7 +23,10 @@ jest.mock('@react-navigation/native', () => ({
   useIsFocused: () => mockFocused,
   usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
 }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }) }));
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ back: jest.fn() }),
+  useLocalSearchParams: () => mockParams,
+}));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',
   SettingsGroup: 'Group',
@@ -78,7 +82,20 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockOffline = false;
   mockFocused = true;
+  delete mockParams.mintUrl;
 });
+
+it.each(['mint-b', 'untrusted-or-unknown'])(
+  'uses a trusted flow mint with the active mint as fallback (%s)',
+  async (mintUrl) => {
+    mockParams.mintUrl = mintUrl;
+    mockPrepare.mockResolvedValue(review(mintUrl === 'mint-b' ? mintUrl : 'mint-a'));
+    const tree = await open();
+    expect(mockPrepare).toHaveBeenCalledWith(mintUrl === 'mint-b' ? mintUrl : 'mint-a');
+    expect(mockWallet.activeMintUrl).toBe('mint-a');
+    await act(async () => tree.unmount());
+  },
+);
 
 it('reviews the whole balance, changes mints locally, and releases canceled reviews', async () => {
   const first = review(),

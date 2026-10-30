@@ -20,6 +20,7 @@ const mockParams: { mode?: string } = {};
 let mockOffline = false;
 let mockNetworkListener: (state: any) => void = () => {};
 const mockAvailableProofs = jest.fn();
+const mockPush = jest.fn();
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select: (s: typeof mockWallet) => unknown) => select(mockWallet),
 }));
@@ -62,7 +63,7 @@ jest.mock('~/shared/ui/SendMethodSelector', () => 'SendMethodSelector');
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', H4: 'H4' }));
 jest.mock('@tamagui/lucide-icons', () => ({ Cloud: 'Cloud', CloudOff: 'CloudOff' }));
 jest.mock('expo-router', () => ({
-  useRouter: () => ({}),
+  useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => mockParams,
   Stack: { Screen: 'Screen' },
 }));
@@ -352,5 +353,102 @@ it('keeps the requested amount unchanged and disables offline creation when exac
   await act(async () => confirm(tree).onConfirm());
   expect(walletService.sendOffline).not.toHaveBeenCalled();
   expect(prepare).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it.each([16, 32])(
+  'reviews an explicitly selected nearby offline amount (%s) before sending',
+  async (selected) => {
+    mockOffline = true;
+    mockAvailableProofs.mockResolvedValue([{ amount: 16 }, { amount: 32 }]);
+    jest
+      .mocked(walletService.sendOffline)
+      .mockResolvedValue({ encoded: 'token', id: 'offline' } as any);
+    const tree = await open();
+    expect(confirm(tree).amount).toBe('20');
+    expect(confirm(tree).offlineAmounts).toEqual({ exact: false, lower: 16, higher: 32 });
+    expect(confirm(tree).ready).toBe(false);
+    await act(async () => confirm(tree).onAmountSelect(21));
+    expect(confirm(tree).amount).toBe('20');
+    await act(async () => confirm(tree).onAmountSelect(selected));
+    expect(confirm(tree).amount).toBe(String(selected));
+    expect(confirm(tree).offlineAmounts.exact).toBe(true);
+    expect(confirm(tree).ready).toBe(true);
+    expect(walletService.sendOffline).not.toHaveBeenCalled();
+    await act(async () => confirm(tree).onConfirm());
+    expect(walletService.sendOffline).toHaveBeenCalledWith('mint-a', selected);
+    await act(async () => tree.unmount());
+  },
+);
+
+it('rechecks alternatives for the current mint and never sends an unavailable replacement', async () => {
+  mockOffline = true;
+  mockAvailableProofs
+    .mockResolvedValueOnce([{ amount: 16 }, { amount: 32 }])
+    .mockResolvedValueOnce([{ amount: 8 }]);
+  const tree = await open();
+  await act(async () => confirm(tree).onAmountSelect(16));
+  expect(confirm(tree).amount).toBe('16');
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).offlineAmounts).toEqual({ exact: false, lower: 8, higher: null });
+  await act(async () => confirm(tree).onConfirm());
+  expect(walletService.sendOffline).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('releases the online review before opening change for the selected mint', async () => {
+  mockAvailableProofs.mockResolvedValue([{ amount: 32 }]);
+  const prepared = review(1);
+  prepare.mockResolvedValue(prepared);
+  const tree = await open();
+  expect(confirm(tree).offlineAmounts).toEqual({ exact: false, lower: null, higher: 32 });
+  await act(async () => confirm(tree).onPrepareChange());
+  expect(prepared.dispose).toHaveBeenCalledTimes(1);
+  expect(prepared.execute).not.toHaveBeenCalled();
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(tabs)/settings/get-change',
+    params: { mintUrl: 'mint-a' },
+  });
+  expect(tree.root.findByType('AmountStage' as any).props.amount).toBe('20');
+  await act(async () => tree.unmount());
+});
+
+it('waits for an in-flight review and releases its coins before opening change', async () => {
+  let resolve!: (prepared: EcashReview) => void;
+  mockAvailableProofs.mockResolvedValue([{ amount: 32 }]);
+  prepare.mockImplementationOnce(
+    () =>
+      new Promise<EcashReview>((done) => {
+        resolve = done;
+      }),
+  );
+  const tree = await open();
+  expect(confirm(tree).offlineAmounts?.exact).toBe(false);
+  let navigation!: Promise<void>;
+  await act(async () => {
+    navigation = confirm(tree).onPrepareChange();
+  });
+  expect(mockPush).not.toHaveBeenCalled();
+  const prepared = review();
+  await act(async () => {
+    resolve(prepared);
+    await navigation;
+  });
+  expect(prepared.dispose).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledTimes(1);
+  expect(prepared.execute).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('stays in confirmation when releasing a review for change fails', async () => {
+  mockAvailableProofs.mockResolvedValue([{ amount: 32 }]);
+  const prepared = review();
+  jest.mocked(prepared.dispose).mockRejectedValue(new Error('fixture release failure'));
+  prepare.mockResolvedValue(prepared);
+  const tree = await open();
+  await act(async () => confirm(tree).onPrepareChange());
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(confirm(tree).ready).toBe(false);
+  expect(confirm(tree).error).toContain('Could not release');
   await act(async () => tree.unmount());
 });

@@ -12,7 +12,7 @@ import {
 } from '~/services/wallet/changePreparationService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useIsFocused } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SettingsPage, SettingsGroup, SettingsRow } from './components/SettingsLayout';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 
@@ -22,8 +22,12 @@ export function GetChangeSettingsScreen() {
   const offline = useOfflineStatus();
   const open = useIsFocused();
   const router = useRouter();
+  const params = useLocalSearchParams<{ mintUrl?: string }>();
   const [mintUrl, setMintUrl] = useState(
-    () => mints.find((mint) => mint.mintUrl === activeMintUrl && mint.trusted)?.mintUrl ?? '',
+    () =>
+      mints.find((mint) => mint.mintUrl === params.mintUrl && mint.trusted)?.mintUrl ??
+      mints.find((mint) => mint.mintUrl === activeMintUrl && mint.trusted)?.mintUrl ??
+      '',
   );
   const [review, setReview] = useState<ChangeReview | null>(null);
   const [loading, setLoading] = useState(false);

@@ -42,7 +42,11 @@ import SendMethodSelector, { SendMode } from '~/shared/ui/SendMethodSelector';
 import { parsePaymentRequest as validatePaymentRequest } from '~/services/wallet/paymentRequestModel';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import Blockies from '~/shared/ui/Blockies';
-import { findExactSubset, OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
+import {
+  getOfflineAmounts,
+  OFFLINE_CHANGE_REQUIRED,
+  type OfflineAmounts,
+} from '~/shared/utils/offlineSendUtils';
 import { withTokenMemo } from '~/services/wallet/tokenUtils';
 
 type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
@@ -105,6 +109,7 @@ export function SendModalScreen() {
   const releaseFailure = React.useRef<unknown>(null);
   const executionLock = React.useRef(false);
   const [reviewReady, setReviewReady] = useState(false);
+  const [offlineAmounts, setOfflineAmounts] = useState<OfflineAmounts | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined);
   const isOffline = useOfflineStatus();
 
@@ -207,6 +212,7 @@ export function SendModalScreen() {
     let cancelled = false;
     setReviewReady(false);
     setEstimatedFee(null);
+    setOfflineAmounts(null);
     const obsolete = reviewRef.current;
     reviewRef.current = null;
     reviewQueue.current = reviewQueue.current
@@ -219,12 +225,22 @@ export function SendModalScreen() {
         if (ecashLockEnabled && isOffline) throw new Error('Go online to create locked ecash.');
         if (ecashLockEnabled && !receiverPubkey)
           throw new Error('Set a recipient public key before creating locked ecash.');
-        if (isOffline) {
-          const available = await initService
-            .getRepo()
-            .proofRepository.getAvailableProofs(activeMintUrl);
+        let localAmounts: OfflineAmounts | null = null;
+        if (sendMode === 'standard' && !ecashLockEnabled) {
+          try {
+            const available = await initService
+              .getRepo()
+              .proofRepository.getAvailableProofs(activeMintUrl);
+            localAmounts = getOfflineAmounts(Number(amount), available);
+          } catch {
+            if (isOffline)
+              throw new Error('Could not check offline amounts. Reopen this flow to retry.');
+          }
           if (cancelled) return;
-          if (!findExactSubset(Number(amount), available)) throw new Error(OFFLINE_CHANGE_REQUIRED);
+          setOfflineAmounts(localAmounts);
+        }
+        if (isOffline) {
+          if (!localAmounts?.exact) throw new Error(OFFLINE_CHANGE_REQUIRED);
           setEstimatedFee(0);
           setReviewReady(true);
           return;
@@ -855,6 +871,45 @@ export function SendModalScreen() {
           amount={amount}
           mintUrl={activeMintUrl || ''}
           estimatedFee={estimatedFee}
+          offlineAmounts={offlineAmounts}
+          onAmountSelect={(value) => {
+            if (
+              executionLock.current ||
+              !offlineAmounts ||
+              ![offlineAmounts.lower, offlineAmounts.higher].includes(value) ||
+              value <= 0 ||
+              value > balance
+            )
+              return;
+            setReviewReady(false);
+            setOfflineAmounts(null);
+            setAmount(String(value));
+          }}
+          onPrepareChange={async () => {
+            if (executionLock.current) return;
+            executionLock.current = true;
+            setReviewReady(false);
+            setIsProcessing(true);
+            try {
+              reviewQueue.current = reviewQueue.current.then(async () => {
+                const review = reviewRef.current;
+                reviewRef.current = null;
+                await disposeReview(review);
+              });
+              await reviewQueue.current;
+              if (releaseFailure.current) throw new Error('Could not release the payment review.');
+              setStep('amount');
+              router.push({
+                pathname: '/(tabs)/settings/get-change',
+                params: { mintUrl: activeMintUrl || '' },
+              });
+            } catch {
+              setError('Could not release the payment review. Close this flow and try again.');
+            } finally {
+              executionLock.current = false;
+              setIsProcessing(false);
+            }
+          }}
           sendMode={sendMode}
           useP2PK={useP2PK}
           setUseP2PK={setUseP2PK}

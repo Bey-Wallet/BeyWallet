@@ -1,7 +1,7 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React from 'react';
-import { Text } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { AppButton } from '~/shared/ui/AppButton';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
@@ -13,6 +13,7 @@ import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
 import { PaymentNote } from '~/shared/ui/PaymentNote';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
+import { OFFLINE_CHANGE_REQUIRED, type OfflineAmounts } from '~/shared/utils/offlineSendUtils';
 
 interface ConfirmStageProps {
   amount: string;
@@ -20,6 +21,9 @@ interface ConfirmStageProps {
   onNoteChange?: (value: string) => void;
   mintUrl: string;
   estimatedFee: number | null;
+  offlineAmounts?: OfflineAmounts | null;
+  onAmountSelect?: (amount: number) => void;
+  onPrepareChange?: () => void;
   sendMode: SendMode;
   useP2PK: boolean;
   setUseP2PK: (value: boolean) => void;
@@ -69,6 +73,51 @@ export function ConfirmStage(props: ConfirmStageProps) {
         }
       >
         {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
+        {props.offlineAmounts && (
+          <YStack gap="$2">
+            <Text fontFamily="$body" fontSize={14} color="$gray10">
+              {props.offlineAmounts.exact
+                ? 'Available offline'
+                : 'Exact amount needs online change'}
+            </Text>
+            {!props.offlineAmounts.exact && (
+              <>
+                <Text fontFamily="$body" fontSize={12} color="$gray10">
+                  {props.offlineAmounts.lower !== null || props.offlineAmounts.higher !== null
+                    ? 'Choose a nearby amount to send offline, or prepare change while online.'
+                    : 'No offline amounts available. Prepare change while online.'}
+                </Text>
+                {(['lower', 'higher'] as const).map((direction) => {
+                  const value = props.offlineAmounts?.[direction];
+                  return value == null ? null : (
+                    <AppButton
+                      key={direction}
+                      fullWidth
+                      emphasis="secondary"
+                      disabled={isLoading || !props.onAmountSelect}
+                      onPress={() => props.onAmountSelect?.(value)}
+                    >
+                      {`${direction === 'lower' ? 'Lower' : 'Higher'}: ${currencyService.formatSats(value)}`}
+                    </AppButton>
+                  );
+                })}
+                <AppButton
+                  fullWidth
+                  emphasis="text"
+                  disabled={isLoading || !props.onPrepareChange}
+                  onPress={props.onPrepareChange}
+                >
+                  Prepare change
+                </AppButton>
+                {props.isOffline && (
+                  <Text fontFamily="$body" fontSize={12} color="$gray10">
+                    Reconnect to prepare change for the original amount.
+                  </Text>
+                )}
+              </>
+            )}
+          </YStack>
+        )}
         {sendMode === 'standard' && props.setLockEcash && props.setReceiverPubkey && (
           <P2PKLockCard
             enabled={!!props.lockEcash}
@@ -99,7 +148,11 @@ export function ConfirmStage(props: ConfirmStageProps) {
           <ListTableRow
             label="Creation fee"
             value={
-              estimatedFee === null ? 'Calculating…' : currencyService.formatSats(estimatedFee)
+              estimatedFee === null
+                ? props.isOffline && props.offlineAmounts?.exact === false
+                  ? 'Unavailable'
+                  : 'Calculating…'
+                : currencyService.formatSats(estimatedFee)
             }
           />
           {props.onNoteChange && (
@@ -139,11 +192,12 @@ export function ConfirmStage(props: ConfirmStageProps) {
             />
           )}
         </ListTable>
-        {!!props.error && (
-          <Text color="$red10" p="$3">
-            {props.error}
-          </Text>
-        )}
+        {!!props.error &&
+          !(props.offlineAmounts?.exact === false && props.error === OFFLINE_CHANGE_REQUIRED) && (
+            <Text color="$red10" p="$3">
+              {props.error}
+            </Text>
+          )}
       </PaymentStageLayout>
     </>
   );

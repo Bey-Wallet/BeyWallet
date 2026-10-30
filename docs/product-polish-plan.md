@@ -82,16 +82,46 @@ the existing settings destinations. Ecash stays first.
 Layout validation: 11 profile/QR/copy/share/navigation tests passed, plus type checking, button,
 formatting, and whitespace checks. Native appearance still requires device review.
 
+## 4. Offline readiness and nearby amounts
+
+Standard unlocked ecash confirmation now shows whether the selected amount can be made from
+available local coins, both online and offline. When it cannot, offer the nearest payable lower
+and higher amounts, omitting a side when none exists. These are combinations of existing signed
+coins, never rounded or manufactured change. Respect the current Bitcoin-symbol preference.
+
+Selecting an alternative changes the review amount and rechecks availability; it does not create
+ecash. Creation still requires a separate confirmation and the existing execution checks. Online
+reviews are released before replacements. Locked payments retain their online requirement.
+
+Prepare change opens the existing review flow for the selected trusted mint, without changing
+the global mint. Release the current send review first, including one still being prepared;
+block navigation if release fails. Offline users are told to reconnect. No automatic swaps,
+proof-state changes, or changes to payment execution or recovery are introduced by the readiness
+display. Suggestions are advisory and do not reserve coins.
+
+Validation: 39 initial selection, send-review, and Prepare change tests passed. A further run
+passed all 53 confirmation, send-review, offline-creation, offline-change, and change-preparation
+tests, including both replacement choices, stale availability, in-flight review disposal, and
+failed-release navigation blocking. Type checking, the button check, scoped formatting, and diff
+whitespace checks passed.
+
+Binary denominations use greedy lower selection and complementary upper selection without
+scanning possible amounts. Non-binary inventories use bounded subset enumeration; if it cannot
+complete safely, no approximate suggestions are shown.
+
+Device review still needed: small screens, large text, light/dark themes, going offline during
+review, and returning from Prepare change. Native payment and connectivity behavior remains
+unverified locally.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Show offline readiness and connect denomination shortages to Prepare change.
-3. Give pending/interrupted payments clear explanations and appropriate next actions.
-4. Add a focused merchant receiving mode.
-5. Add operating-system shortcuts for Scan and Receive.
-6. Improve empty states with useful next actions.
-7. Offer shareable receipt images containing an appropriate public payment summary.
-8. Show understandable backup status in Settings.
+2. Give pending/interrupted payments clear explanations and appropriate next actions.
+3. Add a focused merchant receiving mode.
+4. Add operating-system shortcuts for Scan and Receive.
+5. Improve empty states with useful next actions.
+6. Offer shareable receipt images containing an appropriate public payment summary.
+7. Show understandable backup status in Settings.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark
