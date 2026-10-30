@@ -120,3 +120,23 @@ it('shows exact offline readiness without replacement actions', async () => {
       .some((text) => text.props.children === 'Available offline'),
   ).toBe(true);
 });
+
+it('hides offline choices immediately on reconnect, even before the previous check clears', async () => {
+  await act(async () => {
+    tree = create(
+      <ConfirmStage
+        {...props}
+        isOffline={false}
+        error={null}
+        offlineAmounts={{ exact: false, lower: 16, higher: 32 }}
+      />,
+    );
+  });
+  expect(options()).toHaveLength(0);
+  expect(buttons().map((button) => button.props.children)).toEqual(['Create ecash']);
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((text) => text.props.children === 'Exact amount needs online change'),
+  ).toBe(false);
+});

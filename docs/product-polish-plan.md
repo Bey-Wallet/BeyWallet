@@ -85,7 +85,7 @@ formatting, and whitespace checks. Native appearance still requires device revie
 ## 4. Offline readiness and nearby amounts
 
 Standard unlocked ecash confirmation now shows whether the selected amount can be made from
-available local coins, both online and offline. When it cannot, offer the nearest payable lower
+available local coins while offline. When it cannot, offer the nearest payable lower
 and higher amounts, omitting a side when none exists. These are combinations of existing signed
 coins, never rounded or manufactured change. Respect the current Bitcoin-symbol preference.
 
@@ -93,6 +93,9 @@ Layout follow-up: retain the exact-amount title, with large red Lower and blue H
 side by side, as requested. Each option places a small label above its larger amount. Use local
 semantic theme colors and readable foregrounds in both appearances. Keep Prepare change small
 and background-free below the options; remove the repeated explanatory paragraphs.
+Online confirmation hides this entire section and skips the advisory denomination check; the
+existing mint-backed preparation can create the exact amount. Reconnecting hides old suggestions
+immediately while the online review is prepared.
 
 Selecting an alternative changes the review amount and rechecks availability; it does not create
 ecash. Creation still requires a separate confirmation and the existing execution checks. Online

@@ -226,15 +226,14 @@ export function SendModalScreen() {
         if (ecashLockEnabled && !receiverPubkey)
           throw new Error('Set a recipient public key before creating locked ecash.');
         let localAmounts: OfflineAmounts | null = null;
-        if (sendMode === 'standard' && !ecashLockEnabled) {
+        if (isOffline && sendMode === 'standard' && !ecashLockEnabled) {
           try {
             const available = await initService
               .getRepo()
               .proofRepository.getAvailableProofs(activeMintUrl);
             localAmounts = getOfflineAmounts(Number(amount), available);
           } catch {
-            if (isOffline)
-              throw new Error('Could not check offline amounts. Reopen this flow to retry.');
+            throw new Error('Could not check offline amounts. Reopen this flow to retry.');
           }
           if (cancelled) return;
           setOfflineAmounts(localAmounts);

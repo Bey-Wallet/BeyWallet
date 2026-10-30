@@ -401,7 +401,8 @@ it('releases the online review before opening change for the selected mint', asy
   const prepared = review(1);
   prepare.mockResolvedValue(prepared);
   const tree = await open();
-  expect(confirm(tree).offlineAmounts).toEqual({ exact: false, lower: null, higher: 32 });
+  expect(confirm(tree).offlineAmounts).toBeNull();
+  expect(mockAvailableProofs).not.toHaveBeenCalled();
   await act(async () => confirm(tree).onPrepareChange());
   expect(prepared.dispose).toHaveBeenCalledTimes(1);
   expect(prepared.execute).not.toHaveBeenCalled();
@@ -423,7 +424,7 @@ it('waits for an in-flight review and releases its coins before opening change',
       }),
   );
   const tree = await open();
-  expect(confirm(tree).offlineAmounts?.exact).toBe(false);
+  expect(confirm(tree).offlineAmounts).toBeNull();
   let navigation!: Promise<void>;
   await act(async () => {
     navigation = confirm(tree).onPrepareChange();

@@ -74,7 +74,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
         }
       >
         {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
-        {props.offlineAmounts && (
+        {props.isOffline && props.offlineAmounts && (
           <YStack gap="$2">
             <Text fontFamily="$body" fontSize={14} color="$gray10">
               {props.offlineAmounts.exact
