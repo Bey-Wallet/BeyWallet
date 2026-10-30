@@ -6,6 +6,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 
@@ -47,6 +48,14 @@ interface RequestEcashStageProps {
   initialRequestId?: string;
   targetNpub?: string;
   targetUsername?: string;
+  merchant?: {
+    amount: number;
+    mintUrl: string;
+    active: boolean;
+    note?: string;
+    onReceived: () => void;
+    onBusyChange: (busy: boolean) => void;
+  };
 }
 
 // ─── Detail Row ───────────────────────────────────────────────────────────────
@@ -58,6 +67,7 @@ export function RequestEcashStage({
   initialRequestId,
   targetNpub,
   targetUsername,
+  merchant,
 }: RequestEcashStageProps) {
   const [step, setStep] = useState<RequestStep>('result');
   const [restored, setRestored] = useState(!!initialRequestId);
@@ -77,6 +87,7 @@ export function RequestEcashStage({
 
   const sessionRequestIds = useRef(new Set<string>());
   const generationLock = useRef(false);
+  const merchantStarted = useRef(false);
   const failedDraft = useRef<Partial<RequestDraft>>({});
   const toast = useAppToast();
   const router = useRouter();
@@ -138,8 +149,9 @@ export function RequestEcashStage({
     )
       return;
     openedNfcReceipt.current = receiptId;
-    router.replace({ pathname: '/txn-details', params: { id: receiptId } });
-  }, [nfcIncoming, currentRequestId, router]);
+    if (merchant) merchant.onReceived();
+    else router.replace({ pathname: '/txn-details', params: { id: receiptId } });
+  }, [nfcIncoming, currentRequestId, router, merchant?.onReceived]);
   const nfcRequest = useMemo(() => {
     const request = useNostrRequestStore
       .getState()
@@ -271,6 +283,21 @@ export function RequestEcashStage({
     isSending ||
     nfcIncoming.status === 'receiving' ||
     incomingPayment?.status === 'claiming';
+  React.useEffect(() => {
+    merchant?.onBusyChange(!!isRequestBusy);
+  }, [isRequestBusy, merchant?.onBusyChange]);
+  React.useEffect(() => {
+    if (!merchant || merchantStarted.current || !npub) return;
+    merchantStarted.current = true;
+    void handleGenerate({
+      amount: merchant.amount,
+      mintUrl: merchant.mintUrl,
+      note: merchant.note || '',
+    });
+  }, [merchant?.amount, merchant?.mintUrl, npub, handleGenerate]);
+  React.useEffect(() => {
+    if (merchant && step === 'success') merchant.onReceived();
+  }, [step, merchant?.onReceived]);
 
   const handleReset = () => {
     if (isRequestBusy) return;
@@ -432,6 +459,7 @@ export function RequestEcashStage({
   const reviewingCurrentNfcRequest =
     nfcIncoming.status === 'review' && nfcIncoming.requestId === currentRequestId;
   const editDisabled =
+    !!merchant ||
     restored ||
     isGenerating ||
     isSending ||
@@ -440,7 +468,11 @@ export function RequestEcashStage({
     nfcIncoming.status === 'receiving' ||
     reviewingCurrentNfcRequest;
   useRequestNfc(
-    step === 'result' && requestState === 'pending' && !isGenerating && !incomingPayment
+    (!merchant || merchant.active) &&
+      step === 'result' &&
+      requestState === 'pending' &&
+      !isGenerating &&
+      !incomingPayment
       ? nfcRequest
       : null,
   );
@@ -453,6 +485,7 @@ export function RequestEcashStage({
     />
   );
   if (step === 'success') {
+    if (merchant) return null;
     return (
       <>
         {header}
@@ -469,9 +502,10 @@ export function RequestEcashStage({
 
   return (
     <>
-      {header}
+      {!merchant && header}
       <PaymentStageLayout
         variant="qr"
+        inset={!merchant}
         hero={
           <>
             <PaymentQRFrame accessibilityLabel="Payment request QR code">
@@ -496,23 +530,26 @@ export function RequestEcashStage({
               }
             </PaymentQRFrame>
             {creqString && !targetNpub && <RequestNfcBadge />}
+            {merchant && <PaymentAmount amount={merchant.amount} compact />}
           </>
         }
         footer={
-          <AppButton
-            size="large"
-            fullWidth
-            disabled={isRequestBusy}
-            loading={isRequestBusy}
-            loadingText={
-              nfcIncoming.status === 'receiving' || incomingPayment?.status === 'claiming'
-                ? 'Receiving payment'
-                : undefined
-            }
-            onPress={handleReset}
-          >
-            New request
-          </AppButton>
+          !merchant && (
+            <AppButton
+              size="large"
+              fullWidth
+              disabled={isRequestBusy}
+              loading={isRequestBusy}
+              loadingText={
+                nfcIncoming.status === 'receiving' || incomingPayment?.status === 'claiming'
+                  ? 'Receiving payment'
+                  : undefined
+              }
+              onPress={handleReset}
+            >
+              New request
+            </AppButton>
+          )
         }
       >
         {generateError && (
@@ -537,42 +574,48 @@ export function RequestEcashStage({
               checking={isChecking}
             />
           )}
-          <RequestAmountEditor
-            amount={amtNum}
-            disabled={editDisabled}
-            onChange={(value) => {
-              if (editDisabled || value === amtNum) return;
-              if (activeMintUrl && npub) void handleGenerate({ amount: value });
-              else setAmount(String(value));
-            }}
-          />
-          <RequestDetailsEditor
-            mintUrl={activeMintUrl || ''}
-            note={note}
-            disabled={editDisabled}
-            onMintChange={(mintUrl) => {
-              if (editDisabled || mintUrl === activeMintUrl) return;
-              if (amtNum > 0) void handleGenerate({ mintUrl });
-              else setActiveMint(mintUrl);
-            }}
-            onNoteChange={(value) => {
-              if (editDisabled || value === note) return;
-              if (amtNum > 0) void handleGenerate({ note: value });
-              else setNote(value);
-            }}
-          />
+          {!merchant && (
+            <RequestAmountEditor
+              amount={amtNum}
+              disabled={editDisabled}
+              onChange={(value) => {
+                if (editDisabled || value === amtNum) return;
+                if (activeMintUrl && npub) void handleGenerate({ amount: value });
+                else setAmount(String(value));
+              }}
+            />
+          )}
+          {!merchant && (
+            <RequestDetailsEditor
+              mintUrl={activeMintUrl || ''}
+              note={note}
+              disabled={editDisabled}
+              onMintChange={(mintUrl) => {
+                if (editDisabled || mintUrl === activeMintUrl) return;
+                if (amtNum > 0) void handleGenerate({ mintUrl });
+                else setActiveMint(mintUrl);
+              }}
+              onNoteChange={(value) => {
+                if (editDisabled || value === note) return;
+                if (amtNum > 0) void handleGenerate({ note: value });
+                else setNote(value);
+              }}
+            />
+          )}
           {targetNpub ? (
             <ListTableRow
               label="Recipient"
               value={targetUsername || `${targetNpub.slice(0, 10)}...${targetNpub.slice(-6)}`}
             />
           ) : null}
-          <ListTableRow
-            label="Request"
-            value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
-            isCopyable={!!creqString}
-            onCopy={handleCopy}
-          />
+          {!merchant && (
+            <ListTableRow
+              label="Request"
+              value={creqString ? `${creqString.slice(0, 14)}…${creqString.slice(-6)}` : '—'}
+              isCopyable={!!creqString}
+              onCopy={handleCopy}
+            />
+          )}
         </ListTable>
         {needsReview && (
           <AppButton

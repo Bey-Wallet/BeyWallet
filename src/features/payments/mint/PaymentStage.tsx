@@ -81,9 +81,11 @@ export function PaymentStage({
       inset={false}
       hero={
         <>
-          <Text fontSize={14} fontWeight="500" color="$gray10">
-            {isExpired ? 'Invoice expired' : 'Pay with Lightning'}
-          </Text>
+          {isExpired && (
+            <Text fontSize={14} fontWeight="500" color="$gray10">
+              Invoice expired
+            </Text>
+          )}
           {!isExpired && (
             <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
               {(size) => (

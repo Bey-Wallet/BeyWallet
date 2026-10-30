@@ -28,6 +28,7 @@ const expectedRoutes = [
   '(modals)/optimize-wallet.tsx',
   '(modals)/ota-update.tsx',
   '(modals)/proofs.tsx',
+  '(modals)/point-of-sale.tsx',
   '(modals)/receive.tsx',
   '(modals)/scanner.tsx',
   '(modals)/search.tsx',

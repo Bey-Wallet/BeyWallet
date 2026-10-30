@@ -92,13 +92,11 @@ export function PendingMintInvoiceLayout({
         }
         hero={
           <>
-            <Text fontSize={14} fontWeight="500" color="$gray10">
-              {paid
-                ? 'Payment received'
-                : timeLeft === 0
-                  ? 'Invoice expired'
-                  : 'Pay with Lightning'}
-            </Text>
+            {(paid || timeLeft === 0) && (
+              <Text fontSize={14} fontWeight="500" color="$gray10">
+                {paid ? 'Payment received' : 'Invoice expired'}
+              </Text>
+            )}
             {!paid && timeLeft !== 0 && (
               <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
                 {(size) => (

@@ -146,14 +146,54 @@ Type checking, the button check, scoped formatting, and diff whitespace checks p
 Device review remains: paid/unpaid top-ups with a real mint, connectivity changes, native receipt
 layout, and actual claim/reclaim/Bitcoin settlement. Local checks mock network and native APIs.
 
+## 6. Unified point of sale
+
+Access: Home → Receive → Point of sale. Use the regular full-screen modal and native payment
+header; keep Home's main actions and mint selector unchanged. Enter an amount using the existing
+currency-aware keypad and optionally add a note in place of the amount presets. Charge freezes
+the amount, mint, and note for one sale.
+
+The checkout follows [NUMO's receiving pattern](https://github.com/cashubtc/Numo#how-it-works):
+Ecash and Lightning tabs share one sale. Ecash creates a saved NUT-18 request through the existing
+request screen and retains its current NFC advertisement, receipt matching, and review controls.
+The first Lightning selection creates one saved invoice. Switching away and back reuses it.
+Keep both receivers listening after switching: a verified payment to the previously displayed
+method can complete the sale. Pause Ecash NFC advertisement while Lightning is selected.
+
+Success requires the existing verified Ecash receipt/request outcome or the matching mint/quote
+redemption. A read, delivery, invoice creation, or paid-but-unissued quote does not trigger
+success. Show one confirmation and Next sale, which clears the amount/note and preserves the
+locally selected mint. Late additional receipts remain in normal wallet History; closing the
+checkout does not falsely mark an unpaid invoice failed or cancel its saved request.
+
+Cashu notes use the request description. Coco's current quote-creation API has no description
+argument, so supported Lightning notes use cashu-ts invoice creation followed by registration
+through Coco's existing quote API for persistence, watchers, and issuance. Check mint trust and
+confirm that the quote was saved before showing it. Unsupported descriptions silently use the
+normal Coco invoice path, as requested. Do not alter invoice strings after signing. Other
+invoice creation without a note retains its existing path. Remove the redundant Pay with
+Lightning caption above live and History invoice QR codes.
+
+Lightning NFC advertisement is deferred at the user's request. This release provides Lightning
+QR/copy and the existing Ecash NFC path. No auto-withdrawals, inventory, or new dependencies.
+
+Validation: 77 focused tests passed for merchant setup, method retention and late confirmation,
+next-sale reset, trusted-mint/amount guards, duplicate redemption, failed creation, receiving
+verification, Receive routing, note support/fallback and saved-quote handling, and existing
+request/invoice/receipt UI. Native layout, keyboard behavior, Ecash NFC, and real supported/
+unsupported-mint invoice descriptions still require device testing. Network/native APIs are
+mocked in local tests.
+Type checking, the structure check (76 Expo routes), button check, scoped formatting, and diff
+whitespace checks passed. The receiving suite also verifies that switching away pauses Ecash NFC.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Add a focused merchant receiving mode.
-3. Add operating-system shortcuts for Scan and Receive.
-4. Improve empty states with useful next actions.
-5. Offer shareable receipt images containing an appropriate public payment summary.
-6. Show understandable backup status in Settings.
+2. Add operating-system shortcuts for Scan and Receive.
+3. Improve empty states with useful next actions.
+4. Offer shareable receipt images containing an appropriate public payment summary.
+5. Show understandable backup status in Settings.
+6. Add Lightning invoice NFC advertisement after the POS review.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark

@@ -65,11 +65,37 @@ export const quotesService = {
    *
    * @param mintUrl - The mint to create quote from
    * @param amount - Amount in sats to mint
+   * @param description - Optional invoice note; omitted silently if the mint does not support it.
    * @returns MintQuoteResponse with `quote` (id) and Lightning `request` (invoice)
    */
-  createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
+  createMintQuote: async (
+    mintUrl: string,
+    amount: number,
+    description?: string,
+  ): Promise<MintQuoteResponse> => {
     console.log(`[QuotesService] Creating mint quote: ${amount} sat from ${mintUrl}`);
     return withKeysetRecovery(mintUrl, async () => {
+      const note = description?.trim();
+      if (note) {
+        if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid amount');
+        const manager = mgr();
+        if (!(await manager.mint.isTrustedMint(mintUrl))) throw new Error('Mint is not trusted');
+        // Coco's creation API has no description argument. Create the public invoice with
+        // cashu-ts, then register it with Coco so storage, watchers and issuance stay owned there.
+        const wallet = new Wallet(mintUrl, { mintInfo: await manager.mint.getMintInfo(mintUrl) });
+        if (!wallet.getMintInfo().supportsNut04Description('bolt11', 'sat')) {
+          return manager.quotes.createMintQuote(mintUrl, amount);
+        }
+        const quote = await wallet.createMintQuoteBolt11(amount, note);
+        const saved = await manager.quotes.addMintQuote(mintUrl, [quote]);
+        if (
+          !saved.added.includes(quote.quote) &&
+          !(await initService.getRepo().mintQuoteRepository.getMintQuote(mintUrl, quote.quote))
+        ) {
+          throw new Error('Could not save the invoice');
+        }
+        return quote;
+      }
       const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
       console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
       return quote;

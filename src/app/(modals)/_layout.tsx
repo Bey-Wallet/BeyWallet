@@ -49,6 +49,14 @@ export default function ModalLayout() {
       })}
     >
       <Stack.Screen
+        name="point-of-sale"
+        options={{
+          headerShown: true,
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
         name="mint-details"
         options={{
           presentation: 'fullScreenModal',
