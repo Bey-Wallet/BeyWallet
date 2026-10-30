@@ -142,7 +142,7 @@ const MintRowItem = React.memo(
               <RollingNumber
                 fontSize={appTypography.label2.fontSize}
                 lineHeight={appTypography.label2.lineHeight}
-                fontWeight="500"
+                fontWeight="600"
                 color="$color"
                 decimalOpacity={0.4}
                 showDecimals={!displayAsSats}
