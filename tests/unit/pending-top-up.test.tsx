@@ -56,7 +56,7 @@ it('shows a paid top-up as awaiting ecash, removes its QR and cancel action, and
   expect(props.onCancel).not.toHaveBeenCalled();
 });
 
-it('preserves an unpaid invoice QR and gives a clear check-payment action', async () => {
+it('preserves an unpaid invoice QR and refresh without an extra check button', async () => {
   await act(async () => {
     tree = create(
       <PendingMintInvoiceLayout {...props} entry={{ ...props.entry, state: 'UNPAID' }} />,
@@ -66,7 +66,6 @@ it('preserves an unpaid invoice QR and gives a clear check-payment action', asyn
   expect(tree.root.findByType('Status' as any).props.value).toBe('Awaiting payment');
   expect(tree.root.findAllByType('Button' as any).map((button) => button.props.children)).toEqual([
     'Cancel',
-    'Check payment',
   ]);
 });
 

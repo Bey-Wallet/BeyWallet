@@ -258,15 +258,6 @@ export function PendingTokenLayout({
           )
         }
       >
-        {headerStatus === 'pending' && (
-          <Text fontFamily="$body" fontSize={12} color="$gray10">
-            {onClaim
-              ? offline
-                ? 'Saved on this device. Reconnect to claim and verify this ecash.'
-                : 'This ecash has not been added to your balance. Claim it to verify and receive it.'
-              : 'Ecash created. Sharing or delivery does not confirm that the recipient has claimed it.'}
-          </Text>
-        )}
         {!hideDetails && (
           <>
             <ListTable compact>
@@ -356,17 +347,6 @@ export function PendingTokenLayout({
             disabled={offline || isReclaiming || (reclaimAt != null && Date.now() < reclaimAt)}
           >
             Reclaim token
-          </AppButton>
-        )}
-        {headerStatus === 'pending' && onCheckStatus && (
-          <AppButton
-            emphasis="secondary"
-            fullWidth
-            loading={isCheckingStatus}
-            disabled={offline || isClaiming || isReclaiming || isCheckingStatus}
-            onPress={onCheckStatus}
-          >
-            {offline ? 'Check status when online' : 'Check status'}
           </AppButton>
         )}
       </PaymentStageLayout>

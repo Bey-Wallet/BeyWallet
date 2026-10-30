@@ -77,16 +77,18 @@ export function PendingMintInvoiceLayout({
       <PaymentStageLayout
         variant="qr"
         footer={
-          <AppButton
-            fullWidth
-            size="large"
-            loading={isCheckingPaid}
-            loadingText={paid ? 'Collecting ecash…' : 'Checking payment…'}
-            disabled={offline || isCheckingPaid}
-            onPress={onPaid}
-          >
-            {paid ? 'Collect ecash' : 'Check payment'}
-          </AppButton>
+          paid ? (
+            <AppButton
+              fullWidth
+              size="large"
+              loading={isCheckingPaid}
+              loadingText={paid ? 'Collecting ecash…' : 'Checking payment…'}
+              disabled={offline || isCheckingPaid}
+              onPress={onPaid}
+            >
+              Collect ecash
+            </AppButton>
+          ) : undefined
         }
         hero={
           <>
@@ -108,15 +110,6 @@ export function PendingMintInvoiceLayout({
           </>
         }
       >
-        <Text fontFamily="$body" fontSize={12} color="$gray10">
-          {paid
-            ? offline
-              ? 'Payment received. Reconnect to collect the ecash into your wallet.'
-              : 'Payment received. Collect the ecash to finish this top-up.'
-            : offline
-              ? 'Reconnect to check whether this invoice was paid.'
-              : 'After paying this invoice, check payment to collect your ecash.'}
-        </Text>
         <ListTable compact>
           <PaymentStatusRow
             status={!paid && timeLeft === 0 ? 'cancelled' : 'pending'}

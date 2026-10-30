@@ -939,17 +939,13 @@ function TransactionDetailsContent() {
           {receivingFeeNotice}
         </Text>
       )}
-      {receiptStatus === 'pending' && (
-        <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
-          {latestCheck?.id === entry.id && latestCheck.state === entry.state
-            ? latestCheck.message
-            : offline
-              ? 'Reconnect to verify this payment before trying again.'
-              : entry.type === 'mint' && status === 'paid'
-                ? 'Payment received. Collect the ecash to finish this top-up.'
-                : 'The final outcome is not confirmed. Check status before trying another payment.'}
-        </Text>
-      )}
+      {receiptStatus === 'pending' &&
+        latestCheck?.id === entry.id &&
+        latestCheck.state === entry.state && (
+          <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
+            {latestCheck.message}
+          </Text>
+        )}
       <ListTable variant="outlined">
         <ListTableRow
           label="Status"

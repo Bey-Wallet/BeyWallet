@@ -251,7 +251,8 @@ it('shows delivery only for the matching published operation and keeps claim sep
     );
   });
   expect(texts()).toContain('Ecash delivered');
-  expect(texts()).toContain('Ecash · Delivered');
+  expect(texts()).toContain('Awaiting claim');
+  expect(texts()).not.toContain('Ecash · Delivered');
   await act(async () => {
     item.update(
       <HistoryItem

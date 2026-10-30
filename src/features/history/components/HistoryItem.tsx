@@ -151,7 +151,9 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
           ? 'Fee unavailable'
           : 'Wallet maintenance',
       ].join(' · ')
-    : [paymentType, statusLabel].filter(Boolean).join(' · ');
+    : entry.type === 'send' && pending && !transfer
+      ? 'Awaiting claim'
+      : [paymentType, statusLabel].filter(Boolean).join(' · ');
   const when = formatRelativeTime(historyTimestamp(entry.createdAt));
 
   const handleCheck = async () => {

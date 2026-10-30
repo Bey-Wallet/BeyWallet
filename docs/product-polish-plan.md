@@ -125,17 +125,17 @@ unverified locally.
 
 - Paid Lightning top-ups show Payment received / Awaiting ecash and a Collect ecash action,
   without a payable QR, expiry countdown, or Cancel action. Unpaid invoices retain their QR and
-  offer Check payment. Offline collection/check controls are disabled with reconnect guidance.
+  keep their status-row refresh. Offline collection/check controls are disabled.
 - Paid top-ups without a saved invoice also offer collection in the normal receipt. This uses
   the existing quote-redemption method; no second invoice or replacement payment is created.
-- Pending ecash explains that sharing/delivery does not prove recipient redemption. Saved
-  incoming ecash explains that claiming verifies and receives it. Add a visible Check status
-  action alongside the existing status-row refresh; online checks/reclaim stay disabled offline.
-- On-chain receipts explain confirmation requirements or an unconfirmed outgoing outcome, and
-  expose Check status using the existing refresh action.
+- Pending ecash and on-chain receipts retain their existing status-row refresh. Remove the
+  added helper paragraphs and duplicate Check buttons, as requested. Checks/reclaim remain
+  disabled offline. Incoming ecash keeps its existing Claim action.
 - Normal pending receipts now use the existing observational status checker rather than only
   refetching saved history. Show its latest response or a clear verification failure. A failed
   check does not mark the payment failed or initiate a retry.
+- Pending outgoing ecash rows use Awaiting claim below Ecash created / Ecash delivered, instead
+  of repeating Ecash and Created/Delivered in the subtitle. Delivery remains separate from claim.
 - Existing background top-up redemption remains in place. A shared guard prevents overlapping
   background/manual redemption and duplicate collection taps. Existing token verification,
   reclaim, expiry handling, and payment services retain their validations.

@@ -85,13 +85,6 @@ export function PendingOnchainLayout({
           </AppButton>
         }
       >
-        <Text fontFamily="$body" fontSize={12} color="$gray10">
-          {deposit
-            ? amount > 0
-              ? 'Funds become available after the mint confirms the Bitcoin deposit.'
-              : 'Send Bitcoin to this address, then check status for confirmation.'
-            : 'The final outcome is not confirmed. Check status before sending another payment.'}
-        </Text>
         <ListTable compact>
           <PaymentStatusRow
             status="pending"
@@ -115,15 +108,6 @@ export function PendingOnchainLayout({
           />
           {transactionDetails}
         </ListTable>
-        <AppButton
-          fullWidth
-          emphasis="secondary"
-          onPress={onRefresh}
-          loading={checking}
-          disabled={offline || checking}
-        >
-          {offline ? 'Check status when online' : 'Check status'}
-        </AppButton>
         {extraDetails}
       </PaymentStageLayout>
     </>
