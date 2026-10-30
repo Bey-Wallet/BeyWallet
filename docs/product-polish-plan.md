@@ -2,6 +2,7 @@
 
 Keep the accepted Home layout. Add one feature at a time and review its behavior before moving
 to the next. Mints and payment-screen redesigns are outside this rollout.
+Use the shared `feat/product-polish` branch and a separate focused commit for each improvement.
 
 ## 1. History search
 
@@ -29,6 +30,27 @@ large histories, large text, and light/dark themes.
 Validation: 33 focused tests passed across search matching, header controls, History interactions,
 existing filters/notes, and a SQLite integration case finding an entry beyond the recent 200.
 Type checking, the structure check, scoped formatting, and diff whitespace checks passed.
+
+## 2. Responsiveness: shared accessibility subscription
+
+The shared reduced-motion hook previously installed a native listener and read the device
+preference for each consumer. Buttons, pressables, switches, and spinners all use this hook.
+A synthetic test mounting 100 consumers reproduced 100 native subscriptions before the fix.
+
+The hook now uses one shared native subscription and preference read while consumers are mounted.
+It retains the safe initial reduced-motion state, propagates live preference changes, ignores
+stale reads/events after teardown, and removes the native subscription after the last unmount.
+Unchanged preference events do not re-render consumers. Existing control styling is preserved.
+
+Local regression coverage includes subscription sharing, cleanup, live changes, failed reads,
+stale callbacks, and repeated events. The 100-consumer fixture now checks one native subscription
+and read. This is evidence of less native setup work, not a measurement of app tap latency.
+Validation: all 40 focused hook/control tests, type checking, the button check, scoped formatting,
+and diff whitespace checks passed.
+
+No Android device was attached during this change. Follow the existing
+[restored-wallet performance plan](plans/restored-wallet-performance.md) to compare actual fresh
+and restored wallets. Device responsiveness remains unverified.
 
 ## Remaining queue
 
