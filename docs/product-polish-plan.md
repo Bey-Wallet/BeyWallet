@@ -186,14 +186,47 @@ mocked in local tests.
 Type checking, the structure check (76 Expo routes), button check, scoped formatting, and diff
 whitespace checks passed. The receiving suite also verifies that switching away pauses Ecash NFC.
 
+## 7. Android launcher shortcuts
+
+Long-press the installed Android app icon to open Scan or Receive. Scan opens the existing
+scanner with its normal receive return path; Receive opens the existing Send/Receive bottom
+sheet in Receive mode. Its contents mount only when first requested. Home is unchanged.
+
+The Expo plugin writes static shortcut resources, icons, and a small forwarding activity on
+prebuild. That activity keeps launcher CLEAR_TASK flags out of the existing wallet task and
+accepts only the two exact public action URLs. No tokens, amounts, recipient data, arbitrary
+destinations, or extra intent payloads are forwarded.
+
+Cold launches queue until wallet startup and unlock; warm launches preserve the active route
+until the shortcut can run. Wait during recovery, backgrounding, native sessions, and active
+wallet operations. Keep only the latest pending action and consume it once. The existing NFC
+intent handler remains the fallback for non-shortcut URLs. Add observable subscriptions to the
+existing navigation guard without changing its blocking behavior.
+
+Android is first, as requested; no iOS quick actions or dependencies were added. A native rebuild
+and installation are required: Metro/OTA alone cannot add launcher resources. The local generated
+Android project is ignored by Git; the committed Expo plugin reproduces these registrations.
+
+Validation: 49 focused shortcut, Android registration, existing NFC, and notification navigation
+tests passed. Coverage includes delayed authentication, busy/recovery/native-session/background
+deferral, repeat intents, exact action allowlisting, XML parsing, and reproducible generation.
+Type checking, the structure/button checks, scoped formatting, and diff whitespace checks passed.
+No Android device was attached. Verify launcher appearance, cold/warm shortcuts, unlock and
+camera permissions, and interruption of an active wallet operation after installing a rebuilt app.
+Native validation reached resource linking but the existing app theme references the unavailable
+`Theme.Material3Expressive.DayNight.NoActionBar` resource. Android compilation therefore remains
+unverified. The initial offline attempt also lacked cached Glide artifacts; normal resolution
+got past that blocker without changing dependency versions. No unrelated theme/dependency fixes
+are included in the shortcut commit.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Add operating-system shortcuts for Scan and Receive.
-3. Improve empty states with useful next actions.
-4. Offer shareable receipt images containing an appropriate public payment summary.
-5. Show understandable backup status in Settings.
-6. Add Lightning invoice NFC advertisement after the POS review.
+2. Improve empty states with useful next actions.
+3. Offer shareable receipt images containing an appropriate public payment summary.
+4. Show understandable backup status in Settings.
+5. Add Lightning invoice NFC advertisement after the POS review.
+6. Add iOS app-icon quick actions when iOS is in scope.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark
