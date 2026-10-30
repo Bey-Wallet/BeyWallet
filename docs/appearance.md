@@ -75,7 +75,8 @@ is absent. Settings retains the fiat-currency picker and removes the redundant D
 unit toggle. The Home-only visibility guard does not change other currency controls.
 
 Home keeps the balance, Scan/Receive/Send actions, and connected mints together in that order.
-Mints use a clipped neutral group with compact 14-point rows and full-width 2-point separators.
+Home's mints use an open list on the page background, with 44-point artwork and compact
+14-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
 Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
 Recovery progress and incoming payments follow the mints list. Home does not show backup,
 username, or supporter prompt cards; their dedicated destinations remain available.

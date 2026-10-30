@@ -26,7 +26,8 @@ each completed stage. Inspect each screen before editing; update only the incons
 - [x] Keep balance, Scan/Receive/Send actions, and mints together in that order.
 - [x] Remove backup, username, and supporter prompt cards from Home.
 - [x] Show recommendations only when no mint is connected.
-- [x] Use compact grouped mint rows, right-aligned amounts, and navigation cues.
+- [x] Keep Home mints in an open list with the previous artwork sizing, current fonts/colors,
+      and right-aligned amounts.
 - [x] Improve balance and mint-header touch targets and action-icon consistency.
 - [x] Default to the Bitcoin symbol without overriding explicitly saved preferences.
 - [x] Remove the unused Home prompt implementation and supporter dismissal controls.
