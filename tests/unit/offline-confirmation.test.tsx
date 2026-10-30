@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ConfirmStage } from '~/features/payments/send/ConfirmStage';
 import { OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
 
-jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, footer, children }: any) => (
     <>
@@ -15,6 +15,7 @@ jest.mock('~/shared/ui/PaymentStageLayout', () => ({
 }));
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AmountOption' }));
 jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'Mint' }));
@@ -48,6 +49,7 @@ const props = {
 };
 let tree: ReactTestRenderer;
 const buttons = () => tree.root.findAllByType('Button' as any);
+const options = () => tree.root.findAllByType('AmountOption' as any);
 beforeEach(() => jest.clearAllMocks());
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -60,13 +62,15 @@ it('offers both nearest amounts without enabling creation or sending on selectio
     );
   });
   expect(buttons().map((button) => button.props.children)).toEqual([
-    'Lower: ₿16',
-    'Higher: ₿32',
     'Prepare change',
     'Create ecash',
   ]);
+  expect(options().map((option) => option.props.accessibilityLabel)).toEqual([
+    'Lower: ₿16',
+    'Higher: ₿32',
+  ]);
   expect(buttons().at(-1)!.props.disabled).toBe(true);
-  await act(async () => buttons()[0].props.onPress());
+  await act(async () => options()[0].props.onPress());
   expect(props.onAmountSelect).toHaveBeenCalledWith(16);
   expect(props.onConfirm).not.toHaveBeenCalled();
   expect(tree.root.findByType('Amount' as any).props.amount).toBe(20);
@@ -88,10 +92,11 @@ it('omits a missing side and disables every action during creation', async () =>
     );
   });
   expect(buttons().map((button) => button.props.children)).toEqual([
-    'Higher: ₿32',
     'Prepare change',
     'Create ecash',
   ]);
+  expect(options().map((option) => option.props.accessibilityLabel)).toEqual(['Higher: ₿32']);
+  expect(options().every((option) => option.props.disabled)).toBe(true);
   expect(buttons().every((button) => button.props.disabled)).toBe(true);
 });
 

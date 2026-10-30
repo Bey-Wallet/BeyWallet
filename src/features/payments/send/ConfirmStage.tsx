@@ -1,9 +1,10 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React from 'react';
-import { Text, YStack } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -82,38 +83,59 @@ export function ConfirmStage(props: ConfirmStageProps) {
             </Text>
             {!props.offlineAmounts.exact && (
               <>
-                <Text fontFamily="$body" fontSize={12} color="$gray10">
-                  {props.offlineAmounts.lower !== null || props.offlineAmounts.higher !== null
-                    ? 'Choose a nearby amount to send offline, or prepare change while online.'
-                    : 'No offline amounts available. Prepare change while online.'}
-                </Text>
-                {(['lower', 'higher'] as const).map((direction) => {
-                  const value = props.offlineAmounts?.[direction];
-                  return value == null ? null : (
-                    <AppButton
-                      key={direction}
-                      fullWidth
-                      emphasis="secondary"
-                      disabled={isLoading || !props.onAmountSelect}
-                      onPress={() => props.onAmountSelect?.(value)}
-                    >
-                      {`${direction === 'lower' ? 'Lower' : 'Higher'}: ${currencyService.formatSats(value)}`}
-                    </AppButton>
-                  );
-                })}
+                <XStack gap="$3" width="100%">
+                  {(['lower', 'higher'] as const).map((direction) => {
+                    const value = props.offlineAmounts?.[direction];
+                    if (value == null) return null;
+                    const label = direction === 'lower' ? 'Lower' : 'Higher';
+                    const formattedAmount = currencyService.formatSats(value);
+                    const disabled = isLoading || !props.onAmountSelect;
+                    return (
+                      <AppPressable
+                        key={direction}
+                        flex={1}
+                        minWidth={0}
+                        minHeight={100}
+                        rounded="$6"
+                        px="$3"
+                        py="$4"
+                        gap="$1"
+                        items="center"
+                        justify="center"
+                        bg={direction === 'lower' ? '$offlineAmountLower' : '$offlineAmountHigher'}
+                        opacity={disabled ? 0.5 : 1}
+                        disabled={disabled}
+                        accessibilityLabel={`${label}: ${formattedAmount}`}
+                        onPress={() => props.onAmountSelect?.(value)}
+                      >
+                        <Text fontFamily="$body" fontSize={12} color="$offlineAmountForeground">
+                          {label}
+                        </Text>
+                        <Text
+                          fontFamily="$display"
+                          fontSize={24}
+                          fontWeight="600"
+                          color="$offlineAmountForeground"
+                          text="center"
+                          maxWidth="100%"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
+                          {formattedAmount}
+                        </Text>
+                      </AppPressable>
+                    );
+                  })}
+                </XStack>
                 <AppButton
-                  fullWidth
                   emphasis="text"
+                  labelFontSize={12}
+                  alignSelf="center"
                   disabled={isLoading || !props.onPrepareChange}
                   onPress={props.onPrepareChange}
                 >
                   Prepare change
                 </AppButton>
-                {props.isOffline && (
-                  <Text fontFamily="$body" fontSize={12} color="$gray10">
-                    Reconnect to prepare change for the original amount.
-                  </Text>
-                )}
               </>
             )}
           </YStack>
