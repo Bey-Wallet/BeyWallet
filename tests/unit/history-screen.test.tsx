@@ -3,6 +3,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { HistoryScreen } from '~/features/history';
 import { HistoryItem } from '~/features/history/components/HistoryItem';
 import { checkHistoryStatus } from '~/features/history/checkHistoryStatus';
+import { useQuery } from '@tanstack/react-query';
+import { historyService } from '~/services/wallet';
 
 const mockPush = jest.fn();
 const mockInvalidate = jest.fn();
@@ -11,6 +13,12 @@ const mockLoadRequests = jest.fn(async () => {});
 const mockMints: unknown[] = [];
 const mockRequests: unknown[] = [];
 const mockPayments: { operationId: string; published: boolean }[] = [];
+let mockSearchLoading = false;
+let mockSearchError = false;
+const mockRefetchSearch = jest.fn();
+const mockPeople = {
+  alice: { npub: 'public-test-identity', displayName: 'Alice', username: 'alice' },
+};
 const mockHistory = [
   {
     id: 'send',
@@ -30,6 +38,15 @@ const mockHistory = [
     createdAt: Date.now(),
   },
 ];
+const mockOlderHistory = {
+  id: 'older-coffee',
+  type: 'send',
+  amount: 1000,
+  unit: 'sat',
+  mintUrl: 'https://mint.example',
+  createdAt: new Date(2025, 2, 12).getTime(),
+  metadata: { note: 'Coffee', nostrPubkey: 'public-test-identity' },
+};
 const mockClient = { invalidateQueries: mockInvalidate };
 const mockRouter = { push: mockPush };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
@@ -53,14 +70,25 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Inbox',
       'RotateCcw',
       'Check',
+      'Search',
+      'X',
     ].map((name) => [name, name]),
   ),
 );
 jest.mock('@tanstack/react-query', () => ({
-  useQuery: ({ queryKey }: any) => ({
-    data: queryKey[0] === 'history' ? mockHistory : undefined,
-    refetch: jest.fn(),
-  }),
+  useQuery: jest.fn(({ queryKey }: any) => ({
+    data:
+      queryKey[1] === 'search'
+        ? mockSearchLoading || mockSearchError
+          ? undefined
+          : [...mockHistory, mockOlderHistory]
+        : queryKey[0] === 'history'
+          ? mockHistory
+          : undefined,
+    isLoading: queryKey[1] === 'search' && mockSearchLoading,
+    isError: queryKey[1] === 'search' && mockSearchError,
+    refetch: queryKey[1] === 'search' ? mockRefetchSearch : jest.fn(),
+  })),
   useQueryClient: () => mockClient,
 }));
 jest.mock('@legendapp/list/react-native', () => ({
@@ -82,11 +110,14 @@ jest.mock('@legendapp/list/react-native', () => ({
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'BottomSheetScrollView' }));
 jest.mock('~/services/wallet', () => ({
   initService: { isInitialized: () => true },
-  historyService: {},
+  historyService: { getActivityHistory: jest.fn(async () => []) },
   eventService: { on: () => () => {} },
 }));
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: (selector: any) => selector({ mints: mockMints }),
+}));
+jest.mock('~/state/peopleStore', () => ({
+  usePeopleStore: (selector: any) => selector({ people: mockPeople }),
 }));
 jest.mock('~/state/nostrRequestStore', () => ({
   useNostrRequestStore: (selector: any) =>
@@ -109,6 +140,7 @@ jest.mock('~/features/history/components/HistorySkeletonItem', () => ({
 }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/AppInput', () => ({ AppInput: 'Input' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'ListTable',
@@ -127,6 +159,8 @@ let screen: ReactTestRenderer;
 beforeEach(async () => {
   jest.clearAllMocks();
   mockPayments.length = 0;
+  mockSearchLoading = false;
+  mockSearchError = false;
   await act(async () => {
     screen = create(<HistoryScreen />);
   });
@@ -241,4 +275,74 @@ it('keeps quick filters usable when no activity matches', () => {
   expect(pressable('Pending')).toBeDefined();
   expect(pressable('Sent')).toBeDefined();
   expect(pressable('Received')).toBeDefined();
+});
+
+const openSearch = () => {
+  act(() => screen.update(<HistoryScreen showSearch />));
+  return screen.root.findByType('Input' as any);
+};
+
+it('shows search only when opened, finds an older payment, and retains detail navigation', async () => {
+  expect(screen.root.findAllByType('Input' as any)).toHaveLength(0);
+  const input = openSearch();
+  act(() => input.props.onChangeText('alice coffee'));
+  expect(transactionButtons()).toHaveLength(1);
+  act(() => transactionButtons()[0].props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/txn-details',
+    params: { id: 'older-coffee' },
+  });
+  const options = jest
+    .mocked(useQuery)
+    .mock.calls.map(([options]) => options)
+    .find((options) => options.queryKey[1] === 'search' && options.enabled)!;
+  await (options.queryFn as () => Promise<unknown>)();
+  expect(historyService.getActivityHistory).toHaveBeenCalledWith(-1, 0);
+});
+
+it('combines search with quick filters and clears the query without resetting filters', () => {
+  const input = openSearch();
+  act(() => input.props.onChangeText('1000'));
+  expect(transactionButtons()).toHaveLength(1);
+  act(() => pressable('Received').props.onPress());
+  expect(transactionButtons()).toHaveLength(0);
+  expect(
+    screen.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'No matching activity'),
+  ).toBe(true);
+  act(() => pressable('Clear history search').props.onPress());
+  expect(transactionButtons()).toHaveLength(1);
+  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Received');
+  expect(screen.root.findByType('Input' as any).props.value).toBe('');
+});
+
+it('clears search when its header control closes the bar', () => {
+  const input = openSearch();
+  act(() => input.props.onChangeText('coffee'));
+  expect(transactionButtons()).toHaveLength(1);
+  act(() => screen.update(<HistoryScreen showSearch={false} />));
+  expect(screen.root.findAllByType('Input' as any)).toHaveLength(0);
+  expect(transactionButtons()).toHaveLength(2);
+  expect(openSearch().props.value).toBe('');
+});
+
+it('shows loading and retry states instead of a false empty result when full history is unavailable', () => {
+  mockSearchLoading = true;
+  const input = openSearch();
+  act(() => input.props.onChangeText('coffee'));
+  expect(screen.root.findAllByType('HistoryPageSkeleton' as any)).toHaveLength(1);
+  mockSearchLoading = false;
+  mockSearchError = true;
+  act(() => screen.update(<HistoryScreen showSearch />));
+  expect(
+    screen.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'Could not search history'),
+  ).toBe(true);
+  const retry = screen.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Try again')!;
+  act(() => retry.props.onPress());
+  expect(mockRefetchSearch).toHaveBeenCalledTimes(1);
 });
