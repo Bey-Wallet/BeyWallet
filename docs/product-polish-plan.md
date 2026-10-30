@@ -52,17 +52,37 @@ No Android device was attached during this change. Follow the existing
 [restored-wallet performance plan](plans/restored-wallet-performance.md) to compare actual fresh
 and restored wallets. Device responsiveness remains unverified.
 
+## 3. Clearer receiving and address sharing
+
+- Receive now includes a direct My addresses entry alongside Request ecash and Bitcoin.
+- Keep the Ecash-first default, as requested, and explicit Lightning deep links.
+- Explain that the Ecash QR is a Nostr identity for compatible wallets and that the Lightning
+  address uses npub.cash. Label the raw Nostr public key and make username copying discoverable.
+- Add Create payment request on Ecash and Create Lightning invoice on Lightning. These open
+  existing flows; their validation, quote creation, and confirmation behavior is preserved.
+- Separate Lightning preference loading from setup. The QR, Copy, and Share remain unavailable
+  until the existing readiness conditions are satisfied.
+- Keep pending incoming payments reachable when Lightning is disabled, and provide a direct
+  management link when enabled. Collection remains in the existing authenticated flow.
+- Preserve exact Ecash and Lightning QR, clipboard, and share payloads; no receiving service,
+  key derivation, address provider, or automatic-collection policy is changed.
+
+Device review still needed: small screens and large text, QR scanning in compatible wallets,
+native clipboard/share sheets, and return navigation from request/invoice setup.
+
+Validation: all 50 focused address/profile, action-selector, Lightning-service, and lifecycle
+tests passed, along with type checking, the button check, scoped formatting, and diff whitespace.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Make the receiving identity/address experience clearer and easier to share.
-3. Show offline readiness and connect denomination shortages to Prepare change.
-4. Give pending/interrupted payments clear explanations and appropriate next actions.
-5. Add a focused merchant receiving mode.
-6. Add operating-system shortcuts for Scan and Receive.
-7. Improve empty states with useful next actions.
-8. Offer shareable receipt images containing an appropriate public payment summary.
-9. Show understandable backup status in Settings.
+2. Show offline readiness and connect denomination shortages to Prepare change.
+3. Give pending/interrupted payments clear explanations and appropriate next actions.
+4. Add a focused merchant receiving mode.
+5. Add operating-system shortcuts for Scan and Receive.
+6. Improve empty states with useful next actions.
+7. Offer shareable receipt images containing an appropriate public payment summary.
+8. Show understandable backup status in Settings.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark

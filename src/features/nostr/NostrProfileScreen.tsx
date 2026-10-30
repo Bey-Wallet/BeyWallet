@@ -201,24 +201,50 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                     ))}
                 </XStack>
                 {verified && (
-                  <Text fontSize={14} color="$gray10" textAlign="center">
-                    @{nip05!.split('@').slice(1).join('@')}
-                  </Text>
+                  <>
+                    <Text fontSize={14} color="$gray10" textAlign="center">
+                      @{nip05!.split('@').slice(1).join('@')}
+                    </Text>
+                    <Text fontSize={12} color="$gray10" textAlign="center">
+                      Tap to copy Nostr address
+                    </Text>
+                  </>
                 )}
               </AppPressable>
             )}
           </YStack>
+          <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={320} lineHeight={18}>
+            {isLightning
+              ? 'Your permanent address for receiving Lightning payments through npub.cash.'
+              : 'Share this Nostr identity with Bey or a compatible Nostr ecash wallet.'}
+          </Text>
           {isLightning && !canShare ? (
             <YStack gap="$3" items="center">
-              <Text fontSize={12} color="$gray10" textAlign="center">
-                Set up a receiving mint to enable your Lightning address.
-              </Text>
-              <AppButton
-                size="small"
-                onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
-              >
-                Enable Lightning address
-              </AppButton>
+              {!lightning.loaded || !npub ? (
+                <>
+                  <Spinner size="large" color="$color" />
+                  <Text
+                    fontSize={12}
+                    color="$gray10"
+                    textAlign="center"
+                    accessibilityLiveRegion="polite"
+                  >
+                    Loading Lightning address…
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text fontSize={12} color="$gray10" textAlign="center">
+                    Set up a receiving mint to enable your Lightning address.
+                  </Text>
+                  <AppButton
+                    size="small"
+                    onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
+                  >
+                    Enable Lightning address
+                  </AppButton>
+                </>
+              )}
             </YStack>
           ) : (
             <View bg="$background" width={qrSize} height={qrSize} items="center" justify="center">
@@ -253,6 +279,9 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
               pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
             >
+              <Text fontSize={12} color="$gray10" textAlign="center" mb="$1">
+                {isLightning ? 'Lightning address' : 'Nostr public key'}
+              </Text>
               <Text fontSize={14} color="$color" textAlign="center">
                 {copyValue}
               </Text>
@@ -285,19 +314,21 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   ? 'Payments are collected when your wallet is open and unlocked.'
                   : 'Collect incoming payments in Lightning address settings.'}
               </Text>
-              {lightning.pending.length > 0 && (
-                <AppButton
-                  size="small"
-                  emphasis="ghost"
-                  onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
-                >{`Pending incoming payments (${lightning.pending.length})`}</AppButton>
-              )}
+              <AppButton
+                size="small"
+                emphasis="ghost"
+                onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
+              >
+                Manage Lightning address
+              </AppButton>
             </YStack>
           )}
-          {!isLightning && (
-            <Text fontSize={12} color="$gray10" textAlign="center" maxWidth={280} lineHeight={18}>
-              Receive ecash over Nostr.
-            </Text>
+          {isLightning && lightning.loaded && lightning.pending.length > 0 && (
+            <AppButton
+              size="small"
+              emphasis="ghost"
+              onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}
+            >{`Pending incoming payments (${lightning.pending.length})`}</AppButton>
           )}
 
           {!isLightning &&
@@ -316,6 +347,24 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 onPress={refresh}
               />
             ))}
+          {npub && (
+            <YStack gap="$2" width="100%" items="center">
+              <Text fontSize={12} color="$gray10" textAlign="center" lineHeight={18}>
+                {isLightning
+                  ? 'For a specific amount, create a one-time Lightning invoice.'
+                  : 'For a specific amount, create an ecash payment request.'}
+              </Text>
+              <AppButton
+                size="small"
+                emphasis="secondary"
+                onPress={() =>
+                  router.push(isLightning ? '/(modals)/mint' : '/(modals)/receive?mode=request')
+                }
+              >
+                {isLightning ? 'Create Lightning invoice' : 'Create payment request'}
+              </AppButton>
+            </YStack>
+          )}
         </YStack>
       </ScrollView>
     </YStack>

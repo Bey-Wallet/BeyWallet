@@ -11,7 +11,7 @@ import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, ArrowLeft, X, Nfc } from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, ArrowLeft, X, Nfc, AtSign } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -145,6 +145,16 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                     description: 'Lightning or on-chain',
                     stage: 'bitcoin',
                   },
+              ...(type === 'receive'
+                ? [
+                    {
+                      label: 'My addresses',
+                      icon: AtSign,
+                      description: 'Share your ecash or Lightning address',
+                      path: '/(modals)/nostr-profile' as Href,
+                    },
+                  ]
+                : []),
             ]
           : [
               {

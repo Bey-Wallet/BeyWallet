@@ -30,6 +30,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Scan: 'Scan',
   Nfc: 'Nfc',
   ArrowLeft: 'ArrowLeft',
+  AtSign: 'AtSign',
 }));
 jest.mock('@gorhom/bottom-sheet', () => ({
   BottomSheetScrollView: 'ScrollView',
@@ -97,7 +98,7 @@ it.each(['send', 'receive'] as const)('opens %s as an Android bottom sheet', asy
   expect(tree.root.findByType('Sheet' as any).props.backgroundColor).toBe('$background');
   expect(input().props.scrollComponent).toBe(BottomSheetScrollView);
   expect(labels()).toEqual(
-    type === 'send' ? ['Share ecash', 'Tap to pay'] : ['Request ecash', 'Bitcoin'],
+    type === 'send' ? ['Share ecash', 'Tap to pay'] : ['Request ecash', 'Bitcoin', 'My addresses'],
   );
   await press('Close');
   expect(mockDismiss).toHaveBeenCalledTimes(1);
@@ -129,7 +130,7 @@ it('preserves Receive Bitcoin navigation inside the Android bottom sheet', async
   await press('Bitcoin');
   expect(labels()).toEqual(['Create invoice', 'Lightning address', 'On-chain']);
   await press('Back');
-  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin', 'My addresses']);
   await press('Bitcoin');
   await press('On-chain');
   expect(mockPush).toHaveBeenCalledWith('/(modals)/mint?mode=onchain');
@@ -161,12 +162,22 @@ it.each([
   ['receive', 'On-chain', '/(modals)/mint?mode=onchain'],
 ] as const)('routes %s Bitcoin via %s to the correct flow', async (type, method, path) => {
   await open(type);
-  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin', 'My addresses']);
   await press('Bitcoin');
   expect(labels()).toEqual(['Create invoice', 'Lightning address', 'On-chain']);
   expect(mockPush).not.toHaveBeenCalled();
   await press(method);
   expect(mockPush).toHaveBeenCalledWith(path);
+});
+
+it('opens My addresses directly from Receive after dismissing the action sheet', async () => {
+  await open('receive');
+  await press('My addresses');
+  expect(mockDismiss).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledWith('/(modals)/nostr-profile');
+  expect(mockDismiss.mock.invocationCallOrder[0]).toBeLessThan(
+    mockPush.mock.invocationCallOrder[0],
+  );
 });
 
 it('opens an ecash request directly without a second selector', async () => {
@@ -182,7 +193,7 @@ it('keeps the input draft across choices and Back, then resets on reopening', as
   await press('Bitcoin');
   expect(input().props.value).toBe('payment draft');
   await press('Back');
-  expect(labels()).toEqual(['Request ecash', 'Bitcoin']);
+  expect(labels()).toEqual(['Request ecash', 'Bitcoin', 'My addresses']);
   expect(input().props.value).toBe('payment draft');
   await act(async () => ref.current!.present('send'));
   expect(labels()).toEqual(['Share ecash', 'Tap to pay']);
