@@ -73,6 +73,15 @@ native clipboard/share sheets, and return navigation from request/invoice setup.
 Validation: all 50 focused address/profile, action-selector, Lightning-service, and lifecycle
 tests passed, along with type checking, the button check, scoped formatting, and diff whitespace.
 
+Minimal-layout follow-up: keep My addresses as the header title, with Ecash/Lightning tabs directly
+below. Use a single receiving identity, prominent QR, compact copy row, and one request/invoice
+button. Long public values truncate visually while copying and sharing their full payloads.
+Share stays in the header. Lightning management and pending-payment navigation share one compact
+group. Remove repeated helper paragraphs and standalone status text; detailed controls remain in
+the existing settings destinations. Ecash stays first.
+Layout validation: 11 profile/QR/copy/share/navigation tests passed, plus type checking, button,
+formatting, and whitespace checks. Native appearance still requires device review.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
