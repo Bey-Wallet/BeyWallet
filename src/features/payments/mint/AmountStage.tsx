@@ -19,6 +19,7 @@ import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import * as Haptics from 'expo-haptics';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
+import { ListTableRow } from '~/shared/ui/ListTable';
 
 interface AmountStageProps {
   mintUrl?: string | null;
@@ -209,25 +210,60 @@ export function AmountStage({
   }, [formattedDisplayValue]);
 
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <YStack flex={1} justify="space-between" gap="$3">
+      <YStack
+        flex={onNoteChange ? 1 : undefined}
+        minHeight={0}
+        items="center"
+        gap="$1.5"
+        width="100%"
+      >
         {/* Mint Selector Row */}
         <MintBalanceRow
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
           displayName={displayName}
           balance={balance}
+          showBalance={!onNoteChange}
           isLoadingMint={isLoadingMint}
           isSelector={true}
           onPress={() => {
             refreshMintList();
             sheetRef.current?.present();
           }}
-        />
+        >
+          {onNoteChange && (
+            <ListTableRow
+              label="Note"
+              value={
+                <Input
+                  value={note || ''}
+                  onChangeText={onNoteChange}
+                  placeholder="Coffee, for example"
+                  accessibilityLabel="Payment note"
+                  maxLength={200}
+                  fontFamily="$body"
+                  fontSize={14}
+                  minHeight={48}
+                  width={180}
+                  maxWidth="100%"
+                  minWidth={0}
+                  bg="transparent"
+                  color="$color"
+                  placeholderTextColor="$gray10"
+                  borderWidth={0}
+                  textAlign="right"
+                />
+              }
+            />
+          )}
+        </MintBalanceRow>
 
         {/* Card Box Container */}
         <YStack
           width="100%"
+          flex={onNoteChange ? 1 : undefined}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$4"
@@ -272,24 +308,7 @@ export function AmountStage({
           </YStack>
         </YStack>
         {/* 3 Preset buttons above numpad */}
-        {onNoteChange ? (
-          <Input
-            value={note || ''}
-            onChangeText={onNoteChange}
-            placeholder="Note (optional), e.g. Coffee"
-            accessibilityLabel="Payment note"
-            maxLength={200}
-            fontFamily="$body"
-            fontSize={14}
-            minHeight={48}
-            width="100%"
-            bg="$buttonDefaultSecondary"
-            color="$color"
-            placeholderTextColor="$gray10"
-            borderWidth={0}
-            rounded="$6"
-          />
-        ) : (
+        {!onNoteChange && (
           <XStack width="100%" justify="center" gap="$1.5">
             <AppPressable
               px={12}

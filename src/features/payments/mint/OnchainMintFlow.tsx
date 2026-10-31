@@ -1,4 +1,5 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
@@ -214,16 +215,7 @@ export function OnchainMintFlow() {
     [activeMintUrl, quoteData, isChecking, refreshBalance, toast],
   );
 
-  // Periodically poll for payment status
-  useEffect(() => {
-    if (step !== 'deposit' || !quoteData) return;
-
-    const interval = setInterval(() => {
-      handleCheckPayment(false);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [step, quoteData, handleCheckPayment]);
+  usePendingPaymentPolling(() => handleCheckPayment(false), step === 'deposit' && !!quoteData);
 
   // Render loading state
   if (step === 'confirm')

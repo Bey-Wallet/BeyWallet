@@ -1,4 +1,5 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { TransactionDetailsScreen } from '~/features/history/TransactionDetailsScreen';
 
@@ -43,7 +44,10 @@ jest.mock('~/services/wallet', () => ({
   decodeToken: () => ({ proofs: [{ secret: 'synthetic' }] }),
   historyService: {},
   walletService: { receive: (...args: unknown[]) => mockReceive(...args) },
-  quotesService: { redeemMintQuote: (...args: unknown[]) => mockRedeemQuote(...args) },
+  quotesService: {
+    checkMintQuote: async () => ({ state: mockEntry.state.toUpperCase() }),
+    redeemMintQuote: (...args: unknown[]) => mockRedeemQuote(...args),
+  },
 }));
 jest.mock('~/features/history/historyToken', () => ({
   getHistoryToken: (entry: { type: string }) =>
@@ -101,6 +105,7 @@ jest.mock('~/shared/ui/PendingTokenLayout', () => ({ PendingTokenLayout: 'Pendin
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
+jest.mock('~/shared/ui/PaymentStatusRow', () => ({ PaymentStatusRow: 'StatusRow' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: 'Table',
@@ -136,6 +141,7 @@ jest.mock('~/services/platform/networkService', () => ({
 }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeArea' }));
 jest.mock('@react-navigation/native', () => ({
+  NavigationContext: require('react').createContext(undefined),
   usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
 }));
 
@@ -148,6 +154,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 beforeEach(() => {
+  AppState.currentState = 'active';
   mockMintQuote = null;
   mockSnapshotPending = false;
   jest.useFakeTimers({ doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
@@ -231,10 +238,8 @@ it('retires an expired invoice QR without writing a financial failure', async ()
 it('checks an interrupted Lightning payment without redeeming or resubmitting it', async () => {
   mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
   await render();
-  const button = tree.root
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Check status')!;
-  await act(async () => button.props.onPress());
+  const button = tree.root.findByType('StatusRow' as any);
+  await act(async () => button.props.onRefresh());
   expect(mockCheckHistory).toHaveBeenCalledWith(mockEntry);
   expect(mockRedeemQuote).not.toHaveBeenCalled();
   expect(mockReceive).not.toHaveBeenCalled();
@@ -248,14 +253,9 @@ it('checks an interrupted Lightning payment without redeeming or resubmitting it
 
 it('retains an uncertain payment state and offers guidance when its status check fails', async () => {
   mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
-  mockCheckHistory.mockRejectedValueOnce(new Error('synthetic connection failure'));
   await render();
-  await act(async () =>
-    tree.root
-      .findAllByType('Button' as any)
-      .find((node) => node.props.children === 'Check status')!
-      .props.onPress(),
-  );
+  mockCheckHistory.mockRejectedValueOnce(new Error('synthetic connection failure'));
+  await act(async () => tree.root.findByType('StatusRow' as any).props.onRefresh());
   expect(mockUpdate).not.toHaveBeenCalled();
   expect(mockEntry.state).toBe('pending');
   expect(
@@ -328,7 +328,7 @@ it('guards duplicate taps, pauses polling, and immediately displays persisted re
     await Promise.all([first, second]);
   });
   expect(mockEntry.state).toBe('expired');
-  expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe('Reclaimed');
+  expect(tree.root.findByType('StatusRow' as any).props.value).toBe('Reclaimed');
   expect(mockSetQuery).toHaveBeenCalledTimes(1);
   expect(mockCancelQueries).toHaveBeenCalledWith({
     queryKey: ['transaction', 'entry'],
@@ -416,6 +416,7 @@ it('claims a saved receive once, blocks navigation, and updates immediately with
   mockReceive.mockReturnValueOnce(receive.promise);
   await render();
   const claim = pending().props.onClaim;
+  const refetches = mockRefetch.mock.calls.length;
   let first!: Promise<void>, second!: Promise<void>;
   await act(async () => {
     first = claim();
@@ -434,7 +435,7 @@ it('claims a saved receive once, blocks navigation, and updates immediately with
   expect(mockUpdate).toHaveBeenLastCalledWith('entry', 'claimed');
   expect(mockSetQuery).toHaveBeenCalledTimes(1);
   expect(mockBalance).toHaveBeenCalledTimes(1);
-  expect(mockRefetch).not.toHaveBeenCalled();
+  expect(mockRefetch).toHaveBeenCalledTimes(refetches);
   expect(tree.root.findAllByType('PendingToken' as any)).toHaveLength(0);
 });
 
@@ -444,6 +445,7 @@ it('discards a saved-token status check that started before claim', async () => 
   mockStates.mockReturnValueOnce(status.promise);
   await render();
   let refresh!: Promise<void>;
+  const refetches = mockRefetch.mock.calls.length;
   await act(async () => {
     refresh = pending().props.onCheckStatus();
   });
@@ -453,7 +455,7 @@ it('discards a saved-token status check that started before claim', async () => 
     await refresh;
   });
   expect(mockUpdate.mock.calls).toEqual([['entry', 'claimed']]);
-  expect(mockRefetch).not.toHaveBeenCalled();
+  expect(mockRefetch).toHaveBeenCalledTimes(refetches);
 });
 
 it('leaves saved tokens unclaimed offline and releases the guard for an online retry', async () => {

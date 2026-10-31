@@ -111,6 +111,7 @@ function MerchantCheckout({
             active: !completed && method === 'ecash',
             onReceived: received,
             onBusyChange: setEcashBusy,
+            completed,
           }}
         />
       </YStack>
@@ -121,6 +122,7 @@ function MerchantCheckout({
             onReceived={received}
             onBusyChange={setLightningBusy}
             onClose={onClose}
+            listening={!completed}
           />
         </YStack>
       )}

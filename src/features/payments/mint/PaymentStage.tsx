@@ -2,7 +2,9 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
+import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { Text } from 'tamagui';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
@@ -13,6 +15,7 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useWalletStore } from '~/state/walletStore';
+import { quotesService } from '~/services/wallet';
 
 interface PaymentStageProps {
   amount: string;
@@ -22,19 +25,24 @@ interface PaymentStageProps {
   expiry?: number;
   onPaid: () => Promise<void> | void;
   onCancel: () => void;
+  listening?: boolean;
 }
 
 export function PaymentStage({
   amount,
   invoice,
+  quoteId,
   mintUrl,
   expiry,
   onPaid,
   onCancel,
+  listening = true,
 }: PaymentStageProps) {
   const sats = parseInt(amount, 10) || 0;
   const toast = useAppToast();
   const [isChecking, setIsChecking] = useState(false);
+  const checkLock = useRef(false);
+  const offline = useOfflineStatus();
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const mints = useWalletStore((state) => state.mints);
   const mint = mints.find((item) => item.mintUrl.replace(/\/$/, '') === mintUrl.replace(/\/$/, ''));
@@ -61,19 +69,29 @@ export function PaymentStage({
     }
   };
 
-  const handleCheckPayment = async () => {
-    if (isChecking || isExpired) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const checkPayment = async (silent = false) => {
+    if (checkLock.current || isExpired || offline || !listening) return;
+    checkLock.current = true;
+    if (!silent) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsChecking(true);
     try {
+      const quote = await quotesService.checkMintQuote(mintUrl, quoteId);
+      if (quote.state !== 'PAID') {
+        if (!silent && quote.state !== 'ISSUED') throw new Error('Payment pending');
+        return;
+      }
       await onPaid();
     } catch {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.showFeedback(interactionCopy.paymentNotReceivedYetTryAgainShortly);
+      if (!silent) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        toast.showFeedback(interactionCopy.paymentNotReceivedYetTryAgainShortly);
+      }
     } finally {
       setIsChecking(false);
+      checkLock.current = false;
     }
   };
+  usePendingPaymentPolling(() => checkPayment(true), listening && !isExpired && !offline);
 
   return (
     <PaymentStageLayout
@@ -113,9 +131,9 @@ export function PaymentStage({
         <PaymentStatusRow
           status={isExpired ? 'cancelled' : 'pending'}
           value={isExpired ? 'Expired' : 'Awaiting payment'}
-          onRefresh={handleCheckPayment}
+          onRefresh={() => checkPayment()}
           checking={isChecking}
-          disabled={isExpired}
+          disabled={isExpired || offline}
         />
         <ListTableRow label="Mint" value={mintDisplayName} />
         <ListTableRow

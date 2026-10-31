@@ -236,6 +236,45 @@ checking, the button check, scoped formatting, and diff whitespace checks passed
 tests emit existing native SQLite mock warnings. Device review remains for keyboard focus,
 small screens, large text, light/dark themes, and the Receive sheet.
 
+## 9. POS entry and pending-payment listening
+
+POS keeps the existing mint selector and replaces Available balance with an editable Note row.
+The amount card expands into the remaining space above the keypad. Regular minting keeps its
+balance and presets. Empty request QR placeholders use the neutral theme surface; actual QR
+codes retain their white quiet zone and black modules.
+
+Keep event-based payment listeners and use a shared visible-screen fallback: check immediately,
+then wait 2 seconds after each completed check. Pause offline, in the background, on navigation
+blur, and after settlement. Previously, History checked every 3 seconds, live ecash sends every
+2.5 seconds, and Bitcoin deposits every 10 seconds. Nostr request reconciliation remains
+event-driven with its global 30-second fallback, supplemented by visible-screen reconciliation.
+The wallet's existing mint watcher and 5-second quote processor remain in place.
+
+Lightning checks read quote status before collection; only PAID invokes existing redemption.
+Unpaid checks do not reserve outputs or attempt issuance. Preserve proof verification, existing
+expiry/reclaim behavior, operation guards, and authenticated wallet flows. Background observations
+stay silent. The status row shows one continuous listening spinner and stable text; completed,
+expired, paused, and offline states do not claim to be actively listening. Respect reduced motion.
+
+Both POS methods stop their screen-level checks after either verified payment completes a sale.
+Retain listening across method switches before completion. This prevents the hidden Lightning
+receiver from toggling busy every 2 seconds and making Next sale blink. In-flight operations
+still finish under the existing navigation guard.
+
+Fix the Lightning note path: cashu-ts ignores constructor-only mintInfo without a full cache,
+so the former Wallet.getMintInfo call failed before creating an invoice. Read capabilities with
+MintInfo and create the public invoice with the validated Mint API, then save it through Coco.
+Preserve trusted-mint validation, silent omission of unsupported descriptions, and persistence
+checks before displaying the invoice. Tests use the installed MintInfo implementation.
+
+Validation: 179 tests passed across 17 focused suites, including polling cleanup/resume, slow
+requests, duplicate-check guards, unpaid/expired invoices, post-sale shutdown, single-spinner
+presentation, note creation/fallback, POS entry, and existing claim/reclaim/offline safeguards.
+Type checking, structure/button checks, scoped formatting, and whitespace checks passed.
+Device review remains for POS sizing/keyboard, QR scanning, actual supported/unsupported-mint
+invoice creation, NFC, and real payment timing. Testnut's public info currently advertises notes
+and simulated paid invoices; it cannot demonstrate the timing of a real Lightning payment.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.

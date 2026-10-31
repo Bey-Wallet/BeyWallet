@@ -84,6 +84,8 @@ it('charges once, preserves both receivers across switches, and starts a clean n
   // A payment to the previously displayed Lightning QR still completes this sale.
   await act(async () => invoiceReceiver.props.onReceived());
   expect(tree.root.findByType('Status' as any).props.status).toBe('success');
+  expect(tree.root.findByType('Lightning' as any).props.listening).toBe(false);
+  expect(ecash().props.merchant.completed).toBe(true);
   expect(ecash().props.merchant.active).toBe(false);
   await act(async () => ecash().props.merchant.onReceived());
   expect(mockWallet.refreshBalance).toHaveBeenCalledTimes(1);

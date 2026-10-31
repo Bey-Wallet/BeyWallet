@@ -18,7 +18,9 @@ const mockWallet = {
 };
 const mockParams: { mode?: string } = {};
 let mockOffline = false;
-let mockNetworkListener: (state: any) => void = () => {};
+const mockNetworkListeners = new Set<(state: any) => void>();
+const mockNetworkListener = (state: any) =>
+  mockNetworkListeners.forEach((listener) => listener(state));
 const mockAvailableProofs = jest.fn();
 const mockPush = jest.fn();
 jest.mock('~/state/walletStore', () => ({
@@ -69,8 +71,8 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('expo-network', () => ({
   addNetworkStateListener: (listener: (state: any) => void) => {
-    mockNetworkListener = listener;
-    return { remove: jest.fn() };
+    mockNetworkListeners.add(listener);
+    return { remove: () => mockNetworkListeners.delete(listener) };
   },
   getNetworkStateAsync: async () => ({
     isConnected: !mockOffline,

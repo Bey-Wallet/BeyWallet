@@ -1,4 +1,5 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));
 let mockNfcIncoming: { status: string; requestId?: string; receiptId?: string; message?: string } =
   { status: 'idle' };
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => {

@@ -1,4 +1,5 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
@@ -190,6 +191,8 @@ export function PaymentRequestStage({
   }, [amountSats]);
 
   // ── Send handler ─────────────────────────────────────────────────────────
+  usePendingPaymentPolling(() => refreshReceipt(), (hasOperation || !!receipt) && !isSending);
+
   const handlePay = async (origin: 'button' | 'automatic' = 'button') => {
     if (actionLock.current || (!paymentRef.current && (!isCompatible || !isEnough || !cost)))
       return;

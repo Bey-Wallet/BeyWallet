@@ -5,6 +5,10 @@ import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
+import {
+  usePaymentListening,
+  PENDING_PAYMENT_CHECK_MS,
+} from '~/shared/hooks/usePendingPaymentPolling';
 import React, { useState, useCallback } from 'react';
 import { InteractionManager, Alert } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -302,15 +306,20 @@ export function SendModalScreen() {
   };
 
   // Monitor for claim success when in 'result' stage
+  const listeningForClaim = usePaymentListening(
+    step === 'result' && !!encodedToken && !!operationId,
+  );
   React.useEffect(() => {
-    if (step !== 'result' || !encodedToken || !operationId) return;
+    if (!listeningForClaim || !encodedToken || !operationId) return;
 
     console.log('[SendModalScreen] Starting automated state monitoring for:', operationId);
 
     let isDetected = false;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
 
     const handleSuccess = async (source: string) => {
-      if (isDetected) return;
+      if (isDetected || stopped) return;
 
       // Double confirmation for events only — polling already verified the chain state directly
       if (source === 'event') {
@@ -332,6 +341,7 @@ export function SendModalScreen() {
         }
       }
 
+      if (isDetected || stopped) return;
       isDetected = true;
       console.log(`[SendModalScreen] ✅ SUCCESS CONFIRMED via ${source} for:`, operationId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -348,7 +358,7 @@ export function SendModalScreen() {
       }
     });
 
-    // Poll proof state — first check is immediate, then every 2.5s
+    // Sequential checks avoid overlapping requests to a slow mint.
     const pollOnce = async () => {
       if (isDetected) return;
       try {
@@ -365,17 +375,17 @@ export function SendModalScreen() {
       } catch (err) {
         console.warn('[SendModalScreen] Polling check failed:', err);
       }
+      if (!stopped && !isDetected) timer = setTimeout(pollOnce, PENDING_PAYMENT_CHECK_MS);
     };
 
-    // Kick off immediately, then repeat every 2.5s
     pollOnce();
-    const interval = setInterval(pollOnce, 2500);
 
     return () => {
       unsubHistory();
-      clearInterval(interval);
+      stopped = true;
+      clearTimeout(timer);
     };
-  }, [step, encodedToken, operationId]);
+  }, [listeningForClaim, encodedToken, operationId]);
 
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],

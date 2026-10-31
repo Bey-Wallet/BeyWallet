@@ -241,3 +241,4 @@ it('never offers legacy mode for automatic NFC payments', async () => {
   await act(async () => mockResolveDelivery());
 });
 jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({ useSettingsBusy: jest.fn() }));
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));

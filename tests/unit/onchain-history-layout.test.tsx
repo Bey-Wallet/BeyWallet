@@ -133,3 +133,4 @@ it('keeps a deposit QR as Bitcoin and copies the full destination', async () => 
   expect(tree.root.findByProps({ label: 'Address' }).props.copyValue).toBe(address);
   expect(tree.root.findAllByType('Amount' as any)).toHaveLength(0);
 });
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));

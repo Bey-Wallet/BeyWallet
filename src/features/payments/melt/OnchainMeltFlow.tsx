@@ -1,4 +1,5 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -490,6 +491,8 @@ export function OnchainMeltFlow() {
       setStep('pending');
     }
   };
+
+  usePendingPaymentPolling(refreshOnchainPayment, step === 'pending');
 
   // Render loading/processing state
   if (step === 'paying') {

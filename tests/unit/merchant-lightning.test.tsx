@@ -116,3 +116,16 @@ it('blocks offline creation and allows an explicit retry after reconnecting', as
   await act(async () => tree.root.findByType('Button' as any).props.onPress());
   expect(mockCreate).toHaveBeenCalledTimes(1);
 });
+
+it('stops checking and toggling busy after another method completes the sale', async () => {
+  await open();
+  await act(async () => tree.update(<MerchantLightningStage {...props} listening={false} />));
+  const payment = tree.root.findByType('Payment' as any);
+  expect(payment.props.listening).toBe(false);
+  const busyChanges = props.onBusyChange.mock.calls.length;
+  await act(async () => payment.props.onPaid());
+  expect(mockRedeem).not.toHaveBeenCalled();
+  expect(props.onReceived).not.toHaveBeenCalled();
+  expect(props.onBusyChange).toHaveBeenCalledTimes(busyChanges);
+  expect(mockUnsubscribe).toHaveBeenCalled();
+});

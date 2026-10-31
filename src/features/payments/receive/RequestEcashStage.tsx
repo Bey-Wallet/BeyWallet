@@ -14,6 +14,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useRef, useSyncExternalStore, useMemo } from 'react';
 import { YStack, Text } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import * as Haptics from 'expo-haptics';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 
@@ -52,6 +53,7 @@ interface RequestEcashStageProps {
     amount: number;
     mintUrl: string;
     active: boolean;
+    completed?: boolean;
     note?: string;
     onReceived: () => void;
     onBusyChange: (busy: boolean) => void;
@@ -388,6 +390,15 @@ export function RequestEcashStage({
     };
   }, [currentRequestId, setActiveMint]);
 
+  usePendingPaymentPolling(
+    async () => {
+      const { requestLifecycleService } = await import('~/services/wallet/requestLifecycleService');
+      await requestLifecycleService.reconcile();
+      await loadPendingRequests();
+    },
+    !!currentRequestId && requestState === 'pending' && step !== 'success' && !merchant?.completed,
+  );
+
   const handleCheckStatus = useCallback(async () => {
     setIsChecking(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -508,7 +519,7 @@ export function RequestEcashStage({
         inset={!merchant}
         hero={
           <>
-            <PaymentQRFrame accessibilityLabel="Payment request QR code">
+            <PaymentQRFrame accessibilityLabel="Payment request QR code" placeholder={!creqString}>
               {(size) =>
                 creqString ? (
                   <QRCode value={creqString} size={size} backgroundColor="white" color="black" />

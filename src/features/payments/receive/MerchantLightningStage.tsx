@@ -17,6 +17,7 @@ export function MerchantLightningStage({
   onReceived,
   onBusyChange,
   onClose,
+  listening = true,
 }: {
   amount: number;
   mintUrl: string;
@@ -24,6 +25,7 @@ export function MerchantLightningStage({
   onReceived: () => void;
   onBusyChange: (busy: boolean) => void;
   onClose: () => void;
+  listening?: boolean;
 }) {
   const [quote, setQuote] = useState<Quote>();
   const [failed, setFailed] = useState(false);
@@ -61,13 +63,13 @@ export function MerchantLightningStage({
     };
   }, [amount, mintUrl, note, attempt]);
   useEffect(() => {
-    if (!quote) return;
+    if (!quote || !listening) return;
     return eventService.on('mint-quote:redeemed', (payload: any) => {
       if (payload.quoteId === quote.quote && payload.mintUrl === mintUrl) onReceived();
     });
-  }, [quote, mintUrl, onReceived]);
+  }, [quote, mintUrl, onReceived, listening]);
   const collect = async () => {
-    if (!quote || collectLock.current) return;
+    if (!quote || !listening || collectLock.current) return;
     collectLock.current = true;
     setCollecting(true);
     try {
@@ -110,6 +112,7 @@ export function MerchantLightningStage({
       expiry={quote.expiry}
       onPaid={collect}
       onCancel={onClose}
+      listening={listening}
     />
   );
 }
