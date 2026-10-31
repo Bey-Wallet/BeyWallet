@@ -4,7 +4,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useEffect, useState, useMemo } from 'react';
-import { YStack, XStack, Text, H2, H4, ScrollView, View } from 'tamagui';
+import { YStack, XStack, Text, H2, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
@@ -16,15 +16,10 @@ import { useWalletStore } from '~/state/walletStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { usePreventRemove } from '@react-navigation/native';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Share as RNShare } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MintPreviewHealth, MintReliabilityRow } from './components/MintPreviewHealth';
-import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
+import { MintOverview } from './components/MintOverview';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
-import { MintNutsRow } from './components/MintNutsRow';
-import { MintTermsRow } from './components/MintTermsRow';
-import { MintContacts } from './components/MintContacts';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 interface MintProfileScreenProps {
@@ -162,30 +157,8 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         return url;
       }
     })();
-  const description = info.description || info.description_long;
-  const motd = info.motd;
-  const version = info.version;
-  const nuts = info.nuts || {};
-  const previewTableProps = {
-    compact: true,
-  };
-  const previewUnits = [
-    ...new Set([
-      ...(Array.isArray(info.units)
-        ? info.units.filter((unit: unknown) => typeof unit === 'string')
-        : []),
-      ...mintPreviewMethods(info).flatMap((method) => (method.unit ? [method.unit] : [])),
-    ]),
-  ];
   // Safely extract icon from store or the fetched v1/info metadata
   const iconToUse = walletMint?.icon || info.icon_url || info.picture || info.icon;
-  const hostname = (() => {
-    try {
-      return new URL(url).hostname;
-    } catch (e) {
-      return url;
-    }
-  })();
   return (
     <YStack flex={1} bg="$background">
       <Stack.Screen
@@ -263,70 +236,17 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 onPress={() => setShowQr(true)}
               />
             </XStack>
-            <MintReliabilityRow
-              key={`score-${url}`}
-              url={url}
-              connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
-              onRecheck={() => {
-                void recheckConnection({ cancelRefetch: false });
-              }}
-            />
           </YStack>
-
-          {/* Description */}
-          {description && (
-            <YStack gap="$3">
-              <Text color="$gray10" fontSize="$4" fontWeight="600">
-                About
-              </Text>
-              <YStack gap="$2">
-                <Text lineHeight={22}>{description}</Text>
-              </YStack>
-            </YStack>
-          )}
-          {/* MOTD */}
-          {motd && (
-            <YStack gap="$3" theme="orange">
-              <Text color="$gray10" fontSize="$4" fontWeight="600">
-                Message from the mint
-              </Text>
-              <ListTable {...previewTableProps}>
-                <YStack px="$page" py="$rowGap" gap="$2">
-                  <Text lineHeight={22}>{motd}</Text>
-                </YStack>
-              </ListTable>
-            </YStack>
-          )}
-
-          {/* General Metadata lists */}
-          <YStack gap="$3">
-            <H4 color="$gray10" fontSize="$4">
-              Mint Details
-            </H4>
-            <ListTable {...previewTableProps}>
-              <ListTableRow label="URL" value={hostname} isCopyable copyValue={url} />
-              {version && <ListTableRow label="Version" value={version} />}
-              <MintNutsRow key={url} nuts={nuts} />
-              <ListTableRow label="Units" value={previewUnits.join(', ') || 'Not provided'} />
-              {info.pubkey && <ListTableRow label="Public key" value={info.pubkey} isCopyable />}
-              <MintTermsRow url={info.tos_url} />
-            </ListTable>
-          </YStack>
-
-          <MintPreviewMethods info={info} />
-
-          {/* Connection and independent monitoring */}
-          <MintPreviewHealth
-            key={url}
+          <MintOverview
             url={url}
+            info={info}
             connection={isCheckingConnection ? 'checking' : fetchError ? 'offline' : 'online'}
             connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
             onRecheck={() => {
-              void recheckConnection();
+              void recheckConnection({ cancelRefetch: false });
             }}
+            preview
           />
-
-          <MintContacts contacts={info.contact} />
         </YStack>
       </ScrollView>
 

@@ -1,16 +1,23 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Share } from 'react-native';
+import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
-import { mintPreviewMethods } from '~/features/mints/components/MintPreviewMethods';
+import { MintPreviewHealth } from '~/features/mints/components/MintPreviewHealth';
+import {
+  MintPreviewMethods,
+  mintPreviewMethods,
+} from '~/features/mints/components/MintPreviewMethods';
 import { MintNutsRow } from '~/features/mints/components/MintNutsRow';
 import { MintTermsRow } from '~/features/mints/components/MintTermsRow';
 
 const url = 'https://mint.example/Bitcoin';
 const mockRefetch = jest.fn();
 const mockReplace = jest.fn();
-const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace };
+const mockPush = jest.fn();
+let mockSection = 'reliability';
+const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace, push: mockPush };
 let mockScore: number | null = 98;
 let mockMetadataError: Error | null = null;
 let mockCheckingConnection = false;
@@ -18,6 +25,7 @@ let mockProviderError = false;
 let mockRadarRefreshError = false;
 let mockRadarFetching = false;
 let mockRadarUntracked = false;
+let mockTestMint = false;
 let mockRadarHealth = {
   scoreStale: false as boolean | null,
   status: 'online' as string | null,
@@ -70,7 +78,13 @@ jest.mock('@tanstack/react-query', () => ({
           ? undefined
           : mockRadarUntracked
             ? null
-            : { url, score: mockScore, lastCheckedAt: '2026-10-20T05:25:00Z', ...mockRadarHealth },
+            : {
+                url,
+                score: mockScore,
+                uptime7dPct: 99,
+                lastCheckedAt: '2026-10-20T05:25:00Z',
+                ...mockRadarHealth,
+              },
         isError: mockProviderError || mockRadarRefreshError,
         isFetching: mockRadarFetching,
       };
@@ -79,7 +93,7 @@ jest.mock('@tanstack/react-query', () => ({
         ...base,
         data: mockProviderError
           ? undefined
-          : [{ id: 'mint1', url, uptime24h: mockUptime24, uptime7d: 99 }],
+          : [{ id: 'mint1', url, uptime24h: mockUptime24, uptime7d: 99, isTest: mockTestMint }],
         isError: mockProviderError,
       };
     if (key[1] === 'cashu-info-detail')
@@ -113,6 +127,7 @@ jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendatio
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  useLocalSearchParams: () => ({ mintUrl: url, section: mockSection }),
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
@@ -200,12 +215,14 @@ const score = () => row('Reliability score');
 beforeEach(() => {
   jest.clearAllMocks();
   mockScore = 98;
+  mockSection = 'reliability';
   mockMetadataError = null;
   mockCheckingConnection = false;
   mockProviderError = false;
   mockRadarRefreshError = false;
   mockRadarFetching = false;
   mockRadarUntracked = false;
+  mockTestMint = false;
   mockRadarHealth = { scoreStale: false, status: 'online', downSince: null, scoreCappedNew: false };
   mockUptime24 = 100;
   mockDaily = [
@@ -228,11 +245,98 @@ afterEach(async () => {
   await act(async () => tree.unmount());
   jest.restoreAllMocks();
 });
-const render = async () => {
+const content = (section: string) =>
+  section === 'preview' ? (
+    <MintProfileScreen url={url} />
+  ) : section === 'reliability' ? (
+    <MintPreviewHealth
+      url={url}
+      connection={mockCheckingConnection ? 'checking' : mockMetadataError ? 'offline' : 'online'}
+      connectionCheckedAt={1000}
+      onRecheck={() => {
+        mockRefetch({ cancelRefetch: false });
+      }}
+    />
+  ) : section === 'payments' ? (
+    <MintPreviewMethods info={mockInfo} />
+  ) : (
+    <MintAboutRows url={url} info={mockInfo} />
+  );
+const render = async (section = 'reliability') => {
+  mockSection = section;
   await act(async () => {
-    tree = create(<MintProfileScreen url={url} />);
+    tree = create(content(section));
   });
 };
+
+it('keeps preview focused and expands full-width information without navigation or nested lists', async () => {
+  await render('preview');
+  expect(row('Connection').props.value).toBe('Reachable');
+  expect(row('Deposit').props.value).toBe('Lightning');
+  expect(row('Withdraw').props.value).toBe('Lightning');
+  expect(row('Reliability').props.value).toBe('99% uptime · 7d');
+  for (const label of [
+    'Version',
+    'Public key',
+    'Minimum',
+    'Uptime · 24 hours',
+    'Reliability score',
+  ]) {
+    expect(row(label)).toBeUndefined();
+  }
+  await act(async () => row('Payments & limits').props.onPress());
+  expect(row('Minimum')).toBeDefined();
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
+  expect(
+    tree.root.findAllByType('ListTableRow' as any).filter((node) => node.props.label === 'Deposit'),
+  ).toHaveLength(1);
+  expect(row('Payments & limits').props.expanded).toBe(true);
+  await act(async () => row('Reliability').props.onPress());
+  expect(row('Minimum')).toBeUndefined();
+  expect(row('Uptime · 24 hours')).toBeDefined();
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
+  expect(
+    tree.root
+      .findAllByType('ListTableRow' as any)
+      .filter((node) => node.props.label === 'Connection'),
+  ).toHaveLength(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => row('About this mint').props.onPress());
+  expect(row('About this mint').props.expanded).toBe(true);
+  expect(row('URL').props.copyValue).toBe(url);
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => row('About this mint').props.onPress());
+  expect(row('Version')).toBeUndefined();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+});
+
+it('keeps the test-mint warning visible before adding even when only cashu.info identifies it', async () => {
+  mockTestMint = true;
+  await render('preview');
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Test mint · Not real bitcoin',
+  );
+});
+
+it('keeps payment limits expandable inline and technical details directly inside About', async () => {
+  await render('payments');
+  expect(
+    tree.root
+      .findAllByType('ListTableRow' as any)
+      .filter((node) => node.props.label === 'Maximum')
+      .map((node) => node.props.value),
+  ).toEqual(['1,000 sat', '2,000 sat']);
+  mockSection = 'about';
+  await act(async () => {
+    tree.update(content(mockSection));
+  });
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(row('URL').props.copyValue).toBe(url);
+  expect(row('Advertised NUTs')).toBeDefined();
+  expect(mockPush).not.toHaveBeenCalled();
+});
 
 it('shows independent uptime and payment results, MintRadar score, and actual advertised units', async () => {
   await render();
@@ -247,6 +351,10 @@ it('shows independent uptime and payment results, MintRadar score, and actual ad
   expect(row('Payment success · 7 days').props.value).toBe('93.3% (14/15)');
   expect(row('Failures attributed to mint').props.value).toBe('0');
   expect(row('Mint balance / reserves').props.value).toBe('Not published');
+  mockSection = 'technical';
+  await act(async () => {
+    tree.update(content(mockSection));
+  });
   expect(row('Units').props.value).toBe('sat');
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
@@ -274,7 +382,7 @@ it('restores the current score presentation and removes outage timing after reco
   await render();
   mockRadarHealth = { ...mockRadarHealth, status: 'online', scoreStale: false, downSince: null };
   await act(async () => {
-    tree.update(<MintProfileScreen url={url} />);
+    tree.update(content(mockSection));
   });
   expect(score().props).toMatchObject({ value: '98%', valueColor: '$green11' });
   expect(row('MintRadar offline since')).toBeUndefined();
@@ -329,7 +437,7 @@ it('retains the new-mint cap explanation with historical scores', async () => {
 });
 
 it('expands only the advertised NUTs with numbers, names, and checks, then collapses', async () => {
-  await render();
+  await render('technical');
   const toggle = () => tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' });
   const entries = () =>
     tree.root
@@ -382,7 +490,7 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
 
 it('opens the colored terms link in the browser with an external-link icon', async () => {
   const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
-  await render();
+  await render('about');
   const terms = row('Terms of service');
   expect(terms.props.valueColor).toBe('$accentColor');
   expect(terms.props.rightContent.type).toBe('ExternalLink');
@@ -425,7 +533,7 @@ it('trims days outside recorded history while retaining gaps and zero-uptime day
 
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
-  await render();
+  await render('preview');
   await act(async () =>
     tree.root.findByProps({ accessibilityLabel: 'Share mint' }).props.onPress(),
   );
@@ -455,7 +563,7 @@ it('shows full country names without Intl.DisplayNames on Android', async () => 
 });
 
 it('rechecks the connection on request and shows loading before the live result', async () => {
-  await render();
+  await render('preview');
   const recheck = () => row('Connection').props.rightContent.props;
   expect(recheck()).toMatchObject({
     accessibilityLabel: 'Recheck mint connection',
@@ -470,12 +578,12 @@ it('rechecks the connection on request and shows loading before the live result'
   mockCheckingConnection = false;
   mockMetadataError = new Error('Mint unreachable');
   await act(async () => tree.update(<MintProfileScreen url={url} />));
-  expect(row('Connection').props).toMatchObject({ value: 'Offline', valueColor: '$red11' });
+  expect(row('Connection').props).toMatchObject({ value: 'Unreachable', valueColor: '$gray10' });
   expect(recheck()).toMatchObject({ loading: false, disabled: false });
 });
 
 it('shows mint identity and disclaimer, then connects only after confirmation', async () => {
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   const sheet = tree.root.findByType('AppBottomSheet' as any);
   const copy = sheet
@@ -503,7 +611,7 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
       useWalletStore.setState({ error: 'Mint validation failed' });
     }),
   });
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   await act(async () => button('Confirm').props.onPress());
   expect(tree.root.findByType('AppBottomSheet' as any)).toBeDefined();
@@ -524,7 +632,7 @@ it('blocks duplicate confirmation and dismissal while connecting', async () => {
       });
     }),
   });
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   const confirm = button('Confirm').props.onPress;
   let pending!: Promise<void>;
@@ -598,7 +706,7 @@ it('keeps cached metadata visible when the direct connection fails', async () =>
 
 it('opens the updated details screen when the profile URL is already connected', async () => {
   useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
-  await render();
+  await render('preview');
   expect(mockReplace).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
     params: { mintUrl: url },

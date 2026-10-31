@@ -1,6 +1,5 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
-import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
 import { appTypography } from '~/shared/theme/appearance';
@@ -26,6 +25,7 @@ import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Share as RNShare, Keyboard } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,16 +33,11 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { SafeFlex } from '~/shared/ui/Flex';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
-import { MintReliabilityRow, MintPreviewHealth } from './components/MintPreviewHealth';
-import { MintPreviewMethods, mintPreviewMethods } from './components/MintPreviewMethods';
+import { MintOverview } from './components/MintOverview';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
-import { MintNutsRow } from './components/MintNutsRow';
-import { MintTermsRow } from './components/MintTermsRow';
-import { MintContacts } from './components/MintContacts';
 
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
@@ -56,10 +51,10 @@ export default function MintDetailsModal() {
     balances,
     setActiveMint,
     activeMintUrl,
+    setMintNickname,
     removeMint,
     isRestoring,
     restoringMintUrl,
-    setMintNickname,
   } = useWalletStore();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const [isEditingName, setIsEditingName] = useState(false);
@@ -71,7 +66,6 @@ export default function MintDetailsModal() {
   const removeMintSheetRef = useRef<AppBottomSheetRef>(null);
   const isRemovingRef = useRef(false);
   const [isRemoving, setIsRemoving] = useState(false);
-
   const safeGoBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -159,10 +153,6 @@ export default function MintDetailsModal() {
     }
   }, [editName, walletMint, name]);
 
-  const description = mintText(info?.description) || mintText(info?.description_long);
-  const motd = mintText(info?.motd);
-  const version = mintText(info?.version);
-  const nuts = info?.nuts || {};
   const iconToUse =
     walletMint?.icon || mintText(info?.icon_url) || mintText(info?.picture) || mintText(info?.icon);
   const isTrusted = walletMint?.trusted ?? false;
@@ -254,25 +244,7 @@ export default function MintDetailsModal() {
     );
   }
 
-  const tableProps = {
-    compact: true,
-  };
   const connection = isCheckingConnection ? 'checking' : connectionError ? 'offline' : 'online';
-  const units = [
-    ...new Set([
-      ...(Array.isArray(info?.units)
-        ? info.units.filter((unit): unit is string => typeof unit === 'string')
-        : []),
-      ...mintPreviewMethods(info || {}).flatMap((method) => (method.unit ? [method.unit] : [])),
-    ]),
-  ];
-  const contacts = Array.isArray(info?.contact) ? info.contact : [];
-
-  const handleCopy = async (text: string, label: string) => {
-    if (!(await copyWithFeedback(text, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    toast.showFeedback(interactionCopy.copiedToClipboard);
-  };
 
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -337,7 +309,7 @@ export default function MintDetailsModal() {
         <ScrollView
           flex={1}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
           <YStack px="$page" gap="$5">
             {/* Balance and Avatar Row */}
@@ -371,7 +343,7 @@ export default function MintDetailsModal() {
                   {isTrusted ? (
                     <View bg="$green3" px="$2" py="$1" rounded="$3">
                       <Text color="$green11" fontWeight="600">
-                        Trusted
+                        Trusted by you
                       </Text>
                     </View>
                   ) : (
@@ -464,107 +436,42 @@ export default function MintDetailsModal() {
               </YStack>
             </XStack>
 
-            {/* Mint information */}
-            <MintReliabilityRow
+            <MintOverview
               url={mintUrl}
+              info={info || {}}
               connection={connection}
+              connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
               onRecheck={() => {
                 void recheckConnection({ cancelRefetch: false });
               }}
             />
-
-            {motd && (
-              <YStack gap="$3">
-                <Text color="$gray10" fontSize="$4" fontWeight="600">
-                  Message from the mint
-                </Text>
-                <ListTable {...tableProps}>
-                  <YStack px="$page" py="$rowGap" gap="$2">
-                    <Text theme="orange" lineHeight={22}>
-                      {motd}
-                    </Text>
-                  </YStack>
-                </ListTable>
-              </YStack>
-            )}
-            {description && (
-              <YStack gap="$3">
-                <Text color="$gray10" fontSize="$4" fontWeight="600">
-                  About
-                </Text>
-                <ListTable {...tableProps}>
-                  <YStack px="$page" py="$rowGap" gap="$2">
-                    <Text lineHeight={22}>{description}</Text>
-                  </YStack>
-                </ListTable>
-              </YStack>
-            )}
-            <YStack gap="$3">
-              <Text color="$gray10" fontSize="$4" fontWeight="600">
-                Mint Details
+            <YStack gap="$2">
+              <Text color="$gray10" fontSize={12}>
+                Manage mint
               </Text>
-              <ListTable {...tableProps}>
-                <ListTableRow label="URL" value={mintUrl} isCopyable copyValue={mintUrl} />
-                {version && <ListTableRow label="Version" value={version} />}
-                <MintNutsRow key={mintUrl} nuts={nuts} />
-                <ListTableRow label="Units" value={units.join(', ') || 'Not provided'} />
-                {mintText(info?.pubkey) && (
-                  <ListTableRow label="Public key" value={mintText(info?.pubkey)} isCopyable />
-                )}
-                <MintTermsRow url={info?.tos_url} />
+              <ListTable compact>
+                <ListTableRow
+                  label="Restore"
+                  icon={RefreshCw}
+                  value={isRestoring && restoringMintUrl === mintUrl ? 'Restoring…' : undefined}
+                  disabled={isRestoring}
+                  onPress={handleRestoreProofs}
+                />
+                <ListTableRow
+                  label="Remove mint"
+                  icon={Trash2}
+                  labelColor="$red11"
+                  iconColor="$red11"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    removeMintSheetRef.current?.present();
+                  }}
+                />
               </ListTable>
             </YStack>
-            <MintPreviewMethods info={info || {}} />
-            <MintPreviewHealth
-              url={mintUrl}
-              connection={connection}
-              connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
-              onRecheck={() => {
-                void recheckConnection();
-              }}
-            />
-            <MintContacts contacts={contacts} />
           </YStack>
         </ScrollView>
 
-        {/* Floating Action Buttons */}
-        <XStack
-          px="$4"
-          pb={'$2'}
-          pt="$3"
-          bg="$background"
-          borderTopWidth={1}
-          borderColor="$borderColor"
-          gap="$2.5"
-        >
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            size="medium"
-            loading={isRestoring && restoringMintUrl === mintUrl}
-            icon={<RefreshCw size={18} />}
-            flex={1}
-            onPress={handleRestoreProofs}
-            disabled={isRestoring}
-          >
-            {isRestoring && restoringMintUrl === mintUrl ? 'Restoring...' : 'Restore'}
-          </AppButton>
-
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            size="medium"
-            icon={<Trash2 strokeWidth={2.5} />}
-            flex={1}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              removeMintSheetRef.current?.present();
-            }}
-          >
-            Remove
-          </AppButton>
-        </XStack>
-        {/* Remove Mint Confirmation Bottom Sheet */}
         <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
           <YStack p="$4" gap="$4">
             <View bg="$red3" p="$4" rounded="$4" borderWidth={1} borderColor="$red8">

@@ -15,7 +15,7 @@ const mockSettings = {
   secondaryCurrency: 'USD',
   showBitcoinSymbol: false,
 };
-const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
+const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn(), dismissTo: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({ mintUrl: url, editName: mockEditName }),
@@ -89,6 +89,7 @@ jest.mock('~/features/mints/components/MintPreviewHealth', () => ({
   MintReliabilityRow: 'MintReliabilityRow',
   MintPreviewHealth: 'MintPreviewHealth',
 }));
+jest.mock('~/features/mints/components/MintOverview', () => ({ MintOverview: 'MintOverview' }));
 jest.mock('~/features/mints/components/MintPreviewMethods', () => ({
   MintPreviewMethods: 'MintPreviewMethods',
   mintPreviewMethods: () => [{ unit: 'sat' }],
@@ -275,21 +276,20 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
   await render();
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
   expect(labels).toEqual(
-    expect.arrayContaining(['Deposit', 'Withdraw', 'Transfer', 'About', 'Community mint']),
+    expect.arrayContaining(['Deposit', 'Withdraw', 'Transfer', 'Trusted by you']),
   );
   expect(labels).not.toEqual(expect.arrayContaining(['Mint Transactions']));
   expect(labels).not.toEqual(expect.arrayContaining(['About Mint']));
-  for (const label of ['Restore', 'Remove']) {
-    const button = tree.root
-      .findAllByType('AppButton' as any)
-      .find((node) => node.props.children === label)!;
-    expect(button.props).toMatchObject({
-      variant: 'default',
-      emphasis: 'secondary',
-      size: 'medium',
-    });
+  for (const label of ['Restore', 'Remove mint']) {
+    expect(
+      tree.root.findAllByType('ListTableRow' as any).find((node) => node.props.label === label)
+        ?.props.onPress,
+    ).toBeDefined();
   }
-  expect(tree.root.findByType('MintReliabilityRow' as any).props).toMatchObject({
+  expect(tree.root.findAllByType('MintPreviewHealth' as any)).toHaveLength(0);
+  expect(iconButton('Share mint')).toBeDefined();
+  expect(iconButton('Show mint QR code')).toBeDefined();
+  expect(tree.root.findByType('MintOverview' as any).props).toMatchObject({
     url,
     connection: 'online',
   });
@@ -315,7 +315,7 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
 
 it('wires the connected mint connection row to a fresh metadata check', async () => {
   await render();
-  await act(async () => tree.root.findByType('MintReliabilityRow' as any).props.onRecheck());
+  await act(async () => tree.root.findByType('MintOverview' as any).props.onRecheck());
   expect(mockRecheckConnection).toHaveBeenCalledWith({ cancelRefetch: false });
   expect(jest.mocked(useQuery)).toHaveBeenCalledWith(
     expect.objectContaining({

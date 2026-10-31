@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
-import { Text, YStack } from 'tamagui';
-import { AppPressable } from '~/shared/ui/AppPressable';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import React from 'react';
+import { ListTableRow } from '~/shared/ui/ListTable';
 
 type Info = Record<string, any>;
 const methodName = (method: string) =>
@@ -76,8 +73,15 @@ export function mintPreviewMethods(info: Info) {
   return rows;
 }
 
-export function MintPreviewMethods({ info }: { info: Info }) {
-  const [expanded, setExpanded] = useState(false);
+export function MintPreviewMethods({
+  info,
+  summaryOnly = false,
+  hideSummary = false,
+}: {
+  info: Info;
+  summaryOnly?: boolean;
+  hideSummary?: boolean;
+}) {
   const rows = mintPreviewMethods(info);
   const summary = (direction: string) =>
     [
@@ -88,59 +92,31 @@ export function MintPreviewMethods({ info }: { info: Info }) {
       ),
     ].join(' · ') || 'Not advertised';
   return (
-    <YStack gap="$3">
-      <Text color="$gray10" fontSize="$4" fontWeight="600">
-        Payment methods
-      </Text>
-      <ListTable compact>
-        <ListTableRow label="Receive" value={summary('Receive')} />
-        <ListTableRow label="Send" value={summary('Send')} />
-      </ListTable>
-      {rows.length > 0 && (
+    <>
+      {!hideSummary && (
         <>
-          <AppPressable
-            minHeight={48}
-            flexDirection="row"
-            items="center"
-            justify="space-between"
-            accessibilityRole="button"
-            accessibilityLabel="Payment limits"
-            accessibilityState={{ expanded }}
-            onPress={() => setExpanded((value) => !value)}
-          >
-            <Text color="$gray10" fontSize="$4" fontWeight="600">
-              Payment limits
-            </Text>
-            {expanded ? (
-              <ChevronUp size={22} color="$gray10" />
-            ) : (
-              <ChevronDown size={22} color="$gray10" />
-            )}
-          </AppPressable>
-          {expanded &&
-            rows.map((row, index) => (
-              <YStack key={index} gap="$2">
-                <Text color="$gray10" fontSize={13}>
-                  {row.direction} · {methodName(row.method)}
-                  {row.unit ? ` · ${row.unit}` : ''}
-                </Text>
-                <ListTable compact>
-                  <ListTableRow
-                    label="Availability"
-                    value={row.disabled ? 'Disabled by mint' : 'Advertised by mint'}
-                  />
-                  <ListTableRow label="Minimum" value={row.minimum} />
-                  <ListTableRow label="Maximum" value={row.maximum} />
-                  {row.fee !== undefined && <ListTableRow label="Published fee" value={row.fee} />}
-                  {row.network && <ListTableRow label="Network" value={row.network} />}
-                  {row.confirmations !== undefined && (
-                    <ListTableRow label="Confirmations" value={String(row.confirmations)} />
-                  )}
-                </ListTable>
-              </YStack>
-            ))}
+          <ListTableRow label="Deposit" value={summary('Receive')} />
+          <ListTableRow label="Withdraw" value={summary('Send')} />
         </>
       )}
-    </YStack>
+      {!summaryOnly && rows.length === 0 && <ListTableRow label="No payment limits advertised" />}
+      {!summaryOnly &&
+        rows.map((row, index) => (
+          <React.Fragment key={index}>
+            <ListTableRow
+              label={`${row.direction === 'Receive' ? 'Deposit' : 'Withdraw'} · ${methodName(row.method)}${row.unit ? ` · ${row.unit}` : ''}`}
+              labelColor="$color"
+              value={row.disabled ? 'Disabled by mint' : undefined}
+            />
+            <ListTableRow label="Minimum" value={row.minimum} />
+            <ListTableRow label="Maximum" value={row.maximum} />
+            {row.fee !== undefined && <ListTableRow label="Published fee" value={row.fee} />}
+            {row.network && <ListTableRow label="Network" value={row.network} />}
+            {row.confirmations !== undefined && (
+              <ListTableRow label="Confirmations" value={String(row.confirmations)} />
+            )}
+          </React.Fragment>
+        ))}
+    </>
   );
 }
