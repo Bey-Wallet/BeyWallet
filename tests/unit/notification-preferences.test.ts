@@ -33,6 +33,44 @@ beforeEach(() => {
   (initService.getRepo as jest.Mock).mockReturnValue({ settingsRepository });
 });
 
+it('uses the Bitcoin symbol when no display preference has been saved', async () => {
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(true);
+  await useSettingsStore.getState().initialize();
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(true);
+});
+
+it.each([undefined, 'false', 'invalid', 'true'])(
+  'loads the mint disclaimer preference safely from %s',
+  async (saved) => {
+    if (saved !== undefined) values.set('hideMintConnectionDisclaimer', saved);
+    await useSettingsStore.getState().initialize();
+    expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(saved === 'true');
+  },
+);
+
+it('persists the mint disclaimer preference and defaults it again when absent for another wallet', async () => {
+  await useSettingsStore.getState().setHideMintConnectionDisclaimer(true);
+  expect(values.get('hideMintConnectionDisclaimer')).toBe('true');
+  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(true);
+  values.delete('hideMintConnectionDisclaimer');
+  await useSettingsStore.getState().initialize(true);
+  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(false);
+});
+
+it('keeps the disclaimer visible when saving its preference fails', async () => {
+  const warning = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  settingsRepository.setSetting.mockRejectedValueOnce(new Error('disk unavailable'));
+  await useSettingsStore.getState().setHideMintConnectionDisclaimer(true);
+  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(false);
+  warning.mockRestore();
+});
+
+it.each(['true', 'false'])('respects a saved Bitcoin symbol preference of %s', async (saved) => {
+  values.set('showBitcoinSymbol', saved);
+  await useSettingsStore.getState().initialize();
+  expect(useSettingsStore.getState().showBitcoinSymbol).toBe(saved === 'true');
+});
+
 it('retries settings after a slow repository instead of marking defaults initialized', async () => {
   (initService.getRepo as jest.Mock).mockImplementationOnce(() => {
     throw new Error('Not ready');

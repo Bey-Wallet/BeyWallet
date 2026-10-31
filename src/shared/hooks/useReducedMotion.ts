@@ -1,26 +1,48 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-export function useReducedMotion() {
-  // Stay still until the device preference has been read.
-  const [reducedMotion, setReducedMotion] = useState(true);
-  useEffect(() => {
-    let active = true;
+const listeners = new Set<() => void>();
+let reducedMotion = true;
+let generation = 0;
+let subscription: ReturnType<typeof AccessibilityInfo.addEventListener> | undefined;
+
+function update(value: boolean) {
+  if (reducedMotion === value) return;
+  reducedMotion = value;
+  [...listeners].forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  if (listeners.size === 1) {
+    const currentGeneration = ++generation;
     let receivedEvent = false;
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => {
+    subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => {
+      if (generation !== currentGeneration) return;
       receivedEvent = true;
-      setReducedMotion(value);
+      update(value);
     });
     AccessibilityInfo.isReduceMotionEnabled().then(
       (value) => {
-        if (active && !receivedEvent) setReducedMotion(value);
+        if (generation === currentGeneration && !receivedEvent) update(value);
       },
       () => {},
     );
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
-  return reducedMotion;
+  }
+  return () => {
+    if (!listeners.delete(listener) || listeners.size > 0) return;
+    generation++;
+    subscription?.remove();
+    subscription = undefined;
+    // A later mount must re-read a preference that may have changed while idle.
+    reducedMotion = true;
+  };
+}
+
+const getSnapshot = () => reducedMotion;
+const getServerSnapshot = () => true;
+
+/** Share native preference work across controls; stay still until the first read completes. */
+export function useReducedMotion() {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

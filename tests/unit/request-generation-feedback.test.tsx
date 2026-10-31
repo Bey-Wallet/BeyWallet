@@ -1,4 +1,8 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/features/history/components/ReceiptImageShare', () => ({
+  ReceiptImageShare: 'ReceiptShare',
+}));
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));
 let mockNfcIncoming: { status: string; requestId?: string; receiptId?: string; message?: string } =
   { status: 'idle' };
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => {
@@ -183,6 +187,85 @@ beforeEach(() => {
   mockRequestArguments = [];
   useNostrRequestStore.setState({ requests: [], pendingRequests: [] });
   useNostrInboxStore.setState({ items: [] });
+});
+
+it('creates one merchant request for the frozen sale and confirms only verified receipt evidence', async () => {
+  mockEncodingFails = false;
+  const onReceived = jest.fn();
+  const merchant = {
+    amount: 64,
+    note: 'Coffee',
+    mintUrl: 'https://mint.test',
+    active: true,
+    onReceived,
+    onBusyChange: jest.fn(),
+  };
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestEcashStage merchant={merchant} />);
+  });
+  expect(useNostrRequestStore.getState().requests).toHaveLength(1);
+  const request = useNostrRequestStore.getState().requests[0];
+  expect(request).toMatchObject({ amount: 64, mintUrl: merchant.mintUrl, description: 'Coffee' });
+  expect(onReceived).not.toHaveBeenCalled();
+  expect(mockPresentRequest).toHaveBeenCalled();
+  const stopsBeforeSwitch = mockStopBroadcast.mock.calls.length;
+  await act(async () =>
+    tree.update(<RequestEcashStage merchant={{ ...merchant, active: false }} />),
+  );
+  expect(mockStopBroadcast.mock.calls.length).toBeGreaterThan(stopsBeforeSwitch);
+  expect(useNostrRequestStore.getState().requests).toHaveLength(1);
+  const payment = {
+    id: 'merchant-payment',
+    type: 'token' as const,
+    requestId: request.id,
+    amount: 64,
+    unit: 'sat',
+    mintUrl: merchant.mintUrl,
+    tokenString: 'synthetic-token',
+    senderPubkey: 'public-sender',
+    status: 'claimed' as const,
+    receivedAt: request.createdAt,
+    receiptCreatedAt: request.createdAt,
+    seen: false,
+    receiptVerified: false,
+  };
+  await act(async () => {
+    useNostrInboxStore.setState({ items: [payment] });
+  });
+  expect(onReceived).not.toHaveBeenCalled();
+  await act(async () => {
+    useNostrInboxStore.setState({ items: [{ ...payment, receiptVerified: true }] });
+  });
+  expect(onReceived).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('releases the merchant lock after a saved receipt while NFC acknowledgement is still pending', async () => {
+  mockEncodingFails = false;
+  mockNfcIncoming = { status: 'receiving' };
+  const merchant = {
+    amount: 64,
+    note: '',
+    mintUrl: 'https://mint.test',
+    active: true,
+    onReceived: jest.fn(),
+    onBusyChange: jest.fn(),
+  };
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestEcashStage merchant={merchant} />);
+  });
+  expect(merchant.onBusyChange).toHaveBeenLastCalledWith(true);
+  expect(merchant.onReceived).not.toHaveBeenCalled();
+  const request = useNostrRequestStore.getState().requests[0];
+  await act(async () => {
+    useNostrRequestStore.setState({ requests: [{ ...request, state: 'received' }] });
+  });
+  expect(mockNfcIncoming.status).toBe('receiving');
+  expect(merchant.onReceived).toHaveBeenCalledTimes(1);
+  expect(merchant.onBusyChange).toHaveBeenLastCalledWith(false);
+  await act(async () => tree.unmount());
 });
 
 it('opens directly on the QR screen and leaves a failed generation retryable', async () => {

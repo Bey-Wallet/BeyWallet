@@ -1,16 +1,17 @@
+import { pickQrImage } from '~/services/platform/qrImageService';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
 import { YStack, XStack, Text, ZStack, Theme } from 'tamagui';
-import { X, Zap, ZapOff } from '@tamagui/lucide-icons';
+import { X, Zap, ZapOff, Image } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -169,6 +170,10 @@ export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const importingRef = useRef(false);
+  const resolvingRef = useRef(false);
   const toast = useAppToast();
   usePendingOperationToast({
     active: isResolving,
@@ -180,54 +185,27 @@ export default function ScannerScreen() {
   const decoderRef = useRef<URDecoder>(new URDecoder());
   const progressPercent = Math.round(Math.max(0, Math.min(1, progress || 0)) * 100);
 
-  const { setLockDisabled } = useAuthStore();
-
-  useEffect(() => {
-    if (!permission) {
-      // Prevent auto-lock from triggering when the native permission
-      // prompt pushes the app into the background state.
-      setLockDisabled(true);
-      requestPermission().finally(() => {
-        // Short delay to allow AppState to settle back to 'active'
-        setTimeout(() => setLockDisabled(false), 1000);
-      });
+  const [isRequestingCamera, setIsRequestingCamera] = useState(false);
+  const requestCamera = async () => {
+    const auth = useAuthStore.getState();
+    const previous = auth.isLockDisabled;
+    auth.setLockDisabled(true);
+    setIsRequestingCamera(true);
+    try {
+      await requestPermission();
+    } catch {
+      setImageError('Could not open the camera. You can choose an image instead.');
+    } finally {
+      auth.setLockDisabled(previous);
+      setIsRequestingCamera(false);
     }
-  }, [permission]);
+  };
 
-  if (!permission) {
-    return (
-      <YStack flex={1} bg="black" items="center" justify="center">
-        <Spinner size="large" color="white" />
-      </YStack>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <YStack flex={1} bg="black" items="center" justify="center" p="$4" gap="$4">
-        <Text color="white" fontSize="$6" fontWeight="600" style={{ textAlign: 'center' }}>
-          Camera Permission Required
-        </Text>
-        <Text color="$gray10" style={{ textAlign: 'center' }}>
-          We need your permission to show the camera to scan QR codes.
-        </Text>
-        <AppButton variant="default" emphasis="primary" size="medium" onPress={requestPermission}>
-          Grant Permission
-        </AppButton>
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="medium"
-          onPress={() => router.back()}
-        >
-          Cancel
-        </AppButton>
-      </YStack>
-    );
-  }
-
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (scanned) return;
+  const handleBarcodeScanned = async (
+    result: Pick<BarcodeScanningResult, 'data'>,
+    fromImage = false,
+  ) => {
+    if (scanned || resolvingRef.current || (importingRef.current && !fromImage)) return;
 
     const data = result.data.trim();
 
@@ -270,26 +248,36 @@ export default function ScannerScreen() {
               }
             }
 
-            onSuccess(decodedStr);
+            await onSuccess(decodedStr);
           } else {
             // Reset if failed
             decoderRef.current = new URDecoder();
             setProgress(0);
           }
         }
+        if (fromImage && !decoderRef.current.isComplete()) {
+          throw new Error(
+            'This is one frame of an animated QR. Scan the animated code with the camera.',
+          );
+        }
       } catch (e) {
-        console.error('UR Decoding error:', e);
         decoderRef.current = new URDecoder();
         setProgress(0);
+        setIsUR(false);
+        if (fromImage)
+          throw new Error(
+            'This image contains an incomplete or unreadable animated QR. Scan the animated code with the camera.',
+          );
       }
     } else {
       // Static QR
-      onSuccess(data);
+      await onSuccess(data);
     }
   };
 
   const onSuccess = async (data: string) => {
-    if (isResolving) return;
+    if (resolvingRef.current) return;
+    resolvingRef.current = true;
     setIsResolving(true);
     try {
       setScanned(true);
@@ -361,9 +349,85 @@ export default function ScannerScreen() {
       toast.showFeedback(interactionCopy.couldNotReadThisQRCodeScan);
       setScanned(false);
     } finally {
+      resolvingRef.current = false;
       setIsResolving(false);
     }
   };
+
+  const importImage = async () => {
+    if (importingRef.current || resolvingRef.current || scanned || isRequestingCamera) return;
+    importingRef.current = true;
+    setIsImporting(true);
+    setFlash('off');
+    setImageError(null);
+    decoderRef.current = new URDecoder();
+    setIsUR(false);
+    setProgress(0);
+    try {
+      const data = await pickQrImage();
+      if (data) await handleBarcodeScanned({ data }, true);
+    } catch (error) {
+      setImageError(
+        error instanceof Error ? error.message : 'Could not read this image. Please try another.',
+      );
+    } finally {
+      importingRef.current = false;
+      setIsImporting(false);
+    }
+  };
+
+  const imageButton = (
+    <AppButton
+      icon={Image}
+      emphasis="secondary"
+      size="medium"
+      loading={isImporting && !isResolving}
+      loadingText="Reading image"
+      disabled={isResolving || scanned || isRequestingCamera}
+      onPress={importImage}
+    >
+      Choose image
+    </AppButton>
+  );
+  const imageFeedback = imageError ? (
+    <Text fontSize={12} color="$gray10" textAlign="center" accessibilityLiveRegion="polite">
+      {imageError}
+    </Text>
+  ) : null;
+
+  if (!permission?.granted) {
+    return (
+      <Theme name="dark">
+        <SafeAreaView style={{ flex: 1, backgroundColor: appColors.dark.canvas }}>
+          <YStack flex={1} p="$4" gap="$4">
+            <HeaderIconButton
+              accessibilityLabel="Close scanner"
+              icon={X}
+              onPress={() => router.back()}
+            />
+            <YStack flex={1} justify="center" gap="$4" width="100%" maxWidth={420} self="center">
+              <Text color="$color" fontSize="$6" fontWeight="600" textAlign="center">
+                Scan a QR code
+              </Text>
+              <Text color="$gray10" textAlign="center">
+                Allow camera access to scan, or choose an image.
+              </Text>
+              <AppButton
+                size="medium"
+                onPress={requestCamera}
+                loading={isRequestingCamera}
+                disabled={isImporting}
+              >
+                Allow camera
+              </AppButton>
+              {imageButton}
+              {imageFeedback}
+            </YStack>
+          </YStack>
+        </SafeAreaView>
+      </Theme>
+    );
+  }
 
   const compact = viewport.height < 600;
   const availableHeight = viewport.height - insets.top - insets.bottom;
@@ -477,7 +541,13 @@ export default function ScannerScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash === 'on'}
-          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={
+            scanned || isImporting || isResolving
+              ? undefined
+              : (result) => {
+                  void handleBarcodeScanned(result);
+                }
+          }
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
 
@@ -561,6 +631,8 @@ export default function ScannerScreen() {
                   </Text>
                 )}
               </XStack>
+              {imageFeedback}
+              {imageButton}
               {scanned && !isResolving && (
                 <AppButton
                   variant="default"

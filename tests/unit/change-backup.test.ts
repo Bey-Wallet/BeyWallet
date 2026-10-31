@@ -90,3 +90,6 @@ it('rejects inconsistent journal amounts and mismatched operation identities', (
     }),
   ).toThrow('Invalid change operation');
 });
+jest.mock('~/state/backupStatusStore', () => ({
+  useBackupStatusStore: { getState: () => ({ recordFile: jest.fn() }) },
+}));

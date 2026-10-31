@@ -27,6 +27,7 @@ const base: PeopleListItem = {
   preview: 'See you tonight',
   updatedAt: now.getTime(),
   unread: true,
+  unreadCount: 3,
   profile: { npub, pubkeyHex: '01'.repeat(32), source: 'identifier' },
 };
 
@@ -45,7 +46,13 @@ describe('minimal People rows', () => {
     expect(tree!.root.findAllByType('VerifiedBadge' as any)).toHaveLength(1);
     const row = tree!.root.findByType('AppPressable' as any);
     expect(row.props.minHeight).toBe(76);
-    expect(row.props.accessibilityLabel).toContain('Unread activity');
+    expect(row.props.accessibilityLabel).toContain('3 unread items');
+    expect(
+      tree!.root.findAllByType('Text' as any).some((node) => node.props.children === '3'),
+    ).toBe(true);
+    expect(
+      tree!.root.findAllByType('YStack' as any).some((node) => node.props.bg === '$red10'),
+    ).toBe(true);
     const name = tree!.root
       .findAllByType('Text' as any)
       .find((node) => node.props.children === 'Alice')!;
@@ -70,15 +77,40 @@ describe('minimal People rows', () => {
     await act(async () => {
       tree = create(
         <PeopleListRow
-          item={{ ...base, kind: 'search', updatedAt: undefined, unread: false }}
+          item={{ ...base, kind: 'search', updatedAt: undefined, unread: false, unreadCount: 0 }}
           now={now}
           onPress={() => {}}
         />,
       );
     });
     expect(tree!.root.findByType('AppPressable' as any).props.accessibilityLabel).not.toContain(
-      'Unread',
+      'unread',
     );
     expect(tree!.root.findAllByType('Text' as any)).toHaveLength(2);
+  });
+
+  it('caps the visual count while keeping the full count accessible and clears it when read', async () => {
+    await act(async () => {
+      tree = create(
+        <PeopleListRow item={{ ...base, unreadCount: 120 }} now={now} onPress={() => {}} />,
+      );
+    });
+    expect(JSON.stringify(tree!.toJSON())).toContain('99+');
+    expect(tree!.root.findByType('AppPressable' as any).props.accessibilityLabel).toContain(
+      '120 unread items',
+    );
+    await act(async () =>
+      tree.update(
+        <PeopleListRow
+          item={{ ...base, unread: false, unreadCount: 0 }}
+          now={now}
+          onPress={() => {}}
+        />,
+      ),
+    );
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('99+');
+    expect(
+      tree!.root.findAllByType('YStack' as any).some((node) => node.props.bg === '$red10'),
+    ).toBe(false);
   });
 });

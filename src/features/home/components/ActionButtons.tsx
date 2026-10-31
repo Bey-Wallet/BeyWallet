@@ -12,7 +12,7 @@ function HomeAction({
   label,
   accessibilityLabel = label,
   icon: Icon,
-  iconSize = 24,
+  iconSize = 22,
   iconStrokeWidth,
   onPress,
 }: {

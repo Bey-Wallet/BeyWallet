@@ -25,6 +25,8 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useAppFeedback } from '~/shared/hooks/useAppFeedback';
 import { isNfcIntent } from '~/features/nfc/nativeIntent';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
+import ActionSelectorSheet from '~/shared/ui/ActionSelectorSheet';
+import { useAppShortcuts } from '~/shared/hooks/useAppShortcuts';
 
 // Lazy-load global checkers — they don't need to mount during the critical startup paint
 const LazyOtaUpdateChecker = React.lazy(() =>
@@ -216,6 +218,7 @@ export function RootLayoutNav() {
 
   // Only show lock overlay if onboarded, not authenticated, and biometric is enabled
   const showLockOverlay = isOnboarded && !isAuthenticated && biometricEnabled;
+  const shortcutSheet = useAppShortcuts(isOnboarded && !showLockOverlay && !handingOff);
 
   return (
     <NavThemeProvider value={navigationTheme}>
@@ -269,6 +272,7 @@ export function RootLayoutNav() {
             }}
           />
         </Stack>
+        {shortcutSheet.receiveMounted && <ActionSelectorSheet ref={shortcutSheet.sheet} />}
         {handingOff && (
           <YStack position="absolute" inset={0} bg="$background" items="center" justify="center">
             <Spinner />

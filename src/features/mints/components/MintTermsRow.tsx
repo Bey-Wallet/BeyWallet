@@ -19,7 +19,7 @@ export function MintTermsRow({ url }: { url: unknown }) {
   return (
     <ListTableRow
       label="Terms of service"
-      value={target.href}
+      value="Read"
       valueColor="$accentColor"
       rightContent={<ExternalLink size={18} color="$accentColor" />}
       onPress={async () => {

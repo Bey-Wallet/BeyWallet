@@ -4,7 +4,7 @@ export function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <YStack
-      bg="$buttonDefaultPrimary"
+      bg="$red10"
       rounded={10}
       minWidth={20}
       height={20}
@@ -13,7 +13,7 @@ export function UnreadBadge({ count }: { count: number }) {
       justify="center"
       pointerEvents="none"
     >
-      <Text fontSize={11} fontWeight="600" color="$buttonDefaultPrimaryText">
+      <Text fontSize={11} fontWeight="600" color="$toastStatusForeground">
         {count > 99 ? '99+' : String(count)}
       </Text>
     </YStack>

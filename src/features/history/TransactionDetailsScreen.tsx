@@ -14,6 +14,9 @@ import { PendingOnchainLayout } from '~/features/history/components/PendingOncha
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
 import { TransferHistoryReceipt } from './components/TransferHistoryReceipt';
+import { ReceiptImageShare } from './components/ReceiptImageShare';
+import { buildShareableReceipt } from './shareableReceipt';
+import { checkHistoryStatus } from './checkHistoryStatus';
 import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
 import { reclaimPayment } from '~/services/wallet/reclaimPayment';
@@ -22,6 +25,8 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { networkService } from '~/services/platform/networkService';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
+import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, XStack, Text } from 'tamagui';
 import { Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -289,8 +294,14 @@ function TransactionDetailsContent() {
   const claimLock = useRef(false);
   const reclaimLock = useRef(false);
   const refreshLock = useRef(false);
+  const mintQuoteLock = useRef(false);
   const refreshRevision = useRef(0);
   const [isCheckingPaid, setIsCheckingPaid] = useState(false);
+  const [latestCheck, setLatestCheck] = useState<{
+    id: string;
+    state?: string;
+    message: string;
+  } | null>(null);
   useSettingsBusy(isReclaiming || isClaiming || isCheckingPaid);
 
   const status = (entry?.state || 'completed').trim().toLowerCase();
@@ -515,6 +526,58 @@ function TransactionDetailsContent() {
   };
 
   const offline = useOfflineStatus();
+  const handleCollectMint = async () => {
+    if (
+      !entry?.quoteId ||
+      offline ||
+      claimLock.current ||
+      refreshLock.current ||
+      mintQuoteLock.current
+    )
+      return;
+    claimLock.current = true;
+    mintQuoteLock.current = true;
+    setIsCheckingPaid(true);
+    try {
+      if (await networkService.isOffline()) return;
+      await quotesService.redeemMintQuote(entry.mintUrl, entry.quoteId);
+      await refetch();
+      await refetchMintQuote();
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+    } catch {
+      toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
+    } finally {
+      claimLock.current = false;
+      mintQuoteLock.current = false;
+      setIsCheckingPaid(false);
+    }
+  };
+  const handleCheckReceipt = async (silent = false) => {
+    if (!entry || offline || refreshLock.current || claimLock.current || reclaimLock.current)
+      return;
+    refreshLock.current = true;
+    const revision = refreshRevision.current;
+    if (!silent) setIsCheckingPaid(true);
+    try {
+      const message = await checkHistoryStatus(entry);
+      if (revision !== refreshRevision.current || claimLock.current || reclaimLock.current) return;
+      if (!silent)
+        setLatestCheck({ id: entry.id, state: entry.state, message: `Latest check: ${message}.` });
+      await refetch();
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+    } catch {
+      if (!silent && revision === refreshRevision.current)
+        setLatestCheck({
+          id: entry.id,
+          state: entry.state,
+          message:
+            'Could not verify the outcome. Reconnect and check again before retrying this payment.',
+        });
+    } finally {
+      refreshLock.current = false;
+      if (!silent) setIsCheckingPaid(false);
+    }
+  };
   const mintFee =
     metadata?.via !== 'onchain' && Number.isFinite(metadata?.fee) ? Number(metadata.fee) : 0;
 
@@ -545,25 +608,34 @@ function TransactionDetailsContent() {
     }
   };
 
-  // Auto-refresh on mount and poll if pending — first check is immediate, then every 3s
-  useEffect(() => {
-    if (!entry || !initService.isInitialized() || reclaimLock.current || claimLock.current) return;
+  // Event listeners remain active; use a visible-screen fallback for unavailable push updates.
+  usePendingPaymentPolling(
+    async () => {
+      if (!entry || !initService.isInitialized() || reclaimLock.current || claimLock.current)
+        return;
 
-    const isPendingSend = entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
-    const isPendingMint =
-      entry.type === 'mint' &&
-      (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
+      const isPendingSend =
+        entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
+      const isPendingMint =
+        entry.type === 'mint' &&
+        (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
 
-    const isPendingOnchain = onchain && ['pending', 'unpaid', 'prepared'].includes(status);
-    if (!isPendingSend && !isPendingMint && !isPendingOnchain) return;
-
-    const poll = async () => {
+      const isPendingOnchain = onchain && ['pending', 'unpaid', 'prepared'].includes(status);
+      if (claimLock.current || reclaimLock.current || refreshLock.current || mintQuoteLock.current)
+        return;
       if (isPendingOnchain || isPendingSend) {
         await handleRefresh();
       } else if (isPendingMint) {
+        mintQuoteLock.current = true;
         try {
           const qId = (entry as any).quoteId || '';
           if (qId && entry.mintUrl) {
+            const quote = await quotesService.checkMintQuote(entry.mintUrl, qId);
+            if (quote.state !== 'PAID') {
+              await refetch();
+              await refetchMintQuote();
+              return;
+            }
             await quotesService.redeemMintQuote(entry.mintUrl, qId);
             console.log('[TransactionDetails] Background redeem success for mint quote:', qId);
             queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -571,16 +643,19 @@ function TransactionDetailsContent() {
           }
         } catch (e) {
           // Not paid yet — normal in background polling
+        } finally {
+          mintQuoteLock.current = false;
         }
+      } else {
+        await handleCheckReceipt(true);
       }
-    };
-
-    // Fire immediately
-    poll();
-    const interval = setInterval(poll, 3000);
-
-    return () => clearInterval(interval);
-  }, [entry?.id, entry?.state, status, token, onchain, isReclaiming, isClaiming]);
+    },
+    !!entry &&
+      (isPendingMint || ['pending', 'unpaid', 'prepared', 'unclaimed'].includes(status)) &&
+      !offline &&
+      !isReclaiming &&
+      !isClaiming,
+  );
   // Status text formatting
   const formattedStatus = useMemo(() => {
     if (!status || typeof status !== 'string') return 'Unknown';
@@ -657,7 +732,18 @@ function TransactionDetailsContent() {
     </AppBottomSheet>
   );
 
-  const renderSheet = (content: React.ReactNode, expanded = false) => (
+  const publicReceipt = entry
+    ? buildShareableReceipt(entry, {
+        transferState: transferRecord?.state,
+        reclaimed: reclaimOutcome === 'reclaimed',
+        bitcoinSymbol: useSettingsStore.getState().showBitcoinSymbol,
+        invoice: savedInvoice || undefined,
+        mintName: useWalletStore.getState().mints?.find((mint) => mint.mintUrl === entry.mintUrl)
+          ?.name,
+        expired: isQuoteExpired,
+      })
+    : null;
+  const renderSheet = (content: React.ReactNode, expanded = false, inlineReceiptShare = false) => (
     <TransactionReceiptSheet
       active={!!entry && needsFullScreenReceipt(entry, transferRecord?.state)}
       ready={
@@ -669,6 +755,14 @@ function TransactionDetailsContent() {
       busy={isReclaiming || isClaiming || isCheckingPaid}
     >
       {content}
+      {publicReceipt && !inlineReceiptShare && (
+        <SafeAreaView edges={expanded ? ['bottom'] : []}>
+          <ReceiptImageShare
+            receipt={publicReceipt}
+            disabled={isReclaiming || isClaiming || isCheckingPaid}
+          />
+        </SafeAreaView>
+      )}
     </TransactionReceiptSheet>
   );
 
@@ -759,6 +853,7 @@ function TransactionDetailsContent() {
           mint={mint?.nickname || mint?.name || entry.mintUrl.replace(/^https?:\/\//, '')}
           onRefresh={handleRefresh}
           checking={isRefetching}
+          offline={offline}
           onClose={() => router.back()}
           headerRight={headerOptions.headerRight}
           extraDetails={extraDetails}
@@ -791,6 +886,7 @@ function TransactionDetailsContent() {
           secondaryCurrency={secondaryCurrency}
           fiatAmount={fiatAmount}
           isCheckingPaid={isCheckingPaid}
+          offline={offline}
           extraDetails={extraDetails}
           onCancel={async () => {
             try {
@@ -808,18 +904,7 @@ function TransactionDetailsContent() {
               console.warn('[TransactionDetails] Failed to cancel quote:', e);
             }
           }}
-          onPaid={async () => {
-            setIsCheckingPaid(true);
-            try {
-              await quotesService.redeemMintQuote(entry.mintUrl, (entry as any).quoteId);
-              await handleRefresh();
-            } catch (err: any) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              toast.showFeedback(interactionCopy.invoiceNotPaidYetTryAgainShortly);
-            } finally {
-              setIsCheckingPaid(false);
-            }
-          }}
+          onPaid={handleCollectMint}
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
@@ -849,9 +934,19 @@ function TransactionDetailsContent() {
           isCheckingStatus={isRefetching}
           customHeaderRight={headerOptions.headerRight}
           extraDetails={extraDetails}
+          footerExtra={
+            publicReceipt && (
+              <ReceiptImageShare
+                receipt={publicReceipt}
+                ecashToken={entry.type === 'send' ? cleanToken(token) : undefined}
+                disabled={isReclaiming || isClaiming || isCheckingPaid}
+              />
+            )
+          }
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
+      true,
       true,
     );
   }
@@ -888,10 +983,20 @@ function TransactionDetailsContent() {
           {receivingFeeNotice}
         </Text>
       )}
+      {receiptStatus === 'pending' &&
+        latestCheck?.id === entry.id &&
+        latestCheck.state === entry.state && (
+          <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
+            {latestCheck.message}
+          </Text>
+        )}
       <ListTable variant="outlined">
-        <ListTableRow
-          label="Status"
+        <PaymentStatusRow
+          status={receiptStatus}
           value={reclaimOutcome === 'reclaimed' ? 'Reclaimed' : detail.status}
+          onRefresh={receiptStatus === 'pending' ? () => handleCheckReceipt() : undefined}
+          checking={isCheckingPaid}
+          disabled={offline}
         />
         <ListTableRow label="Date" value={formatPaymentDateTime(entry.createdAt)} />
         {Number.isFinite(fee) && fee >= 0 && (
@@ -986,11 +1091,19 @@ function TransactionDetailsContent() {
           Copy original token
         </AppButton>
       )}
-      {receiptStatus === 'pending' && (
-        <AppButton emphasis="secondary" loading={isRefetching} onPress={handleRefresh}>
-          Check status
-        </AppButton>
-      )}
+      {receiptStatus === 'pending' &&
+        entry.type === 'mint' &&
+        status === 'paid' &&
+        entry.quoteId && (
+          <AppButton
+            emphasis="secondary"
+            loading={isCheckingPaid || isRefetching}
+            disabled={offline || isCheckingPaid || isRefetching}
+            onPress={handleCollectMint}
+          >
+            Collect ecash
+          </AppButton>
+        )}
       {renderDeleteBottomSheet()}
     </YStack>,
   );

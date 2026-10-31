@@ -31,11 +31,9 @@ const supportAreas = [
 
 export function SupporterContent({
   onPay,
-  onDoNotShowAgain,
   bottomInset = 0,
 }: {
   onPay: () => void;
-  onDoNotShowAgain?: () => void;
   bottomInset?: number;
 }) {
   const { width } = useWindowDimensions();
@@ -166,11 +164,6 @@ export function SupporterContent({
             a choice, with no change to how you use your money.
           </Text>
         </YStack>
-        {onDoNotShowAgain && (
-          <AppButton variant="default" emphasis="text" onPress={onDoNotShowAgain}>
-            Do not show again
-          </AppButton>
-        )}
       </YStack>
     </ScrollView>
   );

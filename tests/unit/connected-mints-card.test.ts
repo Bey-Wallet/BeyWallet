@@ -8,28 +8,20 @@ describe('ConnectedMintsCard placeholders', () => {
     expect(getMintPlaceholders([])).toEqual(RECOMMENDED_MINTS);
   });
 
-  it('does not duplicate Minibits when it is already connected', () => {
-    const placeholders = getMintPlaceholders([{ mintUrl: 'https://mint.minibits.cash/Bitcoin/' }]);
+  it.each(['https://mint.minibits.cash/Bitcoin/', 'https://custom.example'])(
+    'hides recommendations once a mint is connected (%s)',
+    (mintUrl) => {
+      expect(getMintPlaceholders([{ mintUrl }])).toEqual([]);
+    },
+  );
 
-    expect(placeholders).toHaveLength(3);
-    expect(placeholders.some((mint) => mint.name === 'Minibits Mint')).toBe(false);
-  });
-
-  it('shows two placeholders for two connected mints and one for three', () => {
+  it('does not fill gaps when multiple mints are connected', () => {
     expect(
       getMintPlaceholders([
         { mintUrl: RECOMMENDED_MINTS[0].mintUrl },
         { mintUrl: RECOMMENDED_MINTS[1].mintUrl },
       ]),
-    ).toHaveLength(2);
-
-    expect(
-      getMintPlaceholders([
-        { mintUrl: RECOMMENDED_MINTS[0].mintUrl },
-        { mintUrl: RECOMMENDED_MINTS[1].mintUrl },
-        { mintUrl: RECOMMENDED_MINTS[2].mintUrl },
-      ]),
-    ).toHaveLength(1);
+    ).toEqual([]);
   });
 
   it('does not show placeholders once four mints are connected', () => {

@@ -6861,6 +6861,7 @@ __metadata:
     expo-font: "npm:~14.0.9"
     expo-haptics: "npm:~15.0.8"
     expo-image: "npm:~3.0.11"
+    expo-image-loader: "npm:~6.0.0"
     expo-keep-awake: "npm:~15.0.8"
     expo-linear-gradient: "npm:^55.0.14"
     expo-linking: "npm:~8.0.8"
@@ -6892,6 +6893,7 @@ __metadata:
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-get-random-values: "npm:~1.11.0"
     react-native-hce: "npm:0.3.0"
+    react-native-keyboard-controller: "npm:1.18.5"
     react-native-nfc-manager: "npm:^3.17.2"
     react-native-qrcode-styled: "npm:^0.4.0"
     react-native-qrcode-svg: "npm:^6.3.21"
@@ -8761,6 +8763,15 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10/28d9703d0c56bed1afe903a589ef56c10a65d864370227fcfe6b4fe5a12423d82f534184b59f008083830538528637ff3680b22f286ed83e8edf6f1bfdafadc4
+  languageName: node
+  linkType: hard
+
+"expo-image-loader@npm:~6.0.0":
+  version: 6.0.0
+  resolution: "expo-image-loader@npm:6.0.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10/896b4df1208ec071888acac0a8673ee4a67afcc8e06061de26fd189feed3369959ab9254314d51f303bcfc8f6289fd04ca9bec616007333d3dcb2e6d0618a2fe
   languageName: node
   linkType: hard
 
@@ -13207,6 +13218,19 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/dc82d54e0bf8f89208a538bb0d14e4891af6efae27ed5b7b21be683a72c38c5219ab9be1ea9bd40aa1c905d481174e649d0b71aeceaa9946e6c707f251568282
+  languageName: node
+  linkType: hard
+
+"react-native-keyboard-controller@npm:1.18.5":
+  version: 1.18.5
+  resolution: "react-native-keyboard-controller@npm:1.18.5"
+  dependencies:
+    react-native-is-edge-to-edge: "npm:^1.2.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-reanimated: ">=3.0.0"
+  checksum: 10/2795a030cbf158a081b54bed81e7cb113a08daaefdbe566b4010465b86ebe29b238602c0411919af30425dd191dfeac573da9e2a913d2cbf31f9ad1de8dc1d98
   languageName: node
   linkType: hard
 

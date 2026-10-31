@@ -2,7 +2,7 @@ import React, { forwardRef, useState } from 'react';
 import { Alert, Share } from 'react-native';
 import * as Linking from 'expo-linking';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
+import { Info, RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -73,6 +73,30 @@ export const ConversationContactSheet = forwardRef<
               onPress={() => void copy()}
             />
             <ListTableRow label="Share contact" icon={Share2} onPress={() => void share()} />
+            <ListTableRow
+              label="Messaging"
+              icon={Info}
+              value={person?.chatTransport === 'nip04' ? 'Legacy (NIP-04)' : 'NIP-17'}
+              onPress={() =>
+                Alert.alert(
+                  'Messaging format',
+                  'NIP-17 is the default and hides who sent the message. Legacy NIP-04 works with older clients such as Primal. It encrypts the text, but sender, recipient and timestamp are public. This choice applies to new messages in this conversation.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Use NIP-17',
+                      onPress: () =>
+                        usePeopleStore.getState().savePerson({ npub, chatTransport: 'nip17' }),
+                    },
+                    {
+                      text: 'Use legacy NIP-04',
+                      onPress: () =>
+                        usePeopleStore.getState().savePerson({ npub, chatTransport: 'nip04' }),
+                    },
+                  ],
+                )
+              }
+            />
             <ListTableRow
               label={syncing ? 'Checking contact…' : 'Check and sync'}
               icon={RefreshCw}

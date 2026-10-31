@@ -247,16 +247,16 @@ export default function PeopleScreen() {
         setLimits((previous) => ({ ...previous, [mode]: previous[mode] + 50 }));
     };
     const empty =
-      isSearch && model.isSearching ? null : (
+      isSearch && (model.isSearching || model.searchError) ? null : (
         <YStack px="$4" py="$8" items="center" gap="$2">
-          <Text fontSize={17} fontWeight="600" textAlign="center">
+          <Text fontSize={14} fontWeight="500" textAlign="center">
             {isSearch
               ? 'No people found'
               : mode === 'recents'
                 ? 'No conversations yet'
                 : 'No requests'}
           </Text>
-          <Text fontSize={14} color="$gray10" textAlign="center">
+          <Text fontSize={12} color="$gray10" textAlign="center">
             {isSearch
               ? 'Try a name, address, or public key.'
               : mode === 'recents'
@@ -265,12 +265,22 @@ export default function PeopleScreen() {
           </Text>
           {!isSearch && mode === 'recents' && (
             <AppButton
-              size="small"
               variant="default"
               emphasis="secondary"
               onPress={() => input.current?.focus()}
             >
               Find someone
+            </AppButton>
+          )}
+          {isSearch && (
+            <AppButton
+              emphasis="secondary"
+              onPress={() => {
+                changeSearch('');
+                input.current?.focus();
+              }}
+            >
+              Clear search
             </AppButton>
           )}
         </YStack>

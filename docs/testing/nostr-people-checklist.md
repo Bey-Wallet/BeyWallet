@@ -108,6 +108,26 @@ notifications, and complete payment flows.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
 
+## Conversation keyboard integration
+
+- [ ] Build and install a new native client with Keyboard Controller 1.18.5; do not test only through an OTA/JavaScript reload on an old custom client.
+- [ ] Open an accepted conversation on Android and iOS. Focus, dismiss and reopen the composer; confirm smooth movement, a stationary header, and a visible send button/last message.
+- [ ] Grow the composer past four scaled lines, send repeatedly and review failed sends. Confirm drafts, keyboard focus and payment cards remain usable.
+- [ ] Read older messages and open/dismiss the keyboard: preserve the visible position. Repeat while older activity is loading; no jump to the latest activity.
+- [ ] Check hardware keyboards, Android Back, gesture/three-button navigation, small phones, large text, and both themes. Check home-indicator space and keyboard gaps on iOS.
+- [ ] Review search, onboarding, protected Settings inputs and Send/Receive/mint-selection sheets after adding the app-level provider. Verify no startup keyboard flash, clipped controls or doubled safe-area padding.
+- [ ] Open contact/message sheets and Pay/Request from the composer; verify dismissal/navigation and existing payment guards with the keyboard open.
+
+## Legacy chat compatibility
+
+- [ ] Open Conversation → Info → Messaging: NIP-17 is selected by default. Cancel leaves the choice unchanged.
+- [ ] Explicitly select legacy NIP-04; confirm the privacy notice is visible above the composer, including with large text and in both themes.
+- [ ] Send and receive text with a Primal test identity using reachable shared relays. Confirm a relay acknowledgement is labelled Sent to relay, without delivery/read promises.
+- [ ] Restart Bey and sync the contact profile: only this conversation retains its selected format.
+- [ ] Fail a send, change the format and retry: the original message keeps its encrypted format and appears once. New messages use the new selection.
+- [ ] Restore NIP-17 and verify the notice disappears. Missing NIP-17 inbox relays must produce an error without automatic legacy fallback.
+- [ ] Block the person or lock the wallet before sending/retrying: existing guards remain enforced. Pay/Request behavior remains unchanged.
+
 ## Request visibility and receipts
 
 - [ ] Send a request to a contact: its card appears immediately, shows Sending, then Awaiting payment. Verify offline failure and retry preserve one card and request ID.

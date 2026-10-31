@@ -1,9 +1,10 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import React from 'react';
-import { Text } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -13,6 +14,7 @@ import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
 import { PaymentNote } from '~/shared/ui/PaymentNote';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
+import { OFFLINE_CHANGE_REQUIRED, type OfflineAmounts } from '~/shared/utils/offlineSendUtils';
 
 interface ConfirmStageProps {
   amount: string;
@@ -20,6 +22,9 @@ interface ConfirmStageProps {
   onNoteChange?: (value: string) => void;
   mintUrl: string;
   estimatedFee: number | null;
+  offlineAmounts?: OfflineAmounts | null;
+  onAmountSelect?: (amount: number) => void;
+  onPrepareChange?: () => void;
   sendMode: SendMode;
   useP2PK: boolean;
   setUseP2PK: (value: boolean) => void;
@@ -69,6 +74,72 @@ export function ConfirmStage(props: ConfirmStageProps) {
         }
       >
         {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
+        {props.isOffline && props.offlineAmounts && (
+          <YStack gap="$2">
+            <Text fontFamily="$body" fontSize={14} color="$gray10">
+              {props.offlineAmounts.exact
+                ? 'Available offline'
+                : 'Exact amount needs online change'}
+            </Text>
+            {!props.offlineAmounts.exact && (
+              <>
+                <XStack gap="$3" width="100%">
+                  {(['lower', 'higher'] as const).map((direction) => {
+                    const value = props.offlineAmounts?.[direction];
+                    if (value == null) return null;
+                    const label = direction === 'lower' ? 'Lower' : 'Higher';
+                    const formattedAmount = currencyService.formatSats(value);
+                    const disabled = isLoading || !props.onAmountSelect;
+                    return (
+                      <AppPressable
+                        key={direction}
+                        flex={1}
+                        minWidth={0}
+                        minHeight={100}
+                        rounded="$6"
+                        px="$3"
+                        py="$4"
+                        gap="$1"
+                        items="center"
+                        justify="center"
+                        bg={direction === 'lower' ? '$offlineAmountLower' : '$offlineAmountHigher'}
+                        opacity={disabled ? 0.5 : 1}
+                        disabled={disabled}
+                        accessibilityLabel={`${label}: ${formattedAmount}`}
+                        onPress={() => props.onAmountSelect?.(value)}
+                      >
+                        <Text fontFamily="$body" fontSize={12} color="$offlineAmountForeground">
+                          {label}
+                        </Text>
+                        <Text
+                          fontFamily="$display"
+                          fontSize={24}
+                          fontWeight="600"
+                          color="$offlineAmountForeground"
+                          text="center"
+                          maxWidth="100%"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
+                          {formattedAmount}
+                        </Text>
+                      </AppPressable>
+                    );
+                  })}
+                </XStack>
+                <AppButton
+                  emphasis="text"
+                  labelFontSize={12}
+                  alignSelf="center"
+                  disabled={isLoading || !props.onPrepareChange}
+                  onPress={props.onPrepareChange}
+                >
+                  Prepare change
+                </AppButton>
+              </>
+            )}
+          </YStack>
+        )}
         {sendMode === 'standard' && props.setLockEcash && props.setReceiverPubkey && (
           <P2PKLockCard
             enabled={!!props.lockEcash}
@@ -99,7 +170,11 @@ export function ConfirmStage(props: ConfirmStageProps) {
           <ListTableRow
             label="Creation fee"
             value={
-              estimatedFee === null ? 'Calculating…' : currencyService.formatSats(estimatedFee)
+              estimatedFee === null
+                ? props.isOffline && props.offlineAmounts?.exact === false
+                  ? 'Unavailable'
+                  : 'Calculating…'
+                : currencyService.formatSats(estimatedFee)
             }
           />
           {props.onNoteChange && (
@@ -139,11 +214,12 @@ export function ConfirmStage(props: ConfirmStageProps) {
             />
           )}
         </ListTable>
-        {!!props.error && (
-          <Text color="$red10" p="$3">
-            {props.error}
-          </Text>
-        )}
+        {!!props.error &&
+          !(props.offlineAmounts?.exact === false && props.error === OFFLINE_CHANGE_REQUIRED) && (
+            <Text color="$red10" p="$3">
+              {props.error}
+            </Text>
+          )}
       </PaymentStageLayout>
     </>
   );

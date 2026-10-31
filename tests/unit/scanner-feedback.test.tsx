@@ -8,11 +8,18 @@ const mockResolve = jest.fn();
 const mockFeedback = jest.fn();
 const mockRedirect = jest.fn((_result: unknown, _options: unknown) => true);
 const mockToast = { show: jest.fn() };
-let mockParams: Record<string, string> = { returnTo: '/receive' };
+let mockParams: Record<string, string | undefined> = { returnTo: '/receive' };
 const mockBack = jest.fn();
 const mockSetScannerResult = jest.fn();
+const mockPickImage = jest.fn();
+let mockCameraGranted = true;
+jest.mock('~/services/platform/qrImageService', () => ({
+  pickQrImage: () => mockPickImage(),
+}));
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCameraGranted = true;
+  mockPickImage.mockResolvedValue(null);
   mockParams = { returnTo: '/receive' };
   useP2PKScanStore.getState().setResult(null);
 });
@@ -32,11 +39,13 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('expo-camera', () => ({
   CameraView: 'CameraView',
-  useCameraPermissions: () => [{ granted: true }, jest.fn()],
+  useCameraPermissions: () => [{ granted: mockCameraGranted }, jest.fn()],
 }));
 jest.mock('@gandlaf21/bc-ur', () => ({ URDecoder: jest.fn() }));
 jest.mock('nostr-tools', () => ({ nip19: {} }));
-jest.mock('~/state/authStore', () => ({ useAuthStore: () => ({ setLockDisabled: jest.fn() }) }));
+jest.mock('~/state/authStore', () => ({
+  useAuthStore: { getState: () => ({ isLockDisabled: false, setLockDisabled: jest.fn() }) },
+}));
 jest.mock('~/state/walletStore', () => ({
   useWalletStore: { getState: () => ({ setScannerResult: mockSetScannerResult }) },
 }));
@@ -58,6 +67,7 @@ jest.mock('tamagui', () => ({
 }));
 jest.mock('@tamagui/lucide-icons', () => ({
   X: 'X',
+  Image: 'Image',
   Zap: 'Zap',
   ZapOff: 'ZapOff',
   RefreshCcw: 'RefreshCcw',
@@ -79,9 +89,9 @@ it.each(['creqA-scanned-request', 'https://bey.cash/r/#shared-request'])(
     await act(async () => {
       tree = create(<ScannerScreen />);
     });
-    await act(async () =>
-      tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: input }),
-    );
+    await act(async () => {
+      void tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: input });
+    });
     expect(mockResolve).toHaveBeenLastCalledWith(input);
     expect(mockFeedback).toHaveBeenLastCalledWith(
       expect.objectContaining({ active: true, title: 'Reading QR code…' }),
@@ -173,7 +183,9 @@ it('toggles the camera torch from the header without a paste action', async () =
   expect(offButton.props.accessibilityState).toEqual({ selected: true });
   await act(async () => offButton.props.onPress());
   expect(tree.root.findByType('CameraView' as any).props.enableTorch).toBe(false);
-  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+  expect(
+    tree.root.findAllByType('AppButton' as any).map((button) => button.props.children),
+  ).toEqual(['Choose image']);
   await act(async () => tree.unmount());
 });
 
@@ -202,5 +214,164 @@ it('shows animated QR progress without resolving an incomplete payload', async (
   ).toBe(true);
   expect(mockResolve).not.toHaveBeenCalled();
   expect(tree.root.findByType('CameraView' as any).props.onBarcodeScanned).toBeDefined();
+  await act(async () => tree.unmount());
+});
+
+it.each([
+  'cashu_token',
+  'lightning_invoice',
+  'cashu_request',
+  'lightning_address',
+  'bitcoin_onchain',
+  'bey_share_token',
+  'bey_share_request',
+])('routes imported %s through the same resolver and redirect as the camera', async (type) => {
+  mockParams = {};
+  const result = { type, raw: 'complete-qr-value' };
+  mockPickImage.mockResolvedValue('complete-qr-value');
+  mockResolve.mockResolvedValue(result);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
+  expect(mockResolve).toHaveBeenCalledWith('complete-qr-value');
+  expect(mockRedirect).toHaveBeenCalledWith(result, expect.objectContaining({ replace: true }));
+  await act(async () => tree.unmount());
+});
+
+it('imports an image without camera access and leaves cancellation on the scanner', async () => {
+  mockCameraGranted = false;
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  expect(tree.root.findAllByType('CameraView' as any)).toHaveLength(0);
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((b) => b.props.children === 'Choose image')!
+      .props.onPress(),
+  );
+  expect(mockPickImage).toHaveBeenCalledTimes(1);
+  expect(mockResolve).not.toHaveBeenCalled();
+  expect(mockBack).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('pauses camera scans and repeated import taps while the picker is open', async () => {
+  let finish!: (data: null) => void;
+  mockPickImage.mockImplementation(
+    () =>
+      new Promise((done) => {
+        finish = done;
+      }),
+  );
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  const cameraScan = tree.root.findByType('CameraView' as any).props.onBarcodeScanned;
+  const choose = tree.root.findByType('AppButton' as any).props.onPress;
+  await act(async () => {
+    void choose();
+    void choose();
+    cameraScan({ data: 'camera-value' });
+  });
+  expect(mockPickImage).toHaveBeenCalledTimes(1);
+  expect(mockResolve).not.toHaveBeenCalled();
+  expect(tree.root.findByType('CameraView' as any).props.onBarcodeScanned).toBeUndefined();
+  await act(async () => finish(null));
+  expect(tree.root.findByType('CameraView' as any).props.onBarcodeScanned).toBeDefined();
+  await act(async () => tree.unmount());
+});
+
+it('shows an image error and keeps the scanner ready for another image', async () => {
+  mockPickImage.mockRejectedValue(new Error('No QR code found.'));
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => node.props.children === 'No QR code found.'),
+  ).toBe(true);
+  expect(tree.root.findByType('AppButton' as any).props.loading).toBe(false);
+  expect(mockResolve).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it.each([{ returnTo: '/add-mint' }, { p2pkScanId: 'image-key-editor' }])(
+  'keeps contextual image scans scoped to their caller %j',
+  async (params) => {
+    mockParams = params;
+    mockPickImage.mockResolvedValue('context-value');
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(<ScannerScreen />);
+    });
+    await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
+    expect(mockResolve).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    if (params.p2pkScanId) {
+      expect(useP2PKScanStore.getState().result).toEqual({
+        id: params.p2pkScanId,
+        value: 'context-value',
+      });
+      expect(mockSetScannerResult).not.toHaveBeenCalled();
+    } else expect(mockSetScannerResult).toHaveBeenCalledWith('context-value');
+    await act(async () => tree.unmount());
+  },
+);
+
+it('never routes an isolated animated QR frame imported as an image', async () => {
+  jest.mocked(URDecoder).mockImplementation(
+    () =>
+      ({
+        receivedPartIndexes: [],
+        receivePart: jest.fn(),
+        estimatedPercentComplete: () => 0.2,
+        isComplete: () => false,
+      }) as unknown as URDecoder,
+  );
+  mockPickImage.mockResolvedValue('ur:bytes/1-5/part');
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
+  expect(mockResolve).not.toHaveBeenCalled();
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => String(node.props.children).includes('animated code with the camera')),
+  ).toBe(true);
+  expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);
+  await act(async () => tree.unmount());
+});
+
+it('decodes a complete single-part UR image before routing its full payload', async () => {
+  jest.mocked(URDecoder).mockImplementation(
+    () =>
+      ({
+        receivedPartIndexes: [],
+        receivePart: jest.fn(),
+        estimatedPercentComplete: () => 1,
+        isComplete: () => true,
+        isSuccess: () => true,
+        resultUR: () => ({ decodeCBOR: () => Buffer.from('cashuB-full-payload') }),
+      }) as unknown as URDecoder,
+  );
+  mockPickImage.mockResolvedValue('ur:bytes/complete');
+  mockResolve.mockResolvedValue({ type: 'cashu_token' });
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
+  expect(mockResolve).toHaveBeenCalledWith('cashuB-full-payload');
+  expect(mockRedirect).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());
 });

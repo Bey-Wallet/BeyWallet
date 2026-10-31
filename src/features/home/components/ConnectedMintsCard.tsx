@@ -3,16 +3,16 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, styled } from 'tamagui';
-import { Plus, Landmark, CircleAlert, ChevronRight } from '@tamagui/lucide-icons';
+import { Plus, Landmark, RefreshCw, ChevronRight } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { appTypography } from '~/shared/theme/appearance';
 import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
@@ -39,7 +39,9 @@ interface MintRowItemProps {
   secondaryCurrency: string;
   refreshCounter: number;
   loading: boolean;
-  deviceOffline: boolean;
+  unavailable: boolean;
+  checking: boolean;
+  onRecheck: () => void;
   onPress: (mintUrl: string) => void;
 }
 
@@ -54,12 +56,11 @@ const MintRowItem = React.memo(
     secondaryCurrency,
     refreshCounter,
     loading,
-    deviceOffline,
+    unavailable,
+    checking,
+    onRecheck,
     onPress,
   }: MintRowItemProps) => {
-    const { error: connectionError } = useMintInfo(mint.mintUrl);
-    const unavailable = !deviceOffline && !!connectionError;
-    const textColor = unavailable ? '$red10' : '$color';
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -70,14 +71,6 @@ const MintRowItem = React.memo(
           return mint.mintUrl;
         }
       })();
-
-    const hostname = useMemo(() => {
-      try {
-        return new URL(mint.mintUrl).hostname;
-      } catch {
-        return mint.mintUrl;
-      }
-    }, [mint.mintUrl]);
 
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
@@ -102,68 +95,82 @@ const MintRowItem = React.memo(
     const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? 'hidden' : 'visible'}_${displayAsSats ? 'SATS' : 'FIAT'}_${showBitcoinSymbol}`;
 
     return (
-      <AppPressable
-        minHeight={56}
-        rounded="$6"
-        hoverStyle={{ opacity: 0.85 }}
-        pressStyle={{ opacity: 0.7 }}
-        onPress={() => onPress(mint.mintUrl)}
-        accessibilityLabel={`Open ${displayName} mint details`}
-        accessibilityHint={unavailable ? 'Mint unreachable. Open details to recheck.' : undefined}
-      >
-        <RowContainer>
-          <XStack items="center" gap="$2" flex={1} minWidth={0}>
-            <MintImage
-              mintUrl={mint.mintUrl}
-              src={mint.icon}
-              width={44}
-              height={44}
-              alt={displayName}
-              borderRadius={12}
-              borderColor="$borderColor"
-              borderWidth={mint.icon ? 1 : 0}
-              fallback={<Landmark size={22} color="$iconSecondary" />}
-            />
+      <XStack items="center">
+        <AppPressable
+          flex={1}
+          minWidth={0}
+          opacity={unavailable ? 0.5 : 1}
+          minHeight={56}
+          rounded="$6"
+          hoverStyle={{ opacity: 0.85 }}
+          pressStyle={{ opacity: 0.7 }}
+          onPress={() => onPress(mint.mintUrl)}
+          accessibilityLabel={`Open ${displayName} mint details`}
+          accessibilityHint={
+            unavailable ? 'Mint unreachable. Use the refresh button to recheck.' : undefined
+          }
+        >
+          <RowContainer>
+            <XStack items="center" gap="$2" flex={1} minWidth={0}>
+              <MintImage
+                mintUrl={mint.mintUrl}
+                src={mint.icon}
+                width={44}
+                height={44}
+                alt={displayName}
+                borderRadius={12}
+                borderColor="$borderColor"
+                borderWidth={mint.icon ? 1 : 0}
+                fallback={<Landmark size={22} color="$iconSecondary" />}
+              />
 
-            <YStack gap="$0.5" flex={1} minWidth={0}>
-              <XStack items="center" gap="$1.5">
-                <Text
-                  {...appTypography.label1}
-                  fontWeight="500"
-                  color={textColor}
-                  numberOfLines={1}
-                  flexShrink={1}
+              <YStack gap="$0.5" flex={1} minWidth={0}>
+                <XStack items="center" gap="$1.5">
+                  <Text
+                    {...appTypography.label1}
+                    fontWeight="500"
+                    color="$color"
+                    numberOfLines={1}
+                    flexShrink={1}
+                  >
+                    {displayName}
+                  </Text>
+                </XStack>
+              </YStack>
+            </XStack>
+
+            <XStack items="center" gap="$1.5">
+              <YStack items="flex-end" justify="center">
+                <RollingNumber
+                  fontSize={appTypography.label1.fontSize}
+                  lineHeight={appTypography.label1.lineHeight}
+                  fontWeight="600"
+                  color="$color"
+                  decimalOpacity={0.4}
+                  showDecimals={!displayAsSats}
+                  prefix={prefix}
+                  suffix={suffix}
+                  trigger={currentTrigger}
                 >
-                  {displayName}
-                </Text>
-                {unavailable && (
-                  <View accessible accessibilityRole="image" accessibilityLabel="Mint unreachable">
-                    <CircleAlert size={18} color="$red11" />
-                  </View>
-                )}
-              </XStack>
-            </YStack>
-          </XStack>
-
-          <XStack items="center" gap="$1.5">
-            <YStack items="flex-end" justify="center">
-              <RollingNumber
-                fontSize={appTypography.label1.fontSize}
-                lineHeight={appTypography.label1.lineHeight}
-                fontWeight="500"
-                color={textColor}
-                decimalOpacity={0.4}
-                showDecimals={!displayAsSats}
-                prefix={prefix}
-                suffix={suffix}
-                trigger={currentTrigger}
-              >
-                {displayValue}
-              </RollingNumber>
-            </YStack>
-          </XStack>
-        </RowContainer>
-      </AppPressable>
+                  {displayValue}
+                </RollingNumber>
+              </YStack>
+            </XStack>
+          </RowContainer>
+        </AppPressable>
+        {unavailable && (
+          <AppButton
+            iconOnly
+            emphasis="text"
+            icon={RefreshCw}
+            iconSize={22}
+            textColor="$gray10"
+            accessibilityLabel={`Recheck ${displayName} connection`}
+            loading={checking}
+            onPress={onRecheck}
+          />
+        )}
+      </XStack>
     );
   },
 );
@@ -187,7 +194,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
 
   return (
     <RowContainer>
-      <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2" opacity={0.48}>
+      <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2">
         <View
           width={44}
           height={44}
@@ -250,6 +257,20 @@ export const ConnectedMintsCard = () => {
   const balances = useWalletStore((s) => s.balances);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const deviceOffline = useOfflineStatus();
+  const mintConnections = useQueries({
+    queries: mints.map((mint) => {
+      const options = mintInfoQueryOptions(mint.mintUrl);
+      return { ...options, enabled: options.enabled && !deviceOffline };
+    }),
+  });
+  const unavailableConnections = deviceOffline
+    ? []
+    : mintConnections.filter((query) => query.error);
+  const recheckUnavailable = () => {
+    void Promise.all(
+      unavailableConnections.map((query) => query.refetch({ cancelRefetch: false })),
+    );
+  };
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
@@ -299,7 +320,7 @@ export const ConnectedMintsCard = () => {
     <YStack width="100%" gap="$2" p="$0" rounded="$6">
       <XStack items="center" justify="space-between" gap="$3">
         <AppPressable
-          minHeight={0}
+          minHeight={48}
           flexDirection="row"
           items="center"
           gap="$1"
@@ -310,32 +331,46 @@ export const ConnectedMintsCard = () => {
           onPress={handleManageMints}
         >
           <Text color="$gray10" fontSize="$4" fontWeight="600" accessibilityRole="header">
-            Mints
+            {mints.length === 0 ? 'Suggested mints' : 'Mints'}
           </Text>
           <ChevronRight size={18} color="$gray10" aria-hidden />
         </AppPressable>
-        <AppPressable
-          minHeight={0}
-          minWidth={48}
-          flexDirection="row"
-          items="center"
-          justify="center"
-          gap="$1"
-          bg="transparent"
-          hoverStyle={{ opacity: 0.85 }}
-          pressStyle={{ opacity: 0.6 }}
-          accessibilityLabel="Add mint"
-          onPress={handleAddMint}
-        >
-          <Plus size={20} color="$gray10" aria-hidden />
-          <Text fontSize="$3" fontWeight="600" color="$gray10">
-            Add
-          </Text>
-        </AppPressable>
+        <XStack items="center">
+          {unavailableConnections.length > 1 && (
+            <AppButton
+              iconOnly
+              emphasis="text"
+              icon={RefreshCw}
+              iconSize={22}
+              textColor="$gray10"
+              accessibilityLabel="Recheck unreachable mints"
+              loading={unavailableConnections.some((query) => query.isFetching)}
+              onPress={recheckUnavailable}
+            />
+          )}
+          <AppPressable
+            minHeight={48}
+            minWidth={48}
+            flexDirection="row"
+            items="center"
+            justify="center"
+            gap="$1"
+            bg="transparent"
+            hoverStyle={{ opacity: 0.85 }}
+            pressStyle={{ opacity: 0.6 }}
+            accessibilityLabel="Add mint"
+            onPress={handleAddMint}
+          >
+            <Plus size={20} color="$gray10" aria-hidden />
+            <Text fontSize="$3" fontWeight="600" color="$gray10">
+              Add
+            </Text>
+          </AppPressable>
+        </XStack>
       </XStack>
       <YStack>
         {[
-          ...mints.map((mint) => {
+          ...mints.map((mint, index) => {
             const balance = balances[mint.mintUrl] || 0;
 
             return (
@@ -350,7 +385,11 @@ export const ConnectedMintsCard = () => {
                 secondaryCurrency={secondaryCurrency}
                 refreshCounter={refreshCounter}
                 loading={!displayAsSats && isFetchingPrice}
-                deviceOffline={deviceOffline}
+                unavailable={!deviceOffline && !!mintConnections[index].error}
+                checking={mintConnections[index].isFetching}
+                onRecheck={() => {
+                  void mintConnections[index].refetch({ cancelRefetch: false });
+                }}
                 onPress={handleMintPress}
               />
             );

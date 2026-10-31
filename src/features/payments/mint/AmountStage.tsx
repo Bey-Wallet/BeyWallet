@@ -1,7 +1,7 @@
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text } from 'tamagui';
+import { YStack, XStack, Text, Input } from 'tamagui';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -19,6 +19,7 @@ import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import * as Haptics from 'expo-haptics';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
+import { ListTableRow } from '~/shared/ui/ListTable';
 
 interface AmountStageProps {
   mintUrl?: string | null;
@@ -26,6 +27,9 @@ interface AmountStageProps {
   amount: string;
   setAmount: (val: string) => void;
   onContinue: () => void;
+  confirmLabel?: string;
+  note?: string;
+  onNoteChange?: (value: string) => void;
 }
 
 export function AmountStage({
@@ -34,6 +38,9 @@ export function AmountStage({
   amount,
   setAmount,
   onContinue,
+  confirmLabel = 'Continue',
+  note,
+  onNoteChange,
 }: AmountStageProps) {
   const {
     activeMintUrl: globalMintUrl,
@@ -203,25 +210,60 @@ export function AmountStage({
   }, [formattedDisplayValue]);
 
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <YStack flex={1} justify="space-between" gap="$3">
+      <YStack
+        flex={onNoteChange ? 1 : undefined}
+        minHeight={0}
+        items="center"
+        gap="$1.5"
+        width="100%"
+      >
         {/* Mint Selector Row */}
         <MintBalanceRow
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
           displayName={displayName}
           balance={balance}
+          showBalance={!onNoteChange}
           isLoadingMint={isLoadingMint}
           isSelector={true}
           onPress={() => {
             refreshMintList();
             sheetRef.current?.present();
           }}
-        />
+        >
+          {onNoteChange && (
+            <ListTableRow
+              label="Note"
+              value={
+                <Input
+                  value={note || ''}
+                  onChangeText={onNoteChange}
+                  placeholder="Coffee, for example"
+                  accessibilityLabel="Payment note"
+                  maxLength={200}
+                  fontFamily="$body"
+                  fontSize={14}
+                  minHeight={48}
+                  width={180}
+                  maxWidth="100%"
+                  minWidth={0}
+                  bg="transparent"
+                  color="$color"
+                  placeholderTextColor="$gray10"
+                  borderWidth={0}
+                  textAlign="right"
+                />
+              }
+            />
+          )}
+        </MintBalanceRow>
 
         {/* Card Box Container */}
         <YStack
           width="100%"
+          flex={onNoteChange ? 1 : undefined}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$4"
@@ -266,62 +308,64 @@ export function AmountStage({
           </YStack>
         </YStack>
         {/* 3 Preset buttons above numpad */}
-        <XStack width="100%" justify="center" gap="$1.5">
-          <AppPressable
-            px={12}
-            py={4}
-            flex={1}
-            rounded="$6"
-            bg="$gray2"
-            pressStyle={{ scale: 0.95 }}
-            onPress={() => handlePreset('1000')}
-            minHeight={64}
-            flexDirection="row"
-            items="center"
-            justify="center"
-            gap={8}
-          >
-            <Text color="$color" fontSize="$4" fontWeight="600">
-              1k
-            </Text>
-          </AppPressable>
-          <AppPressable
-            px={12}
-            py={4}
-            flex={1}
-            rounded="$6"
-            bg="$gray2"
-            pressStyle={{ scale: 0.95 }}
-            onPress={() => handlePreset('5000')}
-            minHeight={64}
-            flexDirection="row"
-            items="center"
-            justify="center"
-            gap={8}
-          >
-            <Text color="$color" fontSize="$4" fontWeight="600">
-              5k
-            </Text>
-          </AppPressable>
-          <AppPressable
-            px={12}
-            py={4}
-            flex={1}
-            rounded="$6"
-            bg="$gray2"
-            pressStyle={{ scale: 0.95 }}
-            onPress={() => handlePreset('20000')}
-            minHeight={64}
-            flexDirection="row"
-            items="center"
-            justify="center"
-            gap={8}
-          >
-            <Text color="$color" fontSize="$4" fontWeight="600">
-              20k
-            </Text>
-          </AppPressable>
-        </XStack>
+        {!onNoteChange && (
+          <XStack width="100%" justify="center" gap="$1.5">
+            <AppPressable
+              px={12}
+              py={4}
+              flex={1}
+              rounded="$6"
+              bg="$gray2"
+              pressStyle={{ scale: 0.95 }}
+              onPress={() => handlePreset('1000')}
+              minHeight={64}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
+              <Text color="$color" fontSize="$4" fontWeight="600">
+                1k
+              </Text>
+            </AppPressable>
+            <AppPressable
+              px={12}
+              py={4}
+              flex={1}
+              rounded="$6"
+              bg="$gray2"
+              pressStyle={{ scale: 0.95 }}
+              onPress={() => handlePreset('5000')}
+              minHeight={64}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
+              <Text color="$color" fontSize="$4" fontWeight="600">
+                5k
+              </Text>
+            </AppPressable>
+            <AppPressable
+              px={12}
+              py={4}
+              flex={1}
+              rounded="$6"
+              bg="$gray2"
+              pressStyle={{ scale: 0.95 }}
+              onPress={() => handlePreset('20000')}
+              minHeight={64}
+              flexDirection="row"
+              items="center"
+              justify="center"
+              gap={8}
+            >
+              <Text color="$color" fontSize="$4" fontWeight="600">
+                20k
+              </Text>
+            </AppPressable>
+          </XStack>
+        )}
       </YStack>
 
       {/* Presets and Numeric Keypad */}
@@ -332,7 +376,7 @@ export function AmountStage({
           value={localInputValue}
           onValueChange={onKeypadChange}
           onConfirm={onContinue}
-          confirmLabel="Continue"
+          confirmLabel={confirmLabel}
         />
       </YStack>
 

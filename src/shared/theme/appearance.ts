@@ -34,6 +34,9 @@ export const appColors = {
     alternateSeparator: '#FFFFFF14',
     field: '#17171A',
     fieldError: '#FF476614',
+    offlineAmountLower: '#A82B40',
+    offlineAmountHigher: '#245BC5',
+    offlineAmountForeground: '#FFFFFF',
   },
   light: {
     canvas: '#FFFFFF',
@@ -67,6 +70,9 @@ export const appColors = {
     alternateSeparator: '#0000000F',
     field: '#F1F1F3',
     fieldError: '#FF3B3014',
+    offlineAmountLower: '#B42335',
+    offlineAmountHigher: '#2056BA',
+    offlineAmountForeground: '#FFFFFF',
   },
 } as const;
 
@@ -145,6 +151,9 @@ export function createAppColorTheme(appearance: keyof typeof appColors) {
     placeholderColor: c.secondaryText,
     accentColor: c.accent,
     onAccent: c.onAccent,
+    offlineAmountLower: c.offlineAmountLower,
+    offlineAmountHigher: c.offlineAmountHigher,
+    offlineAmountForeground: c.offlineAmountForeground,
     iconPrimary: c.icon,
     iconSecondary: c.secondaryText,
     iconTertiary: c.tertiaryText,

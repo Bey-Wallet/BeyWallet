@@ -1,1 +1,1 @@
-export { redirectNfcIntent as redirectSystemPath } from '~/features/nfc/nativeIntent';
+export { redirectSystemPath } from '~/shared/utils/systemIntent';

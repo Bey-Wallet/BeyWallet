@@ -234,17 +234,34 @@ class NostrService {
     if (recipient.relayHints.length) usePeopleStore.getState().savePerson({ npub: identifier });
     if (!this.privkeyBytes || !this.isRunning || generation !== this.generation)
       throw new Error('Wallet is closed.');
-    const copies = createChatCopies(payment?.encoded ?? text, recipient.pubkey, this.privkeyBytes);
+    const person = usePeopleStore.getState().people[normalizeNpub(identifier)];
+    const transport = person?.chatTransport === 'nip04' ? 'nip04' : 'nip17';
+    const content = payment?.encoded ?? text;
+    const secret = this.privkeyBytes;
+    const copies =
+      transport === 'nip17' ? createChatCopies(content, recipient.pubkey, secret) : undefined;
+    const event =
+      copies?.rumor ??
+      finalizeEvent(
+        {
+          kind: 4,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [['p', recipient.pubkey]],
+          content: await nip04.encrypt(secret, recipient.pubkey, content),
+        },
+        secret,
+      );
+    if (!this.isRunning || generation !== this.generation) throw new Error('Wallet is closed.');
     const message: ChatMessage = {
-      id: copies.rumor.id,
+      id: event.id,
       conversation: normalizeNpub(identifier),
       direction: 'outgoing',
-      createdAt: copies.rumor.created_at * 1000,
+      createdAt: event.created_at * 1000,
       receivedAt: Date.now(),
       text: payment ? payment.note || '' : text,
       ...(payment
         ? {
-            paymentId: copies.rumor.id,
+            paymentId: event.id,
             paymentAmount: payment.amount,
             paymentType: payment.type,
             requestId: payment.requestId,
@@ -252,11 +269,24 @@ class NostrService {
         : {}),
       read: true,
       publication: 'sending',
-      transport: 'nip17',
-      envelopes: [
-        { event: copies.recipient, relays: [] },
-        { event: copies.sender, relays: getNostrInboxRelays() },
-      ],
+      transport,
+      envelopes: copies
+        ? [
+            { event: copies.recipient, relays: [] },
+            { event: copies.sender, relays: getNostrInboxRelays() },
+          ]
+        : [
+            {
+              event: event as Event,
+              relays: [
+                ...new Set([
+                  ...getNostrRelays(),
+                  ...recipient.relayHints,
+                  ...(person?.relayHints || []),
+                ]),
+              ],
+            },
+          ],
     };
     const { initService } =
       require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');

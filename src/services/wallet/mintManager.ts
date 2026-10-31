@@ -40,7 +40,7 @@ export const mintManager = {
   },
 
   /**
-   * Remove a mint from the device entirely.
+   * Remove a mint and its balance data, retaining its transaction history.
    */
   removeMint: async (mintUrl: string): Promise<void> => {
     const repo = initService.getRepo();
@@ -50,7 +50,7 @@ export const mintManager = {
       await (repo.mintRepository as any).deleteMint?.(mintUrl);
     }
 
-    // Clean up all tables containing the deleted mintUrl to purge data completely
+    // Remove mint/balance data while keeping history available for receipts and records.
     try {
       const db = (repo as any).db;
       if (db && typeof db.run === 'function') {
@@ -60,7 +60,6 @@ export const mintManager = {
         await db.run('DELETE FROM coco_cashu_proofs WHERE mintUrl = ?', [mintUrl]);
         await db.run('DELETE FROM coco_cashu_mint_quotes WHERE mintUrl = ?', [mintUrl]);
         await db.run('DELETE FROM coco_cashu_melt_quotes WHERE mintUrl = ?', [mintUrl]);
-        await db.run('DELETE FROM coco_cashu_history WHERE mintUrl = ?', [mintUrl]);
       }
     } catch (dbErr) {
       console.error('[MintManager] Failed to wipe DB tables for removed mint:', dbErr);

@@ -19,7 +19,11 @@ percentage. A permanent **Search people** field offers Paste/Clear. Recent and R
 tap-based, equal-width tabs; only Requests has an actionable-count badge.
 
 People rows use circular 48px avatars, verified badges, a name and latest-activity preview, compact
-timestamps, and an unread dot. Tapping anywhere on a row opens its conversation. Pay/Request live
+timestamps, and a red numeric unread badge. The row count combines unread messages and unseen
+payments, excludes dismissed payments, and clears as activity is read. Payment issue rows count
+only their own unseen payment. The People bottom-tab and Recent/Requests badges remain counts
+of unread conversations, using the same red surface and white text. Visual counts cap at `99+`;
+row accessibility labels retain the full count. Tapping anywhere on a row opens its conversation. Pay/Request live
 in that conversation rather than as competing row actions. Accepted people without activity sort
 alphabetically after active conversations. Requests separates People requests and Payment issues;
 issue rows open the existing claim review sheet without starting a claim.
@@ -148,10 +152,29 @@ to make a failing payment appear successful. These are security-critical payment
 
 ## Text chat
 
-Outgoing chat follows [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md): kind `14`
+Conversation keyboard movement uses the Expo SDK-compatible Keyboard Controller 1.18.5 and a
+single app-level provider. Keyboard preloading is disabled on startup. The conversation uses
+padding avoidance on both native platforms and keeps the latest activity anchored on viewport
+resize only while already near the bottom; reading older messages and pagination anchors retain
+their position. Existing custom clients require a native rebuild. See the
+[People chat UX plan](../plans/people-chat-ux.md) for the implementation boundary and next proposals.
+
+Outgoing chat defaults to [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md): kind `14`
 rumor, kind `13` seal and kind `1059` gift wrap. Sender and recipient copies share the same rumor.
 Only the recipient's signed kind `10050` inbox relays receive their copy. Missing inbox relays
 produce an actionable error without downgrading encryption. Existing payment transports are retained.
+
+Conversation Info → Messaging offers an explicit legacy NIP-04 choice for older clients. The
+choice is persisted per person, defaults to NIP-17 for existing/new contacts, and survives profile
+refreshes. The chooser explains that legacy messages encrypt content but publicly expose sender,
+recipient and timestamp; a notice remains above the composer while legacy mode is selected.
+Legacy chat publishes one signed kind `4` event to the configured relays and recipient relay hints,
+without requiring a NIP-17 inbox list or publishing a gift wrap. Relay overlap is still required;
+discovering a profile alone does not guarantee delivery. The outgoing event ID is the local message
+ID. Both formats retain existing blocking, authentication, contact acceptance and publication
+checks. Switching formats affects new messages only: retries retain their original encrypted event,
+ID and destinations, and never downgrade an already-created NIP-17 message. Legacy outgoing chat
+is stored locally without a separate sender gift wrap. Existing Pay/Request transports are unchanged.
 
 Receiving supports NIP-17 and signed legacy kind `4`. Authentication verifies outer/seal signatures,
 seal/rumor identity, recomputed rumor IDs and one-to-one recipient membership. Sender copies record

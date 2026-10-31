@@ -19,6 +19,8 @@ interface MintBalanceRowProps {
   displayName?: string;
   label?: string;
   balance: number;
+  showBalance?: boolean;
+  children?: React.ReactNode;
   isLoadingMint?: boolean;
   isSelector?: boolean;
   onPress?: () => void;
@@ -33,6 +35,8 @@ export function MintBalanceRow({
   displayName,
   label,
   balance,
+  showBalance = true,
+  children,
   isLoadingMint = false,
   isSelector = true,
   onPress,
@@ -94,23 +98,26 @@ export function MintBalanceRow({
         }
         rightContent={isSelector && onPress ? <ChevronDown size={16} color="$gray10" /> : undefined}
       />
-      <ListTableRow
-        label="Available balance"
-        value={currencyService.formatSats(balance)}
-        rightContent={
-          showMax ? (
-            <AppButton
-              variant="default"
-              emphasis="secondary"
-              size="xxsmall"
-              onPress={onMaxPress}
-              disabled={maxDisabled || balance === 0}
-            >
-              Max
-            </AppButton>
-          ) : undefined
-        }
-      />
+      {children}
+      {showBalance && (
+        <ListTableRow
+          label="Available balance"
+          value={currencyService.formatSats(balance)}
+          rightContent={
+            showMax ? (
+              <AppButton
+                variant="default"
+                emphasis="secondary"
+                size="xxsmall"
+                onPress={onMaxPress}
+                disabled={maxDisabled || balance === 0}
+              >
+                Max
+              </AppButton>
+            ) : undefined
+          }
+        />
+      )}
     </ListTable>
   );
 }

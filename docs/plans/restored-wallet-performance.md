@@ -199,6 +199,21 @@ latency after catch-up settles. Repeat with a fresh wallet. No speedup percentag
 claimed. If cryptography remains dominant, use those results to scope off-thread/native
 work separately.
 
+## Product-polish follow-up: shared reduced-motion subscription
+
+`useReducedMotion` now shares native accessibility work across its mounted consumers through
+`useSyncExternalStore`. Previously every button/pressable/switch consumer installed a listener
+and requested the initial preference separately. A 100-consumer regression fixture reproduced
+100 native listener registrations before the change and now asserts one registration and read.
+
+The hook stays reduced until the preference is known, honors live events ahead of stale reads,
+removes its listener after the last consumer unmounts, and ignores callbacks from previous
+subscription lifetimes. Repeated unchanged events do not re-render consumers. This is a scoped
+reduction in setup work; it does not establish the cause or resolution of the reported wallet lag.
+No device was attached, so the ordinary preview comparisons below remain pending.
+Local validation: 40 reduced-motion, button, pressable, switch, and spinner tests passed, along
+with type checking, the button check, scoped formatting, and diff whitespace checks.
+
 ## Original remediation stages (reference)
 
 ### Stage 1: control Nostr processing

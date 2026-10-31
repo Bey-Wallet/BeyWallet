@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
-import { Text, YStack } from 'tamagui';
-import { AppPressable } from '~/shared/ui/AppPressable';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { MintInfoRow } from './MintInfoRow';
+import { ListTableRow } from '~/shared/ui/ListTable';
 
 type Info = Record<string, any>;
 const methodName = (method: string) =>
@@ -79,68 +78,74 @@ export function mintPreviewMethods(info: Info) {
 export function MintPreviewMethods({ info }: { info: Info }) {
   const [expanded, setExpanded] = useState(false);
   const rows = mintPreviewMethods(info);
+  const activeRows = (direction: string) =>
+    rows.filter((row) => row.direction === direction && !row.disabled);
   const summary = (direction: string) =>
-    [
-      ...new Set(
-        rows
-          .filter((row) => row.direction === direction && !row.disabled)
-          .map((row) => methodName(row.method)),
-      ),
-    ].join(' · ') || 'Not advertised';
+    [...new Set(activeRows(direction).map((row) => methodName(row.method)))].join(' · ') ||
+    'Not advertised';
+  const limits = (direction: string) => {
+    const groups = new Map<
+      string,
+      { minimum: string; maximum: string; unit?: string; methods: string[] }
+    >();
+    for (const row of activeRows(direction)) {
+      const key = JSON.stringify([row.minimum, row.maximum, row.unit]);
+      const group = groups.get(key);
+      if (group) group.methods.push(methodName(row.method));
+      else groups.set(key, { ...row, methods: [methodName(row.method)] });
+    }
+    const entries = [...groups.values()];
+    return entries
+      .map((row) => {
+        const range =
+          row.minimum === 'Not provided' && row.maximum === 'Not provided'
+            ? 'Not provided'
+            : row.minimum === 'Not provided'
+              ? `Up to ${row.maximum}`
+              : row.maximum === 'Not provided'
+                ? `From ${row.minimum}`
+                : `${row.minimum} – ${row.maximum}`;
+        const varying = entries.filter((other) => other.unit === row.unit).length > 1;
+        return `${varying ? row.methods.join(' / ') + ': ' : ''}${range}`;
+      })
+      .join('\n');
+  };
   return (
-    <YStack gap="$3">
-      <Text color="$gray10" fontSize="$4" fontWeight="600">
-        Payment methods
-      </Text>
-      <ListTable compact>
-        <ListTableRow label="Receive" value={summary('Receive')} />
-        <ListTableRow label="Send" value={summary('Send')} />
-      </ListTable>
+    <>
+      <MintInfoRow label="Deposit" value={summary('Receive')} />
+      <MintInfoRow label="Withdraw" value={summary('Send')} />
+      {limits('Receive') && <MintInfoRow label="Deposit limits" value={limits('Receive')} />}
+      {limits('Send') && <MintInfoRow label="Withdraw limits" value={limits('Send')} />}
       {rows.length > 0 && (
-        <>
-          <AppPressable
-            minHeight={48}
-            flexDirection="row"
-            items="center"
-            justify="space-between"
-            accessibilityRole="button"
-            accessibilityLabel="Payment limits"
-            accessibilityState={{ expanded }}
-            onPress={() => setExpanded((value) => !value)}
-          >
-            <Text color="$gray10" fontSize="$4" fontWeight="600">
-              Payment limits
-            </Text>
-            {expanded ? (
-              <ChevronUp size={22} color="$gray10" />
+        <ListTableRow
+          label="Payment details"
+          expanded={expanded}
+          rightContent={
+            expanded ? (
+              <ChevronUp size={20} color="$gray10" />
             ) : (
-              <ChevronDown size={22} color="$gray10" />
-            )}
-          </AppPressable>
-          {expanded &&
-            rows.map((row, index) => (
-              <YStack key={index} gap="$2">
-                <Text color="$gray10" fontSize={13}>
-                  {row.direction} · {methodName(row.method)}
-                  {row.unit ? ` · ${row.unit}` : ''}
-                </Text>
-                <ListTable compact>
-                  <ListTableRow
-                    label="Availability"
-                    value={row.disabled ? 'Disabled by mint' : 'Advertised by mint'}
-                  />
-                  <ListTableRow label="Minimum" value={row.minimum} />
-                  <ListTableRow label="Maximum" value={row.maximum} />
-                  {row.fee !== undefined && <ListTableRow label="Published fee" value={row.fee} />}
-                  {row.network && <ListTableRow label="Network" value={row.network} />}
-                  {row.confirmations !== undefined && (
-                    <ListTableRow label="Confirmations" value={String(row.confirmations)} />
-                  )}
-                </ListTable>
-              </YStack>
-            ))}
-        </>
+              <ChevronDown size={20} color="$gray10" />
+            )
+          }
+          onPress={() => setExpanded((value) => !value)}
+        />
       )}
-    </YStack>
+      {expanded &&
+        rows.map((row, index) => (
+          <React.Fragment key={index}>
+            <MintInfoRow
+              label={`${row.direction === 'Receive' ? 'Deposit' : 'Withdraw'} · ${methodName(row.method)}${row.unit ? ` · ${row.unit}` : ''}`}
+              value={row.disabled ? 'Disabled by mint' : 'Advertised by mint'}
+            />
+            <MintInfoRow label="Minimum" value={row.minimum} />
+            <MintInfoRow label="Maximum" value={row.maximum} />
+            {row.fee !== undefined && <MintInfoRow label="Published fee" value={row.fee} />}
+            {row.network && <MintInfoRow label="Network" value={row.network} />}
+            {row.confirmations !== undefined && (
+              <MintInfoRow label="Confirmations" value={String(row.confirmations)} />
+            )}
+          </React.Fragment>
+        ))}
+    </>
   );
 }

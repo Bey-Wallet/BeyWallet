@@ -11,8 +11,12 @@ let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
 let mockDeviceOffline = false;
 let mockHideBalance = false;
+let mockSkipDisclaimer = false;
+const mockRecheckMint = jest.fn();
+let mockCheckingMints: string[] = [];
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(
     ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator', 'H6'].map(
@@ -24,6 +28,12 @@ jest.mock('tamagui', () => ({
 }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
+  useQueries: ({ queries }: any) =>
+    queries.map(({ queryKey }: any) => ({
+      error: mockMintErrors[queryKey[1]],
+      isFetching: mockCheckingMints.includes(queryKey[1]),
+      refetch: (options: unknown) => mockRecheckMint(queryKey[1], options),
+    })),
   useQuery: ({ queryKey }: any) => ({
     data:
       queryKey[0] === 'all-mint-recommendations'
@@ -42,6 +52,7 @@ jest.mock('~/state/settingsStore', () => ({
     primaryCurrency: 'SATS',
     secondaryCurrency: 'NONE',
     hideBalance: mockHideBalance,
+    hideMintConnectionDisclaimer: mockSkipDisclaimer,
   }),
 }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockDeviceOffline }));
@@ -53,6 +64,7 @@ jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('react-native-reanimated', () => ({
@@ -74,12 +86,18 @@ beforeEach(() => {
   mockMintErrors = {};
   mockDeviceOffline = false;
   mockHideBalance = false;
+  mockSkipDisclaimer = false;
+  mockCheckingMints = [];
   useWalletStore.setState({
     mints: [],
     balances: {},
     refreshCounter: 0,
     scannerResult: null,
     setScannerResult: (scannerResult) => useWalletStore.setState({ scannerResult }),
+    addMint: jest.fn(async (mintUrl) => {
+      useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
+    }),
+    error: null,
   });
 });
 afterEach(async () => {
@@ -93,7 +111,7 @@ const connectedRow = (mintUrl: string) =>
       row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
     )!;
 
-it('marks an unreachable connected mint red, replaces its payment badges, and keeps its balance and navigation', async () => {
+it('dims an unreachable mint and rechecks it without opening its details', async () => {
   const mintUrl = 'https://mint.example';
   useWalletStore.setState({
     mints: [{ mintUrl, name: 'Example mint', trusted: true }],
@@ -107,19 +125,21 @@ it('marks an unreachable connected mint red, replaces its payment badges, and ke
     tree = create(<ConnectedMintsCard />);
   });
   const row = connectedRow(mintUrl);
-  expect(row.findByType('Text' as any).props.color).toBe('$red11');
+  expect(row.findByType('Text' as any).props.color).toBe('$color');
+  expect(row.parent!.props.opacity).toBe(0.5);
   expect(row.findByType('RollingNumber' as any).props).toMatchObject({
-    color: '$red11',
+    color: '$color',
     children: 4200,
     suffix: ' sat',
   });
-  expect(row.findByType('CircleAlert' as any).props).toMatchObject({ size: 18, color: '$red11' });
+  const refresh = tree.root.findByProps({ accessibilityLabel: 'Recheck Example mint connection' });
+  await act(async () => refresh.props.onPress());
+  expect(mockRecheckMint).toHaveBeenCalledWith(mintUrl, { cancelRefetch: false });
+  expect(mockPush).not.toHaveBeenCalled();
   expect(
-    row
-      .findAllByProps({ accessibilityRole: 'image' })
-      .map((badge) => badge.props.accessibilityLabel),
-  ).toEqual(['Mint unreachable']);
-  await act(async () => row.props.onPress());
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck unreachable mints' }),
+  ).toHaveLength(0);
+  await act(async () => row.parent!.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
     params: { mintUrl },
@@ -129,13 +149,17 @@ it('marks an unreachable connected mint red, replaces its payment badges, and ke
     useWalletStore.setState({ refreshCounter: 1 });
   });
   expect(connectedRow(mintUrl).findByType('Text' as any).props.color).toBe('$color');
+  expect(connectedRow(mintUrl).parent!.props.opacity).toBe(1);
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck Example mint connection' }),
+  ).toHaveLength(0);
   expect(connectedRow(mintUrl).findByType('RollingNumber' as any).props.color).toBe('$color');
   expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
   expect(
     connectedRow(mintUrl)
       .findAllByProps({ accessibilityRole: 'image' })
       .map((badge) => badge.props.accessibilityLabel),
-  ).toEqual(['Lightning supported', 'On-chain supported']);
+  ).toEqual([]);
 });
 
 it('does not mark individual mints down when the device is offline, and keeps hidden balances hidden', async () => {
@@ -153,6 +177,40 @@ it('does not mark individual mints down when the device is offline, and keeps hi
     suffix: '',
   });
   expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
+  expect(connectedRow(mintUrl).parent!.props.opacity).toBe(1);
+  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+});
+
+it('rechecks only unreachable mints from the header and shows in-flight feedback', async () => {
+  const urls = ['https://one.example', 'https://two.example', 'https://healthy.example'];
+  useWalletStore.setState({ mints: urls.map((mintUrl) => ({ mintUrl, trusted: true })) });
+  mockMintErrors[urls[0]] = new Error('Unreachable');
+  mockMintErrors[urls[1]] = new Error('Unreachable');
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const refresh = () => tree.root.findByProps({ accessibilityLabel: 'Recheck unreachable mints' });
+  await act(async () => refresh().props.onPress());
+  expect(mockRecheckMint.mock.calls).toEqual([
+    [urls[0], { cancelRefetch: false }],
+    [urls[1], { cancelRefetch: false }],
+  ]);
+  mockCheckingMints = [urls[0]];
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 1 });
+  });
+  expect(refresh().props.loading).toBe(true);
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Recheck one.example connection' }).props.loading,
+  ).toBe(true);
+  expect(connectedRow(urls[2]).parent!.props.opacity).toBe(1);
+  delete mockMintErrors[urls[0]];
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 2 });
+  });
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck unreachable mints' }),
+  ).toHaveLength(0);
 });
 
 const render = async () => {
@@ -160,6 +218,21 @@ const render = async () => {
     tree = create(<AddMintScreen />);
   });
 };
+
+it('clears an unmatched mint search without changing connected mints', async () => {
+  const mintUrl = 'https://mint.example';
+  useWalletStore.setState({ mints: [{ mintUrl, name: 'Example', trusted: true }] });
+  await render();
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('unmatched'));
+  const clear = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Clear search')!;
+  expect(clear).toBeDefined();
+  await act(async () => clear.props.onPress());
+  expect(tree.root.findByType('Input' as any).props.value).toBe('');
+  expect(useWalletStore.getState().mints).toEqual([{ mintUrl, name: 'Example', trusted: true }]);
+  expect(mockPush).not.toHaveBeenCalled();
+});
 
 it('opens the full profile when submitting an entered URL, preserving its path', async () => {
   await render();
@@ -188,6 +261,79 @@ it('opens the profile from the detected URL Add button', async () => {
   });
 });
 
+it('connects an entered mint directly from Add after remembered consent', async () => {
+  mockSkipDisclaimer = true;
+  await render();
+  await act(async () =>
+    tree.root.findByType('Input' as any).props.onChangeText('mint.example/Bitcoin/'),
+  );
+  const add = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Add')!;
+  await act(async () => add.props.onPress());
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith('https://mint.example/Bitcoin', {
+    trusted: true,
+  });
+  expect(useWalletStore.getState().mints).toEqual([
+    { mintUrl: 'https://mint.example/Bitcoin', trusted: true },
+  ]);
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
+it('shows button loading and prevents duplicate Add operations for a discovered mint', async () => {
+  mockSkipDisclaimer = true;
+  const mintUrl = 'https://mint.example/Bitcoin';
+  mockDiscoveredMints = [{ url: mintUrl, name: 'Example mint' }];
+  let finish!: () => void;
+  useWalletStore.setState({
+    addMint: jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
+            resolve();
+          };
+        }),
+    ),
+  });
+  await render();
+  const add = () =>
+    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+  const press = add().props.onPress;
+  await act(async () => {
+    press({ stopPropagation: jest.fn() });
+    press({ stopPropagation: jest.fn() });
+  });
+  expect(add().props).toMatchObject({ loading: true, disabled: true });
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => {
+    finish();
+  });
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Added'),
+  ).toBe(true);
+});
+
+it('keeps validation failures visible and allows retry from the mint list', async () => {
+  mockSkipDisclaimer = true;
+  mockDiscoveredMints = [{ url: 'https://mint.example', name: 'Example mint' }];
+  useWalletStore.setState({
+    addMint: jest.fn(async () => {
+      useWalletStore.setState({ error: 'Mint validation failed' });
+    }),
+  });
+  await render();
+  const add = () =>
+    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+  await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Mint validation failed',
+  );
+  expect(add().props).toMatchObject({ loading: false, disabled: false });
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
 it('opens a scanned mint URL once and consumes the scanner result', async () => {
   useWalletStore.setState({ scannerResult: 'cashu:https://mint.example/Bitcoin' });
   await render();
@@ -199,7 +345,7 @@ it('opens a scanned mint URL once and consumes the scanner result', async () => 
   expect(useWalletStore.getState().scannerResult).toBeNull();
 });
 
-it('shows Home payment badges only for the methods each mint advertises', async () => {
+it('keeps connected mints in order without recommendation filler or payment badges', async () => {
   const urls = [
     'https://lightning.example',
     'https://chain.example',
@@ -226,18 +372,18 @@ it('shows Home payment badges only for the methods each mint advertises', async 
   await act(async () => {
     tree = create(<ConnectedMintsCard />);
   });
-  const badges = (mintUrl: string) =>
-    tree.root
-      .findAllByType('RowContainer' as any)
-      .find((row) =>
-        row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
-      )!
-      .findAllByProps({ accessibilityRole: 'image' })
-      .map((badge) => badge.props.accessibilityLabel);
-  expect(badges(urls[0])).toEqual(['Lightning supported']);
-  expect(badges(urls[1])).toEqual(['On-chain supported']);
-  expect(badges(urls[2])).toEqual(['Lightning supported', 'On-chain supported']);
-  expect(badges(urls[3])).toEqual([]);
+  expect(tree.root.findAllByType('MintImage' as any).map((image) => image.props.mintUrl)).toEqual(
+    urls,
+  );
+  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+  for (const mintUrl of urls) {
+    expect(connectedRow(mintUrl).findAllByProps({ accessibilityRole: 'image' })).toEqual([]);
+    await act(async () => connectedRow(mintUrl).parent!.props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/mint-details',
+      params: { mintUrl },
+    });
+  }
 });
 
 it('sends Home recommendations through the same profile and consent flow', async () => {

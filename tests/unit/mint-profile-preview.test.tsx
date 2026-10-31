@@ -1,16 +1,26 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
+import { MintInfoRow } from '~/features/mints/components/MintInfoRow';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
-import { mintPreviewMethods } from '~/features/mints/components/MintPreviewMethods';
+import { useSettingsStore } from '~/state/settingsStore';
+import { MintPreviewHealth } from '~/features/mints/components/MintPreviewHealth';
+import {
+  MintPreviewMethods,
+  mintPreviewMethods,
+} from '~/features/mints/components/MintPreviewMethods';
 import { MintNutsRow } from '~/features/mints/components/MintNutsRow';
 import { MintTermsRow } from '~/features/mints/components/MintTermsRow';
 
 const url = 'https://mint.example/Bitcoin';
 const mockRefetch = jest.fn();
 const mockReplace = jest.fn();
-const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace };
+const mockPush = jest.fn();
+let mockSection = 'reliability';
+const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace, push: mockPush };
 let mockScore: number | null = 98;
 let mockMetadataError: Error | null = null;
 let mockCheckingConnection = false;
@@ -18,6 +28,7 @@ let mockProviderError = false;
 let mockRadarRefreshError = false;
 let mockRadarFetching = false;
 let mockRadarUntracked = false;
+let mockTestMint = false;
 let mockRadarHealth = {
   scoreStale: false as boolean | null,
   status: 'online' as string | null,
@@ -70,7 +81,13 @@ jest.mock('@tanstack/react-query', () => ({
           ? undefined
           : mockRadarUntracked
             ? null
-            : { url, score: mockScore, lastCheckedAt: '2026-10-20T05:25:00Z', ...mockRadarHealth },
+            : {
+                url,
+                score: mockScore,
+                uptime7dPct: 99,
+                lastCheckedAt: '2026-10-20T05:25:00Z',
+                ...mockRadarHealth,
+              },
         isError: mockProviderError || mockRadarRefreshError,
         isFetching: mockRadarFetching,
       };
@@ -79,7 +96,7 @@ jest.mock('@tanstack/react-query', () => ({
         ...base,
         data: mockProviderError
           ? undefined
-          : [{ id: 'mint1', url, uptime24h: mockUptime24, uptime7d: 99 }],
+          : [{ id: 'mint1', url, uptime24h: mockUptime24, uptime7d: 99, isTest: mockTestMint }],
         isError: mockProviderError,
       };
     if (key[1] === 'cashu-info-detail')
@@ -111,8 +128,12 @@ jest.mock('~/services/api/mintHealthService', () => ({
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({ sqliteStorage: {} }));
 jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendationService: {} }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
+jest.mock('~/state/settingsStore', () => ({
+  useSettingsStore: require('zustand').create(() => ({})),
+}));
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  useLocalSearchParams: () => ({ mintUrl: url, section: mockSection }),
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
@@ -133,6 +154,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Info',
       'Copy',
       'Check',
+      'X',
       'ChevronLeft',
       'Sprout',
       'Share2',
@@ -180,9 +202,10 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium' },
 }));
 jest.mock('expo-sharing', () => ({}));
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
 }));
 jest.mock('react-native-qrcode-svg', () => 'QRCode');
 jest.mock('react-native/Libraries/Modal/Modal', () => ({
@@ -193,19 +216,23 @@ jest.mock('react-native/Libraries/Modal/Modal', () => ({
 
 let tree: ReactTestRenderer;
 const row = (label: string) =>
-  tree.root.findAllByType('ListTableRow' as any).find((node) => node.props.label === label)!;
+  tree.root
+    .findAll((node) => node.type === ('ListTableRow' as any) || node.type === MintInfoRow)
+    .find((node) => node.props.label === label)!;
 const button = (label: string) =>
   tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === label)!;
 const score = () => row('Reliability score');
 beforeEach(() => {
   jest.clearAllMocks();
   mockScore = 98;
+  mockSection = 'reliability';
   mockMetadataError = null;
   mockCheckingConnection = false;
   mockProviderError = false;
   mockRadarRefreshError = false;
   mockRadarFetching = false;
   mockRadarUntracked = false;
+  mockTestMint = false;
   mockRadarHealth = { scoreStale: false, status: 'online', downSince: null, scoreCappedNew: false };
   mockUptime24 = 100;
   mockDaily = [
@@ -223,16 +250,97 @@ beforeEach(() => {
     }),
     removeMint: jest.fn(),
   });
+  useSettingsStore.setState({
+    hideMintConnectionDisclaimer: false,
+    setHideMintConnectionDisclaimer: jest.fn(async (hide) => {
+      useSettingsStore.setState({ hideMintConnectionDisclaimer: hide });
+    }),
+  });
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
   jest.restoreAllMocks();
 });
-const render = async () => {
+const content = (section: string) =>
+  section === 'preview' ? (
+    <MintProfileScreen url={url} />
+  ) : section === 'reliability' ? (
+    <MintPreviewHealth
+      url={url}
+      connection={mockCheckingConnection ? 'checking' : mockMetadataError ? 'offline' : 'online'}
+      connectionCheckedAt={1000}
+      onRecheck={() => {
+        mockRefetch({ cancelRefetch: false });
+      }}
+    />
+  ) : section === 'payments' ? (
+    <MintPreviewMethods info={mockInfo} />
+  ) : (
+    <MintAboutRows url={url} info={mockInfo} />
+  );
+const render = async (section = 'reliability') => {
+  mockSection = section;
   await act(async () => {
-    tree = create(<MintProfileScreen url={url} />);
+    tree = create(content(section));
   });
 };
+
+it('shows compact mint facts on preview and keeps reliability in its own card', async () => {
+  await render('preview');
+  expect(row('Connection').props.value).toBe('Reachable');
+  expect(row('Deposit').props.value).toBe('Lightning');
+  expect(row('Withdraw').props.value).toBe('Lightning');
+  expect(row('Deposit limits').props.value).toBe('0 sat – 1,000 sat');
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(row('URL').props.copyValue).toBe(url);
+  expect(row('Reliability').props.value).toBe('99% uptime · 7d');
+  expect(row('Minimum')).toBeUndefined();
+  expect(row('Uptime · 24 hours')).toBeUndefined();
+  const card = row('Reliability').parent;
+  expect(card?.findAllByType(MintInfoRow)).toHaveLength(0);
+  await act(async () => row('Payment details').props.onPress());
+  expect(row('Minimum')).toBeDefined();
+  expect(row('Payment details').props.expanded).toBe(true);
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
+  await act(async () => row('Reliability').props.onPress());
+  expect(row('Uptime · 24 hours')).toBeDefined();
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
+  expect(
+    tree.root
+      .findAllByType('ListTableRow' as any)
+      .filter((node) => node.props.label === 'Connection'),
+  ).toHaveLength(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+});
+
+it('keeps the test-mint warning visible before adding even when only cashu.info identifies it', async () => {
+  mockTestMint = true;
+  await render('preview');
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Test mint · Not real bitcoin',
+  );
+});
+
+it('keeps payment limits expandable inline and technical details directly inside About', async () => {
+  await render('payments');
+  await act(async () => row('Payment details').props.onPress());
+  expect(
+    tree.root
+      .findAllByType(MintInfoRow)
+      .filter((node) => node.props.label === 'Maximum')
+      .map((node) => node.props.value),
+  ).toEqual(['1,000 sat', '2,000 sat']);
+  mockSection = 'about';
+  await act(async () => {
+    tree.update(content(mockSection));
+  });
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(row('URL').props.copyValue).toBe(url);
+  expect(tree.root.findAllByProps({ accessibilityRole: 'text' })).toHaveLength(3);
+  expect(mockPush).not.toHaveBeenCalled();
+});
 
 it('shows independent uptime and payment results, MintRadar score, and actual advertised units', async () => {
   await render();
@@ -247,6 +355,10 @@ it('shows independent uptime and payment results, MintRadar score, and actual ad
   expect(row('Payment success · 7 days').props.value).toBe('93.3% (14/15)');
   expect(row('Failures attributed to mint').props.value).toBe('0');
   expect(row('Mint balance / reserves').props.value).toBe('Not published');
+  mockSection = 'technical';
+  await act(async () => {
+    tree.update(content(mockSection));
+  });
   expect(row('Units').props.value).toBe('sat');
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
@@ -274,7 +386,7 @@ it('restores the current score presentation and removes outage timing after reco
   await render();
   mockRadarHealth = { ...mockRadarHealth, status: 'online', scoreStale: false, downSince: null };
   await act(async () => {
-    tree.update(<MintProfileScreen url={url} />);
+    tree.update(content(mockSection));
   });
   expect(score().props).toMatchObject({ value: '98%', valueColor: '$green11' });
   expect(row('MintRadar offline since')).toBeUndefined();
@@ -328,26 +440,16 @@ it('retains the new-mint cap explanation with historical scores', async () => {
   ).toBe(true);
 });
 
-it('expands only the advertised NUTs with numbers, names, and checks, then collapses', async () => {
-  await render();
-  const toggle = () => tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' });
-  const entries = () =>
-    tree.root
-      .findAllByType('ListTableRow' as any)
-      .filter((node) => node.props.label.startsWith('NUT-'));
-  expect(row('Advertised NUTs').props.value).toBe(3);
-  expect(entries()).toHaveLength(0);
-  await act(async () => toggle().props.onPress());
-  expect(toggle().props.accessibilityState.expanded).toBe(true);
-  expect(entries().map((node) => node.props.label)).toEqual([
+it('shows advertised feature names in two columns with their NUT numbers accessible', async () => {
+  await render('technical');
+  const entries = tree.root.findAllByProps({ accessibilityRole: 'text' });
+  expect(entries.map((node) => node.props.accessibilityLabel)).toEqual([
     'NUT-04 · Minting tokens',
     'NUT-05 · Melting tokens',
     'NUT-14 · HTLC locking',
   ]);
-  expect(entries().every((node) => node.props.rightContent.type === 'Check')).toBe(true);
-  await act(async () => toggle().props.onPress());
-  expect(toggle().props.accessibilityState.expanded).toBe(false);
-  expect(entries()).toHaveLength(0);
+  expect(entries.every((node) => node.props.width === '50%')).toBe(true);
+  expect(tree.root.findAllByType('Check' as any)).toHaveLength(3);
 });
 
 it('does not tick explicitly unsupported, disabled, or malformed NUT entries', async () => {
@@ -368,21 +470,55 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
       />,
     );
   });
-  expect(row('Advertised NUTs').props.value).toBe(3);
-  await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' }).props.onPress(),
-  );
   expect(
     tree.root
-      .findAllByType('ListTableRow' as any)
-      .filter((node) => node.props.label.startsWith('NUT-'))
-      .map((node) => node.props.label),
+      .findAllByProps({ accessibilityRole: 'text' })
+      .map((node) => node.props.accessibilityLabel),
   ).toEqual(['NUT-04 · Minting tokens', 'NUT-14 · HTLC locking', 'NUT-44 · Additional capability']);
+});
+
+it('copies a long public key in full while keeping the displayed value to one line', async () => {
+  const publicKey = '03' + 'ab'.repeat(32);
+  await act(async () => {
+    tree = create(<MintAboutRows url={url} info={{ ...mockInfo, pubkey: publicKey }} />);
+  });
+  const keyText = tree.root
+    .findAllByType('Text' as any)
+    .find((node) => node.props.children === publicKey)!;
+  expect(keyText.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'middle' });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Copy public key' }).props.onPress(),
+  );
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(publicKey);
+});
+
+it('deduplicates equal limits without mixing methods with different limits or units', async () => {
+  await act(async () => {
+    tree = create(
+      <MintPreviewMethods
+        info={{
+          nuts: {
+            '4': {
+              methods: [
+                { method: 'bolt11', unit: 'sat', min_amount: 0, max_amount: 1000 },
+                { method: 'bolt12', unit: 'sat', min_amount: 0, max_amount: 1000 },
+                { method: 'onchain', unit: 'sat', min_amount: 100, max_amount: 2000 },
+                { method: 'bolt11', unit: 'usd', min_amount: 1, max_amount: 10 },
+              ],
+            },
+          },
+        }}
+      />,
+    );
+  });
+  expect(row('Deposit limits').props.value).toBe(
+    'Lightning / BOLT 12: 0 sat – 1,000 sat\nOn-chain: 100 sat – 2,000 sat\n1 usd – 10 usd',
+  );
 });
 
 it('opens the colored terms link in the browser with an external-link icon', async () => {
   const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
-  await render();
+  await render('about');
   const terms = row('Terms of service');
   expect(terms.props.valueColor).toBe('$accentColor');
   expect(terms.props.rightContent.type).toBe('ExternalLink');
@@ -425,7 +561,7 @@ it('trims days outside recorded history while retaining gaps and zero-uptime day
 
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
-  await render();
+  await render('preview');
   await act(async () =>
     tree.root.findByProps({ accessibilityLabel: 'Share mint' }).props.onPress(),
   );
@@ -455,7 +591,7 @@ it('shows full country names without Intl.DisplayNames on Android', async () => 
 });
 
 it('rechecks the connection on request and shows loading before the live result', async () => {
-  await render();
+  await render('preview');
   const recheck = () => row('Connection').props.rightContent.props;
   expect(recheck()).toMatchObject({
     accessibilityLabel: 'Recheck mint connection',
@@ -470,12 +606,12 @@ it('rechecks the connection on request and shows loading before the live result'
   mockCheckingConnection = false;
   mockMetadataError = new Error('Mint unreachable');
   await act(async () => tree.update(<MintProfileScreen url={url} />));
-  expect(row('Connection').props).toMatchObject({ value: 'Offline', valueColor: '$red11' });
+  expect(row('Connection').props).toMatchObject({ value: 'Unreachable', valueColor: '$gray10' });
   expect(recheck()).toMatchObject({ loading: false, disabled: false });
 });
 
 it('shows mint identity and disclaimer, then connects only after confirmation', async () => {
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   const sheet = tree.root.findByType('AppBottomSheet' as any);
   const copy = sheet
@@ -503,7 +639,7 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
       useWalletStore.setState({ error: 'Mint validation failed' });
     }),
   });
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   await act(async () => button('Confirm').props.onPress());
   expect(tree.root.findByType('AppBottomSheet' as any)).toBeDefined();
@@ -512,6 +648,90 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
   );
   expect(button('Confirm').props.disabled).toBe(false);
   expect(mockReplace).not.toHaveBeenCalled();
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
+});
+
+it('shows bullet points and remembers the checkbox only after a successful connection', async () => {
+  await render('preview');
+  await act(async () => button('Connect').props.onPress());
+  expect(
+    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '•'),
+  ).toHaveLength(3);
+  const checkbox = () => tree.root.findByProps({ accessibilityRole: 'checkbox' });
+  expect(checkbox().props.accessibilityState.checked).toBe(false);
+  await act(async () => checkbox().props.onPress());
+  expect(checkbox().props.accessibilityState.checked).toBe(true);
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () => button('Confirm').props.onPress());
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).toHaveBeenCalledWith(true);
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+});
+
+it('connects directly with only button loading when consent is remembered, without opening a sheet', async () => {
+  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
+  let finish!: () => void;
+  useWalletStore.setState({
+    addMint: jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+            resolve();
+          };
+        }),
+    ),
+  });
+  await render('preview');
+  const connect = button('Connect').props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = connect();
+    void connect();
+  });
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  expect(button('Connect').props).toMatchObject({ loading: true, disabled: true });
+  expect(mockReplace).not.toHaveBeenCalled();
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl: url },
+  });
+  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(true);
+});
+
+it('shows direct-connection errors on preview and allows retry without opening a sheet', async () => {
+  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
+  useWalletStore.setState({
+    addMint: jest.fn(async () => {
+      useWalletStore.setState({ error: 'Mint validation failed' });
+    }),
+  });
+  await render('preview');
+  await act(async () => button('Connect').props.onPress());
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Mint validation failed',
+  );
+  expect(button('Connect').props).toMatchObject({ loading: false, disabled: false });
+  expect(mockReplace).not.toHaveBeenCalled();
+  await act(async () => {
+    useWalletStore.setState({
+      addMint: jest.fn(async () => {
+        useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+      }),
+    });
+  });
+  await act(async () => button('Connect').props.onPress());
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl: url },
+  });
 });
 
 it('blocks duplicate confirmation and dismissal while connecting', async () => {
@@ -524,7 +744,7 @@ it('blocks duplicate confirmation and dismissal while connecting', async () => {
       });
     }),
   });
-  await render();
+  await render('preview');
   await act(async () => button('Connect').props.onPress());
   const confirm = button('Confirm').props.onPress;
   let pending!: Promise<void>;
@@ -598,7 +818,7 @@ it('keeps cached metadata visible when the direct connection fails', async () =>
 
 it('opens the updated details screen when the profile URL is already connected', async () => {
   useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
-  await render();
+  await render('preview');
   expect(mockReplace).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
     params: { mintUrl: url },

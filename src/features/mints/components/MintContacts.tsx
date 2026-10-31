@@ -1,6 +1,5 @@
 import React from 'react';
-import { Text, YStack } from 'tamagui';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { MintInfoRow } from './MintInfoRow';
 
 export function MintContacts({ contacts }: { contacts: unknown }) {
   const rows = (Array.isArray(contacts) ? contacts : []).flatMap((contact) => {
@@ -11,17 +10,10 @@ export function MintContacts({ contacts }: { contacts: unknown }) {
     return [{ label: label.charAt(0).toUpperCase() + label.slice(1), value: value.trim() }];
   });
   return (
-    <YStack gap="$3">
-      <Text color="$gray10" fontSize="$4" fontWeight="600">
-        Contact & support
-      </Text>
-      <ListTable compact>
-        {rows.length ? (
-          rows.map((row, index) => <ListTableRow key={index} {...row} isCopyable />)
-        ) : (
-          <ListTableRow label="No contacts listed" />
-        )}
-      </ListTable>
-    </YStack>
+    <>
+      {rows.map((row, index) => (
+        <MintInfoRow key={index} {...row} copyValue={row.value} />
+      ))}
+    </>
   );
 }

@@ -133,6 +133,7 @@
       ],
       "expo-web-browser",
       "./plugins/withHce.js",
+      "./plugins/withAppShortcuts.js",
       "expo-dev-client",
       "expo-localization",
       "expo-asset",

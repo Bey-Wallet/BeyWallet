@@ -8,6 +8,7 @@ import { ReceiveResultStage } from '~/features/payments/receive/ReceiveResultSta
 import { formatPaymentDateTime } from '~/shared/utils/time';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));
 
 jest.mock('tamagui', () => ({
   XStack: 'XStack',

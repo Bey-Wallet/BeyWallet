@@ -6,9 +6,27 @@ import {
   isPendingHistory,
   type HistoryListEntry,
 } from '~/features/history/historyList';
-import { historyStatusLabel } from '~/features/history/transactionPresentation';
+import {
+  historyBalanceEffect,
+  historyStatusLabel,
+} from '~/features/history/transactionPresentation';
 
 const now = new Date(2026, 9, 22, 12);
+
+it.each(['failed', 'expired', 'cancelled', 'rolled_back', 'refunded', 'UNPAID'])(
+  'does not show a debit for an unsuccessful or reversed outgoing amount (%s)',
+  (state) => expect(historyBalanceEffect({ type: 'melt', state })).toBe('none'),
+);
+
+it('keeps minted ecash, confirmed onchain deposits, and reserved sends distinct', () => {
+  expect(historyBalanceEffect({ type: 'mint', state: 'PAID' })).toBe('none');
+  expect(historyBalanceEffect({ type: 'mint', state: 'ISSUED' })).toBe('credit');
+  expect(historyBalanceEffect({ type: 'mint', state: 'PAID', metadata: { via: 'onchain' } })).toBe(
+    'credit',
+  );
+  expect(historyBalanceEffect({ type: 'send', state: 'prepared' })).toBe('debit');
+  expect(historyBalanceEffect({ type: 'receive', state: 'pending' })).toBe('none');
+});
 
 it('keeps ecash creation and delivery distinct from a verified claim', () => {
   const created = { type: 'send', state: 'unclaimed' };

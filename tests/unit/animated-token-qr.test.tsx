@@ -1,10 +1,13 @@
 import React from 'react';
+import { Text } from 'tamagui';
 import { AppState, Share } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
+import { EcashTokenQRCode } from '~/shared/ui/EcashTokenQRCode';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import SendMethodSelector from '~/shared/ui/SendMethodSelector';
+import { ResultStage } from '~/features/payments/send/ResultStage';
 
 const mockHeader = jest.fn(() => null);
 const mockNextPart = jest.fn();
@@ -42,6 +45,14 @@ jest.mock('~/shared/ui/PaymentStageLayout', () => ({
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'Status' }));
 jest.mock('~/shared/ui/PaymentStatusRow', () => ({ PaymentStatusRow: 'StatusRow' }));
+jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
+jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
+jest.mock('~/features/history/components/ReceiptImageShare', () => ({
+  ReceiptImageShare: 'ReceiptShare',
+}));
+jest.mock('~/services/wallet/tokenUtils', () => ({
+  cleanToken: (value: string) => value.replace(/^cashu:/, ''),
+}));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
@@ -117,13 +128,76 @@ async function render(element: React.ReactElement) {
 const qrValue = () => tree.root.findByType('QR' as any).props.value;
 
 it('updates at 100 ms without rerendering payment controls or the header', async () => {
-  await render(<PendingTokenLayout token="cashuBsynthetic" amount={1} />);
+  await render(<PendingTokenLayout token={'cashuB' + 'x'.repeat(900)} amount={1} />);
   const renders = mockHeader.mock.calls.length;
   expect(qrValue()).toBe('UR:BYTES/FRAME-1');
   for (let i = 0; i < 10; i++) await act(async () => jest.advanceTimersByTime(100));
   expect(mockNextPart).toHaveBeenCalledTimes(11);
   expect(qrValue()).toBe('UR:BYTES/FRAME-11');
   expect(mockHeader).toHaveBeenCalledTimes(renders);
+});
+
+it('shows the complete small token as a static pending QR with no animation timer or toggle', async () => {
+  const token = 'cashuBsynthetic';
+  await render(<PendingTokenLayout token={token} amount={1} />);
+  expect(qrValue()).toBe(token);
+  expect(tree.root.findByType('QR' as any).props.ecl).toBe('M');
+  expect(mockEncoder).not.toHaveBeenCalled();
+  await act(async () => jest.advanceTimersByTime(1000));
+  expect(qrValue()).toBe(token);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+it('keeps the additional receipt action in the same footer as Send', async () => {
+  await render(
+    <PendingTokenLayout
+      token="cashuBsynthetic"
+      amount={1}
+      footerExtra={<Text testID="receipt-action">Share receipt image</Text>}
+    />,
+  );
+  const send = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Send')!;
+  const receiptAction = tree.root.findByProps({ testID: 'receipt-action' });
+  expect(send.parent).toBe(receiptAction.parent);
+});
+
+it('offers an explicit pending ecash image from a newly created send without marking it paid', async () => {
+  await render(
+    <ResultStage
+      status="success"
+      amount="1"
+      token="cashu:cashuBsynthetic"
+      mintUrl="https://mint.test"
+      onClose={jest.fn()}
+    />,
+  );
+  const share = tree.root.findByType('ReceiptShare' as any);
+  expect(share.props.ecashToken).toBe('cashuBsynthetic');
+  expect(share.props.receipt).toMatchObject({
+    status: 'Pending',
+    direction: 'Sending',
+    mint: 'https://mint.test',
+    sats: 1,
+  });
+  const send = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Send')!;
+  expect(send.parent).toBe(share.parent);
+});
+
+it('switches between static and animated tokens without retaining an old frame or timer', async () => {
+  const small = 'cashuBsmall';
+  const large = 'cashuB' + 'x'.repeat(900);
+  await render(<EcashTokenQRCode token={small} size={280} />);
+  expect(qrValue()).toBe(small);
+  await act(async () => tree.update(<EcashTokenQRCode token={large} size={280} />));
+  expect(qrValue()).toBe('UR:BYTES/FRAME-1');
+  expect(mockEncoder).toHaveBeenCalledWith(large, 150, 0);
+  await act(async () => tree.update(<EcashTokenQRCode token={small} size={280} />));
+  expect(qrValue()).toBe(small);
+  expect(jest.getTimerCount()).toBe(0);
 });
 
 it('replaces the encoder when the token changes and never continues the old sequence', async () => {

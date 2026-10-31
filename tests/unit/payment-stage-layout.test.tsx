@@ -128,6 +128,27 @@ it('configures a disabled stack chevron with the local stage back action', async
   await act(async () => tree.unmount());
 });
 
+it('uses a theme surface for an empty QR placeholder and restores the scan surface for a code', async () => {
+  const tree = await render(
+    <PaymentQRFrame accessibilityLabel="Request QR" placeholder>
+      {() => 'Loading'}
+    </PaymentQRFrame>,
+  );
+  await act(async () =>
+    tree.root
+      .findByType('YStack' as any)
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe(
+    '$buttonDefaultSecondary',
+  );
+  await act(async () =>
+    tree.update(<PaymentQRFrame accessibilityLabel="Request QR">{() => 'QR'}</PaymentQRFrame>),
+  );
+  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe('white');
+  await act(async () => tree.unmount());
+});
+
 it.each([
   ['paid', false, 'success'],
   ['ISSUED', false, 'success'],

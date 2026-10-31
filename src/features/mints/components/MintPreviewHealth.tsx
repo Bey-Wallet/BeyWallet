@@ -3,8 +3,7 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useQuery } from '@tanstack/react-query';
 import { Text, View, XStack, YStack } from 'tamagui';
 import { ExternalLink, RefreshCw } from '@tamagui/lucide-icons';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { AppButton } from '~/shared/ui/AppButton';
+import { ListTableRow } from '~/shared/ui/ListTable';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import countryNames from '~/shared/utils/countryNames.json';
 import {
@@ -14,9 +13,6 @@ import {
   type PaymentTestStats,
 } from '~/services/api/mintHealthService';
 
-const tableProps = {
-  compact: true,
-};
 const time = (value: string | number | null | undefined) =>
   value ? new Date(value).toLocaleString() : 'Not checked';
 const percent = (value: number | null | undefined) =>
@@ -83,7 +79,7 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
   );
 }
 
-function useRadarHealth(url: string) {
+export function useRadarHealth(url: string) {
   const cache = React.useMemo(() => mintHealthService.cachedRadar(url), [url]);
   return useQuery({
     queryKey: ['mint-health', 'radar', url],
@@ -95,14 +91,30 @@ function useRadarHealth(url: string) {
   });
 }
 
+export function useCashuHealthList() {
+  const cache = React.useMemo(() => mintHealthService.cachedCashuList(), []);
+  return useQuery({
+    queryKey: ['mint-health', 'cashu-info-list'],
+    queryFn: ({ signal }) => mintHealthService.cashuList(signal),
+    initialData: cache?.data,
+    initialDataUpdatedAt: cache?.savedAt,
+    staleTime: 300_000,
+    retry: false,
+  });
+}
+
 export function MintReliabilityRow({
   url,
   connection,
   onRecheck,
+  rechecking = false,
+  showConnection = true,
 }: {
   url: string;
   connection: 'online' | 'offline' | 'checking';
   onRecheck: () => void;
+  rechecking?: boolean;
+  showConnection?: boolean;
 }) {
   const radar = useRadarHealth(url);
   const score = radar.data?.score;
@@ -119,8 +131,8 @@ export function MintReliabilityRow({
           : 'Unavailable'
       : `${score}%`;
   return (
-    <YStack gap="$2">
-      <ListTable {...tableProps}>
+    <>
+      <>
         <ListTableRow
           label={historicalScore ? 'Last measured score' : 'Reliability score'}
           value={value}
@@ -143,35 +155,43 @@ export function MintReliabilityRow({
             valueColor="$gray10"
           />
         )}
-        <ListTableRow
-          label="Connection"
-          value={
-            connection === 'online' ? 'Online' : connection === 'offline' ? 'Offline' : 'Checking…'
-          }
-          valueColor={
-            connection === 'online' ? '$green11' : connection === 'offline' ? '$red11' : '$gray10'
-          }
-          rightContent={
-            <AppIconButton
-              variant="default"
-              emphasis="ghost"
-              size="xxsmall"
-              accessibilityLabel="Recheck mint connection"
-              loadingText="Checking mint connection…"
-              icon={RefreshCw}
-              loading={connection === 'checking'}
-              disabled={connection === 'checking'}
-              onPress={onRecheck}
-            />
-          }
-        />
-      </ListTable>
+        {showConnection && (
+          <ListTableRow
+            label="Connection"
+            value={
+              connection === 'online'
+                ? 'Online'
+                : connection === 'offline'
+                  ? 'Offline'
+                  : 'Checking…'
+            }
+            valueColor={
+              connection === 'online' ? '$green11' : connection === 'offline' ? '$red11' : '$gray10'
+            }
+            rightContent={
+              <AppIconButton
+                variant="default"
+                emphasis="ghost"
+                size="xxsmall"
+                accessibilityLabel="Recheck mint connection"
+                loadingText="Checking mint connection…"
+                icon={RefreshCw}
+                loading={connection === 'checking' || rechecking}
+                disabled={connection === 'checking' || rechecking}
+                onPress={onRecheck}
+              />
+            }
+          />
+        )}
+      </>
       {radar.data?.scoreCappedNew && (
-        <Text color="$gray10" fontSize={12}>
-          New mint · Score capped
-        </Text>
+        <YStack px="$page" py="$rowGap">
+          <Text color="$gray10" fontSize={12}>
+            New mint · Score capped
+          </Text>
+        </YStack>
       )}
-    </YStack>
+    </>
   );
 }
 
@@ -185,26 +205,18 @@ export function MintPreviewHealth({
   connection,
   connectionCheckedAt,
   onRecheck,
+  showConnection = true,
 }: {
   url: string;
   connection: 'online' | 'offline' | 'checking';
   connectionCheckedAt?: number;
   onRecheck: () => void;
+  showConnection?: boolean;
 }) {
   const toast = useAppToast();
-  const [listCache, detailCache] = React.useMemo(
-    () => [mintHealthService.cachedCashuList(), mintHealthService.cachedCashuDetail(url)] as const,
-    [url],
-  );
+  const detailCache = React.useMemo(() => mintHealthService.cachedCashuDetail(url), [url]);
   const radar = useRadarHealth(url);
-  const list = useQuery({
-    queryKey: ['mint-health', 'cashu-info-list'],
-    queryFn: ({ signal }) => mintHealthService.cashuList(signal),
-    initialData: listCache?.data,
-    initialDataUpdatedAt: listCache?.savedAt,
-    staleTime: 300_000,
-    retry: false,
-  });
+  const list = useCashuHealthList();
   const mint = list.data?.find((item) => item.url === mintHealthUrl(url));
   const matchingDetailCache = !mint || detailCache?.data?.id === mint.id ? detailCache : undefined;
   const detail = useQuery({
@@ -247,17 +259,21 @@ export function MintPreviewHealth({
     ].join(' · ') || 'Unavailable';
   const recheck = () => {
     onRecheck();
-    void radar.refetch();
-    void list.refetch();
-    if (mint) void detail.refetch();
+    void radar.refetch({ cancelRefetch: false });
+    void list.refetch({ cancelRefetch: false });
+    if (mint) void detail.refetch({ cancelRefetch: false });
   };
 
   return (
-    <YStack gap="$3">
-      <Text color="$gray10" fontSize="$4" fontWeight="600">
-        Connection & reliability
-      </Text>
-      <ListTable {...tableProps}>
+    <>
+      <MintReliabilityRow
+        url={url}
+        connection={connection}
+        onRecheck={recheck}
+        rechecking={radar.isFetching || monitoringLoading}
+        showConnection={showConnection}
+      />
+      <>
         <ListTableRow label="Checked from this device" value={time(connectionCheckedAt)} />
         <ListTableRow label="Server country" value={countryName(audit?.network?.country)} />
         <ListTableRow
@@ -305,28 +321,21 @@ export function MintPreviewHealth({
             valueColor="$orange10"
           />
         )}
-      </ListTable>
-      <Text color="$gray10" fontSize={12}>
-        Payment tests: cashu.info · Report fetched{' '}
-        {time(detail.dataUpdatedAt || list.dataUpdatedAt)}
-        {(detail.isError || list.isError || notCovered) && audit ? ' · Saved report' : ''}
-        {monitoringTime ? `\nLatest monitoring check: ${time(monitoringTime)}` : ''}
-        {`\nUptime source: ${uptimeSource}`}
-      </Text>
-      <Text color="$gray10" fontSize={12}>
-        Reliability measures observed operation, not reserves or fund safety. Route failures can
-        involve either mint; attribution is shown separately.
-      </Text>
-      <AppButton
-        variant="default"
-        emphasis="secondary"
-        size="small"
-        disabled={radar.isFetching || monitoringLoading || connection === 'checking'}
-        onPress={recheck}
-      >
-        Check again
-      </AppButton>
-      <ListTable {...tableProps}>
+      </>
+      <YStack px="$page" py="$rowGap" gap="$2">
+        <Text color="$gray10" fontSize={12}>
+          Payment tests: cashu.info · Report fetched{' '}
+          {time(detail.dataUpdatedAt || list.dataUpdatedAt)}
+          {(detail.isError || list.isError || notCovered) && audit ? ' · Saved report' : ''}
+          {monitoringTime ? `\nLatest monitoring check: ${time(monitoringTime)}` : ''}
+          {`\nUptime source: ${uptimeSource}`}
+        </Text>
+        <Text color="$gray10" fontSize={12}>
+          Reliability measures observed operation, not reserves or fund safety. Route failures can
+          involve either mint; attribution is shown separately.
+        </Text>
+      </YStack>
+      <>
         <ListTableRow
           label="MintRadar methodology"
           value="Open"
@@ -347,7 +356,7 @@ export function MintPreviewHealth({
             );
           }}
         />
-      </ListTable>
-    </YStack>
+      </>
+    </>
   );
 }

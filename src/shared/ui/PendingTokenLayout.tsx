@@ -14,7 +14,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, YGroup } from 'tamagui';
 import { Copy, Share2, Check, Nfc, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
+import { EcashTokenQRCode } from '~/shared/ui/EcashTokenQRCode';
 
 import { Share as RNShare } from 'react-native';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -52,6 +52,7 @@ export interface PendingTokenLayoutProps {
   isCheckingStatus?: boolean;
   customHeaderRight?: () => React.ReactNode;
   extraDetails?: React.ReactNode;
+  footerExtra?: React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -76,6 +77,7 @@ export function PendingTokenLayout({
   isCheckingStatus = false,
   customHeaderRight,
   extraDetails,
+  footerExtra,
 }: PendingTokenLayoutProps) {
   const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
@@ -218,7 +220,7 @@ export function PendingTokenLayout({
               />
             )}
             <PaymentQRFrame accessibilityLabel="Ecash QR code">
-              {(size) => <AnimatedTokenQRCode token={cleanToken(currentToken)} size={size} />}
+              {(size) => <EcashTokenQRCode token={cleanToken(currentToken)} size={size} />}
             </PaymentQRFrame>
             <PaymentAmount
               amount={Number(amount)}
@@ -230,32 +232,35 @@ export function PendingTokenLayout({
           </>
         }
         footer={
-          !hideActions && onClaim ? (
-            <AppButton
-              variant="default"
-              emphasis="primary"
-              size="large"
-              fullWidth
-              loading={isClaiming}
-              onPress={onClaim}
-              disabled={isClaiming || offline}
-            >
-              {offline ? 'Claim when online' : 'Claim now'}
-            </AppButton>
-          ) : (
-            <AppButton
-              variant="default"
-              emphasis="primary"
-              size="large"
-              fullWidth
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                shareSheetRef.current?.present();
-              }}
-            >
-              Send
-            </AppButton>
-          )
+          <>
+            {!hideActions && onClaim ? (
+              <AppButton
+                variant="default"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                loading={isClaiming}
+                onPress={onClaim}
+                disabled={isClaiming || offline}
+              >
+                {offline ? 'Claim when online' : 'Claim now'}
+              </AppButton>
+            ) : (
+              <AppButton
+                variant="default"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  shareSheetRef.current?.present();
+                }}
+              >
+                Send
+              </AppButton>
+            )}
+            {footerExtra}
+          </>
         }
       >
         {!hideDetails && (
@@ -280,7 +285,7 @@ export function PendingTokenLayout({
                 }
                 onRefresh={onCheckStatus}
                 checking={isCheckingStatus}
-                disabled={isClaiming || isReclaiming}
+                disabled={offline || isClaiming || isReclaiming}
                 valueColor={headerStatus === 'failed' ? '$red10' : undefined}
               />
               <ListTableRow
@@ -344,7 +349,7 @@ export function PendingTokenLayout({
             emphasis="text"
             loading={isReclaiming}
             onPress={onReclaim}
-            disabled={isReclaiming || (reclaimAt != null && Date.now() < reclaimAt)}
+            disabled={offline || isReclaiming || (reclaimAt != null && Date.now() < reclaimAt)}
           >
             Reclaim token
           </AppButton>

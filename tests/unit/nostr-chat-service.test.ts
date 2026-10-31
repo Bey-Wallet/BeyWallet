@@ -133,6 +133,78 @@ describe('persistent chat publication and sender copies', () => {
     expect(nostrClaimService.enqueue).not.toHaveBeenCalled();
   });
 
+  it('sends explicitly selected legacy text without inbox discovery or a gift wrap', async () => {
+    usePeopleStore.getState().savePerson({
+      npub: recipient,
+      chatTransport: 'nip04',
+      relayHints: ['wss://legacy-inbox.example'],
+    });
+    service.pool.querySync.mockResolvedValue([]);
+    await nostrService.sendChat(recipient, 'Hello from legacy chat');
+    expect(service.pool.querySync).not.toHaveBeenCalled();
+    expect(publish).toHaveBeenCalledTimes(1);
+    const event = publish.mock.calls[0][1];
+    expect(publish.mock.calls[0][0]).toContain('wss://legacy-inbox.example');
+    expect(event.kind).toBe(4);
+    expect(event.content).not.toContain('Hello from legacy chat');
+    expect((await decryptAuthenticated(event, bytesToHex(receiver)))?.text).toBe(
+      'Hello from legacy chat',
+    );
+    expect([...mockMessages.values()][0]).toMatchObject({
+      id: event.id,
+      transport: 'nip04',
+      publication: 'sent',
+    });
+    expect(usePeopleStore.getState().people[normalizeNpub(recipient)].contactStatus).toBe(
+      'accepted',
+    );
+  });
+
+  it('keeps legacy ciphertext for retry after the preference changes to NIP-17', async () => {
+    usePeopleStore.getState().savePerson({ npub: recipient, chatTransport: 'nip04' });
+    publish.mockImplementation(() => [Promise.reject(new Error('offline'))]);
+    await expect(nostrService.sendChat(recipient, 'Retry legacy')).rejects.toThrow(
+      'publication failed',
+    );
+    const message = [...mockMessages.values()][0];
+    expect(message.publication).toBe('failed');
+    expect(usePeopleStore.getState().people[normalizeNpub(recipient)].contactStatus).toBe(
+      'unaccepted',
+    );
+    usePeopleStore.getState().savePerson({ npub: recipient, chatTransport: 'nip17' });
+    publish.mockImplementation(() => [Promise.resolve('accepted')]);
+    await nostrService.retryChat(message);
+    expect(publish.mock.calls[1][1]).toEqual(publish.mock.calls[0][1]);
+    expect(publish.mock.calls[1][1].kind).toBe(4);
+    expect(mockMessages.size).toBe(1);
+    expect(mockMessages.get(message.id)?.publication).toBe('sent');
+    await nostrService.sendChat(recipient, 'New modern message');
+    expect(publish.mock.calls[2][1].kind).toBe(1059);
+  });
+
+  it('does not downgrade a failed NIP-17 message when legacy is selected for new messages', async () => {
+    service.pool.querySync.mockResolvedValue([]);
+    await expect(nostrService.sendChat(recipient, 'Keep modern')).rejects.toThrow(
+      'no NIP-17 inbox',
+    );
+    const message = [...mockMessages.values()][0];
+    usePeopleStore.getState().savePerson({ npub: recipient, chatTransport: 'nip04' });
+    await expect(nostrService.retryChat(message)).rejects.toThrow('no NIP-17 inbox');
+    expect(publish).not.toHaveBeenCalled();
+    expect(message.transport).toBe('nip17');
+  });
+
+  it('does not bypass blocking when legacy messaging is selected', async () => {
+    usePeopleStore.getState().savePerson({
+      npub: recipient,
+      chatTransport: 'nip04',
+      contactStatus: 'blocked',
+    });
+    await expect(nostrService.sendChat(recipient, 'Blocked legacy')).rejects.toThrow('Unblock');
+    expect(publish).not.toHaveBeenCalled();
+    expect(mockMessages.size).toBe(0);
+  });
+
   it('shares requests created outside People and requires recipient acknowledgement', async () => {
     const encoded = new PaymentRequest(
       [],

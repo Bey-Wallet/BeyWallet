@@ -74,6 +74,15 @@ Switching is disabled while balances are hidden; when fiat currency is None the 
 is absent. Settings retains the fiat-currency picker and removes the redundant Display
 unit toggle. The Home-only visibility guard does not change other currency controls.
 
+Home keeps the balance, Scan/Receive/Send actions, and connected mints together in that order.
+Home's mints use an open list on the page background, with 44-point artwork and compact
+14-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
+Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
+Recovery progress and incoming payments follow the mints list. Home does not show backup,
+username, or supporter prompt cards; their dedicated destinations remain available.
+Satoshi amounts default to the Bitcoin symbol (`₿`) rather than the `sat` suffix. An explicitly
+saved symbol preference is respected; this changes presentation only, not amount units.
+
 The fiat picker shows all 25 current choices plus None without a More currencies step.
 VND, PHP, IDR and ARS are no longer offered. Their metadata remains available for saved
 preferences and imported backups; NGN and THB remain selectable. PLN and CZK use their
@@ -95,6 +104,14 @@ retain their purpose; chat timestamps and unrelated Settings dates are unchanged
 
 Large payment-entry cards use the base surface (`$gray2`), with raised gray reserved for
 smaller inset controls. Error surfaces retain their semantic red treatment.
+
+Generated Blockies avatars use a deterministic, versioned hash stream of the full seed. The v2
+generator replaces the repeating 32-bit pattern, so existing fallback avatars change appearance
+once; identities and profile pictures are unchanged. Foreground and accent hues span the color
+wheel, with pale backgrounds visible through empty cells. Grids mirror horizontally for both odd
+and even sizes without overlapping cells. Each color override works independently, and the same
+seed retains its palette across grid sizes. This generator is for artwork only, never wallet keys.
+Review fallback avatars at header, People and contact-sheet sizes on devices in both themes.
 
 The navigation root and native screen surfaces use the canvas color, including behind Android's
 system navigation buttons. `plugins/withNavigationBarContrast.js` disables the native contrast

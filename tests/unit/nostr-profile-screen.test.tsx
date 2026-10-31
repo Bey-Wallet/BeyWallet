@@ -10,11 +10,13 @@ const mockNpub = 'npub1full-public-key-fixture';
 let mockStatus = 'verified';
 let mockTab = 'ecash';
 let mockLightningEnabled = false;
+let mockLightningLoaded = true;
+let mockPendingCount = 0;
 jest.mock('expo-router', () => ({
   Stack: {
     Screen: ({ options }: any) => (
       <>
-        {options.headerTitle?.()}
+        {typeof options.headerTitle === 'function' ? options.headerTitle() : null}
         {options.headerRight?.()}
       </>
     ),
@@ -26,11 +28,11 @@ jest.mock('expo-router', () => ({
 jest.mock('npubcash-sdk', () => ({}));
 jest.mock('~/state/lightningAddressStore', () => ({
   useLightningAddressStore: () => ({
-    loaded: true,
+    loaded: mockLightningLoaded,
     enabled: mockLightningEnabled,
     receivingMint: 'https://mint.test',
     autoCollect: true,
-    pending: [],
+    pending: Array.from({ length: mockPendingCount }, (_, id) => ({ id: String(id) })),
     connection: 'Listening',
   }),
 }));
@@ -66,6 +68,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
   RefreshCw: 'RefreshCw',
   Scan: 'Scan',
   Share2: 'Share2',
+  ChevronRight: 'ChevronRight',
 }));
 jest.mock('~/shared/icons/Nip05VerifiedBadge', () => ({ __esModule: true, default: 'Badge' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
@@ -80,6 +83,8 @@ beforeEach(() => {
   mockStatus = 'verified';
   mockTab = 'ecash';
   mockLightningEnabled = false;
+  mockLightningLoaded = true;
+  mockPendingCount = 0;
   jest.spyOn(InteractionManager, 'runAfterInteractions').mockImplementation((cb: any) => {
     cb();
     return { cancel: jest.fn(), then: jest.fn(), done: jest.fn() } as any;
@@ -102,10 +107,12 @@ it('keeps the full QR and copy payload, removes the logo and respects the bottom
   expect(qr.props.backgroundColor).toBe('#000000');
   expect(tree.root.findAllByType('Blockies' as any)).toHaveLength(0);
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
-  expect(labels).toContain('alice');
+  expect(labels).toContain('alice@bey.cash');
   expect(labels).toContain(mockNpub);
-  expect(labels).toContain('Receive ecash over Nostr.');
-  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+  expect(labels).toContain('Nostr public key');
+  expect(tree.root.findAllByType('Button' as any).map((button) => button.props.children)).toEqual([
+    'Create payment request',
+  ]);
   expect(tree.root.findByType('ScrollView' as any).props.contentContainerStyle.paddingBottom).toBe(
     50,
   );
@@ -129,6 +136,21 @@ it('never advertises a stale address when lookup fails and still shares the publ
   expect(share).toHaveBeenCalledWith({ message: mockNpub });
   tree.root.findByProps({ accessibilityLabel: 'Retry NIP-05 lookup' }).props.onPress();
   expect(mockRefresh).toHaveBeenCalled();
+});
+
+it('keeps the verified Nostr identity copy and share payloads intact in the compact layout', async () => {
+  const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Copy Nostr address' }).props.onPress(),
+  );
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith('alice@bey.cash');
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Share ecash address' }).props.onPress(),
+  );
+  expect(share).toHaveBeenCalledWith({ message: 'alice@bey.cash\n' + mockNpub });
 });
 
 it('uses the provider LNURL for the Lightning QR and the readable address for Copy and Share', async () => {
@@ -184,4 +206,72 @@ it('keeps username navigation in the originating settings stack', async () => {
     .find((button) => button.props.children === 'Claim username')!
     .props.onPress();
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/username');
+});
+
+it('opens an amount-specific ecash request from the identity tab', async () => {
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Create payment request')!;
+  await act(async () => button.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith('/(modals)/receive?mode=request');
+});
+
+it('offers a one-time invoice separately from enabling a permanent Lightning address', async () => {
+  mockTab = 'lightning';
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  expect(tree.root.findAllByType('QR' as any)).toHaveLength(0);
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Create Lightning invoice')!;
+  await act(async () => button.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith('/(modals)/mint');
+  expect(mockLightningEnabled).toBe(false);
+});
+
+it('shows loading before Lightning settings are available without prompting setup or exposing a QR', async () => {
+  mockTab = 'lightning';
+  mockLightningLoaded = false;
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).toContain(
+    'Loading Lightning address…',
+  );
+  expect(tree.root.findAllByType('QR' as any)).toHaveLength(0);
+  expect(
+    tree.root
+      .findAllByType('Button' as any)
+      .some((node) => node.props.children === 'Enable Lightning address'),
+  ).toBe(false);
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Share Lightning address' }).props.disabled,
+  ).toBe(true);
+});
+
+it('keeps pending incoming payments reachable when the Lightning address is disabled', async () => {
+  mockTab = 'lightning';
+  mockPendingCount = 2;
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  const button = tree.root.findByProps({ accessibilityLabel: 'Pending incoming payments (2)' });
+  await act(async () => button.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/lightning-address-payments');
+  expect(tree.root.findAllByType('QR' as any)).toHaveLength(0);
+});
+
+it('opens address management from an enabled Lightning address', async () => {
+  mockTab = 'lightning';
+  mockLightningEnabled = true;
+  await act(async () => {
+    tree = create(<NostrProfileScreen />);
+  });
+  const button = tree.root.findByProps({ accessibilityLabel: 'Manage Lightning address' });
+  await act(async () => button.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/lightning-address');
 });

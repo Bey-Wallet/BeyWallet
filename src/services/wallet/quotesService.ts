@@ -13,6 +13,7 @@ import { purgeCorruptedKeysets } from '~/services/wallet/initService';
 import {
   Wallet,
   Mint as CashuMint,
+  MintInfo,
   type MintQuoteResponse,
   type MeltQuoteResponse,
 } from '@cashu/cashu-ts';
@@ -60,16 +61,55 @@ async function withKeysetRecovery<T>(
 export const quotesService = {
   // ─── Minting (Lightning → Ecash) ─────────────────────────
 
+  /** Observational status read: does not reserve outputs or attempt issuance. */
+  checkMintQuote: (mintUrl: string, quoteId: string): Promise<MintQuoteResponse> =>
+    new CashuMint(mintUrl).checkMintQuoteBolt11(quoteId),
+
   /**
    * Create a mint quote — returns a Lightning invoice to pay.
    *
    * @param mintUrl - The mint to create quote from
    * @param amount - Amount in sats to mint
+   * @param description - Optional invoice note; omitted silently if the mint does not support it.
    * @returns MintQuoteResponse with `quote` (id) and Lightning `request` (invoice)
    */
-  createMintQuote: async (mintUrl: string, amount: number): Promise<MintQuoteResponse> => {
+  createMintQuote: async (
+    mintUrl: string,
+    amount: number,
+    description?: string,
+  ): Promise<MintQuoteResponse> => {
     console.log(`[QuotesService] Creating mint quote: ${amount} sat from ${mintUrl}`);
     return withKeysetRecovery(mintUrl, async () => {
+      const note = description?.trim();
+      if (note) {
+        if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid amount');
+        const manager = mgr();
+        if (!(await manager.mint.isTrustedMint(mintUrl))) throw new Error('Mint is not trusted');
+        // Coco's creation API has no description argument. Create the public invoice with
+        // cashu-ts, then register it with Coco so storage, watchers and issuance stay owned there.
+        const mintInfo = new MintInfo(await manager.mint.getMintInfo(mintUrl));
+        if (!mintInfo.supportsNut04Description('bolt11', 'sat')) {
+          return manager.quotes.createMintQuote(mintUrl, amount);
+        }
+        // Invoice creation needs no proof/keyset wallet. A Wallet seeded with only mintInfo
+        // is uninitialized in cashu-ts 3.x; use its public Mint API and response validation.
+        const created = await new CashuMint(mintUrl).createMintQuoteBolt11({
+          amount,
+          unit: 'sat',
+          description: note,
+        });
+        // Older mint responses omit these fields; retain Wallet's request-value fallback
+        // so Coco always has the amount and unit needed for later issuance.
+        const quote = { ...created, amount: created.amount ?? amount, unit: created.unit ?? 'sat' };
+        const saved = await manager.quotes.addMintQuote(mintUrl, [quote]);
+        if (
+          !saved.added.includes(quote.quote) &&
+          !(await initService.getRepo().mintQuoteRepository.getMintQuote(mintUrl, quote.quote))
+        ) {
+          throw new Error('Could not save the invoice');
+        }
+        return quote;
+      }
       const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
       console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
       return quote;
