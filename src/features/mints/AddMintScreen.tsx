@@ -45,6 +45,8 @@ import { useMintDiscovery } from './hooks/useMintDiscovery';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
+import { usePreventRemove } from '@react-navigation/native';
+import { connectMint } from './connectMint';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
 interface MintSkeletonRowProps {
@@ -329,10 +331,22 @@ interface DiscoveredMintRowProps {
   onPress: (url: string) => void;
   onAdd: (url: string) => void;
   showTopSeparator?: boolean;
+  connecting: boolean;
+  disabled: boolean;
+  error?: string;
 }
 
 const DiscoveredMintRow = React.memo(
-  ({ mint, isAdded, onPress, onAdd, showTopSeparator }: DiscoveredMintRowProps) => {
+  ({
+    mint,
+    isAdded,
+    onPress,
+    onAdd,
+    showTopSeparator,
+    connecting,
+    disabled,
+    error,
+  }: DiscoveredMintRowProps) => {
     const { data: info } = useMintInfo(mint.url);
     const meta = mintMetadataFromInfo(info, mint.url);
 
@@ -361,6 +375,7 @@ const DiscoveredMintRow = React.memo(
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => onPress(mint.url)}
+          disabled={disabled}
           style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}
         >
           {/* Left: 48px Circular icon */}
@@ -402,6 +417,9 @@ const DiscoveredMintRow = React.memo(
                 variant="default"
                 emphasis="primary"
                 size="small"
+                loading={connecting}
+                loadingText={`Connecting to ${displayName}`}
+                disabled={disabled}
                 icon={<Plus size={16} strokeWidth={2.5} />}
                 onPress={(e) => {
                   e.stopPropagation();
@@ -414,6 +432,11 @@ const DiscoveredMintRow = React.memo(
             )}
           </View>
         </TouchableOpacity>
+        {error && (
+          <Text color="$red10" fontSize={12} accessibilityRole="alert" pb="$2">
+            {error}
+          </Text>
+        )}
         <Separator borderColor="$borderColor" opacity={0.3} />
       </YStack>
     );
@@ -436,6 +459,12 @@ export default function AddMintScreen() {
     searchInput.current?.focus();
   };
   const [refreshing, setRefreshing] = useState(false);
+  const [connectingUrl, setConnectingUrl] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<{ url: string; message: string } | null>(
+    null,
+  );
+  const connectionLock = useRef(false);
+  usePreventRemove(!!connectingUrl, () => {});
 
   const {
     mints: walletMints,
@@ -449,7 +478,13 @@ export default function AddMintScreen() {
     isInitializing,
   } = useWalletStore();
 
-  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
+  const {
+    primaryCurrency,
+    secondaryCurrency,
+    hideBalance,
+    showBitcoinSymbol,
+    hideMintConnectionDisclaimer,
+  } = useSettingsStore();
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
@@ -620,11 +655,35 @@ export default function AddMintScreen() {
   );
 
   const handleAddMintAction = useCallback(
-    (url: string) => {
+    async (url: string) => {
+      if (connectionLock.current) return;
       Keyboard.dismiss();
-      router.push({ pathname: '/(modals)/mint-profile', params: { url } });
+      if (!hideMintConnectionDisclaimer) {
+        router.push({ pathname: '/(modals)/mint-profile', params: { url } });
+        return;
+      }
+      if (
+        useWalletStore
+          .getState()
+          .mints.some((mint) => mintUrlKey(mint.mintUrl) === mintUrlKey(url) && mint.trusted)
+      )
+        return;
+      connectionLock.current = true;
+      setConnectingUrl(mintUrlKey(url));
+      setConnectionError(null);
+      try {
+        await connectMint(url);
+      } catch (error) {
+        setConnectionError({
+          url: mintUrlKey(url),
+          message: error instanceof Error ? error.message : 'Could not connect to this mint.',
+        });
+      } finally {
+        connectionLock.current = false;
+        setConnectingUrl(null);
+      }
     },
-    [router],
+    [router, hideMintConnectionDisclaimer],
   );
 
   const safeGoBack = useCallback(() => {
@@ -641,9 +700,11 @@ export default function AddMintScreen() {
       <Stack.Screen
         options={{
           title: 'Mints',
+          gestureEnabled: !connectingUrl,
           headerLeft: () => (
             <HeaderIconButton
               accessibilityLabel="Go back"
+              disabled={!!connectingUrl}
               icon={<ArrowLeft color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -654,6 +715,7 @@ export default function AddMintScreen() {
           headerRight: () => (
             <HeaderIconButton
               accessibilityLabel="Scan QR code"
+              disabled={!!connectingUrl}
               icon={<Scan color="$color" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -704,6 +766,7 @@ export default function AddMintScreen() {
               flex={1}
               placeholder="Search mint name or enter URL..."
               value={searchQuery}
+              editable={!connectingUrl}
               onChangeText={setSearchQuery}
               autoCapitalize="none"
               autoCorrect={false}
@@ -773,6 +836,9 @@ export default function AddMintScreen() {
                     variant="default"
                     emphasis="primary"
                     size="xsmall"
+                    loading={connectingUrl === normalizeUrl(formattedDetectedUrl)}
+                    loadingText="Connecting to mint…"
+                    disabled={!!connectingUrl}
                     iconAfter={<ArrowRight size={14} />}
                     onPress={() => handleAddMintAction(formattedDetectedUrl)}
                   >
@@ -783,6 +849,14 @@ export default function AddMintScreen() {
             </YStack>
           )}
         </YStack>
+
+        {connectionError &&
+          isDetectedAsUrl &&
+          connectionError.url === normalizeUrl(formattedDetectedUrl) && (
+            <Text color="$red10" fontSize={12} accessibilityRole="alert" mb="$3">
+              {connectionError.message}
+            </Text>
+          )}
 
         {/* ─── Section 1: Connected Mints ────────────────────────────────────── */}
         <YStack gap="$2" mb="$5">
@@ -928,6 +1002,13 @@ export default function AddMintScreen() {
                     key={mint.url}
                     mint={mint}
                     isAdded={isAdded}
+                    connecting={connectingUrl === normalizeUrl(mint.url)}
+                    disabled={!!connectingUrl}
+                    error={
+                      connectionError?.url === normalizeUrl(mint.url)
+                        ? connectionError.message
+                        : undefined
+                    }
                     onPress={handleDiscoveredMintPress}
                     onAdd={handleAddMintAction}
                     showTopSeparator={index === 0}

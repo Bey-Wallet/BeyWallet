@@ -127,7 +127,7 @@ const MintRowItem = React.memo(
               <YStack gap="$0.5" flex={1} minWidth={0}>
                 <XStack items="center" gap="$1.5">
                   <Text
-                    {...appTypography.label2}
+                    {...appTypography.label1}
                     fontWeight="500"
                     color="$color"
                     numberOfLines={1}
@@ -142,8 +142,8 @@ const MintRowItem = React.memo(
             <XStack items="center" gap="$1.5">
               <YStack items="flex-end" justify="center">
                 <RollingNumber
-                  fontSize={appTypography.label2.fontSize}
-                  lineHeight={appTypography.label2.lineHeight}
+                  fontSize={appTypography.label1.fontSize}
+                  lineHeight={appTypography.label1.lineHeight}
                   fontWeight="600"
                   color="$color"
                   decimalOpacity={0.4}
@@ -220,7 +220,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
         <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
           <XStack items="center" gap="$1.5">
             <Text
-              {...appTypography.label2}
+              {...appTypography.label1}
               fontWeight="500"
               color="$color"
               numberOfLines={1}
@@ -331,7 +331,7 @@ export const ConnectedMintsCard = () => {
           onPress={handleManageMints}
         >
           <Text color="$gray10" fontSize="$4" fontWeight="600" accessibilityRole="header">
-            Mints
+            {mints.length === 0 ? 'Suggested mints' : 'Mints'}
           </Text>
           <ChevronRight size={18} color="$gray10" aria-hidden />
         </AppPressable>
@@ -368,11 +368,6 @@ export const ConnectedMintsCard = () => {
           </AppPressable>
         </XStack>
       </XStack>
-      {mints.length === 0 && (
-        <Text {...appTypography.body3} color="$gray10">
-          Add a mint to get started. Suggested mints:
-        </Text>
-      )}
       <YStack>
         {[
           ...mints.map((mint, index) => {

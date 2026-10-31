@@ -11,10 +11,12 @@ let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
 let mockDeviceOffline = false;
 let mockHideBalance = false;
+let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
 let mockCheckingMints: string[] = [];
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
+jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(
     ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator', 'H6'].map(
@@ -50,6 +52,7 @@ jest.mock('~/state/settingsStore', () => ({
     primaryCurrency: 'SATS',
     secondaryCurrency: 'NONE',
     hideBalance: mockHideBalance,
+    hideMintConnectionDisclaimer: mockSkipDisclaimer,
   }),
 }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockDeviceOffline }));
@@ -83,6 +86,7 @@ beforeEach(() => {
   mockMintErrors = {};
   mockDeviceOffline = false;
   mockHideBalance = false;
+  mockSkipDisclaimer = false;
   mockCheckingMints = [];
   useWalletStore.setState({
     mints: [],
@@ -90,6 +94,10 @@ beforeEach(() => {
     refreshCounter: 0,
     scannerResult: null,
     setScannerResult: (scannerResult) => useWalletStore.setState({ scannerResult }),
+    addMint: jest.fn(async (mintUrl) => {
+      useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
+    }),
+    error: null,
   });
 });
 afterEach(async () => {
@@ -251,6 +259,79 @@ it('opens the profile from the detected URL Add button', async () => {
     pathname: '/(modals)/mint-profile',
     params: { url: 'https://mint.example' },
   });
+});
+
+it('connects an entered mint directly from Add after remembered consent', async () => {
+  mockSkipDisclaimer = true;
+  await render();
+  await act(async () =>
+    tree.root.findByType('Input' as any).props.onChangeText('mint.example/Bitcoin/'),
+  );
+  const add = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Add')!;
+  await act(async () => add.props.onPress());
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith('https://mint.example/Bitcoin', {
+    trusted: true,
+  });
+  expect(useWalletStore.getState().mints).toEqual([
+    { mintUrl: 'https://mint.example/Bitcoin', trusted: true },
+  ]);
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
+it('shows button loading and prevents duplicate Add operations for a discovered mint', async () => {
+  mockSkipDisclaimer = true;
+  const mintUrl = 'https://mint.example/Bitcoin';
+  mockDiscoveredMints = [{ url: mintUrl, name: 'Example mint' }];
+  let finish!: () => void;
+  useWalletStore.setState({
+    addMint: jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
+            resolve();
+          };
+        }),
+    ),
+  });
+  await render();
+  const add = () =>
+    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+  const press = add().props.onPress;
+  await act(async () => {
+    press({ stopPropagation: jest.fn() });
+    press({ stopPropagation: jest.fn() });
+  });
+  expect(add().props).toMatchObject({ loading: true, disabled: true });
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => {
+    finish();
+  });
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Added'),
+  ).toBe(true);
+});
+
+it('keeps validation failures visible and allows retry from the mint list', async () => {
+  mockSkipDisclaimer = true;
+  mockDiscoveredMints = [{ url: 'https://mint.example', name: 'Example mint' }];
+  useWalletStore.setState({
+    addMint: jest.fn(async () => {
+      useWalletStore.setState({ error: 'Mint validation failed' });
+    }),
+  });
+  await render();
+  const add = () =>
+    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+  await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Mint validation failed',
+  );
+  expect(add().props).toMatchObject({ loading: false, disabled: false });
+  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('opens a scanned mint URL once and consumes the scanner result', async () => {

@@ -4,6 +4,7 @@ import { Linking, Share } from 'react-native';
 import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
+import { useSettingsStore } from '~/state/settingsStore';
 import { MintPreviewHealth } from '~/features/mints/components/MintPreviewHealth';
 import {
   MintPreviewMethods,
@@ -125,6 +126,9 @@ jest.mock('~/services/api/mintHealthService', () => ({
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({ sqliteStorage: {} }));
 jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendationService: {} }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
+jest.mock('~/state/settingsStore', () => ({
+  useSettingsStore: require('zustand').create(() => ({})),
+}));
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({ mintUrl: url, section: mockSection }),
@@ -148,6 +152,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Info',
       'Copy',
       'Check',
+      'X',
       'ChevronLeft',
       'Sprout',
       'Share2',
@@ -197,7 +202,7 @@ jest.mock('expo-haptics', () => ({
 jest.mock('expo-sharing', () => ({}));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
 }));
 jest.mock('react-native-qrcode-svg', () => 'QRCode');
 jest.mock('react-native/Libraries/Modal/Modal', () => ({
@@ -239,6 +244,12 @@ beforeEach(() => {
       useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true } as any] });
     }),
     removeMint: jest.fn(),
+  });
+  useSettingsStore.setState({
+    hideMintConnectionDisclaimer: false,
+    setHideMintConnectionDisclaimer: jest.fn(async (hide) => {
+      useSettingsStore.setState({ hideMintConnectionDisclaimer: hide });
+    }),
   });
 });
 afterEach(async () => {
@@ -620,6 +631,90 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
   );
   expect(button('Confirm').props.disabled).toBe(false);
   expect(mockReplace).not.toHaveBeenCalled();
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
+});
+
+it('shows bullet points and remembers the checkbox only after a successful connection', async () => {
+  await render('preview');
+  await act(async () => button('Connect').props.onPress());
+  expect(
+    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '•'),
+  ).toHaveLength(3);
+  const checkbox = () => tree.root.findByProps({ accessibilityRole: 'checkbox' });
+  expect(checkbox().props.accessibilityState.checked).toBe(false);
+  await act(async () => checkbox().props.onPress());
+  expect(checkbox().props.accessibilityState.checked).toBe(true);
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () => button('Confirm').props.onPress());
+  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).toHaveBeenCalledWith(true);
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+});
+
+it('connects directly with only button loading when consent is remembered, without opening a sheet', async () => {
+  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
+  let finish!: () => void;
+  useWalletStore.setState({
+    addMint: jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+            resolve();
+          };
+        }),
+    ),
+  });
+  await render('preview');
+  const connect = button('Connect').props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = connect();
+    void connect();
+  });
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  expect(button('Connect').props).toMatchObject({ loading: true, disabled: true });
+  expect(mockReplace).not.toHaveBeenCalled();
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl: url },
+  });
+  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(true);
+});
+
+it('shows direct-connection errors on preview and allows retry without opening a sheet', async () => {
+  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
+  useWalletStore.setState({
+    addMint: jest.fn(async () => {
+      useWalletStore.setState({ error: 'Mint validation failed' });
+    }),
+  });
+  await render('preview');
+  await act(async () => button('Connect').props.onPress());
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Mint validation failed',
+  );
+  expect(button('Connect').props).toMatchObject({ loading: false, disabled: false });
+  expect(mockReplace).not.toHaveBeenCalled();
+  await act(async () => {
+    useWalletStore.setState({
+      addMint: jest.fn(async () => {
+        useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+      }),
+    });
+  });
+  await act(async () => button('Connect').props.onPress());
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl: url },
+  });
 });
 
 it('blocks duplicate confirmation and dismissal while connecting', async () => {

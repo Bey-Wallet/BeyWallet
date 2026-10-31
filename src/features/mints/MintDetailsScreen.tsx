@@ -2,7 +2,7 @@ import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
-import { appTypography } from '~/shared/theme/appearance';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -20,13 +20,15 @@ import {
   AlertTriangle,
   Trash2,
   RefreshCw,
+  X,
 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { Share as RNShare, Keyboard } from 'react-native';
+import { Share as RNShare, Keyboard, useWindowDimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '~/state/walletStore';
@@ -45,6 +47,8 @@ export default function MintDetailsModal() {
   const router = useRouter();
   const toast = useAppToast();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetPadding = appSpacing.page + appSpacing.compact;
   const { mintUrl, editName } = useLocalSearchParams<{ mintUrl: string; editName?: string }>();
   const {
     mints,
@@ -472,66 +476,104 @@ export default function MintDetailsModal() {
           </YStack>
         </ScrollView>
 
-        <AppBottomSheet ref={removeMintSheetRef} snapPoints={balance > 0 ? ['60%'] : ['40%']}>
-          <YStack p="$4" gap="$4">
-            <View bg="$red3" p="$4" rounded="$4" borderWidth={1} borderColor="$red8">
-              <XStack gap="$3">
-                <AlertTriangle color="$red10" size={24} />
-                <YStack flex={1}>
-                  <Text color="$red10" fontWeight="700" fontSize="$5">
-                    Remove Mint
+        <AppBottomSheet
+          ref={removeMintSheetRef}
+          scrollable
+          canDismiss={!isRemoving}
+          maxDynamicContentSize={windowHeight - insets.top - appSpacing.page}
+        >
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              paddingTop: appSpacing.page,
+              paddingLeft: insets.left + sheetPadding,
+              paddingRight: insets.right + sheetPadding,
+              paddingBottom: insets.bottom + sheetPadding,
+            }}
+          >
+            <YStack gap="$5">
+              <XStack items="center" gap="$2">
+                <HeaderIconButton
+                  icon={X}
+                  accessibilityLabel="Close remove mint sheet"
+                  disabled={isRemoving}
+                  onPress={() => removeMintSheetRef.current?.dismiss()}
+                />
+                <Text flex={1} fontSize="$6" fontWeight="600" textAlign="center">
+                  Remove mint
+                </Text>
+                <View width={48} />
+              </XStack>
+              <XStack items="center" gap="$3">
+                <View
+                  width={48}
+                  height={48}
+                  rounded="$6"
+                  overflow="hidden"
+                  bg="$gray3"
+                  flexShrink={0}
+                >
+                  <MintImage mintUrl={mintUrl} source={{ uri: iconToUse, width: 48, height: 48 }} />
+                </View>
+                <YStack flex={1} minWidth={0} gap="$1">
+                  <Text fontSize={14} fontWeight="600" color="$color">
+                    {name}
                   </Text>
-                  <Text color="$red10" fontSize="$3" mt="$1">
-                    Are you sure you want to remove this mint? This action will remove the mint
-                    configuration from your wallet.
+                  <Text fontSize={12} color="$gray10" selectable>
+                    {mintUrl}
                   </Text>
                 </YStack>
               </XStack>
-            </View>
+              <Text color="$gray10" fontSize={14} lineHeight={20}>
+                This removes the mint and its local ecash data, saved payment records, and history
+                from this device.
+              </Text>
 
-            {balance > 0 && (
-              <View bg="$orange3" p="$4" rounded="$4" borderWidth={1} borderColor="$orange8">
-                <XStack gap="$3">
-                  <AlertTriangle color="$orange10" size={24} />
-                  <YStack flex={1}>
-                    <Text color="$orange10" fontWeight="700" fontSize="$5">
-                      Active Balance Warning
-                    </Text>
-                    <Text color="$orange10" fontSize="$3" mt="$1">
-                      You currently have a balance of{' '}
-                      <Text fontWeight="800">
-                        {showBitcoinSymbol
-                          ? `₿${balance.toLocaleString()}`
-                          : `${balance.toLocaleString()} sat`}
-                      </Text>{' '}
-                      in this mint. If you remove it, you will lose access to these funds!
-                    </Text>
-                  </YStack>
-                </XStack>
-              </View>
-            )}
+              {balance > 0 && (
+                <View bg="$orange3" p="$4" rounded="$6" accessibilityRole="alert">
+                  <XStack gap="$3">
+                    <AlertTriangle color="$orange10" size={24} />
+                    <YStack flex={1}>
+                      <Text color="$orange10" fontWeight="600" fontSize={14}>
+                        This mint still has funds
+                      </Text>
+                      <Text color="$orange10" fontSize="$3" mt="$1">
+                        You currently have a balance of{' '}
+                        <Text fontWeight="600">
+                          {showBitcoinSymbol
+                            ? `₿${balance.toLocaleString()}`
+                            : `${balance.toLocaleString()} sat`}
+                        </Text>{' '}
+                        in this mint. Transfer or withdraw this balance before removing it. Removing
+                        the mint does not move your funds, and recovery is not guaranteed.
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </View>
+              )}
 
-            <YStack gap="$3" mt="$2">
-              <AppButton
-                variant="critical"
-                emphasis="primary"
-                size="large"
-                onPress={handleRemoveMint}
-                loading={isRemoving}
-                loadingText="Removing mint…"
-              >
-                Confirm Remove
-              </AppButton>
-              <AppButton
-                variant="default"
-                emphasis="secondary"
-                size="large"
-                onPress={() => removeMintSheetRef.current?.dismiss()}
-              >
-                Cancel
-              </AppButton>
+              <YStack gap="$3" mt="$2">
+                <AppButton
+                  variant="critical"
+                  emphasis="primary"
+                  size="large"
+                  onPress={handleRemoveMint}
+                  loading={isRemoving}
+                  loadingText="Removing mint…"
+                >
+                  Confirm Remove
+                </AppButton>
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="large"
+                  disabled={isRemoving}
+                  onPress={() => removeMintSheetRef.current?.dismiss()}
+                >
+                  Cancel
+                </AppButton>
+              </YStack>
             </YStack>
-          </YStack>
+          </BottomSheetScrollView>
         </AppBottomSheet>
         <MintUrlQrOverlay url={mintUrl} visible={showQr} onClose={() => setShowQr(false)} />
       </SafeFlex>

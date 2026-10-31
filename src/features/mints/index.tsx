@@ -3,34 +3,43 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, Text, H2, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Globe, Sprout, Share2, Plus, QrCode } from '@tamagui/lucide-icons';
+import { Globe, Sprout, Share2, Plus, QrCode, Check, X } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
+import { useSettingsStore } from '~/state/settingsStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { usePreventRemove } from '@react-navigation/native';
-import { Share as RNShare } from 'react-native';
+import { Share as RNShare, useWindowDimensions } from 'react-native';
+import { appSpacing } from '~/shared/theme/appearance';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintOverview } from './components/MintOverview';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
+import { connectMint } from './connectMint';
 interface MintProfileScreenProps {
   url: string;
 }
 export function MintProfileScreen({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetPadding = appSpacing.page + appSpacing.compact;
   const [showQr, setShowQr] = useState(false);
   const router = useRouter();
   const toast = useAppToast();
-  const { addMint, mints } = useWalletStore();
+  const { mints } = useWalletStore();
+  const hideDisclaimer = useSettingsStore((state) => state.hideMintConnectionDisclaimer);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const connectionSheetRef = React.useRef<AppBottomSheetRef>(null);
   const connectionLock = React.useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -57,27 +66,25 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
     }
   }, [url]);
   const handleAction = async () => {
+    if (connectionLock.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setConnectionError(null);
+    if (hideDisclaimer) {
+      await handleConfirmConnection(true);
+      return;
+    }
+    setDontShowAgain(false);
     connectionSheetRef.current?.present();
   };
-  const handleConfirmConnection = async () => {
+  const handleConfirmConnection = async (rememberChoice: boolean) => {
     if (connectionLock.current) return;
     connectionLock.current = true;
     setIsConnecting(true);
     setConnectionError(null);
     try {
-      useWalletStore.setState({ error: null });
-      // Keep the SDK's mint and keyset validation behind explicit consent.
-      await addMint(url, { trusted: true });
-      const state = useWalletStore.getState();
-      if (state.error) throw new Error(state.error);
-      if (
-        !state.mints.some(
-          (mint) => normalizeUrl(mint.mintUrl) === normalizeUrl(url) && mint.trusted,
-        )
-      ) {
-        throw new Error('Could not connect to this mint. Please try again.');
+      await connectMint(url);
+      if (rememberChoice !== hideDisclaimer) {
+        await useSettingsStore.getState().setHideMintConnectionDisclaimer(rememberChoice);
       }
       toast.showFeedback(interactionCopy.mintConnected);
     } catch (error) {
@@ -256,45 +263,123 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         bg="$background"
         borderTopWidth={1}
         borderTopColor="$gray4"
+        gap="$3"
       >
+        {hideDisclaimer && connectionError && (
+          <Text color="$red10" accessibilityRole="alert">
+            {connectionError}
+          </Text>
+        )}
         <AppButton
           variant="default"
           emphasis="primary"
           size="medium"
           icon={<Plus size={18} />}
           disabled={isConnecting}
+          loading={isConnecting}
+          loadingText="Connecting to mint…"
           onPress={handleAction}
         >
           {'Connect'}
         </AppButton>
       </YStack>
 
-      <AppBottomSheet ref={connectionSheetRef} snapPoints={['65%']} canDismiss={!isConnecting}>
+      <AppBottomSheet
+        ref={connectionSheetRef}
+        maxDynamicContentSize={windowHeight - insets.top - appSpacing.page}
+        canDismiss={!isConnecting}
+        scrollable
+      >
         <BottomSheetScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: Math.max(insets.bottom, 24) }}
+          contentContainerStyle={{
+            paddingTop: appSpacing.page,
+            paddingLeft: insets.left + sheetPadding,
+            paddingRight: insets.right + sheetPadding,
+            paddingBottom: insets.bottom + sheetPadding,
+          }}
         >
           <YStack gap="$5">
-            <Text fontSize="$6" fontWeight="600" textAlign="center">
-              Connect to mint
-            </Text>
-            <YStack items="center" gap="$2">
-              <View width={64} height={64} rounded="$6" overflow="hidden" bg="$gray3">
-                <MintImage mintUrl={url} source={{ uri: iconToUse, width: 64, height: 64 }} />
+            <XStack items="center" gap="$2">
+              <HeaderIconButton
+                icon={X}
+                accessibilityLabel="Close connection sheet"
+                disabled={isConnecting}
+                onPress={() => connectionSheetRef.current?.dismiss()}
+              />
+              <Text flex={1} fontSize="$6" fontWeight="600" textAlign="center">
+                Connect to mint
+              </Text>
+              <View width={48} />
+            </XStack>
+            <XStack items="center" gap="$3">
+              <View
+                width={48}
+                height={48}
+                rounded="$6"
+                overflow="hidden"
+                bg="$gray3"
+                flexShrink={0}
+              >
+                <MintImage mintUrl={url} source={{ uri: iconToUse, width: 48, height: 48 }} />
               </View>
-              <Text fontSize="$5" fontWeight="600" textAlign="center">
-                {name}
+              <YStack flex={1} minWidth={0} gap="$1">
+                <Text fontSize={14} fontWeight="600">
+                  {name}
+                </Text>
+                <Text color="$gray10" fontSize={12} selectable>
+                  {url}
+                </Text>
+              </YStack>
+            </XStack>
+            <YStack p="$4" bg="$buttonDefaultSecondary" rounded="$6" gap="$3">
+              <Text color="$color" fontSize={14} fontWeight="600">
+                Before you connect
               </Text>
-              <Text color="$gray10" textAlign="center" selectable>
-                {url}
-              </Text>
+              {[
+                'This mint holds the bitcoin backing your ecash.',
+                'You rely on its operator to redeem your ecash. Only connect if you trust them.',
+                'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
+              ].map((point) => (
+                <XStack key={point} gap="$2" items="flex-start">
+                  <Text color="$gray10" fontSize={14} lineHeight={20} accessible={false}>
+                    •
+                  </Text>
+                  <Text color="$color" fontSize={14} lineHeight={20} flex={1}>
+                    {point}
+                  </Text>
+                </XStack>
+              ))}
             </YStack>
-            <View p="$3" bg="$gray5" theme="orange" rounded="$6">
-              <Text color="$color" fontSize="$4">
-                This mint holds the bitcoin backing your ecash. You depend on its operator to redeem
-                it. Bey Wallet does not operate this mint and is not responsible for losses caused
-                by it. Only connect if you trust the operator.
+            <AppPressable
+              minHeight={48}
+              flexDirection="row"
+              items="center"
+              gap="$3"
+              accessibilityRole="checkbox"
+              accessibilityLabel="Do not show again"
+              accessibilityState={{ checked: dontShowAgain, disabled: isConnecting }}
+              disabled={isConnecting}
+              pressStyle={{ opacity: 0.7 }}
+              onPress={() => {
+                setDontShowAgain(!dontShowAgain);
+              }}
+            >
+              <View
+                width={22}
+                height={22}
+                rounded="$2"
+                borderWidth={2}
+                borderColor={dontShowAgain ? '$color' : '$gray8'}
+                bg={dontShowAgain ? '$color' : 'transparent'}
+                items="center"
+                justify="center"
+              >
+                {dontShowAgain && <Check size={14} color="$onAccent" strokeWidth={3} />}
+              </View>
+              <Text fontSize={14} color="$gray10">
+                Do not show again
               </Text>
-            </View>
+            </AppPressable>
             {connectionError && (
               <Text color="$red10" accessibilityRole="alert">
                 {connectionError}
@@ -307,7 +392,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               loading={isConnecting}
               loadingText="Connecting to mint…"
               disabled={isConnecting}
-              onPress={handleConfirmConnection}
+              onPress={() => handleConfirmConnection(dontShowAgain)}
             >
               Confirm
             </AppButton>

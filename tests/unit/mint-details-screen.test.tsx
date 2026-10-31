@@ -54,6 +54,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'AlertTriangle',
       'Trash2',
       'RefreshCw',
+      'X',
     ].map((name) => [name, name]),
   ),
 );
@@ -117,7 +118,10 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
   }),
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => mockToast }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
+}));
+jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'BottomSheetScrollView' }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => {}),
   NotificationFeedbackType: { Success: 'success' },

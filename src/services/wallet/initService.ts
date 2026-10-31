@@ -625,6 +625,7 @@ export const initService = {
         notificationPreferences: { ...notificationDefaults },
         notificationsEnabled: true,
         seedBackedUp: false,
+        hideMintConnectionDisclaimer: false,
       });
       console.log('[InitService] Destroying wallet...');
       const { resetMintBackup } =

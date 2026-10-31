@@ -22,6 +22,8 @@ interface SettingsState {
   nsec: string | null;
   nip05: string | null; // e.g. "zaheer@nostrcheck.me"
   hideBalance: boolean;
+  hideMintConnectionDisclaimer: boolean;
+  setHideMintConnectionDisclaimer: (hide: boolean) => Promise<void>;
   seedBackedUp: boolean;
   setSeedBackedUp: (val: boolean) => Promise<void>;
   backupDismissedAt: number;
@@ -63,6 +65,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nsec: null,
   nip05: null,
   hideBalance: false,
+  hideMintConnectionDisclaimer: false,
   seedBackedUp: false,
   backupDismissedAt: 0,
   showBitcoinSymbol: true,
@@ -114,6 +117,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         storedShowBitcoinSymbol,
         storedBackupDirectoryUri,
         storedUsernameClaimDismissedAt,
+        storedHideMintConnectionDisclaimer,
       ] = await Promise.all([
         repo.settingsRepository.getSetting('theme'),
         repo.settingsRepository.getSetting('secondaryCurrency'),
@@ -130,9 +134,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('showBitcoinSymbol'),
         repo.settingsRepository.getSetting('backupDirectoryUri'),
         repo.settingsRepository.getSetting('usernameClaimDismissedAt'),
+        repo.settingsRepository.getSetting('hideMintConnectionDisclaimer'),
       ]);
 
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
+      set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
       if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
       if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
@@ -390,6 +396,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch (error) {
       console.error('[SettingsStore] Failed to set usernameClaimDismissedAt:', error);
       set({ usernameClaimDismissedAt: val });
+    }
+  },
+  setHideMintConnectionDisclaimer: async (hide: boolean) => {
+    try {
+      if (!(await initService.walletExists())) return;
+      await initService
+        .getRepo()
+        .settingsRepository.setSetting('hideMintConnectionDisclaimer', String(hide));
+      set({ hideMintConnectionDisclaimer: hide });
+    } catch {
+      // Keep showing the disclaimer if the preference could not be saved.
+      console.warn('[SettingsStore] Could not save mint disclaimer preference');
     }
   },
 }));
