@@ -1,4 +1,4 @@
-import { pickQrImage } from '~/services/platform/qrImageService';
+import { pickQrImage, QR_IMAGE_READ_TIMEOUT_MS } from '~/services/platform/qrImageService';
 import * as DocumentPicker from 'expo-document-picker';
 import { scanFromURLAsync } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -27,6 +27,9 @@ beforeEach(() => {
   });
   jest.mocked(scanFromURLAsync).mockResolvedValue([{ data: 'cashuB-test', type: 'qr' }] as any);
   jest.mocked(FileSystem.deleteAsync).mockResolvedValue(undefined);
+});
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 it('reads the full QR locally and removes only the cached picker copy', async () => {
@@ -87,4 +90,38 @@ it('hides native picker errors and restores the lock', async () => {
 it('does not lose the decoded QR when cache cleanup fails', async () => {
   jest.mocked(FileSystem.deleteAsync).mockRejectedValue(new Error('cleanup failed'));
   await expect(pickQrImage()).resolves.toBe('cashuB-test');
+});
+
+it('times out an unresponsive native reader, restores the lock and allows another import', async () => {
+  jest.useFakeTimers();
+  let finish!: (codes: any) => void;
+  jest.mocked(scanFromURLAsync).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = pickQrImage();
+  const failed = expect(pending).rejects.toThrow('Reading this image timed out.');
+  await jest.advanceTimersByTimeAsync(QR_IMAGE_READ_TIMEOUT_MS);
+  await failed;
+  expect(mockLock).toHaveBeenLastCalledWith(false);
+  expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///cache/image.png', {
+    idempotent: true,
+  });
+  finish([{ data: 'late-result', type: 'qr' }]);
+  await expect(pickQrImage()).resolves.toBe('cashuB-test');
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+it('clears the watchdog after successful decoding', async () => {
+  jest.useFakeTimers();
+  await expect(pickQrImage()).resolves.toBe('cashuB-test');
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+it('does not keep loading if native cache cleanup never returns', async () => {
+  jest.mocked(FileSystem.deleteAsync).mockImplementation(() => new Promise(() => {}));
+  await expect(pickQrImage()).resolves.toBe('cashuB-test');
+  expect(mockLock).toHaveBeenLastCalledWith(false);
 });

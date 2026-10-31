@@ -348,6 +348,11 @@ Pause camera callbacks during import and guard repeat taps. Cancel stays in the 
 Missing, unreadable or multiple distinct QRs show an explanation. An isolated animated QR frame
 cannot be used as a complete token; direct users to scan the animation. Restore the previous
 auto-lock state after the native picker and remove its temporary cached image after decoding.
+The Android camera image decoder requires the SDK-compatible expo-image-loader native module.
+Without it, Expo's nullable image-loader call can leave its promise unresolved. The dependency
+requires a new native/EAS build; a JavaScript reload cannot add it to an installed preview.
+Decoding now times out after 15 seconds, restores the prior lock state and permits another attempt.
+Cache cleanup cannot block the result, and late native results cannot route a timed-out import.
 Native Android/iOS image selection and scan/claim of exported PNG receipts require device testing.
 
 ## Remaining queue
