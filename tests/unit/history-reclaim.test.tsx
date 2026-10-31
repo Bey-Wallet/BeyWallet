@@ -196,6 +196,21 @@ async function render() {
 }
 const pending = () => tree.root.findByType('PendingToken' as any);
 
+it('places receipt sharing inside the pending action footer instead of after the flex layout', async () => {
+  await render();
+  const share = pending().props.footerExtra;
+  expect(share.type).toBe('ReceiptShare');
+  expect(share.props.ecashToken).toBe('synthetic-token');
+  expect(share.props.receipt).toMatchObject({ status: 'Pending', direction: 'Sending' });
+  expect(tree.root.findAllByType('ReceiptShare' as any)).toHaveLength(0);
+});
+
+it('keeps a pending incoming receipt in the footer without exporting its spendable token', async () => {
+  mockEntry.type = 'receive';
+  await render();
+  expect(pending().props.footerExtra.props.ecashToken).toBeUndefined();
+});
+
 it('waits for local receipt details before opening the final presentation', async () => {
   mockSnapshotPending = true;
   await render();

@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
+import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
+import { buildShareableReceipt } from '~/features/history/shareableReceipt';
+import { cleanToken } from '~/services/wallet/tokenUtils';
 
 interface ResultStageProps {
   status: 'success' | 'error';
@@ -24,6 +27,18 @@ export function ResultStage(props: ResultStageProps) {
   const [time] = useState(Date.now);
   useResultHaptic(props.status === 'error' ? 'error' : undefined);
   const [reclaiming, setReclaiming] = useState(false);
+  const receipt =
+    props.status === 'success' && props.token
+      ? buildShareableReceipt({
+          id: props.operationId || 'pending-send',
+          type: 'send',
+          state: 'unclaimed',
+          amount: Number(props.amount),
+          unit: 'sat',
+          mintUrl: props.mintUrl || '',
+          createdAt: time,
+        })
+      : null;
   if (props.status === 'success' && props.token)
     return (
       <PendingTokenLayout
@@ -39,6 +54,15 @@ export function ResultStage(props: ResultStageProps) {
         onCheckStatus={props.onCheckStatus}
         isCheckingStatus={props.isCheckingStatus}
         isReclaiming={reclaiming}
+        footerExtra={
+          receipt && (
+            <ReceiptImageShare
+              receipt={receipt}
+              ecashToken={cleanToken(props.token)}
+              disabled={reclaiming}
+            />
+          )
+        }
         onReclaim={
           props.onReclaim
             ? async () => {

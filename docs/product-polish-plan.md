@@ -286,13 +286,21 @@ name/origin. Status lives in the detail rows; non-pending outcomes also get a la
 the amount. A small centered, muted footer says Download Bey Wallet @ bey.cash on the existing background.
 Missing price data is labelled unavailable; no fiat value is invented.
 
-Pending images explicitly say Pending and Payment not confirmed. Payable public QRs appear at
+Pending images explicitly say Pending. Payable public QRs appear at
 the top-left for pending saved Ecash requests and unpaid Lightning invoices. Paid, expired or
 completed invoices do not export a payable QR. Keep the four-module quiet zone, black modules
-and white scan area in either theme. Spendable token QRs, proofs, wallet identifiers, contacts,
-private keys, and arbitrary metadata stay outside the image boundary. Public request QRs retain
+and white scan area in either theme. Ordinary receipts exclude spendable token QRs, proofs,
+wallet identifiers, contacts, private keys, and arbitrary metadata. Public request QRs retain
 the exact payment routing/description payload the user chose to share. Text mint URLs omit
 credentials, query parameters, fragments and private paths.
+
+Pending outgoing ecash has an explicit token-sharing image option in the same action group as
+Send, including when opened from History. Its compact themed image keeps the logo, top-left QR,
+amounts, Pending status, payment type, mint and date. The full token is supplied separately from
+the public receipt model and retained without dropping proofs, DLEQ data or spending conditions.
+Only tokens passing the pending layout's 800-byte and density rules get a static QR. Larger tokens
+export a receipt only with an explanation to use Send for the ecash. Completed, failed, refunded
+and incoming receipts never gain a spendable QR through this option. Image import is deferred.
 
 Native sharing preserves the existing auto-lock state, guards repeat taps and surfaces render/
 sharing failures. PNGs are written to the app cache. Device testing remains for PNG fonts,
@@ -300,6 +308,9 @@ native share destinations, narrow/large-text previews and scanning exported requ
 Local coverage checks the public field allowlist, pending/paid/expired distinctions, token QR
 exclusion, URL sanitization, both currency orders, unavailable conversion, dark theme, top-left
 QR placement, PNG export and lock restoration, alongside existing receipt/request behavior.
+The explicit ecash export is additionally checked for complete payload encoding, status/direction
+gates, large-token fallback, compact dimensions, both themes and shared-footer placement. Device
+testing still needs to verify PNG scan/claim in compatible wallets and action spacing on phones.
 
 ## 11. Backup status in Settings
 

@@ -743,7 +743,7 @@ function TransactionDetailsContent() {
         expired: isQuoteExpired,
       })
     : null;
-  const renderSheet = (content: React.ReactNode, expanded = false) => (
+  const renderSheet = (content: React.ReactNode, expanded = false, inlineReceiptShare = false) => (
     <TransactionReceiptSheet
       active={!!entry && needsFullScreenReceipt(entry, transferRecord?.state)}
       ready={
@@ -755,7 +755,7 @@ function TransactionDetailsContent() {
       busy={isReclaiming || isClaiming || isCheckingPaid}
     >
       {content}
-      {publicReceipt && (
+      {publicReceipt && !inlineReceiptShare && (
         <SafeAreaView edges={expanded ? ['bottom'] : []}>
           <ReceiptImageShare
             receipt={publicReceipt}
@@ -934,9 +934,19 @@ function TransactionDetailsContent() {
           isCheckingStatus={isRefetching}
           customHeaderRight={headerOptions.headerRight}
           extraDetails={extraDetails}
+          footerExtra={
+            publicReceipt && (
+              <ReceiptImageShare
+                receipt={publicReceipt}
+                ecashToken={entry.type === 'send' ? cleanToken(token) : undefined}
+                disabled={isReclaiming || isClaiming || isCheckingPaid}
+              />
+            )
+          }
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
+      true,
       true,
     );
   }

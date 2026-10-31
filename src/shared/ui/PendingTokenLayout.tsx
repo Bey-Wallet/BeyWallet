@@ -52,6 +52,7 @@ export interface PendingTokenLayoutProps {
   isCheckingStatus?: boolean;
   customHeaderRight?: () => React.ReactNode;
   extraDetails?: React.ReactNode;
+  footerExtra?: React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -76,6 +77,7 @@ export function PendingTokenLayout({
   isCheckingStatus = false,
   customHeaderRight,
   extraDetails,
+  footerExtra,
 }: PendingTokenLayoutProps) {
   const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
@@ -230,32 +232,35 @@ export function PendingTokenLayout({
           </>
         }
         footer={
-          !hideActions && onClaim ? (
-            <AppButton
-              variant="default"
-              emphasis="primary"
-              size="large"
-              fullWidth
-              loading={isClaiming}
-              onPress={onClaim}
-              disabled={isClaiming || offline}
-            >
-              {offline ? 'Claim when online' : 'Claim now'}
-            </AppButton>
-          ) : (
-            <AppButton
-              variant="default"
-              emphasis="primary"
-              size="large"
-              fullWidth
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                shareSheetRef.current?.present();
-              }}
-            >
-              Send
-            </AppButton>
-          )
+          <>
+            {!hideActions && onClaim ? (
+              <AppButton
+                variant="default"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                loading={isClaiming}
+                onPress={onClaim}
+                disabled={isClaiming || offline}
+              >
+                {offline ? 'Claim when online' : 'Claim now'}
+              </AppButton>
+            ) : (
+              <AppButton
+                variant="default"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  shareSheetRef.current?.present();
+                }}
+              >
+                Send
+              </AppButton>
+            )}
+            {footerExtra}
+          </>
         }
       >
         {!hideDetails && (

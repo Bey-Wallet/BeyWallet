@@ -3,6 +3,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import QRCode from 'qrcode';
+import { shareReceiptImage } from '~/services/platform/receiptImageService';
 let mockPrimary = 'SATS';
 let mockPrice: number | undefined = 100000;
 let mockDark = false;
@@ -76,20 +78,97 @@ const receipt = buildShareableReceipt(
 )!;
 let tree: ReactTestRenderer;
 beforeEach(() => {
+  jest.clearAllMocks();
   mockPrimary = 'SATS';
   mockPrice = 100000;
   mockDark = false;
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
+  jest.restoreAllMocks();
 });
-async function open(value = receipt) {
+async function open(value = receipt, ecashToken?: string) {
   await act(async () => {
-    tree = create(<ReceiptImageShare receipt={value} />);
+    tree = create(<ReceiptImageShare receipt={value} ecashToken={ecashToken} />);
   });
   await act(async () => tree.root.findByType('Button' as any).props.onPress());
 }
 const texts = () => tree.root.findAllByType('SvgText' as any).map((node) => node.props.children);
+const ecashReceipt = buildShareableReceipt({
+  id: 'pending-ecash',
+  amount: 1234,
+  type: 'send',
+  state: 'unclaimed',
+  unit: 'sat',
+  mintUrl: 'https://mint.example/Bitcoin',
+  createdAt: Date.now(),
+})!;
+
+it.each([false, true])(
+  'exports the entire pending ecash token in a compact themed receipt (dark=%s)',
+  async (dark) => {
+    mockDark = dark;
+    const token = 'cashuBsynthetic';
+    const encode = jest.spyOn(QRCode, 'create');
+    await open(ecashReceipt, token);
+    expect(encode).toHaveBeenCalledWith(token, { errorCorrectionLevel: 'M' });
+    expect(tree.root.findAllByType('Rect' as any)[0].props).toMatchObject({
+      height: 866,
+      fill: dark ? '#000000' : '#FFFFFF',
+    });
+    const qr = tree.root.findByProps({ testID: 'receipt-qr' });
+    expect(qr.props.transform).toMatch(/^translate\(48 164\)/);
+    expect(qr.findByType('Path' as any).props.d).toMatch(/^M/);
+    expect(texts()).toEqual(
+      expect.arrayContaining([
+        'Ecash to share',
+        '₿1,234',
+        '≈ $1.23',
+        'Pending',
+        'Ecash payment',
+        'https://mint.example',
+      ]),
+    );
+    expect(texts()).not.toContain('Direction');
+    expect(tree.root.findAllByProps({ testID: 'receipt-outcome-icon' })).toHaveLength(0);
+  },
+);
+
+it('keeps regular ecash receipts token-free unless token export is explicitly requested', async () => {
+  await open(ecashReceipt);
+  expect(tree.root.findAllByProps({ testID: 'receipt-qr' })).toHaveLength(0);
+  expect(texts()).toContain('Payment summary');
+  expect(ecashReceipt.qr).toBeUndefined();
+});
+
+it('shares the compact ecash receipt at its full export dimensions', async () => {
+  await open(ecashReceipt, 'cashuBsynthetic');
+  const share = tree.root
+    .findAllByType('Button' as any)
+    .find((node) => node.props.children === 'Share image')!;
+  await act(async () => share.props.onPress());
+  expect(shareReceiptImage).toHaveBeenCalledWith(expect.anything(), { width: 1280, height: 1732 });
+});
+
+it('does not put an animated token fragment into a static receipt image', async () => {
+  await open(ecashReceipt, 'cashuB' + 'x'.repeat(900));
+  expect(tree.root.findAllByProps({ testID: 'receipt-qr' })).toHaveLength(0);
+  expect(texts()).toContain('Payment summary');
+  expect(
+    tree.root
+      .findAllByType('Text' as any)
+      .some((node) => String(node.props.children).includes('animated QR')),
+  ).toBe(true);
+});
+
+it.each(['Confirmed', 'Refunded', 'Failed'] as const)(
+  'does not export spendable ecash from a %s receipt',
+  async (status) => {
+    await open({ ...ecashReceipt, status }, 'cashuBsynthetic');
+    expect(tree.root.findAllByProps({ testID: 'receipt-qr' })).toHaveLength(0);
+  },
+);
+
 it('previews both currencies, type and pending label with a real request QR matrix', async () => {
   await open();
   expect(texts()).toEqual(

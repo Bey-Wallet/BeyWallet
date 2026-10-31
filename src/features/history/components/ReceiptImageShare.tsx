@@ -15,21 +15,36 @@ import { shareReceiptImage } from '~/services/platform/receiptImageService';
 import type { ShareableReceipt } from '../shareableReceipt';
 import { appColors } from '~/shared/theme/appearance';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import { canRenderStaticTokenQr } from '~/shared/utils/tokenQr';
+
+type ReceiptPreview = ShareableReceipt & { secondary: string | null; ecashQr?: string };
 
 export function ReceiptImageShare({
   receipt,
   disabled,
+  ecashToken,
 }: {
   receipt: ShareableReceipt;
   disabled?: boolean;
+  /** Explicitly authorized spendable token export, separate from the public receipt model. */
+  ecashToken?: string;
 }) {
   const theme = useTheme();
   const colors =
     theme.background?.val?.toLowerCase() === appColors.dark.canvas.toLowerCase()
       ? appColors.dark
       : appColors.light;
-  const [preview, setPreview] = useState<(ShareableReceipt & { secondary: string | null }) | null>(
-    null,
+  const [preview, setPreview] = useState<ReceiptPreview | null>(null);
+  const eligibleToken =
+    receipt.status === 'Pending' &&
+    receipt.method === 'Ecash' &&
+    receipt.direction === 'Sending' &&
+    /^cashu[AB][A-Za-z0-9+/_=-]+$/.test(ecashToken || '')
+      ? ecashToken
+      : undefined;
+  const staticToken = useMemo(
+    () => (eligibleToken && canRenderStaticTokenQr(eligibleToken, 280) ? eligibleToken : undefined),
+    [eligibleToken],
   );
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const { data: price } = useQuery({
@@ -54,8 +69,12 @@ export function ReceiptImageShare({
     if (preview) sheet.current?.present();
   }, [preview]);
   const pending = preview?.status === 'Pending';
-  const detailsOffset = preview?.qr ? 400 : 0;
-  const imageHeight = 712 + detailsOffset;
+  const ecashImage = !!preview?.ecashQr;
+  const qrValue = preview?.ecashQr || preview?.qr;
+  const detailsOffset = ecashImage ? 264 : preview?.qr ? 400 : 0;
+  const imageHeight = ecashImage ? 866 : 712 + detailsOffset;
+  const rowStep = ecashImage ? 42 : 54;
+  const statusY = 396 + detailsOffset;
   const statusColor =
     preview?.status === 'Confirmed' || preview?.status === 'Refunded'
       ? colors.positive
@@ -75,19 +94,19 @@ export function ReceiptImageShare({
   const { qrPath, qrCount } = useMemo(() => {
     let qrPath = '';
     let qrCount = 0;
-    if (!preview?.qr) return { qrPath, qrCount };
+    if (!qrValue) return { qrPath, qrCount };
     try {
-      const matrix = QRCode.create(preview.qr, { errorCorrectionLevel: 'M' }).modules;
+      const matrix = QRCode.create(qrValue, { errorCorrectionLevel: 'M' }).modules;
       qrCount = matrix.size;
       for (let row = 0; row < matrix.size; row++)
         for (let col = 0; col < matrix.size; col++) {
           if (matrix.data[row * matrix.size + col]) qrPath += `M${col + 4} ${row + 4}h1v1h-1z`;
         }
     } catch {
-      /* Share remains disabled if the public request cannot be encoded. */
+      /* Never export an image with an incomplete or missing payable QR. */
     }
     return { qrPath, qrCount };
-  }, [preview?.qr]);
+  }, [qrValue]);
   return (
     <>
       <AppButton
@@ -98,6 +117,7 @@ export function ReceiptImageShare({
           setError('');
           setPreview({
             ...receipt,
+            ecashQr: staticToken,
             amount: values.primary ?? 'Conversion unavailable',
             secondary: values.secondary
               ? `≈ ${values.secondary}`
@@ -133,20 +153,25 @@ export function ReceiptImageShare({
               <Svg
                 ref={svg}
                 width="100%"
-                height={preview.qr ? 520 : 360}
+                height={qrValue ? 520 : 360}
                 viewBox={`0 0 640 ${imageHeight}`}
                 fontFamily="InterTextRegular"
-                accessibilityLabel="Public receipt image preview"
+                accessibilityLabel={
+                  ecashImage ? 'Ecash sharing image preview' : 'Public receipt image preview'
+                }
               >
                 <Rect width={640} height={imageHeight} rx={32} fill={colors.canvas} />
                 <G transform="translate(48 46)">
                   <BeyIcon size={42} color={colors.icon} />
                 </G>
                 <SvgText x={48} y={152} fontSize={22} fill={colors.secondaryText}>
-                  Payment summary
+                  {ecashImage ? 'Ecash to share' : 'Payment summary'}
                 </SvgText>
-                {preview.qr && qrCount > 0 && (
-                  <G transform={`translate(48 200) scale(${360 / (qrCount + 8)})`}>
+                {qrValue && qrCount > 0 && (
+                  <G
+                    testID="receipt-qr"
+                    transform={`translate(48 ${ecashImage ? 164 : 200}) scale(${(ecashImage ? 300 : 360) / (qrCount + 8)})`}
+                  >
                     <Rect width={qrCount + 8} height={qrCount + 8} fill={appColors.light.canvas} />
                     <Path d={qrPath} fill={appColors.light.text} />
                   </G>
@@ -182,12 +207,12 @@ export function ReceiptImageShare({
                   stroke={colors.separator}
                   strokeWidth={2}
                 />
-                <SvgText x={48} y={396 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY} fontSize={21} fill={colors.secondaryText}>
                   Status
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={396 + detailsOffset}
+                  y={statusY}
                   textAnchor="end"
                   fontSize={21}
                   fontFamily="InterTextMedium"
@@ -195,48 +220,62 @@ export function ReceiptImageShare({
                 >
                   {preview.status}
                 </SvgText>
-                <SvgText x={48} y={450 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY + rowStep} fontSize={21} fill={colors.secondaryText}>
                   Type
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={450 + detailsOffset}
+                  y={statusY + rowStep}
                   textAnchor="end"
                   fontSize={21}
                   fill={colors.icon}
                 >
                   {preview.type}
                 </SvgText>
-                <SvgText x={48} y={504 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY + rowStep * 2} fontSize={21} fill={colors.secondaryText}>
                   Mint
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={504 + detailsOffset}
+                  y={statusY + rowStep * 2}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.mint.length > 36 ? `${preview.mint.slice(0, 35)}…` : preview.mint}
                 </SvgText>
-                <SvgText x={48} y={558 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
-                  Direction
-                </SvgText>
+                {!ecashImage && (
+                  <>
+                    <SvgText
+                      x={48}
+                      y={statusY + rowStep * 3}
+                      fontSize={21}
+                      fill={colors.secondaryText}
+                    >
+                      Direction
+                    </SvgText>
+                    <SvgText
+                      x={592}
+                      y={statusY + rowStep * 3}
+                      textAnchor="end"
+                      fontSize={21}
+                      fill={colors.icon}
+                    >
+                      {preview.direction}
+                    </SvgText>
+                  </>
+                )}
                 <SvgText
-                  x={592}
-                  y={558 + detailsOffset}
-                  textAnchor="end"
+                  x={48}
+                  y={statusY + rowStep * (ecashImage ? 3 : 4)}
                   fontSize={21}
-                  fill={colors.icon}
+                  fill={colors.secondaryText}
                 >
-                  {preview.direction}
-                </SvgText>
-                <SvgText x={48} y={612 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Date
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={612 + detailsOffset}
+                  y={statusY + rowStep * (ecashImage ? 3 : 4)}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
@@ -254,7 +293,18 @@ export function ReceiptImageShare({
                   Download Bey Wallet @ bey.cash
                 </SvgText>
               </Svg>
-              {preview.qr && !qrCount && (
+              {ecashImage && (
+                <Text color="$gray10" fontSize={12}>
+                  Contains ecash. Share with the intended recipient.
+                </Text>
+              )}
+              {eligibleToken && !staticToken && (
+                <Text color="$gray10" fontSize={12}>
+                  This token needs an animated QR. Use Send to share the ecash; this image is a
+                  receipt only.
+                </Text>
+              )}
+              {qrValue && !qrCount && (
                 <Text color="$red10" fontSize={12}>
                   This payment QR could not be encoded.
                 </Text>
@@ -267,7 +317,7 @@ export function ReceiptImageShare({
               <AppButton
                 fullWidth
                 loading={sharing}
-                disabled={sharing || (!!preview.qr && !qrCount)}
+                disabled={sharing || (!!qrValue && !qrCount)}
                 loadingText="Preparing image…"
                 onPress={async () => {
                   if (lock.current || !svg.current) return;
