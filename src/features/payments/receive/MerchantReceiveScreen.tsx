@@ -100,7 +100,12 @@ function MerchantCheckout({
                   if (value === 'lightning') setLightningOpened(true);
                 }}
               >
-                <Text fontFamily="$body" fontSize={16} fontWeight="600" color="$color">
+                <Text
+                  fontFamily="$body"
+                  fontSize={16}
+                  fontWeight="600"
+                  color={method === value ? '$buttonDefaultPrimaryText' : '$color'}
+                >
                   {value === 'ecash' ? 'Ecash' : 'Lightning'}
                 </Text>
               </AppPressable>
