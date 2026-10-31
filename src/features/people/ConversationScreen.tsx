@@ -36,7 +36,8 @@ import { ConversationAvatar } from './components/ConversationAvatar';
 import { ConversationContactSheet } from './components/ConversationContactSheet';
 import { ConversationMessageSheet } from './components/ConversationMessageSheet';
 import { ConversationItemCard } from './components/ConversationItemCard';
-import { conversationDateLabel, conversationDayKey } from './conversationDates';
+import { conversationDateLabel } from './conversationDates';
+import { conversationItemLayout } from './conversationGrouping';
 import { useWalletStore } from '~/state/walletStore';
 import { hydrateSavedPerson, needsNostrProfileRefresh } from './peopleProfileCache';
 import { ConversationPaymentActions } from './components/ConversationPaymentActions';
@@ -514,42 +515,49 @@ export default function ConversationScreen() {
                   </AppButton>
                 ) : null
               }
-              renderItem={({ item, index }) => (
-                <YStack
-                  key={item.id}
-                  mt={
-                    index === 0
-                      ? 0
-                      : visibleActivity[index - 1].direction === item.direction
-                        ? 6
-                        : 14
-                  }
-                >
-                  {(index === 0 ||
-                    conversationDayKey(visibleActivity[index - 1].time) !==
-                      conversationDayKey(item.time)) && (
-                    <YStack
-                      self="center"
-                      bg="$buttonDefaultSecondary"
-                      rounded={20}
-                      px="$3"
-                      py="$1"
-                      my="$3"
-                    >
-                      <Text fontSize="$2" color="$gray10">
-                        {conversationDateLabel(item.time)}
+              renderItem={({ item, index }) => {
+                const layout = conversationItemLayout(visibleActivity, index);
+                return (
+                  <YStack key={item.id} mt={layout.spacing}>
+                    {layout.showDate && (
+                      <YStack
+                        self="center"
+                        bg="$buttonDefaultSecondary"
+                        rounded={20}
+                        px="$3"
+                        py="$1"
+                        my="$3"
+                      >
+                        <Text fontSize="$2" color="$gray10">
+                          {conversationDateLabel(item.time)}
+                        </Text>
+                      </YStack>
+                    )}
+                    <ConversationItemCard
+                      item={item}
+                      {...amounts(item.amount)}
+                      onPress={() => openDetails(item)}
+                      onPay={isPayableRequest(item) ? () => reviewRequest(item) : undefined}
+                      payDisabled={!accepted || blocked}
+                    />
+                    {layout.showTime && (
+                      <Text
+                        self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
+                        fontSize={11}
+                        lineHeight={16}
+                        color="$gray10"
+                        mt={4}
+                        mx={4}
+                      >
+                        {new Date(item.time).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </Text>
-                    </YStack>
-                  )}
-                  <ConversationItemCard
-                    item={item}
-                    {...amounts(item.amount)}
-                    onPress={() => openDetails(item)}
-                    onPay={isPayableRequest(item) ? () => reviewRequest(item) : undefined}
-                    payDisabled={!accepted || blocked}
-                  />
-                </YStack>
-              )}
+                    )}
+                  </YStack>
+                );
+              }}
               ListEmptyComponent={
                 <YStack flex={1} items="center" justify="center" gap="$3" p="$5">
                   <ConversationAvatar npub={npub} picture={person?.picture} size={72} />
