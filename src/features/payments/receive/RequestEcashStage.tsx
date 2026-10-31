@@ -288,8 +288,11 @@ export function RequestEcashStage({
     nfcIncoming.status === 'receiving' ||
     incomingPayment?.status === 'claiming';
   React.useEffect(() => {
-    merchant?.onBusyChange(!!isRequestBusy);
-  }, [isRequestBusy, merchant?.onBusyChange]);
+    // A verified receipt can precede the NFC acknowledgement to the payer.
+    // The coordinator owns that acknowledgement; it must not hold up the next sale.
+    const saleReceived = merchant && (merchant.completed || step === 'success');
+    merchant?.onBusyChange(!!isRequestBusy && !saleReceived);
+  }, [isRequestBusy, merchant?.onBusyChange, merchant?.completed, step]);
   React.useEffect(() => {
     if (!merchant || merchantStarted.current || !npub) return;
     merchantStarted.current = true;

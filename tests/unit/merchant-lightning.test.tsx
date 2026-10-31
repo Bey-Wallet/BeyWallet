@@ -129,3 +129,45 @@ it('stops checking and toggling busy after another method completes the sale', a
   expect(props.onBusyChange).toHaveBeenCalledTimes(busyChanges);
   expect(mockUnsubscribe).toHaveBeenCalled();
 });
+
+it('releases an unused invoice creation lock immediately when ecash completes', async () => {
+  let finish!: (quote: unknown) => void;
+  mockCreate.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await open();
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
+  await act(async () => tree.update(<MerchantLightningStage {...props} listening={false} />));
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
+  expect(props.onReceived).not.toHaveBeenCalled();
+  await act(async () => {
+    finish({ quote: 'sale-quote', request: 'lnbc-invoice' });
+  });
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+});
+
+it('keeps collection locked until redemption returns even after a redeemed event', async () => {
+  await open();
+  let finish!: () => void;
+  mockRedeem.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = tree.root.findByType('Payment' as any).props.onPaid();
+  });
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
+  await act(async () => mockListener({ mintUrl: 'mint-a', quoteId: 'sale-quote' }));
+  await act(async () => tree.update(<MerchantLightningStage {...props} listening={false} />));
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
+});

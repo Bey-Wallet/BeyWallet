@@ -35,7 +35,12 @@ export function MerchantLightningStage({
   const pendingQuote = useRef<Promise<Quote> | null>(null);
   const collectLock = useRef(false);
   useFeedbackOwner(quote?.quote);
-  useEffect(() => onBusyChange(creating || collecting), [creating, collecting, onBusyChange]);
+  // An unused invoice may finish creating after ecash completes the sale.
+  // Collection still blocks until its persisted wallet operation returns.
+  useEffect(
+    () => onBusyChange((listening && creating) || collecting),
+    [creating, collecting, listening, onBusyChange],
+  );
   useEffect(() => {
     let active = true;
     setCreating(true);

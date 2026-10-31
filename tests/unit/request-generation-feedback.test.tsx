@@ -241,6 +241,33 @@ it('creates one merchant request for the frozen sale and confirms only verified 
   await act(async () => tree.unmount());
 });
 
+it('releases the merchant lock after a saved receipt while NFC acknowledgement is still pending', async () => {
+  mockEncodingFails = false;
+  mockNfcIncoming = { status: 'receiving' };
+  const merchant = {
+    amount: 64,
+    note: '',
+    mintUrl: 'https://mint.test',
+    active: true,
+    onReceived: jest.fn(),
+    onBusyChange: jest.fn(),
+  };
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RequestEcashStage merchant={merchant} />);
+  });
+  expect(merchant.onBusyChange).toHaveBeenLastCalledWith(true);
+  expect(merchant.onReceived).not.toHaveBeenCalled();
+  const request = useNostrRequestStore.getState().requests[0];
+  await act(async () => {
+    useNostrRequestStore.setState({ requests: [{ ...request, state: 'received' }] });
+  });
+  expect(mockNfcIncoming.status).toBe('receiving');
+  expect(merchant.onReceived).toHaveBeenCalledTimes(1);
+  expect(merchant.onBusyChange).toHaveBeenLastCalledWith(false);
+  await act(async () => tree.unmount());
+});
+
 it('opens directly on the QR screen and leaves a failed generation retryable', async () => {
   let tree!: ReactTestRenderer;
   await act(async () => {
