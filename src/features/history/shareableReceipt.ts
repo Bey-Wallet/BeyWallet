@@ -13,7 +13,7 @@ export type ShareableReceipt = {
   mint: string;
   qr?: string;
   method: 'Ecash' | 'Lightning' | 'Bitcoin' | 'Transfer';
-  direction: 'Sent' | 'Received' | 'Transfer';
+  direction: 'Sent' | 'Received' | 'Sending' | 'Receiving' | 'Outgoing' | 'Incoming' | 'Transfer';
   status: 'Confirmed' | 'Pending' | 'Failed' | 'Cancelled' | 'Expired' | 'Refunded';
   date: string;
 };
@@ -67,6 +67,20 @@ export function buildShareableReceipt(
         : label
       : 'Pending'
   ) as ShareableReceipt['status'];
+  const outgoing = ['send', 'melt'].includes(entry.type);
+  const direction = transfer
+    ? 'Transfer'
+    : status === 'Confirmed'
+      ? outgoing
+        ? 'Sent'
+        : 'Received'
+      : status === 'Pending'
+        ? outgoing
+          ? 'Sending'
+          : 'Receiving'
+        : outgoing
+          ? 'Outgoing'
+          : 'Incoming';
   return {
     mint,
     sats: amount,
@@ -82,9 +96,11 @@ export function buildShareableReceipt(
             ? rail === 'onchain'
               ? 'Bitcoin payment'
               : 'Lightning payment'
-            : entry.type === 'receive'
-              ? 'Ecash received'
-              : 'Ecash sent',
+            : status !== 'Confirmed'
+              ? 'Ecash payment'
+              : entry.type === 'receive'
+                ? 'Ecash received'
+                : 'Ecash sent',
     amount: `${options.bitcoinSymbol === false ? '' : '₿ '}${amount.toLocaleString('en-US')}${options.bitcoinSymbol === false ? ' sat' : ''}`,
     method: transfer
       ? 'Transfer'
@@ -93,7 +109,7 @@ export function buildShareableReceipt(
         : rail === 'onchain'
           ? 'Bitcoin'
           : 'Ecash',
-    direction: transfer ? 'Transfer' : ['send', 'melt'].includes(entry.type) ? 'Sent' : 'Received',
+    direction,
     status,
     date: new Date(entry.createdAt).toLocaleString(undefined, {
       dateStyle: 'medium',

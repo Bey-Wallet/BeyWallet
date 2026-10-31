@@ -33,7 +33,7 @@ it('exports an explicit public field allowlist and keeps unclaimed ecash pending
   ]);
   expect(summary).toMatchObject({
     amount: '₿ 1,234',
-    direction: 'Sent',
+    direction: 'Sending',
     method: 'Ecash',
     status: 'Pending',
   });
@@ -58,6 +58,25 @@ it('keeps unfinished transfers pending and uses confirmed completion only', () =
     status: 'Pending',
   });
   expect(buildShareableReceipt(transfer, { transferState: 'completed' })?.status).toBe('Confirmed');
+});
+
+it.each([
+  ['receive-request', 'pending', 'Receiving'],
+  ['mint', 'UNPAID', 'Receiving'],
+  ['mint', 'PAID', 'Receiving'],
+  ['receive', 'unclaimed', 'Receiving'],
+  ['send', 'unclaimed', 'Sending'],
+  ['melt', 'pending', 'Sending'],
+  ['receive', 'completed', 'Received'],
+  ['mint', 'ISSUED', 'Received'],
+  ['send', 'claimed', 'Sent'],
+  ['melt', 'paid', 'Sent'],
+  ['send', 'failed', 'Outgoing'],
+  ['receive-request', 'cancelled', 'Incoming'],
+] as const)('keeps direction accurate for %s %s', (type, state, direction) => {
+  const receipt = buildShareableReceipt({ ...entry, type, state })!;
+  expect(receipt.direction).toBe(direction);
+  if (receipt.status !== 'Confirmed') expect(receipt.type).not.toMatch(/Ecash (sent|received)/);
 });
 it('respects the symbol preference and shows a verified reclaim as refunded', () => {
   expect(buildShareableReceipt(entry, { bitcoinSymbol: false, reclaimed: true })).toMatchObject({
