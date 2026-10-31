@@ -252,7 +252,6 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             onRecheck={() => {
               void recheckConnection({ cancelRefetch: false });
             }}
-            preview
           />
         </YStack>
       </ScrollView>

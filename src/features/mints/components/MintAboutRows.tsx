@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, YStack } from 'tamagui';
-import { ListTableRow } from '~/shared/ui/ListTable';
-import { mintPreviewMethods } from './MintPreviewMethods';
+import { MintPreviewMethods, mintPreviewMethods } from './MintPreviewMethods';
+import { MintInfoRow } from './MintInfoRow';
 import { MintTermsRow } from './MintTermsRow';
 import { MintNutsRow } from './MintNutsRow';
 import { MintContacts } from './MintContacts';
@@ -27,16 +27,16 @@ export function MintAboutRows({ url, info }: { url: string; info: Record<string,
           </Text>
         </YStack>
       )}
-      <ListTableRow label="URL" value={url} isCopyable copyValue={url} />
-      <MintTermsRow url={info.tos_url} />
-      <MintContacts contacts={info.contact} />
-      <ListTableRow label="Technical details" labelColor="$color" />
-      {text(info.version) && <ListTableRow label="Version" value={text(info.version)} />}
-      <ListTableRow label="Units" value={units.join(', ') || 'Not provided'} />
-      {text(info.pubkey) && (
-        <ListTableRow label="Public key" value={text(info.pubkey)} isCopyable />
-      )}
+      <MintInfoRow label="URL" value={url} copyValue={url} />
+      {text(info.version) && <MintInfoRow label="Version" value={text(info.version)!} />}
+      <MintInfoRow label="Units" value={units.join(', ') || 'Not provided'} />
+      <MintPreviewMethods info={info} />
       <MintNutsRow key={url} nuts={info.nuts} />
+      <MintContacts contacts={info.contact} />
+      {text(info.pubkey) && (
+        <MintInfoRow label="Public key" value={text(info.pubkey)!} copyValue={text(info.pubkey)} />
+      )}
+      <MintTermsRow url={info.tos_url} />
     </>
   );
 }

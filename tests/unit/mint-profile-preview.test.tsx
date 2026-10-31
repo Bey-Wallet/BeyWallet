@@ -1,7 +1,9 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
+import { MintInfoRow } from '~/features/mints/components/MintInfoRow';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -200,6 +202,7 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium' },
 }));
 jest.mock('expo-sharing', () => ({}));
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
@@ -213,7 +216,9 @@ jest.mock('react-native/Libraries/Modal/Modal', () => ({
 
 let tree: ReactTestRenderer;
 const row = (label: string) =>
-  tree.root.findAllByType('ListTableRow' as any).find((node) => node.props.label === label)!;
+  tree.root
+    .findAll((node) => node.type === ('ListTableRow' as any) || node.type === MintInfoRow)
+    .find((node) => node.props.label === label)!;
 const button = (label: string) =>
   tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === label)!;
 const score = () => row('Reliability score');
@@ -280,46 +285,33 @@ const render = async (section = 'reliability') => {
   });
 };
 
-it('keeps preview focused and expands full-width information without navigation or nested lists', async () => {
+it('shows compact mint facts on preview and keeps reliability in its own card', async () => {
   await render('preview');
   expect(row('Connection').props.value).toBe('Reachable');
   expect(row('Deposit').props.value).toBe('Lightning');
   expect(row('Withdraw').props.value).toBe('Lightning');
+  expect(row('Deposit limits').props.value).toBe('0 sat – 1,000 sat');
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(row('URL').props.copyValue).toBe(url);
   expect(row('Reliability').props.value).toBe('99% uptime · 7d');
-  for (const label of [
-    'Version',
-    'Public key',
-    'Minimum',
-    'Uptime · 24 hours',
-    'Reliability score',
-  ]) {
-    expect(row(label)).toBeUndefined();
-  }
-  await act(async () => row('Payments & limits').props.onPress());
-  expect(row('Minimum')).toBeDefined();
-  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
-  expect(
-    tree.root.findAllByType('ListTableRow' as any).filter((node) => node.props.label === 'Deposit'),
-  ).toHaveLength(1);
-  expect(row('Payments & limits').props.expanded).toBe(true);
-  await act(async () => row('Reliability').props.onPress());
   expect(row('Minimum')).toBeUndefined();
+  expect(row('Uptime · 24 hours')).toBeUndefined();
+  const card = row('Reliability').parent;
+  expect(card?.findAllByType(MintInfoRow)).toHaveLength(0);
+  await act(async () => row('Payment details').props.onPress());
+  expect(row('Minimum')).toBeDefined();
+  expect(row('Payment details').props.expanded).toBe(true);
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
+  await act(async () => row('Reliability').props.onPress());
   expect(row('Uptime · 24 hours')).toBeDefined();
-  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
+  expect(row('Version').props.value).toBe('cdk/0.17');
+  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
   expect(
     tree.root
       .findAllByType('ListTableRow' as any)
       .filter((node) => node.props.label === 'Connection'),
   ).toHaveLength(1);
   expect(mockPush).not.toHaveBeenCalled();
-  await act(async () => row('About this mint').props.onPress());
-  expect(row('About this mint').props.expanded).toBe(true);
-  expect(row('URL').props.copyValue).toBe(url);
-  expect(row('Version').props.value).toBe('cdk/0.17');
-  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(3);
-  expect(mockPush).not.toHaveBeenCalled();
-  await act(async () => row('About this mint').props.onPress());
-  expect(row('Version')).toBeUndefined();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
 
@@ -333,9 +325,10 @@ it('keeps the test-mint warning visible before adding even when only cashu.info 
 
 it('keeps payment limits expandable inline and technical details directly inside About', async () => {
   await render('payments');
+  await act(async () => row('Payment details').props.onPress());
   expect(
     tree.root
-      .findAllByType('ListTableRow' as any)
+      .findAllByType(MintInfoRow)
       .filter((node) => node.props.label === 'Maximum')
       .map((node) => node.props.value),
   ).toEqual(['1,000 sat', '2,000 sat']);
@@ -345,7 +338,7 @@ it('keeps payment limits expandable inline and technical details directly inside
   });
   expect(row('Version').props.value).toBe('cdk/0.17');
   expect(row('URL').props.copyValue).toBe(url);
-  expect(row('Advertised NUTs')).toBeDefined();
+  expect(tree.root.findAllByProps({ accessibilityRole: 'text' })).toHaveLength(3);
   expect(mockPush).not.toHaveBeenCalled();
 });
 
@@ -447,26 +440,16 @@ it('retains the new-mint cap explanation with historical scores', async () => {
   ).toBe(true);
 });
 
-it('expands only the advertised NUTs with numbers, names, and checks, then collapses', async () => {
+it('shows advertised feature names in two columns with their NUT numbers accessible', async () => {
   await render('technical');
-  const toggle = () => tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' });
-  const entries = () =>
-    tree.root
-      .findAllByType('ListTableRow' as any)
-      .filter((node) => node.props.label.startsWith('NUT-'));
-  expect(row('Advertised NUTs').props.value).toBe(3);
-  expect(entries()).toHaveLength(0);
-  await act(async () => toggle().props.onPress());
-  expect(toggle().props.accessibilityState.expanded).toBe(true);
-  expect(entries().map((node) => node.props.label)).toEqual([
+  const entries = tree.root.findAllByProps({ accessibilityRole: 'text' });
+  expect(entries.map((node) => node.props.accessibilityLabel)).toEqual([
     'NUT-04 · Minting tokens',
     'NUT-05 · Melting tokens',
     'NUT-14 · HTLC locking',
   ]);
-  expect(entries().every((node) => node.props.rightContent.type === 'Check')).toBe(true);
-  await act(async () => toggle().props.onPress());
-  expect(toggle().props.accessibilityState.expanded).toBe(false);
-  expect(entries()).toHaveLength(0);
+  expect(entries.every((node) => node.props.width === '50%')).toBe(true);
+  expect(tree.root.findAllByType('Check' as any)).toHaveLength(3);
 });
 
 it('does not tick explicitly unsupported, disabled, or malformed NUT entries', async () => {
@@ -487,16 +470,50 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
       />,
     );
   });
-  expect(row('Advertised NUTs').props.value).toBe(3);
-  await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Advertised NUTs' }).props.onPress(),
-  );
   expect(
     tree.root
-      .findAllByType('ListTableRow' as any)
-      .filter((node) => node.props.label.startsWith('NUT-'))
-      .map((node) => node.props.label),
+      .findAllByProps({ accessibilityRole: 'text' })
+      .map((node) => node.props.accessibilityLabel),
   ).toEqual(['NUT-04 · Minting tokens', 'NUT-14 · HTLC locking', 'NUT-44 · Additional capability']);
+});
+
+it('copies a long public key in full while keeping the displayed value to one line', async () => {
+  const publicKey = '03' + 'ab'.repeat(32);
+  await act(async () => {
+    tree = create(<MintAboutRows url={url} info={{ ...mockInfo, pubkey: publicKey }} />);
+  });
+  const keyText = tree.root
+    .findAllByType('Text' as any)
+    .find((node) => node.props.children === publicKey)!;
+  expect(keyText.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'middle' });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Copy public key' }).props.onPress(),
+  );
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(publicKey);
+});
+
+it('deduplicates equal limits without mixing methods with different limits or units', async () => {
+  await act(async () => {
+    tree = create(
+      <MintPreviewMethods
+        info={{
+          nuts: {
+            '4': {
+              methods: [
+                { method: 'bolt11', unit: 'sat', min_amount: 0, max_amount: 1000 },
+                { method: 'bolt12', unit: 'sat', min_amount: 0, max_amount: 1000 },
+                { method: 'onchain', unit: 'sat', min_amount: 100, max_amount: 2000 },
+                { method: 'bolt11', unit: 'usd', min_amount: 1, max_amount: 10 },
+              ],
+            },
+          },
+        }}
+      />,
+    );
+  });
+  expect(row('Deposit limits').props.value).toBe(
+    'Lightning / BOLT 12: 0 sat – 1,000 sat\nOn-chain: 100 sat – 2,000 sat\n1 usd – 10 usd',
+  );
 });
 
 it('opens the colored terms link in the browser with an external-link icon', async () => {

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Text, YStack } from 'tamagui';
-import { Activity, Info, Wallet, RefreshCw, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { Activity, RefreshCw, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
-import { MintPreviewMethods } from './MintPreviewMethods';
 import { MintAboutRows } from './MintAboutRows';
 
 export function MintOverview({
@@ -13,19 +12,15 @@ export function MintOverview({
   info,
   connection,
   onRecheck,
-  preview = false,
   connectionCheckedAt,
 }: {
   url: string;
   info: Record<string, any>;
   connection: 'online' | 'offline' | 'checking';
   onRecheck: () => void;
-  preview?: boolean;
   connectionCheckedAt?: number;
 }) {
-  const [expanded, setExpanded] = useState<'payments' | 'reliability' | 'about' | null>(null);
-  const toggle = (section: 'payments' | 'reliability' | 'about') =>
-    setExpanded((value) => (value === section ? null : section));
+  const [expanded, setExpanded] = useState(false);
   const radar = useRadarHealth(url);
   const list = useCashuHealthList();
   const monitoredMint = list.data?.find((mint) => mint.url === mintHealthUrl(url));
@@ -58,72 +53,55 @@ export function MintOverview({
           </Text>
         </YStack>
       )}
-      <ListTable compact>
-        <ListTableRow
-          label="Connection"
-          value={
-            connection === 'checking'
-              ? 'Checking…'
-              : connection === 'offline'
-                ? 'Unreachable'
-                : 'Reachable'
-          }
-          valueColor={connection === 'online' ? '$green11' : '$gray10'}
-          rightContent={
-            <AppIconButton
-              emphasis="ghost"
-              size="xxsmall"
-              icon={RefreshCw}
-              accessibilityLabel="Recheck mint connection"
-              loadingText="Checking mint connection…"
-              loading={connection === 'checking'}
-              disabled={connection === 'checking'}
-              onPress={onRecheck}
-            />
-          }
-        />
-      </ListTable>
-      {preview && (
-        <YStack gap="$3">
-          <Text color="$gray10" fontSize="$4" fontWeight="600">
-            Payment methods
-          </Text>
-          <ListTable compact>
-            <MintPreviewMethods info={info} summaryOnly />
-          </ListTable>
-        </YStack>
-      )}
+      <YStack gap="$2">
+        <Text color="$gray10" fontSize={14} fontWeight="600">
+          Mint details
+        </Text>
+        <ListTable compact>
+          <MintAboutRows url={url} info={info} />
+        </ListTable>
+      </YStack>
       <YStack gap="$2">
         <ListTable compact>
           <ListTableRow
-            label="Payments & limits"
-            icon={Wallet}
-            onPress={() => toggle('payments')}
-            expanded={expanded === 'payments'}
+            label="Connection"
+            value={
+              connection === 'checking'
+                ? 'Checking…'
+                : connection === 'offline'
+                  ? 'Unreachable'
+                  : 'Reachable'
+            }
+            valueColor={connection === 'online' ? '$green11' : '$gray10'}
             rightContent={
-              expanded === 'payments' ? (
-                <ChevronUp size={20} color="$gray10" />
-              ) : (
-                <ChevronDown size={20} color="$gray10" />
-              )
+              <AppIconButton
+                emphasis="ghost"
+                size="xxsmall"
+                icon={RefreshCw}
+                accessibilityLabel="Recheck mint connection"
+                loadingText="Checking mint connection…"
+                loading={connection === 'checking'}
+                disabled={connection === 'checking'}
+                onPress={onRecheck}
+              />
             }
           />
-          {expanded === 'payments' && <MintPreviewMethods info={info} hideSummary={preview} />}
+
           <ListTableRow
             label="Reliability"
             icon={Activity}
             value={reliability}
-            onPress={() => toggle('reliability')}
-            expanded={expanded === 'reliability'}
+            onPress={() => setExpanded((value) => !value)}
+            expanded={expanded}
             rightContent={
-              expanded === 'reliability' ? (
+              expanded ? (
                 <ChevronUp size={20} color="$gray10" />
               ) : (
                 <ChevronDown size={20} color="$gray10" />
               )
             }
           />
-          {expanded === 'reliability' && (
+          {expanded && (
             <MintPreviewHealth
               url={url}
               connection={connection}
@@ -132,20 +110,6 @@ export function MintOverview({
               showConnection={false}
             />
           )}
-          <ListTableRow
-            label="About this mint"
-            icon={Info}
-            onPress={() => toggle('about')}
-            expanded={expanded === 'about'}
-            rightContent={
-              expanded === 'about' ? (
-                <ChevronUp size={20} color="$gray10" />
-              ) : (
-                <ChevronDown size={20} color="$gray10" />
-              )
-            }
-          />
-          {expanded === 'about' && <MintAboutRows url={url} info={info} />}
         </ListTable>
         <Text color="$gray10" fontSize={12}>
           Uptime: {source} · Does not verify fund safety.

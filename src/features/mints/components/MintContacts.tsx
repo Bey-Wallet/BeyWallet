@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListTableRow } from '~/shared/ui/ListTable';
+import { MintInfoRow } from './MintInfoRow';
 
 export function MintContacts({ contacts }: { contacts: unknown }) {
   const rows = (Array.isArray(contacts) ? contacts : []).flatMap((contact) => {
@@ -11,12 +11,9 @@ export function MintContacts({ contacts }: { contacts: unknown }) {
   });
   return (
     <>
-      <ListTableRow label="Contact & support" labelColor="$color" />
-      {rows.length ? (
-        rows.map((row, index) => <ListTableRow key={index} {...row} isCopyable />)
-      ) : (
-        <ListTableRow label="No contacts listed" />
-      )}
+      {rows.map((row, index) => (
+        <MintInfoRow key={index} {...row} copyValue={row.value} />
+      ))}
     </>
   );
 }

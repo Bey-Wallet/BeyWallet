@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
-import { AppPressable } from '~/shared/ui/AppPressable';
-import { ListTableRow } from '~/shared/ui/ListTable';
+import React from 'react';
+import { Check } from '@tamagui/lucide-icons';
+import { Text, XStack, YStack } from 'tamagui';
 
 // Names follow https://github.com/cashubtc/nuts; only advertised entries are rendered.
 const nutNames: Record<number, string> = {
@@ -54,37 +53,33 @@ function advertisedNuts(nuts: unknown) {
 }
 
 export function MintNutsRow({ nuts }: { nuts: unknown }) {
-  const [expanded, setExpanded] = useState(false);
   const entries = advertisedNuts(nuts);
+  if (!entries.length) return null;
   return (
-    <>
-      <AppPressable
-        minHeight={48}
-        accessibilityLabel="Advertised NUTs"
-        accessibilityState={{ expanded, disabled: entries.length === 0 }}
-        disabled={entries.length === 0}
-        onPress={() => setExpanded((value) => !value)}
-      >
-        <ListTableRow
-          label="Advertised NUTs"
-          value={entries.length}
-          rightContent={
-            expanded ? (
-              <ChevronUp size={18} color="$gray10" />
-            ) : (
-              <ChevronDown size={18} color="$gray10" />
-            )
-          }
-        />
-      </AppPressable>
-      {expanded &&
-        entries.map(([id, name]) => (
-          <ListTableRow
+    <YStack borderTopWidth={2} borderColor="$background">
+      <Text px="$page" pt="$3" pb="$2" fontSize={12} fontWeight="600" color="$gray10">
+        Advertised features
+      </Text>
+      <XStack flexWrap="wrap">
+        {entries.map(([id, name]) => (
+          <XStack
             key={id}
-            label={`NUT-${String(id).padStart(2, '0')} · ${name}`}
-            rightContent={<Check size={18} color="$green11" />}
-          />
+            width="50%"
+            px="$page"
+            py="$2"
+            gap="$2"
+            items="flex-start"
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
+          >
+            <Check size={16} color="$green11" />
+            <Text color="$color" fontSize={14} lineHeight={20} flex={1}>
+              {name}
+            </Text>
+          </XStack>
         ))}
-    </>
+      </XStack>
+    </YStack>
   );
 }

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { MintInfoRow } from './MintInfoRow';
 import { ListTableRow } from '~/shared/ui/ListTable';
 
 type Info = Record<string, any>;
@@ -73,47 +75,74 @@ export function mintPreviewMethods(info: Info) {
   return rows;
 }
 
-export function MintPreviewMethods({
-  info,
-  summaryOnly = false,
-  hideSummary = false,
-}: {
-  info: Info;
-  summaryOnly?: boolean;
-  hideSummary?: boolean;
-}) {
+export function MintPreviewMethods({ info }: { info: Info }) {
+  const [expanded, setExpanded] = useState(false);
   const rows = mintPreviewMethods(info);
+  const activeRows = (direction: string) =>
+    rows.filter((row) => row.direction === direction && !row.disabled);
   const summary = (direction: string) =>
-    [
-      ...new Set(
-        rows
-          .filter((row) => row.direction === direction && !row.disabled)
-          .map((row) => methodName(row.method)),
-      ),
-    ].join(' · ') || 'Not advertised';
+    [...new Set(activeRows(direction).map((row) => methodName(row.method)))].join(' · ') ||
+    'Not advertised';
+  const limits = (direction: string) => {
+    const groups = new Map<
+      string,
+      { minimum: string; maximum: string; unit?: string; methods: string[] }
+    >();
+    for (const row of activeRows(direction)) {
+      const key = JSON.stringify([row.minimum, row.maximum, row.unit]);
+      const group = groups.get(key);
+      if (group) group.methods.push(methodName(row.method));
+      else groups.set(key, { ...row, methods: [methodName(row.method)] });
+    }
+    const entries = [...groups.values()];
+    return entries
+      .map((row) => {
+        const range =
+          row.minimum === 'Not provided' && row.maximum === 'Not provided'
+            ? 'Not provided'
+            : row.minimum === 'Not provided'
+              ? `Up to ${row.maximum}`
+              : row.maximum === 'Not provided'
+                ? `From ${row.minimum}`
+                : `${row.minimum} – ${row.maximum}`;
+        const varying = entries.filter((other) => other.unit === row.unit).length > 1;
+        return `${varying ? row.methods.join(' / ') + ': ' : ''}${range}`;
+      })
+      .join('\n');
+  };
   return (
     <>
-      {!hideSummary && (
-        <>
-          <ListTableRow label="Deposit" value={summary('Receive')} />
-          <ListTableRow label="Withdraw" value={summary('Send')} />
-        </>
+      <MintInfoRow label="Deposit" value={summary('Receive')} />
+      <MintInfoRow label="Withdraw" value={summary('Send')} />
+      {limits('Receive') && <MintInfoRow label="Deposit limits" value={limits('Receive')} />}
+      {limits('Send') && <MintInfoRow label="Withdraw limits" value={limits('Send')} />}
+      {rows.length > 0 && (
+        <ListTableRow
+          label="Payment details"
+          expanded={expanded}
+          rightContent={
+            expanded ? (
+              <ChevronUp size={20} color="$gray10" />
+            ) : (
+              <ChevronDown size={20} color="$gray10" />
+            )
+          }
+          onPress={() => setExpanded((value) => !value)}
+        />
       )}
-      {!summaryOnly && rows.length === 0 && <ListTableRow label="No payment limits advertised" />}
-      {!summaryOnly &&
+      {expanded &&
         rows.map((row, index) => (
           <React.Fragment key={index}>
-            <ListTableRow
+            <MintInfoRow
               label={`${row.direction === 'Receive' ? 'Deposit' : 'Withdraw'} · ${methodName(row.method)}${row.unit ? ` · ${row.unit}` : ''}`}
-              labelColor="$color"
-              value={row.disabled ? 'Disabled by mint' : undefined}
+              value={row.disabled ? 'Disabled by mint' : 'Advertised by mint'}
             />
-            <ListTableRow label="Minimum" value={row.minimum} />
-            <ListTableRow label="Maximum" value={row.maximum} />
-            {row.fee !== undefined && <ListTableRow label="Published fee" value={row.fee} />}
-            {row.network && <ListTableRow label="Network" value={row.network} />}
+            <MintInfoRow label="Minimum" value={row.minimum} />
+            <MintInfoRow label="Maximum" value={row.maximum} />
+            {row.fee !== undefined && <MintInfoRow label="Published fee" value={row.fee} />}
+            {row.network && <MintInfoRow label="Network" value={row.network} />}
             {row.confirmations !== undefined && (
-              <ListTableRow label="Confirmations" value={String(row.confirmations)} />
+              <MintInfoRow label="Confirmations" value={String(row.confirmations)} />
             )}
           </React.Fragment>
         ))}
