@@ -19,7 +19,11 @@ percentage. A permanent **Search people** field offers Paste/Clear. Recent and R
 tap-based, equal-width tabs; only Requests has an actionable-count badge.
 
 People rows use circular 48px avatars, verified badges, a name and latest-activity preview, compact
-timestamps, and an unread dot. Tapping anywhere on a row opens its conversation. Pay/Request live
+timestamps, and a red numeric unread badge. The row count combines unread messages and unseen
+payments, excludes dismissed payments, and clears as activity is read. Payment issue rows count
+only their own unseen payment. The People bottom-tab and Recent/Requests badges remain counts
+of unread conversations, using the same red surface and white text. Visual counts cap at `99+`;
+row accessibility labels retain the full count. Tapping anywhere on a row opens its conversation. Pay/Request live
 in that conversation rather than as competing row actions. Accepted people without activity sort
 alphabetically after active conversations. Requests separates People requests and Payment issues;
 issue rows open the existing claim review sheet without starting a claim.
@@ -147,6 +151,13 @@ Never change mint trust, P2PK validation, retry classification, or already-spent
 to make a failing payment appear successful. These are security-critical payment semantics.
 
 ## Text chat
+
+Conversation keyboard movement uses the Expo SDK-compatible Keyboard Controller 1.18.5 and a
+single app-level provider. Keyboard preloading is disabled on startup. The conversation uses
+padding avoidance on both native platforms and keeps the latest activity anchored on viewport
+resize only while already near the bottom; reading older messages and pagination anchors retain
+their position. Existing custom clients require a native rebuild. See the
+[People chat UX plan](../plans/people-chat-ux.md) for the implementation boundary and next proposals.
 
 Outgoing chat defaults to [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md): kind `14`
 rumor, kind `13` seal and kind `1059` gift wrap. Sender and recipient copies share the same rumor.

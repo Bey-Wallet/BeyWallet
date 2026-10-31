@@ -18,6 +18,7 @@ export interface PeopleListItem {
   preview: string;
   updatedAt?: number;
   unread: boolean;
+  unreadCount: number;
   icon?: 'ecash' | 'lightning' | 'request';
   issueId?: string;
   profile: NostrProfile;
@@ -161,6 +162,7 @@ export function buildPeopleListModel({
     verified: hasVerifiedNip05(profile),
     preview: profile.nip05 || shortKey(profile.npub),
     unread: false,
+    unreadCount: 0,
     profile,
   });
   for (const profile of profiles.values()) {
@@ -186,12 +188,16 @@ export function buildPeopleListModel({
         preview: blocked ? `Blocked · ${identity.preview}` : identity.preview,
       });
     if (blocked) continue;
+    const unreadCount =
+      (unread[npub] || 0) +
+      payments.filter((item) => !item.seen && item.status !== 'dismissed').length;
     const row: PeopleListItem = {
       ...identity,
       kind: accepted ? 'conversation' : 'invitation',
       ...summarize(latest, formatAmount),
       updatedAt: latest?.time,
-      unread: !!unread[npub] || payments.some((item) => !item.seen && item.status !== 'dismissed'),
+      unread: unreadCount > 0,
+      unreadCount,
     };
     if (accepted) conversations.push(row);
     else if (
@@ -225,6 +231,8 @@ export function buildPeopleListModel({
             .join(' · '),
           icon: item.type === 'request' ? 'request' : 'ecash',
           updatedAt: item.receivedAt,
+          unread: !item.seen,
+          unreadCount: item.seen ? 0 : 1,
         });
       }
   }

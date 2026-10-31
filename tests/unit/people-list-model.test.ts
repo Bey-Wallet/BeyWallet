@@ -191,9 +191,55 @@ it('marks unread activity without leaking unread markers into previews and respe
   expect(model.conversations.find((row) => row.npub === alice)).toMatchObject({
     preview: 'Failed · You: Hi',
     unread: true,
+    unreadCount: 3,
   });
+  expect(model.conversations.find((row) => row.npub === bob)?.unreadCount).toBe(1);
   expect(model.conversations.find((row) => row.npub === bob)?.preview).toContain('$2.00');
   expect(model.conversations.some((row) => row.preview.includes('Unread'))).toBe(false);
+});
+
+it('counts unread messages and unseen payments together, excluding read and dismissed payments', () => {
+  const model = build({
+    unread: { [alice]: 4 },
+    inbox: [
+      payment(alice),
+      payment(alice, 'claimed'),
+      { ...payment(alice, 'failed'), seen: true },
+      payment(alice, 'dismissed'),
+    ],
+  });
+  expect(model.conversations.find((row) => row.npub === alice)).toMatchObject({
+    unread: true,
+    unreadCount: 6,
+  });
+  const read = build({
+    unread: {},
+    inbox: [{ ...payment(alice), seen: true }],
+  });
+  expect(read.conversations.find((row) => row.npub === alice)).toMatchObject({
+    unread: false,
+    unreadCount: 0,
+  });
+});
+
+it('counts invitation activity per person and keeps payment-issue counts specific to their row', () => {
+  const model = build({
+    people: { [alice]: person(alice, 'Alice', 'unaccepted'), [bob]: person(bob, 'Bob') },
+    unread: { [alice]: 2, [bob]: 3 },
+    inbox: [
+      payment(alice),
+      payment(bob, 'approval_required'),
+      {
+        ...payment(bob, 'failed'),
+        seen: true,
+        failure: { code: 'validation', retryable: false, message: 'Invalid payment' },
+      },
+    ],
+    query: 'Alice',
+  });
+  expect(model.invitations[0].unreadCount).toBe(3);
+  expect(model.issues.map((row) => row.unreadCount)).toEqual([1, 0]);
+  expect(model.localSearch[0].unreadCount).toBe(0);
 });
 
 it('includes unknown incoming identities even before profile hydration', () => {

@@ -56,6 +56,9 @@ jest.mock('tamagui', () =>
   ),
 );
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('react-native-keyboard-controller', () => ({
+  KeyboardAvoidingView: 'ControlledKeyboardAvoidingView',
+}));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
@@ -795,6 +798,44 @@ describe('People conversations and invitations', () => {
     const pay = buttons().find((node) => node.props.children === 'Pay')!;
     expect(pay.props.disabled).toBe(false);
     expect(pay.props.flex).toBeUndefined();
+  });
+
+  it('anchors the latest activity on keyboard resize without pulling readers away from older messages', async () => {
+    const scrollToEnd = jest.fn();
+    await act(async () => {
+      tree = create(<ConversationScreen />, {
+        createNodeMock: (element) => (element.type === 'ScrollView' ? { scrollToEnd } : null),
+      });
+    });
+    expect(tree!.root.findByType('ControlledKeyboardAvoidingView' as any).props.behavior).toBe(
+      'padding',
+    );
+    const scroll = tree!.root.findByType('ScrollView' as any);
+    await act(async () => scroll.props.onLayout());
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    scrollToEnd.mockClear();
+    await act(async () =>
+      scroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 200 },
+          contentSize: { height: 3000 },
+          layoutMeasurement: { height: 600 },
+        },
+      }),
+    );
+    await act(async () => scroll.props.onLayout());
+    expect(scrollToEnd).not.toHaveBeenCalled();
+    await act(async () =>
+      scroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 2400 },
+          contentSize: { height: 3000 },
+          layoutMeasurement: { height: 600 },
+        },
+      }),
+    );
+    await act(async () => scroll.props.onLayout());
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
   });
 
   it('loads the latest 50 mixed activities first and loads older items on upward scroll', async () => {

@@ -5,9 +5,31 @@ import { Input, TamaguiProvider, Text, YStack } from 'tamagui';
 import { config } from '~/tamagui.config';
 import { appColors } from '~/shared/theme/appearance';
 import { AppButton } from '~/shared/ui/AppButton';
+import { CustomTabBar } from '~/shared/ui/CustomTabBar';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+jest.mock('~/features/people/hooks/usePeopleUnreadCounts', () => ({
+  usePeopleUnreadCounts: () => ({ total: 3 }),
+}));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+}));
+
+const tabProps: any = {
+  state: {
+    index: 0,
+    routes: [
+      { key: 'home', name: 'index' },
+      { key: 'people', name: 'people' },
+    ],
+  },
+  descriptors: {
+    home: { options: { title: 'Home', tabBarIcon: () => null } },
+    people: { options: { title: 'People', tabBarIcon: () => null } },
+  },
+  navigation: { emit: jest.fn(() => ({})), navigate: jest.fn() },
+};
 
 it.each(['dark', 'light'] as const)(
   'renders %s colors and typography through the existing provider',
@@ -31,6 +53,7 @@ it.each(['dark', 'light'] as const)(
             </Text>
             <Input testID="field" value="Kept input" />
             <AppButton testID="button">Continue</AppButton>
+            <CustomTabBar {...tabProps} />
           </TamaguiProvider>,
         );
       });
@@ -55,6 +78,19 @@ it.each(['dark', 'light'] as const)(
         expect.arrayContaining([expect.objectContaining({ backgroundColor: c.field })]),
       );
       expect(styles('button').some((style) => style?.minHeight === 48)).toBe(true);
+      const tabBar = tree.root.findByType(CustomTabBar);
+      expect(
+        tabBar.findAll((node) => {
+          const style = StyleSheet.flatten(node.props.style);
+          return style?.backgroundColor === c.negative;
+        }).length,
+      ).toBeGreaterThan(0);
+      expect(
+        tabBar.findAll((node) => {
+          const style = StyleSheet.flatten(node.props.style);
+          return node.props.children === '3' && style?.color === '#FFFFFF';
+        }).length,
+      ).toBeGreaterThan(0);
       const labelStyles = tree.root
         .findAll((node) => node.props.children === 'Continue')
         .map((node) => StyleSheet.flatten(node.props.style));

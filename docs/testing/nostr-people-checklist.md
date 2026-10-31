@@ -108,6 +108,16 @@ notifications, and complete payment flows.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
 
+## Conversation keyboard integration
+
+- [ ] Build and install a new native client with Keyboard Controller 1.18.5; do not test only through an OTA/JavaScript reload on an old custom client.
+- [ ] Open an accepted conversation on Android and iOS. Focus, dismiss and reopen the composer; confirm smooth movement, a stationary header, and a visible send button/last message.
+- [ ] Grow the composer past four scaled lines, send repeatedly and review failed sends. Confirm drafts, keyboard focus and payment cards remain usable.
+- [ ] Read older messages and open/dismiss the keyboard: preserve the visible position. Repeat while older activity is loading; no jump to the latest activity.
+- [ ] Check hardware keyboards, Android Back, gesture/three-button navigation, small phones, large text, and both themes. Check home-indicator space and keyboard gaps on iOS.
+- [ ] Review search, onboarding, protected Settings inputs and Send/Receive/mint-selection sheets after adding the app-level provider. Verify no startup keyboard flash, clipped controls or doubled safe-area padding.
+- [ ] Open contact/message sheets and Pay/Request from the composer; verify dismissal/navigation and existing payment guards with the keyboard open.
+
 ## Legacy chat compatibility
 
 - [ ] Open Conversation → Info → Messaging: NIP-17 is selected by default. Cancel leaves the choice unchanged.

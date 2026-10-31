@@ -3,14 +3,8 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  DeviceEventEmitter,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  useWindowDimensions,
-} from 'react-native';
+import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowDownLeft,
@@ -408,10 +402,7 @@ export default function ConversationScreen() {
 
   return (
     <>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <YStack flex={1} bg="$background" pt={insets.top}>
           <XStack px="$3" py="$2" items="center" gap="$2">
             <HeaderIconButton
@@ -467,6 +458,10 @@ export default function ConversationScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
+            onLayout={() => {
+              if (nearBottom.current && !prependAnchor.current)
+                scrollRef.current?.scrollToEnd({ animated: false });
+            }}
             onScrollBeginDrag={() => {
               userScrolling.current = true;
             }}

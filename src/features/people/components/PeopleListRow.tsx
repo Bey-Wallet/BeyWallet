@@ -2,6 +2,7 @@ import React from 'react';
 import { Banknote, HandCoins, Zap } from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { UnreadBadge } from '~/shared/ui/UnreadBadge';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { ConversationAvatar } from './ConversationAvatar';
 import { peopleRowTime, type PeopleListItem } from '../peopleListModel';
@@ -24,7 +25,7 @@ export const PeopleListRow = React.memo(function PeopleListRow({
       flexDirection="row"
       items="center"
       gap={12}
-      accessibilityLabel={`${item.name}${item.verified ? ', Verified NIP-05' : ''}, ${item.preview}${time ? `, ${time}` : ''}${item.unread ? ', Unread activity' : ''}`}
+      accessibilityLabel={`${item.name}${item.verified ? ', Verified NIP-05' : ''}, ${item.preview}${time ? `, ${time}` : ''}${item.unreadCount > 0 ? `, ${item.unreadCount} unread ${item.unreadCount === 1 ? 'item' : 'items'}` : ''}`}
       onPress={onPress}
     >
       <ConversationAvatar npub={item.npub} picture={item.picture} size={48} />
@@ -65,15 +66,10 @@ export const PeopleListRow = React.memo(function PeopleListRow({
               {time}
             </Text>
           )}
-          {item.unread && (
-            <YStack
-              width={8}
-              height={8}
-              rounded={4}
-              bg="$buttonDefaultPrimary"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            />
+          {item.unreadCount > 0 && (
+            <YStack accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <UnreadBadge count={item.unreadCount} />
+            </YStack>
           )}
         </YStack>
       )}

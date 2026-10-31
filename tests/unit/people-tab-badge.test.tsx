@@ -47,6 +47,9 @@ it('shows a numeric badge only on People and removes it when all conversations a
     expect(tab('Home')).toBeDefined();
     expect(tab('People, 2 unread conversations')).toBeDefined();
     expect(JSON.stringify(tree.toJSON())).toContain('"2"');
+    expect(
+      tree.root.findAllByType('YStack' as any).some((node) => node.props.bg === '$red10'),
+    ).toBe(true);
     mockTotal = 100;
     await act(async () => tree.update(<CustomTabBar {...props} />));
     expect(JSON.stringify(tree.toJSON())).toContain('99+');

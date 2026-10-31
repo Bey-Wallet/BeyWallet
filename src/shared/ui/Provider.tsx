@@ -4,6 +4,7 @@ import { ToastProvider } from '@tamagui/toast';
 import { ManagerProvider, MintProvider, BalanceProvider } from 'coco-cashu-react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { AppToast } from '~/shared/ui/AppToast';
 import { AppToastViewport } from '~/shared/ui/AppToastViewport';
 import { OperationFeedbackProvider } from '~/shared/ui/OperationFeedback';
@@ -34,15 +35,22 @@ function InnerProvider({ children, cocoManager, ...rest }: any) {
       defaultTheme={resolvedTheme}
       {...rest}
     >
-      <BottomSheetModalProvider>
-        <ToastProvider swipeDirection="horizontal" duration={3000} native={[]}>
-          <OperationFeedbackProvider>
-            {children}
-            <AppToast />
-          </OperationFeedbackProvider>
-          <AppToastViewport />
-        </ToastProvider>
-      </BottomSheetModalProvider>
+      <KeyboardProvider
+        preload={false}
+        statusBarTranslucent
+        navigationBarTranslucent
+        preserveEdgeToEdge
+      >
+        <BottomSheetModalProvider>
+          <ToastProvider swipeDirection="horizontal" duration={3000} native={[]}>
+            <OperationFeedbackProvider>
+              {children}
+              <AppToast />
+            </OperationFeedbackProvider>
+            <AppToastViewport />
+          </ToastProvider>
+        </BottomSheetModalProvider>
+      </KeyboardProvider>
     </TamaguiProvider>
   );
 
