@@ -7,6 +7,7 @@ import { Delete } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 
 interface NumericKeypadProps {
+  appearance?: 'default' | 'pos';
   value: string;
   onValueChange: (value: string) => void;
   onConfirm: () => void;
@@ -72,6 +73,7 @@ const DeleteButton = React.memo(({ onPress }: { onPress: () => void }) => (
 ));
 
 export function NumericKeypad({
+  appearance = 'default',
   value,
   onValueChange,
   onConfirm,
@@ -119,6 +121,20 @@ export function NumericKeypad({
 
   // Memoize amount display color
   const amountColor = isOverBalance || isBalanceZero ? '$red10' : '$color';
+  const confirmButton = (
+    <AppButton
+      variant="default"
+      emphasis="primary"
+      size="large"
+      loading={isLoading}
+      loadingText={loadingText ?? confirmLabel}
+      icon={confirmIcon || null}
+      onPress={handleConfirm}
+      disabled={!canContinue || confirmDisabled}
+    >
+      {confirmLabel}
+    </AppButton>
+  );
 
   return (
     <YStack flex={showAmountDisplay ? 1 : undefined} justify="space-between" width="100%">
@@ -167,20 +183,14 @@ export function NumericKeypad({
             </XStack>
           ))}
         </YStack>
-        {showConfirmButton && (
-          <AppButton
-            variant="default"
-            emphasis="primary"
-            size="large"
-            loading={isLoading}
-            loadingText={loadingText ?? confirmLabel}
-            icon={confirmIcon || null}
-            onPress={handleConfirm}
-            disabled={!canContinue || confirmDisabled}
-          >
-            {confirmLabel}
-          </AppButton>
-        )}
+        {showConfirmButton &&
+          (appearance === 'pos' ? (
+            <YStack rounded={999} overflow="hidden">
+              {confirmButton}
+            </YStack>
+          ) : (
+            confirmButton
+          ))}
       </YStack>
     </YStack>
   );

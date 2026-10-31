@@ -2,6 +2,7 @@ import { createAnimations } from '@tamagui/animations-react-native';
 import { Text, createFont, createTamagui } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v5';
 import type { TextStyle } from 'react-native';
+import { posThemeOverrides } from './shared/theme/pos';
 import {
   appColors,
   appRadii,
@@ -327,6 +328,15 @@ export const config = createTamagui({
   themes: {
     ...defaultConfig.themes,
     ...createComponentColorThemes(),
+    light_pos: {
+      ...defaultConfig.themes.light,
+      ...superblueColors,
+      ...beyblueColors,
+      ...surfaceColors,
+      ...createAppColorTheme('light'),
+      ...buttonThemes.light,
+      ...posThemeOverrides,
+    },
     light: {
       ...defaultConfig.themes.light,
       ...superblueColors,

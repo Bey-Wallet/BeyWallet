@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
-import { Text } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
@@ -20,6 +20,8 @@ import { ReceiptImageShare } from '~/features/history/components/ReceiptImageSha
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 
 interface PaymentStageProps {
+  appearance?: 'default' | 'pos';
+  note?: string;
   amount: string;
   invoice: string;
   quoteId: string;
@@ -38,6 +40,8 @@ interface PaymentStageProps {
 }
 
 export function PaymentStage({
+  appearance = 'default',
+  note,
   amount,
   invoice,
   quoteId,
@@ -49,6 +53,7 @@ export function PaymentStage({
   requestDelivery,
 }: PaymentStageProps) {
   const sats = parseInt(amount, 10) || 0;
+  const pos = appearance === 'pos';
   const toast = useAppToast();
   const [isChecking, setIsChecking] = useState(false);
   const checkLock = useRef(false);
@@ -115,6 +120,33 @@ export function PaymentStage({
     }
   };
   usePendingPaymentPolling(() => checkPayment(true), listening && !isExpired && !offline);
+  const paymentAction = (
+    <AppButton
+      size="large"
+      fullWidth
+      disabled={isChecking || requestDelivery?.sending}
+      loading={requestDelivery?.sending}
+      variant="default"
+      emphasis={isExpired ? 'secondary' : 'primary'}
+      onPress={
+        requestDelivery?.queued
+          ? requestDelivery.onView
+          : isExpired
+            ? onCancel
+            : requestDelivery
+              ? () => void requestDelivery.onSend()
+              : handleCopy
+      }
+    >
+      {requestDelivery?.queued
+        ? 'View request'
+        : isExpired
+          ? 'Close invoice'
+          : requestDelivery
+            ? 'Send request'
+            : 'Copy invoice'}
+    </AppButton>
+  );
 
   return (
     <PaymentStageLayout
@@ -122,6 +154,21 @@ export function PaymentStage({
       inset={false}
       hero={
         <>
+          {pos && (
+            <YStack items="center" gap="$2" width="100%">
+              <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
+              {!!note && (
+                <Text fontSize={14} color="$color" textAlign="center">
+                  {note}
+                </Text>
+              )}
+              {!isExpired && (
+                <Text fontSize={14} color="$color">
+                  Scan to pay with Lightning
+                </Text>
+              )}
+            </YStack>
+          )}
           {isExpired && (
             <Text fontSize={14} fontWeight="500" color="$gray10">
               Invoice expired
@@ -134,35 +181,17 @@ export function PaymentStage({
               )}
             </PaymentQRFrame>
           )}
-          <PaymentAmount amount={sats} compact testID="mint-payment" />
+          {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
         </>
       }
       footer={
-        <AppButton
-          size="large"
-          fullWidth
-          disabled={isChecking || requestDelivery?.sending}
-          loading={requestDelivery?.sending}
-          variant="default"
-          emphasis={isExpired ? 'secondary' : 'primary'}
-          onPress={
-            requestDelivery?.queued
-              ? requestDelivery.onView
-              : isExpired
-                ? onCancel
-                : requestDelivery
-                  ? () => void requestDelivery.onSend()
-                  : handleCopy
-          }
-        >
-          {requestDelivery?.queued
-            ? 'View request'
-            : isExpired
-              ? 'Close invoice'
-              : requestDelivery
-                ? 'Send request'
-                : 'Copy invoice'}
-        </AppButton>
+        pos ? (
+          <YStack rounded={999} overflow="hidden">
+            {paymentAction}
+          </YStack>
+        ) : (
+          paymentAction
+        )
       }
     >
       {!!requestDelivery?.error && (

@@ -533,6 +533,19 @@ export function RequestEcashStage({
         inset={!merchant}
         hero={
           <>
+            {merchant && (
+              <YStack items="center" gap="$2" width="100%">
+                <PaymentAmount amount={merchant.amount} size="prominent" compact />
+                {!!merchant.note && (
+                  <Text color="$color" fontSize={14} textAlign="center">
+                    {merchant.note}
+                  </Text>
+                )}
+                <Text color="$color" fontSize={14}>
+                  Scan to pay with Ecash
+                </Text>
+              </YStack>
+            )}
             <PaymentQRFrame accessibilityLabel="Payment request QR code" placeholder={!creqString}>
               {(size) =>
                 creqString ? (
@@ -555,7 +568,6 @@ export function RequestEcashStage({
               }
             </PaymentQRFrame>
             {creqString && !targetNpub && <RequestNfcBadge />}
-            {merchant && <PaymentAmount amount={merchant.amount} compact />}
           </>
         }
         footer={

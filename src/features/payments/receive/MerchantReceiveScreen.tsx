@@ -1,13 +1,15 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, XStack, YStack } from 'tamagui';
+import { Text, Theme, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { AmountStage } from '~/features/payments/mint/AmountStage';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PosHeader } from './PosHeader';
+import { AppBottomSheetThemeProvider } from '~/shared/ui/AppBottomSheet';
+import { ListTableVariantProvider } from '~/shared/ui/ListTable';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
@@ -45,42 +47,50 @@ function MerchantCheckout({
   }, []);
   return (
     <>
-      <PaymentFlowHeader
-        title="Point of sale"
-        navigationAction="close"
-        onBack={onClose}
-        disabled={busy}
-      />
+      <PosHeader onBack={onClose} disabled={busy} />
       {completed ? (
         <PaymentStageLayout
           inset={false}
           hero={
             <>
-              <PaymentStatusIcon status="success" />
-              <Text fontFamily="$body" fontSize={16} fontWeight="500" color="$color">
+              <YStack bg="$buttonDefaultPrimary" rounded={999} p="$4" mb="$3">
+                <PaymentStatusIcon status="success" />
+              </YStack>
+              <Text
+                fontFamily="$display"
+                fontSize={32}
+                lineHeight={38}
+                fontWeight="600"
+                color="$color"
+                textAlign="center"
+              >
                 Payment received
               </Text>
               <PaymentAmount amount={sale.amount} size="prominent" compact />
             </>
           }
           footer={
-            <AppButton fullWidth size="large" disabled={busy} onPress={onNext}>
-              Next sale
-            </AppButton>
+            <YStack rounded={999} overflow="hidden">
+              <AppButton fullWidth size="large" disabled={busy} onPress={onNext}>
+                Next sale
+              </AppButton>
+            </YStack>
           }
         />
       ) : (
         <>
-          <XStack gap="$2" pb="$3">
+          <XStack gap="$1" p="$1" mb="$2" rounded={999} bg="$buttonDefaultSecondary">
             {(['ecash', 'lightning'] as const).map((value) => (
               <AppPressable
                 key={value}
                 flex={1}
                 minHeight={48}
-                rounded="$6"
+                rounded={999}
                 items="center"
                 justify="center"
-                bg={method === value ? '$buttonDefaultSecondary' : '$background'}
+                bg={method === value ? '$buttonDefaultPrimary' : 'transparent'}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+                accessibilityRole="tab"
                 disabled={busy}
                 accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
                 accessibilityState={{ selected: method === value }}
@@ -90,12 +100,7 @@ function MerchantCheckout({
                   if (value === 'lightning') setLightningOpened(true);
                 }}
               >
-                <Text
-                  fontFamily="$body"
-                  fontSize={14}
-                  fontWeight="500"
-                  color={method === value ? '$color' : '$gray10'}
-                >
+                <Text fontFamily="$body" fontSize={16} fontWeight="600" color="$color">
                   {value === 'ecash' ? 'Ecash' : 'Lightning'}
                 </Text>
               </AppPressable>
@@ -131,6 +136,18 @@ function MerchantCheckout({
 }
 
 export function MerchantReceiveScreen() {
+  return (
+    <Theme name="light_pos">
+      <AppBottomSheetThemeProvider value="light_pos">
+        <ListTableVariantProvider value="outlined">
+          <MerchantReceiveContent />
+        </ListTableVariantProvider>
+      </AppBottomSheetThemeProvider>
+    </Theme>
+  );
+}
+
+function MerchantReceiveContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { mintUrl, setMintUrl } = useFlowMint();
@@ -154,8 +171,10 @@ export function MerchantReceiveScreen() {
     setSale({ amount: value, mintUrl, note: note.trim() });
   };
   return (
-    <YStack flex={1} bg="$background" px="$4" pb={Math.max(insets.bottom, 16)}>
-      <Stack.Screen options={{ headerShown: true, title: 'Point of sale' }} />
+    <YStack flex={1} bg="$background" px="$4" pt={insets.top} pb={Math.max(insets.bottom, 16)}>
+      <Stack.Screen
+        options={{ headerShown: false, statusBarStyle: 'dark', title: 'Point of sale' }}
+      />
       {sale ? (
         <MerchantCheckout
           sale={sale}
@@ -169,13 +188,14 @@ export function MerchantReceiveScreen() {
         />
       ) : (
         <>
-          <PaymentFlowHeader title="Point of sale" navigationAction="close" onBack={close} />
+          <PosHeader onBack={close} />
           {error && (
             <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
               {error}
             </Text>
           )}
           <AmountStage
+            appearance="pos"
             mintUrl={mintUrl}
             onMintChange={setMintUrl}
             amount={amount}

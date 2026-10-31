@@ -6,6 +6,9 @@ import React, {
   useEffect,
   useLayoutEffect,
   useState,
+  createContext,
+  useContext,
+  useMemo,
 } from 'react';
 import { StyleSheet, BackHandler, Platform } from 'react-native';
 import {
@@ -14,9 +17,14 @@ import {
   BottomSheetBackdropProps,
   BottomSheetModal,
 } from '@gorhom/bottom-sheet';
-import { useTheme } from 'tamagui';
+import { Theme, useTheme, type ThemeName } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { appRadii } from '~/shared/theme/appearance';
+
+// Gorhom portals mount outside local screen contexts. Opt in only when a flow
+// has its own palette; ordinary sheets retain their current container.
+const BottomSheetThemeContext = createContext<ThemeName | null>(null);
+export const AppBottomSheetThemeProvider = BottomSheetThemeContext.Provider;
 
 interface AppBottomSheetProps {
   children: React.ReactNode;
@@ -57,6 +65,19 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
   ) => {
     const bottomSheetRef = useRef<BottomSheetModal>(null);
     const theme = useTheme();
+    const contentTheme = useContext(BottomSheetThemeContext);
+    const themedContainer = useMemo(() => {
+      if (!contentTheme) return containerComponent;
+      return function SheetThemeContainer({ children }: React.PropsWithChildren) {
+        return (
+          <Theme name={contentTheme}>
+            {containerComponent
+              ? React.createElement(containerComponent, null, children)
+              : children}
+          </Theme>
+        );
+      };
+    }, [contentTheme, containerComponent]);
     const [isOpen, setIsOpen] = useState(false);
     const canDismissRef = useRef(canDismiss);
     const dismissRequested = useRef(false);
@@ -134,7 +155,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         maxDynamicContentSize={maxDynamicContentSize}
         snapPoints={snapPoints}
         bottomInset={bottomInset}
-        containerComponent={containerComponent}
+        containerComponent={themedContainer}
         backdropComponent={renderBackdrop}
         stackBehavior="push"
         // Keyboard: sheet expands to fill space above keyboard (works with dynamic sizing)
