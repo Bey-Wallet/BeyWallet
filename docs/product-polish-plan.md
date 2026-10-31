@@ -300,7 +300,7 @@ amounts, Pending status, payment type, mint and date. The full token is supplied
 the public receipt model and retained without dropping proofs, DLEQ data or spending conditions.
 Only tokens passing the pending layout's 800-byte and density rules get a static QR. Larger tokens
 export a receipt only with an explanation to use Send for the ecash. Completed, failed, refunded
-and incoming receipts never gain a spendable QR through this option. Image import is deferred.
+and incoming receipts never gain a spendable QR through this option.
 
 Native sharing preserves the existing auto-lock state, guards repeat taps and surfaces render/
 sharing failures. PNGs are written to the app cache. Device testing remains for PNG fonts,
@@ -335,6 +335,20 @@ Combined validation for receipts and backup status: all 88 tests passed across 1
 Type checking, the route structure check (77 routes), button check, scoped formatting and diff
 whitespace checks passed. Native image rendering/QR scanning, file permissions, share/save
 destinations, and Settings appearance still require device review.
+
+## 12. Import QR images in the scanner
+
+Choose image opens the system image picker, including without camera permission. QR decoding
+stays local, uses the installed Expo modules and returns the complete payload through the existing
+camera routing and confirmation flow. Ecash, requests, Lightning invoices/addresses, unified
+payment URIs and Bey share links retain their current handling; contextual mint/key scans return
+to their originating screen.
+
+Pause camera callbacks during import and guard repeat taps. Cancel stays in the scanner.
+Missing, unreadable or multiple distinct QRs show an explanation. An isolated animated QR frame
+cannot be used as a complete token; direct users to scan the animation. Restore the previous
+auto-lock state after the native picker and remove its temporary cached image after decoding.
+Native Android/iOS image selection and scan/claim of exported PNG receipts require device testing.
 
 ## Remaining queue
 
