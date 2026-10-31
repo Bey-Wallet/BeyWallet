@@ -16,6 +16,8 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService } from '~/services/wallet';
+import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
+import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 
 interface PaymentStageProps {
   amount: string;
@@ -50,6 +52,19 @@ export function PaymentStage({
     mint?.nickname || mint?.name || mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const timeLeft = expiry == null ? null : Math.max(0, expiry - now);
   const isExpired = timeLeft === 0;
+  const displayedAt = useRef(Date.now());
+  const publicReceipt = buildShareableReceipt(
+    {
+      id: quoteId,
+      type: 'mint',
+      amount: sats,
+      unit: 'sat',
+      mintUrl,
+      state: isExpired ? 'expired' : 'UNPAID',
+      createdAt: displayedAt.current,
+    },
+    { invoice, expired: isExpired, mintName: mint?.name },
+  );
 
   useEffect(() => {
     if (expiry == null) return;
@@ -166,6 +181,7 @@ export function PaymentStage({
           Cancel
         </AppButton>
       )}
+      {publicReceipt && <ReceiptImageShare receipt={publicReceipt} disabled={isChecking} />}
     </PaymentStageLayout>
   );
 }

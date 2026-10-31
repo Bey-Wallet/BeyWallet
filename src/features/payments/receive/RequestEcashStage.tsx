@@ -7,6 +7,8 @@ import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
+import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 
@@ -495,6 +497,15 @@ export function RequestEcashStage({
       disabled={isGenerating || isSending}
     />
   );
+  const savedRequest = useNostrRequestStore
+    .getState()
+    .requests.find((request) => request.id === currentRequestId);
+  const publicReceipt = savedRequest
+    ? buildShareableReceipt(
+        { ...savedRequest, type: 'receive-request', state: requestState },
+        { request: creqString || undefined },
+      )
+    : null;
   if (step === 'success') {
     if (merchant) return null;
     return (
@@ -666,6 +677,7 @@ export function RequestEcashStage({
             Send request
           </AppButton>
         )}
+        {publicReceipt && <ReceiptImageShare receipt={publicReceipt} disabled={isRequestBusy} />}
       </PaymentStageLayout>
     </>
   );

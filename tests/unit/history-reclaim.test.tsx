@@ -1,4 +1,7 @@
 import React from 'react';
+jest.mock('~/features/history/components/ReceiptImageShare', () => ({
+  ReceiptImageShare: 'ReceiptShare',
+}));
 import { AppState } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { TransactionDetailsScreen } from '~/features/history/TransactionDetailsScreen';

@@ -275,13 +275,36 @@ Device review remains for POS sizing/keyboard, QR scanning, actual supported/uns
 invoice creation, NFC, and real payment timing. Testnut's public info currently advertises notes
 and simulated paid invoices; it cannot demonstrate the timing of a real Lightning payment.
 
+## 10. Shareable receipt images
+
+History receipts, live Lightning invoices and saved Ecash requests offer Share receipt image.
+Preview a dedicated public-summary SVG before exporting a high-resolution PNG through the
+existing native share sheet. No screen capture, new dependency, or wallet operation is involved.
+The image uses Bey branding, the active light/dark theme, a compact status badge, primary and
+secondary currencies in the selected order, payment type, direction, date, and public mint
+name/origin. Missing price data is labelled unavailable; no fiat value is invented.
+
+Pending images explicitly say Pending and Payment not confirmed. Payable public QRs appear at
+the top-left for pending saved Ecash requests and unpaid Lightning invoices. Paid, expired or
+completed invoices do not export a payable QR. Keep the four-module quiet zone, black modules
+and white scan area in either theme. Spendable token QRs, proofs, wallet identifiers, contacts,
+private keys, and arbitrary metadata stay outside the image boundary. Public request QRs retain
+the exact payment routing/description payload the user chose to share. Text mint URLs omit
+credentials, query parameters, fragments and private paths.
+
+Native sharing preserves the existing auto-lock state, guards repeat taps and surfaces render/
+sharing failures. PNGs are written to the app cache. Device testing remains for PNG fonts,
+native share destinations, narrow/large-text previews and scanning exported request/invoice QRs.
+Local coverage checks the public field allowlist, pending/paid/expired distinctions, token QR
+exclusion, URL sanitization, both currency orders, unavailable conversion, dark theme, top-left
+QR placement, PNG export and lock restoration, alongside existing receipt/request behavior.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Offer shareable receipt images containing an appropriate public payment summary.
-3. Show understandable backup status in Settings.
-4. Add Lightning invoice NFC advertisement after the POS review.
-5. Add iOS app-icon quick actions when iOS is in scope.
+2. Show understandable backup status in Settings.
+3. Add Lightning invoice NFC advertisement after the POS review.
+4. Add iOS app-icon quick actions when iOS is in scope.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark

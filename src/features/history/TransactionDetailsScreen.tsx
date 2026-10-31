@@ -14,6 +14,8 @@ import { PendingOnchainLayout } from '~/features/history/components/PendingOncha
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
 import { TransferHistoryReceipt } from './components/TransferHistoryReceipt';
+import { ReceiptImageShare } from './components/ReceiptImageShare';
+import { buildShareableReceipt } from './shareableReceipt';
 import { checkHistoryStatus } from './checkHistoryStatus';
 import { getTransactionNotes } from './transactionNotes';
 import { useWalletStore } from '~/state/walletStore';
@@ -730,6 +732,17 @@ function TransactionDetailsContent() {
     </AppBottomSheet>
   );
 
+  const publicReceipt = entry
+    ? buildShareableReceipt(entry, {
+        transferState: transferRecord?.state,
+        reclaimed: reclaimOutcome === 'reclaimed',
+        bitcoinSymbol: useSettingsStore.getState().showBitcoinSymbol,
+        invoice: savedInvoice || undefined,
+        mintName: useWalletStore.getState().mints?.find((mint) => mint.mintUrl === entry.mintUrl)
+          ?.name,
+        expired: isQuoteExpired,
+      })
+    : null;
   const renderSheet = (content: React.ReactNode, expanded = false) => (
     <TransactionReceiptSheet
       active={!!entry && needsFullScreenReceipt(entry, transferRecord?.state)}
@@ -742,6 +755,14 @@ function TransactionDetailsContent() {
       busy={isReclaiming || isClaiming || isCheckingPaid}
     >
       {content}
+      {publicReceipt && (
+        <SafeAreaView edges={expanded ? ['bottom'] : []}>
+          <ReceiptImageShare
+            receipt={publicReceipt}
+            disabled={isReclaiming || isClaiming || isCheckingPaid}
+          />
+        </SafeAreaView>
+      )}
     </TransactionReceiptSheet>
   );
 
