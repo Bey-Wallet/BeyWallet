@@ -64,7 +64,7 @@ These are isolated build tools; no app dependency is added.
 The prepared derivatives use internal names `Bey Inter Text` / `Bey Inter Display` and
 the runtime names above. Original copyright and license metadata are retained.
 `src/assets/fonts/Inter-OFL.txt` contains the upstream SIL OFL 1.1 license, separate
-from the application's Apache 2.0 license.
+from the application's AGPL-3.0-only license.
 
 Inter's own currency glyphs cover the supported currencies. U+FFE5 (full-width yen)
 is mapped to Inter's existing yen glyph because Inter lacks a separate full-width

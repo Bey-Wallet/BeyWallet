@@ -1,39 +1,23 @@
-# Plan: Switch project licensing to GPL-3.0-or-later
+# Application license migration
 
-Status: Deferred. This document records the plan only; no license change has been applied.
+The current source tree declares **AGPL-3.0-only** (GNU Affero General Public License,
+version 3 only), replacing the former Apache 2.0 project declaration. This implements the
+requested AGPL change and supersedes the earlier deferred GPL-3.0-or-later proposal.
 
-## Summary
+## Scope
 
-Change the application's license declaration from Apache 2.0 to GPL-3.0-or-later,
-preserving separate third-party licenses. The selected variant permits GPL version 3
-or any later version.
+- The root `LICENSE` contains the verbatim license text from the
+  [SPDX license-list data](https://raw.githubusercontent.com/spdx/license-list-data/main/text/AGPL-3.0-only.txt).
+- `package.json`, the README badge and license section, CONTRIBUTING, and the font documentation
+  use the same `AGPL-3.0-only` identifier.
+- The README retains `Copyright 2026 Bey Wallet`.
+- Third-party dependency notices, dependency patches, and the Inter font's SIL Open Font
+  License remain unchanged. Earlier release files are not rewritten.
 
-## Planned changes
+The exact identifier is documented by [SPDX](https://spdx.org/licenses/AGPL-3.0-only.html).
 
-- Replace the root `LICENSE` with the canonical GNU GPL v3 text, without modifying
-  the license text itself.
-- Explicitly declare GPL-3.0-or-later in the README license section and preserve
-  `Copyright 2026 Bey Wallet` there.
-- Add `"license": "GPL-3.0-or-later"` to `package.json`.
-- Update the README license badge and link, the CONTRIBUTING footer, and the
-  application-license reference in `docs/fonts.md`.
-- Preserve the font SIL Open Font License, upstream MIT notices in dependency
-  patches, and all unrelated working-tree changes.
+## Verification
 
-Use the [SPDX GPL-3.0-or-later page](https://spdx.org/licenses/GPL-3.0-or-later.html)
-as the reference for the identifier and canonical license text.
-
-## Validation when implemented
-
-- Verify the root license text matches the canonical GNU GPL v3 text.
-- Confirm `package.json` parses and declares the selected SPDX identifier.
-- Search for stale project Apache declarations, preserving third-party notices.
-- Review the scoped diff. Application tests and builds are unnecessary for these
-  documentation and metadata changes.
-
-## Boundaries
-
-- This plan concerns the current project's license declaration. Earlier releases
-  remain untouched.
-- Do not change application code, dependency licenses, or font licenses.
-- Do not commit or push unless explicitly requested.
+Compare `LICENSE` with the upstream text, parse the package metadata, check documentation links
+and formatting, and search for stale current-project license declarations. These documentation
+and metadata changes do not alter wallet behavior or require application tests or a native build.

@@ -5,7 +5,7 @@ small, reviewable pull requests with focused tests and explicit validation notes
 
 ## Before starting
 
-- Search the [issue tracker](https://github.com/thehussein01/BeyWallet/issues) for related work.
+- Search the [issue tracker](https://github.com/Bey-Wallet/BeyWallet/issues) for related work.
 - Open an issue before a large feature, storage migration, dependency change, or protocol change.
 - Base new work on `main` and keep each branch focused on one problem.
 - Read [docs/README.md](docs/README.md) for architecture and feature documentation.
@@ -13,7 +13,7 @@ small, reviewable pull requests with focused tests and explicit validation notes
 ## Local setup
 
 ```bash
-git clone https://github.com/thehussein01/BeyWallet.git
+git clone https://github.com/Bey-Wallet/BeyWallet.git
 cd BeyWallet
 yarn install
 yarn start
@@ -96,4 +96,4 @@ commits focused.
 Be respectful, keep feedback constructive, and avoid including sensitive wallet information in
 public discussions.
 
-Apache 2.0 © Bey Wallet
+Copyright 2026 Bey Wallet. Licensed under [AGPL-3.0-only](LICENSE).
