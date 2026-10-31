@@ -43,6 +43,7 @@ const expectedRoutes = [
   '(tabs)/settings/about.tsx',
   '(tabs)/settings/advanced.tsx',
   '(tabs)/settings/backup.tsx',
+  '(tabs)/settings/backup-status.tsx',
   '(tabs)/settings/blocked-people.tsx',
   '(tabs)/settings/currency.tsx',
   '(tabs)/settings/delete-wallet.tsx',

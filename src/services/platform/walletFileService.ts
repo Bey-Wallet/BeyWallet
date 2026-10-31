@@ -36,6 +36,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as bip39 from 'bip39';
 import { Platform } from 'react-native';
 import { useSettingsStore } from '~/state/settingsStore';
+import { useBackupStatusStore } from '~/state/backupStatusStore';
 
 const BACKUP_VERSION = 3;
 
@@ -158,6 +159,7 @@ export const walletFileService = {
         encoding: 'utf8',
       });
       console.log(`[WalletFileService] ✅ Saved directly to: ${fileUri}`);
+      useBackupStatusStore.getState().recordFile('saved');
       return fileName;
     } else {
       // iOS: Write to temporary directory and show share sheet
@@ -179,6 +181,7 @@ export const walletFileService = {
       });
 
       console.log('[WalletFileService] ✅ Shared backup file.');
+      useBackupStatusStore.getState().recordFile('share-sheet');
       return fileName;
     }
   },

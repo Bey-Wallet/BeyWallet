@@ -327,6 +327,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       if (exists) {
         const repo = initService.getRepo();
         await repo.settingsRepository.setSetting('seedBackedUp', val.toString());
+        const { useBackupStatusStore } = await import('./backupStatusStore');
+        useBackupStatusStore.getState().recordPhrase(val);
       }
       set({ seedBackedUp: val });
     } catch (error) {

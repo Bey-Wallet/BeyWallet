@@ -624,6 +624,7 @@ export const initService = {
       useSettingsStore.setState({
         notificationPreferences: { ...notificationDefaults },
         notificationsEnabled: true,
+        seedBackedUp: false,
       });
       console.log('[InitService] Destroying wallet...');
       const { resetMintBackup } =
@@ -632,6 +633,9 @@ export const initService = {
         require('~/state/mintBackupStore') as typeof import('~/state/mintBackupStore');
       resetMintBackup();
       useMintBackupStore.setState({ ...mintBackupDefaults, publishing: false });
+      const { useBackupStatusStore, backupStatusDefaults } =
+        require('~/state/backupStatusStore') as typeof import('~/state/backupStatusStore');
+      useBackupStatusStore.setState({ ...backupStatusDefaults });
 
       // These account-scoped stores must not carry acceptance or messages into
       // the next wallet in the same process. Clear while storage is still open.

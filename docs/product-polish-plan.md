@@ -299,12 +299,35 @@ Local coverage checks the public field allowlist, pending/paid/expired distincti
 exclusion, URL sanitization, both currency orders, unavailable conversion, dark theme, top-left
 QR placement, PNG export and lock restoration, alongside existing receipt/request behavior.
 
+## 11. Backup status in Settings
+
+Settings → Backup & recovery → Backup status shows three compact, read-only rows: recovery
+phrase confirmation, wallet-file export, and the last successful mint-list publication. Existing
+protected phrase/export screens and mint-backup management stay one tap away. Home is unchanged.
+
+Record phrase confirmation time after the existing settings write succeeds, and file-export
+time after a successful direct write or completed share sheet. Android direct writes display
+Saved. Share-sheet exports display Save not verified because the destination save/cancellation
+cannot be confirmed. Failed writes do not advance the last-success time. Legacy confirmations
+without a timestamp say Date not recorded; missing exports/publications say Not recorded.
+
+Explain what each backup contains: wallet files hold the phrase, ecash, mints and wallet history
+at export time; published mint-list backups contain mint URLs only. Store only timestamps and
+the save-method enum, with validation when rehydrating. Clear these wallet-scoped records and
+the old phrase-confirmation flag when destroying/replacing a wallet. Existing authentication,
+backup contents, restore confirmation, seed derivation and wallet recovery operations retain
+their existing behavior.
+
+Combined validation for receipts and backup status: all 88 tests passed across 12 focused suites.
+Type checking, the route structure check (77 routes), button check, scoped formatting and diff
+whitespace checks passed. Native image rendering/QR scanning, file permissions, share/save
+destinations, and Settings appearance still require device review.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Show understandable backup status in Settings.
-3. Add Lightning invoice NFC advertisement after the POS review.
-4. Add iOS app-icon quick actions when iOS is in scope.
+2. Add Lightning invoice NFC advertisement after the POS review.
+3. Add iOS app-icon quick actions when iOS is in scope.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark

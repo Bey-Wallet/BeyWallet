@@ -67,6 +67,7 @@ export const settingsCategories = {
     title: 'Backup & recovery',
     icon: DatabaseBackup,
     items: [
+      { path: 'backup-status', title: 'Backup status', icon: DatabaseBackup },
       { path: 'recovery-phrase', title: 'Recovery phrase', icon: ShieldCheck },
       { path: 'recover-funds', title: 'Recover funds', icon: ScanSearch },
       { path: 'mint-backup', title: 'Mint backup', icon: CloudUpload },
