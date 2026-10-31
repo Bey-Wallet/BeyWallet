@@ -105,6 +105,14 @@ retain their purpose; chat timestamps and unrelated Settings dates are unchanged
 Large payment-entry cards use the base surface (`$gray2`), with raised gray reserved for
 smaller inset controls. Error surfaces retain their semantic red treatment.
 
+Generated Blockies avatars use a deterministic, versioned hash stream of the full seed. The v2
+generator replaces the repeating 32-bit pattern, so existing fallback avatars change appearance
+once; identities and profile pictures are unchanged. Foreground and accent hues span the color
+wheel, with pale backgrounds visible through empty cells. Grids mirror horizontally for both odd
+and even sizes without overlapping cells. Each color override works independently, and the same
+seed retains its palette across grid sizes. This generator is for artwork only, never wallet keys.
+Review fallback avatars at header, People and contact-sheet sizes on devices in both themes.
+
 The navigation root and native screen surfaces use the canvas color, including behind Android's
 system navigation buttons. `plugins/withNavigationBarContrast.js` disables the native contrast
 scrim during prebuild; the installed navigation-bar plugin does not support the `enforceContrast`
