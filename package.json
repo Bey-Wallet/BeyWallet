@@ -2,6 +2,7 @@
   "name": "bey-wallet",
   "main": "expo-router/entry",
   "version": "0.2.0",
+  "license": "AGPL-3.0-only",
   "packageManager": "yarn@4.5.0",
   "private": true,
   "scripts": {
