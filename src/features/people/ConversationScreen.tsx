@@ -1,6 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
@@ -50,6 +51,7 @@ export default function ConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   const person = usePeopleStore((state) => state.people[npub]);
   const inbox = useNostrInboxStore((state) => state.items);
   const revision = useMessageStore((state) => state.revision);
@@ -91,7 +93,7 @@ export default function ConversationScreen() {
     currentConversation.current = npub;
     setMessages([]);
     setQueued([]);
-    setText('');
+    setText(useMessageStore.getState().drafts[npub] || '');
     setContentHeight(44);
     setSelectedId(null);
     setLimit(50);
@@ -245,6 +247,8 @@ export default function ConversationScreen() {
     setQueueing(true);
     setError('');
     setText('');
+    const draftSession = useMessageStore.getState().session;
+    useMessageStore.getState().setDraft(npub, '');
     setContentHeight(44);
     nearBottom.current = true;
     const optimisticId = `local-${Date.now()}-${++localSequence.current}`;
@@ -273,12 +277,16 @@ export default function ConversationScreen() {
         setQueueing(false);
       })
       .catch((cause) => {
+        if (!saved && useMessageStore.getState().session === draftSession) {
+          const newer = useMessageStore.getState().drafts[npub];
+          useMessageStore.getState().setDraft(npub, newer ? `${draft}\n${newer}` : draft);
+        }
         if (currentConversation.current !== npub) return;
         setError(cause instanceof Error ? cause.message : 'Message could not be sent.');
         if (!saved) {
           setQueued((previous) => previous.filter((item) => item.id !== optimisticId));
           setSelectedId((previous) => (previous === `m-${optimisticId}` ? null : previous));
-          setText((current) => (current ? `${draft}\n${current}` : draft));
+          setText(useMessageStore.getState().drafts[npub] || '');
         }
       })
       .finally(() => {
@@ -650,6 +658,7 @@ export default function ConversationScreen() {
             {accepted ? (
               <XStack gap="$2" items="flex-end">
                 <Input
+                  key={npub}
                   flex={1}
                   multiline
                   maxLength={16000}
@@ -658,9 +667,12 @@ export default function ConversationScreen() {
                   value={text}
                   onChangeText={(value) => {
                     setText(value);
+                    useMessageStore.getState().setDraft(npub, value);
                     if (!value) setContentHeight(44);
                   }}
                   height={Math.max(44, Math.min(contentHeight, maxInputHeight))}
+                  animation={reducedMotion ? null : 'quick'}
+                  animateOnly={['height']}
                   maxHeight={maxInputHeight}
                   bg="$buttonDefaultSecondary"
                   borderWidth={0}

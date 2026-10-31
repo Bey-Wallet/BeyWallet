@@ -230,7 +230,7 @@ describe('People conversations and invitations', () => {
     });
     usePeopleStore.setState({ people: {} });
     useNostrInboxStore.setState({ items: [] });
-    useMessageStore.setState({ recent: [], unread: {}, revision: 0 });
+    useMessageStore.setState({ recent: [], unread: {}, revision: 0, drafts: {} });
     useNostrReceiveSettingsStore.setState({ policy: 'ask' });
     usePeopleStore
       .getState()
@@ -724,6 +724,23 @@ describe('People conversations and invitations', () => {
     expect(input.props.scrollEnabled).toBe(true);
     await act(async () => input.props.onChangeText(''));
     expect(tree!.root.findByType('Input' as any).props.height).toBe(44);
+  });
+
+  it('restores a draft after navigation and keeps each conversation independent', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    useMessageStore.getState().setDraft(alice, 'Alice draft');
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Bob draft'));
+    await act(async () => tree.unmount());
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    expect(tree.root.findByType('Input' as any).props.value).toBe('Bob draft');
+    expect(useMessageStore.getState().drafts[alice]).toBe('Alice draft');
+    await act(async () => tree.root.findByType('Input' as any).props.onChangeText(''));
+    expect(useMessageStore.getState().drafts[bob]).toBeUndefined();
   });
 
   it('formats payment cards in the selected primary and secondary currencies', async () => {
