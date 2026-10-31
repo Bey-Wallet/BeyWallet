@@ -65,17 +65,19 @@ jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
   Stack: { Screen: () => null },
 }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useTheme: () => ({ color: { val: '#111111' } }),
+  ...Object.fromEntries(
     ['Input', 'Image', 'ScrollView', 'Text', 'View', 'XStack', 'YStack', 'Spinner', 'Theme'].map(
       (name) => [name, name],
     ),
   ),
-);
+}));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAvoidingView: 'ControlledKeyboardAvoidingView',
 }));
+jest.mock('react-native-gesture-handler', () => ({ TextInput: 'SelectionInput' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
@@ -97,6 +99,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'AlertTriangle',
       'ArrowLeft',
       'ArrowUp',
+      'ArrowDown',
       'ArrowUpRight',
       'ArrowDownLeft',
       'Copy',
@@ -115,6 +118,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Banknote',
       'HandCoins',
       'ChevronRight',
+      'TextSelect',
     ].map((name) => [name, (props: any) => require('react').createElement(`Icon${name}`, props)]),
   ),
 );
@@ -709,6 +713,68 @@ describe('People conversations and invitations', () => {
     await act(async () => publish());
   });
 
+  it('opens long-press actions, selects/copies text, shows details, and retries the saved message', async () => {
+    const copy = jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true);
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    const message: ChatMessage = {
+      id: 'retry-same-id',
+      conversation: bob,
+      direction: 'outgoing',
+      createdAt: 1000,
+      receivedAt: 1000,
+      text: 'Keep this text',
+      read: true,
+      publication: 'failed',
+      transport: 'nip17',
+    };
+    mockSavedMessages = [message];
+    jest.mocked(nostrService.retryChat).mockResolvedValue(undefined);
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const bubble = () =>
+      tree.root
+        .findAllByType('AppPressable' as any)
+        .find((node) => node.props.accessibilityLabel?.startsWith('Keep this text.'))!;
+    const row = (label: string) =>
+      tree.root.findAllByType(ListTableRow).find((node) => node.props.label === label)!;
+    await act(async () => bubble().props.onLongPress());
+    expect(row('Retry message')).toBeDefined();
+    await act(async () => row('Select text').props.onPress());
+    const selectionInput = tree.root.findByType('SelectionInput' as any);
+    expect(selectionInput.props).toMatchObject({
+      selectTextOnFocus: true,
+      showSoftInputOnFocus: false,
+      disallowInterruption: true,
+      value: 'Keep this text',
+    });
+    await act(async () =>
+      selectionInput.props.onSelectionChange({ nativeEvent: { selection: { start: 5, end: 9 } } }),
+    );
+    await act(async () =>
+      tree.root
+        .findAllByType('AppButton' as any)
+        .find((node) => node.props.children === 'Copy selected text')!
+        .props.onPress(),
+    );
+    expect(copy).toHaveBeenCalledWith('this');
+    await act(async () =>
+      tree.root
+        .findAllByProps({ accessibilityLabel: 'Back to message actions' })[0]
+        .props.onPress(),
+    );
+    await act(async () => row('Copy message').props.onPress());
+    expect(copy).toHaveBeenCalledWith('Keep this text');
+    await act(async () =>
+      bubble().props.onAccessibilityAction({ nativeEvent: { actionName: 'longpress' } }),
+    );
+    await act(async () => row('Message details').props.onPress());
+    expect(row('Message ID')).toBeDefined();
+    await act(async () => bubble().props.onLongPress());
+    await act(async () => row('Retry message').props.onPress());
+    expect(nostrService.retryChat).toHaveBeenCalledWith(message);
+  });
+
   it('caps the composer at four scaled lines and then enables internal scrolling', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     await act(async () => {
@@ -929,6 +995,7 @@ describe('People conversations and invitations', () => {
       'padding',
     );
     const scroll = tree!.root.findByType('ScrollView' as any);
+    expect(scroll.props.initialScrollAtEnd).toBe(true);
     await act(async () => scroll.props.onLayout());
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
     scrollToEnd.mockClear();
@@ -996,9 +1063,16 @@ describe('People conversations and invitations', () => {
       useMessageStore.setState({ revision: 1 });
     });
     const jump = tree.root
-      .findAllByType('AppButton' as any)
+      .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel === 'Jump to latest messages')!;
-    expect(jump.props.children).toBe('New messages');
+    expect(jump.props.accessibilityHint).toBe('New messages available');
+    expect(jump.parent?.parent?.props).toMatchObject({
+      position: 'absolute',
+      bottom: 16,
+      right: 16,
+    });
+    expect(jump.props.shape).toBe('circular');
+    expect(jump.props.children).toBeUndefined();
     expect(scrollToEnd).not.toHaveBeenCalled();
     await act(async () => jump.props.onPress());
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: true });

@@ -162,6 +162,20 @@ notifications, and complete payment flows.
 
 ## Platform checks
 
+- [ ] Load a long mixed conversation, scroll upward and load older pages without moving the
+      visible message. Receive new activity while reading, then tap the floating down-arrow button.
+      Confirm the button overlays the timeline and does not consume a row above the composer.
+- [ ] Verify text groups split after five minutes, at midnight, on sender changes and around
+      payments. Only the final text in a group shows a timestamp.
+- [ ] Type separate drafts in two conversations, navigate away and return. Confirm each draft
+      restores, successful sends clear it, and a failure before persistence restores it alongside
+      newer typing. Close/reopen the wallet and confirm session drafts have cleared.
+- [ ] Long press text and payment cards in both themes. Test copying, details, failed-message
+      retry and the screen-reader Message actions action. Payment copy must exclude raw tokens.
+- [ ] Choose Select text: verify the soft keyboard stays hidden, selection handles can move
+      without dragging the sheet, and Copy selected text copies only the selected range. Repeat
+      on Android and iOS with long messages and larger accessibility fonts.
+
 - [ ] Verify biometric or device authentication before revealing the Nostr secret key.
 - [ ] Confirm the secret key is hidden again after leaving the relevant screen.
 - [ ] Verify notification behavior in foreground and background where supported.

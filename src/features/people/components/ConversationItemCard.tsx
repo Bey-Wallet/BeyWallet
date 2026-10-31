@@ -20,6 +20,7 @@ export interface ConversationItemCardProps {
   primaryAmount?: string;
   secondaryAmount?: string | null;
   onPress?: () => void;
+  onLongPress?: () => void;
   onPay?: () => void;
   payDisabled?: boolean;
 }
@@ -118,7 +119,7 @@ export function ConversationPaymentCard({
 }
 
 export function ConversationItemCard(props: ConversationItemCardProps) {
-  const { item, primaryAmount, onPress, onPay, payDisabled } = props;
+  const { item, primaryAmount, onPress, onLongPress, onPay, payDisabled } = props;
   const payment = item.kind === 'payment';
   const { background } = palette(item);
   const card = (
@@ -130,6 +131,18 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
           : `${item.text}. ${item.status}${onPress ? '. Show message details' : ''}`
       }
       onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityHint={onLongPress ? 'Touch and hold for message actions' : undefined}
+      accessibilityActions={
+        onLongPress ? [{ name: 'longpress', label: 'Message actions' }] : undefined
+      }
+      onAccessibilityAction={
+        onLongPress
+          ? (event) => {
+              if (event.nativeEvent.actionName === 'longpress') onLongPress();
+            }
+          : undefined
+      }
       self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
       minHeight={44}
       maxW={onPay ? '75%' : '85%'}

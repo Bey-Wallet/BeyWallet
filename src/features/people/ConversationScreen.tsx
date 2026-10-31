@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ArrowUp, Info, UserPlus } from '@tamagui/lucide-icons';
+import { ArrowDown, ArrowLeft, ArrowUp, Info, UserPlus } from '@tamagui/lucide-icons';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +36,7 @@ import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { ConversationAvatar } from './components/ConversationAvatar';
 import { ConversationContactSheet } from './components/ConversationContactSheet';
 import { ConversationMessageSheet } from './components/ConversationMessageSheet';
+import { ConversationMessageActions } from './components/ConversationMessageActions';
 import { ConversationItemCard } from './components/ConversationItemCard';
 import { conversationDateLabel } from './conversationDates';
 import { conversationItemLayout } from './conversationGrouping';
@@ -69,6 +70,7 @@ export default function ConversationScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const contactSheet = useRef<AppBottomSheetRef>(null);
   const messageSheet = useRef<AppBottomSheetRef>(null);
+  const messageActions = useRef<AppBottomSheetRef>(null);
   const localSequence = useRef(0);
   const scrollRef = useRef<LegendListRef>(null);
   const nearBottom = useRef(true);
@@ -468,6 +470,7 @@ export default function ConversationScreen() {
               keyExtractor={(item) => item.id}
               estimatedItemSize={90}
               alignItemsAtEnd
+              initialScrollAtEnd
               maintainVisibleContentPosition
               maintainScrollAtEnd
               maintainScrollAtEndThreshold={0.15}
@@ -545,6 +548,11 @@ export default function ConversationScreen() {
                       item={item}
                       {...amounts(item.amount)}
                       onPress={() => openDetails(item)}
+                      onLongPress={() => {
+                        Keyboard.dismiss();
+                        setSelectedId(item.id);
+                        requestAnimationFrame(() => messageActions.current?.present());
+                      }}
                       onPay={isPayableRequest(item) ? () => reviewRequest(item) : undefined}
                       payDisabled={!accepted || blocked}
                     />
@@ -579,23 +587,32 @@ export default function ConversationScreen() {
               }
             />
             {awayFromBottom && (
-              <AppButton
+              <YStack
                 position="absolute"
-                b={12}
-                self="center"
+                bottom={16}
+                right={16}
+                zIndex={10}
+                bg="$buttonDefaultSecondary"
                 rounded={999}
-                variant="default"
-                emphasis="secondary"
-                accessibilityLabel="Jump to latest messages"
-                onPress={() => {
-                  nearBottom.current = true;
-                  setAwayFromBottom(false);
-                  setNewActivity(false);
-                  scrollRef.current?.scrollToEnd({ animated: true });
-                }}
+                overflow="hidden"
+                elevation={4}
               >
-                {newActivity ? 'New messages' : 'Latest messages'}
-              </AppButton>
+                <AppIconButton
+                  variant="default"
+                  emphasis="secondary"
+                  shape="circular"
+                  size="medium"
+                  icon={({ color }) => <ArrowDown size={22} color={color} />}
+                  accessibilityLabel="Jump to latest messages"
+                  accessibilityHint={newActivity ? 'New messages available' : undefined}
+                  onPress={() => {
+                    nearBottom.current = true;
+                    setAwayFromBottom(false);
+                    setNewActivity(false);
+                    scrollRef.current?.scrollToEnd({ animated: true });
+                  }}
+                />
+              </YStack>
             )}
           </YStack>
           <YStack
@@ -772,6 +789,19 @@ export default function ConversationScreen() {
         bottomInset={insets.bottom}
         actionLabel={actionLabel}
         onAction={onAction}
+      />
+      <ConversationMessageActions
+        ref={messageActions}
+        item={selected}
+        primaryAmount={amounts(selected?.amount).primaryAmount}
+        bottomInset={insets.bottom}
+        onClose={() => messageActions.current?.dismiss()}
+        onDetails={() => {
+          messageActions.current?.dismiss();
+          if (selected) openDetails(selected);
+        }}
+        retryLabel={actionLabel?.startsWith('Retry') ? actionLabel : undefined}
+        onRetry={actionLabel?.startsWith('Retry') ? onAction : undefined}
       />
     </>
   );
