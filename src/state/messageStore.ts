@@ -7,12 +7,25 @@ export const useMessageStore = create<{
   recent: ChatMessage[];
   unread: Record<string, number>;
   revision: number;
+  drafts: Record<string, string>;
+  session: number;
+  setDraft: (conversation: string, text: string) => void;
   refresh: () => Promise<void>;
   clear: () => void;
 }>((set, get) => ({
   recent: [],
   unread: {},
   revision: 0,
+  // Session-only: drafts survive navigation without writing unsent text to disk.
+  drafts: {},
+  session: 0,
+  setDraft: (conversation, text) =>
+    set((state) => {
+      const drafts = { ...state.drafts };
+      if (text) drafts[conversation] = text.slice(0, 16000);
+      else delete drafts[conversation];
+      return { drafts };
+    }),
   refresh: () => {
     if (flight) {
       flight.dirty = true;
@@ -46,6 +59,12 @@ export const useMessageStore = create<{
   clear: () => {
     generation++;
     flight = null;
-    set({ recent: [], unread: {}, revision: 0 });
+    set((state) => ({
+      recent: [],
+      unread: {},
+      revision: 0,
+      drafts: {},
+      session: state.session + 1,
+    }));
   },
 }));

@@ -110,6 +110,8 @@ export function MerchantLightningStage({
     );
   return (
     <PaymentStage
+      appearance="pos"
+      note={note}
       amount={String(amount)}
       invoice={quote.request}
       quoteId={quote.quote}

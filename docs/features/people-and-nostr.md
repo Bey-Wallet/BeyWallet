@@ -23,7 +23,7 @@ timestamps, and a red numeric unread badge. The row count combines unread messag
 payments, excludes dismissed payments, and clears as activity is read. Payment issue rows count
 only their own unseen payment. The People bottom-tab and Recent/Requests badges remain counts
 of unread conversations, using the same red surface and white text. Visual counts cap at `99+`;
-row accessibility labels retain the full count. Tapping anywhere on a row opens its conversation. Pay/Request live
+row accessibility labels retain the full count. Tapping anywhere on a row opens its conversation. Send/Request live
 in that conversation rather than as competing row actions. Accepted people without activity sort
 alphabetically after active conversations. Requests separates People requests and Payment issues;
 issue rows open the existing claim review sheet without starting a claim.
@@ -41,7 +41,10 @@ for an unused contact. Monetary previews follow the primary currency setting, fa
 when no fiat rate is available. The shared profile picker used by Send is unchanged.
 
 Opening a person shows one conversation containing text and payment cards. The header has the
-standard modal close control, avatar, username, contact-status icon and Info action. Verified NIP-05
+back control, avatar, a two-line identity area and Info action. Names use compact 16-point text with
+truncation; the 12-point secondary line shows the published address or contact state. Blocked
+contacts show their blocked state there. The avatar/name area remains a minimum 48-point target,
+and duplicated standalone contact-state/add controls are omitted. Verified NIP-05
 identities display their verification badge. Both the identity and Info open a contact bottom sheet with
 a large avatar, full address, tap-to-copy npub, copy/share, Check and sync, Delete contact and Block
 contact. Sync verifies the address against the saved public key and refreshes profile metadata;
@@ -51,11 +54,25 @@ person-details links open the same conversation. The public key and contact acti
 rows, with an inline copy icon for the full npub and disabled rows while syncing or when an action
 does not apply.
 
+The timeline retains its existing bottom alignment and older-message pagination anchors.
+Message and contact detail sheets both use the app's `$background` canvas.
+
 The composer grows to four scaled lines and then scrolls internally, with a secondary icon-only
-Send button beside it. **Request** and **Pay** float above it at their natural widths. Sent text uses branded primary; received text
+Send button beside it. **Request** and **Send** are full-rounded, 48-point secondary pills with
+16-point text, matching Home's secondary currency toggle palette. Tapping Send replaces the pills
+with Ecash/Lightning choices when the contact publishes a valid `lud16` Lightning address;
+otherwise it opens Ecash directly. Request offers both methods. An inline back control restores
+Send/Request. The action row is in normal layout flow rather than overlapping the timeline.
+Sent text uses branded primary; received text
 uses the secondary surface. Sent payment cards use branded secondary, received cards secondary,
-and actionable incoming cards warning colors. Cards show type, primary and secondary currency,
-then status. Detailed dates/times appear only in the message/payment details bottom sheet, which
+and actionable incoming cards warning colors. Payment cards lead with the amount, then secondary
+currency and any note, with a compact type/status footer. Lightning subtypes use the short Lightning
+label on the card; the full type is retained in details. Unknown-amount fallback text uses body-sized
+type rather than an oversized heading. A small status icon sits beside the type:
+check for confirmed claimed/received/paid, clock for pending/publication-only, alert for review or
+failure, X for cancelled/expired and a return arrow for reclaimed/refunded. Status text stays in
+the details sheet, where Status is the first row. Relay publication never gets a completion check.
+Detailed dates/times appear only in that sheet, which
 also offers safe copy and relevant retry, acceptance or payment review actions. Tokens/proofs are
 never copied as message text. New conversations initiated by the user offer **Add contact**;
 incoming invitations show **Accept** and **Reject and block** in place of an enabled composer.
@@ -119,6 +136,21 @@ recipient's Nostr public key and sends it through the configured encrypted Nostr
 The transaction history stores Nostr recipient metadata so the payment can appear on the person's
 detail screen.
 
+Lightning sending uses the contact's cached, published `lud16`, never an inferred NIP-05 address.
+Profile refreshes update or clear that destination. Choosing a method only navigates: the existing
+Lightning amount, destination, fee, authentication and confirmation checks still execute. After
+submission, annotate only the exact Coco melt operation when its destination still matches the
+selected contact address. This local history metadata creates the conversation card; it is not
+a recipient acknowledgement. Pending or unknown settlement must not be presented as Paid.
+
+Lightning requests use the existing mint invoice creation/confirmation flow, then a separate
+Send request action publishes the invoice through encrypted chat. The invoice is persisted as
+one message and rendered locally as a payment card; its checksummed whole-sat amount is read for
+display only. A publication failure after persistence directs the user to retry that saved card,
+without creating another invoice/message. Expired invoices cannot be sent through this action.
+View request returns to the conversation without cancelling the quote. Relay publication does
+not prove payment; actual payment/recovery remains in the existing mint/Lightning services.
+
 ## Receiving and claiming payments
 
 Incoming Nostr payments are persisted before claim processing. Claim work is serialized so the
@@ -174,7 +206,7 @@ discovering a profile alone does not guarantee delivery. The outgoing event ID i
 ID. Both formats retain existing blocking, authentication, contact acceptance and publication
 checks. Switching formats affects new messages only: retries retain their original encrypted event,
 ID and destinations, and never downgrade an already-created NIP-17 message. Legacy outgoing chat
-is stored locally without a separate sender gift wrap. Existing Pay/Request transports are unchanged.
+is stored locally without a separate sender gift wrap. Existing Ecash Pay/Request transports are unchanged.
 
 Receiving supports NIP-17 and signed legacy kind `4`. Authentication verifies outer/seal signatures,
 seal/rumor identity, recomputed rumor IDs and one-to-one recipient membership. Sender copies record
@@ -206,10 +238,10 @@ received text uses secondary. Compact payment cards use neutral secondary surfac
 secondary for actionable incoming items. All corners are equally rounded at 16px. Payment type,
 primary currency, secondary currency and status remain visible; timestamps live in the details sheet.
 
-The conversation uses the standard circular modal close control, an added-contact icon and an Info
-button for the contact sheet. A conversation opened without incoming activity offers Add contact;
-Accept / Reject and block are reserved for incoming invitations. Pay and Request use their natural
-widths in a floating row above the composer. Payment cards also size to their contents.
+The conversation uses a back arrow and an Info button for the contact sheet. A conversation opened
+without incoming activity offers Add contact below the timeline; Accept / Reject and block are
+reserved for incoming invitations. Send and Request use the pill/method chooser described above.
+Payment cards size to their contents.
 
 The latest 50 mixed activities load at the bottom. Scrolling upward loads older local messages and
 payments while preserving the visible position. Centered calendar-date pills separate days.

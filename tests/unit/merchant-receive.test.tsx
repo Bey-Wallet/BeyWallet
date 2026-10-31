@@ -23,12 +23,18 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: 'Screen' },
 }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 16 }) }));
-jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack', Theme: 'Theme' }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ListTableVariantProvider: ({ children }: any) => children,
+}));
+jest.mock('~/shared/ui/AppBottomSheet', () => ({
+  AppBottomSheetThemeProvider: ({ children }: any) => children,
+}));
 jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({
   useSettingsBusy: (busy: boolean) => mockBusy(busy),
 }));
 jest.mock('~/features/payments/mint/AmountStage', () => ({ AmountStage: 'AmountStage' }));
-jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
+jest.mock('~/features/payments/receive/PosHeader', () => ({ PosHeader: 'Header' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'Status' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
@@ -64,7 +70,7 @@ async function charge() {
 }
 it('charges once, preserves both receivers across switches, and starts a clean next sale', async () => {
   await open();
-  expect(tree.root.findByType('Screen' as any).props.options.headerShown).toBe(true);
+  expect(tree.root.findByType('Screen' as any).props.options.headerShown).toBe(false);
   await act(async () => amount().props.onNoteChange('Coffee'));
   await act(async () => amount().props.onMintChange('mint-b'));
   await charge();

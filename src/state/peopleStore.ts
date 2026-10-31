@@ -4,6 +4,7 @@ import { normalizeNpub } from '~/shared/utils/nostr';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import type { NostrInboxItem } from '~/state/nostrInboxStore';
 import { nip19 } from 'nostr-tools';
+import { isLightningAddress } from '~/services/api/lnurlService';
 
 export interface Person {
   npub: string;
@@ -19,6 +20,7 @@ export interface Person {
   hasIncomingActivity?: boolean;
   requiresAcceptance?: boolean;
   chatTransport?: 'nip17' | 'nip04';
+  lightningAddress?: string | null;
 }
 
 type PersonInput = Pick<Person, 'npub'> & Partial<Omit<Person, 'npub'>>;
@@ -72,6 +74,14 @@ function mergePerson(existing: Person | undefined, input: PersonInput): Person {
     }),
     hasIncomingActivity: input.hasIncomingActivity ?? existing?.hasIncomingActivity,
     requiresAcceptance: input.requiresAcceptance ?? existing?.requiresAcceptance,
+    lightningAddress:
+      input.lightningAddress === undefined
+        ? existing?.lightningAddress
+        : typeof input.lightningAddress === 'string' &&
+            input.lightningAddress.length <= 320 &&
+            isLightningAddress(input.lightningAddress)
+          ? input.lightningAddress.trim()
+          : null,
     chatTransport:
       input.chatTransport === 'nip04' || input.chatTransport === 'nip17'
         ? input.chatTransport

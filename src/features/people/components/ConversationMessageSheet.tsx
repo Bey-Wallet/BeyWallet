@@ -31,7 +31,12 @@ export const ConversationMessageSheet = forwardRef<
     );
   };
   return (
-    <AppBottomSheet ref={ref} snapPoints={['65%', '90%']} bottomInset={bottomInset}>
+    <AppBottomSheet
+      ref={ref}
+      snapPoints={['65%', '90%']}
+      bottomInset={bottomInset}
+      backgroundColor="$background"
+    >
       <BottomSheetScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: Math.max(bottomInset, 20) + 12 }}
       >
@@ -46,6 +51,8 @@ export const ConversationMessageSheet = forwardRef<
               secondaryAmount={secondaryAmount}
             />
             <ListTable>
+              <Detail label="Status" value={item.status} />
+              {item.type && <Detail label="Type" value={item.type} />}
               <ListTableRow
                 label={item.kind === 'text' ? 'Copy message' : 'Copy payment details'}
                 labelColor="$color"
@@ -53,7 +60,6 @@ export const ConversationMessageSheet = forwardRef<
                 onCopy={() => void copy()}
                 onPress={() => void copy()}
               />
-              <Detail label="Status" value={item.status} />
               {!!item.note && (
                 <ListTableRow
                   label="Note"

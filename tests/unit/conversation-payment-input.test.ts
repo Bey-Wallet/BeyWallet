@@ -6,6 +6,14 @@ import { normalizeLightningInput, getLnurlPayParams } from '~/services/api/lnurl
 const lnurl = (url: string) =>
   bech32.encode('lnurl', bech32.toWords(Array.from(url, (char) => char.charCodeAt(0))), 32000);
 
+it('reads whole-sat invoice amounts for cards without fetching or executing a payment', () => {
+  const encoded = bech32.encode('lnbc1000n', new Array(120).fill(0), 32000);
+  expect(conversationPaymentInput(encoded)?.amount).toBe(100);
+  expect(conversationPaymentInput('lnbc210n1ptestinvoice')?.amount).toBeUndefined();
+  const subSat = bech32.encode('lnbc1p', new Array(120).fill(0), 32000);
+  expect(conversationPaymentInput(subSat)?.amount).toBeUndefined();
+});
+
 it.each(['lnbc210n1ptestinvoice', 'lntb1test', 'lnbcrt1test', 'LIGHTNING:LNBC1TEST'])(
   'recognizes invoice %s without reporting a payment outcome',
   (text) => {

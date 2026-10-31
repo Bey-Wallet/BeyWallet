@@ -114,6 +114,7 @@ export function buildPeopleListModel({
       name: person?.username || senderName || undefined,
       displayName: person?.displayName || undefined,
       picture: person?.picture || undefined,
+      lightningAddress: person?.lightningAddress || undefined,
       nip05: person?.nip05 || undefined,
       nip05Verified: person?.nip05Verified,
       source: 'identifier',

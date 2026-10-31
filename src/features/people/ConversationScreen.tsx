@@ -1,22 +1,15 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
+import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ArrowDownLeft,
-  ArrowLeft,
-  ArrowUp,
-  ArrowUpRight,
-  Info,
-  UserCheck,
-  UserPlus,
-  UserX,
-} from '@tamagui/lucide-icons';
-import { ScrollView, Text, XStack, YStack } from 'tamagui';
+import { ArrowDown, ArrowLeft, ArrowUp, Info, UserPlus } from '@tamagui/lucide-icons';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
+import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -43,10 +36,14 @@ import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { ConversationAvatar } from './components/ConversationAvatar';
 import { ConversationContactSheet } from './components/ConversationContactSheet';
 import { ConversationMessageSheet } from './components/ConversationMessageSheet';
+import { ConversationMessageActions } from './components/ConversationMessageActions';
 import { ConversationItemCard } from './components/ConversationItemCard';
-import { conversationDateLabel, conversationDayKey } from './conversationDates';
+import { conversationDateLabel } from './conversationDates';
+import { conversationItemLayout } from './conversationGrouping';
 import { useWalletStore } from '~/state/walletStore';
 import { hydrateSavedPerson, needsNostrProfileRefresh } from './peopleProfileCache';
+import { ConversationPaymentActions } from './components/ConversationPaymentActions';
+import { isLightningAddress } from '~/services/api/lnurlService';
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ npub: string; displayName?: string; username?: string }>();
@@ -55,6 +52,7 @@ export default function ConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   const person = usePeopleStore((state) => state.people[npub]);
   const inbox = useNostrInboxStore((state) => state.items);
   const revision = useMessageStore((state) => state.revision);
@@ -72,13 +70,15 @@ export default function ConversationScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const contactSheet = useRef<AppBottomSheetRef>(null);
   const messageSheet = useRef<AppBottomSheetRef>(null);
+  const messageActions = useRef<AppBottomSheetRef>(null);
   const localSequence = useRef(0);
-  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const scrollRef = useRef<LegendListRef>(null);
   const nearBottom = useRef(true);
   const paginationLock = useRef(false);
   const userScrolling = useRef(false);
-  const scrollMetrics = useRef({ height: 0, offset: 0 });
-  const prependAnchor = useRef<{ height: number; offset: number } | null>(null);
+  const [awayFromBottom, setAwayFromBottom] = useState(false);
+  const [newActivity, setNewActivity] = useState(false);
+  const latestId = useRef<string | undefined>(undefined);
   const queueLock = useRef(false);
   const currentConversation = useRef<string | null>(npub);
   const maxInputHeight = Math.ceil(22 * fontScale * 4 + 20);
@@ -95,12 +95,14 @@ export default function ConversationScreen() {
     currentConversation.current = npub;
     setMessages([]);
     setQueued([]);
-    setText('');
+    setText(useMessageStore.getState().drafts[npub] || '');
     setContentHeight(44);
     setSelectedId(null);
     setLimit(50);
     setHasMore(false);
-    prependAnchor.current = null;
+    setAwayFromBottom(false);
+    setNewActivity(false);
+    latestId.current = undefined;
     paginationLock.current = false;
     userScrolling.current = false;
     queueLock.current = false;
@@ -201,24 +203,18 @@ export default function ConversationScreen() {
     if (!moreActivity || loadingMessages || fetchingHistory || paginationLock.current) return;
     paginationLock.current = true;
     nearBottom.current = false;
-    prependAnchor.current = { ...scrollMetrics.current };
     setLimit((count) => count + 50);
   };
   useEffect(() => {
     if (loadingMessages || fetchingHistory) return;
     paginationLock.current = false;
-    if (!prependAnchor.current) return;
-    const frame = requestAnimationFrame(() => {
-      const anchor = prependAnchor.current;
-      if (!anchor) return;
-      scrollRef.current?.scrollTo({
-        y: Math.max(0, anchor.offset + scrollMetrics.current.height - anchor.height),
-        animated: false,
-      });
-      prependAnchor.current = null;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [loadingMessages, fetchingHistory, activity.length]);
+  }, [loadingMessages, fetchingHistory]);
+  useEffect(() => {
+    const latest = activity.at(-1)?.id;
+    if (latestId.current && latest && latest !== latestId.current && !nearBottom.current)
+      setNewActivity(true);
+    latestId.current = latest;
+  }, [activity]);
   const selected = activity.find((item) => item.id === selectedId) || null;
   const amounts = (amount?: number) => {
     if (typeof amount !== 'number' || !Number.isFinite(amount)) return {};
@@ -253,6 +249,8 @@ export default function ConversationScreen() {
     setQueueing(true);
     setError('');
     setText('');
+    const draftSession = useMessageStore.getState().session;
+    useMessageStore.getState().setDraft(npub, '');
     setContentHeight(44);
     nearBottom.current = true;
     const optimisticId = `local-${Date.now()}-${++localSequence.current}`;
@@ -281,12 +279,16 @@ export default function ConversationScreen() {
         setQueueing(false);
       })
       .catch((cause) => {
+        if (!saved && useMessageStore.getState().session === draftSession) {
+          const newer = useMessageStore.getState().drafts[npub];
+          useMessageStore.getState().setDraft(npub, newer ? `${draft}\n${newer}` : draft);
+        }
         if (currentConversation.current !== npub) return;
         setError(cause instanceof Error ? cause.message : 'Message could not be sent.');
         if (!saved) {
           setQueued((previous) => previous.filter((item) => item.id !== optimisticId));
           setSelectedId((previous) => (previous === `m-${optimisticId}` ? null : previous));
-          setText((current) => (current ? `${draft}\n${current}` : draft));
+          setText(useMessageStore.getState().drafts[npub] || '');
         }
       })
       .finally(() => {
@@ -380,7 +382,7 @@ export default function ConversationScreen() {
       if (payment.type === 'request') reviewRequest(selected);
       else DeviceEventEmitter.emit('nostr:openClaim', payment);
     };
-  } else if (selected?.paymentInput && !blocked) {
+  } else if (selected?.paymentInput && selected.direction === 'incoming' && !blocked) {
     const input = selected.paymentInput;
     if (!accepted) {
       actionLabel = 'Add contact';
@@ -400,11 +402,17 @@ export default function ConversationScreen() {
     };
   }
 
+  const headerSubtitle = blocked
+    ? 'Blocked contact'
+    : person?.nip05 ||
+      person?.lightningAddress ||
+      (accepted ? 'Saved contact' : incomingInvitation ? 'Contact request' : 'Not added');
+
   return (
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <YStack flex={1} bg="$background" pt={insets.top}>
-          <XStack px="$3" py="$2" items="center" gap="$2">
+          <XStack px="$3" py="$2" minHeight={64} items="center" gap="$2">
             <HeaderIconButton
               accessibilityLabel="Back"
               icon={ArrowLeft}
@@ -415,133 +423,158 @@ export default function ConversationScreen() {
             <AppPressable
               minHeight={48}
               flex={1}
+              minWidth={0}
               flexDirection="row"
               items="center"
               gap="$2.5"
+              accessibilityRole="button"
               accessibilityLabel={`Open profile for ${label}`}
               onPress={openContact}
             >
               <ConversationAvatar npub={npub} picture={person?.picture} />
-              <Text flexShrink={1} fontFamily="$body" {...appTypography.title3} numberOfLines={1}>
-                {label}
-              </Text>
-              {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
-            </AppPressable>
-            {accepted || blocked ? (
-              <YStack
-                accessibilityLabel={blocked ? 'Blocked contact' : 'Added contact'}
-                accessibilityRole="image"
-                p="$2"
-              >
-                {blocked ? (
-                  <UserX size={20} color="$gray10" />
-                ) : (
-                  <UserCheck size={20} color="$gray10" />
-                )}
+              <YStack flex={1} minWidth={0} gap={2}>
+                <XStack items="center" gap={5} minWidth={0}>
+                  <Text
+                    {...appTypography.label1}
+                    fontWeight="600"
+                    color="$color"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    flexShrink={1}
+                  >
+                    {label}
+                  </Text>
+                  {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge size={14} />}
+                </XStack>
+                <Text
+                  {...appTypography.body3}
+                  color="$gray10"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {headerSubtitle}
+                </Text>
               </YStack>
-            ) : (
-              <HeaderIconButton
-                icon={UserPlus}
-                accessibilityLabel="Add contact"
-                onPress={() => void run(() => acceptContact(npub))}
-              />
-            )}
+            </AppPressable>
             <HeaderIconButton
               icon={Info}
               accessibilityLabel={`Contact details for ${label}`}
               onPress={openContact}
             />
           </XStack>
-          <ScrollView
-            ref={scrollRef}
-            flex={1}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
-            onLayout={() => {
-              if (nearBottom.current && !prependAnchor.current)
-                scrollRef.current?.scrollToEnd({ animated: false });
-            }}
-            onScrollBeginDrag={() => {
-              userScrolling.current = true;
-            }}
-            onScrollEndDrag={() => {
-              userScrolling.current = false;
-            }}
-            onMomentumScrollBegin={() => {
-              userScrolling.current = true;
-            }}
-            onMomentumScrollEnd={() => {
-              userScrolling.current = false;
-            }}
-            onScroll={(event) => {
-              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-              scrollMetrics.current = { height: contentSize.height, offset: contentOffset.y };
-              nearBottom.current =
-                contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
-              if (
-                userScrolling.current &&
-                contentOffset.y < 80 &&
-                contentSize.height > layoutMeasurement.height + 80
-              )
-                loadOlder();
-            }}
-            scrollEventThrottle={100}
-            onContentSizeChange={(_width, height) => {
-              scrollMetrics.current.height = height;
-              if (nearBottom.current && !prependAnchor.current)
-                scrollRef.current?.scrollToEnd({ animated: false });
-            }}
-          >
-            <YStack flexGrow={1} justify="flex-end">
-              {moreActivity && (
-                <AppButton
-                  variant="default"
-                  emphasis="ghost"
-                  disabled={loadingMessages || !!fetchingHistory}
-                  loading={loadingMessages || !!fetchingHistory}
-                  onPress={loadOlder}
-                >
-                  Older messages
-                </AppButton>
-              )}
-              {visibleActivity.map((item, index) => (
-                <YStack
-                  key={item.id}
-                  mt={
-                    index === 0
-                      ? 0
-                      : visibleActivity[index - 1].direction === item.direction
-                        ? 6
-                        : 14
-                  }
-                >
-                  {(index === 0 ||
-                    conversationDayKey(visibleActivity[index - 1].time) !==
-                      conversationDayKey(item.time)) && (
-                    <YStack
-                      self="center"
-                      bg="$buttonDefaultSecondary"
-                      rounded={20}
-                      px="$3"
-                      py="$1"
-                      my="$3"
-                    >
-                      <Text fontSize="$2" color="$gray10">
-                        {conversationDateLabel(item.time)}
+          <YStack flex={1}>
+            <LegendList
+              key={npub}
+              testID="conversation-timeline"
+              data={visibleActivity}
+              keyExtractor={(item) => item.id}
+              estimatedItemSize={90}
+              alignItemsAtEnd
+              initialScrollAtEnd
+              maintainVisibleContentPosition
+              maintainScrollAtEnd
+              maintainScrollAtEndThreshold={0.15}
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
+              onLayout={() => {
+                if (nearBottom.current && !paginationLock.current)
+                  scrollRef.current?.scrollToEnd({ animated: false });
+              }}
+              onScrollBeginDrag={() => {
+                userScrolling.current = true;
+              }}
+              onScrollEndDrag={() => {
+                userScrolling.current = false;
+              }}
+              onMomentumScrollBegin={() => {
+                userScrolling.current = true;
+              }}
+              onMomentumScrollEnd={() => {
+                userScrolling.current = false;
+              }}
+              onScroll={(event) => {
+                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                nearBottom.current =
+                  contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                setAwayFromBottom(!nearBottom.current);
+                if (nearBottom.current) setNewActivity(false);
+                if (
+                  userScrolling.current &&
+                  contentOffset.y < 80 &&
+                  contentSize.height > layoutMeasurement.height + 80
+                )
+                  loadOlder();
+              }}
+              scrollEventThrottle={100}
+              onContentSizeChange={() => {
+                if (nearBottom.current && !paginationLock.current)
+                  scrollRef.current?.scrollToEnd({ animated: false });
+              }}
+              ListHeaderComponent={
+                moreActivity ? (
+                  <AppButton
+                    variant="default"
+                    emphasis="ghost"
+                    disabled={loadingMessages || !!fetchingHistory}
+                    loading={loadingMessages || !!fetchingHistory}
+                    onPress={loadOlder}
+                  >
+                    Older messages
+                  </AppButton>
+                ) : null
+              }
+              renderItem={({ item, index }) => {
+                const layout = conversationItemLayout(visibleActivity, index);
+                return (
+                  <YStack key={item.id} mt={layout.spacing}>
+                    {layout.showDate && (
+                      <YStack
+                        self="center"
+                        bg="$buttonDefaultSecondary"
+                        rounded={20}
+                        px="$3"
+                        py="$1"
+                        my="$3"
+                      >
+                        <Text fontSize="$2" color="$gray10">
+                          {conversationDateLabel(item.time)}
+                        </Text>
+                      </YStack>
+                    )}
+                    <ConversationItemCard
+                      item={item}
+                      {...amounts(item.amount)}
+                      onPress={() => openDetails(item)}
+                      onLongPress={() => {
+                        Keyboard.dismiss();
+                        setSelectedId(item.id);
+                        requestAnimationFrame(() => messageActions.current?.present());
+                      }}
+                      onPay={isPayableRequest(item) ? () => reviewRequest(item) : undefined}
+                      payDisabled={!accepted || blocked}
+                    />
+                    {layout.showTime && (
+                      <Text
+                        self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
+                        fontSize={11}
+                        lineHeight={16}
+                        color="$gray10"
+                        mt={4}
+                        mx={4}
+                      >
+                        {new Date(item.time).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </Text>
-                    </YStack>
-                  )}
-                  <ConversationItemCard
-                    item={item}
-                    {...amounts(item.amount)}
-                    onPress={() => openDetails(item)}
-                    onPay={isPayableRequest(item) ? () => reviewRequest(item) : undefined}
-                    payDisabled={!accepted || blocked}
-                  />
-                </YStack>
-              ))}
-              {!activity.length && (
+                    )}
+                  </YStack>
+                );
+              }}
+              ListEmptyComponent={
                 <YStack flex={1} items="center" justify="center" gap="$3" p="$5">
                   <ConversationAvatar npub={npub} picture={person?.picture} size={72} />
                   <Text fontSize="$6" fontWeight="700" textAlign="center">
@@ -551,9 +584,37 @@ export default function ConversationScreen() {
                     Start a conversation or send a payment.
                   </Text>
                 </YStack>
-              )}
-            </YStack>
-          </ScrollView>
+              }
+            />
+            {awayFromBottom && (
+              <YStack
+                position="absolute"
+                bottom={16}
+                right={16}
+                zIndex={10}
+                bg="$buttonDefaultSecondary"
+                rounded={999}
+                overflow="hidden"
+                elevation={4}
+              >
+                <AppIconButton
+                  variant="default"
+                  emphasis="secondary"
+                  shape="circular"
+                  size="medium"
+                  icon={({ color }) => <ArrowDown size={22} color={color} />}
+                  accessibilityLabel="Jump to latest messages"
+                  accessibilityHint={newActivity ? 'New messages available' : undefined}
+                  onPress={() => {
+                    nearBottom.current = true;
+                    setAwayFromBottom(false);
+                    setNewActivity(false);
+                    scrollRef.current?.scrollToEnd({ animated: true });
+                  }}
+                />
+              </YStack>
+            )}
+          </YStack>
           <YStack
             px="$4"
             pt="$2"
@@ -562,39 +623,45 @@ export default function ConversationScreen() {
             borderTopWidth={1}
             borderColor="$gray4"
           >
-            <XStack gap="$2" self="flex-end" mt={-24} mb="$1">
-              <AppButton
-                size="small"
-                variant="default"
-                emphasis="secondary"
-                icon={ArrowDownLeft}
-                disabled={blocked || !accepted}
-                onPress={() =>
+            <ConversationPaymentActions
+              key={npub}
+              disabled={blocked || !accepted}
+              hasLightningAddress={
+                !!person?.lightningAddress && isLightningAddress(person.lightningAddress)
+              }
+              onSend={(method) => {
+                if (!accepted || blocked) return;
+                Keyboard.dismiss();
+                if (method === 'lightning') {
+                  if (!person?.lightningAddress || !isLightningAddress(person.lightningAddress))
+                    return;
                   router.push({
-                    pathname: '/(modals)/receive',
-                    params: { from: npub, username: label },
-                  })
-                }
-              >
-                Request
-              </AppButton>
-              <AppButton
-                size="small"
-                variant="default"
-                emphasis="secondary"
-                icon={ArrowUpRight}
-                accessibilityLabel="Send money"
-                disabled={blocked || !accepted}
-                onPress={() =>
+                    pathname: '/(modals)/melt',
+                    params: {
+                      lightningAddress: person.lightningAddress,
+                      conversationNpub: npub,
+                      username: label,
+                    },
+                  });
+                } else
                   router.push({
                     pathname: '/(modals)/send',
                     params: { to: npub, username: label, mode: 'nostr' },
-                  })
-                }
-              >
-                Pay
-              </AppButton>
-            </XStack>
+                  });
+              }}
+              onRequest={(method) => {
+                if (!accepted || blocked) return;
+                Keyboard.dismiss();
+                router.push(
+                  method === 'lightning'
+                    ? {
+                        pathname: '/(modals)/mint',
+                        params: { requestTo: npub, requestName: label },
+                      }
+                    : { pathname: '/(modals)/receive', params: { from: npub, username: label } },
+                );
+              }}
+            />
             {!!error && (
               <Text accessibilityRole="alert" color="$buttonWarningSecondaryText" fontSize="$3">
                 {error}
@@ -608,6 +675,7 @@ export default function ConversationScreen() {
             {accepted ? (
               <XStack gap="$2" items="flex-end">
                 <Input
+                  key={npub}
                   flex={1}
                   multiline
                   maxLength={16000}
@@ -616,9 +684,12 @@ export default function ConversationScreen() {
                   value={text}
                   onChangeText={(value) => {
                     setText(value);
+                    useMessageStore.getState().setDraft(npub, value);
                     if (!value) setContentHeight(44);
                   }}
                   height={Math.max(44, Math.min(contentHeight, maxInputHeight))}
+                  animation={reducedMotion ? null : 'quick'}
+                  animateOnly={['height']}
                   maxHeight={maxInputHeight}
                   bg="$buttonDefaultSecondary"
                   borderWidth={0}
@@ -718,6 +789,19 @@ export default function ConversationScreen() {
         bottomInset={insets.bottom}
         actionLabel={actionLabel}
         onAction={onAction}
+      />
+      <ConversationMessageActions
+        ref={messageActions}
+        item={selected}
+        primaryAmount={amounts(selected?.amount).primaryAmount}
+        bottomInset={insets.bottom}
+        onClose={() => messageActions.current?.dismiss()}
+        onDetails={() => {
+          messageActions.current?.dismiss();
+          if (selected) openDetails(selected);
+        }}
+        retryLabel={actionLabel?.startsWith('Retry') ? actionLabel : undefined}
+        onRetry={actionLabel?.startsWith('Retry') ? onAction : undefined}
       />
     </>
   );

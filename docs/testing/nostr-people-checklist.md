@@ -88,7 +88,7 @@ notifications, and complete payment flows.
 - [ ] Scroll through more than 50 messages and inspect older local messages beyond the seven-day relay window.
 - [ ] Verify Recent ordering, preview/time/unread, grouped Requests and payment issue badges without duplicate invitations.
 - [ ] Verify keyboard/composer layout, screen-reader labels, large text and light/dark themes on Android and iOS.
-- [ ] Type past four lines: the composer stops growing and scrolls internally; Request and Pay float above it with natural widths.
+- [ ] Type past four lines: the composer stops growing and scrolls internally; Request and Send remain in their normal-layout pill row without overlapping messages.
 - [ ] Slow encryption/storage and relay discovery: a Sending bubble appears immediately and the composer clears; local persistence replaces it once and enables another send while publication remains pending.
 - [ ] Fail before local persistence: the temporary bubble disappears, the draft returns without losing newly typed text, and the error is visible.
 - [ ] Tap a text or payment body: details/copy/time appear in a bottom sheet; detailed timestamps stay out of the timeline and payment secrets never appear in copied text.
@@ -96,7 +96,7 @@ notifications, and complete payment flows.
 - [ ] Restart and load ordinary messages from SQLite: they remain text, never zero-amount cards. Inspect missing and genuine zero payment amounts separately.
 - [ ] Confirm there is no playground. Check natural-width payment cards, long words, emoji, large amounts and missing exchange rates without clipping in light/dark and large text.
 - [ ] Open a new conversation without incoming activity: Add contact appears instead of Accept / Reject and block; adding enables text and payment controls. Real incoming invitations still show acceptance controls.
-- [ ] Verify the standard modal close button, added/blocked contact icons and Info action for the profile sheet.
+- [ ] Verify the back arrow, compact name/address header, blocked-contact subtitle and Info action for the profile sheet.
 - [ ] Verify banknote, bolt and hand-with-coins payment icons; adjacent secondary Pay opens request confirmation, remains disabled before contact acceptance/when blocked, and disappears for completed requests.
 - [ ] Verify the NIP-05 badge appears in the header only for a verified address. Both name/avatar and Info open the same profile sheet.
 - [ ] Inspect ListTable profile rows: full npub/copy icon, Share, Check and sync, Delete and Block. Check disabled/loading rows, large text and destructive confirmations.
@@ -107,6 +107,17 @@ notifications, and complete payment flows.
 - [ ] Change the contact's profile picture and sync; change address resolution to another pubkey and confirm the saved contact key never changes.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
+
+## Conversation payment methods and header
+
+- [ ] Inspect the compact two-line header with long names/addresses and large text. Back and Info remain accessible; tapping the avatar/name opens the same contact sheet. Verify blocked-state text and verified badges in both themes.
+- [ ] Compare Send/Request pills with Home's secondary currency toggle: neutral surface/states, full rounding, 48-point minimum height and 16-point text. They must not overlap the last card.
+- [ ] A contact with a valid published lud16 offers Ecash/Lightning after Send. A NIP-05 identifier alone must never become a Lightning destination. Sync a removed/changed lud16 and verify the chooser updates.
+- [ ] Choose each method and back out: no payment runs from the chooser. Ecash retains existing locked-send and request confirmation. Lightning preserves destination/amount/fee/authentication review.
+- [ ] Complete a small Lightning send and verify its real-history card appears locally. Edit the destination first and ensure it is not attributed to the original person. Test pending/unresolved outcomes without displaying Paid.
+- [ ] Create a Lightning request, then Send request. Scan/pay with a second test wallet and verify the invoice card and existing mint redemption. Repeat with legacy NIP-04 selected.
+- [ ] Fail publication after message persistence: View request opens one saved card; retry from its details must reuse that message. Test failure before persistence, expiry, repeated taps and blocked/locked contacts.
+- [ ] After publishing, View request must return without marking the invoice cancelled. Review invoice collection after leaving the screen and restarting the wallet.
 
 ## Conversation keyboard integration
 
@@ -150,6 +161,20 @@ notifications, and complete payment flows.
 - [ ] Disconnect and reconnect networking and confirm relay health updates without crashing.
 
 ## Platform checks
+
+- [ ] Load a long mixed conversation, scroll upward and load older pages without moving the
+      visible message. Receive new activity while reading, then tap the floating down-arrow button.
+      Confirm the button overlays the timeline and does not consume a row above the composer.
+- [ ] Verify text groups split after five minutes, at midnight, on sender changes and around
+      payments. Only the final text in a group shows a timestamp.
+- [ ] Type separate drafts in two conversations, navigate away and return. Confirm each draft
+      restores, successful sends clear it, and a failure before persistence restores it alongside
+      newer typing. Close/reopen the wallet and confirm session drafts have cleared.
+- [ ] Long press text and payment cards in both themes. Test copying, details, failed-message
+      retry and the screen-reader Message actions action. Payment copy must exclude raw tokens.
+- [ ] Choose Select text: verify the soft keyboard stays hidden, selection handles can move
+      without dragging the sheet, and Copy selected text copies only the selected range. Repeat
+      on Android and iOS with long messages and larger accessibility fonts.
 
 - [ ] Verify biometric or device authentication before revealing the Nostr secret key.
 - [ ] Confirm the secret key is hidden again after leaving the relevant screen.

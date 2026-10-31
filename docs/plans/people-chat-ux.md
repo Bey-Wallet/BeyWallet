@@ -25,9 +25,31 @@ References: [installation](https://kirillzyusko.github.io/react-native-keyboard-
 [1.18 KeyboardAvoidingView](https://kirillzyusko.github.io/react-native-keyboard-controller/docs/1.18.0/api/components/keyboard-avoiding-view),
 [1.18 provider](https://kirillzyusko.github.io/react-native-keyboard-controller/docs/1.18.0/api/keyboard-provider).
 
-## Recommended next improvements
+## Conversation interaction improvements implemented
 
-These are proposals, not implemented features. Scope and validate one at a time.
+- The timeline uses the installed LegendList, stable activity IDs and visible-content anchoring
+  while older activity loads. Short conversations remain bottom aligned. A floating down-arrow
+  control appears above the composer when reading older activity; new arrivals do not
+  force a jump. The existing mark-on-open policy is unchanged.
+- Consecutive text messages group by direction, local day and a maximum five-minute gap. Each
+  group ends with a small timestamp. Payments always have their own spacing and retain details
+  in the payment sheet.
+- Composer height animates using the existing quick animation, respecting reduced motion and
+  the four-line cap. Per-conversation drafts live only in the current message session, survive
+  navigation and recover on failure before persistence. They are not written to disk or backed
+  up, and clear with message-session teardown.
+- Long press opens a compact action sheet for copy, text selection, details and eligible retry.
+  Text selection uses a gesture-aware, controlled field with the soft keyboard suppressed and
+  an explicit Copy selected text action. Payment copy includes only type, formatted amount and
+  status. Retry delegates to the existing saved-message/payment retry path.
+
+These changes need device checks for scrolling, selection handles, keyboard animation and
+large accessibility fonts; unit tests do not establish native interaction quality.
+
+## Further improvement ideas
+
+The ideas below include the original roadmap. Items described above are implemented; unread
+dividers, search, replies and reactions remain proposals. Scope and validate further work separately.
 
 ### 1. Timeline and navigation
 

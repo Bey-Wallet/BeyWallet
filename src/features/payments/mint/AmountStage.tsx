@@ -22,6 +22,7 @@ import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { ListTableRow } from '~/shared/ui/ListTable';
 
 interface AmountStageProps {
+  appearance?: 'default' | 'pos';
   mintUrl?: string | null;
   onMintChange?: (url: string) => void;
   amount: string;
@@ -33,6 +34,7 @@ interface AmountStageProps {
 }
 
 export function AmountStage({
+  appearance = 'default',
   mintUrl,
   onMintChange,
   amount,
@@ -42,6 +44,7 @@ export function AmountStage({
   note,
   onNoteChange,
 }: AmountStageProps) {
+  const pos = appearance === 'pos';
   const {
     activeMintUrl: globalMintUrl,
     mints,
@@ -264,7 +267,7 @@ export function AmountStage({
           width="100%"
           flex={onNoteChange ? 1 : undefined}
           justify="center"
-          bg="$gray2"
+          bg={pos ? 'transparent' : '$gray2'}
           rounded="$6"
           p="$4"
           items="center"
@@ -274,13 +277,13 @@ export function AmountStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize="$3" fontWeight="500">
-              Enter Amount
+            <Text color="$gray10" fontSize={pos ? 16 : '$3'} fontWeight="500">
+              {pos ? 'New sale' : 'Enter Amount'}
             </Text>
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
+              fontSize={pos ? Math.min(64, dynamicFontSize + 20) : dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -293,7 +296,7 @@ export function AmountStage({
                 bg="$gray3"
                 pressStyle={{ scale: 0.96, bg: '$gray5' }}
                 onPress={toggleMode}
-                minHeight={36}
+                minHeight={pos ? 48 : 36}
                 flexDirection="row"
                 items="center"
                 justify="center"
@@ -371,6 +374,7 @@ export function AmountStage({
       {/* Presets and Numeric Keypad */}
       <YStack width="100%" gap="$4">
         <NumericKeypad
+          appearance={appearance}
           allowDecimal={fiatEnabled}
           showAmountDisplay={false}
           value={localInputValue}

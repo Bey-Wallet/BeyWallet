@@ -38,6 +38,7 @@ describe('nostrProfileService helpers', () => {
           display_name: 'Satoshi Nakamoto',
           nip05: 'satoshi@example.com',
           about: 'Bitcoin',
+          lud16: 'satoshi@pay.example.com',
         }),
       ),
     );
@@ -47,8 +48,18 @@ describe('nostrProfileService helpers', () => {
       name: 'satoshi',
       displayName: 'Satoshi Nakamoto',
       nip05: 'satoshi@example.com',
+      lightningAddress: 'satoshi@pay.example.com',
       source: 'relay',
     });
+  });
+
+  it('does not infer a Lightning address from NIP-05 or accept malformed lud16 values', () => {
+    for (const lud16 of [undefined, 'javascript:alert(1)', 'not-an-address', 42]) {
+      const profile = parseNostrProfileEvent(
+        profileEvent(JSON.stringify({ nip05: 'name@example.com', lud16 })),
+      );
+      expect(profile?.lightningAddress).toBeUndefined();
+    }
   });
 
   it('ignores malformed metadata events', () => {

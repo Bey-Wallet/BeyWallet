@@ -1,15 +1,55 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { StyleSheet } from 'react-native';
-import { TamaguiProvider, Theme, Text } from 'tamagui';
+import { TamaguiProvider, Theme, Text, YStack } from 'tamagui';
 import { AppInput as Input, AppTextArea as TextArea } from '~/shared/ui/AppInput';
 import { config } from '~/tamagui.config';
 import { AppButton } from '~/shared/ui/AppButton';
 import { appColors, appRadii } from '~/shared/theme/appearance';
 import { ListTable } from '~/shared/ui/ListTable';
+import { posColors } from '~/shared/theme/pos';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+
+it.each(['light', 'dark'] as const)(
+  'resolves the POS theme inside %s without changing surrounding wallet surfaces',
+  async (theme) => {
+    let tree!: ReactTestRenderer;
+    try {
+      await act(async () => {
+        tree = create(
+          <TamaguiProvider config={config} defaultTheme={theme}>
+            <YStack testID="wallet-canvas" bg="$background">
+              <Text testID="wallet-text" color="$color">
+                Wallet
+              </Text>
+            </YStack>
+            <Theme name="light_pos">
+              <YStack testID="pos-canvas" bg="$background">
+                <Text testID="pos-text" color="$color">
+                  Point of sale
+                </Text>
+              </YStack>
+              <Input testID="pos-field" color="$color" />
+            </Theme>
+          </TamaguiProvider>,
+        );
+      });
+      const styles = (id: string, property: 'backgroundColor' | 'color') =>
+        tree.root
+          .findAll((node) => node.props.testID === id)
+          .map((node) => StyleSheet.flatten(node.props.style)?.[property]);
+      expect(styles('pos-canvas', 'backgroundColor')).toContain(posColors.canvas);
+      expect(styles('pos-text', 'color')).toContain(posColors.ink);
+      expect(styles('pos-field', 'color')).toContain(posColors.ink);
+      expect(styles('wallet-canvas', 'backgroundColor')).toContain(appColors[theme].canvas);
+      expect(styles('wallet-text', 'color')).toContain(appColors[theme].text);
+    } finally {
+      await act(async () => tree?.unmount());
+    }
+  },
+);
 
 it.each(['light', 'dark'] as const)(
   'renders monochrome branding through the provider and nested %s theme',

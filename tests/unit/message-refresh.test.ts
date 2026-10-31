@@ -8,6 +8,17 @@ jest.mock('~/services/wallet/initService', () => ({
   },
 }));
 const message = { id: 'synthetic', text: 'hello' };
+it('clears session drafts with wallet state and bounds composer input', () => {
+  useMessageStore.getState().setDraft('alice', 'Draft');
+  useMessageStore.getState().setDraft('bob', 'x'.repeat(17000));
+  expect(useMessageStore.getState().drafts.bob).toHaveLength(16000);
+  useMessageStore.getState().setDraft('bob', '');
+  expect(useMessageStore.getState().drafts.bob).toBeUndefined();
+  const session = useMessageStore.getState().session;
+  useMessageStore.getState().clear();
+  expect(useMessageStore.getState().drafts).toEqual({});
+  expect(useMessageStore.getState().session).toBe(session + 1);
+});
 beforeEach(() => {
   useMessageStore.getState().clear();
   mockRecent.mockReset().mockResolvedValue([message]);

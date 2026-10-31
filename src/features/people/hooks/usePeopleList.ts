@@ -19,7 +19,7 @@ export async function loadPeopleHistory(): Promise<PersonHistoryEntry[]> {
     const page = await historyService.getHistory(500, offset);
     for (const entry of page as PersonHistoryEntry[]) {
       if (
-        (entry.type === 'send' || entry.type === 'receive') &&
+        (entry.type === 'send' || entry.type === 'receive' || entry.type === 'melt') &&
         typeof parsePersonHistoryMetadata(entry.metadata)?.nostrPubkey === 'string'
       )
         entries.set(entry.id, entry);

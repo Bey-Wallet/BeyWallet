@@ -30,17 +30,22 @@ import * as Haptics from 'expo-haptics';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { Text, YStack } from 'tamagui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
+import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
+import { historyService } from '~/services/wallet/historyService';
+import { normalizeNpub } from '~/shared/utils/nostr';
 
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
-  const { mode, lightningAddress, source } = useLocalSearchParams<{
+  const { mode, lightningAddress, source, conversationNpub, username } = useLocalSearchParams<{
     mode?: string;
     lightningAddress?: string;
     source?: string;
+    conversationNpub?: string;
+    username?: string;
   }>();
 
   if (mode === 'onchain') {
@@ -53,6 +58,7 @@ export default function MeltScreen() {
   }
 
   const [step, setStep] = useState<MeltStep>('invoice');
+  const queryClient = useQueryClient();
   const [invoice, setInvoice] = useState(() =>
     typeof lightningAddress === 'string' && detectLightningInputType(lightningAddress) === 'address'
       ? normalizeLightningInput(lightningAddress)
@@ -427,6 +433,26 @@ export default function MeltScreen() {
       saveLightningRecipient(useSettingsStore.getState().npub, activeMintUrl, quoteId, lnAddress);
       const result = await payment.pay();
       if (paymentRef.current !== payment) return;
+      if (
+        typeof conversationNpub === 'string' &&
+        decodeNostrPublicKey(conversationNpub) &&
+        lnAddress === lightningAddress
+      ) {
+        const preview = await payment.preview();
+        await historyService
+          .tagHistoryVia(
+            activeMintUrl,
+            'melt',
+            'lightning',
+            {
+              nostrPubkey: normalizeNpub(conversationNpub),
+              nostrUsername: username,
+            },
+            preview.operationId,
+          )
+          .catch(() => undefined);
+        void queryClient.invalidateQueries({ queryKey: ['history'] }).catch(() => undefined);
+      }
       setResultTime(Date.now());
       setStatus(result === 'paid' ? 'success' : result);
       refreshBalance();
@@ -440,7 +466,16 @@ export default function MeltScreen() {
       setIsPaying(false);
       payLock.current = false;
     }
-  }, [activeMintUrl, quoteId, refreshBalance, lnAddress]);
+  }, [
+    activeMintUrl,
+    quoteId,
+    refreshBalance,
+    lnAddress,
+    conversationNpub,
+    lightningAddress,
+    username,
+    queryClient,
+  ]);
 
   // ─── Auth Handler ─────────────────────────────────────────
   const handleAuthenticate = async () => {
