@@ -467,6 +467,72 @@ describe('People conversations and invitations', () => {
     expect(tree!.root.findAllByType('Input' as any)).toHaveLength(1);
   });
 
+  it('offers pill-shaped Send/Request controls and routes each method without sending funds', async () => {
+    usePeopleStore.getState().savePerson({
+      npub: bob,
+      contactStatus: 'accepted',
+      lightningAddress: 'bob@pay.example.com',
+    });
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const action = (label: string) =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .find((node) => node.props.accessibilityLabel === label)!;
+    expect(action('Send money').props).toMatchObject({
+      minHeight: 48,
+      rounded: 999,
+      bg: '$buttonDefaultSecondary',
+    });
+    await act(async () => action('Send money').props.onPress());
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(action('Send Ecash')).toBeDefined();
+    await act(async () => action('Send Lightning').props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/melt',
+      params: { lightningAddress: 'bob@pay.example.com', conversationNpub: bob, username: 'Bob' },
+    });
+    await act(async () => action('Send money').props.onPress());
+    await act(async () => action('Send Ecash').props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/send',
+      params: { to: bob, username: 'Bob', mode: 'nostr' },
+    });
+    await act(async () => action('Request money').props.onPress());
+    await act(async () => action('Request Lightning').props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/mint',
+      params: { requestTo: bob, requestName: 'Bob' },
+    });
+    await act(async () => action('Request money').props.onPress());
+    await act(async () => action('Request Ecash').props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/(modals)/receive',
+      params: { from: bob, username: 'Bob' },
+    });
+    expect(nostrService.sendChat).not.toHaveBeenCalled();
+  });
+
+  it('sends Ecash directly when only a NIP-05 identity is available', async () => {
+    usePeopleStore
+      .getState()
+      .savePerson({ npub: bob, contactStatus: 'accepted', nip05: 'bob@example.com' });
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppPressable' as any)
+        .find((node) => node.props.accessibilityLabel === 'Send money')!
+        .props.onPress(),
+    );
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(modals)/send',
+      params: { to: bob, username: 'Bob', mode: 'nostr' },
+    });
+  });
+
   it('keeps blocked conversations without a composer or enabled payment actions', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'blocked');
     await act(async () => {
@@ -474,8 +540,8 @@ describe('People conversations and invitations', () => {
     });
     expect(tree!.root.findAllByType('Input' as any)).toHaveLength(0);
     const sendMoney = tree!.root
-      .findAllByType('AppButton' as any)
-      .find((node) => node.props.children === 'Pay')!;
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel === 'Send money')!;
     expect(sendMoney.props.disabled).toBe(true);
   });
 
@@ -497,6 +563,15 @@ describe('People conversations and invitations', () => {
       .findAllByType('AppPressable' as any)
       .find((node) => node.props.accessibilityLabel === 'Open profile for Bob')!;
     expect(name.props.onPress).toBe(header.props.onPress);
+    expect(name.props).toMatchObject({ minHeight: 48, minWidth: 0, accessibilityRole: 'button' });
+    const headerTexts = name.findAllByType('Text' as any);
+    expect(headerTexts.find((node) => node.props.children === 'Bob')!.props).toMatchObject({
+      fontSize: 16,
+      numberOfLines: 1,
+    });
+    expect(
+      headerTexts.find((node) => node.props.children === 'bob@example.com')!.props,
+    ).toMatchObject({ fontSize: 12, numberOfLines: 1 });
     await act(async () => name.props.onPress());
     expect(JSON.stringify(tree!.toJSON())).toContain('bob@example.com');
     expect(tree!.root.findAllByType('ListTable' as any)).toHaveLength(1);
@@ -559,7 +634,7 @@ describe('People conversations and invitations', () => {
     alert.mockRestore();
   });
 
-  it('keeps detailed timestamps in the message sheet and uses a warning card for an invitation', async () => {
+  it('keeps payment status and timestamps in the details sheet and preserves actionable card styling', async () => {
     await act(async () => {
       tree = create(<ConversationScreen />);
     });
@@ -567,10 +642,16 @@ describe('People conversations and invitations', () => {
       .findAllByType('AppPressable' as any)
       .find((node) => node.props.accessibilityLabel?.includes('Show payment details'))!;
     expect(payment.props.bg).toBe('$buttonWarningSecondary');
+    expect(payment.findAllByType('Text' as any).map((node) => node.props.children)).not.toContain(
+      'Pending contact acceptance',
+    );
     expect(JSON.stringify(tree!.toJSON())).not.toContain('Payment details');
     await act(async () => payment.props.onPress());
     expect(JSON.stringify(tree!.toJSON())).toContain('Payment details');
     expect(JSON.stringify(tree!.toJSON())).toContain('Time');
+    const rows = tree!.root.findAllByType(ListTableRow);
+    expect(rows[0].props.label).toBe('Status');
+    expect(rows[0].props.value.props.children).toBe('Pending contact acceptance');
     expect(JSON.stringify(tree!.toJSON())).not.toContain('cashuBsynthetic-secret');
   });
 
@@ -795,9 +876,12 @@ describe('People conversations and invitations', () => {
     );
     expect(usePeopleStore.getState().people[bob].contactStatus).toBe('accepted');
     expect(tree!.root.findAllByType('Input' as any)).toHaveLength(1);
-    const pay = buttons().find((node) => node.props.children === 'Pay')!;
-    expect(pay.props.disabled).toBe(false);
-    expect(pay.props.flex).toBeUndefined();
+    const send = tree!.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel === 'Send money')!;
+    expect(send.props.disabled).toBe(false);
+    expect(send.props.minHeight).toBe(48);
+    expect(send.props.rounded).toBe(999);
   });
 
   it('anchors the latest activity on keyboard resize without pulling readers away from older messages', async () => {

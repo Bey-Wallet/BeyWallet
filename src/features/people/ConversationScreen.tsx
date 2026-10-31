@@ -6,16 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ArrowDownLeft,
-  ArrowLeft,
-  ArrowUp,
-  ArrowUpRight,
-  Info,
-  UserCheck,
-  UserPlus,
-  UserX,
-} from '@tamagui/lucide-icons';
+import { ArrowLeft, ArrowUp, Info, UserPlus } from '@tamagui/lucide-icons';
 import { ScrollView, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -47,6 +38,8 @@ import { ConversationItemCard } from './components/ConversationItemCard';
 import { conversationDateLabel, conversationDayKey } from './conversationDates';
 import { useWalletStore } from '~/state/walletStore';
 import { hydrateSavedPerson, needsNostrProfileRefresh } from './peopleProfileCache';
+import { ConversationPaymentActions } from './components/ConversationPaymentActions';
+import { isLightningAddress } from '~/services/api/lnurlService';
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ npub: string; displayName?: string; username?: string }>();
@@ -380,7 +373,7 @@ export default function ConversationScreen() {
       if (payment.type === 'request') reviewRequest(selected);
       else DeviceEventEmitter.emit('nostr:openClaim', payment);
     };
-  } else if (selected?.paymentInput && !blocked) {
+  } else if (selected?.paymentInput && selected.direction === 'incoming' && !blocked) {
     const input = selected.paymentInput;
     if (!accepted) {
       actionLabel = 'Add contact';
@@ -400,11 +393,17 @@ export default function ConversationScreen() {
     };
   }
 
+  const headerSubtitle = blocked
+    ? 'Blocked contact'
+    : person?.nip05 ||
+      person?.lightningAddress ||
+      (accepted ? 'Saved contact' : incomingInvitation ? 'Contact request' : 'Not added');
+
   return (
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <YStack flex={1} bg="$background" pt={insets.top}>
-          <XStack px="$3" py="$2" items="center" gap="$2">
+          <XStack px="$3" py="$2" minHeight={64} items="center" gap="$2">
             <HeaderIconButton
               accessibilityLabel="Back"
               icon={ArrowLeft}
@@ -415,37 +414,39 @@ export default function ConversationScreen() {
             <AppPressable
               minHeight={48}
               flex={1}
+              minWidth={0}
               flexDirection="row"
               items="center"
               gap="$2.5"
+              accessibilityRole="button"
               accessibilityLabel={`Open profile for ${label}`}
               onPress={openContact}
             >
               <ConversationAvatar npub={npub} picture={person?.picture} />
-              <Text flexShrink={1} fontFamily="$body" {...appTypography.title3} numberOfLines={1}>
-                {label}
-              </Text>
-              {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge />}
-            </AppPressable>
-            {accepted || blocked ? (
-              <YStack
-                accessibilityLabel={blocked ? 'Blocked contact' : 'Added contact'}
-                accessibilityRole="image"
-                p="$2"
-              >
-                {blocked ? (
-                  <UserX size={20} color="$gray10" />
-                ) : (
-                  <UserCheck size={20} color="$gray10" />
-                )}
+              <YStack flex={1} minWidth={0} gap={2}>
+                <XStack items="center" gap={5} minWidth={0}>
+                  <Text
+                    {...appTypography.label1}
+                    fontWeight="600"
+                    color="$color"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    flexShrink={1}
+                  >
+                    {label}
+                  </Text>
+                  {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge size={14} />}
+                </XStack>
+                <Text
+                  {...appTypography.body3}
+                  color="$gray10"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {headerSubtitle}
+                </Text>
               </YStack>
-            ) : (
-              <HeaderIconButton
-                icon={UserPlus}
-                accessibilityLabel="Add contact"
-                onPress={() => void run(() => acceptContact(npub))}
-              />
-            )}
+            </AppPressable>
             <HeaderIconButton
               icon={Info}
               accessibilityLabel={`Contact details for ${label}`}
@@ -562,39 +563,45 @@ export default function ConversationScreen() {
             borderTopWidth={1}
             borderColor="$gray4"
           >
-            <XStack gap="$2" self="flex-end" mt={-24} mb="$1">
-              <AppButton
-                size="small"
-                variant="default"
-                emphasis="secondary"
-                icon={ArrowDownLeft}
-                disabled={blocked || !accepted}
-                onPress={() =>
+            <ConversationPaymentActions
+              key={npub}
+              disabled={blocked || !accepted}
+              hasLightningAddress={
+                !!person?.lightningAddress && isLightningAddress(person.lightningAddress)
+              }
+              onSend={(method) => {
+                if (!accepted || blocked) return;
+                Keyboard.dismiss();
+                if (method === 'lightning') {
+                  if (!person?.lightningAddress || !isLightningAddress(person.lightningAddress))
+                    return;
                   router.push({
-                    pathname: '/(modals)/receive',
-                    params: { from: npub, username: label },
-                  })
-                }
-              >
-                Request
-              </AppButton>
-              <AppButton
-                size="small"
-                variant="default"
-                emphasis="secondary"
-                icon={ArrowUpRight}
-                accessibilityLabel="Send money"
-                disabled={blocked || !accepted}
-                onPress={() =>
+                    pathname: '/(modals)/melt',
+                    params: {
+                      lightningAddress: person.lightningAddress,
+                      conversationNpub: npub,
+                      username: label,
+                    },
+                  });
+                } else
                   router.push({
                     pathname: '/(modals)/send',
                     params: { to: npub, username: label, mode: 'nostr' },
-                  })
-                }
-              >
-                Pay
-              </AppButton>
-            </XStack>
+                  });
+              }}
+              onRequest={(method) => {
+                if (!accepted || blocked) return;
+                Keyboard.dismiss();
+                router.push(
+                  method === 'lightning'
+                    ? {
+                        pathname: '/(modals)/mint',
+                        params: { requestTo: npub, requestName: label },
+                      }
+                    : { pathname: '/(modals)/receive', params: { from: npub, username: label } },
+                );
+              }}
+            />
             {!!error && (
               <Text accessibilityRole="alert" color="$buttonWarningSecondaryText" fontSize="$3">
                 {error}

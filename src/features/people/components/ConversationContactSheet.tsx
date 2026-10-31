@@ -48,7 +48,12 @@ export const ConversationContactSheet = forwardRef<
     }
   };
   return (
-    <AppBottomSheet ref={ref} snapPoints={['75%']} bottomInset={bottomInset}>
+    <AppBottomSheet
+      ref={ref}
+      snapPoints={['75%']}
+      bottomInset={bottomInset}
+      backgroundColor="$background"
+    >
       <BottomSheetScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: Math.max(bottomInset, 20) + 12 }}
       >

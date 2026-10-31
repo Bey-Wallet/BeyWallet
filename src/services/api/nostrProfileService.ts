@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import { getNostrQueryRelays } from '~/state/nostrRelayStore';
 import { nip19, SimplePool, type Event, type Filter } from 'nostr-tools';
+import { isLightningAddress } from './lnurlService';
 
 export interface NostrProfile {
   pubkeyHex: string;
@@ -11,6 +12,7 @@ export interface NostrProfile {
   nip05Verified?: boolean;
   picture?: string;
   about?: string;
+  lightningAddress?: string;
   source: 'identifier' | 'nip05' | 'bey' | 'relay';
 }
 
@@ -74,6 +76,12 @@ export function parseNostrProfileEvent(event: Event): NostrProfile | null {
       nip05: asText(metadata.nip05, 200),
       picture: asText(metadata.picture, 1000),
       about: asText(metadata.about, 500),
+      lightningAddress:
+        typeof metadata.lud16 === 'string' &&
+        metadata.lud16.length <= 320 &&
+        isLightningAddress(metadata.lud16)
+          ? metadata.lud16.trim()
+          : undefined,
     };
   } catch {
     return null;

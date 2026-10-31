@@ -29,6 +29,20 @@ describe('People profile cache', () => {
     ).toBe(true);
   });
 
+  it('refreshes old cached profiles that have never loaded Lightning-address metadata', () => {
+    expect(
+      needsNostrProfileRefresh({
+        npub: NPUB,
+        displayName: 'Alice',
+        profileUpdatedAt: Date.now(),
+        contactStatus: 'accepted',
+      }),
+    ).toBe(true);
+    expect(
+      personUpdateFromProfile({ npub: NPUB, pubkeyHex: PUBKEY, source: 'relay' }).lightningAddress,
+    ).toBeNull();
+  });
+
   it('keeps recently cached identities without another relay lookup', () => {
     expect(
       needsNostrProfileRefresh(
@@ -38,6 +52,7 @@ describe('People profile cache', () => {
           nip05: 'gloomywidow@minibits.cash',
           nip05Verified: true,
           profileUpdatedAt: 1_000,
+          lightningAddress: null,
           contactStatus: 'unaccepted',
         },
         2_000,

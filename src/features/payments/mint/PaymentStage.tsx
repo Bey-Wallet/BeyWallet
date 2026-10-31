@@ -28,6 +28,13 @@ interface PaymentStageProps {
   onPaid: () => Promise<void> | void;
   onCancel: () => void;
   listening?: boolean;
+  requestDelivery?: {
+    onSend: () => Promise<void>;
+    onView: () => void;
+    sending: boolean;
+    queued: boolean;
+    error: string;
+  };
 }
 
 export function PaymentStage({
@@ -39,6 +46,7 @@ export function PaymentStage({
   onPaid,
   onCancel,
   listening = true,
+  requestDelivery,
 }: PaymentStageProps) {
   const sats = parseInt(amount, 10) || 0;
   const toast = useAppToast();
@@ -133,15 +141,35 @@ export function PaymentStage({
         <AppButton
           size="large"
           fullWidth
-          disabled={isChecking}
+          disabled={isChecking || requestDelivery?.sending}
+          loading={requestDelivery?.sending}
           variant="default"
           emphasis={isExpired ? 'secondary' : 'primary'}
-          onPress={isExpired ? onCancel : handleCopy}
+          onPress={
+            requestDelivery?.queued
+              ? requestDelivery.onView
+              : isExpired
+                ? onCancel
+                : requestDelivery
+                  ? () => void requestDelivery.onSend()
+                  : handleCopy
+          }
         >
-          {isExpired ? 'Close invoice' : 'Copy invoice'}
+          {requestDelivery?.queued
+            ? 'View request'
+            : isExpired
+              ? 'Close invoice'
+              : requestDelivery
+                ? 'Send request'
+                : 'Copy invoice'}
         </AppButton>
       }
     >
+      {!!requestDelivery?.error && (
+        <Text color="$red10" accessibilityRole="alert" fontSize={14}>
+          {requestDelivery.error}
+        </Text>
+      )}
       <ListTable compact>
         <PaymentStatusRow
           status={isExpired ? 'cancelled' : 'pending'}
@@ -170,12 +198,12 @@ export function PaymentStage({
           }
         />
       </ListTable>
-      {!isExpired && (
+      {!isExpired && !requestDelivery?.queued && (
         <AppButton
           variant="default"
           emphasis="text"
           fullWidth
-          disabled={isChecking}
+          disabled={isChecking || requestDelivery?.sending}
           onPress={onCancel}
         >
           Cancel

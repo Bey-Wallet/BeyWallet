@@ -1,7 +1,7 @@
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
-import { YStack } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { InteractionManager } from 'react-native';
@@ -13,6 +13,10 @@ import { OnchainMintFlow } from '~/features/payments/mint/OnchainMintFlow';
 import { useWalletStore } from '~/state/walletStore';
 import { eventService, quotesService, initService } from '~/services/wallet';
 import { networkService } from '~/services/platform/networkService';
+import { nostrService } from '~/services/wallet/nostrService';
+import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
+import { normalizeNpub } from '~/shared/utils/nostr';
+import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -25,7 +29,15 @@ interface MintQuoteData {
 
 export default function MintScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode, requestTo, requestName } = useLocalSearchParams<{
+    mode?: string;
+    requestTo?: string;
+    requestName?: string;
+  }>();
+  const requestRecipient =
+    typeof requestTo === 'string' && decodeNostrPublicKey(requestTo)
+      ? normalizeNpub(requestTo)
+      : undefined;
   const { mintUrl: activeMintUrl, setMintUrl } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
 
@@ -46,6 +58,44 @@ export default function MintScreen() {
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const createLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestQueued, setRequestQueued] = useState(false);
+  const [requestSending, setRequestSending] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const requestLock = useRef(false);
+  const queuedInvoice = useRef<string | null>(null);
+  useSettingsBusy(requestSending);
+
+  const sendInvoiceRequest = async () => {
+    if (
+      !requestRecipient ||
+      !quoteData ||
+      requestLock.current ||
+      queuedInvoice.current === quoteData.invoice
+    )
+      return;
+    if (quoteData.expiry && quoteData.expiry <= Date.now() / 1000) {
+      setRequestError('Invoice expired. Create a new request.');
+      return;
+    }
+    requestLock.current = true;
+    setRequestSending(true);
+    setRequestError('');
+    try {
+      await nostrService.sendChat(requestRecipient, quoteData.invoice, () => {
+        queuedInvoice.current = quoteData.invoice;
+        setRequestQueued(true);
+      });
+    } catch {
+      setRequestError(
+        queuedInvoice.current === quoteData.invoice
+          ? 'Request saved but delivery failed. Open the request in the conversation to retry.'
+          : 'Could not send the request. Try again when online.',
+      );
+    } finally {
+      requestLock.current = false;
+      setRequestSending(false);
+    }
+  };
 
   // Listen for mint quote redeemed event
   useEffect(() => {
@@ -78,6 +128,7 @@ export default function MintScreen() {
     setError(null);
 
     try {
+      if (requestTo && !requestRecipient) throw new Error('Invalid request recipient.');
       if (await networkService.isOffline())
         throw new Error('You are offline. Please check your internet connection.');
       const amountSats = parseInt(amount, 10);
@@ -102,7 +153,7 @@ export default function MintScreen() {
       createLock.current = false;
       setIsCreatingQuote(false);
     }
-  }, [activeMintUrl, amount]);
+  }, [activeMintUrl, amount, requestTo, requestRecipient]);
 
   const handleNext = () => {
     if (step === 'amount') setStep('confirm');
@@ -117,6 +168,7 @@ export default function MintScreen() {
   };
 
   const handleCancel = async () => {
+    if (requestLock.current) return;
     setStatus('cancelled');
     setStep('result');
     if (quoteData && activeMintUrl) {
@@ -154,6 +206,7 @@ export default function MintScreen() {
   };
 
   const handleClose = () => {
+    if (requestLock.current) return;
     router.back();
     InteractionManager.runAfterInteractions(() => refreshBalance());
   };
@@ -163,11 +216,23 @@ export default function MintScreen() {
       <Stack.Screen />
       {(step === 'amount' || step === 'payment') && (
         <PaymentFlowHeader
-          title={step === 'payment' ? 'Pay invoice' : 'Mint Ecash'}
+          title={
+            requestRecipient
+              ? 'Request Lightning'
+              : step === 'payment'
+                ? 'Pay invoice'
+                : 'Mint Ecash'
+          }
           navigationAction="close"
           onBack={handleClose}
-          disabled={isCreatingQuote}
+          disabled={isCreatingQuote || requestSending}
         />
+      )}
+      {requestRecipient && step !== 'result' && (
+        <Text color="$gray10" fontSize={14} textAlign="center" mb="$3">
+          Request from{' '}
+          {requestName || `${requestRecipient.slice(0, 10)}…${requestRecipient.slice(-6)}`}
+        </Text>
       )}
       {step === 'amount' && (
         <AmountStage
@@ -199,6 +264,17 @@ export default function MintScreen() {
           expiry={quoteData.expiry}
           onPaid={handlePaid}
           onCancel={handleCancel}
+          requestDelivery={
+            requestRecipient
+              ? {
+                  onSend: sendInvoiceRequest,
+                  onView: handleClose,
+                  sending: requestSending,
+                  queued: requestQueued,
+                  error: requestError,
+                }
+              : undefined
+          }
         />
       )}
 

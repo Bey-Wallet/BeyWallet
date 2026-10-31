@@ -30,7 +30,7 @@ export function filterPersonHistory(
 
   return entries
     .filter((entry) => {
-      if (entry.type !== 'send' && entry.type !== 'receive') return false;
+      if (entry.type !== 'send' && entry.type !== 'receive' && entry.type !== 'melt') return false;
       const metadata = parsePersonHistoryMetadata(entry.metadata);
       const historyPubkey =
         typeof metadata.nostrPubkey === 'string'
@@ -43,12 +43,14 @@ export function filterPersonHistory(
 
 export function getPersonPaymentStatus(entry: PersonHistoryEntry): string {
   const state = entry.state?.trim().toLowerCase();
-  if (state === 'claimed' || state === 'paid' || state === 'completed') return 'Claimed';
+  if (state === 'claimed' || state === 'paid' || state === 'completed')
+    return entry.type === 'melt' ? 'Paid' : 'Claimed';
   if (state === 'pending' || state === 'unpaid' || state === 'unclaimed') {
     return entry.type === 'send' ? 'Awaiting claim' : 'Pending';
   }
   if (state === 'failed' || state === 'error') return 'Failed';
   if (state === 'expired') return 'Expired';
   if (state === 'refunded') return 'Refunded';
+  if (entry.type === 'melt') return 'Unresolved';
   return entry.type === 'receive' ? 'Received' : 'Sent';
 }

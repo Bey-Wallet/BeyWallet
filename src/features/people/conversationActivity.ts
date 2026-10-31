@@ -66,7 +66,7 @@ export function buildConversationActivity(
         text: message.paymentId || input ? '' : message.text,
         note: message.paymentId ? message.text || undefined : undefined,
         paymentInput: input,
-        amount: message.paymentAmount,
+        amount: message.paymentAmount ?? input?.amount,
         type: message.paymentId
           ? message.paymentType === 'request'
             ? 'Ecash request'
@@ -132,7 +132,7 @@ export function buildConversationActivity(
         id: `h-${entry.id}`,
         kind: 'payment',
         time: entry.createdAt < 1e10 ? entry.createdAt * 1000 : entry.createdAt,
-        direction: entry.type === 'send' ? 'outgoing' : 'incoming',
+        direction: entry.type === 'send' || entry.type === 'melt' ? 'outgoing' : 'incoming',
         amount: entry.amount,
         note: typeof metadata.note === 'string' ? metadata.note : undefined,
         type: lightning ? 'Lightning' : 'Ecash',

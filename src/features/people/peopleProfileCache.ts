@@ -19,7 +19,7 @@ export function needsNostrProfileRefresh(person: Person, now = Date.now()): bool
     !!person.nip05 ||
     !!person.picture;
 
-  if (!hasUsefulIdentity) return true;
+  if (!hasUsefulIdentity || person.lightningAddress === undefined) return true;
   return !person.profileUpdatedAt || now - person.profileUpdatedAt >= PROFILE_REFRESH_MS;
 }
 
@@ -32,6 +32,7 @@ export function personUpdateFromProfile(profile: NostrProfile, updatedAt = Date.
     nip05Verified: profile.nip05Verified,
     picture: profile.picture,
     about: profile.about,
+    lightningAddress: profile.lightningAddress ?? null,
     profileUpdatedAt: updatedAt,
   };
 }

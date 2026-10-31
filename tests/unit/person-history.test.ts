@@ -56,4 +56,21 @@ describe('person payment history', () => {
       }),
     ).toBe('Awaiting claim');
   });
+
+  it('includes only explicitly tagged Lightning sends and labels confirmed payment accurately', () => {
+    const entry = {
+      id: 'ln-send',
+      type: 'melt',
+      amount: 100,
+      state: 'paid',
+      createdAt: 1,
+      metadata: { via: 'lightning', nostrPubkey: NPUB },
+    };
+    expect(filterPersonHistory([entry, { ...entry, id: 'unrelated', metadata: {} }], NPUB)).toEqual(
+      [entry],
+    );
+    expect(getPersonPaymentStatus(entry)).toBe('Paid');
+    expect(getPersonPaymentStatus({ ...entry, state: 'pending' })).toBe('Pending');
+    expect(getPersonPaymentStatus({ ...entry, state: 'unresolved' })).toBe('Unresolved');
+  });
 });

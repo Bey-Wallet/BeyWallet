@@ -1,5 +1,14 @@
 import React from 'react';
-import { AlertCircle, Check, Clock3, Zap, Banknote, HandCoins } from '@tamagui/lucide-icons';
+import {
+  AlertCircle,
+  Check,
+  Clock3,
+  Zap,
+  Banknote,
+  HandCoins,
+  X,
+  ArrowDownLeft,
+} from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -54,19 +63,29 @@ export function ConversationPaymentCard({
   const { color } = palette(item);
   const TypeIcon =
     item.type === 'Ecash request' ? HandCoins : item.type?.startsWith('Lightning') ? Zap : Banknote;
+  const typeLabel = item.type?.startsWith('Lightning') ? 'Lightning' : item.type || 'Payment';
+  const StatusIcon = ['Claimed', 'Received', 'Paid'].includes(item.status)
+    ? Check
+    : ['Refunded', 'Reclaimed'].includes(item.status)
+      ? ArrowDownLeft
+      : ['Cancelled', 'Expired', 'Dismissed'].includes(item.status)
+        ? X
+        : item.requiresAction || /fail|unverified|unresolved|invalid|unsupported/i.test(item.status)
+          ? AlertCircle
+          : Clock3;
   return (
-    <YStack gap="$2" minW={130}>
-      <XStack gap={6} items="center">
-        <TypeIcon size={14} color={color} />
-        <Text color={color} opacity={0.75} fontSize={11} fontWeight="500" flexShrink={1}>
-          {item.type || 'Payment'}
-        </Text>
-      </XStack>
-      <Text color={color} fontSize={primaryAmount ? 24 : 16} lineHeight={29} fontWeight="600">
+    <YStack gap="$1" minW={130}>
+      <Text
+        color={color}
+        fontFamily={primaryAmount ? '$display' : '$body'}
+        fontSize={primaryAmount ? '$8' : 16}
+        lineHeight={primaryAmount ? '$8' : 24}
+        fontWeight="600"
+      >
         {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
       </Text>
       {!!secondaryAmount && (
-        <Text color={color} opacity={0.7} fontSize={12}>
+        <Text color={color} opacity={0.7} fontSize={12} lineHeight={16}>
           {secondaryAmount}
         </Text>
       )}
@@ -75,11 +94,24 @@ export function ConversationPaymentCard({
           {item.note}
         </Text>
       )}
-      <XStack items="center" gap={5} mt={4}>
-        {item.requiresAction && <AlertCircle size={13} color={color} />}
-        <Text color={color} fontSize={11} fontWeight="600" flexShrink={1}>
-          {item.status}
+      <XStack gap={6} items="center" mt={4}>
+        <TypeIcon size={14} color={color} />
+        <Text
+          color={color}
+          opacity={0.75}
+          fontSize={11}
+          lineHeight={16}
+          fontWeight="500"
+          flex={1}
+          flexShrink={1}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {typeLabel}
         </Text>
+        <YStack accessibilityRole="image" accessibilityLabel={item.status} opacity={0.75}>
+          <StatusIcon size={14} color={color} />
+        </YStack>
       </XStack>
     </YStack>
   );

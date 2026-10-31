@@ -15,6 +15,18 @@ const first = nip19.npubEncode('01'.repeat(32));
 const second = nip19.npubEncode('02'.repeat(32));
 
 describe('unified People state', () => {
+  it('persists a published Lightning address and clears it when a refreshed profile removes it', () => {
+    usePeopleStore.setState({ people: {} });
+    usePeopleStore
+      .getState()
+      .savePerson({ npub: first, lightningAddress: 'alice@pay.example.com' });
+    usePeopleStore.getState().updatePerson({ npub: first, displayName: 'Alice' });
+    expect(usePeopleStore.getState().people[first].lightningAddress).toBe('alice@pay.example.com');
+    const saved = JSON.parse((sqliteStorage.setItem as jest.Mock).mock.calls.at(-1)[1]);
+    expect(migrateLegacyPeople(saved.state)[first].lightningAddress).toBe('alice@pay.example.com');
+    usePeopleStore.getState().updatePerson({ npub: first, lightningAddress: null });
+    expect(usePeopleStore.getState().people[first].lightningAddress).toBeNull();
+  });
   it('persists per-person messaging preferences and preserves them through profile updates', () => {
     usePeopleStore.setState({ people: {} });
     usePeopleStore.getState().savePerson({ npub: first });

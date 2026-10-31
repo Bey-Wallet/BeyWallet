@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MeltScreen from '~/features/payments/melt';
+import { nip19 } from 'nostr-tools';
 
 const mockWallet = {
   activeMintUrl: 'mint-a',
@@ -25,6 +26,8 @@ const mockOffline = jest.fn();
 const mockRequestInvoice = jest.fn();
 const mockParams = jest.fn();
 const mockClipboard = jest.fn();
+const mockTagHistory = jest.fn(async (..._args: unknown[]) => undefined);
+const mockInvalidate = jest.fn(async () => undefined);
 const mockRouter = { back: jest.fn(), push: jest.fn() };
 let mockRouteParams: Record<string, string> = {};
 const mockSettings = { primaryCurrency: 'SATS', secondaryCurrency: 'USD' };
@@ -75,7 +78,13 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }));
 jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text' }));
 jest.mock('@tamagui/lucide-icons', () => ({ Zap: 'Zap', ArrowUpDown: 'ArrowUpDown' }));
-jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: undefined }) }));
+jest.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: undefined }),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidate }),
+}));
+jest.mock('~/services/wallet/historyService', () => ({
+  historyService: { tagHistoryVia: (...args: unknown[]) => mockTagHistory(...args) },
+}));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, children, footer }: any) => (
@@ -107,6 +116,7 @@ let tree: ReactTestRenderer;
 const destination = () => tree.root.findByType('DestinationInputRow' as any);
 const keypad = () => tree.root.findByType('NumericKeypad' as any);
 const quote = (amount = 20) => ({
+  operationId: 'operation-id',
   amount,
   fee_reserve: 2,
   quote: 'quote-id',
@@ -184,6 +194,31 @@ it('opens support with its address and presets without requesting an invoice or 
 it('does not show support presets in ordinary Lightning payments', async () => {
   await open();
   expect(tree.root.findAllByProps({ accessibilityLabel: '5,000 sat' })).toHaveLength(0);
+});
+
+it('adds a conversation card annotation only for the selected address after explicit payment confirmation', async () => {
+  const npub = nip19.npubEncode('02'.repeat(32));
+  mockRouteParams = {
+    lightningAddress: 'bob@pay.example.com',
+    conversationNpub: npub,
+    username: 'Bob',
+  };
+  mockPay.mockResolvedValue('paid');
+  await open();
+  await act(async () => keypad().props.onValueChange('20'));
+  await act(async () => keypad().props.onConfirm());
+  expect(mockPay).not.toHaveBeenCalled();
+  expect(mockTagHistory).not.toHaveBeenCalled();
+  await act(async () => payButton().props.onPress());
+  expect(mockPay).toHaveBeenCalledTimes(1);
+  expect(mockTagHistory).toHaveBeenCalledWith(
+    'mint-a',
+    'melt',
+    'lightning',
+    { nostrPubkey: npub, nostrUsername: 'Bob' },
+    'operation-id',
+  );
+  expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['history'] });
 });
 
 it.each(['lnbc20n1invoice', 'LIGHTNING:LNBC20N1INVOICE', 'lntb20n1invoice', 'lnbcrt20n1invoice'])(

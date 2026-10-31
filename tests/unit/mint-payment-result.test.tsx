@@ -8,6 +8,18 @@ import { formatPaymentDateTime } from '~/shared/utils/time';
 
 let mockPrimaryCurrency = 'SATS';
 const mockToastShow = jest.fn();
+const mockCheckMintQuote = jest.fn();
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));
+jest.mock('~/shared/hooks/usePendingPaymentPolling', () => ({
+  usePendingPaymentPolling: jest.fn(),
+  usePaymentListening: () => false,
+}));
+jest.mock('~/features/history/components/ReceiptImageShare', () => ({
+  ReceiptImageShare: () => null,
+}));
+jest.mock('~/services/wallet', () => ({
+  quotesService: { checkMintQuote: (...args: unknown[]) => mockCheckMintQuote(...args) },
+}));
 
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
@@ -60,6 +72,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
   mockPrimaryCurrency = 'SATS';
+  mockCheckMintQuote.mockResolvedValue({ state: 'UNPAID' });
 });
 afterEach(() => jest.useRealTimers());
 
@@ -171,7 +184,29 @@ it('replaces payment controls and QR when the invoice expires', async () => {
   await act(async () => tree.unmount());
 });
 
+it('offers an explicit send action for addressed requests and views the saved card without cancelling its invoice', async () => {
+  const onSend = jest.fn(async () => undefined);
+  const onView = jest.fn();
+  const requestDelivery = { onSend, onView, sending: false, queued: false, error: '' };
+  const tree = await render(<PaymentStage {...paymentProps} requestDelivery={requestDelivery} />);
+  await act(async () => button(tree, 'Send request').props.onPress());
+  expect(onSend).toHaveBeenCalledTimes(1);
+  expect(paymentProps.onPaid).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.update(
+      <PaymentStage {...paymentProps} requestDelivery={{ ...requestDelivery, queued: true }} />,
+    ),
+  );
+  expect(button(tree, 'Send request')).toBeUndefined();
+  expect(button(tree, 'Cancel')).toBeUndefined();
+  await act(async () => button(tree, 'View request').props.onPress());
+  expect(onView).toHaveBeenCalledTimes(1);
+  expect(paymentProps.onCancel).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
 it('keeps the invoice available after an unsuccessful payment check', async () => {
+  mockCheckMintQuote.mockResolvedValue({ state: 'PAID' });
   const onPaid = jest.fn().mockRejectedValue(new Error('Not paid'));
   const tree = await render(<PaymentStage {...paymentProps} onPaid={onPaid} />);
   const refresh = () => tree.root.findByProps({ label: 'Status' }).props.rightContent;
