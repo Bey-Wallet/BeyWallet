@@ -1,10 +1,10 @@
 /** The merchant flow has its own palette; the wallet's light/dark themes stay unchanged. */
 export const posColors = {
-  canvas: '#B8F4D0',
-  ink: '#102D24',
-  surface: '#A3E4BB',
-  raised: '#91D6AB',
-  pressed: '#7FC99A',
+  canvas: '#D4FF5A',
+  ink: '#000000',
+  surface: '#C4EE49',
+  raised: '#B5DD3B',
+  pressed: '#A5CD2E',
 } as const;
 
 export const posThemeOverrides = {
@@ -42,9 +42,9 @@ export const posThemeOverrides = {
   fieldBackground: posColors.surface,
   backgroundAlternate: posColors.canvas,
   surfaceAlternate: posColors.surface,
-  backgroundTransparent: '#B8F4D0F5',
-  backgroundHighlighted: '#102D240A',
-  separatorAlternate: '#102D2426',
+  backgroundTransparent: '#D4FF5AF5',
+  backgroundHighlighted: '#0000000A',
+  separatorAlternate: '#00000026',
   green10: posColors.ink,
   green11: posColors.ink,
   accentColor: posColors.ink,
@@ -53,11 +53,11 @@ export const posThemeOverrides = {
   borderColor: posColors.ink,
   borderColorHover: posColors.ink,
   borderColorFocus: posColors.ink,
-  separator: '#102D2426',
+  separator: '#00000026',
   sheetBackground: posColors.canvas,
   buttonDefaultPrimary: posColors.ink,
-  buttonDefaultPrimaryHover: '#194535',
-  buttonDefaultPrimaryPress: '#235B47',
+  buttonDefaultPrimaryHover: '#171717',
+  buttonDefaultPrimaryPress: '#2B2B2B',
   buttonDefaultPrimaryText: posColors.canvas,
   buttonDefaultPrimaryIcon: posColors.canvas,
   buttonDefaultSecondary: posColors.surface,

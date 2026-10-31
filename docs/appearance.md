@@ -18,14 +18,14 @@ roundness. The existing `dark` and `light` themes apply them through the current
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
 available as `$onAccent`. Existing blue aliases resolve to neutral colors for compatibility.
 
-The Point of sale flow is an explicit visual exception. Its local `light_pos` theme uses mint
-green (`#B8F4D0`) canvas backgrounds and deep forest (`#102D24`) typography in both app appearances.
-Primary controls use deep forest fills with mint text; secondary controls use darker mint fills.
+The Point of sale flow is an explicit visual exception. Its local `light_pos` theme uses lime
+(`#D4FF5A`) canvas backgrounds and black (`#000000`) typography in both app appearances.
+Primary controls use black fills with lime text; secondary controls use darker lime fills.
 QR surfaces stay white, with outlined groups and pill-shaped sale actions.
 The theme wraps only `MerchantReceiveScreen`, so its mint and receipt sheets inherit the POS
 palette while other wallet routes keep their normal theme. Amount entry and Lightning checkout
 use an explicit `appearance="pos"` opt-in; other callers keep their existing layout and styles.
-POS uses an inline close header and dark system status-bar icons against the mint canvas.
+POS uses an inline close header and dark system status-bar icons against the lime canvas.
 `AppBottomSheetThemeProvider` opts this flow's sheets into the same theme inside Gorhom's portal
 container, where local screen context would otherwise be lost. Ordinary sheets keep their
 existing container. QR codes retain black-on-white contrast.
