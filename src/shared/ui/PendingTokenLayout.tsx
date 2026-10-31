@@ -14,7 +14,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { YStack, XStack, Text, YGroup } from 'tamagui';
 import { Copy, Share2, Check, Nfc, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { AnimatedTokenQRCode } from '~/shared/ui/AnimatedTokenQRCode';
+import { EcashTokenQRCode } from '~/shared/ui/EcashTokenQRCode';
 
 import { Share as RNShare } from 'react-native';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -218,7 +218,7 @@ export function PendingTokenLayout({
               />
             )}
             <PaymentQRFrame accessibilityLabel="Ecash QR code">
-              {(size) => <AnimatedTokenQRCode token={cleanToken(currentToken)} size={size} />}
+              {(size) => <EcashTokenQRCode token={cleanToken(currentToken)} size={size} />}
             </PaymentQRFrame>
             <PaymentAmount
               amount={Number(amount)}
