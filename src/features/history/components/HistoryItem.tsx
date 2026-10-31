@@ -21,8 +21,11 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
-import { historyStatusLabel } from '../transactionPresentation';
-import { historyMetadata } from '../transactionPresentation';
+import {
+  historyBalanceEffect,
+  historyStatusLabel,
+  historyMetadata,
+} from '../transactionPresentation';
 import { walletActivityTitle, walletActivityStatus } from '../walletActivityPresentation';
 import type { WalletActivity } from '~/storage/sqlite/repositories/WalletActivityRepository';
 import { checkHistoryStatus } from '../checkHistoryStatus';
@@ -98,6 +101,13 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     'rolled_back',
     'rolledback',
   ].includes(state);
+  const balanceEffect = historyBalanceEffect(entry);
+  const amountDimmed = maintenance
+    ? false
+    : transfer
+      ? pending || failed
+      : balanceEffect === 'none';
+  const signedValue = `${maintenance || transfer ? '' : balanceEffect === 'credit' ? '+ ' : balanceEffect === 'debit' ? '− ' : ''}${value}`;
   const statusLabel =
     pending || failed || state === 'refunded' ? historyStatusLabel(entry, delivered) : '';
   const label = activity
@@ -204,7 +214,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
           bg="transparent"
           hoverStyle={{ opacity: 0.9 }}
           pressStyle={{ opacity: 0.8 }}
-          accessibilityLabel={`${label}, ${value}, ${activity ? walletActivityStatus(activity.state) : statusLabel || paymentType}. Open details`}
+          accessibilityLabel={`${label}, ${signedValue}, ${activity ? walletActivityStatus(activity.state) : statusLabel || paymentType}. Open details`}
           onPress={() => {
             Haptics.selectionAsync();
             onPress(entry.id, entry.type);
@@ -258,11 +268,11 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               {...appTypography.label1}
               fontWeight="600"
               color="$color"
+              opacity={amountDimmed ? 0.5 : 1}
               numberOfLines={1}
               style={{ fontVariant: ['tabular-nums'] }}
             >
-              {maintenance || transfer || request ? '' : outgoing ? '− ' : '+ '}
-              {value}
+              {signedValue}
             </Text>
             <Text {...appTypography.body3} color="$gray10" numberOfLines={1} textAlign="right">
               {when}

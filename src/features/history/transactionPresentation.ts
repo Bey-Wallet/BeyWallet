@@ -67,6 +67,27 @@ export function historyDisplayAmount(entry: PaymentHistory & { amount: number })
   return nfcReceiveAmounts(entry)?.netAmount ?? entry.amount;
 }
 
+/** Amount signs reflect credited funds or outgoing/reserved funds, never an unpaid request. */
+export function historyBalanceEffect(entry: PaymentHistory): 'credit' | 'debit' | 'none' {
+  const state = entry.state?.trim().toLowerCase() || '';
+  if (['send', 'melt'].includes(entry.type)) {
+    if (
+      ['Failed', 'Cancelled', 'Expired', 'Refunded'].includes(historyStatusLabel(entry)) ||
+      state === 'unpaid'
+    )
+      return 'none';
+    return 'debit';
+  }
+  if (entry.type === 'mint') {
+    return state === 'issued' ||
+      (isOnchainHistory(entry) && historyStatusLabel(entry) === 'Confirmed')
+      ? 'credit'
+      : 'none';
+  }
+  if (entry.type === 'receive' && historyStatusLabel(entry) === 'Confirmed') return 'credit';
+  return 'none';
+}
+
 export function nfcReceivingFeeNotice(
   entry: PaymentHistory & { amount: number },
 ): string | undefined {

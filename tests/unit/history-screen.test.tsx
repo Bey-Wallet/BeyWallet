@@ -238,6 +238,48 @@ it('checks once per tap sequence, spins and keeps the status button separate fro
   expect(screen.root.findAllByType('Spinner' as any)).toHaveLength(0);
 });
 
+it.each([
+  { type: 'mint', state: 'UNPAID', amount: '10 sats', opacity: 0.5 },
+  { type: 'mint', state: 'PAID', amount: '10 sats', opacity: 0.5 },
+  { type: 'mint', state: 'ISSUED', amount: '+ 10 sats', opacity: 1 },
+  { type: 'receive', state: 'unclaimed', amount: '10 sats', opacity: 0.5 },
+  { type: 'receive', state: undefined, amount: '+ 10 sats', opacity: 1 },
+  { type: 'receive-request', state: 'pending', amount: '10 sats', opacity: 0.5 },
+  { type: 'receive-request', state: 'received', amount: '10 sats', opacity: 0.5 },
+  { type: 'send', state: 'pending', amount: '− 10 sats', opacity: 1 },
+  { type: 'melt', state: 'PENDING', amount: '− 10 sats', opacity: 1 },
+  { type: 'melt', state: 'PAID', amount: '− 10 sats', opacity: 1 },
+  { type: 'melt', state: 'FAILED', amount: '10 sats', opacity: 0.5 },
+])(
+  'shows balance-aware amounts for $type/$state and dims only the amount',
+  async ({ type, state, amount, opacity }) => {
+    let item!: ReactTestRenderer;
+    await act(async () => {
+      item = create(
+        <HistoryItem
+          entry={{ ...mockHistory[0], type, state }}
+          displayAmount={10}
+          position="only"
+          onPress={jest.fn()}
+        />,
+      );
+    });
+    const amountText = item.root
+      .findAllByType('Text' as any)
+      .find((node) => node.props.fontWeight === '600')!;
+    expect(amountText.props.children).toBe(amount);
+    expect(amountText.props.opacity).toBe(opacity);
+    expect(item.root.findAllByType('AppPressable' as any)[0].props.opacity).toBeUndefined();
+    expect(
+      item.root
+        .findAllByType('Text' as any)
+        .filter((node) => node !== amountText)
+        .every((node) => node.props.opacity === undefined),
+    ).toBe(true);
+    await act(async () => item.unmount());
+  },
+);
+
 it('opens advanced filters when requested by the route header', async () => {
   await act(async () => {
     screen.update(<HistoryScreen showFilters />);
