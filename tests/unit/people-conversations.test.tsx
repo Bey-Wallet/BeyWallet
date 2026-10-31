@@ -1,5 +1,22 @@
 import { LegendList } from '@legendapp/list/react-native';
-jest.mock('@legendapp/list/react-native', () => ({ LegendList: require('react-native').FlatList }));
+jest.mock('@legendapp/list/react-native', () => ({
+  LegendList: require('react').forwardRef((props: any, ref: any) => {
+    const React = require('react');
+    if (props.testID !== 'conversation-timeline')
+      return React.createElement(require('react-native').FlatList, { ...props, ref });
+    const { data, renderItem, ListHeaderComponent, ListEmptyComponent, ...scrollProps } = props;
+    return React.createElement(
+      'ScrollView',
+      { ...scrollProps, ref },
+      ListHeaderComponent,
+      data.length
+        ? data.map((item: any, index: number) =>
+            React.createElement(React.Fragment, { key: item.id }, renderItem({ item, index })),
+          )
+        : ListEmptyComponent,
+    );
+  }),
+}));
 jest.mock('~/shared/ui/RemoteImage', () => ({ RemoteImage: 'RemoteImage' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -922,6 +939,57 @@ describe('People conversations and invitations', () => {
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
   });
 
+  it('offers new messages without moving a reader, and jumps only on request', async () => {
+    useNostrInboxStore.setState({ items: [] });
+    mockSavedMessages = [
+      {
+        id: 'first',
+        conversation: bob,
+        direction: 'incoming',
+        createdAt: 1000,
+        receivedAt: 1000,
+        text: 'First',
+        read: true,
+        publication: 'sent',
+        transport: 'nip17',
+      },
+    ];
+    const scrollToEnd = jest.fn();
+    await act(async () => {
+      tree = create(<ConversationScreen />, {
+        createNodeMock: (element) => (element.type === 'ScrollView' ? { scrollToEnd } : null),
+      });
+    });
+    const scroll = tree.root.findByType('ScrollView' as any);
+    await act(async () =>
+      scroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 200 },
+          contentSize: { height: 3000 },
+          layoutMeasurement: { height: 600 },
+        },
+      }),
+    );
+    scrollToEnd.mockClear();
+    await act(async () => {
+      mockSavedMessages = [
+        ...mockSavedMessages,
+        { ...mockSavedMessages[0], id: 'second', createdAt: 2000, text: 'Second' },
+      ];
+      useMessageStore.setState({ revision: 1 });
+    });
+    const jump = tree.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Jump to latest messages')!;
+    expect(jump.props.children).toBe('New messages');
+    expect(scrollToEnd).not.toHaveBeenCalled();
+    await act(async () => jump.props.onPress());
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: true });
+    expect(
+      tree.root.findAllByProps({ accessibilityLabel: 'Jump to latest messages' }),
+    ).toHaveLength(0);
+  });
+
   it('loads the latest 50 mixed activities first and loads older items on upward scroll', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     const scrollTo = jest.fn();
@@ -984,7 +1052,8 @@ describe('People conversations and invitations', () => {
     await act(async () => {
       for (const frame of frames) frame(0);
     });
-    expect(scrollTo).toHaveBeenCalledWith({ y: 520, animated: false });
+    expect(scroll.props.maintainVisibleContentPosition).toBe(true);
+    expect(scrollTo).not.toHaveBeenCalled();
     const labels = tree!.root
       .findAllByType('Text' as any)
       .filter((node) => node.props.children === 'Today');

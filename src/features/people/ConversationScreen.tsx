@@ -7,7 +7,8 @@ import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowUp, Info, UserPlus } from '@tamagui/lucide-icons';
-import { ScrollView, Text, XStack, YStack } from 'tamagui';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
+import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -66,12 +67,13 @@ export default function ConversationScreen() {
   const contactSheet = useRef<AppBottomSheetRef>(null);
   const messageSheet = useRef<AppBottomSheetRef>(null);
   const localSequence = useRef(0);
-  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const scrollRef = useRef<LegendListRef>(null);
   const nearBottom = useRef(true);
   const paginationLock = useRef(false);
   const userScrolling = useRef(false);
-  const scrollMetrics = useRef({ height: 0, offset: 0 });
-  const prependAnchor = useRef<{ height: number; offset: number } | null>(null);
+  const [awayFromBottom, setAwayFromBottom] = useState(false);
+  const [newActivity, setNewActivity] = useState(false);
+  const latestId = useRef<string | undefined>(undefined);
   const queueLock = useRef(false);
   const currentConversation = useRef<string | null>(npub);
   const maxInputHeight = Math.ceil(22 * fontScale * 4 + 20);
@@ -93,7 +95,9 @@ export default function ConversationScreen() {
     setSelectedId(null);
     setLimit(50);
     setHasMore(false);
-    prependAnchor.current = null;
+    setAwayFromBottom(false);
+    setNewActivity(false);
+    latestId.current = undefined;
     paginationLock.current = false;
     userScrolling.current = false;
     queueLock.current = false;
@@ -194,24 +198,18 @@ export default function ConversationScreen() {
     if (!moreActivity || loadingMessages || fetchingHistory || paginationLock.current) return;
     paginationLock.current = true;
     nearBottom.current = false;
-    prependAnchor.current = { ...scrollMetrics.current };
     setLimit((count) => count + 50);
   };
   useEffect(() => {
     if (loadingMessages || fetchingHistory) return;
     paginationLock.current = false;
-    if (!prependAnchor.current) return;
-    const frame = requestAnimationFrame(() => {
-      const anchor = prependAnchor.current;
-      if (!anchor) return;
-      scrollRef.current?.scrollTo({
-        y: Math.max(0, anchor.offset + scrollMetrics.current.height - anchor.height),
-        animated: false,
-      });
-      prependAnchor.current = null;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [loadingMessages, fetchingHistory, activity.length]);
+  }, [loadingMessages, fetchingHistory]);
+  useEffect(() => {
+    const latest = activity.at(-1)?.id;
+    if (latestId.current && latest && latest !== latestId.current && !nearBottom.current)
+      setNewActivity(true);
+    latestId.current = latest;
+  }, [activity]);
   const selected = activity.find((item) => item.id === selectedId) || null;
   const amounts = (amount?: number) => {
     if (typeof amount !== 'number' || !Number.isFinite(amount)) return {};
@@ -453,60 +451,70 @@ export default function ConversationScreen() {
               onPress={openContact}
             />
           </XStack>
-          <ScrollView
-            ref={scrollRef}
-            flex={1}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
-            onLayout={() => {
-              if (nearBottom.current && !prependAnchor.current)
-                scrollRef.current?.scrollToEnd({ animated: false });
-            }}
-            onScrollBeginDrag={() => {
-              userScrolling.current = true;
-            }}
-            onScrollEndDrag={() => {
-              userScrolling.current = false;
-            }}
-            onMomentumScrollBegin={() => {
-              userScrolling.current = true;
-            }}
-            onMomentumScrollEnd={() => {
-              userScrolling.current = false;
-            }}
-            onScroll={(event) => {
-              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-              scrollMetrics.current = { height: contentSize.height, offset: contentOffset.y };
-              nearBottom.current =
-                contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
-              if (
-                userScrolling.current &&
-                contentOffset.y < 80 &&
-                contentSize.height > layoutMeasurement.height + 80
-              )
-                loadOlder();
-            }}
-            scrollEventThrottle={100}
-            onContentSizeChange={(_width, height) => {
-              scrollMetrics.current.height = height;
-              if (nearBottom.current && !prependAnchor.current)
-                scrollRef.current?.scrollToEnd({ animated: false });
-            }}
-          >
-            <YStack flexGrow={1} justify="flex-end">
-              {moreActivity && (
-                <AppButton
-                  variant="default"
-                  emphasis="ghost"
-                  disabled={loadingMessages || !!fetchingHistory}
-                  loading={loadingMessages || !!fetchingHistory}
-                  onPress={loadOlder}
-                >
-                  Older messages
-                </AppButton>
-              )}
-              {visibleActivity.map((item, index) => (
+          <YStack flex={1}>
+            <LegendList
+              key={npub}
+              testID="conversation-timeline"
+              data={visibleActivity}
+              keyExtractor={(item) => item.id}
+              estimatedItemSize={90}
+              alignItemsAtEnd
+              maintainVisibleContentPosition
+              maintainScrollAtEnd
+              maintainScrollAtEndThreshold={0.15}
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
+              onLayout={() => {
+                if (nearBottom.current && !paginationLock.current)
+                  scrollRef.current?.scrollToEnd({ animated: false });
+              }}
+              onScrollBeginDrag={() => {
+                userScrolling.current = true;
+              }}
+              onScrollEndDrag={() => {
+                userScrolling.current = false;
+              }}
+              onMomentumScrollBegin={() => {
+                userScrolling.current = true;
+              }}
+              onMomentumScrollEnd={() => {
+                userScrolling.current = false;
+              }}
+              onScroll={(event) => {
+                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                nearBottom.current =
+                  contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                setAwayFromBottom(!nearBottom.current);
+                if (nearBottom.current) setNewActivity(false);
+                if (
+                  userScrolling.current &&
+                  contentOffset.y < 80 &&
+                  contentSize.height > layoutMeasurement.height + 80
+                )
+                  loadOlder();
+              }}
+              scrollEventThrottle={100}
+              onContentSizeChange={() => {
+                if (nearBottom.current && !paginationLock.current)
+                  scrollRef.current?.scrollToEnd({ animated: false });
+              }}
+              ListHeaderComponent={
+                moreActivity ? (
+                  <AppButton
+                    variant="default"
+                    emphasis="ghost"
+                    disabled={loadingMessages || !!fetchingHistory}
+                    loading={loadingMessages || !!fetchingHistory}
+                    onPress={loadOlder}
+                  >
+                    Older messages
+                  </AppButton>
+                ) : null
+              }
+              renderItem={({ item, index }) => (
                 <YStack
                   key={item.id}
                   mt={
@@ -541,8 +549,8 @@ export default function ConversationScreen() {
                     payDisabled={!accepted || blocked}
                   />
                 </YStack>
-              ))}
-              {!activity.length && (
+              )}
+              ListEmptyComponent={
                 <YStack flex={1} items="center" justify="center" gap="$3" p="$5">
                   <ConversationAvatar npub={npub} picture={person?.picture} size={72} />
                   <Text fontSize="$6" fontWeight="700" textAlign="center">
@@ -552,9 +560,28 @@ export default function ConversationScreen() {
                     Start a conversation or send a payment.
                   </Text>
                 </YStack>
-              )}
-            </YStack>
-          </ScrollView>
+              }
+            />
+            {awayFromBottom && (
+              <AppButton
+                position="absolute"
+                b={12}
+                self="center"
+                rounded={999}
+                variant="default"
+                emphasis="secondary"
+                accessibilityLabel="Jump to latest messages"
+                onPress={() => {
+                  nearBottom.current = true;
+                  setAwayFromBottom(false);
+                  setNewActivity(false);
+                  scrollRef.current?.scrollToEnd({ animated: true });
+                }}
+              >
+                {newActivity ? 'New messages' : 'Latest messages'}
+              </AppButton>
+            )}
+          </YStack>
           <YStack
             px="$4"
             pt="$2"
