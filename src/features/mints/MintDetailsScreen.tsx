@@ -524,8 +524,7 @@ export default function MintDetailsModal() {
                 </YStack>
               </XStack>
               <Text color="$gray10" fontSize={14} lineHeight={20}>
-                This removes the mint and its local ecash data, saved payment records, and history
-                from this device.
+                This removes the mint from your connected mints. Your transaction history is kept.
               </Text>
 
               {balance > 0 && (
