@@ -23,6 +23,7 @@ import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppInput } from '~/shared/ui/AppInput';
+import ActionSelectorSheet, { type ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { appTypography } from '~/shared/theme/appearance';
@@ -127,6 +128,11 @@ export function HistoryScreen({
     if (!showSearch) setSearchQuery('');
   }, [showSearch]);
   const filterSheet = useRef<AppBottomSheetRef>(null);
+  const receiveSheet = useRef<ActionSelectorSheetRef>(null);
+  const [receiveMounted, setReceiveMounted] = useState(false);
+  useEffect(() => {
+    if (receiveMounted) receiveSheet.current?.present('receive');
+  }, [receiveMounted]);
   const mints = useWalletStore((state) => state.mints);
   const people = usePeopleStore((state) => state.people);
   const pendingRequests = useNostrRequestStore((state) => state.pendingRequests);
@@ -380,7 +386,7 @@ export function HistoryScreen({
               >
                 <Inbox size={22} color="$gray10" />
               </XStack>
-              <Text {...appTypography.label1} color="$color">
+              <Text {...appTypography.label2} color="$color">
                 {failed
                   ? hasSearch
                     ? 'Could not search history'
@@ -389,12 +395,12 @@ export function HistoryScreen({
                     ? 'No matching activity'
                     : 'No activity yet'}
               </Text>
-              <Text {...appTypography.body2} color="$gray10" text="center">
+              <Text {...appTypography.body3} color="$gray10" text="center">
                 {failed
                   ? 'Pull down or try again to refresh your history.'
                   : isFiltered || hasSearch
                     ? 'Try another search or filter, or reset to see recent activity.'
-                    : 'Your payments and requests will appear here.'}
+                    : 'Receive your first payment to start your history.'}
               </Text>
               {(isFiltered || hasSearch || failed) && (
                 <AppButton
@@ -404,6 +410,17 @@ export function HistoryScreen({
                   onPress={failed ? refreshHistory : resetSearchAndFilters}
                 >
                   {failed ? 'Try again' : hasSearch ? 'Reset search and filters' : 'Reset filters'}
+                </AppButton>
+              )}
+              {!isFiltered && !hasSearch && !failed && (
+                <AppButton
+                  emphasis="secondary"
+                  onPress={() => {
+                    if (receiveSheet.current) receiveSheet.current.present('receive');
+                    else setReceiveMounted(true);
+                  }}
+                >
+                  Receive
                 </AppButton>
               )}
             </YStack>
@@ -422,6 +439,7 @@ export function HistoryScreen({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       />
+      {receiveMounted && <ActionSelectorSheet ref={receiveSheet} />}
       <AppBottomSheet ref={filterSheet} snapPoints={['75%']} onClose={onFiltersClose}>
         <YStack px={16} pt={8} pb={4}>
           <XStack items="center" justify="space-between">

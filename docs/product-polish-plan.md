@@ -219,14 +219,30 @@ unverified. The initial offline attempt also lacked cached Glide artifacts; norm
 got past that blocker without changing dependency versions. No unrelated theme/dependency fixes
 are included in the shortcut commit.
 
+## 8. Useful empty states
+
+- Empty History offers Receive through the existing bottom sheet. Filtered/search results keep
+  Reset, and loading/failure states retain their existing feedback.
+- Empty People search offers Clear search and returns focus to the field. Keep Find someone
+  accessible with the normal button touch target. Failed or loading searches no longer also
+  show No people found.
+- Empty connected/discovered mint lists offer Enter mint URL, or Clear search when filtered.
+  Enter mint URL scrolls to and focuses the existing input. Use compact text and the shared
+  neutral empty-state surface; connected rows and Home's mint selector stay unchanged.
+
+Validation: 39 focused History, People model/row, and mint navigation tests passed, including
+Receive opening and clearing unmatched mint searches without changing wallet mints. Type
+checking, the button check, scoped formatting, and diff whitespace checks passed. The People
+tests emit existing native SQLite mock warnings. Device review remains for keyboard focus,
+small screens, large text, light/dark themes, and the Receive sheet.
+
 ## Remaining queue
 
 1. Verify responsiveness on fresh and restored wallets using the existing device measurement plan.
-2. Improve empty states with useful next actions.
-3. Offer shareable receipt images containing an appropriate public payment summary.
-4. Show understandable backup status in Settings.
-5. Add Lightning invoice NFC advertisement after the POS review.
-6. Add iOS app-icon quick actions when iOS is in scope.
+2. Offer shareable receipt images containing an appropriate public payment summary.
+3. Show understandable backup status in Settings.
+4. Add Lightning invoice NFC advertisement after the POS review.
+5. Add iOS app-icon quick actions when iOS is in scope.
 
 Each item needs its own scope review and focused checks. Device-dependent behavior and service
 requirements must be verified during that item's implementation; this document does not mark

@@ -2,7 +2,7 @@ import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
 import {
   Scan,
@@ -429,6 +429,12 @@ export default function AddMintScreen() {
   const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInput = useRef<React.ElementRef<typeof Input>>(null);
+  const mintScroll = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const enterMintUrl = () => {
+    mintScroll.current?.scrollTo({ y: 0, animated: true });
+    searchInput.current?.focus();
+  };
   const [refreshing, setRefreshing] = useState(false);
 
   const {
@@ -662,6 +668,7 @@ export default function AddMintScreen() {
       />
 
       <ScrollView
+        ref={mintScroll}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
@@ -693,6 +700,7 @@ export default function AddMintScreen() {
           >
             <Search size={20} strokeWidth={3} color="$gray10" />
             <Input
+              ref={searchInput}
               flex={1}
               placeholder="Search mint name or enter URL..."
               value={searchQuery}
@@ -794,7 +802,14 @@ export default function AddMintScreen() {
           {isInitializing ? (
             <MintSkeletonList count={2} />
           ) : filteredConnectedMints.length === 0 ? (
-            <YStack py="$5" items="center" justify="center" gap="$2" bg="$color2" rounded="$5">
+            <YStack
+              py="$5"
+              items="center"
+              justify="center"
+              gap="$2"
+              bg="$buttonDefaultSecondary"
+              rounded="$6"
+            >
               <Globe size={24} color="$gray10" />
               <Text fontWeight="600" fontSize="$3" color="$color">
                 {cleanQuery ? 'No matching connected mints' : 'No mints connected yet'}
@@ -804,6 +819,12 @@ export default function AddMintScreen() {
                   ? 'Try searching discovered mints below or connect via URL.'
                   : 'Add a Cashu mint to start sending and receiving ecash.'}
               </Text>
+              <AppButton
+                emphasis="text"
+                onPress={cleanQuery ? () => setSearchQuery('') : enterMintUrl}
+              >
+                {cleanQuery ? 'Clear search' : 'Enter mint URL'}
+              </AppButton>
             </YStack>
           ) : (
             <YStack>
@@ -874,13 +895,28 @@ export default function AddMintScreen() {
               </AppButton>
             </YStack>
           ) : filteredDiscoveredMints.length === 0 ? (
-            <YStack py="$5" items="center" justify="center" gap="$1" bg="$color2" rounded="$5">
+            <YStack
+              py="$5"
+              items="center"
+              justify="center"
+              gap="$2"
+              bg="$buttonDefaultSecondary"
+              rounded="$6"
+            >
               <Text fontWeight="600" fontSize="$3" color="$color">
-                No mints found
+                {cleanQuery ? 'No matching mints' : 'No mints found'}
               </Text>
-              <Text fontSize="$2" color="$gray10">
-                Try a different keyword or enter the exact mint URL above.
+              <Text fontSize="$2" color="$gray10" textAlign="center" px="$4">
+                {cleanQuery
+                  ? 'Try a different keyword or enter the exact mint URL above.'
+                  : 'Connect directly using a Cashu mint URL.'}
               </Text>
+              <AppButton
+                emphasis="text"
+                onPress={cleanQuery ? () => setSearchQuery('') : enterMintUrl}
+              >
+                {cleanQuery ? 'Clear search' : 'Enter mint URL'}
+              </AppButton>
             </YStack>
           ) : (
             <YStack>

@@ -162,6 +162,21 @@ const render = async () => {
   });
 };
 
+it('clears an unmatched mint search without changing connected mints', async () => {
+  const mintUrl = 'https://mint.example';
+  useWalletStore.setState({ mints: [{ mintUrl, name: 'Example', trusted: true }] });
+  await render();
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('unmatched'));
+  const clear = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Clear search')!;
+  expect(clear).toBeDefined();
+  await act(async () => clear.props.onPress());
+  expect(tree.root.findByType('Input' as any).props.value).toBe('');
+  expect(useWalletStore.getState().mints).toEqual([{ mintUrl, name: 'Example', trusted: true }]);
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
 it('opens the full profile when submitting an entered URL, preserving its path', async () => {
   await render();
   await act(async () =>

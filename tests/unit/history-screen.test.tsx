@@ -9,6 +9,8 @@ import { historyService } from '~/services/wallet';
 const mockPush = jest.fn();
 const mockInvalidate = jest.fn();
 const mockPresent = jest.fn();
+const mockReceivePresent = jest.fn();
+let mockHistoryEmpty = false;
 const mockLoadRequests = jest.fn(async () => {});
 const mockMints: unknown[] = [];
 const mockRequests: unknown[] = [];
@@ -83,7 +85,9 @@ jest.mock('@tanstack/react-query', () => ({
           ? undefined
           : [...mockHistory, mockOlderHistory]
         : queryKey[0] === 'history'
-          ? mockHistory
+          ? mockHistoryEmpty
+            ? []
+            : mockHistory
           : undefined,
     isLoading: queryKey[1] === 'search' && mockSearchLoading,
     isError: queryKey[1] === 'search' && mockSearchError,
@@ -140,6 +144,13 @@ jest.mock('~/features/history/components/HistorySkeletonItem', () => ({
 }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/ActionSelectorSheet', () => ({
+  __esModule: true,
+  default: require('react').forwardRef((_: unknown, ref: any) => {
+    require('react').useImperativeHandle(ref, () => ({ present: mockReceivePresent }));
+    return null;
+  }),
+}));
 jest.mock('~/shared/ui/AppInput', () => ({ AppInput: 'Input' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/ListTable', () => ({
@@ -161,6 +172,7 @@ beforeEach(async () => {
   mockPayments.length = 0;
   mockSearchLoading = false;
   mockSearchError = false;
+  mockHistoryEmpty = false;
   await act(async () => {
     screen = create(<HistoryScreen />);
   });
@@ -276,6 +288,26 @@ it('keeps quick filters usable when no activity matches', () => {
   expect(pressable('Pending')).toBeDefined();
   expect(pressable('Sent')).toBeDefined();
   expect(pressable('Received')).toBeDefined();
+  expect(
+    screen.root.findAllByType('AppButton' as any).some((node) => node.props.children === 'Receive'),
+  ).toBe(false);
+});
+
+it('opens Receive from empty history and keeps the sheet available after activity arrives', async () => {
+  mockHistoryEmpty = true;
+  await act(async () => screen.update(<HistoryScreen />));
+  const receive = screen.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Receive')!;
+  expect(receive).toBeDefined();
+  await act(async () => receive.props.onPress());
+  expect(mockReceivePresent).toHaveBeenCalledWith('receive');
+  await act(async () => receive.props.onPress());
+  expect(mockReceivePresent).toHaveBeenCalledTimes(2);
+  mockHistoryEmpty = false;
+  await act(async () => screen.update(<HistoryScreen />));
+  expect(transactionButtons()).toHaveLength(2);
+  expect(mockReceivePresent).toHaveBeenCalledTimes(2);
 });
 
 const openSearch = () => {
