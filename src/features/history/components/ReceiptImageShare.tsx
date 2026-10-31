@@ -55,7 +55,7 @@ export function ReceiptImageShare({
   }, [preview]);
   const pending = preview?.status === 'Pending';
   const detailsOffset = preview?.qr ? 400 : 0;
-  const imageHeight = 752 + detailsOffset;
+  const imageHeight = 712 + detailsOffset;
   const statusColor =
     preview?.status === 'Confirmed' || preview?.status === 'Refunded'
       ? colors.positive
@@ -243,22 +243,15 @@ export function ReceiptImageShare({
                 >
                   {preview.date}
                 </SvgText>
-                <Path
-                  testID="receipt-promotion-background"
-                  d={`M0 ${imageHeight - 88}H640V${imageHeight - 32}Q640 ${imageHeight} 608 ${imageHeight}H32Q0 ${imageHeight} 0 ${imageHeight - 32}Z`}
-                  fill={colors.icon}
-                />
                 <SvgText
-                  x={48}
-                  y={imageHeight - 54}
-                  fontSize={22}
-                  fontFamily="InterTextSemiBold"
-                  fill={colors.canvas}
+                  x={320}
+                  y={imageHeight - 36}
+                  textAnchor="middle"
+                  fontSize={16}
+                  fill={colors.icon}
+                  opacity={0.5}
                 >
-                  Try Bey Wallet
-                </SvgText>
-                <SvgText x={48} y={imageHeight - 26} fontSize={18} fill={colors.canvas}>
-                  Download at bey.cash
+                  Download Bey Wallet @ bey.cash
                 </SvgText>
               </Svg>
               {preview.qr && !qrCount && (

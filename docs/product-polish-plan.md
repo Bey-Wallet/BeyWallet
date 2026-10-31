@@ -283,7 +283,7 @@ existing native share sheet. No screen capture, new dependency, or wallet operat
 The image uses a logo-only Bey header, the active light/dark theme, a Payment summary label,
 primary and secondary currencies in the selected order, payment type, direction, date, and public mint
 name/origin. Status lives in the detail rows; non-pending outcomes also get a large icon beside
-the amount. A small inverse-theme footer says Try Bey Wallet and Download at bey.cash.
+the amount. A small centered, muted footer says Download Bey Wallet @ bey.cash on the existing background.
 Missing price data is labelled unavailable; no fiat value is invented.
 
 Pending images explicitly say Pending and Payment not confirmed. Payable public QRs appear at

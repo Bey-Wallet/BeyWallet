@@ -141,18 +141,24 @@ it('uses the existing Bey logo in light receipts and keeps the header minimal', 
   expect(texts()).not.toContain('Total amount');
 });
 
-it.each([false, true])('uses an inverse promotional footer in dark=%s', async (dark) => {
-  mockDark = dark;
-  await open();
-  expect(texts()).toEqual(expect.arrayContaining(['Try Bey Wallet', 'Download at bey.cash']));
-  expect(tree.root.findByProps({ testID: 'receipt-promotion-background' }).props.fill).toBe(
-    dark ? '#FFFFFF' : '#000000',
-  );
-  const promotion = tree.root
-    .findAllByType('SvgText' as any)
-    .find((node) => node.props.children === 'Try Bey Wallet')!;
-  expect(promotion.props.fill).toBe(dark ? '#000000' : '#FFFFFF');
-});
+it.each([false, true])(
+  'keeps the footer centered and muted on the receipt background in dark=%s',
+  async (dark) => {
+    mockDark = dark;
+    await open();
+    expect(tree.root.findAllByProps({ testID: 'receipt-promotion-background' })).toHaveLength(0);
+    const promotion = tree.root
+      .findAllByType('SvgText' as any)
+      .find((node) => node.props.children === 'Download Bey Wallet @ bey.cash')!;
+    expect(promotion.props).toMatchObject({
+      x: 320,
+      textAnchor: 'middle',
+      fontSize: 16,
+      opacity: 0.5,
+      fill: dark ? '#FFFFFF' : '#000000',
+    });
+  },
+);
 
 it.each([
   ['Confirmed', 'Check', '#25B86F'],
