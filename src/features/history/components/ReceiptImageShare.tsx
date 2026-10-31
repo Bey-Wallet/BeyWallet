@@ -7,7 +7,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { paymentAmounts } from '~/shared/ui/PaymentAmount';
 import { Text, YStack, XStack, useTheme } from 'tamagui';
-import { Share2, X } from '@tamagui/lucide-icons';
+import { Share2, X, Check, Clock, Minus, ArrowDownLeft } from '@tamagui/lucide-icons';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppButton } from '~/shared/ui/AppButton';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
@@ -55,12 +55,23 @@ export function ReceiptImageShare({
   }, [preview]);
   const pending = preview?.status === 'Pending';
   const detailsOffset = preview?.qr ? 400 : 0;
-  const imageHeight = 674 + detailsOffset;
-  const statusColor = pending
-    ? colors.warning
-    : preview?.status === 'Confirmed' || preview?.status === 'Refunded'
+  const imageHeight = 752 + detailsOffset;
+  const statusColor =
+    preview?.status === 'Confirmed' || preview?.status === 'Refunded'
       ? colors.positive
-      : colors.negative;
+      : preview?.status === 'Failed'
+        ? colors.negative
+        : colors.warning;
+  const OutcomeIcon =
+    preview?.status === 'Confirmed'
+      ? Check
+      : preview?.status === 'Refunded'
+        ? ArrowDownLeft
+        : preview?.status === 'Failed'
+          ? X
+          : preview?.status === 'Cancelled'
+            ? Minus
+            : Clock;
   const { qrPath, qrCount } = useMemo(() => {
     let qrPath = '';
     let qrCount = 0;
@@ -131,28 +142,8 @@ export function ReceiptImageShare({
                 <G transform="translate(48 46)">
                   <BeyIcon size={42} color={colors.icon} />
                 </G>
-                <SvgText
-                  x={106}
-                  y={82}
-                  fontSize={40}
-                  fontFamily="InterDisplaySemiBold"
-                  fill={colors.icon}
-                >
-                  bey
-                </SvgText>
-                <SvgText x={592} y={78} textAnchor="end" fontSize={20} fill={colors.secondaryText}>
-                  Receipt
-                </SvgText>
-                <Rect x={48} y={130} width={190} height={44} rx={22} fill={colors.raised} />
-                <Circle cx={70} cy={152} r={5} fill={statusColor} />
-                <SvgText
-                  x={86}
-                  y={159}
-                  fontSize={21}
-                  fontFamily="InterTextMedium"
-                  fill={colors.icon}
-                >
-                  {preview.status}
+                <SvgText x={48} y={152} fontSize={22} fill={colors.secondaryText}>
+                  Payment summary
                 </SvgText>
                 {preview.qr && qrCount > 0 && (
                   <G transform={`translate(48 200) scale(${360 / (qrCount + 8)})`}>
@@ -169,6 +160,14 @@ export function ReceiptImageShare({
                 >
                   {preview.amount}
                 </SvgText>
+                {!pending && (
+                  <G testID="receipt-outcome-icon" accessibilityLabel={`${preview.status} payment`}>
+                    <Circle cx={548} cy={230 + detailsOffset} r={42} fill={statusColor} />
+                    <G transform={`translate(528 ${210 + detailsOffset})`}>
+                      <OutcomeIcon size={40} color={colors.onAccent} strokeWidth={3} />
+                    </G>
+                  </G>
+                )}
                 <SvgText x={48} y={298 + detailsOffset} fontSize={24} fill={colors.secondaryText}>
                   {preview.secondary ||
                     (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
@@ -184,7 +183,7 @@ export function ReceiptImageShare({
                   strokeWidth={2}
                 />
                 <SvgText x={48} y={396 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
-                  Type
+                  Status
                 </SvgText>
                 <SvgText
                   x={592}
@@ -192,58 +191,74 @@ export function ReceiptImageShare({
                   textAnchor="end"
                   fontSize={21}
                   fontFamily="InterTextMedium"
-                  fill={colors.icon}
+                  fill={statusColor}
                 >
-                  {preview.type}
+                  {preview.status}
                 </SvgText>
                 <SvgText x={48} y={450 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
-                  Mint
+                  Type
                 </SvgText>
                 <SvgText
                   x={592}
                   y={450 + detailsOffset}
+                  textAnchor="end"
+                  fontSize={21}
+                  fill={colors.icon}
+                >
+                  {preview.type}
+                </SvgText>
+                <SvgText x={48} y={504 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                  Mint
+                </SvgText>
+                <SvgText
+                  x={592}
+                  y={504 + detailsOffset}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.mint.length > 36 ? `${preview.mint.slice(0, 35)}…` : preview.mint}
                 </SvgText>
-                <SvgText x={48} y={504 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={558 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Direction
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={504 + detailsOffset}
+                  y={558 + detailsOffset}
                   textAnchor="end"
                   fontSize={21}
                   fill={colors.icon}
                 >
                   {preview.direction}
                 </SvgText>
-                <SvgText x={48} y={558 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={612 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Date
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={558 + detailsOffset}
+                  y={612 + detailsOffset}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.date}
                 </SvgText>
-                <SvgText x={48} y={imageHeight - 46} fontSize={17} fill={colors.secondaryText}>
-                  {pending ? 'Payment not confirmed' : 'Payment summary'}
-                </SvgText>
-                <SvgText
-                  x={592}
-                  y={imageHeight - 46}
-                  textAnchor="end"
-                  fontSize={17}
-                  fontFamily="InterTextMedium"
+                <Path
+                  testID="receipt-promotion-background"
+                  d={`M0 ${imageHeight - 88}H640V${imageHeight - 32}Q640 ${imageHeight} 608 ${imageHeight}H32Q0 ${imageHeight} 0 ${imageHeight - 32}Z`}
                   fill={colors.icon}
+                />
+                <SvgText
+                  x={48}
+                  y={imageHeight - 54}
+                  fontSize={22}
+                  fontFamily="InterTextSemiBold"
+                  fill={colors.canvas}
                 >
-                  bey.cash
+                  Try Bey Wallet
+                </SvgText>
+                <SvgText x={48} y={imageHeight - 26} fontSize={18} fill={colors.canvas}>
+                  Download at bey.cash
                 </SvgText>
               </Svg>
               {preview.qr && !qrCount && (

@@ -280,9 +280,11 @@ and simulated paid invoices; it cannot demonstrate the timing of a real Lightnin
 History receipts, live Lightning invoices and saved Ecash requests offer Share receipt image.
 Preview a dedicated public-summary SVG before exporting a high-resolution PNG through the
 existing native share sheet. No screen capture, new dependency, or wallet operation is involved.
-The image uses Bey branding, the active light/dark theme, a compact status badge, primary and
-secondary currencies in the selected order, payment type, direction, date, and public mint
-name/origin. Missing price data is labelled unavailable; no fiat value is invented.
+The image uses a logo-only Bey header, the active light/dark theme, a Payment summary label,
+primary and secondary currencies in the selected order, payment type, direction, date, and public mint
+name/origin. Status lives in the detail rows; non-pending outcomes also get a large icon beside
+the amount. A small inverse-theme footer says Try Bey Wallet and Download at bey.cash.
+Missing price data is labelled unavailable; no fiat value is invented.
 
 Pending images explicitly say Pending and Payment not confirmed. Payable public QRs appear at
 the top-left for pending saved Ecash requests and unpaid Lightning invoices. Paid, expired or

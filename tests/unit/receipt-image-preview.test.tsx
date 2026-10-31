@@ -28,7 +28,14 @@ jest.mock('tamagui', () => ({
   XStack: 'XStack',
   useTheme: () => ({ background: { val: mockDark ? '#000000' : '#FFFFFF' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({ Share2: 'Share2', X: 'X' }));
+jest.mock('@tamagui/lucide-icons', () => ({
+  Share2: 'Share2',
+  X: 'X',
+  Check: 'Check',
+  Clock: 'Clock',
+  Minus: 'Minus',
+  ArrowDownLeft: 'ArrowDownLeft',
+}));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'Close' }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'Scroll' }));
@@ -76,9 +83,9 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree?.unmount());
 });
-async function open() {
+async function open(value = receipt) {
   await act(async () => {
-    tree = create(<ReceiptImageShare receipt={receipt} />);
+    tree = create(<ReceiptImageShare receipt={value} />);
   });
   await act(async () => tree.root.findByType('Button' as any).props.onPress());
 }
@@ -88,7 +95,11 @@ it('previews both currencies, type and pending label with a real request QR matr
   expect(texts()).toEqual(
     expect.arrayContaining(['₿1,234', '≈ $1.23', 'Lightning top-up', 'Pending']),
   );
-  expect(tree.root.findByType('Path' as any).props.d).toMatch(/^M/);
+  const qr = tree.root
+    .findAllByType('G' as any)
+    .find((node) => node.props.transform?.startsWith('translate(48 200)'))!;
+  expect(qr.findByType('Path' as any).props.d).toMatch(/^M/);
+  expect(tree.root.findAllByProps({ testID: 'receipt-outcome-icon' })).toHaveLength(0);
 });
 it('uses fiat as primary when selected and bitcoin as the secondary amount', async () => {
   mockPrimary = 'FIAT';
@@ -123,7 +134,42 @@ it('uses the active dark theme and keeps the payable QR above amounts and left a
 it('uses the existing Bey logo in light receipts and keeps the header minimal', async () => {
   await open();
   expect(tree.root.findByType(BeyIcon).props).toMatchObject({ size: 42, color: '#000000' });
-  expect(texts()).toContain('Receipt');
+  expect(texts()).not.toContain('Receipt');
+  expect(texts()).not.toContain('bey');
+  expect(texts()).toContain('Payment summary');
   expect(texts()).not.toContain('PAYMENT RECEIPT');
   expect(texts()).not.toContain('Total amount');
 });
+
+it.each([false, true])('uses an inverse promotional footer in dark=%s', async (dark) => {
+  mockDark = dark;
+  await open();
+  expect(texts()).toEqual(expect.arrayContaining(['Try Bey Wallet', 'Download at bey.cash']));
+  expect(tree.root.findByProps({ testID: 'receipt-promotion-background' }).props.fill).toBe(
+    dark ? '#FFFFFF' : '#000000',
+  );
+  const promotion = tree.root
+    .findAllByType('SvgText' as any)
+    .find((node) => node.props.children === 'Try Bey Wallet')!;
+  expect(promotion.props.fill).toBe(dark ? '#000000' : '#FFFFFF');
+});
+
+it.each([
+  ['Confirmed', 'Check', '#25B86F'],
+  ['Failed', 'X', '#FF3B30'],
+  ['Cancelled', 'Minus', '#F5A73B'],
+  ['Expired', 'Clock', '#F5A73B'],
+  ['Refunded', 'ArrowDownLeft', '#25B86F'],
+] as const)(
+  'shows a large %s outcome beside the amount and status in the rows',
+  async (status, icon, color) => {
+    await open({ ...receipt, status, qr: undefined });
+    const outcome = tree.root.findByProps({ testID: 'receipt-outcome-icon' });
+    expect(outcome.findByType(icon as any).props.size).toBe(40);
+    expect(outcome.findByType('Circle' as any).props.fill).toBe(color);
+    const statusText = tree.root
+      .findAllByType('SvgText' as any)
+      .find((node) => node.props.children === status)!;
+    expect(statusText.props.y).toBe(396);
+  },
+);
