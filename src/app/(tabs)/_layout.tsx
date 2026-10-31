@@ -35,7 +35,7 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
     pl="$4"
   >
     <Blockies
-      style={{ borderRadius: 12 }}
+      style={{ borderRadius: 9 }}
       seed={useSettingsStore((state) => state.npub) || 'bey-cash'}
       size={10}
       scale={3.3}
