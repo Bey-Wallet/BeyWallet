@@ -14,6 +14,7 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { shareReceiptImage } from '~/services/platform/receiptImageService';
 import type { ShareableReceipt } from '../shareableReceipt';
 import { appColors } from '~/shared/theme/appearance';
+import BeyIcon from '~/shared/icons/BeyIcon';
 
 export function ReceiptImageShare({
   receipt,
@@ -53,8 +54,8 @@ export function ReceiptImageShare({
     if (preview) sheet.current?.present();
   }, [preview]);
   const pending = preview?.status === 'Pending';
-  const detailsOffset = preview?.qr ? 450 : 0;
-  const imageHeight = 774 + detailsOffset;
+  const detailsOffset = preview?.qr ? 400 : 0;
+  const imageHeight = 674 + detailsOffset;
   const statusColor = pending
     ? colors.warning
     : preview?.status === 'Confirmed' || preview?.status === 'Refunded'
@@ -127,24 +128,20 @@ export function ReceiptImageShare({
                 accessibilityLabel="Public receipt image preview"
               >
                 <Rect width={640} height={imageHeight} rx={32} fill={colors.canvas} />
+                <G transform="translate(48 46)">
+                  <BeyIcon size={42} color={colors.icon} />
+                </G>
                 <SvgText
-                  x={48}
-                  y={88}
-                  fontSize={46}
+                  x={106}
+                  y={82}
+                  fontSize={40}
                   fontFamily="InterDisplaySemiBold"
                   fill={colors.icon}
                 >
                   bey
                 </SvgText>
-                <SvgText
-                  x={592}
-                  y={78}
-                  textAnchor="end"
-                  fontSize={16}
-                  letterSpacing={2}
-                  fill={colors.secondaryText}
-                >
-                  PAYMENT RECEIPT
+                <SvgText x={592} y={78} textAnchor="end" fontSize={20} fill={colors.secondaryText}>
+                  Receipt
                 </SvgText>
                 <Rect x={48} y={130} width={190} height={44} rx={22} fill={colors.raised} />
                 <Circle cx={70} cy={152} r={5} fill={statusColor} />
@@ -157,36 +154,22 @@ export function ReceiptImageShare({
                 >
                   {preview.status}
                 </SvgText>
-                {preview.qr && (
-                  <SvgText
-                    x={48}
-                    y={214}
-                    fontSize={22}
-                    fontFamily="InterTextMedium"
-                    fill={colors.icon}
-                  >
-                    Scan to pay
-                  </SvgText>
-                )}
                 {preview.qr && qrCount > 0 && (
-                  <G transform={`translate(48 230) scale(${360 / (qrCount + 8)})`}>
+                  <G transform={`translate(48 200) scale(${360 / (qrCount + 8)})`}>
                     <Rect width={qrCount + 8} height={qrCount + 8} fill={appColors.light.canvas} />
                     <Path d={qrPath} fill={appColors.light.text} />
                   </G>
                 )}
-                <SvgText x={48} y={218 + detailsOffset} fontSize={20} fill={colors.secondaryText}>
-                  Total amount
-                </SvgText>
                 <SvgText
                   x={48}
-                  y={290 + detailsOffset}
+                  y={254 + detailsOffset}
                   fontSize={preview.amount.length > 16 ? 32 : preview.amount.length > 11 ? 46 : 64}
                   fontFamily="InterDisplaySemiBold"
                   fill={colors.icon}
                 >
                   {preview.amount}
                 </SvgText>
-                <SvgText x={48} y={336 + detailsOffset} fontSize={24} fill={colors.secondaryText}>
+                <SvgText x={48} y={298 + detailsOffset} fontSize={24} fill={colors.secondaryText}>
                   {preview.secondary ||
                     (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                       ? 'Amount in satoshis'
@@ -195,17 +178,17 @@ export function ReceiptImageShare({
                 <Line
                   x1={48}
                   x2={592}
-                  y1={382 + detailsOffset}
-                  y2={382 + detailsOffset}
+                  y1={342 + detailsOffset}
+                  y2={342 + detailsOffset}
                   stroke={colors.separator}
                   strokeWidth={2}
                 />
-                <SvgText x={48} y={436 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={396 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Type
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={436 + detailsOffset}
+                  y={396 + detailsOffset}
                   textAnchor="end"
                   fontSize={21}
                   fontFamily="InterTextMedium"
@@ -213,58 +196,49 @@ export function ReceiptImageShare({
                 >
                   {preview.type}
                 </SvgText>
-                <SvgText x={48} y={490 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={450 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Mint
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={490 + detailsOffset}
+                  y={450 + detailsOffset}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.mint.length > 36 ? `${preview.mint.slice(0, 35)}…` : preview.mint}
                 </SvgText>
-                <SvgText x={48} y={544 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={504 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Direction
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={544 + detailsOffset}
+                  y={504 + detailsOffset}
                   textAnchor="end"
                   fontSize={21}
                   fill={colors.icon}
                 >
                   {preview.direction}
                 </SvgText>
-                <SvgText x={48} y={598 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={558 + detailsOffset} fontSize={21} fill={colors.secondaryText}>
                   Date
                 </SvgText>
                 <SvgText
                   x={592}
-                  y={598 + detailsOffset}
+                  y={558 + detailsOffset}
                   textAnchor="end"
                   fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.date}
                 </SvgText>
-                <Line
-                  x1={48}
-                  x2={592}
-                  y1={648 + detailsOffset}
-                  y2={648 + detailsOffset}
-                  stroke={colors.separator}
-                  strokeWidth={2}
-                />
-                <SvgText x={48} y={imageHeight - 76} fontSize={17} fill={colors.secondaryText}>
-                  {pending
-                    ? 'Payment not confirmed · not proof of settlement'
-                    : 'Shared payment summary · not proof of settlement'}
+                <SvgText x={48} y={imageHeight - 46} fontSize={17} fill={colors.secondaryText}>
+                  {pending ? 'Payment not confirmed' : 'Payment summary'}
                 </SvgText>
                 <SvgText
-                  x={48}
-                  y={imageHeight - 38}
+                  x={592}
+                  y={imageHeight - 46}
+                  textAnchor="end"
                   fontSize={17}
                   fontFamily="InterTextMedium"
                   fill={colors.icon}
@@ -272,11 +246,6 @@ export function ReceiptImageShare({
                   bey.cash
                 </SvgText>
               </Svg>
-              <Text fontSize={12} color="$gray10">
-                {preview.qr
-                  ? 'Includes the public payment QR. Wallet secrets and spendable ecash are excluded.'
-                  : 'Only the amounts, payment type, mint, date and status are shared.'}
-              </Text>
               {preview.qr && !qrCount && (
                 <Text color="$red10" fontSize={12}>
                   This payment QR could not be encoded.

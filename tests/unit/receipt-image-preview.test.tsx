@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
+import BeyIcon from '~/shared/icons/BeyIcon';
 let mockPrimary = 'SATS';
 let mockPrice: number | undefined = 100000;
 let mockDark = false;
@@ -50,6 +51,8 @@ jest.mock('react-native-svg', () => ({
   G: 'G',
   Path: 'Path',
   Circle: 'Circle',
+  Defs: 'Defs',
+  Mask: 'Mask',
 }));
 
 const receipt = buildShareableReceipt(
@@ -83,7 +86,7 @@ const texts = () => tree.root.findAllByType('SvgText' as any).map((node) => node
 it('previews both currencies, type and pending label with a real request QR matrix', async () => {
   await open();
   expect(texts()).toEqual(
-    expect.arrayContaining(['₿1,234', '≈ $1.23', 'Lightning top-up', 'Pending', 'Scan to pay']),
+    expect.arrayContaining(['₿1,234', '≈ $1.23', 'Lightning top-up', 'Pending']),
   );
   expect(tree.root.findByType('Path' as any).props.d).toMatch(/^M/);
 });
@@ -108,8 +111,19 @@ it('uses the active dark theme and keeps the payable QR above amounts and left a
     .findAllByType('SvgText' as any)
     .find((node) => node.props.children === '₿1,234')!;
   expect(amount.props.fill).toBe('#FFFFFF');
-  const qr = tree.root.findByType('G' as any);
-  expect(qr.props.transform).toMatch(/^translate\(48 230\)/);
+  const qr = tree.root
+    .findAllByType('G' as any)
+    .find((node) => node.props.transform?.startsWith('translate(48 200)'))!;
+  expect(qr).toBeDefined();
   expect(amount.props.y).toBeGreaterThan(590);
   expect(qr.findByType('Rect' as any).props.fill).toBe('#FFFFFF');
+  expect(tree.root.findByType(BeyIcon).props.color).toBe('#FFFFFF');
+});
+
+it('uses the existing Bey logo in light receipts and keeps the header minimal', async () => {
+  await open();
+  expect(tree.root.findByType(BeyIcon).props).toMatchObject({ size: 42, color: '#000000' });
+  expect(texts()).toContain('Receipt');
+  expect(texts()).not.toContain('PAYMENT RECEIPT');
+  expect(texts()).not.toContain('Total amount');
 });
