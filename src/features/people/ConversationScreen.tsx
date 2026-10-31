@@ -271,7 +271,7 @@ export default function ConversationScreen() {
       text: draft,
       read: true,
       publication: 'sending',
-      transport: 'nip17',
+      transport: person?.chatTransport === 'nip04' ? 'nip04' : 'nip17',
     };
     setQueued((previous) => [...previous, optimistic]);
     let saved = false;
@@ -603,6 +603,11 @@ export default function ConversationScreen() {
             {!!error && (
               <Text accessibilityRole="alert" color="$buttonWarningSecondaryText" fontSize="$3">
                 {error}
+              </Text>
+            )}
+            {accepted && person?.chatTransport === 'nip04' && (
+              <Text color="$gray10" fontSize={12}>
+                Legacy messaging (NIP-04) · Sender, recipient and time are public
               </Text>
             )}
             {accepted ? (

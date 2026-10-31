@@ -523,6 +523,39 @@ describe('People conversations and invitations', () => {
     ).toBe(false);
   });
 
+  it('changes messaging format only after an explicit choice and displays legacy privacy information', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    await act(async () =>
+      tree!.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Contact details for Bob')!
+        .props.onPress(),
+    );
+    const row = () =>
+      tree!.root.findAllByType(ListTableRow).find((node) => node.props.label === 'Messaging')!;
+    expect(row().props.value).toBe('NIP-17');
+    await act(async () => row().props.onPress());
+    expect(alert.mock.calls[0][1]).toContain('sender, recipient and timestamp are public');
+    expect(usePeopleStore.getState().people[bob].chatTransport).toBe('nip17');
+    await act(async () =>
+      alert.mock.calls[0][2]!.find((button) => button.text === 'Use legacy NIP-04')!.onPress!(),
+    );
+    expect(row().props.value).toBe('Legacy (NIP-04)');
+    expect(JSON.stringify(tree!.toJSON())).toContain('Sender, recipient and time are public');
+    expect(nostrService.sendChat).not.toHaveBeenCalled();
+    await act(async () => row().props.onPress());
+    await act(async () =>
+      alert.mock.calls[1][2]!.find((button) => button.text === 'Use NIP-17')!.onPress!(),
+    );
+    expect(row().props.value).toBe('NIP-17');
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('Sender, recipient and time are public');
+    alert.mockRestore();
+  });
+
   it('keeps detailed timestamps in the message sheet and uses a warning card for an invitation', async () => {
     await act(async () => {
       tree = create(<ConversationScreen />);

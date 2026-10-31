@@ -108,6 +108,16 @@ notifications, and complete payment flows.
 - [ ] Open an old person-details link and confirm it opens the unified conversation.
 - [ ] Delete the test wallet and confirm no message memory or local text survives into a new wallet.
 
+## Legacy chat compatibility
+
+- [ ] Open Conversation → Info → Messaging: NIP-17 is selected by default. Cancel leaves the choice unchanged.
+- [ ] Explicitly select legacy NIP-04; confirm the privacy notice is visible above the composer, including with large text and in both themes.
+- [ ] Send and receive text with a Primal test identity using reachable shared relays. Confirm a relay acknowledgement is labelled Sent to relay, without delivery/read promises.
+- [ ] Restart Bey and sync the contact profile: only this conversation retains its selected format.
+- [ ] Fail a send, change the format and retry: the original message keeps its encrypted format and appears once. New messages use the new selection.
+- [ ] Restore NIP-17 and verify the notice disappears. Missing NIP-17 inbox relays must produce an error without automatic legacy fallback.
+- [ ] Block the person or lock the wallet before sending/retrying: existing guards remain enforced. Pay/Request behavior remains unchanged.
+
 ## Request visibility and receipts
 
 - [ ] Send a request to a contact: its card appears immediately, shows Sending, then Awaiting payment. Verify offline failure and retry preserve one card and request ID.

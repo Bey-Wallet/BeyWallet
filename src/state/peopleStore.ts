@@ -18,6 +18,7 @@ export interface Person {
   relayHints?: string[];
   hasIncomingActivity?: boolean;
   requiresAcceptance?: boolean;
+  chatTransport?: 'nip17' | 'nip04';
 }
 
 type PersonInput = Pick<Person, 'npub'> & Partial<Omit<Person, 'npub'>>;
@@ -71,6 +72,10 @@ function mergePerson(existing: Person | undefined, input: PersonInput): Person {
     }),
     hasIncomingActivity: input.hasIncomingActivity ?? existing?.hasIncomingActivity,
     requiresAcceptance: input.requiresAcceptance ?? existing?.requiresAcceptance,
+    chatTransport:
+      input.chatTransport === 'nip04' || input.chatTransport === 'nip17'
+        ? input.chatTransport
+        : (existing?.chatTransport ?? 'nip17'),
   };
 }
 

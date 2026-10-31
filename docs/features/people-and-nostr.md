@@ -148,10 +148,22 @@ to make a failing payment appear successful. These are security-critical payment
 
 ## Text chat
 
-Outgoing chat follows [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md): kind `14`
+Outgoing chat defaults to [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md): kind `14`
 rumor, kind `13` seal and kind `1059` gift wrap. Sender and recipient copies share the same rumor.
 Only the recipient's signed kind `10050` inbox relays receive their copy. Missing inbox relays
 produce an actionable error without downgrading encryption. Existing payment transports are retained.
+
+Conversation Info → Messaging offers an explicit legacy NIP-04 choice for older clients. The
+choice is persisted per person, defaults to NIP-17 for existing/new contacts, and survives profile
+refreshes. The chooser explains that legacy messages encrypt content but publicly expose sender,
+recipient and timestamp; a notice remains above the composer while legacy mode is selected.
+Legacy chat publishes one signed kind `4` event to the configured relays and recipient relay hints,
+without requiring a NIP-17 inbox list or publishing a gift wrap. Relay overlap is still required;
+discovering a profile alone does not guarantee delivery. The outgoing event ID is the local message
+ID. Both formats retain existing blocking, authentication, contact acceptance and publication
+checks. Switching formats affects new messages only: retries retain their original encrypted event,
+ID and destinations, and never downgrade an already-created NIP-17 message. Legacy outgoing chat
+is stored locally without a separate sender gift wrap. Existing Pay/Request transports are unchanged.
 
 Receiving supports NIP-17 and signed legacy kind `4`. Authentication verifies outer/seal signatures,
 seal/rumor identity, recomputed rumor IDs and one-to-one recipient membership. Sender copies record

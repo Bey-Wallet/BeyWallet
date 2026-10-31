@@ -15,6 +15,33 @@ const first = nip19.npubEncode('01'.repeat(32));
 const second = nip19.npubEncode('02'.repeat(32));
 
 describe('unified People state', () => {
+  it('persists per-person messaging preferences and preserves them through profile updates', () => {
+    usePeopleStore.setState({ people: {} });
+    usePeopleStore.getState().savePerson({ npub: first });
+    expect(usePeopleStore.getState().people[first].chatTransport).toBe('nip17');
+    usePeopleStore.getState().savePerson({ npub: first, chatTransport: 'nip04' });
+    usePeopleStore.getState().updatePerson({ npub: first, displayName: 'Alice' });
+    usePeopleStore.getState().setContactStatus(first, 'accepted');
+    usePeopleStore.getState().savePerson({ npub: second });
+    const saved = JSON.parse((sqliteStorage.setItem as jest.Mock).mock.calls.at(-1)[1]);
+    const restored = migrateLegacyPeople(saved.state);
+    expect(restored[first]).toMatchObject({ chatTransport: 'nip04', displayName: 'Alice' });
+    expect(restored[second].chatTransport).toBe('nip17');
+    usePeopleStore.getState().savePerson({ npub: first, chatTransport: 'nip17' });
+    expect(usePeopleStore.getState().people[first].chatTransport).toBe('nip17');
+  });
+
+  it('defaults missing or invalid persisted messaging preferences to NIP-17', () => {
+    const people = migrateLegacyPeople({
+      people: {
+        [first]: { npub: first, chatTransport: 'invalid' },
+        [second]: { npub: second },
+      },
+    });
+    expect(people[first].chatTransport).toBe('nip17');
+    expect(people[second].chatTransport).toBe('nip17');
+  });
+
   it('unblocks selected blocked people in one persisted update and requires acceptance again', () => {
     usePeopleStore.setState({ people: {} });
     usePeopleStore
