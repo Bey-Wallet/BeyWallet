@@ -11,6 +11,8 @@ let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
 let mockDeviceOffline = false;
 let mockHideBalance = false;
+const mockRecheckMint = jest.fn();
+let mockCheckingMints: string[] = [];
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('tamagui', () => ({
@@ -24,6 +26,12 @@ jest.mock('tamagui', () => ({
 }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
+  useQueries: ({ queries }: any) =>
+    queries.map(({ queryKey }: any) => ({
+      error: mockMintErrors[queryKey[1]],
+      isFetching: mockCheckingMints.includes(queryKey[1]),
+      refetch: (options: unknown) => mockRecheckMint(queryKey[1], options),
+    })),
   useQuery: ({ queryKey }: any) => ({
     data:
       queryKey[0] === 'all-mint-recommendations'
@@ -75,6 +83,7 @@ beforeEach(() => {
   mockMintErrors = {};
   mockDeviceOffline = false;
   mockHideBalance = false;
+  mockCheckingMints = [];
   useWalletStore.setState({
     mints: [],
     balances: {},
@@ -94,7 +103,7 @@ const connectedRow = (mintUrl: string) =>
       row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
     )!;
 
-it('flags an unreachable mint while keeping its balance readable and details reachable', async () => {
+it('dims an unreachable mint and rechecks it without opening its details', async () => {
   const mintUrl = 'https://mint.example';
   useWalletStore.setState({
     mints: [{ mintUrl, name: 'Example mint', trusted: true }],
@@ -108,18 +117,20 @@ it('flags an unreachable mint while keeping its balance readable and details rea
     tree = create(<ConnectedMintsCard />);
   });
   const row = connectedRow(mintUrl);
-  expect(row.findByType('Text' as any).props.color).toBe('$red10');
+  expect(row.findByType('Text' as any).props.color).toBe('$color');
+  expect(row.parent!.props.opacity).toBe(0.5);
   expect(row.findByType('RollingNumber' as any).props).toMatchObject({
     color: '$color',
     children: 4200,
     suffix: ' sat',
   });
-  expect(row.findByType('CircleAlert' as any).props).toMatchObject({ size: 18, color: '$red11' });
+  const refresh = tree.root.findByProps({ accessibilityLabel: 'Recheck Example mint connection' });
+  await act(async () => refresh.props.onPress());
+  expect(mockRecheckMint).toHaveBeenCalledWith(mintUrl, { cancelRefetch: false });
+  expect(mockPush).not.toHaveBeenCalled();
   expect(
-    row
-      .findAllByProps({ accessibilityRole: 'image' })
-      .map((badge) => badge.props.accessibilityLabel),
-  ).toEqual(['Mint unreachable']);
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck unreachable mints' }),
+  ).toHaveLength(0);
   await act(async () => row.parent!.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
@@ -130,6 +141,10 @@ it('flags an unreachable mint while keeping its balance readable and details rea
     useWalletStore.setState({ refreshCounter: 1 });
   });
   expect(connectedRow(mintUrl).findByType('Text' as any).props.color).toBe('$color');
+  expect(connectedRow(mintUrl).parent!.props.opacity).toBe(1);
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck Example mint connection' }),
+  ).toHaveLength(0);
   expect(connectedRow(mintUrl).findByType('RollingNumber' as any).props.color).toBe('$color');
   expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
   expect(
@@ -154,6 +169,40 @@ it('does not mark individual mints down when the device is offline, and keeps hi
     suffix: '',
   });
   expect(connectedRow(mintUrl).findAllByType('CircleAlert' as any)).toHaveLength(0);
+  expect(connectedRow(mintUrl).parent!.props.opacity).toBe(1);
+  expect(tree.root.findAllByType('AppButton' as any)).toHaveLength(0);
+});
+
+it('rechecks only unreachable mints from the header and shows in-flight feedback', async () => {
+  const urls = ['https://one.example', 'https://two.example', 'https://healthy.example'];
+  useWalletStore.setState({ mints: urls.map((mintUrl) => ({ mintUrl, trusted: true })) });
+  mockMintErrors[urls[0]] = new Error('Unreachable');
+  mockMintErrors[urls[1]] = new Error('Unreachable');
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const refresh = () => tree.root.findByProps({ accessibilityLabel: 'Recheck unreachable mints' });
+  await act(async () => refresh().props.onPress());
+  expect(mockRecheckMint.mock.calls).toEqual([
+    [urls[0], { cancelRefetch: false }],
+    [urls[1], { cancelRefetch: false }],
+  ]);
+  mockCheckingMints = [urls[0]];
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 1 });
+  });
+  expect(refresh().props.loading).toBe(true);
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Recheck one.example connection' }).props.loading,
+  ).toBe(true);
+  expect(connectedRow(urls[2]).parent!.props.opacity).toBe(1);
+  delete mockMintErrors[urls[0]];
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 2 });
+  });
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Recheck unreachable mints' }),
+  ).toHaveLength(0);
 });
 
 const render = async () => {
