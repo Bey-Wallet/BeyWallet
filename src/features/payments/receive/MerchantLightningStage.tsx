@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
 import { quotesService, eventService } from '~/services/wallet';
+import { historyService } from '~/services/wallet/historyService';
 import { networkService } from '~/services/platform/networkService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
@@ -33,6 +34,7 @@ export function MerchantLightningStage({
   const [collecting, setCollecting] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const pendingQuote = useRef<Promise<Quote> | null>(null);
+  const createdQuote = useRef<Quote | null>(null);
   const collectLock = useRef(false);
   useFeedbackOwner(quote?.quote);
   // An unused invoice may finish creating after ecash completes the sale.
@@ -47,9 +49,14 @@ export function MerchantLightningStage({
     setFailed(false);
     pendingQuote.current ??= (async () => {
       if (await networkService.isOffline()) throw new Error('Offline');
-      return note
-        ? quotesService.createMintQuote(mintUrl, amount, note)
-        : quotesService.createMintQuote(mintUrl, amount);
+      const created =
+        createdQuote.current ??
+        (await (note
+          ? quotesService.createMintQuote(mintUrl, amount, note)
+          : quotesService.createMintQuote(mintUrl, amount)));
+      createdQuote.current = created;
+      await historyService.markPosOrigin({ kind: 'quote', mintUrl, reference: created.quote });
+      return created;
     })();
     void pendingQuote.current
       .then((created) => {

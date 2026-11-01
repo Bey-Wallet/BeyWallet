@@ -28,6 +28,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrRequestStore, type NostrRequestState } from '~/state/nostrRequestStore';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
 import { matchReceiveRequest } from '~/services/wallet/requestReceiptMatching';
+import { historyService } from '~/services/wallet/historyService';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '~/features/payments/send/ResultStage';
@@ -228,6 +229,14 @@ export function RequestEcashStage({
         const encoded = pr.toEncodedRequest();
 
         if (!npub) throw new Error('Wallet identity is unavailable.');
+        // Save provenance before exposing the request, including future NFC/Nostr receipts.
+        if (merchant) {
+          await historyService.markPosOrigin({
+            kind: 'request',
+            mintUrl: draft.mintUrl,
+            reference: reqId,
+          });
+        }
         await addRequest({
           id: reqId,
           mintUrl: draft.mintUrl,
@@ -268,6 +277,7 @@ export function RequestEcashStage({
       addRequest,
       targetNpub,
       targetUsername,
+      merchant,
       isGenerating,
       isSending,
       setActiveMint,

@@ -496,6 +496,17 @@ const MIGRATIONS: readonly Migration[] = [
       CREATE TABLE bey_hidden_activity (id TEXT PRIMARY KEY NOT NULL);
     `,
   },
+  {
+    id: '023_pos_origins',
+    sql: `
+      CREATE TABLE bey_pos_origins (
+        kind TEXT NOT NULL CHECK(kind IN ('request', 'quote')),
+        mintUrl TEXT NOT NULL,
+        reference TEXT NOT NULL,
+        PRIMARY KEY(kind, mintUrl, reference)
+      );
+    `,
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

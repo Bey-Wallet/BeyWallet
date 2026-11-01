@@ -1,4 +1,34 @@
 import { historyMetadata, isOnchainHistory } from './transactionPresentation';
+import type { PosOrigin } from '~/storage/sqlite/repositories/PosRepository';
+
+export type HistoryScope = 'wallet' | 'pos';
+
+export function scopeHistory(
+  entries: HistoryListEntry[],
+  scope: HistoryScope,
+  origins: PosOrigin[],
+) {
+  const keys = new Set(
+    origins.map(({ kind, mintUrl, reference }) =>
+      JSON.stringify([kind, mintUrl.replace(/\/+$/, ''), reference]),
+    ),
+  );
+  return entries.filter((entry) => {
+    const kind = entry.type === 'mint' ? 'quote' : 'request';
+    const reference =
+      entry.type === 'mint'
+        ? entry.quoteId
+        : entry.type === 'receive-request'
+          ? entry.id
+          : entry.type === 'receive'
+            ? historyMetadata(entry).requestId
+            : undefined;
+    const pos =
+      typeof reference === 'string' &&
+      keys.has(JSON.stringify([kind, entry.mintUrl.replace(/\/+$/, ''), reference]));
+    return scope === 'pos' ? pos : !pos;
+  });
+}
 
 export interface HistoryListEntry {
   id: string;

@@ -82,6 +82,16 @@ Open **Receive → Point of sale** to accept a payment without leaving the walle
    the sale and its existing request/invoice.
 4. After verified receipt, tap **Next sale** to clear the amount and note while keeping the mint.
 
+When fiat is selected for POS input, the keypad enters cents: typing `1234` gives `12.34`.
+Backspace removes one digit. Sats remain whole numbers; other payment screens keep normal
+decimal entry. A valid exchange rate is required before charging a fiat amount.
+
+Tap **POS** beside the History title to switch between wallet activity and POS activity.
+The text toggle is muted when off and has no background. Search and filters apply only to the
+selected view. New POS requests and Lightning invoices are marked locally so their later
+receipts stay in POS history, including after checkout closes. Older unmarked payments remain
+in wallet history; the app does not guess their origin from the amount or note.
+
 POS has its own lime-and-black interface, prominent amounts, and rounded payment controls.
 Lightning NFC advertisement is not currently supported; Lightning checkout uses its invoice QR
 and copy actions.
