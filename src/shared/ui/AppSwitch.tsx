@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { appSpacing } from '~/shared/theme/appearance';
+import { appDimensions, appMotion, appSpacing } from '~/shared/theme/appearance';
 
 export type AppSwitchVariant = 'neutral' | 'branded';
 export type AppSwitchEmphasis = 'primary' | 'secondary';
@@ -58,7 +58,7 @@ export function AppSwitch({
         ? 1
         : 0
       : withTiming(checked ? 1 : 0, {
-          duration: 140,
+          duration: appMotion.duration.switch,
           easing: Easing.inOut(Easing.quad),
         });
   }, [checked, progress, reducedMotion]);
@@ -82,7 +82,7 @@ export function AppSwitch({
         onCheckedChange(!checked);
       }}
       minWidth={52}
-      minHeight={48}
+      minHeight={appDimensions.touchTarget}
       width={children ? '100%' : undefined}
       px={children ? appSpacing.page : 0}
       py={children ? appSpacing.compact : 0}

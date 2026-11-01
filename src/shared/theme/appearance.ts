@@ -77,8 +77,45 @@ export const appColors = {
 } as const;
 
 export const appRadii = { tiny: 4, small: 8, control: 12, card: 16, sheet: 20 } as const;
-export const appSpacing = { tiny: 2, small: 4, compact: 8, gap: 12, page: 16, large: 32 } as const;
+export const appSpacing = {
+  tiny: 2,
+  small: 4,
+  compact: 8,
+  gap: 12,
+  page: 16,
+  group: 24,
+  section: 32,
+  large: 32,
+} as const;
 export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
+export const appBorders = { outline: 1, separator: 2, focus: 2, focusOffset: 2 } as const;
+export const appIconSizes = { header: 22, list: 20, navigationCue: 18 } as const;
+
+/** Existing control geometry, shared by components and the in-app catalog. */
+export const appButtonSizes = {
+  xxsmall: { height: 32, icon: 14, text: 'label3' },
+  xsmall: { height: 36, icon: 16, text: 'label2' },
+  small: { height: 40, icon: 18, text: 'label2' },
+  medium: { height: 48, icon: 20, text: 'label1' },
+  large: { height: 56, icon: 24, text: 'label1' },
+} as const;
+
+export const appButtonStates = {
+  pressedScale: 0.98,
+  hoverOpacity: 0.85,
+  pressOpacity: 0.65,
+  disabledTextOpacity: 0.4,
+} as const;
+
+/** Preserve existing motion; the spinner keeps its own established implementation. */
+export const appMotion = {
+  duration: { switch: 140, sheet: 250 },
+  animations: {
+    bouncy: { type: 'spring', damping: 10, mass: 0.9, stiffness: 100 },
+    lazy: { type: 'timing', duration: 300 },
+    quick: { type: 'spring', damping: 20, mass: 1, stiffness: 250 },
+  },
+} as const;
 
 /** Shared metrics: Inter Text for UI copy, Inter Display for large text and amounts. */
 export const appTypography = {

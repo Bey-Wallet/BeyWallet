@@ -20,9 +20,72 @@ import {
 import { Toast } from '@tamagui/toast';
 import { config } from '~/tamagui.config';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppText } from '~/shared/ui/AppText';
+import { appColors } from '~/shared/theme';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+
+it.each(['light', 'dark'] as const)(
+  'renders named AppText roles with the existing Inter faces in %s',
+  async (appearance) => {
+    let tree!: ReactTestRenderer;
+    try {
+      await act(async () => {
+        tree = create(
+          <TamaguiProvider config={config} defaultTheme={appearance}>
+            <AppText testID="named-body">Body</AppText>
+            <AppText testID="named-label" variant="label2" tone="secondary">
+              Label
+            </AppText>
+            <AppText testID="named-display" variant="display">
+              128,450
+            </AppText>
+          </TamaguiProvider>,
+        );
+      });
+      const styles = (id: string) =>
+        tree.root
+          .findAll((node) => node.props.testID === id)
+          .map((node) => StyleSheet.flatten(node.props.style));
+      expect(styles('named-body')).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            fontFamily: 'InterTextRegular',
+            fontSize: 14,
+            lineHeight: 20,
+            color: appColors[appearance].text,
+          }),
+        ]),
+      );
+      expect(styles('named-label')).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            fontFamily: 'InterTextMedium',
+            fontSize: 14,
+            color: appColors[appearance].secondaryText,
+          }),
+        ]),
+      );
+      expect(styles('named-display')).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            fontFamily: 'InterDisplaySemiBold',
+            fontSize: 40,
+            lineHeight: 50,
+            letterSpacing: -1.5,
+          }),
+        ]),
+      );
+      for (const node of tree.root.findAll((node) => node.props.testID?.startsWith('named-'))) {
+        expect(node.props.allowFontScaling).not.toBe(false);
+        expect(node.props.maxFontSizeMultiplier).toBeUndefined();
+      }
+    } finally {
+      if (tree) await act(async () => tree.unmount());
+    }
+  },
+);
 
 it.each([
   ['400', 'InterTextRegular'],

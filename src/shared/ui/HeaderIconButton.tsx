@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { AppIconButton, type AppIconButtonProps } from '~/shared/ui/AppIconButton';
+import { appIconSizes } from '~/shared/theme/appearance';
 
 type HeaderIconButtonProps = Omit<
   AppIconButtonProps,
@@ -19,7 +20,7 @@ export const HeaderIconButton = forwardRef<
       emphasis="ghost"
       size="xsmall"
       shape="circular"
-      iconSize={22}
+      iconSize={appIconSizes.header}
     />
   );
 });

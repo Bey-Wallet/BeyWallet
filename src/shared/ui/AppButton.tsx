@@ -12,11 +12,18 @@ import {
 } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
-import { appTypography } from '~/shared/theme/appearance';
+import {
+  appBorders,
+  appButtonSizes,
+  appButtonStates,
+  appDimensions,
+  appSpacing,
+  appTypography,
+} from '~/shared/theme/appearance';
 
 export type AppButtonVariant = 'default' | 'critical' | 'warning';
 export type AppButtonEmphasis = 'primary' | 'secondary' | 'ghost' | 'text';
-export type AppButtonSize = 'xxsmall' | 'xsmall' | 'small' | 'medium' | 'large';
+export type AppButtonSize = keyof typeof appButtonSizes;
 type IconProps = { size: number; color: string };
 export type AppButtonIcon =
   React.ComponentType<IconProps> | React.ReactElement<Partial<IconProps>> | null;
@@ -67,14 +74,6 @@ function renderIcon(icon: AppButtonIcon | undefined, props: IconProps) {
   const IconComponent = icon as React.ComponentType<IconProps>;
   return <IconComponent {...props} />;
 }
-
-const sizes = {
-  xxsmall: [32, 14],
-  xsmall: [36, 16],
-  small: [40, 18],
-  medium: [48, 20],
-  large: [56, 24],
-} as const;
 
 export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(function AppButton(
   {
@@ -133,15 +132,12 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
   const ghostNeutral = emphasis === 'ghost' && variant === 'default';
   const interactionBackground = (state: 'Hover' | 'Press') =>
     ghostNeutral ? token('buttonGhostHighlighted') : token(`${prefix}${level}${state}`);
-  const [minHeight, regularIconSize] = sizes[size];
-  const labelStyle =
-    appTypography[
-      size === 'xxsmall' ? 'label3' : size === 'xsmall' || size === 'small' ? 'label2' : 'label1'
-    ];
+  const { height: minHeight, icon: regularIconSize, text: textStyle } = appButtonSizes[size];
+  const labelStyle = appTypography[textStyle];
   const resolvedFontSize = labelFontSize ?? labelStyle.fontSize;
   const compact = iconOnly && density === 'compact';
   const iconSize = requestedIconSize ?? regularIconSize;
-  const hitPadding = Math.max(0, (48 - minHeight) / 2);
+  const hitPadding = Math.max(0, (appDimensions.touchTarget - minHeight) / 2);
 
   return (
     <Button
@@ -167,27 +163,35 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
         if (!blocked) onPress?.(event);
       }}
       width={fullWidth ? '100%' : (width ?? (iconOnly ? minHeight : undefined))}
-      minWidth={iconOnly ? minHeight : textOnly ? 48 : undefined}
+      minWidth={iconOnly ? minHeight : textOnly ? appDimensions.touchTarget : undefined}
       minHeight={minHeight}
       height="auto"
       position="relative"
       hitSlop={{ top: hitPadding, bottom: hitPadding, left: hitPadding, right: hitPadding }}
       rounded={shape === 'circular' ? minHeight / 2 : '$6'}
-      px={iconOnly ? (compact ? 4 : 0) : textOnly ? 8 : 16}
-      py={compact ? 4 : 8}
+      px={
+        iconOnly
+          ? compact
+            ? appSpacing.small
+            : 0
+          : textOnly
+            ? appSpacing.compact
+            : appSpacing.page
+      }
+      py={compact ? appSpacing.small : appSpacing.compact}
       flexDirection="row"
       items="center"
       justify="center"
-      gap={8}
+      gap={appSpacing.compact}
       backgroundColor={transparent ? 'transparent' : background}
-      opacity={muted && textOnly ? 0.4 : 1}
+      opacity={muted && textOnly ? appButtonStates.disabledTextOpacity : 1}
       cursor={blocked ? 'default' : 'pointer'}
       hoverStyle={
         blocked
           ? {}
           : {
               backgroundColor: textOnly ? 'transparent' : interactionBackground('Hover'),
-              ...(textOnly ? { opacity: 0.85 } : {}),
+              ...(textOnly ? { opacity: appButtonStates.hoverOpacity } : {}),
             }
       }
       pressStyle={
@@ -195,21 +199,21 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
           ? {}
           : {
               backgroundColor: textOnly ? 'transparent' : interactionBackground('Press'),
-              scale: reducedMotion || textOnly ? 1 : 0.98,
-              ...(textOnly ? { opacity: 0.65 } : {}),
+              scale: reducedMotion || textOnly ? 1 : appButtonStates.pressedScale,
+              ...(textOnly ? { opacity: appButtonStates.pressOpacity } : {}),
             }
       }
       focusVisibleStyle={{
         outlineColor: token('buttonFocus'),
-        outlineWidth: 2,
-        outlineOffset: 2,
+        outlineWidth: appBorders.focus,
+        outlineOffset: appBorders.focusOffset,
         outlineStyle: 'solid',
       }}
     >
       <XStack
         items="center"
         justify="center"
-        gap={8}
+        gap={appSpacing.compact}
         flexShrink={1}
         opacity={loading ? 0 : 1}
         aria-hidden={loading || undefined}

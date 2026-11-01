@@ -7,7 +7,7 @@ import { Copy, ChevronRight } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
-import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appBorders, appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 const CompactTableContext = createContext(true);
 const TableRowContext = createContext<string | null>(null);
@@ -116,7 +116,7 @@ export function ListTableRow({
       {dividerColor && (
         <YStack
           testID="list-table-divider"
-          height={2}
+          height={appBorders.separator}
           width="100%"
           bg={dividerColor}
           pointerEvents="none"
