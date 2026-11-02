@@ -82,8 +82,9 @@ the same base surfaces, clipped corners and full-width 2-point separators as Set
 Mint list names use `label1`, with `body2` hostnames; section labels use `label2`. Mint previews use
 `title3` names; mint details use `amountSmall` balances, `label2` conversions and `label3` status
 badges. These top sections use explicit shared roles rather than inherited or separate hero sizes.
-Explicit regular-size tables retain 16-point text and a 56-point minimum. The tab bar is 64 points high,
-plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
+Explicit regular-size tables retain 16-point text and a 56-point minimum. The compact tab bar is 48
+points high, with 22-point icons and no extra top padding, plus the device's bottom safe area.
+Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
 Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
