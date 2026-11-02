@@ -235,9 +235,9 @@ export function AmountStage({
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
     if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
+    if (len <= 8) return 32;
+    if (len <= 10) return 28;
+    if (len <= 13) return 24;
     return 20;
   }, [formattedDisplayValue]);
 
@@ -312,7 +312,7 @@ export function AmountStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={pos ? Math.min(64, dynamicFontSize + 20) : dynamicFontSize}
+              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />

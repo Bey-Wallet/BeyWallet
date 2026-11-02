@@ -100,7 +100,7 @@ export function ConversationPaymentCard({
         <Text
           color={color}
           opacity={0.75}
-          fontSize={11}
+          fontSize={12}
           lineHeight={16}
           fontWeight="500"
           flex={1}

@@ -28,8 +28,8 @@ beforeEach(() => {
 it.each([
   ['standard', false, 32, 14],
   ['standard', true, 32, 14],
-  ['prominent', false, 40, 16],
-  ['prominent', true, 40, 16],
+  ['prominent', false, 44, 16],
+  ['prominent', true, 44, 16],
 ] as const)(
   'uses %s amount sizing independently of compact=%s',
   async (size, compact, primary, secondary) => {

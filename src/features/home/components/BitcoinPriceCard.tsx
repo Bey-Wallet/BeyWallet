@@ -182,7 +182,7 @@ export default function BitcoinPriceCard() {
               <XStack justify="space-between">
                 {showSats ? (
                   <Text
-                    fontSize={22}
+                    fontSize={24}
                     fontWeight={800}
                     letterSpacing={-1.2}
                     color="$accent4"

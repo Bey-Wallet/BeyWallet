@@ -52,9 +52,18 @@ loading, disabled state, and native link semantics remain supported. Switch vari
 
 Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
 open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
-use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
-primary text and 14-point secondary conversion text. Confirmation screens, final results, and
-transaction details use 40-point primary amounts and 16-point secondary conversions.
+use Tonkeeper Android's role sizes: 10-point captions, 12/14/16-point body and labels,
+20/24/32-point headings, and 32/28-point amount roles. Home balances and prominent payment
+amounts use the 44-point Home balance size found in Tonkeeper's actual screen implementation.
+Standard payment amounts use 32-point primary text and 14-point secondary conversion text;
+prominent amounts use 44-point primary text and 16-point secondary conversions.
+The earlier global percentage experiment is removed, including from explicit screen styles,
+keypads, POS and responsive amount-entry sizes. Inter line heights, tracking, font weights,
+icons, padding, control heights and system accessibility scaling retain Bey's conventions.
+Where Tonkeeper leaves line height unspecified, Bey retains an explicit Inter line height;
+this matches nominal font sizes, not identical glyph shapes or pixel-for-pixel rendering.
+Source: [Tonkeeper roles](https://github.com/tonkeeper/android/blob/70abb50a675fa7f8f3bb58bbc24ad5e6c63d308a/kmp/ui/src/commonMain/kotlin/ui/theme/UIKitTypography.kt)
+and [Home balance](https://github.com/tonkeeper/android/blob/70abb50a675fa7f8f3bb58bbc24ad5e6c63d308a/apps/wallet/features/portfolio/src/main/kotlin/com/tonapps/portfolio/screens/wallet/components/TotalBalance.kt).
 Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
 amount-input and screen-specific amount-entry sizes remain supported. All button styles use
 SemiBold (600) labels.
@@ -67,16 +76,21 @@ Circular icon controls, avatars, status badges, switch tracks, and the approved 
 their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
 conversation cards use the shared card radius. Explicit caller shapes remain available for special
 input contexts; their sizing cannot silently change the default radius.
-Lists default to compact 14-point text with a 48-point minimum row height and 16-point
-horizontal padding. Settings descriptions use 12-point text. Mint details and previews share
+Lists default to compact 16-point primary text with a 48-point minimum row height and 16-point
+horizontal padding. Settings descriptions use 14-point text. Mint details and previews share
 the same base surfaces, clipped corners and full-width 2-point separators as Settings.
-Explicit regular-size tables can use 16-point text and a 56-point minimum. The tab bar is 64 points high,
+Mint list names use `label1`, with `body2` hostnames; section labels use `label2`. Mint previews use
+`title3` names; mint details use `amountSmall` balances, `label2` conversions and `label3` status
+badges. These top sections use explicit shared roles rather than inherited or separate hero sizes.
+Explicit regular-size tables retain 16-point text and a 56-point minimum. The tab bar is 64 points high,
 plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
 Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
-Home balances and editable amount inputs retain their
-existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
+Home balances use the 44-point display role; editable amounts use responsive 44/32/28/24/20-point
+steps, including POS. See the [complete typography screen audit](typography-screen-audit.md) for
+every route, feature component, shared surface and the remaining device checks.
+Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
@@ -90,7 +104,7 @@ unit toggle. The Home-only visibility guard does not change other currency contr
 
 Home keeps the balance, Scan/Receive/Send actions, and connected mints together in that order.
 Home's mints use an open list on the page background, with 44-point artwork and compact
-14-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
+16-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
 Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
 Recovery progress and incoming payments follow the mints list. Home does not show backup,
 username, or supporter prompt cards; their dedicated destinations remain available.

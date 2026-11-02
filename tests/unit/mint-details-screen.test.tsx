@@ -302,7 +302,7 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
   expect(keys).not.toContain('auditor-mint');
   const balance = tree.root
     .findAllByType('Text' as any)
-    .find((node) => node.props.fontSize === 36)!;
+    .find((node) => node.props.fontSize === 28)!;
   expect(balance.props.children).toContain('0');
   for (const [label, route] of [
     ['Deposit', '/(modals)/mint'],

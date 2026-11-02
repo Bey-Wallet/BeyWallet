@@ -344,7 +344,7 @@ export function PaymentRequestStage({
 
         {/* Details List */}
         {amountMode === 'exact' && (
-          <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+          <Text accessibilityRole="alert" fontSize={14} color="$gray10">
             Sends the exact requested amount for legacy wallets such as Minibits. The recipient pays
             the receiving fee, which reduces the amount they receive.
           </Text>

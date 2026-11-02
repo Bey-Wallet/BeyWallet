@@ -20,7 +20,7 @@ See [all screen targets](design-system-screens.md) and the [foundation](design-s
 
 - Use AppText with existing Inter Text UI and Inter Display amount/large-text roles. Keep the
   current Home balance size, weight, letter spacing and primary color.
-- Compact lists: 14-point labels, 12-point descriptions; section labels may use 600. Keep
+- Compact lists: 16-point primary labels, 14-point descriptions; section labels may use 600. Keep
   system text scaling and wrapping, with minimum 48-point touch targets.
 - Groups/rounded buttons: 16-point corners; fields: 12; sheets: 20. Clip child rows at the group
   corners. Preserve intentional circles and pills.

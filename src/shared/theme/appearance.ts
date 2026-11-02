@@ -117,12 +117,12 @@ export const appMotion = {
   },
 } as const;
 
-/** Shared metrics: Inter Text for UI copy, Inter Display for large text and amounts. */
+/** Tonkeeper-sized roles, adapted to Inter line metrics; control and icon geometry is unchanged. */
 export const appTypography = {
   display: {
     fontFamily: '$display',
-    fontSize: 40,
-    lineHeight: 50,
+    fontSize: 44,
+    lineHeight: 55,
     fontWeight: '600',
     letterSpacing: -1.5,
   },
@@ -130,6 +130,13 @@ export const appTypography = {
     fontFamily: '$display',
     fontSize: 32,
     lineHeight: 40,
+    fontWeight: '600',
+    letterSpacing: 0,
+  },
+  amountSmall: {
+    fontFamily: '$display',
+    fontSize: 28,
+    lineHeight: 35,
     fontWeight: '600',
     letterSpacing: 0,
   },

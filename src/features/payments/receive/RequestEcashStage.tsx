@@ -674,11 +674,11 @@ export function RequestEcashStage({
         )}
         {nfcIncoming.status === 'review' && (
           <YStack gap="$2">
-            <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+            <Text accessibilityRole="alert" fontSize={14} color="$gray10">
               {nfcIncoming.message}
             </Text>
             {!reviewingCurrentNfcRequest && (
-              <Text fontSize={13} color="$gray10">
+              <Text fontSize={14} color="$gray10">
                 You can create a QR request. NFC is paused until the saved payment is resolved.
               </Text>
             )}

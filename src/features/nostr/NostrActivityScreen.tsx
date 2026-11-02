@@ -401,7 +401,7 @@ export default function NostrActivityModal() {
                         {detailItem.amount.toLocaleString()}
                         {!showBitcoinSymbol && (
                           <Text
-                            fontSize={18}
+                            fontSize={16}
                             color={detailItem.type === 'sent' ? '$red10' : '$color1'}
                             letterSpacing={0}
                           >
@@ -750,21 +750,21 @@ function ReceivedTab({
                 <YStack items="flex-end" justify="center">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
-                      <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                      <Text fontSize={16} fontWeight="800" color="$green10" letterSpacing={-0.3}>
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
                         {showBitcoinSymbol ? '' : ' sat'}
                       </Text>
-                      <Text fontSize={11} fontWeight="600" color="$gray10">
+                      <Text fontSize={12} fontWeight="600" color="$gray10">
                         +{formattedFiat}
                       </Text>
                     </>
                   ) : (
                     <>
-                      <Text fontSize={15} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                      <Text fontSize={16} fontWeight="800" color="$green10" letterSpacing={-0.3}>
                         +{formattedFiat}
                       </Text>
-                      <Text fontSize={11} fontWeight="600" color="$gray10">
+                      <Text fontSize={12} fontWeight="600" color="$gray10">
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
                         {showBitcoinSymbol ? '' : ' sat'}
@@ -858,21 +858,21 @@ function SentTab({
               <YStack items="flex-end" justify="center">
                 {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                   <>
-                    <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                    <Text fontSize={16} fontWeight="800" color="$red10" letterSpacing={-0.3}>
                       -{showBitcoinSymbol ? '₿' : ''}
                       {(entry.amount ?? 0).toLocaleString()}
                       {showBitcoinSymbol ? '' : ' sat'}
                     </Text>
-                    <Text fontSize={11} fontWeight="600" color="$gray10">
+                    <Text fontSize={12} fontWeight="600" color="$gray10">
                       -{formattedFiat}
                     </Text>
                   </>
                 ) : (
                   <>
-                    <Text fontSize={15} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                    <Text fontSize={16} fontWeight="800" color="$red10" letterSpacing={-0.3}>
                       -{formattedFiat}
                     </Text>
-                    <Text fontSize={11} fontWeight="600" color="$gray10">
+                    <Text fontSize={12} fontWeight="600" color="$gray10">
                       -{showBitcoinSymbol ? '₿' : ''}
                       {(entry.amount ?? 0).toLocaleString()}
                       {showBitcoinSymbol ? '' : ' sat'}

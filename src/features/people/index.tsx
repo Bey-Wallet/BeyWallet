@@ -305,14 +305,14 @@ export default function PeopleScreen() {
             {isSearch && model.isSearching && (
               <XStack items="center" justify="center" gap="$2">
                 <Spinner size="small" />
-                <Text color="$gray10" fontSize={13}>
+                <Text color="$gray10" fontSize={14}>
                   Searching…
                 </Text>
               </XStack>
             )}
             {isSearch && !!model.searchError && (
               <YStack gap="$2">
-                <Text color="$gray10" accessibilityRole="alert" fontSize={13}>
+                <Text color="$gray10" accessibilityRole="alert" fontSize={14}>
                   Search is unavailable. Your saved people are still available.
                 </Text>
                 <AppButton
@@ -415,7 +415,7 @@ export default function PeopleScreen() {
           </XStack>
         )}
         {!!model.activityError && (
-          <Text accessibilityRole="alert" fontSize={13} color="$gray10">
+          <Text accessibilityRole="alert" fontSize={14} color="$gray10">
             {model.activityError}
           </Text>
         )}

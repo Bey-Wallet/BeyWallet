@@ -141,7 +141,7 @@ export function ListTableRow({
           )}
           <Text
             fontFamily="$body"
-            {...(compact ? appTypography.body2 : appTypography.body1)}
+            {...appTypography.body1}
             color={labelColor || '$gray10'}
             flex={1}
             flexShrink={1}
@@ -163,7 +163,7 @@ export function ListTableRow({
             {typeof value === 'string' || typeof value === 'number' ? (
               <Text
                 fontFamily="$body"
-                {...(compact ? appTypography.label2 : appTypography.label1)}
+                {...appTypography.label1}
                 text="right"
                 color={valueColor || '$color'}
                 numberOfLines={wrap ? undefined : 1}

@@ -13,7 +13,7 @@ export function UnreadBadge({ count }: { count: number }) {
       justify="center"
       pointerEvents="none"
     >
-      <Text fontSize={11} fontWeight="600" color="$toastStatusForeground">
+      <Text fontSize={12} fontWeight="600" color="$toastStatusForeground">
         {count > 99 ? '99+' : String(count)}
       </Text>
     </YStack>

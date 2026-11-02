@@ -258,9 +258,9 @@ export function OnchainMeltFlow() {
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
     if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
+    if (len <= 8) return 32;
+    if (len <= 10) return 28;
+    if (len <= 13) return 24;
     return 20;
   }, [formattedDisplayValue]);
 

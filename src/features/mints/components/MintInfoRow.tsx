@@ -24,9 +24,9 @@ export function MintInfoRow({
       </Text>
       <Text
         color="$color"
-        fontSize={14}
+        fontSize={16}
         fontWeight="500"
-        lineHeight={20}
+        lineHeight={24}
         flex={1}
         textAlign="right"
         numberOfLines={copyValue ? 1 : undefined}

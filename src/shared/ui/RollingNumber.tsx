@@ -111,7 +111,7 @@ export interface RollingNumberProps {
 export const RollingNumber = ({
   value,
   children,
-  fontSize = 40,
+  fontSize = 44,
   color = 'black',
   fontWeight = '400',
   fontFamily,

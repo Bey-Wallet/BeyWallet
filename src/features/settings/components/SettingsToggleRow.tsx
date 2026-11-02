@@ -72,11 +72,11 @@ export function SettingsToggleRow({
               })}
         </XStack>
         <YStack flex={1} gap="$1">
-          <Text {...appTypography.label2} color="$color">
+          <Text {...appTypography.label1} color="$color">
             {title}
           </Text>
           {description && (
-            <Text {...appTypography.body3} color="$gray10">
+            <Text {...appTypography.body2} color="$gray10">
               {description}
             </Text>
           )}

@@ -559,7 +559,7 @@ export default function ConversationScreen() {
                     {layout.showTime && (
                       <Text
                         self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
-                        fontSize={11}
+                        fontSize={12}
                         lineHeight={16}
                         color="$gray10"
                         mt={4}

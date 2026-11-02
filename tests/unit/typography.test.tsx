@@ -71,8 +71,8 @@ it.each(['light', 'dark'] as const)(
         expect.arrayContaining([
           expect.objectContaining({
             fontFamily: 'InterDisplaySemiBold',
-            fontSize: 40,
-            lineHeight: 50,
+            fontSize: 44,
+            lineHeight: 55,
             letterSpacing: -1.5,
           }),
         ]),

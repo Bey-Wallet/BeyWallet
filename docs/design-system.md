@@ -48,7 +48,10 @@ import { AppText } from '~/shared/ui/AppText';
 <AppText variant="display">₿ 128,450</AppText>
 ```
 
-The default is `body2` (14/20, Regular). `variant` accepts every `appTypography` role. `tone`
+The default is `body2` (14/20, Regular). Font-size roles follow the inspected Tonkeeper Android
+scale: Home display 44, amounts 32 and 28, headings 32/24/20, body and labels 16/14/12,
+and captions 10. Inter line heights, tracking and weights remain Bey-specific. Geometry,
+icon sizes and system accessibility scaling are unchanged. `variant` accepts every `appTypography` role. `tone`
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.
 
@@ -69,7 +72,7 @@ substitute for wrapping labels or growing a row.
 | Icons      | header 22, list 20, navigation cue 18                                   |
 
 Grouped lists clip children at 16-point corners. Separators span the full group width and remain
-2 points thick. Compact rows use 14-point labels, 12-point descriptions, and at least 48 points
+2 points thick. Compact rows use 16-point primary labels, 14-point descriptions, and at least 48 points
 of touch height. Buttons retain 16-point rounded corners; inputs retain 12. Circular controls,
 avatars and pill controls keep their intentional shapes.
 

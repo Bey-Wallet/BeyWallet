@@ -91,11 +91,11 @@ export function SettingsRow({
         </XStack>
       )}
       <YStack flex={1} gap="$1">
-        <AppText variant="label2" color={color}>
+        <AppText variant="label1" color={color}>
           {title}
         </AppText>
         {description && (
-          <AppText variant="body3" tone="secondary">
+          <AppText variant="body2" tone="secondary">
             {description}
           </AppText>
         )}
