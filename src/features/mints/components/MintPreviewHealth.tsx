@@ -42,7 +42,7 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
         <Text color="$gray10" fontSize="$3">
           Uptime history
         </Text>
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           No uptime history available
         </Text>
       </YStack>
@@ -68,10 +68,10 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
         ))}
       </XStack>
       <XStack justify="space-between">
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           {history[0].day}
         </Text>
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           {history[history.length - 1].day}
         </Text>
       </XStack>
@@ -186,7 +186,7 @@ export function MintReliabilityRow({
       </>
       {radar.data?.scoreCappedNew && (
         <YStack px="$page" py="$rowGap">
-          <Text color="$gray10" fontSize={12}>
+          <Text color="$gray10" fontSize={11}>
             New mint · Score capped
           </Text>
         </YStack>
@@ -323,14 +323,14 @@ export function MintPreviewHealth({
         )}
       </>
       <YStack px="$page" py="$rowGap" gap="$2">
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           Payment tests: cashu.info · Report fetched{' '}
           {time(detail.dataUpdatedAt || list.dataUpdatedAt)}
           {(detail.isError || list.isError || notCovered) && audit ? ' · Saved report' : ''}
           {monitoringTime ? `\nLatest monitoring check: ${time(monitoringTime)}` : ''}
           {`\nUptime source: ${uptimeSource}`}
         </Text>
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           Reliability measures observed operation, not reserves or fund safety. Route failures can
           involve either mint; attribution is shown separately.
         </Text>

@@ -227,7 +227,12 @@ export default function MintDetailsModal() {
         ) : (
           <ModalHeaderTitle>{name}</ModalHeaderTitle>
         )}
-        <Text fontSize="$1" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
+        <Text
+          {...appTypography.caption}
+          color="$gray10"
+          numberOfLines={1}
+          style={{ maxWidth: 200 }}
+        >
           {hostname}
         </Text>
       </YStack>
@@ -321,19 +326,19 @@ export default function MintDetailsModal() {
               <YStack gap="$2">
                 <XStack items="baseline" gap="$1">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
+                    <Text {...appTypography.amountSmall} color="$color">
                       {showBitcoinSymbol ? '₿' : ''}
                       {balance.toLocaleString()}
-                      {!showBitcoinSymbol && <Text fontSize={20}>{' sat'}</Text>}
+                      {!showBitcoinSymbol && <Text {...appTypography.label1}>{' sat'}</Text>}
                     </Text>
                   ) : (
-                    <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
+                    <Text {...appTypography.amountSmall} color="$color">
                       {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
                     </Text>
                   )}
                 </XStack>
                 {secondaryCurrency !== 'NONE' && (
-                  <Text fontSize="$6" color="$gray12" fontWeight="600">
+                  <Text {...appTypography.label2} color="$gray10">
                     {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                       ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
                       : showBitcoinSymbol
@@ -346,20 +351,20 @@ export default function MintDetailsModal() {
                 <XStack mt="$2" gap="$2" items="center">
                   {isTrusted ? (
                     <View bg="$green3" px="$2" py="$1" rounded="$3">
-                      <Text color="$green11" fontWeight="600">
+                      <Text {...appTypography.label3} color="$green11">
                         Trusted by you
                       </Text>
                     </View>
                   ) : (
                     <View bg="$red3" px="$2" py="$1" rounded="$3">
-                      <Text color="$red11" fontWeight="600">
+                      <Text {...appTypography.label3} color="$red11">
                         Untrusted
                       </Text>
                     </View>
                   )}
                   {isActive && (
                     <View bg="$blue3" px="$2" py="$1" rounded="$3">
-                      <Text color="$blue11" fontWeight="600">
+                      <Text {...appTypography.label3} color="$blue11">
                         Active
                       </Text>
                     </View>
@@ -450,7 +455,7 @@ export default function MintDetailsModal() {
               }}
             />
             <YStack gap="$2">
-              <Text color="$gray10" fontSize={12}>
+              <Text color="$gray10" fontSize={11}>
                 Manage mint
               </Text>
               <ListTable compact>
@@ -515,15 +520,15 @@ export default function MintDetailsModal() {
                   <MintImage mintUrl={mintUrl} source={{ uri: iconToUse, width: 48, height: 48 }} />
                 </View>
                 <YStack flex={1} minWidth={0} gap="$1">
-                  <Text fontSize={14} fontWeight="600" color="$color">
+                  <Text fontSize={13} fontWeight="600" color="$color">
                     {name}
                   </Text>
-                  <Text fontSize={12} color="$gray10" selectable>
+                  <Text fontSize={11} color="$gray10" selectable>
                     {mintUrl}
                   </Text>
                 </YStack>
               </XStack>
-              <Text color="$gray10" fontSize={14} lineHeight={20}>
+              <Text color="$gray10" fontSize={13} lineHeight={18}>
                 This removes the mint from your connected mints. Your transaction history is kept.
               </Text>
 
@@ -532,7 +537,7 @@ export default function MintDetailsModal() {
                   <XStack gap="$3">
                     <AlertTriangle color="$orange10" size={24} />
                     <YStack flex={1}>
-                      <Text color="$orange10" fontWeight="600" fontSize={14}>
+                      <Text color="$orange10" fontWeight="600" fontSize={13}>
                         This mint still has funds
                       </Text>
                       <Text color="$orange10" fontSize="$3" mt="$1">

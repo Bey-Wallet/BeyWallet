@@ -76,7 +76,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
         {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
         {props.isOffline && props.offlineAmounts && (
           <YStack gap="$2">
-            <Text fontFamily="$body" fontSize={14} color="$gray10">
+            <Text fontFamily="$body" fontSize={13} color="$gray10">
               {props.offlineAmounts.exact
                 ? 'Available offline'
                 : 'Exact amount needs online change'}
@@ -108,12 +108,12 @@ export function ConfirmStage(props: ConfirmStageProps) {
                         accessibilityLabel={`${label}: ${formattedAmount}`}
                         onPress={() => props.onAmountSelect?.(value)}
                       >
-                        <Text fontFamily="$body" fontSize={12} color="$offlineAmountForeground">
+                        <Text fontFamily="$body" fontSize={11} color="$offlineAmountForeground">
                           {label}
                         </Text>
                         <Text
                           fontFamily="$display"
-                          fontSize={24}
+                          fontSize={22}
                           fontWeight="600"
                           color="$offlineAmountForeground"
                           text="center"

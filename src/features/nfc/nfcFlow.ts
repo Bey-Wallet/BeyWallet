@@ -48,6 +48,8 @@ export interface NfcPresentation {
   locked: boolean;
   hasPayment: boolean;
   canRetryDelivery: boolean;
+  checkingStatus?: boolean;
+  error?: string;
   requestStatus?: 'starting' | 'ready' | 'disabled' | 'unsupported' | 'paused' | 'error';
   requestPauseReason?: 'locked' | 'background' | 'session' | 'payment';
 }
@@ -57,6 +59,30 @@ export interface NfcSend {
   mintUrl: string;
   operationId?: string;
   fees?: number;
+}
+
+/** Never expose raw native/network errors: they may include payment payloads. */
+function nfcErrorMessage(error: unknown, status: NfcStatus): string {
+  const message = error instanceof Error ? error.message : '';
+  const known = [
+    'No compatible funded mint has enough balance including fees',
+    'Select a funded mint before paying',
+    'Payment token is too large for NFC',
+    'NFC message is too large',
+    'Quote expired. Review a fresh quote before paying.',
+    'Reconnect to the same payment request. The existing token was not delivered.',
+  ];
+  if (known.includes(message)) return message;
+  if (/TagLost|tag lost|contact lost|not connected|No NFC tag found/i.test(message))
+    return 'NFC contact was lost. Keep the phones together and try again.';
+  if (/timeout|timed out/i.test(message))
+    return 'The NFC payment timed out. Check its status before trying again.';
+  if (/network|offline|fetch failed/i.test(message))
+    return 'Could not connect. Check your internet connection and try again.';
+  if (status === 'receiving') return 'Could not receive the ecash. Check History before retrying.';
+  if (status === 'paying') return 'Could not complete the payment. Check History before retrying.';
+  if (status === 'starting') return 'Could not start NFC. Check that NFC is enabled and try again.';
+  return 'Could not read a supported NFC payment. Keep the phones together and try again.';
 }
 
 /** Secrets and operation controllers live only here, never in navigation or persisted UI state. */
@@ -84,6 +110,7 @@ export class NfcFlow {
   private unlisteners: (() => void)[] = [];
   private poll?: ReturnType<typeof setInterval>;
   private timeout?: ReturnType<typeof setTimeout>;
+  private contactTimeout?: ReturnType<typeof setTimeout>;
   private generation = 0;
   private busy = false;
   private refreshing = false;
@@ -282,6 +309,8 @@ export class NfcFlow {
       message: 'Starting NFC…',
       hasPayment: !!this.send,
       canRetryDelivery: false,
+      error: undefined,
+      checkingStatus: false,
     });
     void this.start();
   }
@@ -292,8 +321,10 @@ export class NfcFlow {
     this.unlisteners.splice(0).forEach((off) => off());
     if (this.poll) clearInterval(this.poll);
     if (this.timeout) clearTimeout(this.timeout);
+    if (this.contactTimeout) clearTimeout(this.contactTimeout);
     this.poll = undefined;
     this.timeout = undefined;
+    this.contactTimeout = undefined;
     const reader = this.reader;
     const hce = this.hce;
     this.reader = undefined;
@@ -315,9 +346,54 @@ export class NfcFlow {
     this.resumeRequest();
     return true;
   };
+  /** Leave settled/pending controllers in their deduplication maps and History. */
+  newPayment = async () => {
+    if (
+      !this.state.visible ||
+      !this.ready ||
+      !this.appActive ||
+      this.busy ||
+      this.state.locked ||
+      !['pending', 'unconfirmed', 'error'].includes(this.state.status) ||
+      nfcReceiveCoordinator.getSnapshot().status !== 'idle'
+    )
+      return false;
+    const generation = ++this.generation;
+    this.busy = true;
+    this.refreshing = false;
+    this.update({ locked: true, checkingStatus: false, error: undefined });
+    try {
+      await this.stopSession();
+      if (!this.alive(generation)) return false;
+      this.payment = undefined;
+      this.lightning = undefined;
+      this.send = undefined;
+      this.update({
+        feedbackId: undefined,
+        direction: 'receive',
+        amount: undefined,
+        mintUrl: undefined,
+        fees: undefined,
+        eventTime: undefined,
+        hasPayment: false,
+        canRetryDelivery: false,
+      });
+    } catch {
+      if (this.alive(generation))
+        this.update({ error: 'Could not close the NFC session. Close the sheet and try again.' });
+      return false;
+    } finally {
+      this.busy = false;
+      if (this.alive(generation)) this.update({ locked: false });
+    }
+    if (!this.alive(generation)) return false;
+    void this.start();
+    return true;
+  };
   private hide() {
     this.generation++;
-    this.update({ visible: false });
+    this.refreshing = false;
+    this.update({ visible: false, checkingStatus: false });
     void this.stopSession();
   }
   background = () => {
@@ -345,7 +421,12 @@ export class NfcFlow {
   private async start() {
     if (this.busy) return;
     this.busy = true;
-    this.update({ status: 'starting', message: 'Starting NFC…', canRetryDelivery: false });
+    this.update({
+      status: 'starting',
+      message: 'Starting NFC…',
+      canRetryDelivery: false,
+      error: undefined,
+    });
     const generation = ++this.generation;
     try {
       await this.stopSession();
@@ -382,6 +463,7 @@ export class NfcFlow {
         this.unlisteners.push(
           session.on(HCESession.Events.HCE_STATE_READ, async () => {
             if (!this.alive(generation)) return;
+            if (this.contactTimeout) clearTimeout(this.contactTimeout);
             delivered = true;
             const send = this.send;
             if (send?.operationId) {
@@ -397,6 +479,7 @@ export class NfcFlow {
             this.update({
               status: 'pending',
               locked: false,
+              error: undefined,
               message: 'Delivered. Waiting for the recipient to claim the payment.',
             });
             this.startPolling();
@@ -404,13 +487,28 @@ export class NfcFlow {
         );
         this.unlisteners.push(
           session.on(HCESession.Events.HCE_STATE_CONNECTED, () => {
-            if (this.alive(generation))
+            if (this.alive(generation)) {
               this.update({ status: 'sending', locked: true, message: 'Hold the phones together' });
+              if (this.contactTimeout) clearTimeout(this.contactTimeout);
+              // HCE contact can disappear without a native disconnect event. No
+              // wallet mutation runs here; keep the existing token recoverable.
+              this.contactTimeout = setTimeout(() => {
+                if (this.alive(generation) && this.state.status === 'sending' && !this.busy)
+                  this.update({
+                    status: 'unconfirmed',
+                    locked: false,
+                    canRetryDelivery: true,
+                    message: 'Delivery is unconfirmed. The existing payment remains in History.',
+                    error: 'NFC contact timed out. Refresh status or retry delivery.',
+                  });
+              }, 20_000);
+            }
           }),
         );
         this.unlisteners.push(
           session.on(HCESession.Events.HCE_STATE_DISCONNECTED, () => {
             if (this.alive(generation)) {
+              if (this.contactTimeout) clearTimeout(this.contactTimeout);
               if (!delivered) {
                 this.update({
                   status: 'error',
@@ -418,12 +516,14 @@ export class NfcFlow {
                   canRetryDelivery: true,
                   message:
                     'The tap was interrupted before delivery was confirmed. Retry delivery with the same payment.',
+                  error: 'NFC contact was lost before delivery was confirmed.',
                 });
                 return;
               }
               this.update({
                 status: 'pending',
                 locked: false,
+                error: undefined,
                 message: 'Checking whether the recipient claimed the payment.',
               });
               this.startPolling();
@@ -453,7 +553,11 @@ export class NfcFlow {
         throw new Error(input.matched ? input.reason : 'Unsupported NFC payment');
       const payment = input.value.primary;
       if (payment.type === 'cashu_token') {
-        this.update({ status: 'receiving', locked: true });
+        this.update({
+          status: 'receiving',
+          locked: true,
+          message: 'Receiving ecash into your wallet…',
+        });
         // Preview decoding is optional; the existing receive service owns keyset
         // synchronization and validation, including compact V4 keyset IDs.
         try {
@@ -474,6 +578,7 @@ export class NfcFlow {
           direction: 'pay',
           status: 'paying',
           amount: request.amount,
+          message: 'Checking the payment request and available balance…',
         });
         const existing = this.requests.get(request.raw);
         if (existing) {
@@ -541,7 +646,13 @@ export class NfcFlow {
         if (!this.alive(generation)) return;
         const mint = useWalletStore.getState().activeMintUrl;
         if (!mint) throw new Error('Select a funded mint before paying');
-        this.update({ direction: 'pay', status: 'paying', locked: true, mintUrl: mint });
+        this.update({
+          direction: 'pay',
+          status: 'paying',
+          locked: true,
+          mintUrl: mint,
+          message: 'Preparing the Lightning payment…',
+        });
         const existing = this.invoices.get(payment.value);
         this.lightning = existing || new LightningPayment(mint, payment.value);
         this.invoices.set(payment.value, this.lightning);
@@ -583,7 +694,7 @@ export class NfcFlow {
           if (result !== 'paid') this.startPolling();
         }
       } else throw new Error('This NFC payment method is not supported');
-    } catch {
+    } catch (error) {
       await this.stopSession();
       if (this.alive(generation))
         this.update({
@@ -592,6 +703,7 @@ export class NfcFlow {
           canRetryDelivery: !!this.payment?.encoded || !!this.send,
           message:
             this.payment?.failureMessage || 'NFC could not complete. Check contact and try again.',
+          error: this.payment?.failureMessage || nfcErrorMessage(error, this.state.status),
         });
       if (this.payment && !this.payment.operationId) {
         this.requests.delete(this.payment.request.raw);
@@ -648,7 +760,13 @@ export class NfcFlow {
       }
       this.busy = true;
       const generation = this.generation;
-      this.update({ locked: true, status: 'paying', canRetryDelivery: false });
+      this.update({
+        locked: true,
+        status: 'paying',
+        canRetryDelivery: false,
+        error: undefined,
+        message: 'Retrying delivery of the existing payment…',
+      });
       try {
         await this.stopSession();
         await this.payment.deliver(this.writeExisting, () => {
@@ -664,7 +782,7 @@ export class NfcFlow {
           });
           this.startPolling();
         }
-      } catch {
+      } catch (error) {
         await this.stopSession();
         if (this.alive(generation))
           this.update({
@@ -673,6 +791,7 @@ export class NfcFlow {
             message:
               this.payment.failureMessage ||
               'Reconnect to the same request to retry delivery of the existing payment.',
+            error: this.payment.failureMessage || nfcErrorMessage(error, this.state.status),
           });
       } finally {
         this.busy = false;
@@ -697,23 +816,26 @@ export class NfcFlow {
       return;
     this.refreshing = true;
     const generation = this.generation;
+    const payment = this.payment;
+    const lightning = this.lightning;
+    const send = this.send;
+    this.update({ checkingStatus: true, error: undefined });
     try {
       let confirmed = false;
-      if (this.payment) confirmed = await this.payment.refresh();
-      else if (this.lightning) confirmed = (await this.lightning.refresh()) === 'paid';
-      else if (this.send) {
-        const token = decodeToken(this.send.token);
+      if (payment) confirmed = await payment.refresh();
+      else if (lightning) confirmed = (await lightning.refresh()) === 'paid';
+      else if (send) {
+        const token = decodeToken(send.token);
         confirmed = areAllPaymentProofsSpent(
-          await proofService.checkProofStates(this.send.token),
+          await proofService.checkProofStates(send.token),
           token.proofs.length,
         );
-        if (confirmed && this.send.operationId) {
+        if (confirmed && send.operationId) {
           const { initService } =
             require('~/services/wallet/initService') as typeof import('~/services/wallet/initService');
           const manager = initService.getManager();
-          await manager.send.checkPendingOperation(this.send.operationId).catch(() => {});
-          confirmed =
-            (await manager.send.getOperation(this.send.operationId))?.state === 'finalized';
+          await manager.send.checkPendingOperation(send.operationId).catch(() => {});
+          confirmed = (await manager.send.getOperation(send.operationId))?.state === 'finalized';
         }
       }
       if (confirmed && this.alive(generation)) {
@@ -721,6 +843,7 @@ export class NfcFlow {
           status: 'confirmed',
           message: 'Payment confirmed.',
           canRetryDelivery: false,
+          error: undefined,
         });
         await this.stopSession();
         void useWalletStore.getState().refreshBalance();
@@ -729,9 +852,13 @@ export class NfcFlow {
       if (this.alive(generation))
         this.update({
           message: 'Status check unavailable. The payment remains pending in History.',
+          error: 'Could not check payment status. Check your connection and refresh again.',
         });
     } finally {
-      this.refreshing = false;
+      if (this.generation === generation) {
+        this.refreshing = false;
+        this.update({ checkingStatus: false });
+      }
     }
   };
 }

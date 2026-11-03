@@ -11,12 +11,14 @@ export function PaymentFlowHeader({
   onBack,
   disabled,
   headerRight,
+  headerRightWidth = 48,
   navigationAction = 'back',
 }: {
   title: string;
   onBack?: () => void;
   disabled?: boolean;
   headerRight?: () => React.ReactNode;
+  headerRightWidth?: number;
   navigationAction?: 'back' | 'close';
 }) {
   const router = useRouter();
@@ -34,10 +36,10 @@ export function PaymentFlowHeader({
       >
         <XStack
           testID="receipt-header-leading"
-          width={48}
+          width={headerRightWidth}
           minHeight={48}
           items="center"
-          justify="center"
+          justify="flex-start"
         >
           <HeaderIconButton
             accessibilityLabel="Close receipt"
@@ -48,7 +50,7 @@ export function PaymentFlowHeader({
         </XStack>
         <Text
           fontFamily="$body"
-          fontSize={16}
+          fontSize={14}
           fontWeight="600"
           color="$color"
           flex={1}
@@ -59,10 +61,10 @@ export function PaymentFlowHeader({
         </Text>
         <XStack
           testID="receipt-header-trailing"
-          width={48}
+          width={headerRightWidth}
           minHeight={48}
           items="center"
-          justify="center"
+          justify="flex-end"
         >
           {headerRight?.()}
         </XStack>

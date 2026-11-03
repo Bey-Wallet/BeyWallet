@@ -50,10 +50,10 @@ export default function RecoveryStatusRow() {
         )}
       </XStack>
       <YStack flex={1} minWidth={0} gap="$1">
-        <Text fontSize={14} lineHeight={20} color="$color" fontWeight="600">
+        <Text fontSize={14} lineHeight={22} color="$color" fontWeight="600">
           {title}
         </Text>
-        <Text fontSize={12} lineHeight={16} color="$gray10">
+        <Text fontSize={13} lineHeight={18} color="$gray10">
           Review selected mints and scan results.
         </Text>
       </YStack>

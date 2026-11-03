@@ -84,7 +84,7 @@ function PeopleSearchPlaceholder({ reducedMotion }: { reducedMotion: boolean }) 
         ],
       }}
     >
-      <Text fontSize={16} fontWeight="400" color="$gray10" numberOfLines={1}>
+      <Text fontSize={14} fontWeight="400" color="$gray10" numberOfLines={1}>
         {SEARCH_HINTS[hint]}
       </Text>
     </Animated.View>
@@ -145,7 +145,7 @@ function PeopleVirtualList({
         item.kind === 'heading' ? (
           <Text
             accessibilityRole="header"
-            fontSize={12}
+            fontSize={11}
             fontWeight="600"
             color="$gray10"
             pt="$4"
@@ -249,14 +249,14 @@ export default function PeopleScreen() {
     const empty =
       isSearch && (model.isSearching || model.searchError) ? null : (
         <YStack px="$4" py="$8" items="center" gap="$2">
-          <Text fontSize={14} fontWeight="500" textAlign="center">
+          <Text fontSize={13} fontWeight="500" textAlign="center">
             {isSearch
               ? 'No people found'
               : mode === 'recents'
                 ? 'No conversations yet'
                 : 'No requests'}
           </Text>
-          <Text fontSize={12} color="$gray10" textAlign="center">
+          <Text fontSize={11} color="$gray10" textAlign="center">
             {isSearch
               ? 'Try a name, address, or public key.'
               : mode === 'recents'
@@ -354,7 +354,7 @@ export default function PeopleScreen() {
               borderWidth={0}
               bg="transparent"
               px={0}
-              fontSize={16}
+              fontSize={14}
               fontWeight="400"
               placeholder={searchFocused ? 'Search people' : ''}
               placeholderTextColor="$gray10"
@@ -403,7 +403,7 @@ export default function PeopleScreen() {
                 onPress={() => selectView(view)}
               >
                 <Text
-                  fontSize={14}
+                  fontSize={13}
                   fontWeight={activeView === view ? '600' : '400'}
                   color={activeView === view ? '$color' : '$gray10'}
                 >

@@ -232,7 +232,7 @@ export default function NostrActivity() {
             Incoming
           </H6>
           <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
-            <Text color="white" fontSize={10} fontWeight="600">
+            <Text color="white" fontSize={9} fontWeight="600">
               {unclaimed.length}
             </Text>
           </View>
@@ -308,7 +308,7 @@ export default function NostrActivity() {
               </XStack>
 
               <YStack items="flex-end" justify="center" flexShrink={0}>
-                <Text fontWeight="600" fontSize={20} color="$color">
+                <Text fontWeight="600" fontSize={18} color="$color">
                   {primaryAmount}
                 </Text>
                 {secondaryAmount ? (

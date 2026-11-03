@@ -15,6 +15,19 @@ outgoing confirmation requires every proof to be spent and, when an operation ID
 exists, the operation to be finalized. Backgrounding stops NFC and does not replay
 payments on foregrounding. Normal authentication applies after visiting NFC settings.
 
+The sheet has a larger minimum content height, progress indicators for active NFC/payment work,
+and an inline error area. Status refreshes show a button loader. Native/network errors are mapped
+to fixed messages so payloads and proofs cannot appear in the UI.
+
+Pending, unconfirmed and failed payments offer **Try new payment** after wallet work finishes.
+This closes the old NFC session and starts a fresh reader without cancelling or reclaiming the
+previous payment. The sheet warns that the old payment may still complete and links to History.
+Request/invoice controllers remain in their session deduplication maps: scanning the same request
+or invoice checks its existing operation instead of submitting another payment. Late status checks
+cannot overwrite the new session. A send contact that never reports disconnection becomes
+unconfirmed after 20 seconds, retaining its token for status checks or delivery retry. This contact
+timeout never interrupts wallet mutations; they continue to block dismissal and new payments.
+
 Physical card/sticker writing and the dedicated NFC routes have been removed.
 Same-session Numo token write-back remains. The native-intent adapter accepts the
 old NFC launch URLs, opens Home on cold launch, and preserves the current screen on
@@ -63,6 +76,9 @@ The pre-existing `RollingNumber.tsx` working-tree change was preserved.
 - Disabled NFC and returning from settings with the normal authentication requirement.
 - Contact loss, delivery retry to the same request, and refusal of a different request.
 - Closing pending flows, reopening, settlement, and success remaining visible until Done.
+- Inline errors and loaders, status refresh failures, stuck send contacts, and starting a different
+  payment while the previous payment remains unresolved. Scan the old request/invoice again and
+  confirm it is reconciled without a second charge.
 - Close, Android Back, backdrop and swipe during reading, writing and settlement.
 - Backgrounding while reading, broadcasting and mutating the wallet; no automatic replay.
 - Cold Android NFC launches, onboarding/initialization/authentication gating, warm launches.

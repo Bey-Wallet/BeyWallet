@@ -766,6 +766,21 @@ function TransactionDetailsContent() {
     </TransactionReceiptSheet>
   );
 
+  const pendingHeaderRight = () => (
+    <XStack items="center">
+      {publicReceipt && (
+        <ReceiptImageShare
+          iconOnly
+          receipt={publicReceipt}
+          ecashToken={entry?.type === 'send' && token ? cleanToken(token) : undefined}
+          disabled={isReclaiming || isClaiming || isCheckingPaid}
+        />
+      )}
+      {headerOptions.headerRight()}
+    </XStack>
+  );
+  const pendingHeaderWidth = publicReceipt ? 96 : 48;
+
   if (!entry) {
     return renderSheet(
       <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -799,6 +814,9 @@ function TransactionDetailsContent() {
     return renderSheet(
       <>
         <TransferHistoryReceipt
+          pendingHeaderRight={() =>
+            publicReceipt && <ReceiptImageShare iconOnly receipt={publicReceipt} />
+          }
           extraDetails={
             <ReceiptExtraDetails fields={buildReceiptDetails(entry, receiptSnapshot).extra} />
           }
@@ -811,6 +829,7 @@ function TransactionDetailsContent() {
         />
         {renderDeleteBottomSheet()}
       </>,
+      true,
       true,
     );
   }
@@ -855,7 +874,8 @@ function TransactionDetailsContent() {
           checking={isRefetching}
           offline={offline}
           onClose={() => router.back()}
-          headerRight={headerOptions.headerRight}
+          headerRight={pendingHeaderRight}
+          headerRightWidth={pendingHeaderWidth}
           extraDetails={extraDetails}
           transactionDetails={
             <OnchainTransactionRows
@@ -870,6 +890,7 @@ function TransactionDetailsContent() {
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
       true,
+      true,
     );
   }
 
@@ -878,6 +899,8 @@ function TransactionDetailsContent() {
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingMintInvoiceLayout
+          headerRight={pendingHeaderRight}
+          headerRightWidth={pendingHeaderWidth}
           savedInvoice={savedInvoice}
           timeLeft={timeLeft}
           entry={entry as any}
@@ -909,6 +932,7 @@ function TransactionDetailsContent() {
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
       true,
+      true,
     );
   }
 
@@ -932,17 +956,9 @@ function TransactionDetailsContent() {
           reclaimAt={metadata?.reclaimAt ? Number(metadata.reclaimAt) : undefined}
           onCheckStatus={handleRefresh}
           isCheckingStatus={isRefetching}
-          customHeaderRight={headerOptions.headerRight}
+          customHeaderRight={pendingHeaderRight}
+          headerRightWidth={pendingHeaderWidth}
           extraDetails={extraDetails}
-          footerExtra={
-            publicReceipt && (
-              <ReceiptImageShare
-                receipt={publicReceipt}
-                ecashToken={entry.type === 'send' ? cleanToken(token) : undefined}
-                disabled={isReclaiming || isClaiming || isCheckingPaid}
-              />
-            )
-          }
         />
         {renderDeleteBottomSheet()}
       </SafeAreaView>,
@@ -962,7 +978,8 @@ function TransactionDetailsContent() {
     <YStack gap="$4" pb="$3">
       <PaymentFlowHeader
         title={detail.method === 'Transfer' ? 'Transfer' : title || 'Transaction'}
-        headerRight={headerOptions.headerRight}
+        headerRight={receiptStatus === 'pending' ? pendingHeaderRight : headerOptions.headerRight}
+        headerRightWidth={receiptStatus === 'pending' ? pendingHeaderWidth : 48}
       />
       <YStack items="center" gap="$3" py="$4">
         <PaymentStatusIcon
@@ -979,14 +996,14 @@ function TransactionDetailsContent() {
         <PaymentAmount amount={displayedAmount} size="prominent" compact />
       </YStack>
       {receivingFeeNotice && (
-        <Text color="$gray10" fontSize={12} accessibilityRole="alert">
+        <Text color="$gray10" fontSize={11} accessibilityRole="alert">
           {receivingFeeNotice}
         </Text>
       )}
       {receiptStatus === 'pending' &&
         latestCheck?.id === entry.id &&
         latestCheck.state === entry.state && (
-          <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
+          <Text fontFamily="$body" fontSize={11} color="$gray10" accessibilityLiveRegion="polite">
             {latestCheck.message}
           </Text>
         )}
@@ -1106,5 +1123,7 @@ function TransactionDetailsContent() {
         )}
       {renderDeleteBottomSheet()}
     </YStack>,
+    false,
+    receiptStatus === 'pending',
   );
 }

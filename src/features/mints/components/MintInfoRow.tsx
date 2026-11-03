@@ -19,14 +19,14 @@ export function MintInfoRow({
   const toast = useAppToast();
   const content = (
     <XStack px="$page" py={6} minHeight={copyValue ? 48 : 32} gap="$3" items="center">
-      <Text color="$gray10" fontSize={14} lineHeight={20} maxWidth="40%">
+      <Text color="$gray10" fontSize={13} lineHeight={18} maxWidth="40%">
         {label}
       </Text>
       <Text
         color="$color"
         fontSize={14}
         fontWeight="500"
-        lineHeight={20}
+        lineHeight={22}
         flex={1}
         textAlign="right"
         numberOfLines={copyValue ? 1 : undefined}

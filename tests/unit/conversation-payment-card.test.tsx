@@ -37,7 +37,7 @@ it('keeps the amount first and shortens Lightning labels without enlarging unkno
     expect(labels[2].props).toMatchObject({ fontSize: 11, numberOfLines: 1 });
     await act(async () => tree.update(<ConversationPaymentCard item={item} />));
     labels = tree.root.findAllByType('Text' as any);
-    expect(labels[0].props).toMatchObject({ children: 'Review payment', fontSize: 16 });
+    expect(labels[0].props).toMatchObject({ children: 'Review payment', fontSize: 14 });
   } finally {
     await act(async () => tree?.unmount());
   }

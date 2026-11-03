@@ -57,7 +57,7 @@ export function MintNutsRow({ nuts }: { nuts: unknown }) {
   if (!entries.length) return null;
   return (
     <YStack borderTopWidth={2} borderColor="$background">
-      <Text px="$page" pt="$3" pb="$2" fontSize={12} fontWeight="600" color="$gray10">
+      <Text px="$page" pt="$3" pb="$2" fontSize={11} fontWeight="600" color="$gray10">
         Advertised features
       </Text>
       <XStack flexWrap="wrap">
@@ -74,7 +74,7 @@ export function MintNutsRow({ nuts }: { nuts: unknown }) {
             accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
           >
             <Check size={16} color="$green11" />
-            <Text color="$color" fontSize={14} lineHeight={20} flex={1}>
+            <Text color="$color" fontSize={13} lineHeight={18} flex={1}>
               {name}
             </Text>
           </XStack>

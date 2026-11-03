@@ -86,7 +86,7 @@ export default function TabLayout() {
           headerTitleAlign: 'center',
           headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color }) => <BeyIcon size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <BeyIcon size={size} color={color} />,
           headerRight: () => (
             <XStack pr="$4" gap="$2">
               <HeaderIconButton
@@ -109,7 +109,9 @@ export default function TabLayout() {
         }}
         options={{
           title: 'History',
-          tabBarIcon: ({ color }) => <Clock size={24} strokeWidth={2.5} color={color as any} />,
+          tabBarIcon: ({ color, size }) => (
+            <Clock size={size} strokeWidth={2.5} color={color as any} />
+          ),
         }}
       />
 
@@ -121,7 +123,9 @@ export default function TabLayout() {
         options={{
           title: 'People',
           headerShown: false,
-          tabBarIcon: ({ color }) => <AtSign size={24} strokeWidth={2.5} color={color as any} />,
+          tabBarIcon: ({ color, size }) => (
+            <AtSign size={size} strokeWidth={2.5} color={color as any} />
+          ),
         }}
       />
 
@@ -134,7 +138,7 @@ export default function TabLayout() {
           title: 'Settings',
           headerShown: false,
 
-          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color as any} />,
+          tabBarIcon: ({ color, size }) => <SettingsIcon size={size} color={color as any} />,
         }}
       />
     </Tabs>

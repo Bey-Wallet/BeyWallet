@@ -14,6 +14,7 @@ let mockHistoryEmpty = false;
 const mockLoadRequests = jest.fn(async () => {});
 const mockMints: unknown[] = [];
 const mockRequests: unknown[] = [];
+const mockPosOrigins: { kind: 'request' | 'quote'; mintUrl: string; reference: string }[] = [];
 const mockPayments: { operationId: string; published: boolean }[] = [];
 let mockSearchLoading = false;
 let mockSearchError = false;
@@ -51,7 +52,10 @@ const mockOlderHistory = {
 };
 const mockClient = { invalidateQueries: mockInvalidate };
 const mockRouter = { push: mockPush };
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
+jest.mock('expo-router', () => ({
+  useRouter: () => mockRouter,
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
+}));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(['YStack', 'XStack', 'Text'].map((name) => [name, name])),
   useTheme: () => ({ color: { val: '#ffffff' }, orange10: { val: '#F5A73B' } }),
@@ -80,15 +84,17 @@ jest.mock('@tamagui/lucide-icons', () =>
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(({ queryKey }: any) => ({
     data:
-      queryKey[1] === 'search'
-        ? mockSearchLoading || mockSearchError
-          ? undefined
-          : [...mockHistory, mockOlderHistory]
-        : queryKey[0] === 'history'
-          ? mockHistoryEmpty
-            ? []
-            : mockHistory
-          : undefined,
+      queryKey[1] === 'pos-origins'
+        ? mockPosOrigins
+        : queryKey[1] === 'search'
+          ? mockSearchLoading || mockSearchError
+            ? undefined
+            : [...mockHistory, mockOlderHistory]
+          : queryKey[0] === 'history'
+            ? mockHistoryEmpty
+              ? []
+              : mockHistory
+            : undefined,
     isLoading: queryKey[1] === 'search' && mockSearchLoading,
     isError: queryKey[1] === 'search' && mockSearchError,
     refetch: queryKey[1] === 'search' ? mockRefetchSearch : jest.fn(),
@@ -170,6 +176,7 @@ let screen: ReactTestRenderer;
 beforeEach(async () => {
   jest.clearAllMocks();
   mockPayments.length = 0;
+  mockPosOrigins.length = 0;
   mockSearchLoading = false;
   mockSearchError = false;
   mockHistoryEmpty = false;
@@ -190,6 +197,33 @@ const transactionButtons = () =>
       node.type === ('AppPressable' as any) &&
       node.props.accessibilityLabel?.includes('Open details'),
   );
+
+it('keeps POS receipts out of wallet history and searches only the selected scope', async () => {
+  const pos = {
+    ...mockHistory[1],
+    id: 'pos-payment',
+    metadata: { requestId: 'pos-request', note: 'Coffee sale' },
+  };
+  mockHistory.push(pos);
+  mockPosOrigins.push({ kind: 'request', mintUrl: pos.mintUrl, reference: 'pos-request' });
+  try {
+    await act(async () => screen.update(<HistoryScreen scope="wallet" />));
+    expect(transactionButtons()).toHaveLength(2);
+    await act(async () => screen.update(<HistoryScreen scope="pos" showSearch />));
+    expect(transactionButtons()).toHaveLength(1);
+    await act(async () => screen.root.findByType('Input' as any).props.onChangeText('coffee'));
+    expect(transactionButtons()).toHaveLength(1);
+    await act(async () => screen.update(<HistoryScreen scope="wallet" showSearch />));
+    expect(transactionButtons()).toHaveLength(1);
+    await act(async () => transactionButtons()[0].props.onPress());
+    expect(mockPush).toHaveBeenLastCalledWith({
+      pathname: '/txn-details',
+      params: { id: 'older-coffee' },
+    });
+  } finally {
+    mockHistory.pop();
+  }
+});
 
 it('renders real rows, opens details and toggles quick filters back to all activity', () => {
   expect(

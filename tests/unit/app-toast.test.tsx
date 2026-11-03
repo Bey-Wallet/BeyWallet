@@ -50,7 +50,7 @@ it('uses explicit severity, compact explanatory copy and reduced motion without 
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(1);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Checking payment',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   });
   expect(tree.root.findByType('Info' as any).props).toMatchObject({ size: 18, strokeWidth: 2.2 });
@@ -84,7 +84,7 @@ it('uses the same compact style for action toasts with an accessible View target
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Received 10 sat via Nostr',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   });
   expect(tree.root.findByType('Check' as any).props).toMatchObject({ size: 18, strokeWidth: 3 });

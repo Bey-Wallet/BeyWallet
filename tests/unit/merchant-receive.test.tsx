@@ -47,9 +47,21 @@ jest.mock('~/shared/ui/PaymentStageLayout', () => ({
     </>
   ),
 }));
-jest.mock('~/features/payments/receive/RequestEcashStage', () => ({ RequestEcashStage: 'Ecash' }));
+jest.mock('~/features/payments/receive/RequestEcashStage', () => ({
+  RequestEcashStage: (props: any) => (
+    <>
+      {props.merchant.renderHeader?.(null)}
+      {require('react').createElement('Ecash', props)}
+    </>
+  ),
+}));
 jest.mock('~/features/payments/receive/MerchantLightningStage', () => ({
-  MerchantLightningStage: 'Lightning',
+  MerchantLightningStage: (props: any) => (
+    <>
+      {props.renderHeader?.(null)}
+      {require('react').createElement('Lightning', props)}
+    </>
+  ),
 }));
 let tree: ReactTestRenderer;
 const amount = () => tree.root.findByType('AmountStage' as any);

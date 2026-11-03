@@ -128,6 +128,7 @@ const MintRowItem = React.memo(
                 <XStack items="center" gap="$1.5">
                   <Text
                     {...appTypography.label1}
+                    fontSize={16}
                     fontWeight="500"
                     color="$color"
                     numberOfLines={1}
@@ -142,7 +143,7 @@ const MintRowItem = React.memo(
             <XStack items="center" gap="$1.5">
               <YStack items="flex-end" justify="center">
                 <RollingNumber
-                  fontSize={appTypography.label1.fontSize}
+                  fontSize={16}
                   lineHeight={appTypography.label1.lineHeight}
                   fontWeight="600"
                   color="$color"
@@ -221,6 +222,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           <XStack items="center" gap="$1.5">
             <Text
               {...appTypography.label1}
+              fontSize={16}
               fontWeight="500"
               color="$color"
               numberOfLines={1}
@@ -317,7 +319,7 @@ export const ConnectedMintsCard = () => {
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
-    <YStack width="100%" gap="$2" p="$0" rounded="$6">
+    <YStack width="100%" gap={0} p="$0" rounded="$6">
       <XStack items="center" justify="space-between" gap="$3">
         <AppPressable
           minHeight={48}

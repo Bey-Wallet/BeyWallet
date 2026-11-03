@@ -63,7 +63,7 @@ export const ConversationMessageActions = forwardRef<
                 accessibilityLabel={selecting ? 'Back to message actions' : 'Close message actions'}
                 onPress={() => (selecting ? setSelecting(false) : onClose())}
               />
-              <Text fontSize={16} fontWeight="600">
+              <Text fontSize={14} fontWeight="600">
                 {selecting
                   ? 'Select text'
                   : item.kind === 'text'
@@ -73,7 +73,7 @@ export const ConversationMessageActions = forwardRef<
             </XStack>
             {selecting && item.kind === 'text' ? (
               <YStack gap="$3" px="$2">
-                <Text color="$gray10" fontSize={12}>
+                <Text color="$gray10" fontSize={11}>
                   Drag the selection handles to choose text, then copy it.
                 </Text>
                 <TextInput
@@ -92,8 +92,8 @@ export const ConversationMessageActions = forwardRef<
                   style={{
                     color: String(theme.color.val),
                     fontFamily: 'InterTextRegular',
-                    fontSize: 16,
-                    lineHeight: 23,
+                    fontSize: 14,
+                    lineHeight: 21,
                     minHeight: 48,
                     maxHeight: height * 0.4,
                     padding: 0,

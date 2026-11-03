@@ -39,22 +39,22 @@ export function MintOverview({
   return (
     <YStack gap="$4">
       {(radar.data?.isTest || monitoredMint?.isTest) && (
-        <Text color="$orange10" fontSize={14} accessibilityRole="alert">
+        <Text color="$orange10" fontSize={13} accessibilityRole="alert">
           Test mint · Not real bitcoin
         </Text>
       )}
       {typeof info.motd === 'string' && info.motd.trim() && (
         <YStack gap="$2">
-          <Text color="$gray10" fontSize={12}>
+          <Text color="$gray10" fontSize={11}>
             Message from the mint
           </Text>
-          <Text color="$color" fontSize={14}>
+          <Text color="$color" fontSize={13}>
             {info.motd}
           </Text>
         </YStack>
       )}
       <YStack gap="$2">
-        <Text color="$gray10" fontSize={14} fontWeight="600">
+        <Text color="$gray10" fontSize={13} fontWeight="600">
           Mint details
         </Text>
         <ListTable compact>
@@ -111,7 +111,7 @@ export function MintOverview({
             />
           )}
         </ListTable>
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           Uptime: {source} · Does not verify fund safety.
         </Text>
       </YStack>

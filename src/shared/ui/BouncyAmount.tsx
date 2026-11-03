@@ -87,7 +87,7 @@ export function BouncyAmount({
       {prefix}
       {value}
       {suffix.trim() === 'sat' ? (
-        <Text fontSize={Math.max(12, Math.round(fontSize * 0.55))} letterSpacing={0} color={color}>
+        <Text fontSize={Math.max(11, Math.round(fontSize * 0.55))} letterSpacing={0} color={color}>
           {suffix}
         </Text>
       ) : (

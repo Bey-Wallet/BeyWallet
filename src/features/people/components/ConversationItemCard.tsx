@@ -39,7 +39,7 @@ export function ConversationTextBubble({ item }: ConversationItemCardProps) {
     item.status === 'Failed' ? AlertCircle : item.status === 'Sending' ? Clock3 : Check;
   return (
     <XStack gap="$2" items="flex-end">
-      <Text color={color} fontSize={16} lineHeight={23} flexShrink={1}>
+      <Text color={color} fontSize={14} lineHeight={21} flexShrink={1}>
         {item.text}
       </Text>
       {item.direction === 'outgoing' && (
@@ -79,19 +79,19 @@ export function ConversationPaymentCard({
       <Text
         color={color}
         fontFamily={primaryAmount ? '$display' : '$body'}
-        fontSize={primaryAmount ? '$8' : 16}
-        lineHeight={primaryAmount ? '$8' : 24}
+        fontSize={primaryAmount ? '$8' : 14}
+        lineHeight={primaryAmount ? '$8' : 22}
         fontWeight="600"
       >
         {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
       </Text>
       {!!secondaryAmount && (
-        <Text color={color} opacity={0.7} fontSize={12} lineHeight={16}>
+        <Text color={color} opacity={0.7} fontSize={11} lineHeight={14}>
           {secondaryAmount}
         </Text>
       )}
       {!!item.note && (
-        <Text color={color} fontSize={14} lineHeight={20}>
+        <Text color={color} fontSize={13} lineHeight={18}>
           {item.note}
         </Text>
       )}
@@ -101,7 +101,7 @@ export function ConversationPaymentCard({
           color={color}
           opacity={0.75}
           fontSize={11}
-          lineHeight={16}
+          lineHeight={14}
           fontWeight="500"
           flex={1}
           flexShrink={1}

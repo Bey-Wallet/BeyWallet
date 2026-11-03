@@ -390,7 +390,7 @@ export default function ScannerScreen() {
     </AppButton>
   );
   const imageFeedback = imageError ? (
-    <Text fontSize={12} color="$gray10" textAlign="center" accessibilityLiveRegion="polite">
+    <Text fontSize={11} color="$gray10" textAlign="center" accessibilityLiveRegion="polite">
       {imageError}
     </Text>
   ) : null;

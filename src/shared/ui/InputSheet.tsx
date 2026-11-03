@@ -36,7 +36,7 @@ export const InputSheet = forwardRef<
   return (
     <AppBottomSheet ref={sheet} onClose={Keyboard.dismiss}>
       <YStack p="$4" gap="$4">
-        <Text fontSize={20} fontWeight="600" color="$color">
+        <Text fontSize={18} fontWeight="600" color="$color">
           {title}
         </Text>
         <BottomSheetTextInput
@@ -53,7 +53,7 @@ export const InputSheet = forwardRef<
             backgroundColor: theme.gray3.val,
             borderRadius: 12,
             padding: 16,
-            fontSize: 16,
+            fontSize: 14,
             fontFamily: 'InterTextRegular',
           }}
         />

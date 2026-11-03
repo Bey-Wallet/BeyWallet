@@ -14,7 +14,7 @@ import {
 } from '@tamagui/lucide-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { initService, historyService, eventService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
@@ -37,6 +37,8 @@ import {
   defaultHistoryFilters,
   filterHistory,
   groupHistory,
+  scopeHistory,
+  type HistoryScope,
   type HistoryFilters,
   type HistoryListEntry,
   type HistoryListRow,
@@ -106,12 +108,14 @@ function FilterPill({
 }
 
 export function HistoryScreen({
+  scope = 'wallet',
   showFilters = false,
   onFiltersClose,
   onFiltersActiveChange,
   showSearch = false,
   onSearchClose,
 }: {
+  scope?: HistoryScope;
   showFilters?: boolean;
   onFiltersClose?: () => void;
   onFiltersActiveChange?: (active: boolean) => void;
@@ -138,6 +142,16 @@ export function HistoryScreen({
   const pendingRequests = useNostrRequestStore((state) => state.pendingRequests);
   const loadPendingRequests = useNostrRequestStore((state) => state.loadPendingRequests);
   const {
+    data: posOrigins = [],
+    isLoading: originsLoading,
+    isError: originsError,
+    refetch: refetchOrigins,
+  } = useQuery({
+    queryKey: ['history', 'pos-origins'],
+    queryFn: () => historyService.getPosOrigins(),
+    enabled: initService.isInitialized(),
+  });
+  const {
     data: history = [],
     isLoading,
     isError,
@@ -147,7 +161,8 @@ export function HistoryScreen({
     queryKey: ['history'],
     queryFn: async (): Promise<HistoryListEntry[]> => {
       if (!initService.isInitialized()) return [];
-      return historyService.getActivityHistory(200, 0);
+      // Scope before limiting: recent POS sales must not crowd out wallet payments.
+      return historyService.getActivityHistory(-1, 0);
     },
     enabled: initService.isInitialized(),
   });
@@ -168,9 +183,12 @@ export function HistoryScreen({
     staleTime: 30_000,
     gcTime: 60_000,
   });
-  useEffect(() => {
-    void loadPendingRequests().catch(() => {});
-  }, [loadPendingRequests]);
+  useFocusEffect(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ['history'] });
+      void loadPendingRequests().catch(() => {});
+    }, [queryClient, loadPendingRequests]),
+  );
   useEffect(() => {
     if (showFilters) filterSheet.current?.present();
     else filterSheet.current?.dismiss();
@@ -211,8 +229,22 @@ export function HistoryScreen({
         description: request.description,
       },
     }));
-    return [...requests, ...(hasSearch ? searchableHistory || [] : history)];
-  }, [history, searchableHistory, pendingRequests, hasSearch]);
+    if (originsLoading || originsError) return [];
+    return scopeHistory(
+      [...requests, ...(hasSearch ? searchableHistory || [] : history)],
+      scope,
+      posOrigins,
+    );
+  }, [
+    history,
+    searchableHistory,
+    pendingRequests,
+    hasSearch,
+    scope,
+    posOrigins,
+    originsLoading,
+    originsError,
+  ]);
   const searchIndex = useMemo(
     () => (hasSearch ? buildHistorySearchIndex(allEntries, { people, mints }) : []),
     [allEntries, people, mints, hasSearch],
@@ -221,7 +253,10 @@ export function HistoryScreen({
     () => filterHistory(hasSearch ? searchHistory(searchIndex, searchQuery) : allEntries, filters),
     [allEntries, searchIndex, searchQuery, hasSearch, filters],
   );
-  const rows = useMemo(() => groupHistory(entries), [entries]);
+  const rows = useMemo(
+    () => groupHistory(hasSearch ? entries : entries.slice(0, 200)),
+    [entries, hasSearch],
+  );
   const resetFilters = () => setFilters(defaultHistoryFilters);
   const resetSearchAndFilters = () => {
     resetFilters();
@@ -229,10 +264,11 @@ export function HistoryScreen({
     Keyboard.dismiss();
     onSearchClose?.();
   };
-  const loading = hasSearch ? isSearchLoading : isLoading;
-  const failed = hasSearch ? isSearchError : isError;
+  const loading = originsLoading || (hasSearch ? isSearchLoading : isLoading);
+  const failed = originsError || (hasSearch ? isSearchError : isError);
   const refreshHistory = () => {
     void (hasSearch ? refetchSearch() : refetch());
+    void refetchOrigins();
     void loadPendingRequests().catch(() => {});
   };
   const setQuickFilter = (quick: QuickFilter) => {
@@ -393,14 +429,18 @@ export function HistoryScreen({
                     : 'Could not load history'
                   : isFiltered || hasSearch
                     ? 'No matching activity'
-                    : 'No activity yet'}
+                    : scope === 'pos'
+                      ? 'No POS activity yet'
+                      : 'No activity yet'}
               </Text>
               <Text {...appTypography.body3} color="$gray10" text="center">
                 {failed
                   ? 'Pull down or try again to refresh your history.'
                   : isFiltered || hasSearch
                     ? 'Try another search or filter, or reset to see recent activity.'
-                    : 'Receive your first payment to start your history.'}
+                    : scope === 'pos'
+                      ? 'Requests and payments created in point of sale appear here.'
+                      : 'Receive your first payment to start your history.'}
               </Text>
               {(isFiltered || hasSearch || failed) && (
                 <AppButton
@@ -416,11 +456,15 @@ export function HistoryScreen({
                 <AppButton
                   emphasis="secondary"
                   onPress={() => {
+                    if (scope === 'pos') {
+                      router.push('/(modals)/point-of-sale');
+                      return;
+                    }
                     if (receiveSheet.current) receiveSheet.current.present('receive');
                     else setReceiveMounted(true);
                   }}
                 >
-                  Receive
+                  {scope === 'pos' ? 'New sale' : 'Receive'}
                 </AppButton>
               )}
             </YStack>

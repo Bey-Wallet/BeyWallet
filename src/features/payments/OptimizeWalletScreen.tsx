@@ -164,7 +164,7 @@ export default function OptimizeWalletScreen() {
         <YStack p="$4" gap="$4" flex={1}>
           {optimizationError && (
             <YStack gap="$2">
-              <Text color="$orange10" fontSize={12} accessibilityRole="alert">
+              <Text color="$orange10" fontSize={11} accessibilityRole="alert">
                 {optimizationError}
               </Text>
               <AppButton emphasis="text" onPress={() => router.push('/(tabs)/history')}>
@@ -178,7 +178,7 @@ export default function OptimizeWalletScreen() {
             <Text fontSize="$6" fontWeight="800" textAlign="center" color="$color">
               Optimize Proof Structure
             </Text>
-            <Text fontSize="$3" color="$gray10" textAlign="center" px="$4" lineHeight={18}>
+            <Text fontSize="$3" color="$gray10" textAlign="center" px="$4" lineHeight={16}>
               Consolidate many small ecash tokens into fewer, larger denominations. This makes
               payment transactions faster and reduces keyset overhead.
             </Text>
@@ -342,7 +342,7 @@ export default function OptimizeWalletScreen() {
                 <Text fontWeight="700" fontSize="$4" color="$green10">
                   Fully Optimized
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   Your token structure is already optimal. No actions are required at this time.
                 </Text>
               </YStack>

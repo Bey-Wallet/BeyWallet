@@ -54,7 +54,7 @@ function HomeAction({
           {...(iconStrokeWidth !== undefined ? { strokeWidth: iconStrokeWidth } : {})}
         />
       </View>
-      <Text color="$color" fontSize={14} lineHeight={20} fontWeight="600" flexShrink={1}>
+      <Text color="$color" fontSize={13} lineHeight={18} fontWeight="600" flexShrink={1}>
         {label}
       </Text>
     </AppPressable>

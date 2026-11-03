@@ -90,7 +90,7 @@ it.each([
   ).toBe(primary);
   expect(tree.root.findByProps({ testID: 'mint-confirm-primary-amount' }).props.fontSize).toBe(40);
   expect(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.fontSize).toBe(
-    16,
+    14,
   );
   expect(
     amountText(tree.root.findByProps({ testID: 'mint-confirm-secondary-amount' }).props.children),

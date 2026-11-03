@@ -86,7 +86,7 @@ export function MintBalanceRow({
             )}
             <Text
               fontFamily="$body"
-              fontSize={14}
+              fontSize={13}
               fontWeight="500"
               color="$color"
               textAlign="right"

@@ -300,7 +300,7 @@ export function PermissionsStep({
             <Text fontWeight="800" fontSize="$6" text="center" color="$color">
               Enable Biometric Security?
             </Text>
-            <Text fontSize="$3" color="$gray10" text="center" px="$3" lineHeight={20}>
+            <Text fontSize="$3" color="$gray10" text="center" px="$3" lineHeight={18}>
               We highly recommend protecting your wallet with Face ID / Touch ID to prevent
               unauthorized payments and secure your funds.
             </Text>

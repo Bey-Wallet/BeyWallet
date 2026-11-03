@@ -4,6 +4,9 @@ Screen headers use centered `ModalHeaderTitle` text and the canvas background, w
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
+Shared bottom sheets use `$background` with a 1-point `$borderColor` top border.
+Pending payment screens use short header titles (at most two words) and a right-side header icon
+for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
 step; `X` dismisses a standalone modal, scanner, root sheet, or finished flow. Nested sheet steps
 use a back arrow. Other header actions stay on the right. Screen-specific callbacks, loading
@@ -52,9 +55,15 @@ loading, disabled state, and native link semantics remain supported. Switch vari
 
 Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
 open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
-use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
-primary text and 14-point secondary conversion text. Confirmation screens, final results, and
-transaction details use 40-point primary amounts and 16-point secondary conversions.
+use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
+points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
+headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
+use 40 points. Standard payment amounts use 29-point primary text and 13-point secondary conversions;
+prominent amounts use 40-point primary text and 14-point secondary conversions.
+Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
+reduction. Inter families, tracking, font weights, icons, padding, control heights and system
+accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,
+not repeated scaling. See the [current typography inventory](typography-10-percent.md).
 Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
 amount-input and screen-specific amount-entry sizes remain supported. All button styles use
 SemiBold (600) labels.
@@ -67,16 +76,22 @@ Circular icon controls, avatars, status badges, switch tracks, and the approved 
 their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
 conversation cards use the shared card radius. Explicit caller shapes remain available for special
 input contexts; their sizing cannot silently change the default radius.
-Lists default to compact 14-point text with a 48-point minimum row height and 16-point
-horizontal padding. Settings descriptions use 12-point text. Mint details and previews share
+Lists default to compact 14-point primary text with a 48-point minimum row height and 16-point
+horizontal padding. Settings descriptions use 13-point text. Mint details and previews share
 the same base surfaces, clipped corners and full-width 2-point separators as Settings.
-Explicit regular-size tables can use 16-point text and a 56-point minimum. The tab bar is 64 points high,
-plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
+Mint list names use `label1`, with `body2` hostnames; section labels use `label2`. Mint previews use
+`title3` names; mint details use `amountSmall` balances, `label2` conversions and `label3` status
+badges. These top sections use explicit shared roles rather than inherited or separate hero sizes.
+Explicit regular-size tables use 14-point text and a 56-point minimum. The tab bar is 64
+points high, with 24-point icons and the standard top padding, plus the device's bottom safe area.
+Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
 Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
-Home balances and editable amount inputs retain their
-existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
+Home balances use the 40-point display role; editable amounts use responsive 40/29/25/22/18-point
+steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
+every route, feature component, shared surface and the remaining device checks.
+Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,

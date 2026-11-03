@@ -293,7 +293,7 @@ it('allows an explicit regular-size table while compact remains the default', as
   const [label, value] = tree.root.findAllByType('Text' as any);
   expect(label.props.fontWeight).toBe('400');
   expect(value.props.fontWeight).toBe('500');
-  expect(value.props.fontSize).toBe(16);
+  expect(value.props.fontSize).toBe(14);
   expect(value.props.numberOfLines).toBe(1);
 });
 

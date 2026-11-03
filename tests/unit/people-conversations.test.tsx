@@ -587,12 +587,12 @@ describe('People conversations and invitations', () => {
     expect(name.props).toMatchObject({ minHeight: 48, minWidth: 0, accessibilityRole: 'button' });
     const headerTexts = name.findAllByType('Text' as any);
     expect(headerTexts.find((node) => node.props.children === 'Bob')!.props).toMatchObject({
-      fontSize: 16,
+      fontSize: 14,
       numberOfLines: 1,
     });
     expect(
       headerTexts.find((node) => node.props.children === 'bob@example.com')!.props,
-    ).toMatchObject({ fontSize: 12, numberOfLines: 1 });
+    ).toMatchObject({ fontSize: 11, numberOfLines: 1 });
     await act(async () => name.props.onPress());
     expect(JSON.stringify(tree!.toJSON())).toContain('bob@example.com');
     expect(tree!.root.findAllByType('ListTable' as any)).toHaveLength(1);

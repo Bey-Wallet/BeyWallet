@@ -321,7 +321,7 @@ export function PaymentRequestStage({
                 Mint Not Compatible
               </Text>
             </XStack>
-            <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={18}>
+            <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={16}>
               Requires one of: {request.mints.map((m) => m.replace(/^https?:\/\//, '')).join(', ')}
             </Text>
           </YStack>
@@ -336,7 +336,7 @@ export function PaymentRequestStage({
                 Error
               </Text>
             </XStack>
-            <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={18}>
+            <Text color="$red10" fontSize="$2" fontWeight="500" lineHeight={16}>
               {localError}
             </Text>
           </YStack>
@@ -434,7 +434,7 @@ export function PaymentRequestStage({
                     style={{ borderRadius: 2 }}
                   />
                   <Text
-                    fontSize={14}
+                    fontSize={13}
                     fontFamily="$body"
                     fontWeight="500"
                     color="$color"

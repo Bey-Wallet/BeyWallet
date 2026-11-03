@@ -5,7 +5,8 @@ import { Check, ChevronRight, ExternalLink } from '@tamagui/lucide-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
-import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appBorders, appDimensions, appIconSizes, appSpacing } from '~/shared/theme';
+import { AppText } from '~/shared/ui/AppText';
 
 export function SettingsPage({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
@@ -24,7 +25,7 @@ export function SettingsGroup({ children }: { children: React.ReactNode }) {
     <YStack bg="$gray2" rounded="$6" overflow="hidden">
       {rows.map((child, index) => (
         <React.Fragment key={React.isValidElement(child) ? (child.key ?? index) : index}>
-          {index > 0 && <YStack height={2} width="100%" bg="$background" />}
+          {index > 0 && <YStack height={appBorders.separator} width="100%" bg="$background" />}
           {child}
         </React.Fragment>
       ))}
@@ -76,24 +77,27 @@ export function SettingsRow({
       hoverStyle={onPress ? { bg: '$gray3' } : undefined}
     >
       {Icon && (
-        <XStack width={20} items="center" justify="center" aria-hidden>
+        <XStack width={appIconSizes.list} items="center" justify="center" aria-hidden>
           {React.isValidElement(Icon)
-            ? React.cloneElement(Icon as React.ReactElement<any>, { size: 20, color })
+            ? React.cloneElement(Icon as React.ReactElement<any>, {
+                size: appIconSizes.list,
+                color,
+              })
             : React.createElement(Icon as React.ComponentType<any>, {
-                size: 20,
+                size: appIconSizes.list,
                 color,
                 strokeWidth: 1.8,
               })}
         </XStack>
       )}
       <YStack flex={1} gap="$1">
-        <Text {...appTypography.label2} color={color}>
+        <AppText variant="label1" color={color}>
           {title}
-        </Text>
+        </AppText>
         {description && (
-          <Text {...appTypography.body3} color="$gray10">
+          <AppText variant="body2" tone="secondary">
             {description}
-          </Text>
+          </AppText>
         )}
       </YStack>
       {value && (
@@ -102,11 +106,11 @@ export function SettingsRow({
         </Text>
       )}
       {selected !== undefined ? (
-        selected && <Check size={20} color="$blue10" />
+        selected && <Check size={appIconSizes.list} color="$blue10" />
       ) : external ? (
-        <ExternalLink size={18} color="$gray10" />
+        <ExternalLink size={appIconSizes.navigationCue} color="$gray10" />
       ) : onPress ? (
-        <ChevronRight size={18} color="$gray10" />
+        <ChevronRight size={appIconSizes.navigationCue} color="$gray10" />
       ) : null}
     </AppPressable>
   );
@@ -114,7 +118,7 @@ export function SettingsRow({
 
 export function SettingsDescription({ children }: { children: React.ReactNode }) {
   return (
-    <Text fontSize="$3" color="$gray10" lineHeight={21}>
+    <Text fontSize="$3" color="$gray10" lineHeight={19}>
       {children}
     </Text>
   );

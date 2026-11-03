@@ -12,6 +12,7 @@ export function TransferHistoryReceipt({
   targetMintUrl,
   onClose,
   headerRight,
+  pendingHeaderRight,
   extraDetails,
 }: {
   id: string;
@@ -20,6 +21,7 @@ export function TransferHistoryReceipt({
   targetMintUrl: string;
   onClose: () => void;
   headerRight?: () => React.ReactNode;
+  pendingHeaderRight?: () => React.ReactNode;
   extraDetails?: React.ReactNode;
 }) {
   const result = useQuery({
@@ -33,13 +35,17 @@ export function TransferHistoryReceipt({
       <Stack.Screen
         options={{
           headerRight:
-            record && ['completed', 'failed'].includes(record.state) ? headerRight : () => null,
+            record && ['completed', 'failed'].includes(record.state)
+              ? headerRight
+              : pendingHeaderRight,
         }}
       />
       <ResultStage
         extraDetails={extraDetails}
         headerRight={
-          record && ['completed', 'failed'].includes(record.state) ? headerRight : undefined
+          record && ['completed', 'failed'].includes(record.state)
+            ? headerRight
+            : pendingHeaderRight
         }
         status={
           record?.state === 'completed'

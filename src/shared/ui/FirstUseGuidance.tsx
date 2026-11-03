@@ -43,7 +43,7 @@ export function FirstUseGuidance({
       mb={spaceBelow ? '$3' : undefined}
     >
       <XStack items="center" gap="$2">
-        <Text fontFamily="$body" {...appTypography.label2} color="$color" flex={1}>
+        <Text fontFamily="$body" {...appTypography.label1} color="$color" flex={1}>
           {title}
         </Text>
         <AppIconButton
@@ -56,7 +56,7 @@ export function FirstUseGuidance({
           onPress={() => dismiss(topic)}
         />
       </XStack>
-      <Text fontFamily="$body" {...appTypography.body3} color="$gray10">
+      <Text fontFamily="$body" {...appTypography.body2} color="$gray10">
         {description}
       </Text>
     </YStack>

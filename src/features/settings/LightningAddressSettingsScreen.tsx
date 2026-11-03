@@ -88,7 +88,7 @@ export default function LightningAddressSettingsScreen() {
       </SettingsGroup>
       {npub && state.receivingMint && (
         <YStack gap="$3">
-          <Text fontSize={14} color="$color" selectable>
+          <Text fontSize={13} color="$color" selectable>
             {lightningAddress(npub)}
           </Text>
           <AppButton
@@ -105,10 +105,10 @@ export default function LightningAddressSettingsScreen() {
         Pending payments are preserved.
       </SettingsDescription>
       <YStack gap="$1" accessibilityLiveRegion="polite">
-        <Text fontSize={14} color="$gray10">
+        <Text fontSize={13} color="$gray10">
           {state.connection}
         </Text>
-        <Text fontSize={12} color="$gray10">
+        <Text fontSize={11} color="$gray10">
           {state.lastChecked
             ? `Last successful check: ${new Date(state.lastChecked).toLocaleString()}`
             : 'No successful check yet'}
@@ -231,17 +231,17 @@ export function LightningAddressPaymentsScreen() {
       <SettingsGroup>
         {state.pending.map((receipt) => (
           <YStack key={`${receipt.mintUrl}:${receipt.quoteId}`} p="$4" gap="$2">
-            <Text fontSize={14} color="$color">
+            <Text fontSize={13} color="$color">
               {receipt.amount} sat
             </Text>
-            <Text fontSize={12} color="$gray10">
+            <Text fontSize={11} color="$gray10">
               {receipt.mintUrl}
             </Text>
-            <Text fontSize={12} color="$gray10">
+            <Text fontSize={11} color="$gray10">
               {receipt.providers.map((provider) => new URL(provider).host).join(', ')}
             </Text>
             {receipt.issue && (
-              <Text fontSize={12} color="$gray10">
+              <Text fontSize={11} color="$gray10">
                 {receipt.issue}
               </Text>
             )}

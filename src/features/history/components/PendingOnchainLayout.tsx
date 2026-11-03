@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { ReceiptImageShare } from './ReceiptImageShare';
+import { buildShareableReceipt } from '../shareableReceipt';
 import { Text } from 'tamagui';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -24,6 +26,7 @@ export function PendingOnchainLayout({
   checking,
   onClose,
   headerRight,
+  headerRightWidth,
   inset = true,
   extraDetails,
   transactionDetails,
@@ -38,6 +41,7 @@ export function PendingOnchainLayout({
   checking?: boolean;
   onClose: () => void;
   headerRight?: () => React.ReactNode;
+  headerRightWidth?: number;
   inset?: boolean;
   extraDetails?: React.ReactNode;
   transactionDetails?: React.ReactNode;
@@ -46,13 +50,31 @@ export function PendingOnchainLayout({
 }) {
   const deposit = direction === 'deposit';
   const destination = normalizeBitcoinAddress(address);
+  const displayedAt = useRef(Date.now());
+  const receipt = buildShareableReceipt(
+    {
+      id: 'pending-onchain',
+      type: deposit ? 'mint' : 'melt',
+      amount,
+      unit: 'sat',
+      mintUrl: '',
+      createdAt: displayedAt.current,
+      state: 'pending',
+      metadata: { via: 'onchain' },
+    },
+    { mintName: mint },
+  );
   return (
     <>
       <PaymentFlowHeader
         navigationAction={navigationAction}
         title={deposit ? 'On-chain deposit' : 'On-chain payment'}
         onBack={onClose}
-        headerRight={headerRight}
+        headerRight={
+          headerRight ||
+          (() => receipt && <ReceiptImageShare iconOnly receipt={receipt} disabled={checking} />)
+        }
+        headerRightWidth={headerRightWidth}
       />
       <PaymentStageLayout
         variant={deposit ? 'qr' : 'receipt'}
@@ -60,7 +82,7 @@ export function PendingOnchainLayout({
         hero={
           <>
             {!deposit && <PaymentStatusIcon status="pending" />}
-            <Text fontSize={14} fontWeight="500" color="$gray10">
+            <Text fontSize={13} fontWeight="500" color="$gray10">
               {deposit ? 'Pay with Bitcoin' : 'Payment pending'}
             </Text>
             {deposit && !!address && (

@@ -67,6 +67,20 @@ export function AmountStage({
   });
   const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
     useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
+  const posFiat = pos && inputMode === 'FIAT';
+  const hasPrice = !!btcData?.price && Number.isFinite(btcData.price) && btcData.price > 0;
+
+  // POS enters minor units (1234 → 12.34); the canonical wallet amount stays in sats.
+  const posMinorUnits = String(Math.round((Number(localInputValue) || 0) * 100));
+  React.useEffect(() => {
+    if (posFiat && hasPrice) {
+      const sats = currencyService.convertCurrencyToSats(
+        Number(localInputValue) || 0,
+        btcData!.price,
+      );
+      if (String(sats) !== amount) setAmount(String(sats));
+    }
+  }, [posFiat, hasPrice, btcData?.price, localInputValue, amount, setAmount]);
 
   const currencySymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
@@ -111,6 +125,15 @@ export function AmountStage({
   }, [amount, inputMode]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (posFiat) {
+      if (!/^\d+$/.test(rawVal) || rawVal.length > 11) return;
+      const fiat = (Number(rawVal) / 100).toFixed(2);
+      setLocalInputValue(fiat);
+      if (hasPrice) {
+        setAmount(String(currencyService.convertCurrencyToSats(Number(fiat), btcData!.price)));
+      }
+      return;
+    }
     if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     let val = rawVal;
 
@@ -185,6 +208,12 @@ export function AmountStage({
   };
 
   const formattedDisplayValue = useMemo(() => {
+    if (posFiat) {
+      return (Number(localInputValue) || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
     if (!localInputValue || localInputValue === '0') return '0';
     if (inputMode === 'SATS') {
       const num = Number(localInputValue);
@@ -200,16 +229,16 @@ export function AmountStage({
       }
     }
     return localInputValue;
-  }, [localInputValue, inputMode]);
+  }, [localInputValue, inputMode, posFiat]);
 
   // Dynamic font size based on string length to scale seamlessly
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
+    if (len <= 6) return 40;
+    if (len <= 8) return 29;
+    if (len <= 10) return 25;
+    if (len <= 13) return 22;
+    return 18;
   }, [formattedDisplayValue]);
 
   return (
@@ -246,7 +275,7 @@ export function AmountStage({
                   accessibilityLabel="Payment note"
                   maxLength={200}
                   fontFamily="$body"
-                  fontSize={14}
+                  fontSize={13}
                   minHeight={48}
                   width={180}
                   maxWidth="100%"
@@ -277,13 +306,13 @@ export function AmountStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize={pos ? 16 : '$3'} fontWeight="500">
+            <Text color="$gray10" fontSize={pos ? 14 : '$3'} fontWeight="500">
               {pos ? 'New sale' : 'Enter Amount'}
             </Text>
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={pos ? Math.min(64, dynamicFontSize + 20) : dynamicFontSize}
+              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -375,12 +404,13 @@ export function AmountStage({
       <YStack width="100%" gap="$4">
         <NumericKeypad
           appearance={appearance}
-          allowDecimal={fiatEnabled}
+          allowDecimal={!pos && fiatEnabled}
           showAmountDisplay={false}
-          value={localInputValue}
+          value={posFiat ? posMinorUnits : localInputValue}
           onValueChange={onKeypadChange}
           onConfirm={onContinue}
           confirmLabel={confirmLabel}
+          confirmDisabled={posFiat && (!hasPrice || !(Number(amount) > 0))}
         />
       </YStack>
 

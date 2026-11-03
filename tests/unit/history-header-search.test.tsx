@@ -11,7 +11,8 @@ jest.mock('react-native', () => ({
   Keyboard: { dismiss: jest.fn() },
   StyleSheet: { create: (styles: unknown) => styles },
 }));
-jest.mock('tamagui', () => ({ XStack: 'XStack' }));
+jest.mock('tamagui', () => ({ XStack: 'XStack', Text: 'Text' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   Search: 'Search',
   X: 'X',
@@ -59,6 +60,39 @@ it('places search beside filters and toggles the expanded bar without changing f
     await act(async () => {
       tree.unmount();
       header?.unmount();
+    });
+  }
+});
+
+it('toggles between separate wallet and POS history and closes the active search', async () => {
+  let tree!: ReactTestRenderer;
+  let title!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<HistoryTabScreen />);
+  });
+  const screen = () => tree.root.findByType('HistoryScreen' as any);
+  const renderTitle = async () => {
+    await act(async () => {
+      title?.unmount();
+      title = create(mockSetOptions.mock.calls.at(-1)![0].headerTitle());
+    });
+    return title.root.findByProps({ accessibilityLabel: 'POS history' });
+  };
+  try {
+    expect(screen().props.scope).toBe('wallet');
+    let toggle = await renderTitle();
+    expect(toggle.props.accessibilityState.selected).toBe(false);
+    await act(async () => toggle.props.onPress());
+    expect(screen().props.scope).toBe('pos');
+    expect(screen().props.showSearch).toBe(false);
+    toggle = await renderTitle();
+    expect(toggle.props.accessibilityState.selected).toBe(true);
+    await act(async () => toggle.props.onPress());
+    expect(screen().props.scope).toBe('wallet');
+  } finally {
+    await act(async () => {
+      tree.unmount();
+      title?.unmount();
     });
   }
 });

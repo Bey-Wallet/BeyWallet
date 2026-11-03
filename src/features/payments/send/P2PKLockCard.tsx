@@ -107,7 +107,7 @@ export function P2PKLockCard({
       )}
       <AppBottomSheet ref={sheet} onClose={Keyboard.dismiss}>
         <YStack p="$4" gap="$3">
-          <Text fontFamily="$body" fontSize={20} fontWeight="500" textAlign="center">
+          <Text fontFamily="$body" fontSize={18} fontWeight="500" textAlign="center">
             Recipient public key
           </Text>
           <Text fontSize={13} fontWeight="400" color="$gray10">
@@ -131,7 +131,7 @@ export function P2PKLockCard({
               backgroundColor: theme.gray3.val,
               borderRadius: 12,
               padding: 16,
-              fontSize: 14,
+              fontSize: 13,
               fontFamily: 'InterTextRegular',
               minHeight: 88,
               maxHeight: 160,

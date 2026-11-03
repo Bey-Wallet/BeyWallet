@@ -112,7 +112,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
           pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
         >
-          <Text fontSize={14} fontWeight="500" color={tab === value ? '$color' : '$gray10'}>
+          <Text fontSize={13} fontWeight="500" color={tab === value ? '$color' : '$gray10'}>
             {value === 'ecash' ? 'Ecash' : 'Lightning'}
           </Text>
         </AppPressable>
@@ -156,7 +156,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           <YStack width="100%" items="center" gap="$4" py="$2">
             <XStack minHeight={48} items="center" justify="center" gap="$2" maxWidth="100%">
               {isLightning ? (
-                <Text fontSize={20} fontWeight="600" color="$color" textAlign="center">
+                <Text fontSize={18} fontWeight="600" color="$color" textAlign="center">
                   Lightning address
                 </Text>
               ) : status === 'not_found' && !loading ? (
@@ -185,7 +185,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   >
                     <XStack items="center" gap="$2" minWidth={0}>
                       <Text
-                        fontSize={20}
+                        fontSize={18}
                         fontWeight="600"
                         color="$color"
                         textAlign="center"
@@ -226,7 +226,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   <>
                     <Spinner size="large" color="$color" />
                     <Text
-                      fontSize={12}
+                      fontSize={11}
                       color="$gray10"
                       textAlign="center"
                       accessibilityLiveRegion="polite"
@@ -236,7 +236,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                   </>
                 ) : (
                   <>
-                    <Text fontSize={12} color="$gray10" textAlign="center">
+                    <Text fontSize={11} color="$gray10" textAlign="center">
                       Set up a receiving mint to enable your Lightning address.
                     </Text>
                     <AppButton
@@ -262,7 +262,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 ) : (
                   <YStack items="center" gap="$3">
                     <Spinner size="large" color="$color" />
-                    <Text fontSize={12} color="$gray10">
+                    <Text fontSize={11} color="$gray10">
                       {npub ? 'Loading QR code…' : 'Loading public key…'}
                     </Text>
                   </YStack>
@@ -288,10 +288,10 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
               >
                 <YStack flex={1} minWidth={0} gap="$1">
-                  <Text fontSize={12} color="$gray10">
+                  <Text fontSize={11} color="$gray10">
                     {isLightning ? 'Lightning address' : 'Nostr public key'}
                   </Text>
-                  <Text fontSize={14} color="$color" numberOfLines={1} ellipsizeMode="middle">
+                  <Text fontSize={13} color="$color" numberOfLines={1} ellipsizeMode="middle">
                     {copyValue}
                   </Text>
                 </YStack>
@@ -318,10 +318,10 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                     onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
                   >
                     <YStack flex={1} minWidth={0} gap="$1">
-                      <Text fontSize={14} color="$color">
+                      <Text fontSize={13} color="$color">
                         Manage Lightning address
                       </Text>
-                      <Text fontSize={12} color="$gray10" numberOfLines={1}>
+                      <Text fontSize={11} color="$gray10" numberOfLines={1}>
                         {lightning.connection}
                         {receivingMintName ? ' · ' + receivingMintName : ''}
                       </Text>
@@ -348,7 +348,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                         router.push('/(tabs)/settings/lightning-address-payments' as Href)
                       }
                     >
-                      <Text fontSize={14} color="$color" flex={1}>
+                      <Text fontSize={13} color="$color" flex={1}>
                         Pending incoming payments ({lightning.pending.length})
                       </Text>
                       <ChevronRight size={18} color="$gray10" aria-hidden />

@@ -51,8 +51,8 @@ export interface PendingTokenLayoutProps {
   /** Shows a spinner while a status check is in flight. */
   isCheckingStatus?: boolean;
   customHeaderRight?: () => React.ReactNode;
+  headerRightWidth?: number;
   extraDetails?: React.ReactNode;
-  footerExtra?: React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -76,8 +76,8 @@ export function PendingTokenLayout({
   onCheckStatus,
   isCheckingStatus = false,
   customHeaderRight,
+  headerRightWidth,
   extraDetails,
-  footerExtra,
 }: PendingTokenLayoutProps) {
   const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
@@ -196,13 +196,14 @@ export function PendingTokenLayout({
         ? 'Payment failed'
         : onClaim
           ? 'Receive ecash'
-          : 'Ecash ready to share';
+          : 'Share ecash';
   return (
     <>
       <PaymentFlowHeader
         title={pendingTitle}
         navigationAction={navigationAction}
         headerRight={customHeaderRight || (() => null)}
+        headerRightWidth={headerRightWidth}
       />
       <PaymentStageLayout
         variant="qr"
@@ -259,7 +260,6 @@ export function PendingTokenLayout({
                 Send
               </AppButton>
             )}
-            {footerExtra}
           </>
         }
       >
@@ -357,7 +357,6 @@ export function PendingTokenLayout({
       </PaymentStageLayout>
       <AppBottomSheet
         ref={shareSheetRef}
-        backgroundColor="$sheetBackground"
         onClose={() => {
           if (pendingNfc.current) {
             pendingNfc.current = false;
@@ -392,7 +391,7 @@ export function PendingTokenLayout({
               }}
             >
               <Share2 size={24} color="$color" />
-              <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
+              <Text fontWeight="800" fontSize={14} color="$color" flex={1}>
                 Share via App
               </Text>
             </XStack>
@@ -410,7 +409,7 @@ export function PendingTokenLayout({
               }}
             >
               <Nfc size={24} color="$color" />
-              <Text fontWeight="800" fontSize={17} color="$color" flex={1}>
+              <Text fontWeight="800" fontSize={14} color="$color" flex={1}>
                 NFC Send
               </Text>
             </XStack>
@@ -428,7 +427,7 @@ export function PendingTokenLayout({
               }}
             >
               {copied ? <Check size={24} color="$green10" /> : <Copy size={24} color="$color" />}
-              <Text fontWeight="800" fontSize={17} color={copied ? '$green10' : '$color'} flex={1}>
+              <Text fontWeight="800" fontSize={14} color={copied ? '$green10' : '$color'} flex={1}>
                 {copied ? 'Copied!' : 'Copy Token'}
               </Text>
             </XStack>

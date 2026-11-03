@@ -152,7 +152,7 @@ it('places one pill after the choices and switches from Paste to Continue with a
     width: '100%',
     height: 96,
     style: { padding: 8, paddingRight: 56 },
-    lineHeight: 20,
+    lineHeight: 18,
     placeholder: 'Token, request, invoice, address, LNURL or link',
   });
   expect(field().props.borderWidth).toBeGreaterThan(0);

@@ -72,7 +72,7 @@ export function PaymentReceipt({
             <PaymentStatusIcon status={receiptStatus} />
             <Text
               accessibilityRole="header"
-              fontSize={16}
+              fontSize={14}
               fontWeight="500"
               color="$color"
               textAlign="center"
