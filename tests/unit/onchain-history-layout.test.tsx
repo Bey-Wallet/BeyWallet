@@ -1,4 +1,7 @@
 import React from 'react';
+jest.mock('~/features/history/components/ReceiptImageShare', () => ({
+  ReceiptImageShare: 'ReceiptShare',
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import {

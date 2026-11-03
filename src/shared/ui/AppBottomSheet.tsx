@@ -19,7 +19,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { Theme, useTheme, type ThemeName } from 'tamagui';
 import * as Haptics from 'expo-haptics';
-import { appMotion, appRadii } from '~/shared/theme/appearance';
+import { appBorders, appMotion, appRadii } from '~/shared/theme/appearance';
 
 // Gorhom portals mount outside local screen contexts. Opt in only when a flow
 // has its own palette; ordinary sheets retain their current container.
@@ -170,8 +170,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         backgroundStyle={{
           backgroundColor: backgroundColor
             ? theme[backgroundColor.replace('$', '') as keyof typeof theme]?.val || backgroundColor
-            : theme.sheetBackground.val,
+            : theme.background.val,
           borderRadius: appRadii.sheet,
+          borderTopWidth: appBorders.outline,
+          borderTopColor: theme.borderColor.val,
         }}
         onChange={handleSheetChanges}
         animationConfigs={{

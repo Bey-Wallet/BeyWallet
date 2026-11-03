@@ -54,9 +54,10 @@ export function ResultStage(props: ResultStageProps) {
         onCheckStatus={props.onCheckStatus}
         isCheckingStatus={props.isCheckingStatus}
         isReclaiming={reclaiming}
-        footerExtra={
+        customHeaderRight={() =>
           receipt && (
             <ReceiptImageShare
+              iconOnly
               receipt={receipt}
               ecashToken={cleanToken(props.token)}
               disabled={reclaiming}
@@ -80,9 +81,7 @@ export function ResultStage(props: ResultStageProps) {
   return (
     <PaymentReceipt
       status={props.status === 'success' ? 'success' : 'error'}
-      title={
-        props.status === 'error' ? 'Send not completed' : props.title || 'Ecash ready to share'
-      }
+      title={props.status === 'error' ? 'Send failed' : props.title || 'Share ecash'}
       amount={Number(props.amount)}
       mintUrl={props.mintUrl}
       time={time}

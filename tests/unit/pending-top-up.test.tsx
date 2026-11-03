@@ -94,6 +94,28 @@ it('preserves an unpaid invoice QR and refresh without an extra check button', a
   ]);
 });
 
+it('puts live Lightning receipt sharing in the header instead of the action area', async () => {
+  await act(async () => {
+    tree = create(
+      <PaymentStage
+        amount="64"
+        invoice="lnbc123synthetic"
+        quoteId="quote"
+        mintUrl="https://mint.example"
+        onPaid={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+  });
+  const header = tree.root.findByType('Header' as any);
+  const share = header.props.headerRight();
+  expect(header.props.title.split(/\s+/).length).toBeLessThanOrEqual(2);
+  expect(share.type).toBe('ReceiptShare');
+  expect(share.props.iconOnly).toBe(true);
+  expect(share.props.receipt).toMatchObject({ method: 'Lightning', status: 'Pending' });
+  expect(tree.root.findAllByType('ReceiptShare' as any)).toHaveLength(0);
+});
+
 it.each([true, false])('blocks collection while offline=%s or busy', async (offline) => {
   await act(async () => {
     tree = create(

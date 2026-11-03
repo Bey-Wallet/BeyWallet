@@ -23,11 +23,13 @@ export function ReceiptImageShare({
   receipt,
   disabled,
   ecashToken,
+  iconOnly = false,
 }: {
   receipt: ShareableReceipt;
   disabled?: boolean;
   /** Explicitly authorized spendable token export, separate from the public receipt model. */
   ecashToken?: string;
+  iconOnly?: boolean;
 }) {
   const theme = useTheme();
   const colors =
@@ -107,28 +109,33 @@ export function ReceiptImageShare({
     }
     return { qrPath, qrCount };
   }, [qrValue]);
+  const openPreview = () => {
+    setError('');
+    setPreview({
+      ...receipt,
+      ecashQr: staticToken,
+      amount: values.primary ?? 'Conversion unavailable',
+      secondary: values.secondary
+        ? `≈ ${values.secondary}`
+        : secondaryCurrency !== 'NONE'
+          ? 'Conversion unavailable'
+          : null,
+    });
+  };
   return (
     <>
-      <AppButton
-        emphasis="text"
-        icon={Share2}
-        disabled={disabled}
-        onPress={() => {
-          setError('');
-          setPreview({
-            ...receipt,
-            ecashQr: staticToken,
-            amount: values.primary ?? 'Conversion unavailable',
-            secondary: values.secondary
-              ? `≈ ${values.secondary}`
-              : secondaryCurrency !== 'NONE'
-                ? 'Conversion unavailable'
-                : null,
-          });
-        }}
-      >
-        Share receipt image
-      </AppButton>
+      {iconOnly ? (
+        <HeaderIconButton
+          icon={Share2}
+          accessibilityLabel="Share receipt image"
+          disabled={disabled}
+          onPress={openPreview}
+        />
+      ) : (
+        <AppButton emphasis="text" icon={Share2} disabled={disabled} onPress={openPreview}>
+          Share receipt image
+        </AppButton>
+      )}
       {preview && (
         <AppBottomSheet
           ref={sheet}

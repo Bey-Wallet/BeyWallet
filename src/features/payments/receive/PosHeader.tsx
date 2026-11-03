@@ -3,7 +3,15 @@ import { X } from '@tamagui/lucide-icons';
 import { Text, XStack } from 'tamagui';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 
-export function PosHeader({ onBack, disabled }: { onBack: () => void; disabled?: boolean }) {
+export function PosHeader({
+  onBack,
+  disabled,
+  headerRight,
+}: {
+  onBack: () => void;
+  disabled?: boolean;
+  headerRight?: React.ReactNode;
+}) {
   return (
     <XStack minHeight={64} items="center" gap="$2" pb="$2">
       <HeaderIconButton
@@ -20,9 +28,9 @@ export function PosHeader({ onBack, disabled }: { onBack: () => void; disabled?:
         textAlign="center"
         accessibilityRole="header"
       >
-        Point of sale
+        Checkout
       </Text>
-      <XStack width={48} />
+      <XStack width={48}>{headerRight}</XStack>
     </XStack>
   );
 }

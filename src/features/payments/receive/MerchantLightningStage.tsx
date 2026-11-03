@@ -19,6 +19,7 @@ export function MerchantLightningStage({
   onBusyChange,
   onClose,
   listening = true,
+  renderHeader,
 }: {
   amount: number;
   mintUrl: string;
@@ -27,6 +28,7 @@ export function MerchantLightningStage({
   onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   listening?: boolean;
+  renderHeader?: (action: React.ReactNode) => React.ReactNode;
 }) {
   const [quote, setQuote] = useState<Quote>();
   const [failed, setFailed] = useState(false);
@@ -95,28 +97,32 @@ export function MerchantLightningStage({
   };
   if (!quote)
     return (
-      <YStack flex={1} items="center" justify="center" gap="$3">
-        {creating && <Spinner size="large" />}
-        {failed && (
-          <>
-            <Text fontFamily="$body" fontSize={13} color="$gray10" text="center">
-              Could not create the invoice. Check your connection and try again.
-            </Text>
-            <AppButton
-              emphasis="secondary"
-              onPress={() => {
-                pendingQuote.current = null;
-                setAttempt((value) => value + 1);
-              }}
-            >
-              Retry
-            </AppButton>
-          </>
-        )}
-      </YStack>
+      <>
+        {renderHeader?.(null)}
+        <YStack flex={1} items="center" justify="center" gap="$3">
+          {creating && <Spinner size="large" />}
+          {failed && (
+            <>
+              <Text fontFamily="$body" fontSize={13} color="$gray10" text="center">
+                Could not create the invoice. Check your connection and try again.
+              </Text>
+              <AppButton
+                emphasis="secondary"
+                onPress={() => {
+                  pendingQuote.current = null;
+                  setAttempt((value) => value + 1);
+                }}
+              >
+                Retry
+              </AppButton>
+            </>
+          )}
+        </YStack>
+      </>
     );
   return (
     <PaymentStage
+      renderHeader={renderHeader}
       appearance="pos"
       note={note}
       amount={String(amount)}

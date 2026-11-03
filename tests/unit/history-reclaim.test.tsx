@@ -196,19 +196,24 @@ async function render() {
 }
 const pending = () => tree.root.findByType('PendingToken' as any);
 
-it('places receipt sharing inside the pending action footer instead of after the flex layout', async () => {
+it('places receipt sharing in the pending header beside the delete action', async () => {
   await render();
-  const share = pending().props.footerExtra;
+  const actions = pending().props.customHeaderRight();
+  const share = actions.props.children[0];
   expect(share.type).toBe('ReceiptShare');
+  expect(share.props.iconOnly).toBe(true);
   expect(share.props.ecashToken).toBe('synthetic-token');
   expect(share.props.receipt).toMatchObject({ status: 'Pending', direction: 'Sending' });
+  expect(actions.props.children[1].props.accessibilityLabel).toBe('Delete transaction');
+  expect(pending().props.headerRightWidth).toBe(96);
+  expect(pending().props.footerExtra).toBeUndefined();
   expect(tree.root.findAllByType('ReceiptShare' as any)).toHaveLength(0);
 });
 
-it('keeps a pending incoming receipt in the footer without exporting its spendable token', async () => {
+it('keeps a pending incoming receipt in the header without exporting its spendable token', async () => {
   mockEntry.type = 'receive';
   await render();
-  expect(pending().props.footerExtra.props.ecashToken).toBeUndefined();
+  expect(pending().props.customHeaderRight().props.children[0].props.ecashToken).toBeUndefined();
 });
 
 it('waits for local receipt details before opening the final presentation', async () => {

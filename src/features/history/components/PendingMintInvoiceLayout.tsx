@@ -35,6 +35,8 @@ interface PendingMintInvoiceLayoutProps {
   onPaid: () => Promise<void> | void;
   extraDetails?: React.ReactNode;
   offline?: boolean;
+  headerRight?: () => React.ReactNode;
+  headerRightWidth?: number;
 }
 
 export function PendingMintInvoiceLayout({
@@ -50,6 +52,8 @@ export function PendingMintInvoiceLayout({
   onPaid,
   extraDetails,
   offline = false,
+  headerRight,
+  headerRightWidth,
 }: PendingMintInvoiceLayoutProps) {
   const toast = useAppToast();
   const [copied, setCopied] = useState(false);
@@ -73,7 +77,11 @@ export function PendingMintInvoiceLayout({
 
   return (
     <>
-      <PaymentFlowHeader title="Pending top-up" />
+      <PaymentFlowHeader
+        title="Pending top-up"
+        headerRight={headerRight}
+        headerRightWidth={headerRightWidth}
+      />
       <PaymentStageLayout
         variant="qr"
         footer={

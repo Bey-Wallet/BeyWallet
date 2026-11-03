@@ -6,20 +6,12 @@ import { AppButton } from '~/shared/ui/AppButton';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, useWindowDimensions } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { FullWindowOverlay } from 'react-native-screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
-import {
-  ArrowUpRight,
-  ArrowDownLeft,
-  AlertTriangle,
-  Settings2,
-  Ban,
-  Check,
-  X,
-} from '@tamagui/lucide-icons';
+import { AlertTriangle, Settings2, Ban, Check, X } from '@tamagui/lucide-icons';
 import NfcIcon from '~/shared/icons/NfcIcon';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,12 +28,12 @@ import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 const stateIcons = {
   starting: Spinner,
   ready: NfcIcon,
-  reading: NfcIcon,
-  sending: ArrowUpRight,
-  receiving: ArrowDownLeft,
-  paying: ArrowUpRight,
+  reading: Spinner,
+  sending: Spinner,
+  receiving: Spinner,
+  paying: Spinner,
   pending: Spinner,
-  unconfirmed: Spinner,
+  unconfirmed: AlertTriangle,
   confirmed: Check,
   error: AlertTriangle,
   disabled: Settings2,
@@ -70,6 +62,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   );
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const theme = useTheme();
   const authenticated = useAuthStore((store) => store.isAuthenticated);
   const biometric = useSettingsStore((store) => store.biometricEnabled);
@@ -153,12 +146,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                 (state.status === 'error' && state.hasPayment)
               ? { label: 'Refresh status', run: nfcFlow.refresh }
               : undefined;
-  const showHistory = ['unconfirmed', 'error'].includes(state.status) && state.hasPayment;
+  const showHistory =
+    ['pending', 'unconfirmed', 'error'].includes(state.status) && state.hasPayment;
+  const showNewPayment = showHistory;
   const showRefresh = retryDelivery && state.hasPayment;
   const showCheckNfc = state.status === 'disabled';
   return (
     <AppBottomSheet
       ref={sheetRef}
+      backgroundColor="$background"
       scrollable
       containerComponent={Platform.OS === 'ios' ? NfcWindowOverlay : undefined}
       canDismiss={!state.visible || !state.locked}
@@ -172,7 +168,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$3">
+        <YStack gap="$4" minHeight={Math.min(300, Math.round(height * 0.65))}>
           <XStack py="$2" items="center" gap="$3">
             <HeaderIconButton
               accessibilityLabel="Close NFC"
@@ -198,7 +194,8 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             <YStack
               testID="nfc-sheet-status"
               width="100%"
-              py="$2"
+              minHeight={200}
+              py="$4"
               gap="$3"
               items="center"
               justify="center"
@@ -220,17 +217,33 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
               {state.amount !== undefined && (
                 <PaymentAmount amount={state.amount} compact size="prominent" />
               )}
-              <Text
-                fontFamily="$body"
-                {...appTypography.body2}
-                color="$gray10"
-                textAlign="center"
-                maxWidth={360}
-              >
-                {state.message}
-              </Text>
+              {state.message !== state.error && (
+                <Text
+                  fontFamily="$body"
+                  {...appTypography.body2}
+                  color="$gray10"
+                  textAlign="center"
+                  maxWidth={360}
+                  accessibilityLiveRegion="polite"
+                >
+                  {state.message}
+                </Text>
+              )}
             </YStack>
             <YStack width="100%" gap="$3" items="center">
+              {state.error && (
+                <YStack width="100%" bg="$gray3" rounded="$6" p="$3">
+                  <Text
+                    accessibilityRole="alert"
+                    accessibilityLiveRegion="assertive"
+                    fontFamily="$body"
+                    {...appTypography.body2}
+                    color="$red10"
+                  >
+                    {state.error}
+                  </Text>
+                </YStack>
+              )}
               {state.mintUrl && (
                 <ListTable width="100%">
                   <ListTableRow
@@ -253,7 +266,9 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                     emphasis="primary"
                     size="large"
                     flex={1}
-                    disabled={state.locked}
+                    disabled={state.locked || state.checkingStatus}
+                    loading={primaryAction.label === 'Refresh status' && state.checkingStatus}
+                    loadingText="Checking status…"
                     onPress={primaryAction.run}
                   >
                     {primaryAction.label}
@@ -267,7 +282,9 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                       variant="default"
                       emphasis="secondary"
                       size="xsmall"
-                      disabled={state.locked}
+                      disabled={state.locked || state.checkingStatus}
+                      loading={state.checkingStatus}
+                      loadingText="Checking status…"
                       onPress={nfcFlow.refresh}
                     >
                       Refresh status
@@ -278,7 +295,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                       variant="default"
                       emphasis="secondary"
                       size="xsmall"
-                      disabled={state.locked}
+                      disabled={state.locked || state.checkingStatus}
                       onPress={nfcFlow.retry}
                     >
                       Check NFC
@@ -296,6 +313,22 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                     </AppButton>
                   )}
                 </XStack>
+              )}
+              {showNewPayment && (
+                <YStack width="100%" gap="$2">
+                  <AppButton
+                    emphasis="secondary"
+                    size="large"
+                    fullWidth
+                    disabled={state.locked}
+                    onPress={nfcFlow.newPayment}
+                  >
+                    Try new payment
+                  </AppButton>
+                  <Text {...appTypography.body2} color="$gray10" textAlign="center">
+                    The previous payment may still complete. Check History before paying it again.
+                  </Text>
+                </YStack>
               )}
             </YStack>
           </YStack>

@@ -214,15 +214,9 @@ export default function MintScreen() {
   return (
     <YStack flex={1} bg="$background" px="$4">
       <Stack.Screen />
-      {(step === 'amount' || step === 'payment') && (
+      {step === 'amount' && (
         <PaymentFlowHeader
-          title={
-            requestRecipient
-              ? 'Request Lightning'
-              : step === 'payment'
-                ? 'Pay invoice'
-                : 'Mint Ecash'
-          }
+          title={requestRecipient ? 'Request Lightning' : 'Mint Ecash'}
           navigationAction="close"
           onBack={handleClose}
           disabled={isCreatingQuote || requestSending}
@@ -257,6 +251,7 @@ export default function MintScreen() {
 
       {step === 'payment' && quoteData && (
         <PaymentStage
+          onClose={handleClose}
           amount={amount}
           invoice={quoteData.invoice}
           quoteId={quoteData.quoteId}

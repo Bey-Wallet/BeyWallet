@@ -4,6 +4,9 @@ Screen headers use centered `ModalHeaderTitle` text and the canvas background, w
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
+Shared bottom sheets use `$background` with a 1-point `$borderColor` top border.
+Pending payment screens use short header titles (at most two words) and a right-side header icon
+for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
 step; `X` dismisses a standalone modal, scanner, root sheet, or finished flow. Nested sheet steps
 use a back arrow. Other header actions stay on the right. Screen-specific callbacks, loading

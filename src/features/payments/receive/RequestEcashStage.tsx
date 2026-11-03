@@ -60,6 +60,7 @@ interface RequestEcashStageProps {
     note?: string;
     onReceived: () => void;
     onBusyChange: (busy: boolean) => void;
+    renderHeader?: (action: React.ReactNode) => React.ReactNode;
   };
 }
 
@@ -502,14 +503,6 @@ export function RequestEcashStage({
       ? nfcRequest
       : null,
   );
-  const header = (
-    <PaymentFlowHeader
-      navigationAction="close"
-      title={step === 'success' ? 'Payment received' : 'Request ecash'}
-      onBack={onClose}
-      disabled={isGenerating || isSending}
-    />
-  );
   const savedRequest = useNostrRequestStore
     .getState()
     .requests.find((request) => request.id === currentRequestId);
@@ -519,6 +512,18 @@ export function RequestEcashStage({
         { request: creqString || undefined },
       )
     : null;
+  const shareAction = publicReceipt && (
+    <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isRequestBusy} />
+  );
+  const header = (
+    <PaymentFlowHeader
+      navigationAction="close"
+      title={step === 'success' ? 'Payment received' : 'Request ecash'}
+      onBack={onClose}
+      disabled={isGenerating || isSending}
+      headerRight={() => shareAction}
+    />
+  );
   if (step === 'success') {
     if (merchant) return null;
     return (
@@ -537,7 +542,7 @@ export function RequestEcashStage({
 
   return (
     <>
-      {!merchant && header}
+      {merchant ? merchant.renderHeader?.(shareAction) : header}
       <PaymentStageLayout
         variant="qr"
         inset={!merchant}
@@ -702,7 +707,6 @@ export function RequestEcashStage({
             Send request
           </AppButton>
         )}
-        {publicReceipt && <ReceiptImageShare receipt={publicReceipt} disabled={isRequestBusy} />}
       </PaymentStageLayout>
     </>
   );

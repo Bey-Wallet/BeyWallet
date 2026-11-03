@@ -104,6 +104,20 @@ const ecashReceipt = buildShareableReceipt({
   createdAt: Date.now(),
 })!;
 
+it('opens the same pending ecash image preview from an accessible header icon', async () => {
+  await act(async () => {
+    tree = create(
+      <ReceiptImageShare receipt={ecashReceipt} ecashToken="cashuBsynthetic" iconOnly />,
+    );
+  });
+  const button = tree.root.findByProps({ accessibilityLabel: 'Share receipt image' });
+  expect(button.props.icon).toBe('Share2');
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+  await act(async () => button.props.onPress());
+  expect(tree.root.findByProps({ testID: 'receipt-qr' })).toBeDefined();
+  expect(texts()).toContain('Ecash to share');
+});
+
 it.each([false, true])(
   'exports the entire pending ecash token in a compact themed receipt (dark=%s)',
   async (dark) => {

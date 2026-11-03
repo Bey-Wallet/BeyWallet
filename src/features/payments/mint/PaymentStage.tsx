@@ -18,6 +18,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { quotesService } from '~/services/wallet';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
+import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 
 interface PaymentStageProps {
   appearance?: 'default' | 'pos';
@@ -30,6 +31,8 @@ interface PaymentStageProps {
   onPaid: () => Promise<void> | void;
   onCancel: () => void;
   listening?: boolean;
+  onClose?: () => void;
+  renderHeader?: (action: React.ReactNode) => React.ReactNode;
   requestDelivery?: {
     onSend: () => Promise<void>;
     onView: () => void;
@@ -51,6 +54,8 @@ export function PaymentStage({
   onCancel,
   listening = true,
   requestDelivery,
+  onClose,
+  renderHeader,
 }: PaymentStageProps) {
   const sats = parseInt(amount, 10) || 0;
   const pos = appearance === 'pos';
@@ -149,96 +154,116 @@ export function PaymentStage({
   );
 
   return (
-    <PaymentStageLayout
-      variant="qr"
-      inset={false}
-      hero={
-        <>
-          {pos && (
-            <YStack items="center" gap="$2" width="100%">
-              <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
-              {!!note && (
-                <Text fontSize={13} color="$color" textAlign="center">
-                  {note}
-                </Text>
-              )}
-              {!isExpired && (
-                <Text fontSize={13} color="$color">
-                  Scan to pay with Lightning
-                </Text>
-              )}
+    <>
+      {renderHeader
+        ? renderHeader(
+            publicReceipt && (
+              <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isChecking} />
+            ),
+          )
+        : !pos && (
+            <PaymentFlowHeader
+              title={requestDelivery ? 'Request Lightning' : 'Pay invoice'}
+              navigationAction="close"
+              onBack={onClose || onCancel}
+              disabled={isChecking || requestDelivery?.sending}
+              headerRight={() =>
+                publicReceipt && (
+                  <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isChecking} />
+                )
+              }
+            />
+          )}
+      <PaymentStageLayout
+        variant="qr"
+        inset={false}
+        hero={
+          <>
+            {pos && (
+              <YStack items="center" gap="$2" width="100%">
+                <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
+                {!!note && (
+                  <Text fontSize={13} color="$color" textAlign="center">
+                    {note}
+                  </Text>
+                )}
+                {!isExpired && (
+                  <Text fontSize={13} color="$color">
+                    Scan to pay with Lightning
+                  </Text>
+                )}
+              </YStack>
+            )}
+            {isExpired && (
+              <Text fontSize={13} fontWeight="500" color="$gray10">
+                Invoice expired
+              </Text>
+            )}
+            {!isExpired && (
+              <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
+                {(size) => (
+                  <QRCode value={invoice} size={size} backgroundColor="white" color="black" />
+                )}
+              </PaymentQRFrame>
+            )}
+            {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
+          </>
+        }
+        footer={
+          pos ? (
+            <YStack rounded={999} overflow="hidden">
+              {paymentAction}
             </YStack>
-          )}
-          {isExpired && (
-            <Text fontSize={13} fontWeight="500" color="$gray10">
-              Invoice expired
-            </Text>
-          )}
-          {!isExpired && (
-            <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
-              {(size) => (
-                <QRCode value={invoice} size={size} backgroundColor="white" color="black" />
-              )}
-            </PaymentQRFrame>
-          )}
-          {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
-        </>
-      }
-      footer={
-        pos ? (
-          <YStack rounded={999} overflow="hidden">
-            {paymentAction}
-          </YStack>
-        ) : (
-          paymentAction
-        )
-      }
-    >
-      {!!requestDelivery?.error && (
-        <Text color="$red10" accessibilityRole="alert" fontSize={13}>
-          {requestDelivery.error}
-        </Text>
-      )}
-      <ListTable compact>
-        <PaymentStatusRow
-          status={isExpired ? 'cancelled' : 'pending'}
-          value={isExpired ? 'Expired' : 'Awaiting payment'}
-          onRefresh={() => checkPayment()}
-          checking={isChecking}
-          disabled={isExpired || offline}
-        />
-        <ListTableRow label="Mint" value={mintDisplayName} />
-        <ListTableRow
-          label="Invoice"
-          value={invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice}
-          isCopyable
-          copyValue={invoice}
-          onCopy={handleCopy}
-          disabled={isChecking || isExpired}
-        />
-        <ListTableRow
-          label="Expires in"
-          value={
-            isExpired
-              ? 'Expired'
-              : timeLeft === null
-                ? 'Not provided'
-                : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
-          }
-        />
-      </ListTable>
-      {!isExpired && !requestDelivery?.queued && (
-        <AppButton
-          variant="default"
-          emphasis="text"
-          fullWidth
-          disabled={isChecking || requestDelivery?.sending}
-          onPress={onCancel}
-        >
-          Cancel
-        </AppButton>
-      )}
-      {publicReceipt && <ReceiptImageShare receipt={publicReceipt} disabled={isChecking} />}
-    </PaymentStageLayout>
+          ) : (
+            paymentAction
+          )
+        }
+      >
+        {!!requestDelivery?.error && (
+          <Text color="$red10" accessibilityRole="alert" fontSize={13}>
+            {requestDelivery.error}
+          </Text>
+        )}
+        <ListTable compact>
+          <PaymentStatusRow
+            status={isExpired ? 'cancelled' : 'pending'}
+            value={isExpired ? 'Expired' : 'Awaiting payment'}
+            onRefresh={() => checkPayment()}
+            checking={isChecking}
+            disabled={isExpired || offline}
+          />
+          <ListTableRow label="Mint" value={mintDisplayName} />
+          <ListTableRow
+            label="Invoice"
+            value={invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice}
+            isCopyable
+            copyValue={invoice}
+            onCopy={handleCopy}
+            disabled={isChecking || isExpired}
+          />
+          <ListTableRow
+            label="Expires in"
+            value={
+              isExpired
+                ? 'Expired'
+                : timeLeft === null
+                  ? 'Not provided'
+                  : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+            }
+          />
+        </ListTable>
+        {!isExpired && !requestDelivery?.queued && (
+          <AppButton
+            variant="default"
+            emphasis="text"
+            fullWidth
+            disabled={isChecking || requestDelivery?.sending}
+            onPress={onCancel}
+          >
+            Cancel
+          </AppButton>
+        )}
+      </PaymentStageLayout>
+    </>
   );
 }

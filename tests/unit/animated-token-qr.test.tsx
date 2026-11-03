@@ -29,7 +29,12 @@ jest.mock('@react-navigation/native', () => {
   return { FocusContext, useIsFocused: () => React.useContext(FocusContext) };
 });
 jest.mock('~/shared/ui/PaymentQRCode', () => ({ __esModule: true, default: 'QR' }));
-jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: () => mockHeader() }));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
+  PaymentFlowHeader: ({ headerRight }: any) => {
+    mockHeader();
+    return require('react').createElement('Header', null, headerRight?.());
+  },
+}));
 jest.mock('~/shared/ui/PaymentQRFrame', () => ({
   PaymentQRFrame: ({ children }: any) => children(280),
 }));
@@ -148,19 +153,20 @@ it('shows the complete small token as a static pending QR with no animation time
   expect(jest.getTimerCount()).toBe(0);
 });
 
-it('keeps the additional receipt action in the same footer as Send', async () => {
+it('places the receipt action in the header beside the pending token layout', async () => {
   await render(
     <PendingTokenLayout
       token="cashuBsynthetic"
       amount={1}
-      footerExtra={<Text testID="receipt-action">Share receipt image</Text>}
+      customHeaderRight={() => <Text testID="receipt-action">Share receipt image</Text>}
     />,
   );
   const send = tree.root
     .findAllByType('Button' as any)
     .find((node) => node.props.children === 'Send')!;
   const receiptAction = tree.root.findByProps({ testID: 'receipt-action' });
-  expect(send.parent).toBe(receiptAction.parent);
+  expect(receiptAction.parent?.type).toBe('Header');
+  expect(send.parent).not.toBe(receiptAction.parent);
 });
 
 it('offers an explicit pending ecash image from a newly created send without marking it paid', async () => {
@@ -184,7 +190,9 @@ it('offers an explicit pending ecash image from a newly created send without mar
   const send = tree.root
     .findAllByType('Button' as any)
     .find((node) => node.props.children === 'Send')!;
-  expect(send.parent).toBe(share.parent);
+  expect(share.props.iconOnly).toBe(true);
+  expect(share.parent?.type).toBe('Header');
+  expect(send.parent).not.toBe(share.parent);
 });
 
 it('switches between static and animated tokens without retaining an old frame or timer', async () => {

@@ -37,6 +37,43 @@ function MerchantCheckout({
   const [ecashBusy, setEcashBusy] = useState(false);
   const [lightningBusy, setLightningBusy] = useState(false);
   const busy = ecashBusy || lightningBusy;
+  const renderHeader = (action: React.ReactNode) => (
+    <>
+      <PosHeader onBack={onClose} disabled={busy} headerRight={action} />
+      <XStack gap="$1" p="$1" mb="$2" rounded={999} bg="$buttonDefaultSecondary">
+        {(['ecash', 'lightning'] as const).map((value) => (
+          <AppPressable
+            key={value}
+            flex={1}
+            minHeight={48}
+            rounded={999}
+            items="center"
+            justify="center"
+            bg={method === value ? '$buttonDefaultPrimary' : 'transparent'}
+            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            accessibilityRole="tab"
+            disabled={busy}
+            accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
+            accessibilityState={{ selected: method === value }}
+            onPress={() => {
+              if (busy) return;
+              setMethod(value);
+              if (value === 'lightning') setLightningOpened(true);
+            }}
+          >
+            <Text
+              fontFamily="$body"
+              fontSize={14}
+              fontWeight="600"
+              color={method === value ? '$buttonDefaultPrimaryText' : '$color'}
+            >
+              {value === 'ecash' ? 'Ecash' : 'Lightning'}
+            </Text>
+          </AppPressable>
+        ))}
+      </XStack>
+    </>
+  );
   useSettingsBusy(busy);
   const received = useCallback(() => {
     if (settled.current) return;
@@ -47,7 +84,7 @@ function MerchantCheckout({
   }, []);
   return (
     <>
-      <PosHeader onBack={onClose} disabled={busy} />
+      {completed && <PosHeader onBack={onClose} disabled={busy} />}
       {completed ? (
         <PaymentStageLayout
           inset={false}
@@ -77,42 +114,7 @@ function MerchantCheckout({
             </YStack>
           }
         />
-      ) : (
-        <>
-          <XStack gap="$1" p="$1" mb="$2" rounded={999} bg="$buttonDefaultSecondary">
-            {(['ecash', 'lightning'] as const).map((value) => (
-              <AppPressable
-                key={value}
-                flex={1}
-                minHeight={48}
-                rounded={999}
-                items="center"
-                justify="center"
-                bg={method === value ? '$buttonDefaultPrimary' : 'transparent'}
-                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-                accessibilityRole="tab"
-                disabled={busy}
-                accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
-                accessibilityState={{ selected: method === value }}
-                onPress={() => {
-                  if (busy) return;
-                  setMethod(value);
-                  if (value === 'lightning') setLightningOpened(true);
-                }}
-              >
-                <Text
-                  fontFamily="$body"
-                  fontSize={14}
-                  fontWeight="600"
-                  color={method === value ? '$buttonDefaultPrimaryText' : '$color'}
-                >
-                  {value === 'ecash' ? 'Ecash' : 'Lightning'}
-                </Text>
-              </AppPressable>
-            ))}
-          </XStack>
-        </>
-      )}
+      ) : null}
       {/* Keep both receivers mounted: a payment to the previously displayed method still belongs to this sale. */}
       <YStack flex={1} display={!completed && method === 'ecash' ? 'flex' : 'none'}>
         <RequestEcashStage
@@ -122,12 +124,14 @@ function MerchantCheckout({
             onReceived: received,
             onBusyChange: setEcashBusy,
             completed,
+            renderHeader: !completed && method === 'ecash' ? renderHeader : undefined,
           }}
         />
       </YStack>
       {lightningOpened && (
         <YStack flex={1} display={!completed && method === 'lightning' ? 'flex' : 'none'}>
           <MerchantLightningStage
+            renderHeader={!completed && method === 'lightning' ? renderHeader : undefined}
             {...sale}
             onReceived={received}
             onBusyChange={setLightningBusy}
