@@ -547,11 +547,11 @@ export function RequestEcashStage({
               <YStack items="center" gap="$2" width="100%">
                 <PaymentAmount amount={merchant.amount} size="prominent" compact />
                 {!!merchant.note && (
-                  <Text color="$color" fontSize={14} textAlign="center">
+                  <Text color="$color" fontSize={13} textAlign="center">
                     {merchant.note}
                   </Text>
                 )}
-                <Text color="$color" fontSize={14}>
+                <Text color="$color" fontSize={13}>
                   Scan to pay with Ecash
                 </Text>
               </YStack>
@@ -674,11 +674,11 @@ export function RequestEcashStage({
         )}
         {nfcIncoming.status === 'review' && (
           <YStack gap="$2">
-            <Text accessibilityRole="alert" fontSize={14} color="$gray10">
+            <Text accessibilityRole="alert" fontSize={13} color="$gray10">
               {nfcIncoming.message}
             </Text>
             {!reviewingCurrentNfcRequest && (
-              <Text fontSize={14} color="$gray10">
+              <Text fontSize={13} color="$gray10">
                 You can create a QR request. NFC is paused until the saved payment is resolved.
               </Text>
             )}

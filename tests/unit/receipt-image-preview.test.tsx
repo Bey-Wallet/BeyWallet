@@ -232,7 +232,7 @@ it.each([false, true])(
     expect(promotion.props).toMatchObject({
       x: 320,
       textAnchor: 'middle',
-      fontSize: 16,
+      fontSize: 14,
       opacity: 0.5,
       fill: dark ? '#FFFFFF' : '#000000',
     });

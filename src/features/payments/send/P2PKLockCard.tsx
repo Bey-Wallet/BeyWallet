@@ -99,7 +99,7 @@ export function P2PKLockCard({
         )}
       </ListTable>
       {enabled && (
-        <Text fontSize={14} fontWeight="400" color="$gray10">
+        <Text fontSize={13} fontWeight="400" color="$gray10">
           {offline
             ? 'Go online to create locked ecash.'
             : 'Locks this ecash to the recipient public key. Check the key before creating it.'}
@@ -107,10 +107,10 @@ export function P2PKLockCard({
       )}
       <AppBottomSheet ref={sheet} onClose={Keyboard.dismiss}>
         <YStack p="$4" gap="$3">
-          <Text fontFamily="$body" fontSize={20} fontWeight="500" textAlign="center">
+          <Text fontFamily="$body" fontSize={18} fontWeight="500" textAlign="center">
             Recipient public key
           </Text>
-          <Text fontSize={14} fontWeight="400" color="$gray10">
+          <Text fontSize={13} fontWeight="400" color="$gray10">
             Hex public key (compressed, uncompressed, or x-only), npub, or nprofile.
           </Text>
           <BottomSheetTextInput
@@ -131,7 +131,7 @@ export function P2PKLockCard({
               backgroundColor: theme.gray3.val,
               borderRadius: 12,
               padding: 16,
-              fontSize: 14,
+              fontSize: 13,
               fontFamily: 'InterTextRegular',
               minHeight: 88,
               maxHeight: 160,
@@ -176,7 +176,7 @@ export function P2PKLockCard({
             </AppButton>
           </XStack>
           {(inputError || (draft.trim() && !normalized)) && (
-            <Text accessibilityRole="alert" fontSize={14} color="$red10">
+            <Text accessibilityRole="alert" fontSize={13} color="$red10">
               {inputError || 'Enter a valid public key: hex, npub, or nprofile.'}
             </Text>
           )}

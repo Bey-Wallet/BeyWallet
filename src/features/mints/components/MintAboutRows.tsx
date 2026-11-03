@@ -22,7 +22,7 @@ export function MintAboutRows({ url, info }: { url: string; info: Record<string,
     <>
       {description && (
         <YStack px="$page" py="$rowGap">
-          <Text color="$color" fontSize={14}>
+          <Text color="$color" fontSize={13}>
             {description}
           </Text>
         </YStack>

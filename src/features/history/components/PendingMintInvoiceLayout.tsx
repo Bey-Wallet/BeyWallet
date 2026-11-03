@@ -93,7 +93,7 @@ export function PendingMintInvoiceLayout({
         hero={
           <>
             {(paid || timeLeft === 0) && (
-              <Text fontSize={14} fontWeight="500" color="$gray10">
+              <Text fontSize={13} fontWeight="500" color="$gray10">
                 {paid ? 'Payment received' : 'Invoice expired'}
               </Text>
             )}

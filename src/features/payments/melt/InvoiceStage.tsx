@@ -273,11 +273,11 @@ export function InvoiceStage({
 
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 32;
-    if (len <= 10) return 28;
-    if (len <= 13) return 24;
-    return 20;
+    if (len <= 6) return 40;
+    if (len <= 8) return 29;
+    if (len <= 10) return 25;
+    if (len <= 13) return 22;
+    return 18;
   }, [formattedDisplayValue]);
 
   return (
@@ -402,7 +402,7 @@ export function InvoiceStage({
                   );
                 }}
               >
-                <Text fontSize={14} color="$color" fontWeight="500">{`${sats / 1000}k sat`}</Text>
+                <Text fontSize={13} color="$color" fontWeight="500">{`${sats / 1000}k sat`}</Text>
               </AppPressable>
             ))}
           </XStack>

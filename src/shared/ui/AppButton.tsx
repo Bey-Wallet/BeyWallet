@@ -134,7 +134,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
     ghostNeutral ? token('buttonGhostHighlighted') : token(`${prefix}${level}${state}`);
   const { height: minHeight, icon: regularIconSize, text: textStyle } = appButtonSizes[size];
   const labelStyle = appTypography[textStyle];
-  const resolvedFontSize = labelFontSize ?? labelStyle.fontSize;
+  const resolvedFontSize = Math.round(labelFontSize ?? labelStyle.fontSize);
   const compact = iconOnly && density === 'compact';
   const iconSize = requestedIconSize ?? regularIconSize;
   const hitPadding = Math.max(0, (appDimensions.touchTarget - minHeight) / 2);
@@ -240,7 +240,9 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
             fontWeight="600"
             fontSize={resolvedFontSize}
             lineHeight={
-              labelFontSize === undefined ? labelStyle.lineHeight : resolvedFontSize * 1.4
+              labelFontSize === undefined
+                ? labelStyle.lineHeight
+                : Math.round(resolvedFontSize * 1.4)
             }
             letterSpacing={labelStyle.letterSpacing}
             color={color}

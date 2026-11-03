@@ -111,7 +111,7 @@ export interface RollingNumberProps {
 export const RollingNumber = ({
   value,
   children,
-  fontSize = 44,
+  fontSize = 40,
   color = 'black',
   fontWeight = '400',
   fontFamily,
@@ -143,8 +143,8 @@ export const RollingNumber = ({
 
   const hasSatsSuffix = suffix.trim() === 'sat';
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
-  const itemHeight = lineHeight || fontSize * 1.1;
-  const resolvedFamily = fontFamily ?? (fontSize >= 28 ? '$display' : '$body');
+  const itemHeight = Math.round(lineHeight || fontSize * 1.1);
+  const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -205,7 +205,7 @@ export const RollingNumber = ({
         <Text
           color={color}
           fontWeight={fontWeight}
-          fontSize={Math.max(12, Math.round(fontSize * 0.55))}
+          fontSize={Math.max(11, Math.round(fontSize * 0.55))}
         >
           {' sat'}
         </Text>

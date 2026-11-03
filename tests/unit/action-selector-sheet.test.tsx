@@ -268,8 +268,8 @@ it.each(['send', 'receive'] as const)(
       });
       expect(option.findAllByType('ChevronRight' as any)).toHaveLength(0);
       const [label, description] = option.findAllByType('Text' as any);
-      expect(label.props).toMatchObject({ fontSize: 16, fontWeight: '500' });
-      expect(description.props).toMatchObject({ fontSize: 14, color: '$gray10' });
+      expect(label.props).toMatchObject({ fontSize: 14, fontWeight: '500' });
+      expect(description.props).toMatchObject({ fontSize: 13, color: '$gray10' });
       expect(description.props.children).toBe(option.props.accessibilityHint);
       expect(label.props.numberOfLines).toBeUndefined();
     }

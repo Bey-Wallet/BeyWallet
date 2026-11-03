@@ -70,7 +70,7 @@ it.each(['dark', 'light'] as const)(
         ),
       ).toBe(true);
       expect(
-        styles('primary').some((style) => style?.color === c.text && style?.fontSize === 16),
+        styles('primary').some((style) => style?.color === c.text && style?.fontSize === 14),
       ).toBe(true);
       expect(styles('secondary').some((style) => style?.color === c.secondaryText)).toBe(true);
       expect(styles('tertiary').some((style) => style?.color === c.tertiaryText)).toBe(true);
@@ -98,8 +98,8 @@ it.each(['dark', 'light'] as const)(
         labelStyles.some(
           (style) =>
             style?.fontFamily === 'InterTextSemiBold' &&
-            style?.fontSize === 16 &&
-            style?.lineHeight === 24,
+            style?.fontSize === 14 &&
+            style?.lineHeight === 22,
         ),
       ).toBe(true);
     } finally {

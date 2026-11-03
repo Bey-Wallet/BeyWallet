@@ -102,18 +102,18 @@ export function ToastContent({
           <Toast.Title
             flexShrink={1}
             fontFamily="$body"
-            fontSize={14}
+            fontSize={13}
             fontWeight="600"
             color="$iconPrimary"
-            lineHeight={20}
+            lineHeight={18}
           >
             {title}
           </Toast.Title>
           {!!message && (
             <Toast.Description
               fontFamily="$body"
-              fontSize={12}
-              lineHeight={18}
+              fontSize={11}
+              lineHeight={16}
               color="$gray10"
               numberOfLines={1}
             >

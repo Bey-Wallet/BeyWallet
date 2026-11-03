@@ -58,8 +58,8 @@ function MerchantCheckout({
               </YStack>
               <Text
                 fontFamily="$display"
-                fontSize={32}
-                lineHeight={38}
+                fontSize={29}
+                lineHeight={34}
                 fontWeight="600"
                 color="$color"
                 textAlign="center"
@@ -102,7 +102,7 @@ function MerchantCheckout({
               >
                 <Text
                   fontFamily="$body"
-                  fontSize={16}
+                  fontSize={14}
                   fontWeight="600"
                   color={method === value ? '$buttonDefaultPrimaryText' : '$color'}
                 >
@@ -195,7 +195,7 @@ function MerchantReceiveContent() {
         <>
           <PosHeader onBack={close} />
           {error && (
-            <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
+            <Text fontFamily="$body" fontSize={11} color="$red10" accessibilityRole="alert">
               {error}
             </Text>
           )}

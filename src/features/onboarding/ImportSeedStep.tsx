@@ -170,7 +170,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
             <H2 fontSize="$8" fontWeight="800" letterSpacing={-0.5} color="$color">
               Enter seed phrase
             </H2>
-            <Text color="$gray10" fontSize="$3" lineHeight={20}>
+            <Text color="$gray10" fontSize="$3" lineHeight={18}>
               If you’re using a seed phrase to import the wallet, separate each word with a space.
             </Text>
           </YStack>
@@ -317,7 +317,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
             {checkedConsent && <Check size={11} color="$onAccent" strokeWidth={4} />}
           </View>
           <YStack flex={1}>
-            <Text fontSize="$2" color="$gray10" lineHeight={15}>
+            <Text fontSize="$2" color="$gray10" lineHeight={14}>
               I understand that my ecash is stored locally, mints hold the backing Bitcoin, and
               BeyWallet is not liable for lost funds.
             </Text>

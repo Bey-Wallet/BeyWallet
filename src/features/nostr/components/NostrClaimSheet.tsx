@@ -207,7 +207,7 @@ export function NostrClaimSheet() {
           <YStack gap="$4" items="center">
             {claimStatus === 'success' ? (
               <>
-                <Text fontFamily="$display" fontSize={44} fontWeight="600" color="$color">
+                <Text fontFamily="$display" fontSize={40} fontWeight="600" color="$color">
                   {primaryAmount}
                 </Text>
                 {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
@@ -265,7 +265,7 @@ export function NostrClaimSheet() {
                     </Text>
                     {senderProfile?.nip05Verified === true && <Nip05VerifiedBadge />}
                   </XStack>
-                  <Text fontFamily="$display" fontSize={32} fontWeight="600" color="$color">
+                  <Text fontFamily="$display" fontSize={29} fontWeight="600" color="$color">
                     {primaryAmount}
                   </Text>
                   {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}

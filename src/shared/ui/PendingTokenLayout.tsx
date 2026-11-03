@@ -392,7 +392,7 @@ export function PendingTokenLayout({
               }}
             >
               <Share2 size={24} color="$color" />
-              <Text fontWeight="800" fontSize={16} color="$color" flex={1}>
+              <Text fontWeight="800" fontSize={14} color="$color" flex={1}>
                 Share via App
               </Text>
             </XStack>
@@ -410,7 +410,7 @@ export function PendingTokenLayout({
               }}
             >
               <Nfc size={24} color="$color" />
-              <Text fontWeight="800" fontSize={16} color="$color" flex={1}>
+              <Text fontWeight="800" fontSize={14} color="$color" flex={1}>
                 NFC Send
               </Text>
             </XStack>
@@ -428,7 +428,7 @@ export function PendingTokenLayout({
               }}
             >
               {copied ? <Check size={24} color="$green10" /> : <Copy size={24} color="$color" />}
-              <Text fontWeight="800" fontSize={16} color={copied ? '$green10' : '$color'} flex={1}>
+              <Text fontWeight="800" fontSize={14} color={copied ? '$green10' : '$color'} flex={1}>
                 {copied ? 'Copied!' : 'Copy Token'}
               </Text>
             </XStack>

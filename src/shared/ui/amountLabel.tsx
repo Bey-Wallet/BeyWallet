@@ -7,7 +7,7 @@ export function amountLabel(value: string, fontSize: number): React.ReactNode {
   return (
     <>
       {value.slice(0, -4)}
-      <Text style={{ fontSize: Math.max(12, Math.round(fontSize * 0.55)), letterSpacing: 0 }}>
+      <Text style={{ fontSize: Math.max(11, Math.round(fontSize * 0.55)), letterSpacing: 0 }}>
         {' sat'}
       </Text>
     </>

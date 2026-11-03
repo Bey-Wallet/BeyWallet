@@ -257,11 +257,11 @@ export function OnchainMeltFlow() {
   // Dynamic font size based on string length to scale seamlessly
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 32;
-    if (len <= 10) return 28;
-    if (len <= 13) return 24;
-    return 20;
+    if (len <= 6) return 40;
+    if (len <= 8) return 29;
+    if (len <= 10) return 25;
+    if (len <= 13) return 22;
+    return 18;
   }, [formattedDisplayValue]);
 
   // Watch for scanned QR codes
@@ -607,7 +607,7 @@ export function OnchainMeltFlow() {
         ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
         : '—';
 
-    const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 32 : 40;
+    const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 29 : 36;
 
     return (
       <>
@@ -629,7 +629,7 @@ export function OnchainMeltFlow() {
           {/* Fee Option Selection Selector */}
           {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
             <YStack gap="$2">
-              <Text fontSize={12} color="$gray10" px="$1">
+              <Text fontSize={11} color="$gray10" px="$1">
                 Choose confirmation speed
               </Text>
               <ListTable>
@@ -651,7 +651,7 @@ export function OnchainMeltFlow() {
                   );
                 })}
               </ListTable>
-              <Text fontSize={12} color="$gray10" px="$1">
+              <Text fontSize={11} color="$gray10" px="$1">
                 Estimated confirmation time and maximum network fee.
               </Text>
             </YStack>

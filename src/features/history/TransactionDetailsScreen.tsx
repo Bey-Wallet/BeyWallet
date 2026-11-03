@@ -979,14 +979,14 @@ function TransactionDetailsContent() {
         <PaymentAmount amount={displayedAmount} size="prominent" compact />
       </YStack>
       {receivingFeeNotice && (
-        <Text color="$gray10" fontSize={12} accessibilityRole="alert">
+        <Text color="$gray10" fontSize={11} accessibilityRole="alert">
           {receivingFeeNotice}
         </Text>
       )}
       {receiptStatus === 'pending' &&
         latestCheck?.id === entry.id &&
         latestCheck.state === entry.state && (
-          <Text fontFamily="$body" fontSize={12} color="$gray10" accessibilityLiveRegion="polite">
+          <Text fontFamily="$body" fontSize={11} color="$gray10" accessibilityLiveRegion="polite">
             {latestCheck.message}
           </Text>
         )}

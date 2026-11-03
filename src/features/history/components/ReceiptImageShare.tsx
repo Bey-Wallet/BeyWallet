@@ -145,7 +145,7 @@ export function ReceiptImageShare({
                   disabled={sharing}
                   onPress={() => sheet.current?.dismiss()}
                 />
-                <Text flex={1} textAlign="center" fontFamily="$body" fontSize={16} fontWeight="600">
+                <Text flex={1} textAlign="center" fontFamily="$body" fontSize={14} fontWeight="600">
                   Share receipt
                 </Text>
                 <XStack width={48} />
@@ -164,7 +164,7 @@ export function ReceiptImageShare({
                 <G transform="translate(48 46)">
                   <BeyIcon size={42} color={colors.icon} />
                 </G>
-                <SvgText x={48} y={152} fontSize={22} fill={colors.secondaryText}>
+                <SvgText x={48} y={152} fontSize={20} fill={colors.secondaryText}>
                   {ecashImage ? 'Ecash to share' : 'Payment summary'}
                 </SvgText>
                 {qrValue && qrCount > 0 && (
@@ -179,7 +179,7 @@ export function ReceiptImageShare({
                 <SvgText
                   x={48}
                   y={254 + detailsOffset}
-                  fontSize={preview.amount.length > 16 ? 32 : preview.amount.length > 11 ? 46 : 64}
+                  fontSize={preview.amount.length > 16 ? 29 : preview.amount.length > 11 ? 41 : 58}
                   fontFamily="InterDisplaySemiBold"
                   fill={colors.icon}
                 >
@@ -193,7 +193,7 @@ export function ReceiptImageShare({
                     </G>
                   </G>
                 )}
-                <SvgText x={48} y={298 + detailsOffset} fontSize={24} fill={colors.secondaryText}>
+                <SvgText x={48} y={298 + detailsOffset} fontSize={22} fill={colors.secondaryText}>
                   {preview.secondary ||
                     (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                       ? 'Amount in satoshis'
@@ -207,39 +207,39 @@ export function ReceiptImageShare({
                   stroke={colors.separator}
                   strokeWidth={2}
                 />
-                <SvgText x={48} y={statusY} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY} fontSize={19} fill={colors.secondaryText}>
                   Status
                 </SvgText>
                 <SvgText
                   x={592}
                   y={statusY}
                   textAnchor="end"
-                  fontSize={21}
+                  fontSize={19}
                   fontFamily="InterTextMedium"
                   fill={statusColor}
                 >
                   {preview.status}
                 </SvgText>
-                <SvgText x={48} y={statusY + rowStep} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY + rowStep} fontSize={19} fill={colors.secondaryText}>
                   Type
                 </SvgText>
                 <SvgText
                   x={592}
                   y={statusY + rowStep}
                   textAnchor="end"
-                  fontSize={21}
+                  fontSize={19}
                   fill={colors.icon}
                 >
                   {preview.type}
                 </SvgText>
-                <SvgText x={48} y={statusY + rowStep * 2} fontSize={21} fill={colors.secondaryText}>
+                <SvgText x={48} y={statusY + rowStep * 2} fontSize={19} fill={colors.secondaryText}>
                   Mint
                 </SvgText>
                 <SvgText
                   x={592}
                   y={statusY + rowStep * 2}
                   textAnchor="end"
-                  fontSize={19}
+                  fontSize={17}
                   fill={colors.icon}
                 >
                   {preview.mint.length > 36 ? `${preview.mint.slice(0, 35)}…` : preview.mint}
@@ -249,7 +249,7 @@ export function ReceiptImageShare({
                     <SvgText
                       x={48}
                       y={statusY + rowStep * 3}
-                      fontSize={21}
+                      fontSize={19}
                       fill={colors.secondaryText}
                     >
                       Direction
@@ -258,7 +258,7 @@ export function ReceiptImageShare({
                       x={592}
                       y={statusY + rowStep * 3}
                       textAnchor="end"
-                      fontSize={21}
+                      fontSize={19}
                       fill={colors.icon}
                     >
                       {preview.direction}
@@ -268,7 +268,7 @@ export function ReceiptImageShare({
                 <SvgText
                   x={48}
                   y={statusY + rowStep * (ecashImage ? 3 : 4)}
-                  fontSize={21}
+                  fontSize={19}
                   fill={colors.secondaryText}
                 >
                   Date
@@ -277,7 +277,7 @@ export function ReceiptImageShare({
                   x={592}
                   y={statusY + rowStep * (ecashImage ? 3 : 4)}
                   textAnchor="end"
-                  fontSize={19}
+                  fontSize={17}
                   fill={colors.icon}
                 >
                   {preview.date}
@@ -286,7 +286,7 @@ export function ReceiptImageShare({
                   x={320}
                   y={imageHeight - 36}
                   textAnchor="middle"
-                  fontSize={16}
+                  fontSize={14}
                   fill={colors.icon}
                   opacity={0.5}
                 >
@@ -294,23 +294,23 @@ export function ReceiptImageShare({
                 </SvgText>
               </Svg>
               {ecashImage && (
-                <Text color="$gray10" fontSize={12}>
+                <Text color="$gray10" fontSize={11}>
                   Contains ecash. Share with the intended recipient.
                 </Text>
               )}
               {eligibleToken && !staticToken && (
-                <Text color="$gray10" fontSize={12}>
+                <Text color="$gray10" fontSize={11}>
                   This token needs an animated QR. Use Send to share the ecash; this image is a
                   receipt only.
                 </Text>
               )}
               {qrValue && !qrCount && (
-                <Text color="$red10" fontSize={12}>
+                <Text color="$red10" fontSize={11}>
                   This payment QR could not be encoded.
                 </Text>
               )}
               {error && (
-                <Text fontSize={12} color="$red10" accessibilityRole="alert">
+                <Text fontSize={11} color="$red10" accessibilityRole="alert">
                   {error}
                 </Text>
               )}

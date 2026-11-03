@@ -99,7 +99,7 @@ export function MerchantLightningStage({
         {creating && <Spinner size="large" />}
         {failed && (
           <>
-            <Text fontFamily="$body" fontSize={14} color="$gray10" text="center">
+            <Text fontFamily="$body" fontSize={13} color="$gray10" text="center">
               Could not create the invoice. Check your connection and try again.
             </Text>
             <AppButton

@@ -559,8 +559,8 @@ export default function ConversationScreen() {
                     {layout.showTime && (
                       <Text
                         self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
-                        fontSize={12}
-                        lineHeight={16}
+                        fontSize={11}
+                        lineHeight={14}
                         color="$gray10"
                         mt={4}
                         mx={4}
@@ -668,7 +668,7 @@ export default function ConversationScreen() {
               </Text>
             )}
             {accepted && person?.chatTransport === 'nip04' && (
-              <Text color="$gray10" fontSize={12}>
+              <Text color="$gray10" fontSize={11}>
                 Legacy messaging (NIP-04) · Sender, recipient and time are public
               </Text>
             )}
@@ -696,8 +696,8 @@ export default function ConversationScreen() {
                   rounded={16}
                   px="$3"
                   py={10}
-                  fontSize={16}
-                  lineHeight={22}
+                  fontSize={14}
+                  lineHeight={20}
                   textAlignVertical="top"
                   scrollEnabled={contentHeight > maxInputHeight}
                   onContentSizeChange={(event) =>

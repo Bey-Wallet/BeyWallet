@@ -143,16 +143,16 @@ export default function BitcoinPriceCard() {
           <XStack gap="$3" items="center">
             {data ? (
               showSats ? (
-                <Text fontSize={16} fontWeight="700" color="$orange12">
+                <Text fontSize={14} fontWeight="700" color="$orange12">
                   {formatSatPrice(data.price)}
                 </Text>
               ) : (
-                <Text fontSize={16} fontWeight="700" color="$orange12">
+                <Text fontSize={14} fontWeight="700" color="$orange12">
                   {formatCurrency(data.price)}
                 </Text>
               )
             ) : (
-              <Text color="$gray10" fontSize={14}>
+              <Text color="$gray10" fontSize={13}>
                 {isFetching ? 'Loading price…' : 'Price unavailable'}
               </Text>
             )}
@@ -182,22 +182,22 @@ export default function BitcoinPriceCard() {
               <XStack justify="space-between">
                 {showSats ? (
                   <Text
-                    fontSize={24}
+                    fontSize={22}
                     fontWeight={800}
                     letterSpacing={-1.2}
                     color="$accent4"
-                    lineHeight={36}
+                    lineHeight={32}
                   >
                     {formatSatPrice(data.price)}
                   </Text>
                 ) : (
                   <RollingNumber
                     showDecimals={false}
-                    fontSize={24}
+                    fontSize={22}
                     fontWeight={800}
                     letterSpacing={-1.5}
                     color="$accent4"
-                    lineHeight={36}
+                    lineHeight={32}
                   >
                     {formatCurrency(data.price)}
                   </RollingNumber>

@@ -66,10 +66,10 @@ export function UsernamePromptChecker() {
         <View p="$3" bg="$blue9" rounded={1000} mb="$2">
           <AtSign size={32} color="$onAccent" />
         </View>
-        <Text fontSize={20} fontWeight="bold" textAlign="center">
+        <Text fontSize={18} fontWeight="bold" textAlign="center">
           Claim Your Free Username
         </Text>
-        <Text fontSize={16} color="$color11" textAlign="center" marginBottom="$4">
+        <Text fontSize={14} color="$color11" textAlign="center" marginBottom="$4">
           It looks like you haven't claimed a bey.cash username yet. Claim one now to make it easier
           for friends to send you money!
         </Text>

@@ -117,46 +117,46 @@ export const appMotion = {
   },
 } as const;
 
-/** Tonkeeper-sized roles, adapted to Inter line metrics; control and icon geometry is unchanged. */
+/** Committed typography reduced by 10%, rounded to whole points; control/icon geometry is unchanged. */
 export const appTypography = {
   display: {
     fontFamily: '$display',
-    fontSize: 44,
-    lineHeight: 55,
+    fontSize: 40,
+    lineHeight: 50,
     fontWeight: '600',
     letterSpacing: -1.5,
   },
   amount: {
     fontFamily: '$display',
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 29,
+    lineHeight: 36,
     fontWeight: '600',
     letterSpacing: 0,
   },
   amountSmall: {
     fontFamily: '$display',
-    fontSize: 28,
-    lineHeight: 35,
+    fontSize: 25,
+    lineHeight: 32,
     fontWeight: '600',
     letterSpacing: 0,
   },
   title1: {
     fontFamily: '$display',
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 29,
+    lineHeight: 36,
     fontWeight: '600',
     letterSpacing: 0,
   },
-  title2: { fontSize: 24, lineHeight: 32, fontWeight: '600', letterSpacing: 0 },
-  title3: { fontSize: 20, lineHeight: 28, fontWeight: '600', letterSpacing: 0 },
-  label1: { fontSize: 16, lineHeight: 24, fontWeight: '500', letterSpacing: 0.08 },
-  label2: { fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: 0.07 },
-  label3: { fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 0.12 },
-  body1: { fontSize: 16, lineHeight: 24, fontWeight: '400', letterSpacing: 0.08 },
-  body2: { fontSize: 14, lineHeight: 20, fontWeight: '400', letterSpacing: 0.07 },
-  body3: { fontSize: 12, lineHeight: 16, fontWeight: '400', letterSpacing: 0.12 },
-  caption: { fontSize: 10, lineHeight: 14, fontWeight: '500', letterSpacing: 0.1 },
-  mono: { fontSize: 16, lineHeight: 24, fontWeight: '400', letterSpacing: 0.5 },
+  title2: { fontSize: 22, lineHeight: 29, fontWeight: '600', letterSpacing: 0 },
+  title3: { fontSize: 18, lineHeight: 25, fontWeight: '600', letterSpacing: 0 },
+  label1: { fontSize: 14, lineHeight: 22, fontWeight: '500', letterSpacing: 0.08 },
+  label2: { fontSize: 13, lineHeight: 18, fontWeight: '500', letterSpacing: 0.07 },
+  label3: { fontSize: 11, lineHeight: 14, fontWeight: '500', letterSpacing: 0.12 },
+  body1: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: 0.08 },
+  body2: { fontSize: 13, lineHeight: 18, fontWeight: '400', letterSpacing: 0.07 },
+  body3: { fontSize: 11, lineHeight: 14, fontWeight: '400', letterSpacing: 0.12 },
+  caption: { fontSize: 9, lineHeight: 13, fontWeight: '500', letterSpacing: 0.1 },
+  mono: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: 0.5 },
 } as const;
 
 export function createAppColorTheme(appearance: keyof typeof appColors) {

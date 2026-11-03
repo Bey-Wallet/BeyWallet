@@ -59,7 +59,7 @@ export function HistoryTabScreen() {
               setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
             }}
           >
-            <Text fontFamily="$body" fontSize={14} fontWeight="600" color="$color">
+            <Text fontFamily="$body" fontSize={13} fontWeight="600" color="$color">
               POS
             </Text>
           </AppPressable>

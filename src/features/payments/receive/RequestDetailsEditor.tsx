@@ -99,7 +99,7 @@ export function RequestAmountEditor({
           <Text
             textAlign="center"
             fontFamily="$display"
-            fontSize={44}
+            fontSize={40}
             fontWeight="500"
             color="$color"
             numberOfLines={1}
@@ -107,7 +107,7 @@ export function RequestAmountEditor({
           >
             {mode === 'FIAT' ? symbol : showBitcoinSymbol ? '₿' : ''}
             {draft}
-            {mode === 'SATS' && !showBitcoinSymbol && <Text fontSize={16}>{' sat'}</Text>}
+            {mode === 'SATS' && !showBitcoinSymbol && <Text fontSize={14}>{' sat'}</Text>}
           </Text>
           {fiatEnabled && (
             <AppPressable

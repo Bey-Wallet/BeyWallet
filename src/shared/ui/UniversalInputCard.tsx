@@ -263,8 +263,8 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         rounded={screen ? '$6' : undefined}
         fontFamily="$body"
         fontWeight="400"
-        fontSize={screen ? 14 : compact && !stacked ? '$3' : '$4'}
-        lineHeight={screen ? 20 : stacked ? 24 : compact ? 20 : undefined}
+        fontSize={screen ? 13 : compact && !stacked ? '$3' : '$4'}
+        lineHeight={screen ? 18 : stacked ? 22 : compact ? 18 : undefined}
         color="$color"
         p={10}
         flex={stacked || screen ? undefined : 1}
@@ -317,7 +317,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               )}
             </View>
             {validationError && (
-              <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
+              <Text fontFamily="$body" fontSize={11} color="$red10" accessibilityRole="alert">
                 {validationError}
               </Text>
             )}

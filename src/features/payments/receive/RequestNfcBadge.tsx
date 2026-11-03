@@ -68,7 +68,7 @@ export function RequestNfcBadge() {
       >
         <XStack items="center" gap="$2" bg="$gray3" rounded="$10" px="$3" py="$2">
           <NfcIcon size={18} color="$gray11" />
-          <Text fontSize={14} color="$gray11">
+          <Text fontSize={13} color="$gray11">
             {label}
           </Text>
         </XStack>

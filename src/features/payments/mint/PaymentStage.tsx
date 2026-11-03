@@ -158,19 +158,19 @@ export function PaymentStage({
             <YStack items="center" gap="$2" width="100%">
               <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
               {!!note && (
-                <Text fontSize={14} color="$color" textAlign="center">
+                <Text fontSize={13} color="$color" textAlign="center">
                   {note}
                 </Text>
               )}
               {!isExpired && (
-                <Text fontSize={14} color="$color">
+                <Text fontSize={13} color="$color">
                   Scan to pay with Lightning
                 </Text>
               )}
             </YStack>
           )}
           {isExpired && (
-            <Text fontSize={14} fontWeight="500" color="$gray10">
+            <Text fontSize={13} fontWeight="500" color="$gray10">
               Invoice expired
             </Text>
           )}
@@ -195,7 +195,7 @@ export function PaymentStage({
       }
     >
       {!!requestDelivery?.error && (
-        <Text color="$red10" accessibilityRole="alert" fontSize={14}>
+        <Text color="$red10" accessibilityRole="alert" fontSize={13}>
           {requestDelivery.error}
         </Text>
       )}

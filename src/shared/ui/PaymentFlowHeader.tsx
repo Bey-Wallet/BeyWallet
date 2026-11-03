@@ -48,7 +48,7 @@ export function PaymentFlowHeader({
         </XStack>
         <Text
           fontFamily="$body"
-          fontSize={16}
+          fontSize={14}
           fontWeight="600"
           color="$color"
           flex={1}

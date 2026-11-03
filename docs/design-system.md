@@ -48,9 +48,9 @@ import { AppText } from '~/shared/ui/AppText';
 <AppText variant="display">₿ 128,450</AppText>
 ```
 
-The default is `body2` (14/20, Regular). Font-size roles follow the inspected Tonkeeper Android
-scale: Home display 44, amounts 32 and 28, headings 32/24/20, body and labels 16/14/12,
-and captions 10. Inter line heights, tracking and weights remain Bey-specific. Geometry,
+The default is `body2` (13/18, Regular). Font sizes and line heights use the committed baseline
+multiplied by 0.9 and rounded to whole points: Home display 40, amounts 29 and 25,
+headings 29/22/18, body and labels 14/13/11, and captions 9. Tracking and weights remain unchanged. Geometry,
 icon sizes and system accessibility scaling are unchanged. `variant` accepts every `appTypography` role. `tone`
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.
@@ -67,12 +67,12 @@ substitute for wrapping labels or growing a row.
 | ---------- | ----------------------------------------------------------------------- |
 | Radius     | tiny 4, small 8, control 12, card 16, sheet 20                          |
 | Spacing    | tiny 2, small 4, compact 8, gap 12, page 16, group 24, section/large 32 |
-| Dimensions | action 32, regular row 56, bar 64, touch target 48                      |
+| Dimensions | action 32, regular row 56, bar 48, touch target 48                      |
 | Borders    | outline 1, separator 2, focus 2, focus offset 2                         |
 | Icons      | header 22, list 20, navigation cue 18                                   |
 
 Grouped lists clip children at 16-point corners. Separators span the full group width and remain
-2 points thick. Compact rows use 16-point primary labels, 14-point descriptions, and at least 48 points
+2 points thick. Compact rows use 14-point primary labels, 13-point descriptions, and at least 48 points
 of touch height. Buttons retain 16-point rounded corners; inputs retain 12. Circular controls,
 avatars and pill controls keep their intentional shapes.
 

@@ -118,7 +118,7 @@ export function SettingsRow({
 
 export function SettingsDescription({ children }: { children: React.ReactNode }) {
   return (
-    <Text fontSize="$3" color="$gray10" lineHeight={21}>
+    <Text fontSize="$3" color="$gray10" lineHeight={19}>
       {children}
     </Text>
   );

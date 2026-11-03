@@ -229,7 +229,7 @@ export default function MintScreen() {
         />
       )}
       {requestRecipient && step !== 'result' && (
-        <Text color="$gray10" fontSize={14} textAlign="center" mb="$3">
+        <Text color="$gray10" fontSize={13} textAlign="center" mb="$3">
           Request from{' '}
           {requestName || `${requestRecipient.slice(0, 10)}…${requestRecipient.slice(-6)}`}
         </Text>

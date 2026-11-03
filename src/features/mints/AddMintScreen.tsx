@@ -435,7 +435,7 @@ const DiscoveredMintRow = React.memo(
           </View>
         </TouchableOpacity>
         {error && (
-          <Text color="$red10" fontSize={12} accessibilityRole="alert" pb="$2">
+          <Text color="$red10" fontSize={11} accessibilityRole="alert" pb="$2">
             {error}
           </Text>
         )}
@@ -855,7 +855,7 @@ export default function AddMintScreen() {
         {connectionError &&
           isDetectedAsUrl &&
           connectionError.url === normalizeUrl(formattedDetectedUrl) && (
-            <Text color="$red10" fontSize={12} accessibilityRole="alert" mb="$3">
+            <Text color="$red10" fontSize={11} accessibilityRole="alert" mb="$3">
               {connectionError.message}
             </Text>
           )}

@@ -265,8 +265,8 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                   </View>
                   <Text
                     fontFamily="$body"
-                    fontSize={16}
-                    lineHeight={22}
+                    fontSize={14}
+                    lineHeight={20}
                     fontWeight="500"
                     color="$buttonDefaultSecondaryText"
                     flexShrink={1}

@@ -52,8 +52,8 @@ it.each(['light', 'dark'] as const)(
         expect.arrayContaining([
           expect.objectContaining({
             fontFamily: 'InterTextRegular',
-            fontSize: 14,
-            lineHeight: 20,
+            fontSize: 13,
+            lineHeight: 18,
             color: appColors[appearance].text,
           }),
         ]),
@@ -62,7 +62,7 @@ it.each(['light', 'dark'] as const)(
         expect.arrayContaining([
           expect.objectContaining({
             fontFamily: 'InterTextMedium',
-            fontSize: 14,
+            fontSize: 13,
             color: appColors[appearance].secondaryText,
           }),
         ]),
@@ -71,8 +71,8 @@ it.each(['light', 'dark'] as const)(
         expect.arrayContaining([
           expect.objectContaining({
             fontFamily: 'InterDisplaySemiBold',
-            fontSize: 44,
-            lineHeight: 55,
+            fontSize: 40,
+            lineHeight: 50,
             letterSpacing: -1.5,
           }),
         ]),

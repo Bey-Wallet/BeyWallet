@@ -1,5 +1,9 @@
 # Tonkeeper-sized typography: complete screen audit
 
+> Historical snapshot from 2 November 2026. The current size rule is a rounded 10% reduction from
+> that baseline; see the [current screen inventory](typography-10-percent.md). Numeric sizes below
+> describe the original snapshot.
+
 Date: **2 November 2026**. Scope: the current Bey working tree. No commit or push.
 
 ## Result and scope

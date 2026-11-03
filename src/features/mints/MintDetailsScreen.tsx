@@ -455,7 +455,7 @@ export default function MintDetailsModal() {
               }}
             />
             <YStack gap="$2">
-              <Text color="$gray10" fontSize={12}>
+              <Text color="$gray10" fontSize={11}>
                 Manage mint
               </Text>
               <ListTable compact>
@@ -520,15 +520,15 @@ export default function MintDetailsModal() {
                   <MintImage mintUrl={mintUrl} source={{ uri: iconToUse, width: 48, height: 48 }} />
                 </View>
                 <YStack flex={1} minWidth={0} gap="$1">
-                  <Text fontSize={14} fontWeight="600" color="$color">
+                  <Text fontSize={13} fontWeight="600" color="$color">
                     {name}
                   </Text>
-                  <Text fontSize={12} color="$gray10" selectable>
+                  <Text fontSize={11} color="$gray10" selectable>
                     {mintUrl}
                   </Text>
                 </YStack>
               </XStack>
-              <Text color="$gray10" fontSize={14} lineHeight={20}>
+              <Text color="$gray10" fontSize={13} lineHeight={18}>
                 This removes the mint from your connected mints. Your transaction history is kept.
               </Text>
 
@@ -537,7 +537,7 @@ export default function MintDetailsModal() {
                   <XStack gap="$3">
                     <AlertTriangle color="$orange10" size={24} />
                     <YStack flex={1}>
-                      <Text color="$orange10" fontWeight="600" fontSize={14}>
+                      <Text color="$orange10" fontWeight="600" fontSize={13}>
                         This mint still has funds
                       </Text>
                       <Text color="$orange10" fontSize="$3" mt="$1">

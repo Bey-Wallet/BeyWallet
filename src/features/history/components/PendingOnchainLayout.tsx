@@ -60,7 +60,7 @@ export function PendingOnchainLayout({
         hero={
           <>
             {!deposit && <PaymentStatusIcon status="pending" />}
-            <Text fontSize={14} fontWeight="500" color="$gray10">
+            <Text fontSize={13} fontWeight="500" color="$gray10">
               {deposit ? 'Pay with Bitcoin' : 'Payment pending'}
             </Text>
             {deposit && !!address && (

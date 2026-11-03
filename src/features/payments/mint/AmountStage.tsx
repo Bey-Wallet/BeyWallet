@@ -234,11 +234,11 @@ export function AmountStage({
   // Dynamic font size based on string length to scale seamlessly
   const dynamicFontSize = useMemo(() => {
     const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 32;
-    if (len <= 10) return 28;
-    if (len <= 13) return 24;
-    return 20;
+    if (len <= 6) return 40;
+    if (len <= 8) return 29;
+    if (len <= 10) return 25;
+    if (len <= 13) return 22;
+    return 18;
   }, [formattedDisplayValue]);
 
   return (
@@ -275,7 +275,7 @@ export function AmountStage({
                   accessibilityLabel="Payment note"
                   maxLength={200}
                   fontFamily="$body"
-                  fontSize={14}
+                  fontSize={13}
                   minHeight={48}
                   width={180}
                   maxWidth="100%"
@@ -306,7 +306,7 @@ export function AmountStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize={pos ? 16 : '$3'} fontWeight="500">
+            <Text color="$gray10" fontSize={pos ? 14 : '$3'} fontWeight="500">
               {pos ? 'New sale' : 'Enter Amount'}
             </Text>
 

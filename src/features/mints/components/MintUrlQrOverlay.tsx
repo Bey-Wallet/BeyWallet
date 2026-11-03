@@ -26,7 +26,7 @@ export function MintUrlQrOverlay({
       >
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           <YStack items="center" justify="center" p="$4" gap="$4">
-            <Text fontSize={20} fontWeight="600">
+            <Text fontSize={18} fontWeight="600">
               Mint URL
             </Text>
             <YStack p="$4" bg="white" rounded="$6">

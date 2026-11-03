@@ -327,16 +327,16 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 <MintImage mintUrl={url} source={{ uri: iconToUse, width: 48, height: 48 }} />
               </View>
               <YStack flex={1} minWidth={0} gap="$1">
-                <Text fontSize={14} fontWeight="600">
+                <Text fontSize={13} fontWeight="600">
                   {name}
                 </Text>
-                <Text color="$gray10" fontSize={12} selectable>
+                <Text color="$gray10" fontSize={11} selectable>
                   {url}
                 </Text>
               </YStack>
             </XStack>
             <YStack p="$4" bg="$buttonDefaultSecondary" rounded="$6" gap="$3">
-              <Text color="$color" fontSize={14} fontWeight="600">
+              <Text color="$color" fontSize={13} fontWeight="600">
                 Before you connect
               </Text>
               {[
@@ -345,10 +345,10 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
               ].map((point) => (
                 <XStack key={point} gap="$2" items="flex-start">
-                  <Text color="$gray10" fontSize={14} lineHeight={20} accessible={false}>
+                  <Text color="$gray10" fontSize={13} lineHeight={18} accessible={false}>
                     •
                   </Text>
-                  <Text color="$color" fontSize={14} lineHeight={20} flex={1}>
+                  <Text color="$color" fontSize={13} lineHeight={18} flex={1}>
                     {point}
                   </Text>
                 </XStack>
@@ -380,7 +380,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
               >
                 {dontShowAgain && <Check size={14} color="$onAccent" strokeWidth={3} />}
               </View>
-              <Text fontSize={14} color="$gray10">
+              <Text fontSize={13} color="$gray10">
                 Do not show again
               </Text>
             </AppPressable>
