@@ -30,10 +30,10 @@ export function CustomTabBar({
       left={0}
       right={0}
       px={appSpacing.page}
+      pt="$1"
       backgroundColor="$background"
       borderColor="$borderColor"
       borderTopWidth={0.3}
-
       pb={insets.bottom}
     >
       <XStack height={appDimensions.bar} alignItems="center" justifyContent="space-between">

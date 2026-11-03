@@ -87,9 +87,9 @@ export const appSpacing = {
   section: 32,
   large: 32,
 } as const;
-export const appDimensions = { action: 32, row: 56, bar: 48, touchTarget: 48 } as const;
+export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
 export const appBorders = { outline: 1, separator: 2, focus: 2, focusOffset: 2 } as const;
-export const appIconSizes = { header: 22, navigation: 22, list: 20, navigationCue: 18 } as const;
+export const appIconSizes = { header: 22, navigation: 24, list: 20, navigationCue: 18 } as const;
 
 /** Existing control geometry, shared by components and the in-app catalog. */
 export const appButtonSizes = {
