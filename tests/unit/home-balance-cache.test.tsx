@@ -9,6 +9,7 @@ let mockQuote: { price: number } | undefined;
 let mockFetching = true;
 let mockOffline = false;
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockOffline }));
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: mockQuote, isFetching: mockFetching }),
 }));
@@ -25,7 +26,10 @@ jest.mock('tamagui', () => ({
   ),
   useTheme: () => ({ gray3: { val: '#222224' } }),
 }));
-jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(), ImpactFeedbackStyle: { Medium: 1 } }));
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: { Medium: 1, Light: 0 },
+}));
 
 let tree: ReactTestRenderer;
 const displayed = () => tree.root.findAllByType('RollingNumber' as any).map((node) => node.props);
@@ -33,12 +37,21 @@ beforeEach(() => {
   mockQuote = { price: 100_000 };
   mockFetching = true;
   mockOffline = false;
-  useWalletStore.setState({ balances: { mint: 10_000 }, refreshCounter: 0, isRestoring: false });
+  useWalletStore.setState({
+    balances: { mint: 10_000 },
+    refreshCounter: 0,
+    isRestoring: false,
+    isRefreshing: false,
+    error: null,
+  });
   useSettingsStore.setState({
     primaryCurrency: 'FIAT',
     secondaryCurrency: 'USD',
     hideBalance: false,
     showBitcoinSymbol: false,
+    setHideBalance: async (hideBalance: boolean) => {
+      useSettingsStore.setState({ hideBalance });
+    },
     setPrimaryCurrency: async (primaryCurrency: 'SATS' | 'FIAT') =>
       useSettingsStore.setState({ primaryCurrency }),
   });
@@ -53,7 +66,7 @@ it('swaps sats and fiat from the secondary pill and blocks switching while hidde
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('SATS');
   expect(displayed()[0].value).toBe(10_000);
-  expect(displayed()[1].children).toBe('$10.00');
+  expect(displayed()[1].children).toBe('$\u202f10.00');
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   await act(async () => useSettingsStore.setState({ hideBalance: true }));
@@ -68,23 +81,64 @@ it('swaps sats and fiat from the secondary pill and blocks switching while hidde
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
+  jest.useRealTimers();
+});
+
+it('toggles balance privacy by holding or tapping the main amount', async () => {
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Hide balance' }).props.onLongPress(),
+  );
+  expect(displayed().every((amount) => amount.value === '****')).toBe(true);
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Show balance' }).props.onPress(),
+  );
+  expect(useSettingsStore.getState().hideBalance).toBe(false);
+});
+
+it('briefly confirms successful refreshes without claiming success after errors', async () => {
+  jest.useFakeTimers();
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  const status = () => tree.root.findAllByType('Text' as any).map((node) => node.props.children);
+  expect(status()).not.toContain('Updated just now');
+  await act(async () => {
+    useWalletStore.setState({ isRefreshing: true });
+  });
+  expect(status()).toContain('Refreshing...');
+  await act(async () => {
+    useWalletStore.setState({ isRefreshing: false, refreshCounter: 1 });
+  });
+  expect(status()).toContain('Updated just now');
+  await act(async () => jest.advanceTimersByTime(2500));
+  expect(status()).not.toContain('Updated just now');
+  await act(async () => {
+    useWalletStore.setState({ isRefreshing: true });
+  });
+  await act(async () => {
+    useWalletStore.setState({ isRefreshing: false, error: 'Refresh failed' });
+  });
+  expect(status()).not.toContain('Updated just now');
 });
 
 it('keeps the existing balance and fiat amount visible while refreshing and updates them together', async () => {
   await act(async () => {
     tree = create(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$10.00');
+  expect(displayed()[0].children).toBe('$\u202f10.00');
   expect(displayed()[1].value).toBe(10_000);
   mockQuote = { price: 120_000 };
   await act(async () => {
     tree.update(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$12.00');
+  expect(displayed()[0].children).toBe('$\u202f12.00');
   await act(async () => {
     useWalletStore.setState({ balances: { mint: 20_000 } });
   });
-  expect(displayed()[0].children).toBe('$24.00');
+  expect(displayed()[0].children).toBe('$\u202f24.00');
   expect(displayed()[1].value).toBe(20_000);
 });
 
@@ -94,7 +148,7 @@ it('shows a real zero without requiring an exchange rate', async () => {
   await act(async () => {
     tree = create(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$0.00');
+  expect(displayed()[0].children).toBe('$\u202f0.00');
 });
 
 it('collapses to one sats balance for None and restores the saved fiat presentation', async () => {
@@ -104,11 +158,12 @@ it('collapses to one sats balance for None and restores the saved fiat presentat
   });
   expect(displayed()).toHaveLength(1);
   expect(displayed()[0].value).toBe(10_000);
-  const hasHeight = (height: number) =>
+  const hasMinimumHeight = (height: number) =>
     tree.root.findAll(
-      (node) => (node.props.height ?? StyleSheet.flatten(node.props.style)?.height) === height,
+      (node) =>
+        (node.props.minHeight ?? StyleSheet.flatten(node.props.style)?.minHeight) === height,
     ).length > 0;
-  expect(hasHeight(160)).toBe(true);
+  expect(hasMinimumHeight(160)).toBe(true);
   await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true, hideBalance: true }));
   expect(displayed()[0].value).toBe('****');
   expect(displayed()).toHaveLength(1);
@@ -116,9 +171,9 @@ it('collapses to one sats balance for None and restores the saved fiat presentat
     useSettingsStore.setState({ secondaryCurrency: 'USD', hideBalance: false }),
   );
   expect(displayed()).toHaveLength(2);
-  expect(displayed()[0].children).toBe('$10.00');
+  expect(displayed()[0].children).toBe('$\u202f10.00');
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
-  expect(hasHeight(200)).toBe(true);
+  expect(hasMinimumHeight(160)).toBe(true);
 });
 
 it('shows Offline in the sync status area and restores the correct status on reconnection', async () => {
@@ -168,7 +223,7 @@ it.each(['SATS', 'FIAT'] as const)(
     const sats = displayed()[currency === 'SATS' ? 0 : 1];
     const fiat = displayed()[currency === 'SATS' ? 1 : 0];
     expect(sats.value).toBe(20_000);
-    expect(fiat.children).toBe('$20.00');
+    expect(fiat.children).toBe('$\u202f20.00');
   },
 );
 

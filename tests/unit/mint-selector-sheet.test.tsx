@@ -374,8 +374,8 @@ it('uses the saved primary fiat conversion offline and respects hidden balances'
   mockCachedPrice = { price: 100_000, change24h: 0, updatedAt: Date.now() / 1000 };
   useSettingsStore.setState({ primaryCurrency: 'FIAT' });
   await render();
-  expect(row(a).props.accessibilityLabel).toBe('Alpha, $10.00');
-  expect(row(b).props.accessibilityLabel).toBe('Beta, $0.00');
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, $\u202f10.00');
+  expect(row(b).props.accessibilityLabel).toBe('Beta, $\u202f0.00');
   expect(mockFetchPrice).not.toHaveBeenCalled();
   await act(async () => {
     useSettingsStore.setState({ hideBalance: true });
@@ -388,7 +388,7 @@ it('shows sats instead of inventing a fiat value when no exchange rate is saved'
   useSettingsStore.setState({ primaryCurrency: 'FIAT' });
   await render();
   expect(row(a).props.accessibilityLabel).toBe('Alpha, 10,000 sat');
-  expect(row(b).props.accessibilityLabel).toBe('Beta, $0.00');
+  expect(row(b).props.accessibilityLabel).toBe('Beta, $\u202f0.00');
 });
 
 it('uses sats for None with a saved FIAT preference without fetching quotes while online', async () => {
@@ -398,7 +398,7 @@ it('uses sats for None with a saved FIAT preference without fetching quotes whil
   expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
   expect(mockFetchPrice).not.toHaveBeenCalled();
   await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true }));
-  expect(row(a).props.accessibilityLabel).toBe('Alpha, ₿10,000');
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, ₿\u202f10,000');
   expect(mockFetchPrice).not.toHaveBeenCalled();
 });
 

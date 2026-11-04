@@ -21,6 +21,25 @@ roundness. The existing `dark` and `light` themes apply them through the current
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
 available as `$onAccent`. Existing blue aliases resolve to neutral colors for compatibility.
 
+Home follows the supplied Tangem reference for composition while keeping Bey's theme and type
+sizes. Page edges are 16 points, the centered balance has a 160-point minimum height, equal
+24-point vertical padding and matching 16-point gaps before the balance and actions. Its
+secondary currency remains a compact neutral pill button for switching sats and fiat: 36 points
+visually, 8-point horizontal padding and an expanded 48-point touch target. The full main balance,
+including decimals, uses `$color` at full opacity. Scan, Transfer, Receive and Send fill the row as four equal
+columns. Each circle occupies 80% of its column with a 48-point minimum diameter and its label
+outside. There are 8 points between circle and label, 8 points between actions and a
+32-point gap before the mint
+panel. Connected mints share one `$buttonDefaultSecondary` panel with 16-point corners and
+horizontal padding, circular 40-point artwork and 56-point minimum rows. Names and amounts use
+14-point medium text, and hostnames use 11-point muted text. All actions retain at
+least 48-point touch targets; enlarged system text can grow the balance and list naturally.
+The visual reference is [Tangem's Android UI source](https://github.com/tangem/tangem-app-android/tree/master/core/ui/src/main/java/com/tangem/core/ui).
+
+Currency prefixes have a narrow, non-breaking gap before the amount across fiat formatting, Bitcoin amounts and
+amount entry (for example `$ 1,234.50`, `₹ 1,234.50` and `₿ 12,500`). Existing suffix placement,
+localized decimal/group separators, signs and lower display limits remain intact.
+
 The Point of sale flow is an explicit visual exception. Its local `light_pos` theme uses lime
 (`#D4FF5A`) canvas backgrounds and black (`#000000`) typography in both app appearances.
 Primary controls use black fills with lime text; secondary controls use darker lime fills.
@@ -103,9 +122,18 @@ Switching is disabled while balances are hidden; when fiat currency is None the 
 is absent. Settings retains the fiat-currency picker and removes the redundant Display
 unit toggle. The Home-only visibility guard does not change other currency controls.
 
-Home keeps the balance, Scan/Receive/Send actions, and connected mints together in that order.
-Home's mints use an open list on the page background, with 44-point artwork and compact
-14-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
+Home keeps the balance, Scan/Transfer/Receive/Send actions, and connected mints together in that order.
+Home's mints use a grouped neutral panel with 40-point artwork, compact 14-point row text
+and no separators. A small green circle with a check follows the active mint's name. Visible zero
+balances use `$gray10`; hidden balances retain a uniform color. The header mint selector
+uses a white pill with black text and chevron in dark mode, and black with white text
+and chevron in light mode, with a subtle theme border
+and a clipped circular 32-point mint icon. Its semantic offline treatment is preserved.
+Long mint names truncate while the active check and amount remain visible. Home header
+side controls occupy matching 64-point slots with 48-point touch targets. Tapping or holding
+the main balance toggles privacy with a light haptic. Refresh feedback shares the status area
+above the balance: successful updates briefly show `Updated just now`, then fade away
+(without animation when reduced motion is enabled). Offline and restore status take priority.
 Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
 Recovery progress and incoming payments follow the mints list. Home does not show backup,
 username, or supporter prompt cards; their dedicated destinations remain available.

@@ -76,7 +76,14 @@ export const appColors = {
   },
 } as const;
 
-export const appRadii = { tiny: 4, small: 8, control: 12, card: 16, sheet: 20 } as const;
+export const appRadii = {
+  tiny: 4,
+  small: 8,
+  control: 12,
+  card: 16,
+  sheet: 20,
+  pill: 1000,
+} as const;
 export const appSpacing = {
   tiny: 2,
   small: 4,

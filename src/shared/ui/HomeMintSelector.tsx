@@ -3,7 +3,7 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { Check, ChevronDown, Sprout, Plus, Landmark, X } from '@tamagui/lucide-icons';
-import { Text, YStack, XStack, View, Avatar, Square } from 'tamagui';
+import { Text, YStack, XStack, View, Square } from 'tamagui';
 import { useWindowDimensions } from 'react-native';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,7 @@ import { mintManager } from '~/services/wallet/mintManager';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
+import { appRadii, appSpacing } from '~/shared/theme/appearance';
 
 export interface MintSelectorSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -267,7 +268,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
         }
         return showBitcoinSymbol
-          ? `₿${balance.toLocaleString()}`
+          ? `₿\u202f${balance.toLocaleString()}`
           : `${balance.toLocaleString()} sat`;
       },
       [hideBalance, displayAsSats, btcData?.price, secondaryCurrency, showBitcoinSymbol],
@@ -509,20 +510,28 @@ export default function HomeHeaderMintSelector() {
       <AppPressable
         py={4}
         accessibilityState={{ expanded, busy: isLoading }}
-        rounded="$5"
-        bg={isOffline ? '$red10' : '$blue10'}
-        px={isLoading ? '$3' : '$1.5'}
-        borderWidth={0}
+        rounded={appRadii.pill}
+        bg={isOffline ? '$red10' : '$buttonDefaultPrimary'}
+        pl={isLoading ? appSpacing.gap : appSpacing.small}
+        pr={appSpacing.gap}
+        borderWidth={1}
+        borderColor={isOffline ? '$red10' : '$borderColor'}
+        accessibilityHint="Choose the active mint"
         disabled={isLoading}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
           sheetRef.current?.present();
         }}
-        maxW={170}
+        maxW={200}
         minW={0}
         flexShrink={1}
-        pressStyle={{ scale: 0.97, opacity: 0.95, bg: isOffline ? '$red11' : '$blue11' }}
-        minHeight={36}
+        hoverStyle={{ bg: isOffline ? '$red11' : '$buttonDefaultPrimaryHover' }}
+        pressStyle={{
+          scale: 0.97,
+          opacity: 0.95,
+          bg: isOffline ? '$red11' : '$buttonDefaultPrimaryPress',
+        }}
+        minHeight={40}
         flexDirection="row"
         items="center"
         justify="center"
@@ -531,20 +540,21 @@ export default function HomeHeaderMintSelector() {
         {isLoading ? (
           <Spinner size={14} color={isOffline ? 'white' : '$onAccent'} />
         ) : (
-          <Avatar rounded="$3" size="$2" flexShrink={0}>
+          <View width={32} height={32} rounded={appRadii.pill} overflow="hidden" flexShrink={0}>
             <MintImage
               mintUrl={activeMint?.mintUrl}
-              width="100%"
-              height="100%"
+              width={32}
+              height={32}
+              borderRadius={appRadii.pill}
               src={activeMint?.icon}
             />
-          </Avatar>
+          </View>
         )}
 
         <Text
           {...{
             fontSize: '$3',
-            fontWeight: '700',
+            fontWeight: '600',
             flexShrink: 1,
             minWidth: 0,
             numberOfLines: 1,
@@ -555,8 +565,8 @@ export default function HomeHeaderMintSelector() {
         </Text>
 
         {isLoading ? undefined : (
-          <View pr="$1">
-            <ChevronDown size={22} strokeWidth={3} color={isOffline ? 'white' : '$onAccent'} />
+          <View flexShrink={0}>
+            <ChevronDown size={22} strokeWidth={2.5} color={isOffline ? 'white' : '$onAccent'} />
           </View>
         )}
       </AppPressable>

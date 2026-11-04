@@ -9,7 +9,7 @@ Scope: **71 route entries**, including aliases, one redirect and a legacy placeh
 | Review  | Route file                    | Owner                                            | Scope / exception                                                |
 | ------- | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------- |
 | Pending | `src/app/(tabs)/history.tsx`  | `~/features/history/HistoryTabScreen`            | Review neutral groups, typography and shared actions.            |
-| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home; retain ConnectedMintsCard and the approved open mint list. |
+| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home; circular actions and inset mint panel. |
 | Pending | `src/app/(tabs)/people.tsx`   | `~/features/people`                              | Review neutral groups, typography and shared actions.            |
 | Pending | `src/app/txn-details.tsx`     | `~/features/history/TransactionDetailsScreen`    | Review neutral groups, typography and shared actions.            |
 | Pending | `src/app/wallet-activity.tsx` | `~/features/history/WalletActivityDetailsScreen` | Review neutral groups, typography and shared actions.            |

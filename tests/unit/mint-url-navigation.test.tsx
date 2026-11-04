@@ -91,6 +91,7 @@ beforeEach(() => {
   useWalletStore.setState({
     mints: [],
     balances: {},
+    activeMintUrl: null,
     refreshCounter: 0,
     scannerResult: null,
     setScannerResult: (scannerResult) => useWalletStore.setState({ scannerResult }),
@@ -111,6 +112,41 @@ const connectedRow = (mintUrl: string) =>
       row.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === mintUrl),
     )!;
 
+it('marks only the active mint and mutes visible zero balances', async () => {
+  const activeUrl = 'https://active.example';
+  const otherUrl = 'https://other.example';
+  useWalletStore.setState({
+    mints: [
+      { mintUrl: activeUrl, name: 'Active', trusted: true },
+      { mintUrl: otherUrl, name: 'Other', trusted: true },
+    ],
+    activeMintUrl: `${activeUrl}/`,
+    balances: { [activeUrl]: 0, [otherUrl]: 4200 },
+  });
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  expect(connectedRow(activeUrl).findAllByProps({ bg: '$green10' })).toHaveLength(1);
+  expect(
+    connectedRow(activeUrl)
+      .findByProps({ bg: '$green10' })
+      .findByType('Check' as any),
+  ).toBeDefined();
+  expect(connectedRow(otherUrl).findAllByProps({ bg: '$green10' })).toHaveLength(0);
+  expect(connectedRow(activeUrl).parent!.props.accessibilityLabel).toContain('active mint');
+  expect(connectedRow(activeUrl).findByType('RollingNumber' as any).props.color).toBe('$gray10');
+  expect(connectedRow(otherUrl).findByType('RollingNumber' as any).props.color).toBe('$color');
+
+  mockHideBalance = true;
+  await act(async () => {
+    useWalletStore.setState({ refreshCounter: 1 });
+  });
+  expect(connectedRow(activeUrl).findByType('RollingNumber' as any).props).toMatchObject({
+    color: '$color',
+    children: '****',
+  });
+});
+
 it('dims an unreachable mint and rechecks it without opening its details', async () => {
   const mintUrl = 'https://mint.example';
   useWalletStore.setState({
@@ -125,7 +161,10 @@ it('dims an unreachable mint and rechecks it without opening its details', async
     tree = create(<ConnectedMintsCard />);
   });
   const row = connectedRow(mintUrl);
-  expect(row.findByType('Text' as any).props.color).toBe('$color');
+  expect(
+    row.findAllByType('Text' as any).find((text) => text.props.children === 'Example mint')?.props
+      .color,
+  ).toBe('$color');
   expect(row.parent!.props.opacity).toBe(0.5);
   expect(row.findByType('RollingNumber' as any).props).toMatchObject({
     color: '$color',
@@ -148,7 +187,11 @@ it('dims an unreachable mint and rechecks it without opening its details', async
   await act(async () => {
     useWalletStore.setState({ refreshCounter: 1 });
   });
-  expect(connectedRow(mintUrl).findByType('Text' as any).props.color).toBe('$color');
+  expect(
+    connectedRow(mintUrl)
+      .findAllByType('Text' as any)
+      .find((text) => text.props.children === 'Example mint')?.props.color,
+  ).toBe('$color');
   expect(connectedRow(mintUrl).parent!.props.opacity).toBe(1);
   expect(
     tree.root.findAllByProps({ accessibilityLabel: 'Recheck Example mint connection' }),

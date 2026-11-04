@@ -370,7 +370,7 @@ export default function OptimizeWalletScreen() {
                   key={amount}
                   label={
                     showBitcoinSymbol
-                      ? `₿${amount.toLocaleString()}`
+                      ? `₿\u202f${amount.toLocaleString()}`
                       : `${amount.toLocaleString()} sat`
                   }
                   value={`${count} proof${count === 1 ? '' : 's'}`}

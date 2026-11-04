@@ -1,9 +1,10 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, styled } from 'tamagui';
-import { Plus, Landmark, RefreshCw, ChevronRight } from '@tamagui/lucide-icons';
+import { Plus, Landmark, RefreshCw, ChevronRight, Check } from '@tamagui/lucide-icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -14,7 +15,8 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
-import { appTypography } from '~/shared/theme/appearance';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
+import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
 import {
   getMintPlaceholders,
@@ -27,11 +29,14 @@ const RowContainer = styled(XStack, {
   gap: '$2',
   py: '$1',
   minHeight: 56,
+  minWidth: 0,
+  width: '100%',
 });
 
 interface MintRowItemProps {
   mint: any;
   balance: number;
+  active: boolean;
   hideBalance: boolean;
   displayAsSats: boolean;
   showBitcoinSymbol: boolean;
@@ -49,6 +54,7 @@ const MintRowItem = React.memo(
   ({
     mint,
     balance,
+    active,
     hideBalance,
     displayAsSats,
     showBitcoinSymbol,
@@ -71,6 +77,13 @@ const MintRowItem = React.memo(
           return mint.mintUrl;
         }
       })();
+    const hostname = useMemo(() => {
+      try {
+        return new URL(mint.mintUrl).hostname;
+      } catch {
+        return mint.mintUrl;
+      }
+    }, [mint.mintUrl]);
 
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
@@ -105,7 +118,7 @@ const MintRowItem = React.memo(
           hoverStyle={{ opacity: 0.85 }}
           pressStyle={{ opacity: 0.7 }}
           onPress={() => onPress(mint.mintUrl)}
-          accessibilityLabel={`Open ${displayName} mint details`}
+          accessibilityLabel={`Open ${displayName} mint details${active ? ', active mint' : ''}`}
           accessibilityHint={
             unavailable ? 'Mint unreachable. Use the refresh button to recheck.' : undefined
           }
@@ -115,20 +128,19 @@ const MintRowItem = React.memo(
               <MintImage
                 mintUrl={mint.mintUrl}
                 src={mint.icon}
-                width={44}
-                height={44}
+                width={40}
+                height={40}
                 alt={displayName}
-                borderRadius={12}
+                borderRadius={1000}
                 borderColor="$borderColor"
                 borderWidth={mint.icon ? 1 : 0}
                 fallback={<Landmark size={22} color="$iconSecondary" />}
               />
 
               <YStack gap="$0.5" flex={1} minWidth={0}>
-                <XStack items="center" gap="$1.5">
+                <XStack items="center" gap="$1.5" minWidth={0}>
                   <Text
                     {...appTypography.label1}
-                    fontSize={16}
                     fontWeight="500"
                     color="$color"
                     numberOfLines={1}
@@ -136,17 +148,36 @@ const MintRowItem = React.memo(
                   >
                     {displayName}
                   </Text>
+                  {active && (
+                    <View
+                      width={14}
+                      height={14}
+                      rounded={1000}
+                      bg="$green10"
+                      flexShrink={0}
+                      items="center"
+                      justify="center"
+                      aria-hidden
+                    >
+                      <Check size={10} strokeWidth={3} color="$background" />
+                    </View>
+                  )}
                 </XStack>
+                {displayName !== hostname && (
+                  <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
+                    {hostname}
+                  </Text>
+                )}
               </YStack>
             </XStack>
 
-            <XStack items="center" gap="$1.5">
+            <XStack items="center" gap="$1.5" flexShrink={0}>
               <YStack items="flex-end" justify="center">
                 <RollingNumber
-                  fontSize={16}
+                  fontSize={appTypography.label1.fontSize}
                   lineHeight={appTypography.label1.lineHeight}
-                  fontWeight="600"
-                  color="$color"
+                  fontWeight="500"
+                  color={!hideBalance && balance === 0 ? '$gray10' : '$color'}
                   decimalOpacity={0.4}
                   showDecimals={!displayAsSats}
                   prefix={prefix}
@@ -160,8 +191,7 @@ const MintRowItem = React.memo(
           </RowContainer>
         </AppPressable>
         {unavailable && (
-          <AppButton
-            iconOnly
+          <AppIconButton
             emphasis="text"
             icon={RefreshCw}
             iconSize={22}
@@ -197,11 +227,11 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
     <RowContainer>
       <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2">
         <View
-          width={44}
-          height={44}
+          width={40}
+          height={40}
           justify="center"
           bg="$gray3"
-          rounded={12}
+          rounded={1000}
           items="center"
           overflow="hidden"
         >
@@ -209,8 +239,9 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
             <MintImage
               mintUrl={mint.mintUrl}
               src={iconUrl}
-              width={44}
-              height={44}
+              width={40}
+              height={40}
+              borderRadius={1000}
               alt={`${mint.name} icon`}
               onError={() => setIconFailed(true)}
             />
@@ -222,7 +253,6 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           <XStack items="center" gap="$1.5">
             <Text
               {...appTypography.label1}
-              fontSize={16}
               fontWeight="500"
               color="$color"
               numberOfLines={1}
@@ -257,6 +287,7 @@ export const ConnectedMintsCard = () => {
   const router = useRouter();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
+  const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
   const deviceOffline = useOfflineStatus();
   const mintConnections = useQueries({
@@ -319,7 +350,15 @@ export const ConnectedMintsCard = () => {
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
 
   return (
-    <YStack width="100%" gap={0} p="$0" rounded="$6">
+    <YStack
+      width="100%"
+      gap={0}
+      px={appSpacing.page}
+      pb={appSpacing.compact}
+      bg="$buttonDefaultSecondary"
+      rounded="$6"
+      overflow="hidden"
+    >
       <XStack items="center" justify="space-between" gap="$3">
         <AppPressable
           minHeight={48}
@@ -332,15 +371,14 @@ export const ConnectedMintsCard = () => {
           accessibilityLabel="Manage connected mints"
           onPress={handleManageMints}
         >
-          <Text color="$gray10" fontSize="$4" fontWeight="600" accessibilityRole="header">
+          <Text color="$color" fontSize="$4" fontWeight="600" accessibilityRole="header">
             {mints.length === 0 ? 'Suggested mints' : 'Mints'}
           </Text>
           <ChevronRight size={18} color="$gray10" aria-hidden />
         </AppPressable>
         <XStack items="center">
           {unavailableConnections.length > 1 && (
-            <AppButton
-              iconOnly
+            <AppIconButton
               emphasis="text"
               icon={RefreshCw}
               iconSize={22}
@@ -380,6 +418,7 @@ export const ConnectedMintsCard = () => {
                 key={mint.mintUrl}
                 mint={mint}
                 balance={balance}
+                active={!!activeMintUrl && mintUrlKey(mint.mintUrl) === mintUrlKey(activeMintUrl)}
                 hideBalance={hideBalance}
                 displayAsSats={displayAsSats}
                 showBitcoinSymbol={showBitcoinSymbol}

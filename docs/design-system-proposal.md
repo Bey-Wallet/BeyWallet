@@ -44,8 +44,8 @@ See [all screen targets](design-system-screens.md) and the [foundation](design-s
 
 ## Explicit exceptions and protected behavior
 
-- **Home connected mints:** preserve ConnectedMintsCard.tsx and its approved open-list styling
-  unless explicitly requested. Inventorying Home is not authorization to regroup those rows.
+- **Home:** the requested Tangem-inspired layout uses a centered balance, large circular actions and a
+  single inset mint panel. Preserve this grouping, Bey's typography and the wallet interactions.
 - **POS:** preserve the lime/black light_pos palette, sale-action pills and white QR surfaces.
   Apply structural rules within that theme instead of replacing it with neutral fills.
 - **QR/scanner/camera:** preserve code contrast, white QR backgrounds where required, camera

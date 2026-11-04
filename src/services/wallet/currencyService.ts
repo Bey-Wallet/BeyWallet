@@ -1,5 +1,6 @@
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
+import { spaceCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 
 export type CurrencyCode =
   | 'USD'
@@ -95,7 +96,7 @@ export const currencyService = {
       sign = '+';
     }
     if (showBitcoinSymbol) {
-      return `${sign}₿${formatted}`;
+      return spaceCurrencyPrefix(`${sign}₿${formatted}`);
     }
     return `${sign}${formatted} sat`;
   },
@@ -135,7 +136,7 @@ export const currencyService = {
       ) {
         throw new Error('Platform Intl fallback detected');
       }
-      return useCodeSuffix ? `${formatted} ${currency.code}` : formatted;
+      return useCodeSuffix ? `${formatted} ${currency.code}` : spaceCurrencyPrefix(formatted);
     } catch (error) {
       // Fallback formatting: format the number as a decimal under the requested locale,
       // then manually prepend/append the correct currency symbol.
@@ -183,7 +184,7 @@ export const currencyService = {
       if (useCodeSuffix || suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {
-        return `${currency.symbol}${decimalPart}`;
+        return spaceCurrencyPrefix(`${currency.symbol}${decimalPart}`);
       }
     }
   },

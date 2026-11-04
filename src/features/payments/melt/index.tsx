@@ -220,7 +220,7 @@ export default function MeltScreen() {
     const val = currencyService.convertSatsToCurrency(quoteAmount, btcData.price);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? currencyService.formatValue(val, secondaryCurrency)
-      : `${symbol}${val.toFixed(2)}`;
+      : `${symbol}\u202f${val.toFixed(2)}`;
   }, [quoteAmount, btcData?.price, secondaryCurrency]);
 
   const totalFiatValue = useMemo(() => {
@@ -232,7 +232,7 @@ export default function MeltScreen() {
     const val = currencyService.convertSatsToCurrency(totalCost, btcData.price);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? currencyService.formatValue(val, secondaryCurrency)
-      : `${symbol}${val.toFixed(2)}`;
+      : `${symbol}\u202f${val.toFixed(2)}`;
   }, [totalCost, btcData?.price, secondaryCurrency]);
 
   // ─── Invoice Stage: Continue Handler ──────────────────────

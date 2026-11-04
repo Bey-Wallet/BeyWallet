@@ -342,7 +342,7 @@ export default function MintDetailsModal() {
                     {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                       ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
                       : showBitcoinSymbol
-                        ? `₿${balance.toLocaleString()}`
+                        ? `₿\u202f${balance.toLocaleString()}`
                         : `${balance.toLocaleString()} sat`}
                   </Text>
                 )}
@@ -544,7 +544,7 @@ export default function MintDetailsModal() {
                         You currently have a balance of{' '}
                         <Text fontWeight="600">
                           {showBitcoinSymbol
-                            ? `₿${balance.toLocaleString()}`
+                            ? `₿\u202f${balance.toLocaleString()}`
                             : `${balance.toLocaleString()} sat`}
                         </Text>{' '}
                         in this mint. Transfer or withdraw this balance before removing it. Removing

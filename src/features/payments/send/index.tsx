@@ -413,7 +413,7 @@ export function SendModalScreen() {
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';
     const val = currencyService.convertSatsToCurrency(sats, btcData.price);
-    return `${symbol}${val.toFixed(2)}`;
+    return `${symbol}\u202f${val.toFixed(2)}`;
   }, [amount, btcData?.price, secondaryCurrency]);
 
   const handleSend = useCallback(async () => {

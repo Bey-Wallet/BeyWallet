@@ -20,7 +20,7 @@ jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: {
     convertSatsToCurrency: (sats: number, price: number) => (sats / 1e8) * price,
-    formatValue: (value: number) => `$${value.toFixed(2)}`,
+    formatValue: (value: number) => `$\u202f${value.toFixed(2)}`,
   },
 }));
 jest.mock('~/services/platform/receiptImageService', () => ({ shareReceiptImage: jest.fn() }));
@@ -136,8 +136,8 @@ it.each([false, true])(
     expect(texts()).toEqual(
       expect.arrayContaining([
         'Ecash to share',
-        '₿1,234',
-        '≈ $1.23',
+        '₿\u202f1,234',
+        '≈ $\u202f1.23',
         'Pending',
         'Ecash payment',
         'https://mint.example',
@@ -186,7 +186,7 @@ it.each(['Confirmed', 'Refunded', 'Failed'] as const)(
 it('previews both currencies, type and pending label with a real request QR matrix', async () => {
   await open();
   expect(texts()).toEqual(
-    expect.arrayContaining(['₿1,234', '≈ $1.23', 'Lightning top-up', 'Pending']),
+    expect.arrayContaining(['₿\u202f1,234', '≈ $\u202f1.23', 'Lightning top-up', 'Pending']),
   );
   const qr = tree.root
     .findAllByType('G' as any)
@@ -197,14 +197,14 @@ it('previews both currencies, type and pending label with a real request QR matr
 it('uses fiat as primary when selected and bitcoin as the secondary amount', async () => {
   mockPrimary = 'FIAT';
   await open();
-  expect(texts()).toEqual(expect.arrayContaining(['$1.23', '≈ ₿1,234']));
+  expect(texts()).toEqual(expect.arrayContaining(['$\u202f1.23', '≈ ₿\u202f1,234']));
 });
 it('does not invent a fiat conversion when price data is unavailable', async () => {
   mockPrimary = 'FIAT';
   mockPrice = undefined;
   await open();
   expect(texts()).toContain('Conversion unavailable');
-  expect(texts()).toContain('≈ ₿1,234');
+  expect(texts()).toContain('≈ ₿\u202f1,234');
 });
 
 it('uses the active dark theme and keeps the payable QR above amounts and left aligned', async () => {
@@ -213,7 +213,7 @@ it('uses the active dark theme and keeps the payable QR above amounts and left a
   expect(tree.root.findAllByType('Rect' as any)[0].props.fill).toBe('#000000');
   const amount = tree.root
     .findAllByType('SvgText' as any)
-    .find((node) => node.props.children === '₿1,234')!;
+    .find((node) => node.props.children === '₿\u202f1,234')!;
   expect(amount.props.fill).toBe('#FFFFFF');
   const qr = tree.root
     .findAllByType('G' as any)
