@@ -32,6 +32,7 @@ import {
   Github,
   BookOpen,
 } from '@tamagui/lucide-icons';
+import { isDevelopmentClient } from '~/shared/utils/developmentClient';
 import NostrIcon from '~/shared/icons/NostrIcon';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
 
@@ -101,6 +102,7 @@ export const settingsCategories = {
     items: [
       { path: 'proofs', title: 'Proof manager', icon: Coins },
       { path: 'verify-proofs', title: 'Verify proofs offline', icon: ShieldCheck },
+      ...(isDevelopmentClient() ? [{ path: 'new-ui', title: 'BUI', icon: Sparkles }] : []),
     ],
   },
   identity: {
@@ -121,6 +123,20 @@ export const settingsTitles: Record<string, string> = {
   about: 'About Bey Wallet',
   supporter: 'Support Bey',
   updates: 'App updates',
+  'new-ui-buttons': 'BUI · Buttons',
+  'new-ui-colors': 'BUI · Theme & colors',
+  'bui-layout': 'BUI · Layout & spacing',
+  'bui-typography': 'BUI · Typography',
+  'bui-icons-avatars': 'BUI · Icons & avatars',
+  'bui-badges': 'BUI · Badges',
+  'bui-forms': 'BUI · Inputs & forms',
+  'bui-selections': 'BUI · Selection controls',
+  'bui-tabs-chips': 'BUI · Tabs, chips & selectors',
+  'bui-lists': 'BUI · Lists & rows',
+  'bui-cards': 'BUI · Cards',
+  'bui-navigation': 'BUI · Headers & navigation',
+  'bui-sheets': 'BUI · Sheets & dialogs',
+  'bui-menus': 'BUI · Menus & tooltips',
   ...Object.fromEntries(
     Object.entries(settingsCategories).map(([key, value]) => [key, value.title]),
   ),

@@ -17,6 +17,7 @@ import {
   appButtonSizes,
   appButtonStates,
   appDimensions,
+  appRadii,
   appSpacing,
   appTypography,
 } from '~/shared/theme/appearance';
@@ -168,7 +169,7 @@ export const AppButton = forwardRef<GetRef<typeof Button>, AppButtonProps>(funct
       height="auto"
       position="relative"
       hitSlop={{ top: hitPadding, bottom: hitPadding, left: hitPadding, right: hitPadding }}
-      rounded={shape === 'circular' ? minHeight / 2 : '$6'}
+      rounded={shape === 'circular' ? minHeight / 2 : appRadii.pill}
       px={
         iconOnly
           ? compact

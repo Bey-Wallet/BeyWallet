@@ -19,11 +19,13 @@ export function ListTable({
   children,
   compact = true,
   variant: variantProp,
+  separators = true,
   ...props
 }: {
   children: React.ReactNode;
   compact?: boolean;
   variant?: ListTableVariant;
+  separators?: boolean;
   [key: string]: any;
 }) {
   const inheritedVariant = useContext(ListTableVariantContext);
@@ -39,10 +41,12 @@ export function ListTable({
         overflow="hidden"
         {...props}
       >
-        <TableRowContext.Provider value={variant === 'outlined' ? '$borderColor' : '$background'}>
+        <TableRowContext.Provider
+          value={separators ? (variant === 'outlined' ? '$borderColor' : '$background') : null}
+        >
           {/* Each row owns its divider, including rows returned by fragments/helpers.
               Clip the first divider above the group's top edge. */}
-          <YStack testID="list-table-rows" mt={-2}>
+          <YStack testID="list-table-rows" mt={separators ? -appBorders.separator : 0}>
             {children}
           </YStack>
         </TableRowContext.Provider>

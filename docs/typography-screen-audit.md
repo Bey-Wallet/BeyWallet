@@ -1,4 +1,4 @@
-# Tonkeeper-sized typography: complete screen audit
+# Bey typography: complete screen audit
 
 > Historical snapshot from 2 November 2026. The current size rule is a rounded 10% reduction from
 > that baseline; see the [current screen inventory](typography-10-percent.md). Numeric sizes below
@@ -12,11 +12,11 @@ Source review covered **71 screen-route entries**, **6 route infrastructure entr
 
 **No screen route or feature UI module is left without a source typography review.** This is a code audit, not a claim that every route was opened on an Android device. The remaining work is device validation, listed below.
 
-The earlier 87.5% scaling experiment is removed. Current role sizes follow the inspected Tonkeeper Android typography: Home/prominent balance **44**, amount **32**, secondary amount **28**, headings **32/24/20**, body/labels **16/14/12**, caption **10**. Inter families, prepared font features, weights and explicit Inter line heights remain Bey-specific. Shared list rows use 16-point primary text; Settings/mint-list descriptions use 14. Shared buttons remain 16-point medium/large and 14-point small labels.
+The earlier 87.5% scaling experiment is removed. The audited typography baseline uses: Home/prominent balance **44**, amount **32**, secondary amount **28**, headings **32/24/20**, body/labels **16/14/12**, caption **10**. Inter families, prepared font features, weights and explicit Inter line heights remain Bey-specific. Shared list rows use 16-point primary text; Settings/mint-list descriptions use 14. Shared buttons remain 16-point medium/large and 14-point small labels.
 
 Responsive payment amount entry uses the same known size steps **44/32/28/24/20**, including POS. Text reduction for long amounts is intentional. Suffix units remain proportional to their amount, with a 12-point floor. Exported receipt-image text retains its canvas-specific metrics. Icons, spacing, control heights, touch targets, protocol identifiers and wallet operations were not rescaled.
 
-Tonkeeper evidence: [role definitions](https://github.com/tonkeeper/android/blob/70abb50a675fa7f8f3bb58bbc24ad5e6c63d308a/kmp/ui/src/commonMain/kotlin/ui/theme/UIKitTypography.kt) and [44-sp Home balance](https://github.com/tonkeeper/android/blob/70abb50a675fa7f8f3bb58bbc24ad5e6c63d308a/apps/wallet/features/portfolio/src/main/kotlin/com/tonapps/portfolio/screens/wallet/components/TotalBalance.kt). Matching nominal sizes does not make Inter and TT Firs Neue render identically.
+Nominal font sizes alone do not establish identical rendering across font families. Inter metrics and Android device rendering still require visual validation.
 
 ## How to read the inventory
 

@@ -143,7 +143,7 @@ export default function Balance() {
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
             letterSpacing={-1.5}
-            color="$color"
+            color="$accent1"
 
             decimalOpacity={1}
             showDecimals={false}
@@ -169,7 +169,7 @@ export default function Balance() {
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
             letterSpacing={-1.5}
-            color="$color"
+            color="$accent1"
 
             decimalOpacity={1}
             showDecimals={true}

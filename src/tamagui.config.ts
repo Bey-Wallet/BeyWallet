@@ -13,6 +13,7 @@ import {
 } from './shared/theme/appearance';
 
 import { buttonThemes } from './shared/theme/buttons';
+import { createBUITamaguiTheme } from './shared/ui/BUI/theme';
 
 const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
 
@@ -239,6 +240,8 @@ export const config = createTamagui({
   },
   themes: {
     ...defaultConfig.themes,
+    light_bui: { ...defaultConfig.themes.light, ...createBUITamaguiTheme('light') },
+    dark_bui: { ...defaultConfig.themes.dark, ...createBUITamaguiTheme('dark') },
     ...createComponentColorThemes(),
     light_pos: {
       ...defaultConfig.themes.light,

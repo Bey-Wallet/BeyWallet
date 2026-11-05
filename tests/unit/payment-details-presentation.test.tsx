@@ -182,9 +182,9 @@ it('renders row-owned dividers through fragments, nested helpers, and conditiona
       </>
     );
   }
-  function Fixture({ show }: { show: boolean }) {
+  function Fixture({ show, separators }: { show: boolean; separators?: boolean }) {
     return (
-      <ListTable>
+      <ListTable separators={separators}>
         <ListTableRow label="Date" value="Today" />
         <>
           <ListTableRow label="Mint" value="Sample mint" />
@@ -207,6 +207,14 @@ it('renders row-owned dividers through fragments, nested helpers, and conditiona
       StyleSheet.flatten(rowGroup.props.style)?.marginTop,
   ).toBe(-2);
   expect(tree.root.findAllByType('YStack' as any).some((node) => node.props.separator)).toBe(false);
+  await act(async () => tree.update(<Fixture show={false} />));
+  expect(dividers()).toHaveLength(4);
+  await act(async () => tree.update(<Fixture show={false} separators={false} />));
+  expect(dividers()).toHaveLength(0);
+  expect(tree.root.findByProps({ testID: 'list-table-rows' }).props.mt).toBe(0);
+  expect(
+    tree.root.findAllByType('Text' as any).some((text) => text.props.children === 'Sample mint'),
+  ).toBe(true);
   await act(async () => tree.update(<Fixture show={false} />));
   expect(dividers()).toHaveLength(4);
 });

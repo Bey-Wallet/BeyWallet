@@ -87,14 +87,19 @@ Body text uses 400, labels use 500, and buttons, headings and amounts use 600. E
 amount-input and screen-specific amount-entry sizes remain supported. All button styles use
 SemiBold (600) labels.
 
-Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Every rounded
-button size uses the same **16-point radius** (`$6`). `AppInput`/`AppTextArea` and mode-selector
+Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Shared labeled
+buttons use a **full pill radius** (`appRadii.pill`) at every size. Icon controls remain circular.
+`AppInput`/`AppTextArea` and mode-selector
 triggers default to 12 points (`$5`).
 Cards and grouped lists use **16 points** (`$6`) with clipped child rows; sheets use **20 points**.
 Circular icon controls, avatars, status badges, switch tracks, and the approved toast pill retain
 their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
 conversation cards use the shared card radius. Explicit caller shapes remain available for special
 input contexts; their sizing cannot silently change the default radius.
+
+Settings → Advanced → BUI provides component previews in the native development client only;
+see [the BUI catalog](new-ui.md). Its preview themes remain separate from production appearances.
+`ListTable` supports `separators={false}`; existing lists keep their default full-width dividers.
 Lists default to compact 14-point primary text with a 48-point minimum row height and 16-point
 horizontal padding. Settings descriptions use 13-point text. Mint details and previews share
 the same base surfaces, clipped corners and full-width 2-point separators as Settings.

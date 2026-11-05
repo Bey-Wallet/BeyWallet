@@ -1,9 +1,14 @@
 # Surface consistency rules
 
 Recorded direction: **one surface, one rhythm**, using Bey's existing foundation.
-The temporary playground is removed. These rules guide future screen review/migration;
+BUI is the sole component playground and is restricted to the native development client.
+These rules guide future screen review/migration;
 recording them does not mean production screens have already been restyled.
 See [all screen targets](design-system-screens.md) and the [foundation](design-system.md).
+
+[BUI](new-ui.md) retains foundations, core components and navigation/overlays.
+Its light/dark preview themes, blue primary and component measurements remain
+isolated from production wallet screens.
 
 ## Surface and color
 
@@ -22,7 +27,7 @@ See [all screen targets](design-system-screens.md) and the [foundation](design-s
   current Home balance size, weight, letter spacing and primary color.
 - Compact lists: 14-point primary labels, 13-point descriptions; section labels may use 600. Keep
   system text scaling and wrapping, with minimum 48-point touch targets.
-- Groups/rounded buttons: 16-point corners; fields: 12; sheets: 20. Clip child rows at the group
+- Groups: 16-point corners; buttons: full pills; fields: 12; sheets: 20. Clip child rows at the group
   corners. Preserve intentional circles and pills.
 - Separators: full width, 2 points, existing page-background treatment.
 - Page edges 16; within-item spacing 8; related elements 12; groups 24; major sections 32.
@@ -44,6 +49,8 @@ See [all screen targets](design-system-screens.md) and the [foundation](design-s
 
 ## Explicit exceptions and protected behavior
 
+- **BUI:** development-client-only previews retain their own geometry, typography
+  and colors. They do not migrate production screens or invoke wallet operations.
 - **Home:** the requested Tangem-inspired layout uses a centered balance, large circular actions and a
   single inset mint panel. Preserve this grouping, Bey's typography and the wallet interactions.
 - **POS:** preserve the lime/black light_pos palette, sale-action pills and white QR surfaces.

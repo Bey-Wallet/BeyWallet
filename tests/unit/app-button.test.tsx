@@ -112,11 +112,11 @@ it('centers only the loader, preserves label geometry, and restores icons after 
 });
 
 it.each([
-  ['xxsmall', '$6'],
-  ['xsmall', '$6'],
-  ['small', '$6'],
-  ['medium', '$6'],
-  ['large', '$6'],
+  ['xxsmall', 1000],
+  ['xsmall', 1000],
+  ['small', 1000],
+  ['medium', 1000],
+  ['large', 1000],
 ] as const)('keeps the control radius consistent for %s buttons', async (size, radius) => {
   const tree = await render({ size });
   expect(tree.root.findByType('Button' as any).props.rounded).toBe(radius);
