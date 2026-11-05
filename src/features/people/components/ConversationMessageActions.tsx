@@ -1,3 +1,4 @@
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, type TextInput as NativeTextInput } from 'react-native';
 import { TextInput } from 'react-native-gesture-handler';
@@ -57,20 +58,26 @@ export const ConversationMessageActions = forwardRef<
       >
         {item && (
           <YStack gap="$3">
-            <XStack items="center" gap="$2">
-              <HeaderIconButton
-                icon={selecting ? ArrowLeft : X}
-                accessibilityLabel={selecting ? 'Back to message actions' : 'Close message actions'}
-                onPress={() => (selecting ? setSelecting(false) : onClose())}
-              />
-              <Text fontSize={14} fontWeight="600">
-                {selecting
+            <BUIHeader
+              navigation="none"
+              horizontalInset={0}
+              title={
+                selecting
                   ? 'Select text'
                   : item.kind === 'text'
                     ? 'Message actions'
-                    : 'Payment actions'}
-              </Text>
-            </XStack>
+                    : 'Payment actions'
+              }
+              leading={
+                <HeaderIconButton
+                  icon={selecting ? ArrowLeft : X}
+                  accessibilityLabel={
+                    selecting ? 'Back to message actions' : 'Close message actions'
+                  }
+                  onPress={() => (selecting ? setSelecting(false) : onClose())}
+                />
+              }
+            />
             {selecting && item.kind === 'text' ? (
               <YStack gap="$3" px="$2">
                 <Text color="$gray10" fontSize={11}>

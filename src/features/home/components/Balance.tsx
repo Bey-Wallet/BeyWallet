@@ -99,7 +99,7 @@ export default function Balance() {
       py={appSpacing.group}
       gap={0}
       z={1000}
-      minHeight={appSpacing.section * 5}
+      minHeight={appSpacing.section * 6}
       justify="center"
       items="center"
       position="relative"

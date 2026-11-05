@@ -1,4 +1,4 @@
-import { appColors } from './appearance';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 
 const blend = (background: string, foreground: string, amount: number) =>
   `#${[1, 3, 5]
@@ -13,8 +13,9 @@ const blend = (background: string, foreground: string, amount: number) =>
     .join('')}`;
 
 function createButtonTheme(dark: boolean) {
-  const c = appColors[dark ? 'dark' : 'light'];
-  const primary = [c.accent, c.accentHover, c.accentPress];
+  const c = getBUITheme(dark ? 'dark' : 'light');
+  const primary = c.buttons.Primary;
+  const secondary = c.secondaryButton;
   const semantic = (background: string, color: string) => [
     background,
     blend(background, color, 0.08),
@@ -43,15 +44,15 @@ function createButtonTheme(dark: boolean) {
   return {
     ...palette(
       'Default',
-      primary,
-      c.onAccent,
-      [c.surface, c.raised, c.pressed],
-      c.buttonForeground,
-      c.accent,
+      [primary[0], primary[2], primary[2]],
+      primary[3],
+      [secondary[0], secondary[2], secondary[2]],
+      secondary[3],
+      primary[0],
     ),
     ...palette(
       'Critical',
-      ['#B91C1C', '#991B1B', '#7F1D1D'],
+      [c.buttons.Red[0], c.buttons.Red[2], c.buttons.Red[2]],
       '#FFFFFF',
       semantic(dark ? '#450A0A' : '#FEE2E2', criticalColor),
       criticalColor,
@@ -59,18 +60,18 @@ function createButtonTheme(dark: boolean) {
     ),
     ...palette(
       'Warning',
-      ['#FBBF24', '#F59E0B', '#D97706'],
+      [c.buttons.Orange[0], c.buttons.Orange[2], c.buttons.Orange[2]],
       '#181818',
       semantic(dark ? '#451A03' : '#FEF3C7', warningColor),
       warningColor,
       warningColor,
     ),
-    buttonDisabled: c.accentDisabled,
-    buttonDisabledText: c.onAccent,
-    buttonSecondaryDisabled: c.secondaryButtonDisabled,
-    buttonSecondaryDisabledText: c.tertiaryText,
-    buttonGhostHighlighted: c.ghostButtonHighlighted,
-    buttonFocus: c.accent,
+    buttonDisabled: primary[1],
+    buttonDisabledText: primary[3],
+    buttonSecondaryDisabled: secondary[1],
+    buttonSecondaryDisabledText: secondary[3],
+    buttonGhostHighlighted: c.buttons.Tertiary[2],
+    buttonFocus: primary[0],
   };
 }
 

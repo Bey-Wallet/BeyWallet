@@ -246,7 +246,7 @@ export default function MintDetailsModal() {
         <Text color="$color" fontSize="$5" fontWeight="600">
           Mint not found
         </Text>
-        <AppButton variant="default" emphasis="primary" size="medium" mt="$4" onPress={safeGoBack}>
+        <AppButton variant="default" emphasis="primary" size="large" mt="$4" onPress={safeGoBack}>
           Go Back
         </AppButton>
       </YStack>

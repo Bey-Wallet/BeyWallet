@@ -17,7 +17,14 @@ jest.mock('react-native-safe-area-context', () => ({
 const mockOpenReader = jest.fn();
 jest.mock('~/features/nfc/nfcFlow', () => ({ nfcFlow: { openReader: () => mockOpenReader() } }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text', View: 'View' }));
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  YStack: 'YStack',
+  XStack: 'XStack',
+  Text: 'Text',
+  View: 'View',
+}));
 jest.mock('@tamagui/lucide-icons', () => ({
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',

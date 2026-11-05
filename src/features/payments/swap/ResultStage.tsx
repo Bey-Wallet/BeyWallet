@@ -80,7 +80,7 @@ export function ResultStage({
         </Text>
       )}
       {onRetry && (
-        <AppButton size="medium" emphasis="secondary" onPress={onRetry}>
+        <AppButton size="large" emphasis="secondary" onPress={onRetry}>
           Try again
         </AppButton>
       )}

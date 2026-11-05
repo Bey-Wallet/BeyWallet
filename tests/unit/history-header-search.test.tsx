@@ -6,12 +6,13 @@ import { HistoryTabScreen } from '~/features/history/HistoryTabScreen';
 const mockSetOptions = jest.fn();
 const mockNavigation = { setOptions: mockSetOptions };
 jest.mock('expo-router', () => ({ useNavigation: () => mockNavigation }));
-jest.mock('react-native', () => ({
-  View: 'View',
-  Keyboard: { dismiss: jest.fn() },
-  StyleSheet: { create: (styles: unknown) => styles },
+jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  XStack: 'XStack',
+  Text: 'Text',
 }));
-jest.mock('tamagui', () => ({ XStack: 'XStack', Text: 'Text' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   Search: 'Search',

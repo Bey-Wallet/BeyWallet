@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
   nfcReceiveCoordinator: {
     getSnapshot: () => ({ status: 'idle' }),
@@ -34,6 +35,7 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
 }));
 
 jest.mock('tamagui', () => ({
+  useThemeName: () => mockAppearance,
   Button: 'Button',
   Text: 'Text',
   View: 'View',

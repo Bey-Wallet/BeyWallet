@@ -1,3 +1,4 @@
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Svg, { Rect, Text as SvgText, Line, G, Path, Circle } from 'react-native-svg';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -145,18 +146,14 @@ export function ReceiptImageShare({
         >
           <BottomSheetScrollView>
             <YStack p="$4" gap="$3">
-              <XStack items="center">
-                <HeaderIconButton
-                  icon={X}
-                  accessibilityLabel="Close receipt preview"
-                  disabled={sharing}
-                  onPress={() => sheet.current?.dismiss()}
-                />
-                <Text flex={1} textAlign="center" fontFamily="$body" fontSize={14} fontWeight="600">
-                  Share receipt
-                </Text>
-                <XStack width={48} />
-              </XStack>
+              <BUIHeader
+                title="Share receipt"
+                navigation="close"
+                navigationLabel="Close receipt preview"
+                navigationDisabled={sharing}
+                horizontalInset={0}
+                onNavigate={() => sheet.current?.dismiss()}
+              />
               <Svg
                 ref={svg}
                 width="100%"

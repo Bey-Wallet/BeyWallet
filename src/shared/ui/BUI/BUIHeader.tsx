@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, I18nManager, PixelRatio, Text as NativeText } from 'react-native';
 import { XStack, YStack } from 'tamagui';
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppPressable, type AppPressableProps } from '~/shared/ui/AppPressable';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { BUIIcon } from './BUIIcon';
 import { BUIText } from './BUIText';
-import { useBUITheme } from './useBUITheme';
+import { useBUIChromeTheme as useBUITheme } from './useBUITheme';
 import { buiBadgeOffset } from './badgeGeometry';
 import {
   buiHeaderTitleInset,
@@ -39,41 +39,45 @@ function useHeaderProgress(visible: boolean, onHidden?: () => void) {
   return progress;
 }
 
-export function BUIHeaderAction({
-  label,
-  children,
-  onPress,
-  disabled = false,
-}: {
-  label: string;
-  children: React.ReactNode;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
+export const BUIHeaderAction = forwardRef<
+  React.ComponentRef<typeof AppPressable>,
+  Omit<AppPressableProps, 'accessibilityLabel'> & {
+    label: string;
+    busy?: boolean;
+  }
+>(function BUIHeaderAction(
+  { label, children, disabled = false, busy = false, onPress, accessibilityState, ...props },
+  ref,
+) {
   const c = useBUITheme();
+  const blocked = disabled || busy;
+  const selected = accessibilityState?.selected || accessibilityState?.expanded;
   return (
     <AppPressable
+      {...props}
+      ref={ref}
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
+      accessibilityState={{ ...accessibilityState, disabled: blocked, busy }}
+      disabled={blocked}
       width={32}
       height={32}
       minHeight={32}
       rounded={16}
       hitSlop={8}
-      bg={c.secondaryButton[0]}
-      opacity={disabled ? 0.48 : 1}
+      bg={selected ? c.primary : c.secondaryButton[0]}
+      opacity={disabled && !busy ? 0.48 : 1}
       items="center"
       justify="center"
-      onPress={() => {
-        if (!disabled) onPress();
+      onPress={(event) => {
+        if (!blocked) onPress?.(event);
       }}
-      pressStyle={{ bg: c.secondaryButton[2], opacity: 1 }}
+      hoverStyle={{ bg: selected ? c.primaryPressed : c.secondaryButton[2], opacity: 1 }}
+      pressStyle={{ bg: selected ? c.primaryPressed : c.secondaryButton[2], opacity: 1 }}
     >
       {children}
     </AppPressable>
   );
-}
+});
 
 export function BUIHeaderIcon({
   label,
@@ -133,11 +137,14 @@ function HeaderTitle({
   title,
   variant,
   shrink,
+  liveRegion,
 }: {
   title: string;
   variant: 'centered' | 'simple' | 'modal';
   shrink: boolean;
+  liveRegion?: 'none' | 'polite' | 'assertive';
 }) {
+  const c = useBUITheme();
   const [available, setAvailable] = useState(0);
   const [measured, setMeasured] = useState({ text: '', width: 0 });
   const size = variant === 'centered' ? 24 : 20;
@@ -175,6 +182,8 @@ function HeaderTitle({
         </NativeText>
       )}
       <BUIText
+        accessibilityLiveRegion={liveRegion}
+        color={c.text}
         kind={variant === 'centered' ? 'h2' : 'h3'}
         fontSize={size * scale}
         numberOfLines={1}
@@ -201,8 +210,22 @@ export function BUIHeader({
   shrink = false,
   divider = false,
   topInset = 0,
+  leading,
+  titleContent: customTitle,
+  navigationDisabled = false,
+  navigationLabel,
+  horizontalInset = 16,
+  transparent = false,
+  titleLiveRegion,
 }: {
   title: string;
+  leading?: React.ReactNode;
+  titleContent?: React.ReactNode;
+  navigationDisabled?: boolean;
+  navigationLabel?: string;
+  horizontalInset?: number;
+  transparent?: boolean;
+  titleLiveRegion?: 'none' | 'polite' | 'assertive';
   subtitle?: string;
   variant?: 'centered' | 'simple' | 'modal';
   navigation?: 'back' | 'close' | 'none';
@@ -217,7 +240,8 @@ export function BUIHeader({
   topInset?: number;
 }) {
   const c = useBUITheme();
-  const [navigationWidth, setNavigationWidth] = useState(navigation === 'none' ? 0 : 48);
+  const hasLeading = !!leading || navigation !== 'none';
+  const [navigationWidth, setNavigationWidth] = useState(hasLeading ? 48 : 0);
   const [actionsWidth, setActionsWidth] = useState(actions ? 32 : 0);
   const hasActions = !!actions;
   const [renderActions, setRenderActions] = useState(hasActions);
@@ -230,17 +254,19 @@ export function BUIHeader({
   const titleAlpha = useHeaderProgress(textVisible);
   const subtitleVisible = variant !== 'centered' && (!!subtitle?.trim() || updating);
   const subtitleProgress = useHeaderProgress(subtitleVisible);
-  const titleInset = buiHeaderTitleInset(
-    navigation === 'none' ? 0 : navigationWidth,
-    renderActions ? actionsWidth : 0,
-  );
+  const titleInset =
+    buiHeaderTitleInset(hasLeading ? navigationWidth : 0, renderActions ? actionsWidth : 0) -
+    16 +
+    horizontalInset;
   const titleContent = (
     <Animated.View
       style={{ opacity: titleAlpha, alignItems: 'center', width: '100%' }}
       accessibilityElementsHidden={!textVisible}
       importantForAccessibility={textVisible ? 'auto' : 'no-hide-descendants'}
     >
-      <HeaderTitle title={title} variant={variant} shrink={shrink} />
+      {customTitle ?? (
+        <HeaderTitle title={title} variant={variant} shrink={shrink} liveRegion={titleLiveRegion} />
+      )}
       <Animated.View
         style={{
           height: subtitleProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }),
@@ -282,7 +308,7 @@ export function BUIHeader({
     </Animated.View>
   );
   return (
-    <YStack bg={c.canvas} pt={Math.max(0, topInset)}>
+    <YStack width="100%" bg={transparent ? 'transparent' : c.canvas} pt={Math.max(0, topInset)}>
       <YStack height={64}>
         <YStack
           position="absolute"
@@ -315,27 +341,30 @@ export function BUIHeader({
             titleContent
           )}
         </YStack>
-        {navigation !== 'none' && (
+        {hasLeading && (
           <XStack
             position="absolute"
-            l={16}
+            l={horizontalInset}
             t={0}
             b={0}
             items="center"
             onLayout={({ nativeEvent }) => setNavigationWidth(nativeEvent.layout.width)}
           >
-            <BUIHeaderAction
-              label={navigation === 'close' ? 'Close' : 'Back'}
-              disabled={!onNavigate}
-              onPress={() => onNavigate?.()}
-            >
-              <BUIIcon
-                name={navigation === 'close' ? 'close' : 'back'}
-                size={22}
-                color={c.secondaryButton[3]}
-              />
-            </BUIHeaderAction>
-            <YStack width={16} />
+            {leading ?? (
+              <BUIHeaderAction
+                label={navigationLabel ?? (navigation === 'close' ? 'Close' : 'Back')}
+                disabled={navigationDisabled || !onNavigate}
+                onPress={() => {
+                  if (!navigationDisabled) onNavigate?.();
+                }}
+              >
+                <BUIIcon
+                  name={navigation === 'close' ? 'close' : 'back'}
+                  size={22}
+                  color={c.secondaryButton[3]}
+                />
+              </BUIHeaderAction>
+            )}
           </XStack>
         )}
         {renderActions && (
@@ -345,7 +374,7 @@ export function BUIHeader({
             importantForAccessibility={hasActions ? 'auto' : 'no-hide-descendants'}
             style={{
               position: 'absolute',
-              right: 16,
+              right: horizontalInset,
               top: 0,
               bottom: 0,
               justifyContent: 'center',
@@ -388,7 +417,7 @@ export function BUILargeHeader({
         accessibilityElementsHidden={height === 0}
         importantForAccessibility={height === 0 ? 'no-hide-descendants' : 'auto'}
       >
-        <BUIText kind="h1" accessibilityRole="header" flexShrink={0}>
+        <BUIText color={c.text} kind="h1" accessibilityRole="header" flexShrink={0}>
           {title}
         </BUIText>
       </YStack>

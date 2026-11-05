@@ -1,3 +1,4 @@
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { pickQrImage } from '~/services/platform/qrImageService';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
@@ -413,7 +414,7 @@ export default function ScannerScreen() {
                 Allow camera access to scan, or choose an image.
               </Text>
               <AppButton
-                size="medium"
+                size="large"
                 onPress={requestCamera}
                 loading={isRequestingCamera}
                 disabled={isImporting}
@@ -577,32 +578,22 @@ export default function ScannerScreen() {
 
         <SafeAreaView style={{ flex: 1 }}>
           <YStack flex={1} justify="space-between" p="$4">
-            <XStack items="center" gap="$2">
-              <YStack width={48} items="center">
-                <HeaderIconButton
-                  accessibilityLabel="Close scanner"
-                  icon={X}
-                  onPress={() => router.back()}
-                />
-              </YStack>
-              <Text
-                {...appTypography.title3}
-                fontWeight="500"
-                color="$color"
-                flex={1}
-                textAlign="center"
-              >
-                Scan QR code
-              </Text>
-              <YStack width={48} items="center">
+            <BUIHeader
+              title="Scan QR code"
+              navigation="close"
+              navigationLabel="Close scanner"
+              onNavigate={() => router.back()}
+              transparent
+              horizontalInset={0}
+              actions={
                 <HeaderIconButton
                   accessibilityLabel={flash === 'on' ? 'Turn flashlight off' : 'Turn flashlight on'}
                   accessibilityState={{ selected: flash === 'on' }}
                   icon={flash === 'on' ? Zap : ZapOff}
                   onPress={() => setFlash((value) => (value === 'on' ? 'off' : 'on'))}
                 />
-              </YStack>
-            </XStack>
+              }
+            />
 
             <YStack gap="$3" width="100%" maxWidth={420} self="center">
               <XStack
@@ -637,7 +628,7 @@ export default function ScannerScreen() {
                 <AppButton
                   variant="default"
                   emphasis="primary"
-                  size="medium"
+                  size="large"
                   onPress={() => setScanned(false)}
                 >
                   Scan again

@@ -21,6 +21,7 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',

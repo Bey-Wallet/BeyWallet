@@ -138,13 +138,15 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'BottomSheetScrollView' }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useTheme: () => ({}),
+  useThemeName: () => 'dark',
+  ...Object.fromEntries(
     ['YStack', 'XStack', 'Text', 'H2', 'H3', 'H4', 'Separator', 'ScrollView', 'View', 'Card'].map(
       (name) => [name, name],
     ),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     [

@@ -1,3 +1,5 @@
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
@@ -25,6 +27,7 @@ jest.mock('~/services/wallet/currencyService', () => ({
 }));
 jest.mock('~/services/platform/receiptImageService', () => ({ shareReceiptImage: jest.fn() }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => (mockDark ? 'dark' : 'light'),
   Text: 'Text',
   YStack: 'YStack',
   XStack: 'XStack',

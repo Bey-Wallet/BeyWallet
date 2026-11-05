@@ -1,10 +1,10 @@
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -143,7 +143,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         <AppButton
           variant="default"
           emphasis="secondary"
-          size="medium"
+          size="large"
           onPress={() => void recheckConnection()}
         >
           Try again
@@ -277,7 +277,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         <AppButton
           variant="default"
           emphasis="primary"
-          size="medium"
+          size="large"
           icon={<Plus size={18} />}
           disabled={isConnecting}
           loading={isConnecting}
@@ -303,18 +303,14 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
           }}
         >
           <YStack gap="$5">
-            <XStack items="center" gap="$2">
-              <HeaderIconButton
-                icon={X}
-                accessibilityLabel="Close connection sheet"
-                disabled={isConnecting}
-                onPress={() => connectionSheetRef.current?.dismiss()}
-              />
-              <Text flex={1} fontSize="$6" fontWeight="600" textAlign="center">
-                Connect to mint
-              </Text>
-              <View width={48} />
-            </XStack>
+            <BUIHeader
+              title="Connect to mint"
+              navigation="close"
+              navigationLabel="Close connection sheet"
+              navigationDisabled={isConnecting}
+              horizontalInset={0}
+              onNavigate={() => connectionSheetRef.current?.dismiss()}
+            />
             <XStack items="center" gap="$3">
               <View
                 width={48}
@@ -392,7 +388,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             <AppButton
               variant="default"
               emphasis="primary"
-              size="medium"
+              size="large"
               loading={isConnecting}
               loadingText="Connecting to mint…"
               disabled={isConnecting}

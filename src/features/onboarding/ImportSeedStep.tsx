@@ -345,7 +345,7 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
             disabled={isImporting}
             variant="default"
             emphasis="secondary"
-            size="medium"
+            size="large"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
               onBack();

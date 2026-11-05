@@ -35,7 +35,7 @@ export function MintUrlQrOverlay({
             <Text selectable textAlign="center">
               {url}
             </Text>
-            <AppButton variant="default" emphasis="secondary" size="medium" onPress={onClose}>
+            <AppButton variant="default" emphasis="secondary" size="large" onPress={onClose}>
               Close QR
             </AppButton>
           </YStack>

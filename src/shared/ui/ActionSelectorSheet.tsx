@@ -1,3 +1,4 @@
+import { BUIHeader } from './BUI/BUIHeader';
 import React, {
   forwardRef,
   useCallback,
@@ -328,33 +329,26 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
 
     const content = (
       <YStack flex={1} px="$4" gap="$3">
-        <XStack items="center" justify="space-between">
-          <HeaderIconButton
-            accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
-            disabled={processing}
-            icon={stage === 'main' ? X : ArrowLeft}
-            onPress={() => {
-              if (processing || actionPending.current) return;
-              if (stage === 'main') dismiss();
-              else {
-                Haptics.selectionAsync();
-                setStage('main');
-              }
-            }}
-          />
-          <Text
-            accessibilityRole="header"
-            flex={1}
-            textAlign="center"
-            fontFamily="$heading"
-            fontSize="$6"
-            fontWeight="500"
-            color="$color"
-          >
-            {title}
-          </Text>
-          <View width={40} />
-        </XStack>
+        <BUIHeader
+          title={title}
+          navigation="none"
+          horizontalInset={0}
+          leading={
+            <HeaderIconButton
+              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
+              disabled={processing}
+              icon={stage === 'main' ? X : ArrowLeft}
+              onPress={() => {
+                if (processing || actionPending.current) return;
+                if (stage === 'main') dismiss();
+                else {
+                  Haptics.selectionAsync();
+                  setStage('main');
+                }
+              }}
+            />
+          }
+        />
         {type === 'mint' ? (
           <BottomSheetScrollView
             showsVerticalScrollIndicator={false}

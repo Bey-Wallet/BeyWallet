@@ -1,9 +1,9 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { Text, XStack } from 'tamagui';
-import { AppPressable } from '~/shared/ui/AppPressable';
 import type { HistoryScope } from './historyList';
 import { SlidersHorizontal, Search, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
@@ -39,16 +39,8 @@ export function HistoryTabScreen() {
           <Text fontWeight="600" fontSize="$7" color="$color">
             History
           </Text>
-          <AppPressable
-            minHeight={48}
-            minWidth={48}
-            items="center"
-            justify="center"
-            bg="transparent"
-            opacity={scope === 'pos' ? 1 : 0.4}
-            hoverStyle={{ bg: 'transparent', opacity: scope === 'pos' ? 0.85 : 0.6 }}
-            pressStyle={{ bg: 'transparent', opacity: 0.6 }}
-            accessibilityLabel="POS history"
+          <BUIHeaderAction
+            label="POS history"
             accessibilityState={{ selected: scope === 'pos' }}
             onPress={() => {
               Keyboard.dismiss();
@@ -59,31 +51,27 @@ export function HistoryTabScreen() {
               setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
             }}
           >
-            <Text fontFamily="$body" fontSize={13} fontWeight="600" color="$color">
+            <Text
+              fontFamily="$body"
+              fontSize={13}
+              fontWeight="600"
+              color={scope === 'pos' ? '$buttonDefaultPrimaryText' : '$buttonDefaultSecondaryText'}
+            >
               POS
             </Text>
-          </AppPressable>
+          </BUIHeaderAction>
         </XStack>
       ),
       headerRight: () => (
-        <XStack pr="$4" gap="$2">
-          <AppIconButton
-            variant="default"
-            emphasis={showSearch ? 'primary' : 'secondary'}
-            size="small"
-            shape="circular"
-            iconSize={22}
+        <XStack gap={16}>
+          <HeaderIconButton
             accessibilityLabel={showSearch ? 'Close history search' : 'Search history'}
             accessibilityState={{ expanded: showSearch }}
             icon={showSearch ? <X color="$onAccent" /> : <Search color="$iconPrimary" />}
             onPress={toggleSearch}
           />
-          <AppIconButton
-            variant="default"
-            emphasis={filterHighlighted ? 'primary' : 'secondary'}
-            size="small"
-            shape="circular"
-            iconSize={22}
+          <HeaderIconButton
+            accessibilityState={{ selected: filterHighlighted }}
             accessibilityLabel="Filter history"
             icon={
               <SlidersHorizontal

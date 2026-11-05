@@ -1,3 +1,4 @@
+import { BUIHeader } from './BUI/BUIHeader';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -387,31 +388,21 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
         onOpenChange={handleOpenChange}
       >
         <YStack flex={1} minWidth={0}>
-          <XStack px="$4" py="$2" items="center" gap="$3">
-            <HeaderIconButton
-              accessibilityLabel="Close mint selector"
-              disabled={locked}
-              icon={X}
-              onPress={handleClose}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-            >
-              Choose mint
-            </Text>
-            <HeaderIconButton
-              accessibilityLabel="Add mint"
-              disabled={locked}
-              icon={Plus}
-              onPress={handleAddMint}
-            />
-          </XStack>
+          <BUIHeader
+            title="Choose mint"
+            navigation="close"
+            navigationLabel="Close mint selector"
+            navigationDisabled={locked}
+            onNavigate={handleClose}
+            actions={
+              <HeaderIconButton
+                accessibilityLabel="Add mint"
+                disabled={locked}
+                icon={Plus}
+                onPress={handleAddMint}
+              />
+            }
+          />
           {selectionError && (
             <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
               {selectionError}
@@ -510,12 +501,12 @@ export default function HomeHeaderMintSelector() {
       <AppPressable
         py={4}
         accessibilityState={{ expanded, busy: isLoading }}
-        rounded={appRadii.pill}
-        bg={isOffline ? '$red10' : '$buttonDefaultPrimary'}
+        rounded={appRadii.control}
+        bg={isOffline ? '$red10' : '$accentColor'}
         pl={isLoading ? appSpacing.gap : appSpacing.small}
         pr={appSpacing.gap}
         borderWidth={1}
-        borderColor={isOffline ? '$red10' : '$borderColor'}
+        borderColor={isOffline ? '$red10' : '$accentColor'}
         accessibilityHint="Choose the active mint"
         disabled={isLoading}
         onPress={() => {
@@ -525,13 +516,14 @@ export default function HomeHeaderMintSelector() {
         maxW={200}
         minW={0}
         flexShrink={1}
-        hoverStyle={{ bg: isOffline ? '$red11' : '$buttonDefaultPrimaryHover' }}
+        hoverStyle={{ bg: isOffline ? '$red11' : '$accentColor' }}
         pressStyle={{
           scale: 0.97,
           opacity: 0.95,
-          bg: isOffline ? '$red11' : '$buttonDefaultPrimaryPress',
+          bg: isOffline ? '$red11' : '$accentColor',
         }}
         minHeight={40}
+        hitSlop={4}
         flexDirection="row"
         items="center"
         justify="center"

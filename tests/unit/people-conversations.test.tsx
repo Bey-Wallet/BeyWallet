@@ -1,3 +1,4 @@
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 import { LegendList } from '@legendapp/list/react-native';
 jest.mock('@legendapp/list/react-native', () => ({
   LegendList: require('react').forwardRef((props: any, ref: any) => {
@@ -66,6 +67,7 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: () => null },
 }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   useTheme: () => ({ color: { val: '#111111' } }),
   ...Object.fromEntries(
     ['Input', 'Image', 'ScrollView', 'Text', 'View', 'XStack', 'YStack', 'Spinner', 'Theme'].map(
@@ -959,9 +961,9 @@ describe('People conversations and invitations', () => {
       .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel === 'Back')!;
     expect(close.props).toMatchObject({
-      size: 'xsmall',
+      size: 'xxsmall',
       shape: 'circular',
-      emphasis: 'ghost',
+      emphasis: 'secondary',
       iconSize: 22,
     });
     close.props.onPress();

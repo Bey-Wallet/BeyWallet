@@ -1,3 +1,5 @@
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import SettingsStack from '~/features/settings/SettingsStack';
@@ -14,24 +16,29 @@ let mockRoute = 'index';
 let mockCanGoBack = false;
 jest.mock('expo-router', () => ({
   useRouter: () => ({ navigate: mockNavigate, replace: mockReplace }),
-  Stack: ({ screenOptions }: any) => {
-    const React = require('react');
-    const options = screenOptions({
-      route: { name: mockRoute },
-      navigation: {
-        getState: () => ({ index: mockCanGoBack ? 1 : 0 }),
-        goBack: mockGoBack,
-      },
-    });
-    return React.createElement(
-      'Header',
-      null,
-      options.headerTitle({ children: options.title }),
-      options.headerLeft(),
-    );
-  },
+  Stack: Object.assign(
+    ({ screenOptions, children }: any) => {
+      const React = require('react');
+      const options = screenOptions({
+        route: { name: mockRoute },
+        navigation: {
+          getState: () => ({ index: mockCanGoBack ? 1 : 0 }),
+          goBack: mockGoBack,
+        },
+      });
+      return React.createElement(options.header, {
+        options,
+        route: { name: mockRoute },
+        navigation: {},
+      });
+    },
+    { Protected: ({ children }: any) => children, Screen: () => null },
+  ),
 }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  YStack: 'YStack',
+  XStack: 'XStack',
   Text: 'Text',
   useTheme: () => ({ background: { val: '#000' }, color: { val: '#fff' } }),
 }));

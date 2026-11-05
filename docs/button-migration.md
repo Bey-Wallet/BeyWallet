@@ -1,5 +1,42 @@
 # Button migration report
 
+## BUI rollout (2026-11-06)
+
+AppButton, AppIconButton, HeaderIconButton and AppTextButton now share the BUI renderer in
+`src/shared/ui/BUI/BUIButtonControl.tsx`. The BUI catalog uses that renderer too. AppButton remains
+the compatibility API, preserving event handlers, loading labels, refs, accessibility states,
+semantic intent and navigation integrations.
+
+Buttons use BUI primary blue, neutral secondary fills, transparent tertiary actions, 500-weight
+Inter labels, and size-specific corners (large: 56 high / radius 16; medium: 48 / radius 24).
+Compact icon controls retain proportional glyphs and hit slop reaching 48 points. Large labeled
+actions default to full width; explicit width, flex layouts and `fullWidth={false}` support paired
+and inline controls. Main mint connection, scanner recovery and Transfer recovery actions now
+use large buttons. Home shortcuts use BUI action controls, retaining Scan's 20-point glyph and
+3-point stroke. The Home mint selector keeps a compact 40-point height, 12-point corners and
+theme-inverse accent fill/foreground, with hit slop reaching 48 points and its offline error color.
+
+This supersedes the historical monochrome button palette and pill-radius details below. Other
+wallet branding and the POS theme remain unchanged. Exact BUI palette checks replace the former
+monochrome primary contrast assertions; semantic supporting-action contrast checks remain.
+Wallet, payment, authentication and recovery logic are unchanged. Device checks remain necessary
+for small screens, text scaling, screen readers, NFC, biometrics and end-to-end payments.
+
+### Headers and navigation
+
+Settings and non-tab route headers use BUIHeader through AppScreenHeader and the existing
+useScreenHeaderOptions hook. Payment receipts, the scanner, NFC, Send/Receive and mint sheets,
+conversation screens, and receipt previews use the same BUI header geometry. Custom title content
+(such as mint-name editing and contact details), navigation callbacks and operation locks stay
+owned by their screens. NFC title changes retain polite announcements. BUI chrome follows the
+active light/dark theme rather than the catalog preference, and retains the POS palette.
+
+Main Home/History/People tab headers and the original custom bottom navigation stay in place.
+Settings remains the explicit exception, with its centered BUI header, back behavior and hidden
+tab bar. HeaderIconButton uses a 32-point neutral circle with a 22-point glyph and hit slop to
+48 points; selected/expanded header controls use primary emphasis. This includes Home's NFC
+shortcut without changing its reader action.
+
 All 286 former Tamagui Button usages in 95 caller files have been migrated: **248 AppButton actions, 35 AppPressable controls, and 3 noninteractive badges**. The Button inside AppButton is the only permitted raw Tamagui Button.
 
 ## Operation feedback and compact icon actions

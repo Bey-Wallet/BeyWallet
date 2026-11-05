@@ -77,7 +77,7 @@ it.each(['dark', 'light'] as const)(
       expect(styles('field')).toEqual(
         expect.arrayContaining([expect.objectContaining({ backgroundColor: c.field })]),
       );
-      expect(styles('button').some((style) => style?.minHeight === 48)).toBe(true);
+      expect(styles('button').some((style) => style?.minHeight === 56)).toBe(true);
       const tabBar = tree.root.findByType(CustomTabBar);
       expect(
         tabBar.findAll((node) => {
@@ -97,8 +97,8 @@ it.each(['dark', 'light'] as const)(
       expect(
         labelStyles.some(
           (style) =>
-            style?.fontFamily === 'InterTextSemiBold' &&
-            style?.fontSize === 14 &&
+            style?.fontFamily === 'InterTextMedium' &&
+            style?.fontSize === 16 &&
             style?.lineHeight === 22,
         ),
       ).toBe(true);

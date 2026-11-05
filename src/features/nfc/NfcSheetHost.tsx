@@ -4,14 +4,14 @@ import { formatPaymentDateTime } from '~/shared/utils/time';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform, useWindowDimensions } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { FullWindowOverlay } from 'react-native-screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
-import { AlertTriangle, Settings2, Ban, Check, X } from '@tamagui/lucide-icons';
+import { AlertTriangle, Settings2, Ban, Check } from '@tamagui/lucide-icons';
 import NfcIcon from '~/shared/icons/NfcIcon';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -169,27 +169,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
         showsVerticalScrollIndicator={false}
       >
         <YStack gap="$4" minHeight={Math.min(300, Math.round(height * 0.65))}>
-          <XStack py="$2" items="center" gap="$3">
-            <HeaderIconButton
-              accessibilityLabel="Close NFC"
-              icon={X}
-              disabled={state.locked}
-              onPress={close}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-              accessibilityLiveRegion="polite"
-            >
-              {titles[state.status]}
-            </Text>
-            <View width={40} />
-          </XStack>
+          <BUIHeader
+            title={titles[state.status]}
+            titleLiveRegion="polite"
+            navigation="close"
+            navigationLabel="Close NFC"
+            navigationDisabled={state.locked}
+            onNavigate={close}
+            horizontalInset={0}
+          />
           <YStack gap="$3" items="center">
             <YStack
               testID="nfc-sheet-status"

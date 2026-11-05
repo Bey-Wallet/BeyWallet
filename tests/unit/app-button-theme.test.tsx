@@ -7,6 +7,7 @@ import { config } from '~/tamagui.config';
 import { AppButton } from '~/shared/ui/AppButton';
 import { appColors, appRadii } from '~/shared/theme/appearance';
 import { ListTable } from '~/shared/ui/ListTable';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { posColors } from '~/shared/theme/pos';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
@@ -52,7 +53,7 @@ it.each(['light', 'dark'] as const)(
 );
 
 it.each(['light', 'dark'] as const)(
-  'renders monochrome branding through the provider and nested %s theme',
+  'renders BUI button colors through the provider and nested %s theme',
   async (theme) => {
     let tree!: ReactTestRenderer;
     await act(async () => {
@@ -71,12 +72,12 @@ it.each(['light', 'dark'] as const)(
       tree.root
         .findAll((node) => node.props.testID === id)
         .map((node) => StyleSheet.flatten(node.props.style)?.backgroundColor);
-    expect(backgrounds('branded')).toContain(appColors[theme].accent);
+    expect(backgrounds('branded')).toContain(getBUITheme(theme).primary);
     const foregrounds = tree.root
       .findAll((node) => node.props.children === 'Branded')
       .map((node) => StyleSheet.flatten(node.props.style)?.color);
-    expect(foregrounds).toContain(appColors[theme].onAccent);
-    expect(backgrounds('neutral')).toContain(appColors[theme].surface);
+    expect(foregrounds).toContain(getBUITheme(theme).primaryForeground);
+    expect(backgrounds('neutral')).toContain(getBUITheme(theme).secondaryButton[0]);
     await act(async () => tree.unmount());
   },
 );

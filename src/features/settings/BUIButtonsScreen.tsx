@@ -74,7 +74,7 @@ export function BUIButtonsScreen() {
     >
       <ReferenceSpec
         name="Size scale"
-        measurement="Small H36 / R18 / 14 sp; medium H48 / R24 / 16 sp; large H56 / R16 / 16 sp. Weight500, tracking0.005 em, horizontal16 / vertical8, icon16 / gap8, loader24. Small specimens keep a48-point touch area. Inter substitutes the source font; native line metrics/ripple differ."
+        measurement="Small H36 / R18 / 14 sp; medium H48 / R24 / 16 sp; large H56 / R16 / 16 sp. Weight500, tracking0.005 em, horizontal16 / vertical8, proportional icons16/20/24 / gap8, matching loaders. Small specimens keep a48-point touch area. Inter substitutes the source font; native line metrics/ripple differ."
       >
         <YStack px={16} gap={16}>
           {(['small', 'medium', 'large'] as const).map((item) => (
@@ -123,7 +123,7 @@ export function BUIButtonsScreen() {
       </ReferenceSpec>
       <ReferenceSpec
         name="Home action buttons"
-        measurement="Layout76 × 84, circle44, icon16, label12 Medium/gap8. Plain actions: icon28, label gap4. These retain their own fixed geometry and remain interactive independently of the labeled-button state and width controls."
+        measurement="Layout76 × 84, circle48, icon16, label12 Medium/gap8. Plain actions: icon28, label gap4. These retain their own fixed geometry and remain interactive independently of the labeled-button state and width controls."
       >
         <XStack px={16} flexWrap="wrap" justify="space-around">
           {[

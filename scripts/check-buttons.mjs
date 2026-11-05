@@ -11,7 +11,7 @@ function walk(directory) {
       continue;
     }
     if (!/\.tsx?$/.test(filename)) continue;
-    if (filename.replaceAll('\\', '/') === 'src/shared/ui/AppButton.tsx') continue;
+    if (filename.replaceAll('\\', '/') === 'src/shared/ui/BUI/BUIButtonControl.tsx') continue;
     const source = ts.createSourceFile(
       filename,
       fs.readFileSync(filename, 'utf8'),
@@ -70,6 +70,6 @@ if (violations.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    'Button check passed: Tamagui Button is confined to AppButton; icon-only actions use AppIconButton.',
+    'Button check passed: Tamagui Button is confined to the BUI renderer; icon-only actions use AppIconButton.',
   );
 }

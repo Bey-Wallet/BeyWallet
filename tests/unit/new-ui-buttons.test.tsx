@@ -6,7 +6,7 @@ import BUIButtonsScreen from '~/app/(tabs)/settings/new-ui-buttons';
 import { BUIButton } from '~/shared/ui/BUI/BUIButton';
 import { BUIChoices as ReferenceChoices } from '~/shared/ui/BUI/BUIPage';
 import { BUISwitch } from '~/shared/ui/BUI/BUISelectionControl';
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { BUIButtonControl } from '~/shared/ui/BUI/BUIButtonControl';
 import { useBUIStore } from '~/state/buiStore';
 import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { StyleSheet } from 'react-native';
@@ -48,7 +48,9 @@ it('switches width and blocked states without showing reference branding or fami
     for (const state of ['Disabled', 'Loading']) {
       await act(async () => states.props.onChange(state));
       const primary = variants().find((node) => node.props.children === 'Primary')!;
-      expect(primary.findByType(AppPressable).props.disabled).toBe(true);
+      expect(
+        primary.findByType(BUIButtonControl).props[state === 'Loading' ? 'loading' : 'disabled'],
+      ).toBe(true);
     }
     expect(variants().every((node) => !node.props.androidView)).toBe(true);
   } finally {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { ScrollView } from 'react-native';
-import { TamaguiProvider } from 'tamagui';
+import { ScrollView, StyleSheet } from 'react-native';
+import { TamaguiProvider, Theme } from 'tamagui';
 import { LinearGradient } from 'react-native-svg';
 import { config } from '~/tamagui.config';
 import Screen from '~/app/(tabs)/settings/bui-navigation';
@@ -202,3 +202,43 @@ it.each(['light', 'dark'] as const)(
 );
 
 jest.mock('~/shared/utils/developmentClient', () => ({ isDevelopmentClient: () => true }));
+
+it.each(['light', 'dark'] as const)(
+  'uses the active %s header theme independently of the catalog preference and blocks locked navigation',
+  async (appearance) => {
+    useBUIStore.setState({ appearance: appearance === 'light' ? 'dark' : 'light' });
+    const navigate = jest.fn();
+    let tree!: ReactTestRenderer;
+    const render = (locked: boolean) =>
+      wrap(
+        <Theme name={appearance}>
+          <BUIHeader
+            title="Payment"
+            navigation="close"
+            navigationDisabled={locked}
+            onNavigate={navigate}
+          />
+        </Theme>,
+      );
+    try {
+      await act(async () => {
+        tree = create(render(true));
+      });
+      const control = () => tree.root.findByType(AppPressable);
+      expect(control().props.disabled).toBe(true);
+      await act(async () => control().props.onPress({} as never));
+      expect(navigate).not.toHaveBeenCalled();
+      const backgrounds = control().findAll(
+        (node) =>
+          StyleSheet.flatten(node.props.style)?.backgroundColor ===
+          (appearance === 'light' ? '#E7E6EB' : '#17171A'),
+      );
+      expect(backgrounds.length).toBeGreaterThan(0);
+      await act(async () => tree.update(render(false)));
+      await act(async () => control().props.onPress({} as never));
+      expect(navigate).toHaveBeenCalledTimes(1);
+    } finally {
+      if (tree) await act(async () => tree.unmount());
+    }
+  },
+);

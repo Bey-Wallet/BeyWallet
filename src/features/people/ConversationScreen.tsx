@@ -1,3 +1,4 @@
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
@@ -412,56 +413,64 @@ export default function ConversationScreen() {
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <YStack flex={1} bg="$background" pt={insets.top}>
-          <XStack px="$3" py="$2" minHeight={64} items="center" gap="$2">
-            <HeaderIconButton
-              accessibilityLabel="Back"
-              icon={ArrowLeft}
-              onPress={() =>
-                router.canGoBack() ? router.back() : router.replace('/(tabs)/people')
-              }
-            />
-            <AppPressable
-              minHeight={48}
-              flex={1}
-              minWidth={0}
-              flexDirection="row"
-              items="center"
-              gap="$2.5"
-              accessibilityRole="button"
-              accessibilityLabel={`Open profile for ${label}`}
-              onPress={openContact}
-            >
-              <ConversationAvatar npub={npub} picture={person?.picture} />
-              <YStack flex={1} minWidth={0} gap={2}>
-                <XStack items="center" gap={5} minWidth={0}>
+          <BUIHeader
+            title={label}
+            navigation="none"
+            leading={
+              <HeaderIconButton
+                accessibilityLabel="Back"
+                icon={ArrowLeft}
+                onPress={() =>
+                  router.canGoBack() ? router.back() : router.replace('/(tabs)/people')
+                }
+              />
+            }
+            titleContent={
+              <AppPressable
+                minHeight={48}
+                width="100%"
+                minWidth={0}
+                flexDirection="row"
+                items="center"
+                gap="$2.5"
+                accessibilityRole="button"
+                accessibilityLabel={`Open profile for ${label}`}
+                onPress={openContact}
+              >
+                <ConversationAvatar npub={npub} picture={person?.picture} />
+                <YStack flex={1} minWidth={0} gap={2}>
+                  <XStack items="center" gap={5} minWidth={0}>
+                    <Text
+                      {...appTypography.label1}
+                      fontWeight="600"
+                      color="$color"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      flexShrink={1}
+                    >
+                      {label}
+                    </Text>
+                    {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge size={14} />}
+                  </XStack>
                   <Text
-                    {...appTypography.label1}
-                    fontWeight="600"
-                    color="$color"
+                    {...appTypography.body3}
+                    color="$gray10"
                     numberOfLines={1}
                     ellipsizeMode="tail"
-                    flexShrink={1}
                   >
-                    {label}
+                    {headerSubtitle}
                   </Text>
-                  {person && hasVerifiedNip05(person) && <Nip05VerifiedBadge size={14} />}
-                </XStack>
-                <Text
-                  {...appTypography.body3}
-                  color="$gray10"
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {headerSubtitle}
-                </Text>
-              </YStack>
-            </AppPressable>
-            <HeaderIconButton
-              icon={Info}
-              accessibilityLabel={`Contact details for ${label}`}
-              onPress={openContact}
-            />
-          </XStack>
+                </YStack>
+              </AppPressable>
+            }
+            actions={
+              <HeaderIconButton
+                icon={Info}
+                accessibilityLabel={`Contact details for ${label}`}
+                onPress={openContact}
+              />
+            }
+          />
           <YStack flex={1}>
             <LegendList
               key={npub}

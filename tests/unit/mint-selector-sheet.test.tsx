@@ -50,11 +50,13 @@ jest.mock('expo-haptics', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, bottom: 24 }),
 }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useTheme: () => ({}),
+  useThemeName: () => 'dark',
+  ...Object.fromEntries(
     ['Text', 'YStack', 'XStack', 'View', 'Avatar', 'Square', 'Input'].map((name) => [name, name]),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     ['Check', 'ChevronDown', 'Sprout', 'Plus', 'Landmark', 'X', 'Search'].map((name) => [
