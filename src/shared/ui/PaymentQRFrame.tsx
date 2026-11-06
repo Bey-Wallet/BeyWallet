@@ -23,7 +23,7 @@ export function PaymentQRFrame({
       {size > 0 && (
         <YStack
           testID="payment-qr-surface"
-          bg={placeholder ? '$buttonDefaultSecondary' : 'white'}
+          bg={placeholder ? '$gray2' : 'white'}
           p={20}
           borderWidth={1}
           borderColor="$borderColor"

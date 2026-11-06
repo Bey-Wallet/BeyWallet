@@ -50,7 +50,7 @@ export const InputSheet = forwardRef<
           onSubmitEditing={save}
           style={{
             color: theme.color.val,
-            backgroundColor: theme.gray3.val,
+            backgroundColor: theme.gray2.val,
             borderRadius: 12,
             padding: 16,
             fontSize: 14,

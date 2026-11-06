@@ -211,9 +211,9 @@ export default function Balance() {
           px={appSpacing.compact}
           py={appSpacing.tiny}
           rounded={appRadii.pill}
-          bg="$buttonDefaultSecondary"
-          hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-          pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+          bg="$gray2"
+          hoverStyle={{ bg: '$gray3' }}
+          pressStyle={{ bg: '$gray4' }}
           items="center"
           justify="center"
           opacity={hideBalance ? 0.5 : 1}

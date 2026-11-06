@@ -1,13 +1,23 @@
+import { BUILabel } from '~/shared/ui/BUI/BUIBadge';
+import {
+  MintAppearance,
+  MintCard,
+  MintRows,
+  MintSection,
+  MintDetailRow,
+  MintText as Text,
+} from './components/MintUI';
+import { BUIActionButton } from '~/shared/ui/BUI/BUIButton';
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+import { buiTypography } from '~/shared/ui/BUI/typography';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
-import { ModalHeaderTitle } from '~/shared/ui/ModalHeaderTitle';
-import { appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appSpacing } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
+import { YStack, XStack, ScrollView, View } from 'tamagui';
 import {
   ArrowLeft,
   Share2,
@@ -20,14 +30,12 @@ import {
   AlertTriangle,
   Trash2,
   RefreshCw,
-  X,
 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Share as RNShare, Keyboard, useWindowDimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +52,14 @@ import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
 export default function MintDetailsModal() {
+  return (
+    <MintAppearance>
+      <MintDetailsContent />
+    </MintAppearance>
+  );
+}
+
+function MintDetailsContent() {
   const router = useRouter();
   const toast = useAppToast();
   const insets = useSafeAreaInsets();
@@ -213,26 +229,22 @@ export default function MintDetailsModal() {
             selectTextOnFocus
             returnKeyType="done"
             autoCapitalize="sentences"
-            fontFamily="$body"
-            {...appTypography.title3}
+            {...buiTypography.h3}
             color="$color"
             textAlign="center"
             width={200}
             height={36}
             py={0}
             px="$2"
-            bg="$gray3"
+            bg="$gray2"
             borderWidth={0}
           />
         ) : (
-          <ModalHeaderTitle>{name}</ModalHeaderTitle>
+          <Text kind="h3" color="$color" numberOfLines={1}>
+            {name}
+          </Text>
         )}
-        <Text
-          {...appTypography.caption}
-          color="$gray10"
-          numberOfLines={1}
-          style={{ maxWidth: 200 }}
-        >
+        <Text kind="body3" color="$gray10" numberOfLines={1} style={{ maxWidth: 200 }}>
           {hostname}
         </Text>
       </YStack>
@@ -243,7 +255,7 @@ export default function MintDetailsModal() {
   if (!mintUrl || !walletMint) {
     return (
       <YStack flex={1} justify="center" items="center" p="$4" bg="$background">
-        <Text color="$color" fontSize="$5" fontWeight="600">
+        <Text color="$color" kind="h3">
           Mint not found
         </Text>
         <AppButton variant="default" emphasis="primary" size="large" mt="$4" onPress={safeGoBack}>
@@ -320,130 +332,100 @@ export default function MintDetailsModal() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
-          <YStack px="$page" gap="$5">
-            {/* Balance and Avatar Row */}
-            <XStack justify="space-between" items="center" pt="$4">
-              <YStack gap="$2">
-                <XStack items="baseline" gap="$1">
-                  {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                    <Text {...appTypography.amountSmall} color="$color">
-                      {showBitcoinSymbol ? '₿' : ''}
-                      {balance.toLocaleString()}
-                      {!showBitcoinSymbol && <Text {...appTypography.label1}>{' sat'}</Text>}
-                    </Text>
-                  ) : (
-                    <Text {...appTypography.amountSmall} color="$color">
-                      {currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)}
-                    </Text>
-                  )}
-                </XStack>
-                {secondaryCurrency !== 'NONE' && (
-                  <Text {...appTypography.label2} color="$gray10">
-                    {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
-                      ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
-                      : showBitcoinSymbol
-                        ? `₿\u202f${balance.toLocaleString()}`
-                        : `${balance.toLocaleString()} sat`}
-                  </Text>
-                )}
+          <YStack px={16} pt={16} gap={16}>
+            <MintCard>
+              <YStack gap={16}>
+                <XStack justify="space-between" items="center" gap={16}>
+                  <YStack gap={8} flex={1} minWidth={0}>
+                    <XStack items="baseline" gap="$1">
+                      {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
+                        <Text kind="num2" color="$color">
+                          {showBitcoinSymbol ? '₿' : ''}
+                          {balance.toLocaleString()}
+                          {!showBitcoinSymbol && <Text kind="label2">{' sat'}</Text>}
+                        </Text>
+                      ) : (
+                        <Text kind="num2" color="$color">
+                          {currencyService.formatValue(
+                            fiatBalance,
+                            secondaryCurrency as CurrencyCode,
+                          )}
+                        </Text>
+                      )}
+                    </XStack>
+                    {secondaryCurrency !== 'NONE' && (
+                      <Text kind="label2" color="$gray10">
+                        {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
+                          ? currencyService.formatValue(
+                              fiatBalance,
+                              secondaryCurrency as CurrencyCode,
+                            )
+                          : showBitcoinSymbol
+                            ? `₿\u202f${balance.toLocaleString()}`
+                            : `${balance.toLocaleString()} sat`}
+                      </Text>
+                    )}
 
-                {/* Trust badges */}
-                <XStack mt="$2" gap="$2" items="center">
-                  {isTrusted ? (
-                    <View bg="$green3" px="$2" py="$1" rounded="$3">
-                      <Text {...appTypography.label3} color="$green11">
-                        Trusted by you
-                      </Text>
-                    </View>
-                  ) : (
-                    <View bg="$red3" px="$2" py="$1" rounded="$3">
-                      <Text {...appTypography.label3} color="$red11">
-                        Untrusted
-                      </Text>
-                    </View>
-                  )}
-                  {isActive && (
-                    <View bg="$blue3" px="$2" py="$1" rounded="$3">
-                      <Text {...appTypography.label3} color="$blue11">
-                        Active
-                      </Text>
-                    </View>
-                  )}
-                </XStack>
-              </YStack>
+                    <XStack mt={8} gap={8} items="center" flexWrap="wrap">
+                      <BUILabel tone={isTrusted ? 'success' : 'error'}>
+                        {isTrusted ? 'Trusted by you' : 'Untrusted'}
+                      </BUILabel>
+                      {isActive && <BUILabel tone="primary">Active</BUILabel>}
+                    </XStack>
+                  </YStack>
 
-              <YStack items="center" gap="$2">
-                <MintImage
-                  mintUrl={mintUrl}
-                  source={{ uri: iconToUse }}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 20,
-                  }}
-                />
+                  <YStack items="center" gap="$2">
+                    <MintImage
+                      mintUrl={mintUrl}
+                      source={{ uri: iconToUse }}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 16,
+                      }}
+                    />
+                  </YStack>
+                </XStack>
+
                 <XStack gap="$2" items="center">
-                  <AppIconButton
+                  <AppButton
                     variant="default"
                     emphasis="secondary"
                     size="small"
+                    flex={1}
+                    fullWidth={false}
                     icon={Share2}
                     accessibilityLabel="Share mint"
                     onPress={handleShare}
-                  />
-                  <AppIconButton
+                  >
+                    Share
+                  </AppButton>
+                  <AppButton
                     variant="default"
                     emphasis="secondary"
                     size="small"
+                    flex={1}
+                    fullWidth={false}
                     icon={QrCode}
                     accessibilityLabel="Show mint QR code"
                     onPress={() => setShowQr(true)}
-                  />
+                  >
+                    Show QR
+                  </AppButton>
+                </XStack>
+                <XStack gap={8}>
+                  <BUIActionButton flex={1} plain title="Deposit" onPress={handleDeposit}>
+                    <ArrowDownToLine size={22} color="$color" />
+                  </BUIActionButton>
+                  <BUIActionButton flex={1} plain title="Withdraw" onPress={handleWithdraw}>
+                    <ArrowUpFromLine size={22} color="$color" />
+                  </BUIActionButton>
+                  <BUIActionButton flex={1} plain title="Transfer" onPress={handleTransfer}>
+                    <ArrowRightLeft size={22} color="$color" />
+                  </BUIActionButton>
                 </XStack>
               </YStack>
-            </XStack>
-
-            {/* Action Columns Row */}
-            <XStack py="$4" justify="space-around" bg="$gray2" rounded="$6" mt="$2">
-              <YStack
-                items="center"
-                gap="$2"
-                onPress={handleDeposit}
-                pressStyle={{ opacity: 0.7 }}
-                flex={1}
-              >
-                <ArrowDownToLine size={24} color="$color" />
-                <Text fontSize="$3" fontWeight="600" color="$color">
-                  Deposit
-                </Text>
-              </YStack>
-              <Separator vertical borderColor="$borderColor" opacity={0.5} />
-              <YStack
-                items="center"
-                gap="$2"
-                onPress={handleWithdraw}
-                pressStyle={{ opacity: 0.7 }}
-                flex={1}
-              >
-                <ArrowUpFromLine size={24} color="$color" />
-                <Text fontSize="$3" fontWeight="600" color="$color">
-                  Withdraw
-                </Text>
-              </YStack>
-              <Separator vertical borderColor="$borderColor" opacity={0.5} />
-              <YStack
-                items="center"
-                gap="$2"
-                onPress={handleTransfer}
-                pressStyle={{ opacity: 0.7 }}
-                flex={1}
-              >
-                <ArrowRightLeft size={24} color="$color" />
-                <Text fontSize="$3" fontWeight="600" color="$color">
-                  Transfer
-                </Text>
-              </YStack>
-            </XStack>
+            </MintCard>
 
             <MintOverview
               url={mintUrl}
@@ -454,19 +436,16 @@ export default function MintDetailsModal() {
                 void recheckConnection({ cancelRefetch: false });
               }}
             />
-            <YStack gap="$2">
-              <Text color="$gray10" fontSize={11}>
-                Manage mint
-              </Text>
-              <ListTable compact>
-                <ListTableRow
-                  label="Restore"
+            <MintSection title="Manage mint">
+              <MintRows>
+                <MintDetailRow
+                  label="Restore funds"
                   icon={RefreshCw}
                   value={isRestoring && restoringMintUrl === mintUrl ? 'Restoring…' : undefined}
                   disabled={isRestoring}
                   onPress={handleRestoreProofs}
                 />
-                <ListTableRow
+                <MintDetailRow
                   label="Remove mint"
                   icon={Trash2}
                   labelColor="$red11"
@@ -476,8 +455,8 @@ export default function MintDetailsModal() {
                     removeMintSheetRef.current?.present();
                   }}
                 />
-              </ListTable>
-            </YStack>
+              </MintRows>
+            </MintSection>
           </YStack>
         </ScrollView>
 
@@ -495,19 +474,15 @@ export default function MintDetailsModal() {
               paddingBottom: insets.bottom + sheetPadding,
             }}
           >
-            <YStack gap="$5">
-              <XStack items="center" gap="$2">
-                <HeaderIconButton
-                  icon={X}
-                  accessibilityLabel="Close remove mint sheet"
-                  disabled={isRemoving}
-                  onPress={() => removeMintSheetRef.current?.dismiss()}
-                />
-                <Text flex={1} fontSize="$6" fontWeight="600" textAlign="center">
-                  Remove mint
-                </Text>
-                <View width={48} />
-              </XStack>
+            <YStack gap={16}>
+              <BUIHeader
+                title="Remove mint"
+                navigation="close"
+                navigationLabel="Close remove mint sheet"
+                navigationDisabled={isRemoving}
+                onNavigate={() => removeMintSheetRef.current?.dismiss()}
+                horizontalInset={0}
+              />
               <XStack items="center" gap="$3">
                 <View
                   width={48}
@@ -520,39 +495,42 @@ export default function MintDetailsModal() {
                   <MintImage mintUrl={mintUrl} source={{ uri: iconToUse, width: 48, height: 48 }} />
                 </View>
                 <YStack flex={1} minWidth={0} gap="$1">
-                  <Text fontSize={13} fontWeight="600" color="$color">
+                  <Text kind="label2" color="$color">
                     {name}
                   </Text>
-                  <Text fontSize={11} color="$gray10" selectable>
+                  <Text kind="body3" color="$gray10" selectable>
                     {mintUrl}
                   </Text>
                 </YStack>
               </XStack>
-              <Text color="$gray10" fontSize={13} lineHeight={18}>
+              <Text color="$gray10" kind="body2">
                 This removes the mint from your connected mints. Your transaction history is kept.
               </Text>
 
               {balance > 0 && (
-                <View bg="$orange3" p="$4" rounded="$6" accessibilityRole="alert">
-                  <XStack gap="$3">
-                    <AlertTriangle color="$orange10" size={24} />
-                    <YStack flex={1}>
-                      <Text color="$orange10" fontWeight="600" fontSize={13}>
-                        This mint still has funds
-                      </Text>
-                      <Text color="$orange10" fontSize="$3" mt="$1">
-                        You currently have a balance of{' '}
-                        <Text fontWeight="600">
-                          {showBitcoinSymbol
-                            ? `₿\u202f${balance.toLocaleString()}`
-                            : `${balance.toLocaleString()} sat`}
-                        </Text>{' '}
-                        in this mint. Transfer or withdraw this balance before removing it. Removing
-                        the mint does not move your funds, and recovery is not guaranteed.
-                      </Text>
-                    </YStack>
-                  </XStack>
-                </View>
+                <MintCard>
+                  <View accessibilityRole="alert">
+                    <XStack gap="$3">
+                      <AlertTriangle color="$orange10" size={24} />
+                      <YStack flex={1}>
+                        <Text color="$orange10" kind="label2">
+                          This mint still has funds
+                        </Text>
+                        <Text color="$orange10" kind="body2" mt="$1">
+                          You currently have a balance of{' '}
+                          <Text kind="label2">
+                            {showBitcoinSymbol
+                              ? `₿\u202f${balance.toLocaleString()}`
+                              : `${balance.toLocaleString()} sat`}
+                          </Text>{' '}
+                          in this mint. Transfer or withdraw this balance before removing it.
+                          Removing the mint does not move your funds, and recovery is not
+                          guaranteed.
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </View>
+                </MintCard>
               )}
 
               <YStack gap="$3" mt="$2">

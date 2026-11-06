@@ -1,10 +1,16 @@
 import { useTheme, useThemeName } from 'tamagui';
+import { createContext, useContext } from 'react';
 import { useBUIStore, type BUIAppearance } from '~/state/buiStore';
 import { getBUITheme } from './theme';
 
+const BUIAppearanceContext = createContext<BUIAppearance | undefined>(undefined);
+/** Scope production BUI content without changing the catalog preference. */
+export const BUIAppearanceProvider = BUIAppearanceContext.Provider;
+
 export function useBUITheme(appearanceOverride?: BUIAppearance) {
   const appearance = useBUIStore((state) => state.appearance);
-  return getBUITheme(appearanceOverride ?? appearance);
+  const scopedAppearance = useContext(BUIAppearanceContext);
+  return getBUITheme(appearanceOverride ?? scopedAppearance ?? appearance);
 }
 
 /** Navigation chrome follows the active wallet/nested theme, never the catalog preference. */

@@ -1,3 +1,5 @@
+import { MintDetailRow, MintRows } from '~/features/mints/components/MintUI';
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MintDetailsScreen from '~/features/mints/MintDetailsScreen';
@@ -29,18 +31,24 @@ jest.mock('expo-router', () => ({
     ),
   },
 }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  Theme: 'Theme',
+  ...Object.fromEntries(
     ['YStack', 'XStack', 'Text', 'ScrollView', 'View', 'Separator', 'Input'].map((name) => [
       name,
       name,
     ]),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     [
       'ChevronLeft',
+      'ChevronRight',
+      'ArrowLeft',
+      'Activity',
       'Share2',
       'QrCode',
       'Pencil',
@@ -132,7 +140,7 @@ jest.mock('expo-haptics', () => ({
 let tree: ReactTestRenderer;
 const iconButton = (label: string) =>
   tree.root
-    .findAllByType('AppIconButton' as any)
+    .findAll((node) => node.type === ('AppIconButton' as any) || node.type === ('AppButton' as any))
     .find((node) => node.props.accessibilityLabel === label)!;
 const render = async () => {
   await act(async () => {
@@ -280,14 +288,14 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
   await render();
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
   expect(labels).toEqual(
-    expect.arrayContaining(['Deposit', 'Withdraw', 'Transfer', 'Trusted by you']),
+    expect.arrayContaining(['Deposit', 'Withdraw', 'Transfer', 'TRUSTED BY YOU']),
   );
   expect(labels).not.toEqual(expect.arrayContaining(['Mint Transactions']));
   expect(labels).not.toEqual(expect.arrayContaining(['About Mint']));
-  for (const label of ['Restore', 'Remove mint']) {
+  for (const label of ['Restore funds', 'Remove mint']) {
     expect(
-      tree.root.findAllByType('ListTableRow' as any).find((node) => node.props.label === label)
-        ?.props.onPress,
+      tree.root.findAllByType(MintDetailRow).find((node) => node.props.label === label)?.props
+        .onPress,
     ).toBeDefined();
   }
   expect(tree.root.findAllByType('MintPreviewHealth' as any)).toHaveLength(0);
@@ -302,7 +310,7 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
   expect(keys).not.toContain('auditor-mint');
   const balance = tree.root
     .findAllByType('Text' as any)
-    .find((node) => node.props.fontSize === 25)!;
+    .find((node) => node.props.fontSize === 28)!;
   expect(balance.props.children).toContain('0');
   for (const [label, route] of [
     ['Deposit', '/(modals)/mint'],

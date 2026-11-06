@@ -46,7 +46,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
           ) issued by Bitcoin mints. You literally hold the digital cash on your phone—just like
           paper bills in your physical pocket.
         </Paragraph>
-        <YStack bg="$gray3" p="$3" rounded="$4" gap="$2">
+        <YStack bg="$gray2" p="$3" rounded="$4" gap="$2">
           <Text fontWeight="700" color="$orange11" fontSize="$3">
             ⚠️ IMPORTANT:
           </Text>
@@ -331,7 +331,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           Bey Wallet is non-custodial and open-source. For assistance, inquiries, or feedback:
         </Paragraph>
-        <YStack gap="$2" bg="$gray3" p="$3" rounded="$4" mt="$1">
+        <YStack gap="$2" bg="$gray2" p="$3" rounded="$4" mt="$1">
           <XStack gap="$2" items="center">
             <Text fontWeight="800" color="$accent4">
               ✉️ Email:

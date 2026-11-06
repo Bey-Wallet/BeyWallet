@@ -37,7 +37,7 @@ export function MintBackupSettingsScreen() {
         wallet on another device. Mint URLs are public; your recovery phrase and ecash are not
         included. Keep your recovery phrase and full wallet backup separately.
       </SettingsDescription>
-      <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$2">
+      <YStack bg="$gray2" rounded="$6" p="$4" gap="$2">
         <XStack gap="$3" items="center">
           <Text flex={1} color="$color" fontSize="$5">
             Automatic mint backup

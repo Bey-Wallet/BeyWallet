@@ -77,7 +77,7 @@ export function SupporterContent({
             wallet and contribute to the open-source tools it relies on.
           </Text>
         </YStack>
-        <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$4">
+        <YStack bg="$gray2" rounded="$6" p="$4" gap="$4">
           {available ? (
             <YStack items="center" gap="$3">
               <YStack
@@ -134,7 +134,7 @@ export function SupporterContent({
           <Text {...appTypography.label2} color="$color" accessibilityRole="header">
             What your support could help with
           </Text>
-          <YStack bg="$buttonDefaultSecondary" rounded="$6" overflow="hidden">
+          <YStack bg="$gray2" rounded="$6" overflow="hidden">
             {supportAreas.map(({ icon: Icon, title, description }, index) => (
               <React.Fragment key={title}>
                 {index > 0 && <View height={2} width="100%" bg="$background" />}

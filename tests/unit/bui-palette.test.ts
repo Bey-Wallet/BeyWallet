@@ -1,3 +1,6 @@
+import { createAppColorTheme } from '~/shared/theme/appearance';
+import { buttonThemes } from '~/shared/theme/buttons';
+import { defaultConfig } from '@tamagui/config/v5';
 import { buiBaseColors } from '~/shared/ui/BUI/palettes';
 import { buiColors, getBUITheme, createBUITamaguiTheme } from '~/shared/ui/BUI/theme';
 
@@ -30,7 +33,9 @@ it('keeps source colors outside the approved brand and light-surface overrides',
   for (const appearance of ['light', 'dark'] as const) {
     const allowed = new Set([
       ...brand,
-      ...(appearance === 'light' ? ['canvas', 'surface', 'alternateSurface'] : []),
+      ...(appearance === 'light'
+        ? ['canvas', 'surface', 'raised', 'pressed', 'field', 'alternateSurface']
+        : []),
     ]);
     for (const key of Object.keys(
       buiBaseColors[appearance],
@@ -40,7 +45,11 @@ it('keeps source colors outside the approved brand and light-surface overrides',
     }
   }
   expect(buiColors.light.canvas).toBe('#FFFFFF');
-  expect(buiColors.light.surface).toBe('#EFEEF3');
+  expect(buiColors.light.surface).toBe(defaultConfig.themes.light.gray2);
+  const theme = createBUITamaguiTheme('light');
+  expect(theme.gray3).toBe(defaultConfig.themes.light.gray3);
+  expect(theme.gray2).toBe(defaultConfig.themes.light.gray2);
+  expect(theme.buttonDefaultSecondary).toBe(theme.gray3);
 });
 
 it.each(['light', 'dark'] as const)('uses blue primary and matching focus in %s', (appearance) => {
@@ -60,7 +69,7 @@ it.each(['light', 'dark'] as const)('uses blue primary and matching focus in %s'
 it('feeds the same palette into semantic preview controls', () => {
   const theme = createBUITamaguiTheme('dark');
   expect(theme.gray10).toBe(buiBaseColors.dark.secondaryText);
-  expect(theme.buttonDefaultSecondaryPress).toBe(expectedPalettes.dark.buttons.Secondary[2]);
+  expect(theme.buttonDefaultSecondaryPress).toBe(buiBaseColors.dark.pressed);
   expect(theme.fieldBackground).toBe(buiBaseColors.dark.field);
 });
 
@@ -75,17 +84,41 @@ it.each(['light', 'dark'] as const)(
     expect(native.accentColor).toBe(c.primary);
     expect(native.onAccent).toBe(c.primaryForeground);
     expect(native.borderColorFocus).toBe(c.primary);
-    expect(c.buttons.Secondary).toEqual(expectedPalettes[appearance].buttons.Secondary);
+    expect(c.buttons.Secondary).toEqual(c.secondaryButton);
     expect(native.buttonDefaultSecondary).toBe(c.secondaryButton[0]);
     expect(native.buttonDefaultSecondaryText).toBe(c.buttons.Secondary[3]);
     if (appearance === 'light') {
-      expect(c.secondaryButton).toEqual(['#E7E6EB', '#EFEEF3', '#DDDCE2', '#000000']);
+      expect(c.secondaryButton).toEqual([
+        defaultConfig.themes.light.gray3,
+        defaultConfig.themes.light.gray2,
+        defaultConfig.themes.light.gray4,
+        '#000000',
+      ]);
     } else {
-      expect(c.secondaryButton).toEqual(expectedPalettes.dark.buttons.Secondary);
+      expect(c.secondaryButton).toEqual([
+        buiBaseColors.dark.raised,
+        buiBaseColors.dark.surface,
+        buiBaseColors.dark.pressed,
+        '#FFFFFF',
+      ]);
     }
     expect(c.buttons.Tertiary[0]).toBe('transparent');
     expect(c.buttons.Tertiary[3]).toBe(c.primary);
     expect(c.buttons.Tertiary[2]).not.toBe('transparent');
-    expect(c.switchInactive).toBe(expectedPalettes[appearance].buttons.Tertiary[0]);
+    expect(c.switchInactive).toBe(c.raised);
+  },
+);
+
+it.each(['light', 'dark'] as const)(
+  'keeps wallet, BUI and secondary buttons on the same gray roles in %s',
+  (appearance) => {
+    const wallet = createAppColorTheme(appearance);
+    const bui = createBUITamaguiTheme(appearance);
+    const buttons: Record<string, string> = buttonThemes[appearance];
+    expect(wallet.gray2).toBe(bui.gray2);
+    expect(wallet.gray3).toBe(bui.gray3);
+    expect(buttons.buttonDefaultSecondary).toBe(wallet.gray3);
+    expect(buttons.buttonSecondaryDisabled).toBe(wallet.gray2);
+    expect(buttons.buttonDefaultSecondaryPress).toBe(wallet.gray4);
   },
 );

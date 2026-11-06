@@ -81,12 +81,10 @@ export function BUIActionButton({
         aria-hidden
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        width={plain ? 28 : 48}
-        height={plain ? 28 : 48}
-        rounded={24}
-        bg={
-          plain ? 'transparent' : appearance ? theme.secondaryButton[0] : '$buttonDefaultSecondary'
-        }
+        width={plain ? 28 : 56}
+        height={plain ? 28 : 56}
+        rounded={28}
+        bg={plain ? 'transparent' : appearance ? theme.surface : '$gray2'}
         items="center"
         justify="center"
       >

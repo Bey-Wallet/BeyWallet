@@ -1,5 +1,6 @@
+import { MintText as Text } from './MintUI';
 import React from 'react';
-import { Text, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 import { MintPreviewMethods, mintPreviewMethods } from './MintPreviewMethods';
 import { MintInfoRow } from './MintInfoRow';
 import { MintTermsRow } from './MintTermsRow';
@@ -22,7 +23,7 @@ export function MintAboutRows({ url, info }: { url: string; info: Record<string,
     <>
       {description && (
         <YStack px="$page" py="$rowGap">
-          <Text color="$color" fontSize={13}>
+          <Text color="$color" kind="body2">
             {description}
           </Text>
         </YStack>

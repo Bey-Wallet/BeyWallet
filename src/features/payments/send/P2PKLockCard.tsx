@@ -128,7 +128,7 @@ export function P2PKLockCard({
             multiline
             style={{
               color: theme.color.val,
-              backgroundColor: theme.gray3.val,
+              backgroundColor: theme.gray2.val,
               borderRadius: 12,
               padding: 16,
               fontSize: 13,

@@ -132,7 +132,7 @@ export function SettingsMessage({
   error?: boolean;
 }) {
   return (
-    <YStack rounded="$6" bg={error ? '$red3' : '$buttonDefaultSecondary'} p="$4">
+    <YStack rounded="$6" bg={error ? '$red3' : '$gray2'} p="$4">
       <Text
         color={error ? '$red11' : '$color'}
         accessibilityRole={error ? 'alert' : undefined}

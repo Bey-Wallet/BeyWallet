@@ -351,7 +351,7 @@ export default function UniversalSearchScreen() {
         </Text>
       )}
       <XStack px="$4" py="$2" gap="$2" items="center">
-        <XStack flex={1} bg="$gray3" rounded="$5" px="$3" height={50} items="center" gap="$2">
+        <XStack flex={1} bg="$gray2" rounded="$5" px="$3" height={50} items="center" gap="$2">
           <Search size={20} strokeWidth={3} color="$gray10" />
           <Input
             flex={1}

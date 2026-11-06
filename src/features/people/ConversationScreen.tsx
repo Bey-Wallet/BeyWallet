@@ -540,14 +540,7 @@ export default function ConversationScreen() {
                 return (
                   <YStack key={item.id} mt={layout.spacing}>
                     {layout.showDate && (
-                      <YStack
-                        self="center"
-                        bg="$buttonDefaultSecondary"
-                        rounded={20}
-                        px="$3"
-                        py="$1"
-                        my="$3"
-                      >
+                      <YStack self="center" bg="$gray2" rounded={20} px="$3" py="$1" my="$3">
                         <Text fontSize="$2" color="$gray10">
                           {conversationDateLabel(item.time)}
                         </Text>
@@ -700,7 +693,7 @@ export default function ConversationScreen() {
                   animation={reducedMotion ? null : 'quick'}
                   animateOnly={['height']}
                   maxHeight={maxInputHeight}
-                  bg="$buttonDefaultSecondary"
+                  bg="$gray2"
                   borderWidth={0}
                   rounded={16}
                   px="$3"

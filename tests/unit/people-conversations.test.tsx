@@ -883,7 +883,7 @@ describe('People conversations and invitations', () => {
       cards.some(
         (node) =>
           node.props.accessibilityLabel?.includes('Show payment details') &&
-          node.props.bg === '$buttonDefaultSecondary',
+          node.props.bg === '$gray2',
       ),
     ).toBe(true);
   });

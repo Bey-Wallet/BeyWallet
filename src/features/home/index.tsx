@@ -56,14 +56,7 @@ function HomeSkeleton() {
   }, [pulseAnim]);
 
   return (
-    <YStack
-      width="100%"
-      height={300}
-      bg="$buttonDefaultSecondary"
-      rounded="$6"
-      items="center"
-      justify="center"
-    >
+    <YStack width="100%" height={300} bg="$gray2" rounded="$6" items="center" justify="center">
       <Animated.View style={{ opacity: pulseAnim }}>
         <BeyIcon size={40} />
       </Animated.View>
@@ -173,14 +166,14 @@ export function HomeTabScreen() {
             width="100%"
             minHeight={56}
             rounded="$6"
-            bg="$buttonDefaultSecondary"
+            bg="$gray2"
             px="$4"
             py="$3"
             flexDirection="row"
             items="center"
             gap="$3"
-            hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            hoverStyle={{ bg: '$gray3' }}
+            pressStyle={{ bg: '$gray4' }}
             accessibilityLabel={`Pending Lightning payments (${pendingLightning})`}
             accessibilityHint="View incoming Lightning payments awaiting collection"
             onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}

@@ -1,12 +1,20 @@
+import { BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';
+import {
+  MintAppearance,
+  MintCard,
+  MintRows,
+  MintDetailRow,
+  MintSection,
+  MintText as Text,
+} from './components/MintUI';
 import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useEffect, useState, useMemo } from 'react';
-import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
+import { YStack, XStack, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { Globe, Sprout, Share2, Plus, QrCode, Check, X } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
@@ -20,7 +28,7 @@ import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { usePreventRemove } from '@react-navigation/native';
 import { Share as RNShare, useWindowDimensions } from 'react-native';
-import { appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appSpacing } from '~/shared/theme/appearance';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintOverview } from './components/MintOverview';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
@@ -30,7 +38,15 @@ import { connectMint } from './connectMint';
 interface MintProfileScreenProps {
   url: string;
 }
-export function MintProfileScreen({ url }: MintProfileScreenProps) {
+export function MintProfileScreen(props: MintProfileScreenProps) {
+  return (
+    <MintAppearance>
+      <MintProfileContent {...props} />
+    </MintAppearance>
+  );
+}
+
+function MintProfileContent({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sheetPadding = appSpacing.page + appSpacing.compact;
@@ -176,79 +192,84 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
       />
 
       <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-        <YStack px="$page" pb="$10" gap="$5">
-          {/* Header Section */}
-          <YStack gap="$3">
-            <XStack items="center" gap="$3">
-              <View
-                width={64}
-                height={64}
-                flexShrink={0}
-                rounded="$6"
-                bg="$gray3"
-                items="center"
-                justify="center"
-                overflow="hidden"
-                borderWidth={1}
-                borderColor="$color5"
-              >
-                <MintImage
-                  mintUrl={url}
-                  source={{
-                    uri: iconToUse,
-                    width: 64,
-                    height: 64,
-                  }}
-                  fallback={<Sprout size={32} color="$accentColor" />}
-                />
-              </View>
-              <YStack flex={1} minWidth={0} gap="$2" items="stretch">
-                <XStack items="center" gap="$2">
-                  <Text
-                    {...appTypography.title3}
-                    accessibilityRole="header"
-                    text="left"
-                    flexShrink={1}
-                  >
-                    {name}
-                  </Text>
-                </XStack>
-                <XStack
-                  bg="transparent"
-                  px={0}
-                  py={0}
-                  rounded={100}
+        <YStack px={16} pt={16} pb={24} gap={16}>
+          <MintCard>
+            <YStack gap={16}>
+              <XStack items="center" gap="$3">
+                <View
+                  width={64}
+                  height={64}
+                  flexShrink={0}
+                  rounded="$6"
+                  bg="$gray3"
                   items="center"
-                  gap="$2"
-                  maxWidth="100%"
-                  onPress={() => handleCopy(url, 'URL')}
+                  justify="center"
+                  overflow="hidden"
                 >
-                  <Globe size={14} color="$gray10" />
-                  <Text {...appTypography.body2} color="$gray10" flexShrink={1}>
-                    {url}
-                  </Text>
-                </XStack>
-              </YStack>
-            </XStack>
-            <XStack gap="$2" items="center">
-              <AppIconButton
-                variant="default"
-                emphasis="secondary"
-                size="small"
-                icon={Share2}
-                accessibilityLabel="Share mint"
-                onPress={handleShare}
-              />
-              <AppIconButton
-                variant="default"
-                emphasis="secondary"
-                size="small"
-                icon={QrCode}
-                accessibilityLabel="Show mint QR code"
-                onPress={() => setShowQr(true)}
-              />
-            </XStack>
-          </YStack>
+                  <MintImage
+                    mintUrl={url}
+                    source={{
+                      uri: iconToUse,
+                      width: 64,
+                      height: 64,
+                    }}
+                    fallback={<Sprout size={32} color="$accentColor" />}
+                  />
+                </View>
+                <YStack flex={1} minWidth={0} gap="$2" items="stretch">
+                  <XStack items="center" gap="$2">
+                    <Text kind="h3" accessibilityRole="header" text="left" flexShrink={1}>
+                      {name}
+                    </Text>
+                  </XStack>
+                  <AppPressable
+                    bg="transparent"
+                    minHeight={48}
+                    flexDirection="row"
+                    accessibilityLabel="Copy mint URL"
+                    px={0}
+                    py={0}
+                    rounded={100}
+                    items="center"
+                    gap="$2"
+                    maxWidth="100%"
+                    onPress={() => handleCopy(url, 'URL')}
+                  >
+                    <Globe size={14} color="$gray10" />
+                    <Text kind="body2" color="$gray10" flexShrink={1}>
+                      {url}
+                    </Text>
+                  </AppPressable>
+                </YStack>
+              </XStack>
+              <XStack gap="$2" items="center">
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="small"
+                  flex={1}
+                  fullWidth={false}
+                  icon={Share2}
+                  accessibilityLabel="Share mint"
+                  onPress={handleShare}
+                >
+                  Share
+                </AppButton>
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="small"
+                  flex={1}
+                  fullWidth={false}
+                  icon={QrCode}
+                  accessibilityLabel="Show mint QR code"
+                  onPress={() => setShowQr(true)}
+                >
+                  Show QR
+                </AppButton>
+              </XStack>
+            </YStack>
+          </MintCard>
           <MintOverview
             url={url}
             info={info}
@@ -261,14 +282,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
         </YStack>
       </ScrollView>
 
-      <YStack
-        p="$4"
-        pb={insets.bottom || '$4'}
-        bg="$background"
-        borderTopWidth={1}
-        borderTopColor="$gray4"
-        gap="$3"
-      >
+      <YStack p="$4" pb={insets.bottom || '$4'} bg="$background" gap="$3">
         {hideDisclaimer && connectionError && (
           <Text color="$red10" accessibilityRole="alert">
             {connectionError}
@@ -302,7 +316,7 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
             paddingBottom: insets.bottom + sheetPadding,
           }}
         >
-          <YStack gap="$5">
+          <YStack gap={16}>
             <BUIHeader
               title="Connect to mint"
               navigation="close"
@@ -323,63 +337,30 @@ export function MintProfileScreen({ url }: MintProfileScreenProps) {
                 <MintImage mintUrl={url} source={{ uri: iconToUse, width: 48, height: 48 }} />
               </View>
               <YStack flex={1} minWidth={0} gap="$1">
-                <Text fontSize={13} fontWeight="600">
-                  {name}
-                </Text>
-                <Text color="$gray10" fontSize={11} selectable>
+                <Text kind="label2">{name}</Text>
+                <Text color="$gray10" kind="body3" selectable>
                   {url}
                 </Text>
               </YStack>
             </XStack>
-            <YStack p="$4" bg="$buttonDefaultSecondary" rounded="$6" gap="$3">
-              <Text color="$color" fontSize={13} fontWeight="600">
-                Before you connect
-              </Text>
-              {[
-                'This mint holds the bitcoin backing your ecash.',
-                'You rely on its operator to redeem your ecash. Only connect if you trust them.',
-                'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
-              ].map((point) => (
-                <XStack key={point} gap="$2" items="flex-start">
-                  <Text color="$gray10" fontSize={13} lineHeight={18} accessible={false}>
-                    •
-                  </Text>
-                  <Text color="$color" fontSize={13} lineHeight={18} flex={1}>
-                    {point}
-                  </Text>
-                </XStack>
-              ))}
-            </YStack>
-            <AppPressable
-              minHeight={48}
-              flexDirection="row"
-              items="center"
-              gap="$3"
-              accessibilityRole="checkbox"
-              accessibilityLabel="Do not show again"
-              accessibilityState={{ checked: dontShowAgain, disabled: isConnecting }}
+            <MintSection title="Before you connect">
+              <MintRows>
+                {[
+                  'This mint holds the bitcoin backing your ecash.',
+                  'You rely on its operator to redeem your ecash. Only connect if you trust them.',
+                  'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
+                ].map((point) => (
+                  <MintDetailRow key={point} label={point} />
+                ))}
+              </MintRows>
+            </MintSection>
+            <BUISelectionRow
+              kind="checkbox"
+              checked={dontShowAgain}
+              label="Do not show again"
               disabled={isConnecting}
-              pressStyle={{ opacity: 0.7 }}
-              onPress={() => {
-                setDontShowAgain(!dontShowAgain);
-              }}
-            >
-              <View
-                width={22}
-                height={22}
-                rounded="$2"
-                borderWidth={2}
-                borderColor={dontShowAgain ? '$color' : '$gray8'}
-                bg={dontShowAgain ? '$color' : 'transparent'}
-                items="center"
-                justify="center"
-              >
-                {dontShowAgain && <Check size={14} color="$onAccent" strokeWidth={3} />}
-              </View>
-              <Text fontSize={13} color="$gray10">
-                Do not show again
-              </Text>
-            </AppPressable>
+              onCheckedChange={setDontShowAgain}
+            />
             {connectionError && (
               <Text color="$red10" accessibilityRole="alert">
                 {connectionError}

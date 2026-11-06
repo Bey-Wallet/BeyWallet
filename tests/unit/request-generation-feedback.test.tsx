@@ -168,7 +168,12 @@ jest.mock('~/services/wallet/currencyService', () => ({
 }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
-  useTheme: () => ({ color: { val: '#000' }, gray3: { val: '#eee' }, gray10: { val: '#888' } }),
+  useTheme: () => ({
+    color: { val: '#000' },
+    gray2: { val: '#eee' },
+    gray3: { val: '#eee' },
+    gray10: { val: '#888' },
+  }),
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',

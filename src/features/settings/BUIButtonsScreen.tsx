@@ -123,7 +123,7 @@ export function BUIButtonsScreen() {
       </ReferenceSpec>
       <ReferenceSpec
         name="Home action buttons"
-        measurement="Layout76 × 84, circle48, icon16, label12 Medium/gap8. Plain actions: icon28, label gap4. These retain their own fixed geometry and remain interactive independently of the labeled-button state and width controls."
+        measurement="Layout76 × 84, circle56, icon16, label12 Medium/gap8. Plain actions: icon28, label gap4. These retain their own fixed geometry and remain interactive independently of the labeled-button state and width controls."
       >
         <XStack px={16} flexWrap="wrap" justify="space-around">
           {[

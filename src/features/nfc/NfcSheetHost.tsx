@@ -220,7 +220,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             </YStack>
             <YStack width="100%" gap="$3" items="center">
               {state.error && (
-                <YStack width="100%" bg="$gray3" rounded="$6" p="$3">
+                <YStack width="100%" bg="$gray2" rounded="$6" p="$3">
                   <Text
                     accessibilityRole="alert"
                     accessibilityLiveRegion="assertive"

@@ -1,11 +1,17 @@
 import type { BUIAppearance } from '~/state/buiStore';
+import { defaultConfig } from '@tamagui/config/v5';
 import { buiBaseColors, buiButtonPalettes } from './palettes';
+
+const lightGray = defaultConfig.themes.light;
 
 export const buiColors = {
   light: {
     ...buiBaseColors.light,
     canvas: '#FFFFFF',
-    surface: '#EFEEF3',
+    surface: lightGray.gray2,
+    raised: lightGray.gray3,
+    pressed: lightGray.gray4,
+    field: lightGray.gray2,
     alternateSurface: '#FFFFFF',
   },
   dark: buiBaseColors.dark,
@@ -30,6 +36,10 @@ export type BUIButtonState = 'Default' | 'Highlighted' | 'Disabled' | 'Loading';
 export function getBUITheme(appearance: BUIAppearance) {
   const c = buiColors[appearance];
   const primary = buiButtonPalettes[appearance].Primary;
+  const secondary =
+    appearance === 'light'
+      ? ([lightGray.gray3, lightGray.gray2, lightGray.gray4, '#000000'] as const)
+      : ([c.raised, c.surface, c.pressed, '#FFFFFF'] as const);
   return {
     ...c,
     primary: primary[0],
@@ -42,15 +52,13 @@ export function getBUITheme(appearance: BUIAppearance) {
     content: c.surface,
     tint: c.raised,
     muted: c.secondaryText,
-    switchInactive: buiButtonPalettes[appearance].Tertiary[0],
-    tertiaryFill: buiButtonPalettes[appearance].Tertiary[0],
-    secondaryButton:
-      appearance === 'light'
-        ? (['#E7E6EB', '#EFEEF3', '#DDDCE2', '#000000'] as const)
-        : buiButtonPalettes.dark.Secondary,
+    switchInactive: c.raised,
+    tertiaryFill: c.raised,
+    secondaryButton: secondary,
     buttons: {
       ...buiButtonPalettes[appearance],
       Primary: primary,
+      Secondary: secondary,
       Tertiary: ['transparent', 'transparent', c.highlighted, primary[0]] as const,
     },
   };
@@ -81,9 +89,9 @@ export function createBUITamaguiTheme(appearance: BUIAppearance) {
     color12: c.text,
     gray1: c.canvas,
     gray2: c.surface,
-    gray3: c.raised,
-    gray4: c.pressed,
-    gray5: c.pressed,
+    gray3: appearance === 'light' ? lightGray.gray3 : c.raised,
+    gray4: appearance === 'light' ? lightGray.gray4 : c.pressed,
+    gray5: appearance === 'light' ? lightGray.gray5 : c.pressed,
     gray8: c.tertiaryText,
     gray9: c.tertiaryText,
     gray10: c.secondaryText,

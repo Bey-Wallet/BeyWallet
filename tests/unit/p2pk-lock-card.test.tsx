@@ -32,7 +32,12 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   XStack: 'XStack',
   YStack: 'YStack',
-  useTheme: () => ({ gray10: { val: '#888' }, gray3: { val: '#eee' }, color: { val: '#000' } }),
+  useTheme: () => ({
+    gray10: { val: '#888' },
+    gray2: { val: '#eee' },
+    gray3: { val: '#eee' },
+    color: { val: '#000' },
+  }),
 }));
 jest.mock('@tamagui/lucide-icons', () => ({
   ClipboardPaste: 'ClipboardPaste',

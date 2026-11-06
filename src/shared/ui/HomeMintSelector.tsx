@@ -90,7 +90,14 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
       onPress={() => onSelect(url)}
     >
       {url === 'all' ? (
-        <View width={48} height={48} rounded={10} bg="$gray4" items="center" justify="center">
+        <View
+          width={48}
+          height={48}
+          rounded={appRadii.control}
+          bg="$gray4"
+          items="center"
+          justify="center"
+        >
           <Landmark size={22} color="$gray10" />
         </View>
       ) : (
@@ -99,7 +106,7 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
           src={icon}
           width={48}
           height={48}
-          borderRadius={10}
+          borderRadius={appRadii.control}
           flexShrink={0}
           fallback={<Landmark size={22} color="$gray10" />}
         />
@@ -499,7 +506,7 @@ export default function HomeHeaderMintSelector() {
   return (
     <>
       <AppPressable
-        py={4}
+        py={3}
         accessibilityState={{ expanded, busy: isLoading }}
         rounded={appRadii.control}
         bg={isOffline ? '$red10' : '$accentColor'}
@@ -522,8 +529,8 @@ export default function HomeHeaderMintSelector() {
           opacity: 0.95,
           bg: isOffline ? '$red11' : '$accentColor',
         }}
-        minHeight={40}
-        hitSlop={4}
+        minHeight={36}
+        hitSlop={6}
         flexDirection="row"
         items="center"
         justify="center"
@@ -532,12 +539,12 @@ export default function HomeHeaderMintSelector() {
         {isLoading ? (
           <Spinner size={14} color={isOffline ? 'white' : '$onAccent'} />
         ) : (
-          <View width={32} height={32} rounded={appRadii.pill} overflow="hidden" flexShrink={0}>
+          <View width={28} height={28} rounded={appRadii.small} overflow="hidden" flexShrink={0}>
             <MintImage
               mintUrl={activeMint?.mintUrl}
-              width={32}
-              height={32}
-              borderRadius={appRadii.pill}
+              width={28}
+              height={28}
+              borderRadius={appRadii.small}
               src={activeMint?.icon}
             />
           </View>
@@ -558,7 +565,7 @@ export default function HomeHeaderMintSelector() {
 
         {isLoading ? undefined : (
           <View flexShrink={0}>
-            <ChevronDown size={22} strokeWidth={2.5} color={isOffline ? 'white' : '$onAccent'} />
+            <ChevronDown size={20} strokeWidth={2.5} color={isOffline ? 'white' : '$onAccent'} />
           </View>
         )}
       </AppPressable>

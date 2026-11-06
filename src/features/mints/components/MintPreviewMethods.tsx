@@ -1,7 +1,7 @@
+import { MintDetailRow } from './MintUI';
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { MintInfoRow } from './MintInfoRow';
-import { ListTableRow } from '~/shared/ui/ListTable';
 
 type Info = Record<string, any>;
 const methodName = (method: string) =>
@@ -117,7 +117,7 @@ export function MintPreviewMethods({ info }: { info: Info }) {
       {limits('Receive') && <MintInfoRow label="Deposit limits" value={limits('Receive')} />}
       {limits('Send') && <MintInfoRow label="Withdraw limits" value={limits('Send')} />}
       {rows.length > 0 && (
-        <ListTableRow
+        <MintDetailRow
           label="Payment details"
           expanded={expanded}
           rightContent={

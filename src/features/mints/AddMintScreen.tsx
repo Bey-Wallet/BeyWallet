@@ -1,6 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
@@ -15,7 +16,6 @@ import {
   Zap,
   Bitcoin,
   Globe,
-  ArrowRight,
   RefreshCw,
   ChevronDown,
   Landmark,
@@ -415,9 +415,11 @@ const DiscoveredMintRow = React.memo(
                 </Text>
               </XStack>
             ) : (
-              <AppButton
+              <AppIconButton
                 variant="default"
-                emphasis="primary"
+                shape="circular"
+                accessibilityLabel={`Add ${displayName}`}
+                emphasis="secondary"
                 size="small"
                 loading={connecting}
                 loadingText={`Connecting to ${displayName}`}
@@ -428,9 +430,7 @@ const DiscoveredMintRow = React.memo(
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onAdd(mint.url);
                 }}
-              >
-                Add
-              </AppButton>
+              />
             )}
           </View>
         </TouchableOpacity>
@@ -753,7 +753,7 @@ export default function AddMintScreen() {
         <FirstUseGuidance topic="mintTrust" spaceBelow />
         <YStack gap="$3" mb="$4">
           <XStack
-            bg="$gray3"
+            bg="$gray2"
             rounded="$6"
             px="$3.5"
             py="$2"
@@ -834,18 +834,18 @@ export default function AddMintScreen() {
                     </Text>
                   </XStack>
                 ) : (
-                  <AppButton
+                  <AppIconButton
                     variant="default"
-                    emphasis="primary"
+                    shape="circular"
+                    accessibilityLabel="Add mint"
+                    emphasis="secondary"
                     size="xsmall"
                     loading={connectingUrl === normalizeUrl(formattedDetectedUrl)}
                     loadingText="Connecting to mint…"
                     disabled={!!connectingUrl}
-                    iconAfter={<ArrowRight size={14} />}
+                    icon={<Plus size={16} strokeWidth={2.5} />}
                     onPress={() => handleAddMintAction(formattedDetectedUrl)}
-                  >
-                    Add
-                  </AppButton>
+                  />
                 )}
               </XStack>
             </YStack>
@@ -878,14 +878,7 @@ export default function AddMintScreen() {
           {isInitializing ? (
             <MintSkeletonList count={2} />
           ) : filteredConnectedMints.length === 0 ? (
-            <YStack
-              py="$5"
-              items="center"
-              justify="center"
-              gap="$2"
-              bg="$buttonDefaultSecondary"
-              rounded="$6"
-            >
+            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Globe size={24} color="$gray10" />
               <Text {...appTypography.body2} fontWeight="600" color="$color">
                 {cleanQuery ? 'No matching connected mints' : 'No mints connected yet'}
@@ -971,14 +964,7 @@ export default function AddMintScreen() {
               </AppButton>
             </YStack>
           ) : filteredDiscoveredMints.length === 0 ? (
-            <YStack
-              py="$5"
-              items="center"
-              justify="center"
-              gap="$2"
-              bg="$buttonDefaultSecondary"
-              rounded="$6"
-            >
+            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Text {...appTypography.body2} fontWeight="600" color="$color">
                 {cleanQuery ? 'No matching mints' : 'No mints found'}
               </Text>

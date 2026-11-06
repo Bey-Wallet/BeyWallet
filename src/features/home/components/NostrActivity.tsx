@@ -89,8 +89,8 @@ const RowContainer = styled(XStack, {
   items: 'center',
   justify: 'space-between',
   gap: '$2',
-  hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
-  pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
+  hoverStyle: { bg: '$gray3' },
+  pressStyle: { opacity: 0.7, bg: '$gray4' },
 });
 
 function SenderAvatar({
@@ -131,7 +131,7 @@ function SenderAvatar({
           height={8}
           rounded="$10"
           borderWidth={1.5}
-          borderColor="$buttonDefaultSecondary"
+          borderColor="$gray2"
         />
       )}
     </View>
@@ -224,7 +224,7 @@ export default function NostrActivity() {
   if (unclaimed.length === 0) return null;
 
   return (
-    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg="$buttonDefaultSecondary">
+    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg="$gray2">
       {/* Section header */}
       <XStack items="center" justify="space-between">
         <XStack items="center" gap="$2">

@@ -1,5 +1,4 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
@@ -15,7 +14,7 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
-import { appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
 import {
@@ -131,7 +130,7 @@ const MintRowItem = React.memo(
                 width={40}
                 height={40}
                 alt={displayName}
-                borderRadius={1000}
+                borderRadius={appRadii.control}
                 borderColor="$borderColor"
                 borderWidth={mint.icon ? 1 : 0}
                 fallback={<Landmark size={22} color="$iconSecondary" />}
@@ -231,7 +230,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
           height={40}
           justify="center"
           bg="$gray3"
-          rounded={1000}
+          rounded={appRadii.control}
           items="center"
           overflow="hidden"
         >
@@ -241,7 +240,7 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
               src={iconUrl}
               width={40}
               height={40}
-              borderRadius={1000}
+              borderRadius={appRadii.control}
               alt={`${mint.name} icon`}
               onError={() => setIconFailed(true)}
             />
@@ -267,16 +266,15 @@ const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProp
         </YStack>
       </XStack>
 
-      <AppButton
+      <AppIconButton
         variant="default"
         emphasis="secondary"
-        rounded={1000}
+        shape="circular"
         size="xsmall"
         icon={Plus}
+        accessibilityLabel={`Add ${mint.name}`}
         onPress={() => onAdd(mint.mintUrl)}
-      >
-        Add
-      </AppButton>
+      />
     </RowContainer>
   );
 });
@@ -355,7 +353,7 @@ export const ConnectedMintsCard = () => {
       gap={0}
       px={appSpacing.page}
       pb={appSpacing.compact}
-      bg="$buttonDefaultSecondary"
+      bg="$gray2"
       rounded="$6"
       overflow="hidden"
     >

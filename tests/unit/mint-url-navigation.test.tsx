@@ -295,8 +295,8 @@ it('opens the profile from the detected URL Add button', async () => {
     tree.root.findByType('Input' as any).props.onChangeText('https://mint.example'),
   );
   const add = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Add')!;
+    .findAllByType('AppIconButton' as any)
+    .find((node) => node.props.accessibilityLabel === 'Add mint')!;
   await act(async () => add.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-profile',
@@ -311,8 +311,8 @@ it('connects an entered mint directly from Add after remembered consent', async 
     tree.root.findByType('Input' as any).props.onChangeText('mint.example/Bitcoin/'),
   );
   const add = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Add')!;
+    .findAllByType('AppIconButton' as any)
+    .find((node) => node.props.accessibilityLabel === 'Add mint')!;
   await act(async () => add.props.onPress());
   expect(useWalletStore.getState().addMint).toHaveBeenCalledWith('https://mint.example/Bitcoin', {
     trusted: true,
@@ -341,7 +341,9 @@ it('shows button loading and prevents duplicate Add operations for a discovered 
   });
   await render();
   const add = () =>
-    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+    tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith('Add '))!;
   const press = add().props.onPress;
   await act(async () => {
     press({ stopPropagation: jest.fn() });
@@ -368,7 +370,9 @@ it('keeps validation failures visible and allows retry from the mint list', asyn
   });
   await render();
   const add = () =>
-    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === 'Add')!;
+    tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith('Add '))!;
   await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
   expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
     'Mint validation failed',
@@ -434,8 +438,8 @@ it('sends Home recommendations through the same profile and consent flow', async
     tree = create(<ConnectedMintsCard />);
   });
   const add = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Add')!;
+    .findAllByType('AppIconButton' as any)
+    .find((node) => node.props.accessibilityLabel === `Add ${RECOMMENDED_MINTS[0].name}`)!;
   await act(async () => add.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-profile',

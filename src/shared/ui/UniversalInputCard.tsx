@@ -351,7 +351,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           minHeight={132}
           borderWidth={1}
           borderColor={validationError ? '$red8' : '$borderColor'}
-          bg="$gray3"
+          bg="$gray2"
         >
           {input}
           <XStack width="100%" items="center" justify="space-between" gap="$2" flexWrap="wrap">
@@ -416,7 +416,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         borderWidth={1}
         items="center"
         borderColor={validationError ? '$red10' : compact ? 'transparent' : '$gray4'}
-        bg={compact ? '$buttonDefaultSecondary' : '$gray3'}
+        bg="$gray2"
       >
         <XStack
           width={compact ? '100%' : undefined}

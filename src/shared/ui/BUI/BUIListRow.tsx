@@ -30,6 +30,7 @@ export type BUIListRowProps = {
   accessibilityLabel?: string;
   role?: 'button' | 'radio' | 'checkbox' | 'switch';
   checked?: boolean;
+  expanded?: boolean;
 };
 
 export function BUIListRow({
@@ -55,6 +56,7 @@ export function BUIListRow({
   accessibilityLabel,
   role,
   checked,
+  expanded,
 }: BUIListRowProps) {
   const c = useBUITheme();
   const hasSubtitle =
@@ -169,7 +171,11 @@ export function BUIListRow({
       {...layout}
       accessibilityLabel={label || undefined}
       accessibilityRole={role ?? 'button'}
-      accessibilityState={{ disabled, ...(checked === undefined ? {} : { checked }) }}
+      accessibilityState={{
+        disabled,
+        ...(checked === undefined ? {} : { checked }),
+        ...(expanded === undefined ? {} : { expanded }),
+      }}
       disabled={disabled}
       onPress={() => {
         if (!disabled) onPress?.();
@@ -188,7 +194,13 @@ export function BUIListRow({
   );
 }
 
-export function BUIListSeparator({ extraStartInset = 0 }: { extraStartInset?: number }) {
+export function BUIListSeparator({
+  extraStartInset = 0,
+  thickness = buiSeparator.thickness,
+}: {
+  extraStartInset?: number;
+  thickness?: number;
+}) {
   const c = useBUITheme();
   return (
     <YStack
@@ -197,7 +209,7 @@ export function BUIListSeparator({ extraStartInset = 0 }: { extraStartInset?: nu
       b={0}
       l={0}
       r={0}
-      height={buiSeparator.thickness}
+      height={thickness}
       style={{ marginStart: buiSeparator.startInset + extraStartInset }}
       bg={c.separator}
     />

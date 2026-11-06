@@ -338,14 +338,7 @@ export default function PeopleScreen() {
   return (
     <YStack flex={1} bg="$background" pt={insets.top}>
       <YStack px="$4" pt="$2" gap="$2">
-        <XStack
-          minHeight={52}
-          bg="$buttonDefaultSecondary"
-          rounded={16}
-          px="$3"
-          items="center"
-          gap="$2"
-        >
+        <XStack minHeight={52} bg="$gray2" rounded={16} px="$3" items="center" gap="$2">
           <Search size={18} color="$gray10" />
           <YStack flex={1} minWidth={0} height={52} justify="center">
             <Input

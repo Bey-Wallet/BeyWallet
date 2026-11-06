@@ -40,15 +40,15 @@ export function SettingsScreen() {
     <SettingsPage>
       <AppPressable
         rounded="$6"
-        bg="$buttonDefaultSecondary"
+        bg="$gray2"
         p="$4"
         minHeight={80}
         flexDirection="row"
         items="center"
         gap="$3"
         accessibilityLabel="My addresses and identity"
-        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-        pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+        hoverStyle={{ bg: '$gray3' }}
+        pressStyle={{ bg: '$gray4' }}
         onPress={() => navigate('identity')}
       >
         <Blockies seed={npub || 'bey-wallet'} size={10} scale={4} style={{ borderRadius: 20 }} />

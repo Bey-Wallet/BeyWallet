@@ -29,7 +29,7 @@ function palette(item: ConversationActivity) {
   if (item.direction === 'incoming' && item.requiresAction)
     return { background: '$buttonWarningSecondary', color: '$buttonWarningSecondaryText' } as const;
   if (item.direction === 'incoming')
-    return { background: '$buttonDefaultSecondary', color: '$buttonDefaultSecondaryText' } as const;
+    return { background: '$gray2', color: '$buttonDefaultSecondaryText' } as const;
   return { background: '$buttonDefaultPrimary', color: '$buttonDefaultPrimaryText' } as const;
 }
 

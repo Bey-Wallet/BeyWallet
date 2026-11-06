@@ -323,7 +323,7 @@ export function HistoryScreen({
             {showSearch && (
               <XStack
                 minHeight={48}
-                bg="$buttonDefaultSecondary"
+                bg="$gray2"
                 rounded="$6"
                 px="$3"
                 gap="$2"

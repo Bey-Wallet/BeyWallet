@@ -13,7 +13,7 @@ Compact icon controls retain proportional glyphs and hit slop reaching 48 points
 actions default to full width; explicit width, flex layouts and `fullWidth={false}` support paired
 and inline controls. Main mint connection, scanner recovery and Transfer recovery actions now
 use large buttons. Home shortcuts use BUI action controls, retaining Scan's 20-point glyph and
-3-point stroke. The Home mint selector keeps a compact 40-point height, 12-point corners and
+3-point stroke. The Home mint selector keeps a compact 36-point height, 12-point corners and
 theme-inverse accent fill/foreground, with hit slop reaching 48 points and its offline error color.
 
 This supersedes the historical monochrome button palette and pill-radius details below. Other
@@ -21,6 +21,35 @@ wallet branding and the POS theme remain unchanged. Exact BUI palette checks rep
 monochrome primary contrast assertions; semantic supporting-action contrast checks remain.
 Wallet, payment, authentication and recovery logic are unchanged. Device checks remain necessary
 for small screens, text scaling, screen readers, NFC, biometrics and end-to-end payments.
+
+Light-theme secondary/card surfaces resolve Tamagui's standard `gray2`, and secondary button
+fills resolve `gray3` (`gray4` when pressed, `gray2` when disabled). The BUI gray
+tokens retain those same Tamagui values instead of the former violet-tinted overrides.
+
+The wallet and BUI themes share these neutral roles across Home, mint details/preview, Settings,
+People, history, NFC and shared fields/loading surfaces. Cards and grouped navigation rows use
+`$gray2`, with `$gray3` hover and `$gray4` press feedback. Secondary buttons
+and header/navigation controls use `$gray3`, with `$gray4` feedback and `$gray2` disabled fills.
+The Home secondary-currency control and the Scan/Transfer/Receive/Send action circles also use
+`$gray2`; the currency control retains gray3/4 interaction feedback.
+Dark mode uses its existing gray2/3/4 values with the same hierarchy. Semantic status colors,
+the POS palette, the compact inverse Home mint trigger, and tab/header layouts stay intact.
+
+### Mint details and preview
+
+Mint details and the unconnected mint preview use BUI cards, list/property rows, action buttons,
+status labels and text roles. Cards keep 16-point corners and grow with their content. Page/card
+padding and section gaps use 16 points, with 8-point gaps for related items. The balance uses the
+BUI numeric role; descriptions, metadata, facts and headings use the corresponding BUI text roles.
+Long fact values and warnings remain readable without a fixed card height. Both screens use
+BUI list groups and section headers, semantic typography roles, and full-width 2-point BUI
+separators. Share and Show QR have visible button labels; recovery is labeled Restore funds.
+Advertised features and connection warnings use BUI rows, and consent uses BUISelectionRow.
+
+`MintAppearance` scopes the active light/dark BUI theme through `BUIAppearanceProvider`; it does
+not change the catalog preference or other screens. `BUIListRow.expanded` carries the existing
+payment-detail and reliability disclosure state into accessibility. Connection, nickname edits,
+recovery, removal, sharing, QR and payment callbacks retain their existing behavior.
 
 ### Headers and navigation
 

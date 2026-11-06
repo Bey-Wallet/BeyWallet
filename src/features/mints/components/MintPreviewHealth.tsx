@@ -1,9 +1,10 @@
+import { MintDetailRow } from './MintUI';
+import { MintText as Text } from './MintUI';
 import React from 'react';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useQuery } from '@tanstack/react-query';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 import { ExternalLink, RefreshCw } from '@tamagui/lucide-icons';
-import { ListTableRow } from '~/shared/ui/ListTable';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import countryNames from '~/shared/utils/countryNames.json';
 import {
@@ -39,10 +40,10 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
   if (!history.length) {
     return (
       <YStack px="$page" py="$rowGap" gap="$2">
-        <Text color="$gray10" fontSize="$3">
+        <Text color="$gray10" kind="body2">
           Uptime history
         </Text>
-        <Text color="$gray10" fontSize={11}>
+        <Text color="$gray10" kind="body3">
           No uptime history available
         </Text>
       </YStack>
@@ -50,7 +51,7 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
   }
   return (
     <YStack px="$page" py="$rowGap" gap="$2">
-      <Text color="$gray10" fontSize="$3">
+      <Text color="$gray10" kind="body2">
         Uptime history · {history.length} {history.length === 1 ? 'day' : 'days'}
       </Text>
       <XStack gap={3}>
@@ -68,10 +69,10 @@ function UptimeHistory({ daily = [] }: { daily?: CashuUptimeDay[] }) {
         ))}
       </XStack>
       <XStack justify="space-between">
-        <Text color="$gray10" fontSize={11}>
+        <Text color="$gray10" kind="body3">
           {history[0].day}
         </Text>
-        <Text color="$gray10" fontSize={11}>
+        <Text color="$gray10" kind="body3">
           {history[history.length - 1].day}
         </Text>
       </XStack>
@@ -133,7 +134,7 @@ export function MintReliabilityRow({
   return (
     <>
       <>
-        <ListTableRow
+        <MintDetailRow
           label={historicalScore ? 'Last measured score' : 'Reliability score'}
           value={value}
           valueColor={
@@ -149,14 +150,14 @@ export function MintReliabilityRow({
           }
         />
         {offlineSince && (
-          <ListTableRow
+          <MintDetailRow
             label="MintRadar offline since"
             value={time(offlineSince)}
             valueColor="$gray10"
           />
         )}
         {showConnection && (
-          <ListTableRow
+          <MintDetailRow
             label="Connection"
             value={
               connection === 'online'
@@ -186,7 +187,7 @@ export function MintReliabilityRow({
       </>
       {radar.data?.scoreCappedNew && (
         <YStack px="$page" py="$rowGap">
-          <Text color="$gray10" fontSize={11}>
+          <Text color="$gray10" kind="body3">
             New mint · Score capped
           </Text>
         </YStack>
@@ -274,48 +275,48 @@ export function MintPreviewHealth({
         showConnection={showConnection}
       />
       <>
-        <ListTableRow label="Checked from this device" value={time(connectionCheckedAt)} />
-        <ListTableRow label="Server country" value={countryName(audit?.network?.country)} />
-        <ListTableRow
+        <MintDetailRow label="Checked from this device" value={time(connectionCheckedAt)} />
+        <MintDetailRow label="Server country" value={countryName(audit?.network?.country)} />
+        <MintDetailRow
           label="Uptime · 24 hours"
           value={uptime24 == null ? unavailable(monitoringLoading, notCovered) : percent(uptime24)}
         />
-        <ListTableRow
+        <MintDetailRow
           label="Uptime · 7 days"
           value={uptime7 == null ? unavailable(monitoringLoading, notCovered) : percent(uptime7)}
         />
         <UptimeHistory daily={audit?.daily} />
-        <ListTableRow
+        <MintDetailRow
           label="Payment success · 7 days"
           value={stats ? paymentTestRate(stats) : unavailable(monitoringLoading, notCovered)}
         />
         {audit?.swaps7d.asDest && (
-          <ListTableRow
+          <MintDetailRow
             label="Receive tests · 7 days"
             value={paymentTestRate(audit.swaps7d.asDest)}
           />
         )}
         {audit?.swaps7d.asSource && (
-          <ListTableRow
+          <MintDetailRow
             label="Send tests · 7 days"
             value={paymentTestRate(audit.swaps7d.asSource)}
           />
         )}
         {audit?.swaps7d.errorsBlamed != null && (
-          <ListTableRow
+          <MintDetailRow
             label="Failures attributed to mint"
             value={String(audit.swaps7d.errorsBlamed)}
           />
         )}
         {stats?.total && stats.avgMs != null ? (
-          <ListTableRow
+          <MintDetailRow
             label="Average payment test"
             value={`${Number((stats.avgMs / 1000).toFixed(2))}s`}
           />
         ) : null}
-        <ListTableRow label="Mint balance / reserves" value="Not published" />
+        <MintDetailRow label="Mint balance / reserves" value="Not published" />
         {testMint && (
-          <ListTableRow
+          <MintDetailRow
             label="Network"
             value="Test mint · Not real bitcoin"
             valueColor="$orange10"
@@ -323,20 +324,20 @@ export function MintPreviewHealth({
         )}
       </>
       <YStack px="$page" py="$rowGap" gap="$2">
-        <Text color="$gray10" fontSize={11}>
+        <Text color="$gray10" kind="body3">
           Payment tests: cashu.info · Report fetched{' '}
           {time(detail.dataUpdatedAt || list.dataUpdatedAt)}
           {(detail.isError || list.isError || notCovered) && audit ? ' · Saved report' : ''}
           {monitoringTime ? `\nLatest monitoring check: ${time(monitoringTime)}` : ''}
           {`\nUptime source: ${uptimeSource}`}
         </Text>
-        <Text color="$gray10" fontSize={11}>
+        <Text color="$gray10" kind="body3">
           Reliability measures observed operation, not reserves or fund safety. Route failures can
           involve either mint; attribution is shown separately.
         </Text>
       </YStack>
       <>
-        <ListTableRow
+        <MintDetailRow
           label="MintRadar methodology"
           value="Open"
           rightContent={<ExternalLink size={18} color="$gray10" />}
@@ -344,7 +345,7 @@ export function MintPreviewHealth({
             void toast.openExternal('https://mintradar.org/methodology');
           }}
         />
-        <ListTableRow
+        <MintDetailRow
           label="cashu.info audit report"
           value="Open"
           rightContent={<ExternalLink size={18} color="$gray10" />}

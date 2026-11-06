@@ -29,9 +29,9 @@ export default function RecoveryStatusRow() {
       items="center"
       gap="$3"
       rounded="$6"
-      bg="$buttonDefaultSecondary"
-      hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-      pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+      bg="$gray2"
+      hoverStyle={{ bg: '$gray3' }}
+      pressStyle={{ bg: '$gray4' }}
       onPress={() => router.push('/(tabs)/settings/recover-funds')}
     >
       <XStack

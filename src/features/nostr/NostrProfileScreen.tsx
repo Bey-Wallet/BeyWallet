@@ -86,14 +86,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   };
 
   const tabs = (
-    <XStack
-      width="100%"
-      accessibilityRole="tablist"
-      bg="$buttonDefaultSecondary"
-      rounded="$6"
-      p="$1"
-      gap="$1"
-    >
+    <XStack width="100%" accessibilityRole="tablist" bg="$gray2" rounded="$6" p="$1" gap="$1">
       {(['ecash', 'lightning'] as const).map((value) => (
         <AppPressable
           key={value}
@@ -109,8 +102,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
           items="center"
           justify="center"
           bg={tab === value ? '$background' : 'transparent'}
-          hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-          pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+          hoverStyle={{ bg: '$gray3' }}
+          pressStyle={{ bg: '$gray4' }}
         >
           <Text fontSize={13} fontWeight="500" color={tab === value ? '$color' : '$gray10'}>
             {value === 'ecash' ? 'Ecash' : 'Lightning'}
@@ -274,7 +267,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               <AppPressable
                 width="100%"
                 rounded="$6"
-                bg="$buttonDefaultSecondary"
+                bg="$gray2"
                 px="$3"
                 py="$2"
                 minHeight={56}
@@ -284,8 +277,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                 onPress={() => copy(copyValue)}
                 accessibilityLabel={isLightning ? 'Copy Lightning address' : 'Copy public key'}
                 accessibilityValue={{ text: copyValue }}
-                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-                pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+                hoverStyle={{ bg: '$gray3' }}
+                pressStyle={{ bg: '$gray4' }}
               >
                 <YStack flex={1} minWidth={0} gap="$1">
                   <Text fontSize={11} color="$gray10">
@@ -303,7 +296,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               </AppPressable>
             )}
             {isLightning && lightning.loaded && (canShare || lightning.pending.length > 0) && (
-              <YStack bg="$buttonDefaultSecondary" width={'100%'} rounded="$6" overflow="hidden">
+              <YStack bg="$gray2" width={'100%'} rounded="$6" overflow="hidden">
                 {canShare && (
                   <AppPressable
                     accessibilityLabel="Manage Lightning address"
@@ -313,8 +306,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                     flexDirection="row"
                     items="center"
                     gap="$3"
-                    hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-                    pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+                    hoverStyle={{ bg: '$gray3' }}
+                    pressStyle={{ bg: '$gray4' }}
                     onPress={() => router.push('/(tabs)/settings/lightning-address' as Href)}
                   >
                     <YStack flex={1} minWidth={0} gap="$1">
@@ -342,8 +335,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                       flexDirection="row"
                       items="center"
                       gap="$3"
-                      hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-                      pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+                      hoverStyle={{ bg: '$gray3' }}
+                      pressStyle={{ bg: '$gray4' }}
                       onPress={() =>
                         router.push('/(tabs)/settings/lightning-address-payments' as Href)
                       }

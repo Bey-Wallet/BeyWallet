@@ -1,10 +1,12 @@
 import React from 'react';
-import { Text, XStack, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
+import { BUIPropertyRow } from '~/shared/ui/BUI/BUIPropertyRow';
 import { Copy } from '@tamagui/lucide-icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { MintDivider } from './MintUI';
 
 /** Dense read-only information; copy actions retain a full-size touch target. */
 export function MintInfoRow({
@@ -18,28 +20,16 @@ export function MintInfoRow({
 }) {
   const toast = useAppToast();
   const content = (
-    <XStack px="$page" py={6} minHeight={copyValue ? 48 : 32} gap="$3" items="center">
-      <Text color="$gray10" fontSize={13} lineHeight={18} maxWidth="40%">
-        {label}
-      </Text>
-      <Text
-        color="$color"
-        fontSize={14}
-        fontWeight="500"
-        lineHeight={22}
-        flex={1}
-        textAlign="right"
-        numberOfLines={copyValue ? 1 : undefined}
-        ellipsizeMode="middle"
-      >
-        {value}
-      </Text>
-      {copyValue && <Copy size={20} color="$gray10" aria-hidden />}
-    </XStack>
+    <BUIPropertyRow
+      title={label}
+      value={value}
+      maxValueLines={copyValue ? 1 : 0}
+      postfix={copyValue ? <Copy size={20} color="$gray10" aria-hidden /> : undefined}
+    />
   );
   return (
     <YStack>
-      <YStack height={2} width="100%" bg="$background" />
+      <MintDivider />
       {copyValue ? (
         <AppPressable
           accessibilityLabel={`Copy ${label.toLowerCase()}`}

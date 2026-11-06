@@ -1,3 +1,4 @@
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ScrollView, StyleSheet } from 'react-native';
@@ -231,7 +232,7 @@ it.each(['light', 'dark'] as const)(
       const backgrounds = control().findAll(
         (node) =>
           StyleSheet.flatten(node.props.style)?.backgroundColor ===
-          (appearance === 'light' ? '#E7E6EB' : '#17171A'),
+          getBUITheme(appearance).secondaryButton[0],
       );
       expect(backgrounds.length).toBeGreaterThan(0);
       await act(async () => tree.update(render(false)));
