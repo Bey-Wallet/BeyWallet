@@ -2,16 +2,7 @@ import { LegendList } from '@legendapp/list/react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, RefreshControl } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Clock,
-  Inbox,
-  RotateCcw,
-  Check,
-  Search,
-  X,
-} from '@tamagui/lucide-icons';
+import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '@tamagui/lucide-icons';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -45,11 +36,7 @@ import {
   type QuickFilter,
 } from './historyList';
 
-const quickFilters = [
-  { key: 'pending', label: 'Pending', icon: Clock },
-  { key: 'sent', label: 'Sent', icon: ArrowUpRight },
-  { key: 'received', label: 'Received', icon: ArrowDownLeft },
-] as const;
+const quickFilters = [{ key: 'pending', label: 'Pending', icon: Clock }] as const;
 const rails = [
   { key: 'all', label: 'All activity' },
   { key: 'payments', label: 'Payments' },
@@ -108,7 +95,7 @@ function FilterPill({
 }
 
 export function HistoryScreen({
-  scope = 'wallet',
+  scope: requestedScope = 'wallet',
   showFilters = false,
   onFiltersClose,
   onFiltersActiveChange,
@@ -125,6 +112,8 @@ export function HistoryScreen({
   const router = useRouter();
   const queryClient = useQueryClient();
   const theme = useTheme();
+  const [scope, setScope] = useState<HistoryScope>(requestedScope);
+  useEffect(() => setScope(requestedScope), [requestedScope]);
   const [filters, setFilters] = useState<HistoryFilters>(defaultHistoryFilters);
   const [searchQuery, setSearchQuery] = useState('');
   const hasSearch = showSearch && searchQuery.trim().length > 0;
@@ -376,6 +365,16 @@ export function HistoryScreen({
                   onPress={() => setQuickFilter(filter.key)}
                 />
               ))}
+              <FilterPill
+                label="POS"
+                icon={Store}
+                selected={scope === 'pos'}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  Haptics.selectionAsync();
+                  setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
+                }}
+              />
             </XStack>
             {(isFiltered || hasSearch) && (
               <XStack items="center" justify="space-between" gap={8}>

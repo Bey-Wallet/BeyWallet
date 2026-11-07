@@ -73,6 +73,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Zap',
       'Bitcoin',
       'Clock',
+      'Store',
       'Inbox',
       'RotateCcw',
       'Check',
@@ -225,6 +226,49 @@ it('keeps POS receipts out of wallet history and searches only the selected scop
   }
 });
 
+it('filters POS beside Pending and preserves search and pending selection across scope changes', async () => {
+  const pending = {
+    ...mockHistory[0],
+    id: 'pos-pending',
+    type: 'mint',
+    quoteId: 'pos-quote',
+    state: 'UNPAID',
+    metadata: { note: 'Counter pending sale' },
+  };
+  const completed = {
+    ...mockHistory[1],
+    id: 'pos-complete',
+    type: 'mint',
+    quoteId: 'pos-complete-quote',
+    state: 'completed',
+  };
+  mockHistory.push(pending, completed);
+  mockPosOrigins.push(
+    { kind: 'quote', mintUrl: pending.mintUrl, reference: pending.quoteId },
+    { kind: 'quote', mintUrl: completed.mintUrl, reference: completed.quoteId },
+  );
+  try {
+    await act(async () => screen.update(<HistoryScreen showSearch />));
+    await act(async () => pressable('POS').props.onPress());
+    expect(transactionButtons()).toHaveLength(2);
+    expect(pressable('POS').props.accessibilityState.selected).toBe(true);
+    await act(async () => pressable('Pending').props.onPress());
+    expect(transactionButtons()).toHaveLength(1);
+    await act(async () =>
+      screen.root.findByType('Input' as any).props.onChangeText('counter pending'),
+    );
+    expect(transactionButtons()).toHaveLength(1);
+    await act(async () => pressable('POS').props.onPress());
+    expect(transactionButtons()).toHaveLength(0);
+    expect(screen.root.findByType('Input' as any).props.value).toBe('counter pending');
+    expect(pressable('Pending').props.accessibilityState.selected).toBe(true);
+    await act(async () => pressable('POS').props.onPress());
+    expect(transactionButtons()).toHaveLength(1);
+  } finally {
+    mockHistory.splice(-2);
+  }
+});
+
 it('renders real rows, opens details and toggles quick filters back to all activity', () => {
   expect(
     screen.root.findAllByType('Text' as any).some((node) => node.props.children === 'just now'),
@@ -235,10 +279,10 @@ it('renders real rows, opens details and toggles quick filters back to all activ
     pathname: '/txn-details',
     params: { id: 'send' },
   });
-  act(() => pressable('Received').props.onPress());
+  act(() => pressable('Pending').props.onPress());
   expect(transactionButtons()).toHaveLength(1);
-  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Received');
-  act(() => pressable('Received').props.onPress());
+  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Created');
+  act(() => pressable('Pending').props.onPress());
   expect(transactionButtons()).toHaveLength(2);
   act(() => pressable('Pending').props.onPress());
   expect(transactionButtons()).toHaveLength(1);
@@ -362,8 +406,12 @@ it('keeps quick filters usable when no activity matches', () => {
   act(() => pressable('Bitcoin').props.onPress());
   expect(transactionButtons()).toHaveLength(0);
   expect(pressable('Pending')).toBeDefined();
-  expect(pressable('Sent')).toBeDefined();
-  expect(pressable('Received')).toBeDefined();
+  expect(pressable('POS')).toBeDefined();
+  expect(
+    screen.root
+      .findAllByType('AppPressable' as any)
+      .filter((node) => ['Sent', 'Received'].includes(node.props.accessibilityLabel)),
+  ).toHaveLength(0);
   expect(
     screen.root.findAllByType('AppButton' as any).some((node) => node.props.children === 'Receive'),
   ).toBe(false);
@@ -413,7 +461,7 @@ it('combines search with quick filters and clears the query without resetting fi
   const input = openSearch();
   act(() => input.props.onChangeText('1000'));
   expect(transactionButtons()).toHaveLength(1);
-  act(() => pressable('Received').props.onPress());
+  act(() => pressable('Pending').props.onPress());
   expect(transactionButtons()).toHaveLength(0);
   expect(
     screen.root
@@ -422,7 +470,7 @@ it('combines search with quick filters and clears the query without resetting fi
   ).toBe(true);
   act(() => pressable('Clear history search').props.onPress());
   expect(transactionButtons()).toHaveLength(1);
-  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Received');
+  expect(transactionButtons()[0].props.accessibilityLabel).toContain('Created');
   expect(screen.root.findByType('Input' as any).props.value).toBe('');
 });
 

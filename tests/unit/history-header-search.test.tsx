@@ -65,35 +65,36 @@ it('places search beside filters and toggles the expanded bar without changing f
   }
 });
 
-it('toggles between separate wallet and POS history and closes the active search', async () => {
+it('keeps POS out of the title and gives both header buttons 22-point icons and separate touch slots', async () => {
   let tree!: ReactTestRenderer;
-  let title!: ReactTestRenderer;
+  let header!: ReactTestRenderer;
   await act(async () => {
     tree = create(<HistoryTabScreen />);
   });
-  const screen = () => tree.root.findByType('HistoryScreen' as any);
-  const renderTitle = async () => {
-    await act(async () => {
-      title?.unmount();
-      title = create(mockSetOptions.mock.calls.at(-1)![0].headerTitle());
-    });
-    return title.root.findByProps({ accessibilityLabel: 'POS history' });
-  };
   try {
-    expect(screen().props.scope).toBe('wallet');
-    let toggle = await renderTitle();
-    expect(toggle.props.accessibilityState.selected).toBe(false);
-    await act(async () => toggle.props.onPress());
-    expect(screen().props.scope).toBe('pos');
-    expect(screen().props.showSearch).toBe(false);
-    toggle = await renderTitle();
-    expect(toggle.props.accessibilityState.selected).toBe(true);
-    await act(async () => toggle.props.onPress());
-    expect(screen().props.scope).toBe('wallet');
+    const options = mockSetOptions.mock.calls.at(-1)![0];
+    await act(async () => {
+      header = create(
+        <>
+          {options.headerTitle()}
+          {options.headerRight()}
+        </>,
+      );
+    });
+    expect(JSON.stringify(header.toJSON())).not.toContain('POS');
+    const buttons = header.root.findAllByType('Button' as any);
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect(button.props).toMatchObject({ iconSize: 22, size: 'xxsmall', shape: 'circular' });
+    }
+    const slots = header.root
+      .findAllByType('XStack' as any)
+      .filter((node) => node.props.width === 48 && node.props.height === 48);
+    expect(slots).toHaveLength(2);
   } finally {
     await act(async () => {
       tree.unmount();
-      title?.unmount();
+      header?.unmount();
     });
   }
 });

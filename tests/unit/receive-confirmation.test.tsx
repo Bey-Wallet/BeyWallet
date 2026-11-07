@@ -15,8 +15,11 @@ jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: (selector: (state: { npub: string }) => unknown) =>
     selector({ npub: 'npub-me' }),
 }));
-jest.mock('tamagui', () => ({ Text: 'Text' }));
-jest.mock('@tamagui/lucide-icons', () => ({ RefreshCw: 'RefreshCw' }));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack' }));
+jest.mock('@tamagui/lucide-icons', () => ({
+  RefreshCw: 'RefreshCw',
+  AlertTriangle: 'AlertTriangle',
+}));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, footer, children }: any) => (
@@ -72,6 +75,13 @@ it('shows minimal mint and status rows without token or proof details', async ()
   expect(tree.root.findByType('Amount' as any).props.amount).toBe(100);
   expect(tree.root.findByProps({ label: 'Mint' }).props.isCopyable).toBeUndefined();
   expect(tree.root.findByProps({ label: 'Mint' }).props.onCopy).toBeUndefined();
+  expect(tree.root.findAllByType('AlertTriangle' as any)).toHaveLength(0);
+  expect(tree.root.findByProps({ children: 'Claim later' }).props).toMatchObject({
+    emphasis: 'secondary',
+    size: 'small',
+    fullWidth: false,
+    self: 'center',
+  });
 });
 
 it('shows a copyable received memo while the mint remains read-only', async () => {
@@ -145,6 +155,11 @@ it('retains explicit trust consent and recipient lock information', async () => 
     );
   });
   expect(receive().props.children).toBe('Trust & Receive');
+  expect(tree.root.findByType('AlertTriangle' as any).props).toMatchObject({
+    size: 18,
+    color: '$orange10',
+  });
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBeDefined();
   expect(tree.root.findByProps({ label: 'Locked To' }).props.value).toBe('You (Safe)');
   expect(tree.root.findByType('Text' as any).props.children).toBe(
     'Receiving will add and trust this mint.',
