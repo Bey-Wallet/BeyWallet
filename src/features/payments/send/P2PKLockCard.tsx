@@ -105,11 +105,8 @@ export function P2PKLockCard({
             : 'Locks this ecash to the recipient public key. Check the key before creating it.'}
         </Text>
       )}
-      <AppBottomSheet ref={sheet} onClose={Keyboard.dismiss}>
-        <YStack p="$4" gap="$3">
-          <Text fontFamily="$body" fontSize={18} fontWeight="500" textAlign="center">
-            Recipient public key
-          </Text>
+      <AppBottomSheet title="Recipient public key" ref={sheet} onClose={Keyboard.dismiss}>
+        <YStack gap="$3">
           <Text fontSize={13} fontWeight="400" color="$gray10">
             Hex public key (compressed, uncompressed, or x-only), npub, or nprofile.
           </Text>

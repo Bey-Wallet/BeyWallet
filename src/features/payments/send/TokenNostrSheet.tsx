@@ -56,7 +56,7 @@ export const TokenNostrSheet = forwardRef<
   };
   return (
     <BUISheet ref={ref} title="Send via Nostr" appearance={appearance} canDismiss={!sending}>
-      <YStack px={appSpacing.page} gap={appSpacing.gap}>
+      <YStack gap={appSpacing.gap}>
         <Text {...appTypography.body2} color="$gray10">
           Deliver this existing ecash to a Nostr recipient. The payment stays pending until claimed.
         </Text>

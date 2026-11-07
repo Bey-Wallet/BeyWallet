@@ -322,12 +322,9 @@ export default function NostrActivity() {
         })}
       </YStack>
 
-      <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
-        <YStack p="$4" gap="$4" flex={1}>
+      <AppBottomSheet title="Payment request" ref={sheetRef}>
+        <YStack gap="$4">
           <YStack items="center" gap="$2" mb="$2">
-            <Text fontSize="$5" fontWeight="800" color="$color">
-              Payment Request
-            </Text>
             <Text fontSize="$3" color="$gray10" textAlign="center">
               {requestDisplayName} is requesting{' '}
               {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.

@@ -353,7 +353,7 @@ export function PendingTokenLayout({
         appearance={appearance}
         canDismiss={!busy}
       >
-        <YStack px={16} gap={12}>
+        <YStack gap={12}>
           {details}
           {extraDetails}
         </YStack>

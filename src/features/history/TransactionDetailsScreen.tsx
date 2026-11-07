@@ -700,7 +700,7 @@ function TransactionDetailsContent() {
       appearance={appearance}
       canDismiss={!isReclaiming && !isClaiming && !isCheckingPaid}
     >
-      <YStack p="$4" gap="$4" flex={1} items="center" justify="center">
+      <YStack gap="$4" items="center">
         <Trash2 size={40} color="$red10" />
         <YStack items="center" gap="$1">
           <Text color="$gray10" fontSize="$3" textAlign="center" px="$4">

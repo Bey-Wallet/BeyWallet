@@ -10,16 +10,19 @@ import React, {
   useContext,
   useMemo,
 } from 'react';
-import { StyleSheet, BackHandler, Platform } from 'react-native';
+import { StyleSheet, BackHandler, Keyboard, useWindowDimensions } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetView,
   BottomSheetBackdropProps,
   BottomSheetModal,
+  BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { Theme, useTheme, type ThemeName } from 'tamagui';
+import { Theme, YStack, useTheme, type ThemeName } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { appBorders, appMotion, appRadii } from '~/shared/theme/appearance';
+import { appBorders, appMotion, appRadii, appSpacing } from '~/shared/theme/appearance';
+import { BUIHeader } from './BUI/BUIHeader';
 
 // Gorhom portals mount outside local screen contexts. Opt in only when a flow
 // has its own palette; ordinary sheets retain their current container.
@@ -39,6 +42,13 @@ interface AppBottomSheetProps {
   /** A Gorhom scrollable owns its content measurement instead of BottomSheetView. */
   scrollable?: boolean;
   maxDynamicContentSize?: number;
+  /** Standard BUI sheet chrome; the host measures header, body and insets together. */
+  title?: string;
+  headerActions?: React.ReactNode;
+  navigation?: 'back' | 'close';
+  navigationLabel?: string;
+  onNavigate?: () => void;
+  titleLiveRegion?: 'none' | 'polite' | 'assertive';
 }
 
 export interface AppBottomSheetRef {
@@ -60,11 +70,19 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       containerComponent,
       scrollable = false,
       maxDynamicContentSize,
+      title,
+      headerActions,
+      navigation = 'close',
+      navigationLabel,
+      onNavigate,
+      titleLiveRegion,
     },
     ref,
   ) => {
     const bottomSheetRef = useRef<BottomSheetModal>(null);
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
     const contentTheme = useContext(BottomSheetThemeContext);
     const themedContainer = useMemo(() => {
       if (!contentTheme) return containerComponent;
@@ -88,6 +106,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
 
     const dismissSheet = useCallback(() => {
       if (!canDismissRef.current) return;
+      Keyboard.dismiss();
       dismissRequested.current = true;
       bottomSheetRef.current?.dismiss();
     }, []);
@@ -103,6 +122,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         setIsOpen(index >= 0);
         onOpenChange?.(index >= 0);
         if (index === -1) {
+          Keyboard.dismiss();
           onClose?.();
         } else {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -152,7 +172,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         ref={bottomSheetRef}
         enablePanDownToClose={enablePanDownToClose && canDismiss}
         enableDynamicSizing={enableDynamicSizing}
-        maxDynamicContentSize={maxDynamicContentSize}
+        maxDynamicContentSize={maxDynamicContentSize ?? height - Math.max(insets.top, 24)}
         snapPoints={snapPoints}
         bottomInset={bottomInset}
         containerComponent={themedContainer}
@@ -181,7 +201,35 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         }}
         containerStyle={{ zIndex: 1000 }}
       >
-        {enableDynamicSizing && !scrollable ? (
+        {title !== undefined && !scrollable ? (
+          <BottomSheetScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: insets.bottom + appSpacing.page }}
+          >
+            <YStack pl={insets.left} pr={insets.right}>
+              <BUIHeader
+                title={title}
+                titleLiveRegion={titleLiveRegion}
+                navigation={navigation}
+                navigationLabel={navigationLabel}
+                navigationDisabled={!canDismiss}
+                onNavigate={canDismiss ? (onNavigate ?? dismissSheet) : undefined}
+                actions={headerActions}
+                divider
+              />
+            </YStack>
+            <YStack
+              pl={insets.left + appSpacing.page}
+              pr={insets.right + appSpacing.page}
+              pt={appSpacing.gap}
+              gap={appSpacing.gap}
+            >
+              {children}
+            </YStack>
+          </BottomSheetScrollView>
+        ) : enableDynamicSizing && !scrollable ? (
           <BottomSheetView style={styles.contentContainer}>{children}</BottomSheetView>
         ) : (
           children
@@ -194,7 +242,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
 const styles = StyleSheet.create({
   contentContainer: {
     // Extra bottom padding so content clears the home indicator
-    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+    paddingBottom: appSpacing.page,
   },
 });
 

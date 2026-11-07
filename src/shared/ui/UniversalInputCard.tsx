@@ -40,6 +40,8 @@ export interface UniversalInputCardProps {
   scrollComponent?: React.ElementType;
   inputComponent?: React.ElementType;
   bottomInset?: number;
+  /** A parent sheet owns scrolling and safe-area padding. */
+  contentSized?: boolean;
   onProcessingChange?: (processing: boolean) => void;
   label?: string;
   placeholder?: string;
@@ -59,6 +61,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       scrollComponent: ScrollComponent = ScrollView,
       inputComponent: InputComponent,
       bottomInset = 0,
+      contentSized = false,
       onProcessingChange,
       label = 'Payment details',
       placeholder = 'Token, request, invoice, address, LNURL or link',
@@ -79,6 +82,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const navigating = useRef(false);
     const stacked = layout === 'stacked';
     const screen = layout === 'screen';
+    const ScreenContainer = contentSized ? YStack : ScrollComponent;
     useEffect(
       () => () => {
         ++generation.current;
@@ -293,12 +297,16 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
 
     if (screen)
       return (
-        <ScrollComponent
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <ScreenContainer
+          {...(contentSized
+            ? {}
+            : {
+                style: { flex: 1 },
+                showsVerticalScrollIndicator: false,
+                keyboardShouldPersistTaps: 'handled',
+              })}
         >
-          <YStack gap="$4" pb={Math.max(bottomInset, 16)}>
+          <YStack gap="$4" pb={contentSized ? 0 : Math.max(bottomInset, 16)}>
             <View position="relative" testID="payment-input-field">
               {input}
               {hasText && (
@@ -338,7 +346,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               </AppButton>
             </XStack>
           </YStack>
-        </ScrollComponent>
+        </ScreenContainer>
       );
 
     if (stacked)

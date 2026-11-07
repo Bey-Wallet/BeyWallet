@@ -1,22 +1,19 @@
-import { BUIHeader } from './BUI/BUIHeader';
 import React, {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, ArrowLeft, X, Nfc, AtSign, Store } from '@tamagui/lucide-icons';
+import { Banknote, Bitcoin, Zap, Nfc, AtSign, Store } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
@@ -49,8 +46,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const [stage, setStage] = useState<ActionSheetStage>('main');
     const [processing, setProcessing] = useState(false);
     const [dismissAfterInput, setDismissAfterInput] = useState(false);
-    const { height } = useWindowDimensions();
-    const insets = useSafeAreaInsets();
 
     const dismiss = useCallback(() => {
       actionPending.current = true;
@@ -193,24 +188,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const rows = Array.from({ length: Math.ceil(options.length / 2) }, (_, index) =>
       options.slice(index * 2, index * 2 + 2),
     );
-    const snapPoints = useMemo(() => {
-      if (type === 'mint') return ['75%', '90%'];
-      const rowHeight =
-        Math.max(44, appTypography.label1.lineHeight + appTypography.body2.lineHeight) +
-        2 * appSpacing.page;
-      const preferredHeight =
-        24 +
-        appDimensions.touchTarget +
-        appSpacing.gap +
-        96 +
-        appSpacing.page +
-        options.length * rowHeight +
-        Math.max(0, options.length - 1) * appSpacing.gap +
-        appSpacing.page +
-        appDimensions.touchTarget +
-        Math.max(insets.bottom, appSpacing.page);
-      return [Math.min(height * 0.8, preferredHeight), '90%'];
-    }, [type, options.length, height, insets.bottom]);
     const title =
       type === 'mint'
         ? 'Fund & withdraw'
@@ -248,9 +225,9 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                   gap={12}
                   items="flex-start"
                   justify="space-between"
-                  bg="$gray2"
-                  hoverStyle={{ bg: '$gray3' }}
-                  pressStyle={{ bg: '$gray4', scale: 0.98 }}
+                  bg="$buttonDefaultSecondary"
+                  hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                  pressStyle={{ bg: '$buttonDefaultSecondaryPress', scale: 0.98 }}
                   accessibilityLabel={option.label}
                   accessibilityHint={option.description}
                   accessibilityState={{ disabled: processing }}
@@ -292,9 +269,9 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               flexDirection="row"
               items="center"
               gap={appSpacing.gap}
-              bg="$gray2"
-              hoverStyle={{ bg: '$gray3' }}
-              pressStyle={{ bg: '$gray4' }}
+              bg="$buttonDefaultSecondary"
+              hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+              pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
               accessibilityLabel={option.label}
               accessibilityHint={option.description}
               accessibilityState={{ disabled: processing }}
@@ -328,53 +305,27 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
       );
 
     const content = (
-      <YStack flex={1} px="$4" gap="$3">
-        <BUIHeader
-          title={title}
-          navigation="none"
-          horizontalInset={0}
-          leading={
-            <HeaderIconButton
-              accessibilityLabel={stage === 'main' ? 'Close' : 'Back'}
-              disabled={processing}
-              icon={stage === 'main' ? X : ArrowLeft}
-              onPress={() => {
-                if (processing || actionPending.current) return;
-                if (stage === 'main') dismiss();
-                else {
-                  Haptics.selectionAsync();
-                  setStage('main');
-                }
-              }}
-            />
-          }
-        />
+      <YStack gap="$3">
         {type === 'mint' ? (
-          <BottomSheetScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <YStack gap="$4" pb="$4">
-              <UniversalInputCard
-                ref={inputRef}
-                layout="stacked"
-                inputComponent={BottomSheetTextInput}
-                label="Payment details"
-                placeholder="Paste or type payment details"
-                onBeforeRedirect={handleInputRedirect}
-                onProcessingChange={setProcessing}
-              />
-              {optionContent}
-            </YStack>
-          </BottomSheetScrollView>
+          <YStack gap="$4">
+            <UniversalInputCard
+              ref={inputRef}
+              layout="stacked"
+              inputComponent={BottomSheetTextInput}
+              label="Payment details"
+              placeholder="Paste or type payment details"
+              onBeforeRedirect={handleInputRedirect}
+              onProcessingChange={setProcessing}
+            />
+            {optionContent}
+          </YStack>
         ) : (
           <UniversalInputCard
             ref={inputRef}
             layout="screen"
             compact
-            scrollComponent={BottomSheetScrollView}
+            contentSized
             inputComponent={BottomSheetTextInput}
-            bottomInset={insets.bottom}
             label="Payment details"
             onBeforeRedirect={handleInputRedirect}
             onProcessingChange={setProcessing}
@@ -388,7 +339,16 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     return (
       <AppBottomSheet
         ref={sheetRef}
-        snapPoints={snapPoints}
+        title={title}
+        navigation={stage === 'main' ? 'close' : 'back'}
+        onNavigate={() => {
+          if (processing || actionPending.current) return;
+          if (stage === 'main') dismiss();
+          else {
+            Haptics.selectionAsync();
+            setStage('main');
+          }
+        }}
         backgroundColor={type === 'mint' ? undefined : '$background'}
         canDismiss={!processing}
         onClose={() => {

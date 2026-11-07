@@ -288,8 +288,8 @@ export function PermissionsStep({
       </YStack>
 
       {/* Premium Biometrics Bottom Sheet */}
-      <AppBottomSheet ref={sheetRef}>
-        <YStack p="$4" gap="$5" items="center" pb="$8">
+      <AppBottomSheet title="Biometric security" ref={sheetRef}>
+        <YStack gap="$4" items="center">
           {/* Shield Icon Graphic */}
           <View bg="$gray5" p="$4" rounded={100} mb="$1">
             <Fingerprint size={50} color="$accent5" />
@@ -297,9 +297,6 @@ export function PermissionsStep({
 
           {/* Text Content */}
           <YStack gap="$2" items="center">
-            <Text fontWeight="800" fontSize="$6" text="center" color="$color">
-              Enable Biometric Security?
-            </Text>
             <Text fontSize="$3" color="$gray10" text="center" px="$3" lineHeight={18}>
               We highly recommend protecting your wallet with Face ID / Touch ID to prevent
               unauthorized payments and secure your funds.

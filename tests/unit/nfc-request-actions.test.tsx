@@ -30,7 +30,18 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
       present: mockSheetPresent,
       dismiss: mockSheetDismiss,
     }));
-    return require('react').createElement('Sheet', props, props.children);
+    return require('react').createElement(
+      'Sheet',
+      props,
+      require('react').createElement(require('~/shared/ui/BUI/BUIHeader').BUIHeader, {
+        title: props.title,
+        navigation: props.navigation ?? 'close',
+        navigationLabel: props.navigationLabel,
+        navigationDisabled: props.canDismiss === false,
+        onNavigate: props.onNavigate,
+      }),
+      props.children,
+    );
   }),
 }));
 
@@ -180,7 +191,7 @@ it('presents NFC as a bottom sheet and protects dismissal during a payment', asy
   expect(sheet.root.findAllByType(Modal)).toHaveLength(0);
   expect(mockSheetPresent).toHaveBeenCalledTimes(1);
   expect(presentation().props.canDismiss).toBe(true);
-  expect(presentation().props.scrollable).toBe(true);
+  expect(presentation().props.scrollable).toBeUndefined();
   expect(presentation().props.snapPoints).toBeUndefined();
   await act(async () => presentation().props.onClose());
   expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);

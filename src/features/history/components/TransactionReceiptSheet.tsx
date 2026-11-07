@@ -143,9 +143,7 @@ export function TransactionReceiptSheet({
           {children}
         </YStack>
       ) : (
-        <YStack px={16} pt={12}>
-          {children}
-        </YStack>
+        <YStack>{children}</YStack>
       )}
     </BUISheet>
   );

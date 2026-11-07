@@ -6,7 +6,7 @@ import {
   MintSection,
   MintText as Text,
 } from './components/MintUI';
-import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+
 import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
 import { MintQuickActions } from './components/MintQuickActions';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
@@ -17,7 +17,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Globe, Sprout, Share2, Plus, Check, X } from '@tamagui/lucide-icons';
+import { Globe, Sprout, Share2, Plus, Check } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import * as Haptics from 'expo-haptics';
@@ -26,9 +26,9 @@ import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+
 import { usePreventRemove } from '@react-navigation/native';
-import { Share as RNShare, useWindowDimensions } from 'react-native';
+import { Share as RNShare } from 'react-native';
 import { appSpacing } from '~/shared/theme/appearance';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintOverview } from './components/MintOverview';
@@ -49,8 +49,6 @@ export function MintProfileScreen(props: MintProfileScreenProps) {
 
 function MintProfileContent({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const sheetPadding = appSpacing.page + appSpacing.compact;
   const [showQr, setShowQr] = useState(false);
   const router = useRouter();
   const toast = useAppToast();
@@ -295,83 +293,54 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
         </AppButton>
       </YStack>
 
-      <AppBottomSheet
-        ref={connectionSheetRef}
-        maxDynamicContentSize={windowHeight - insets.top - appSpacing.page}
-        canDismiss={!isConnecting}
-        scrollable
-      >
-        <BottomSheetScrollView
-          contentContainerStyle={{
-            paddingTop: appSpacing.page,
-            paddingLeft: insets.left + sheetPadding,
-            paddingRight: insets.right + sheetPadding,
-            paddingBottom: insets.bottom + sheetPadding,
-          }}
-        >
-          <YStack gap={16}>
-            <BUIHeader
-              title="Connect to mint"
-              navigation="close"
-              navigationLabel="Close connection sheet"
-              navigationDisabled={isConnecting}
-              horizontalInset={0}
-              onNavigate={() => connectionSheetRef.current?.dismiss()}
-            />
-            <XStack items="center" gap="$3">
-              <View
-                width={48}
-                height={48}
-                rounded="$6"
-                overflow="hidden"
-                bg="$gray3"
-                flexShrink={0}
-              >
-                <MintImage mintUrl={url} source={{ uri: iconToUse, width: 48, height: 48 }} />
-              </View>
-              <YStack flex={1} minWidth={0} gap="$1">
-                <Text kind="label2">{name}</Text>
-                <Text color="$gray10" kind="body3" selectable>
-                  {url}
-                </Text>
-              </YStack>
-            </XStack>
-            <MintSection title="Before you connect">
-              <MintRows>
-                {[
-                  'This mint holds the bitcoin backing your ecash.',
-                  'You rely on its operator to redeem your ecash. Only connect if you trust them.',
-                  'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
-                ].map((point) => (
-                  <MintDetailRow key={point} label={point} />
-                ))}
-              </MintRows>
-            </MintSection>
-            <BUISelectionRow
-              kind="checkbox"
-              checked={dontShowAgain}
-              label="Do not show again"
-              disabled={isConnecting}
-              onCheckedChange={setDontShowAgain}
-            />
-            {connectionError && (
-              <Text color="$red10" accessibilityRole="alert">
-                {connectionError}
+      <AppBottomSheet title="Connect to mint" ref={connectionSheetRef} canDismiss={!isConnecting}>
+        <YStack gap={16}>
+          <XStack items="center" gap="$3">
+            <View width={48} height={48} rounded="$6" overflow="hidden" bg="$gray3" flexShrink={0}>
+              <MintImage mintUrl={url} source={{ uri: iconToUse, width: 48, height: 48 }} />
+            </View>
+            <YStack flex={1} minWidth={0} gap="$1">
+              <Text kind="label2">{name}</Text>
+              <Text color="$gray10" kind="body3" selectable>
+                {url}
               </Text>
-            )}
-            <AppButton
-              variant="default"
-              emphasis="primary"
-              size="large"
-              loading={isConnecting}
-              loadingText="Connecting to mint…"
-              disabled={isConnecting}
-              onPress={() => handleConfirmConnection(dontShowAgain)}
-            >
-              Confirm
-            </AppButton>
-          </YStack>
-        </BottomSheetScrollView>
+            </YStack>
+          </XStack>
+          <MintSection title="Before you connect">
+            <MintRows>
+              {[
+                'This mint holds the bitcoin backing your ecash.',
+                'You rely on its operator to redeem your ecash. Only connect if you trust them.',
+                'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
+              ].map((point) => (
+                <MintDetailRow key={point} label={point} />
+              ))}
+            </MintRows>
+          </MintSection>
+          <BUISelectionRow
+            kind="checkbox"
+            checked={dontShowAgain}
+            label="Do not show again"
+            disabled={isConnecting}
+            onCheckedChange={setDontShowAgain}
+          />
+          {connectionError && (
+            <Text color="$red10" accessibilityRole="alert">
+              {connectionError}
+            </Text>
+          )}
+          <AppButton
+            variant="default"
+            emphasis="primary"
+            size="large"
+            loading={isConnecting}
+            loadingText="Connecting to mint…"
+            disabled={isConnecting}
+            onPress={() => handleConfirmConnection(dontShowAgain)}
+          >
+            Confirm
+          </AppButton>
+        </YStack>
       </AppBottomSheet>
       <MintUrlQrOverlay url={url} visible={showQr} onClose={() => setShowQr(false)} />
     </YStack>

@@ -186,7 +186,7 @@ export function PendingMintInvoiceLayout({
         appearance={appearance}
         canDismiss={!isCheckingPaid}
       >
-        <YStack px={16}>{extraDetails}</YStack>
+        <YStack>{extraDetails}</YStack>
       </BUISheet>
     </>
   );

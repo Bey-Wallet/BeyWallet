@@ -23,10 +23,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'How your funds are stored',
     icon: Coins,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          How your funds are stored
-        </H4>
+      <YStack gap="$3">
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           Unlike traditional wallets that hold private keys to custody funds on a public blockchain,{' '}
           <Text fontWeight="700" color="$color">
@@ -64,10 +61,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'Deposit & Withdraw to mints',
     icon: ArrowLeftRight,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          Deposit & Withdraw
-        </H4>
+      <YStack gap="$3">
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           To move funds in and out of the Ecash ecosystem, you use a process called{' '}
           <Text fontWeight="600" color="$color">
@@ -106,10 +100,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'Wallet Security',
     icon: ShieldCheck,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          Wallet Security
-        </H4>
+      <YStack gap="$3">
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           Bey Wallet implements robust, industry-grade local security parameters to keep your
           digital assets safe:
@@ -160,10 +151,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'What is Bey? (FAQ)',
     icon: HelpCircle,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          What is Bey?
-        </H4>
+      <YStack gap="$3">
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           <Text fontWeight="700" color="$color">
             Bey Wallet
@@ -209,11 +197,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'Learn about Bitcoin & Ecash',
     icon: BookOpen,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          Bitcoin & Ecash Explained
-        </H4>
-
+      <YStack gap="$3">
         <H5 color="$color" fontWeight="700" mt="$1">
           What is Cashu?
         </H5>
@@ -269,7 +253,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'Risk Disclosure',
     icon: AlertCircle,
     content: (
-      <YStack gap="$3" p="$4">
+      <YStack gap="$3">
         <H4 color="$red10" fontWeight="800" letterSpacing={-0.5}>
           Risk Disclosure
         </H4>
@@ -324,10 +308,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     title: 'Contact Support',
     icon: Mail,
     content: (
-      <YStack gap="$3" p="$4">
-        <H4 color="$accent4" fontWeight="800" letterSpacing={-0.5}>
-          Contact Support
-        </H4>
+      <YStack gap="$3">
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">
           Bey Wallet is non-custodial and open-source. For assistance, inquiries, or feedback:
         </Paragraph>

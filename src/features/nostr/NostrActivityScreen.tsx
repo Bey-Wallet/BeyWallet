@@ -369,13 +369,14 @@ export default function NostrActivityModal() {
       {/* ── Details Sheet ────────────────────────────────────── */}
       <Theme inverse>
         <AppBottomSheet
+          title="Payment details"
           ref={detailSheetRef}
           onClose={() => {
             setDetailItem(null);
             setDetailLoading(false);
           }}
         >
-          <YStack p="$4" gap="$4" items="center">
+          <YStack gap="$4" items="center">
             {detailLoading ? (
               <YStack py="$6" items="center" gap="$3">
                 <Spinner size="large" color="$color" />

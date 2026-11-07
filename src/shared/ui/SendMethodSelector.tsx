@@ -1,8 +1,8 @@
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useState } from 'react';
-import { Text, YStack, XStack, ListItem, View, Square } from 'tamagui';
+import { Text, YStack, XStack, View, Square } from 'tamagui';
 import { ChevronDown, Send, Lock, Zap, ScanLine, Check } from '@tamagui/lucide-icons';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+
 import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -117,55 +117,47 @@ export default function SendMethodSelector({ mode, onSelect, isLoading }: SendMe
       </AppPressable>
 
       {/* Bottom sheet with method list */}
-      <AppBottomSheet ref={sheetRef} snapPoints={['44%']} onOpenChange={setExpanded}>
-        <YStack p="$4" pt="$2" gap="$4">
-          <YStack gap="$1" mb="$1">
-            <Text fontSize="$6" text="center" color="$accent5" fontWeight="800">
-              Send Method
-            </Text>
-          </YStack>
+      <AppBottomSheet title="Send method" ref={sheetRef} onOpenChange={setExpanded}>
+        <YStack gap="$4">
+          <YStack gap="$3">
+            {SEND_METHODS.map((method) => {
+              const isActive = method.key === mode;
+              const isDisabled = method.comingSoon;
 
-          <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-            <YStack gap="$3" pb="$4" px="$3">
-              {SEND_METHODS.map((method) => {
-                const isActive = method.key === mode;
-                const isDisabled = method.comingSoon;
-
-                return (
-                  <XStack
-                    justify="space-between"
-                    opacity={isDisabled ? 0.5 : 1}
-                    onPress={() => handleSelect(method.key)}
-                    key={method.key}
-                  >
-                    <XStack gap="$3" items="center">
-                      <View
-                        bg={'$gray4'}
-                        p="$3"
-                        rounded="$6"
-                        width={50}
-                        height={50}
-                        items="center"
-                        justify="center"
-                      >
-                        {method.icon}
-                      </View>
-                      <Text fontWeight="700" fontSize="$6" numberOfLines={1} color={'$color'}>
-                        {method.label}
-                      </Text>
-                    </XStack>
-                    <XStack items="center" justify="center">
-                      {isActive ? (
-                        <View bg="$accentColor" p="$1.5" rounded={999}>
-                          <Check size={14} color="$onAccent" strokeWidth={3} />
-                        </View>
-                      ) : undefined}
-                    </XStack>
+              return (
+                <XStack
+                  justify="space-between"
+                  opacity={isDisabled ? 0.5 : 1}
+                  onPress={() => handleSelect(method.key)}
+                  key={method.key}
+                >
+                  <XStack gap="$3" items="center">
+                    <View
+                      bg={'$gray4'}
+                      p="$3"
+                      rounded="$6"
+                      width={50}
+                      height={50}
+                      items="center"
+                      justify="center"
+                    >
+                      {method.icon}
+                    </View>
+                    <Text fontWeight="700" fontSize="$6" numberOfLines={1} color={'$color'}>
+                      {method.label}
+                    </Text>
                   </XStack>
-                );
-              })}
-            </YStack>
-          </BottomSheetScrollView>
+                  <XStack items="center" justify="center">
+                    {isActive ? (
+                      <View bg="$accentColor" p="$1.5" rounded={999}>
+                        <Check size={14} color="$onAccent" strokeWidth={3} />
+                      </View>
+                    ) : undefined}
+                  </XStack>
+                </XStack>
+              );
+            })}
+          </YStack>
         </YStack>
       </AppBottomSheet>
     </>

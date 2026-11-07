@@ -3,9 +3,9 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { Check, ChevronDown, Sprout, Plus, Landmark, X } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, Sprout, Plus, Landmark } from '@tamagui/lucide-icons';
 import { Text, YStack, XStack, View, Square } from 'tamagui';
-import { useWindowDimensions } from 'react-native';
+
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -154,7 +154,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     const hideBalance = useSettingsStore((s) => s.hideBalance);
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const insets = useSafeAreaInsets();
-    const { height } = useWindowDimensions();
     const visibleRef = useRef(false);
     const selectionLock = useRef(false);
     const mounted = useRef(true);
@@ -357,20 +356,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       router.push('/(modals)/add-mint');
     }, [router]);
     const checkingMethods = !!method && candidates.length > 0 && capabilities.isPending;
-    const snapPoints = useMemo(
-      () => [
-        Math.min(
-          height * 0.85,
-          Math.max(
-            220,
-            88 +
-              Math.max(choices.length, checkingMethods ? candidates.length : 1) * 76 +
-              Math.max(insets.bottom, 16),
-          ),
-        ),
-      ],
-      [height, choices.length, checkingMethods, candidates.length, insets.bottom],
-    );
     const renderItem = useCallback(
       ({ item }: { item: MintChoice }) => (
         <MintChoiceRow
@@ -390,70 +375,79 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     return (
       <AppBottomSheet
         ref={sheetRef}
-        snapPoints={snapPoints}
+        scrollable
         canDismiss={switchingUrl === null}
         onOpenChange={handleOpenChange}
       >
-        <YStack flex={1} minWidth={0}>
-          <BUIHeader
-            title="Choose mint"
-            navigation="close"
-            navigationLabel="Close mint selector"
-            navigationDisabled={locked}
-            onNavigate={handleClose}
-            actions={
-              <HeaderIconButton
-                accessibilityLabel="Add mint"
-                disabled={locked}
-                icon={Plus}
-                onPress={handleAddMint}
+        <BottomSheetFlatList
+          ListHeaderComponent={
+            <>
+              <BUIHeader
+                title="Choose mint"
+                divider
+                navigation="close"
+                navigationLabel="Close mint selector"
+                navigationDisabled={locked}
+                onNavigate={handleClose}
+                actions={
+                  <HeaderIconButton
+                    accessibilityLabel="Add mint"
+                    disabled={locked}
+                    icon={Plus}
+                    onPress={handleAddMint}
+                  />
+                }
               />
-            }
-          />
-          {selectionError && (
-            <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
-              {selectionError}
-            </Text>
-          )}
-          <BottomSheetFlatList
-            style={{ flex: 1 }}
-            data={choices}
-            keyExtractor={(item: MintChoice) => item.url}
-            renderItem={renderItem}
-            extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={5}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
-            ListEmptyComponent={
-              <YStack px="$5" py="$6" gap="$3" items="center">
-                {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
-                <Text textAlign="center" color="$gray10">
-                  {checkingMethods
-                    ? 'Checking available mints…'
-                    : capabilities.isError && method
-                      ? 'Could not check available mints.'
-                      : storedMints.length
-                        ? 'No mints match this selection.'
-                        : 'No connected mints yet.'}
+              {selectionError && (
+                <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
+                  {selectionError}
                 </Text>
-                {method && capabilities.isError && (
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="small"
-                    onPress={() => void capabilities.refetch()}
-                  >
-                    Try again
-                  </AppButton>
-                )}
-              </YStack>
-            }
-          />
-        </YStack>
+              )}
+              <YStack height={appSpacing.gap} />
+            </>
+          }
+          style={{ flex: 1 }}
+          data={choices}
+          keyExtractor={(item: MintChoice) => item.url}
+          renderItem={renderItem}
+          extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            paddingBottom: insets.bottom + appSpacing.page,
+          }}
+          ListEmptyComponent={
+            <YStack px="$5" py="$6" gap="$3" items="center">
+              {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
+              <Text textAlign="center" color="$gray10">
+                {checkingMethods
+                  ? 'Checking available mints…'
+                  : capabilities.isError && method
+                    ? 'Could not check available mints.'
+                    : storedMints.length
+                      ? 'No mints match this selection.'
+                      : 'No connected mints yet.'}
+              </Text>
+              {method && capabilities.isError && (
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="small"
+                  onPress={() => void capabilities.refetch()}
+                >
+                  Try again
+                </AppButton>
+              )}
+            </YStack>
+          }
+        />
       </AppBottomSheet>
     );
   },

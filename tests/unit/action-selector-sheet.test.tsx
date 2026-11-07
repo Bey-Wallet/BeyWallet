@@ -58,7 +58,18 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
           if (props.canDismiss !== false) mockDismiss();
         },
       }));
-      return React.createElement('Sheet', props, props.children);
+      return require('react').createElement(
+        'Sheet',
+        props,
+        require('react').createElement(require('~/shared/ui/BUI/BUIHeader').BUIHeader, {
+          title: props.title,
+          navigation: props.navigation ?? 'close',
+          navigationLabel: props.navigationLabel,
+          navigationDisabled: props.canDismiss === false,
+          onNavigate: props.onNavigate,
+        }),
+        props.children,
+      );
     }),
   };
 });
@@ -75,7 +86,10 @@ jest.mock('~/shared/ui/UniversalInputCard', () => {
 
 let tree: ReactTestRenderer;
 let ref: React.RefObject<ActionSelectorSheetRef | null>;
-const options = () => tree.root.findAllByType('Option' as any);
+const options = () =>
+  tree.root
+    .findAllByType('Option' as any)
+    .filter((node) => !['Back', 'Close'].includes(node.props.accessibilityLabel));
 const labels = () => options().map((option) => option.props.accessibilityLabel);
 const input = () => tree.root.findByType('InputCard' as any);
 async function open(type: ActionSheetType) {
@@ -104,7 +118,7 @@ it.each(['send', 'receive'] as const)('opens %s as an Android bottom sheet', asy
   expect(mockPresent).toHaveBeenCalledTimes(1);
   expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(true);
   expect(tree.root.findByType('Sheet' as any).props.backgroundColor).toBe('$background');
-  expect(input().props.scrollComponent).toBe(BottomSheetScrollView);
+  expect(input().props.contentSized).toBe(true);
   expect(labels()).toEqual(
     type === 'send'
       ? ['Share ecash', 'Tap to pay']
@@ -233,7 +247,7 @@ it.each([
 ] as const)('keeps Fund & withdraw routing for %s', async (label, path) => {
   await open('mint');
   expect(options()).toHaveLength(4);
-  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['75%', '90%']);
+  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toBeUndefined();
   await press(label);
   expect(mockPush).toHaveBeenCalledWith(path);
 });
@@ -242,14 +256,12 @@ it.each(['send', 'receive'] as const)(
   'uses separate action cards with History icon styling for %s',
   async (type) => {
     await open(type);
-    const [initialHeight, expandedHeight] = tree.root.findByType('Sheet' as any).props.snapPoints;
-    expect(initialHeight).toBeGreaterThan(0);
-    expect(expandedHeight).toBe('90%');
+    expect(tree.root.findByType('Sheet' as any).props.snapPoints).toBeUndefined();
     expect(input().props).toMatchObject({
       layout: 'screen',
       compact: true,
       inputComponent: BottomSheetTextInput,
-      bottomInset: 16,
+      contentSized: true,
     });
     const group = options()[0].parent!;
     expect(group.props.gap).toBe(12);

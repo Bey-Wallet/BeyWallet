@@ -37,12 +37,23 @@ Android Back/outside tap dismiss without an action. Native focus, shadows, trans
 and host width differ from Material BasicAlertDialog and require device review.
 
 Live sheets retain the approved shared host:36×4 handle,20-point corners, backdrop,
-gesture/Back dismissal, keyboard behavior and animations. Height cap85% of viewport.
-A Gorhom scroll view owns sizing. Bottom safe-area padding is applied once using
-max(16, bottom inset), without the non-scrollable host's extra padding. Both host
+gesture/Back dismissal, keyboard behavior and animations. Sheets fit their default
+content, capped at viewport height minus the top safe inset (at least24 points).
+A single Gorhom scroll view owns sizing, including the header and content padding.
+Content uses16-point side padding plus side safe insets,12 points below the header,
+and16 points plus the bottom safe inset. Padding is applied once; longer content
+scrolls only when it exceeds the cap, without a visible scroll indicator. Both host
 and portal content receive the selected BUI theme. `canDismiss` is passed through
 and guards ref/header dismissal too; production operation/authentication guards
 are unchanged.
+
+Production sheets use the same BUI header and geometry through the `title` API on
+`AppBottomSheet`; `BUISheet` additionally scopes the BUI preview theme. Pass
+`headerActions`, `navigation` and `onNavigate` for header actions or intermediate
+steps, and retain the owning flow's `canDismiss` guard. Do not add another heading,
+outer padding, scroll view, bottomInset or fixed percentage snap point at call sites.
+The mint selector keeps a virtualized Gorhom list with its header inside the measured
+list content. Active transaction layouts keep their own scrolling and footer.
 
 This does not recreate the native reference container: its View sheet has16-point
 top corners and different parent-scale/entry/predictive-back behavior; its Material

@@ -151,7 +151,7 @@ export function ReceiptImageShare({
           canDismiss={!sharing}
           onClose={() => setPreview(null)}
         >
-          <YStack px={16} pt={12} gap={12}>
+          <YStack gap={12}>
             <Svg
               ref={svg}
               width="100%"

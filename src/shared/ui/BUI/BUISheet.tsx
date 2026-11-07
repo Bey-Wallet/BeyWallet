@@ -3,6 +3,7 @@ import { Keyboard, TextInput, useWindowDimensions, type TextInputProps } from 'r
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Theme, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { appSpacing } from '~/shared/theme/appearance';
 import AppBottomSheet, {
   AppBottomSheetThemeProvider,
   type AppBottomSheetRef,
@@ -79,16 +80,29 @@ export const BUISheet = forwardRef<
   const content = (
     <>
       {showHeader && (
-        <BUIHeader
-          title={title}
-          actions={actions}
-          navigation={navigation}
-          onNavigate={canDismiss ? navigate : undefined}
-          navigationDisabled={!canDismiss}
-          divider
-        />
+        <YStack pl={insets.left} pr={insets.right}>
+          <BUIHeader
+            title={title}
+            actions={actions}
+            navigation={navigation}
+            onNavigate={canDismiss ? navigate : undefined}
+            navigationDisabled={!canDismiss}
+            divider
+          />
+        </YStack>
       )}
-      {scrollContent ? <YStack gap={16}>{children}</YStack> : children}
+      {scrollContent ? (
+        <YStack
+          pl={insets.left + appSpacing.page}
+          pr={insets.right + appSpacing.page}
+          pt={appSpacing.gap}
+          gap={appSpacing.gap}
+        >
+          {children}
+        </YStack>
+      ) : (
+        children
+      )}
     </>
   );
   return (
@@ -100,7 +114,7 @@ export const BUISheet = forwardRef<
             backgroundColor={c.canvas}
             canDismiss={canDismiss}
             scrollable
-            maxDynamicContentSize={maxDynamicContentSize ?? height * 0.85}
+            maxDynamicContentSize={maxDynamicContentSize ?? height - Math.max(insets.top, 24)}
             onClose={() => {
               Keyboard.dismiss();
               onClose?.();
@@ -111,7 +125,7 @@ export const BUISheet = forwardRef<
                 showsVerticalScrollIndicator={false}
                 bounces={false}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + appSpacing.page }}
               >
                 <Theme name={themeName}>{content}</Theme>
               </BottomSheetScrollView>

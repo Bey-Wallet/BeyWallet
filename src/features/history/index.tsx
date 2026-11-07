@@ -12,7 +12,7 @@ import {
   Search,
   X,
 } from '@tamagui/lucide-icons';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -484,25 +484,24 @@ export function HistoryScreen({
         keyboardDismissMode="on-drag"
       />
       {receiveMounted && <ActionSelectorSheet ref={receiveSheet} />}
-      <AppBottomSheet ref={filterSheet} snapPoints={['75%']} onClose={onFiltersClose}>
-        <YStack px={16} pt={8} pb={4}>
-          <XStack items="center" justify="space-between">
-            <Text {...appTypography.title3} color="$color" accessibilityRole="header">
-              Filter history
-            </Text>
-            <AppButton
-              variant="default"
-              emphasis="ghost"
-              size="xsmall"
-              icon={<RotateCcw size={16} />}
-              onPress={resetFilters}
-              disabled={!isFiltered}
-            >
-              Reset
-            </AppButton>
-          </XStack>
-        </YStack>
-        <BottomSheetScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
+      <AppBottomSheet
+        title="Filter history"
+        headerActions={
+          <AppButton
+            variant="default"
+            emphasis="ghost"
+            size="xsmall"
+            icon={<RotateCcw size={16} />}
+            onPress={resetFilters}
+            disabled={!isFiltered}
+          >
+            Reset
+          </AppButton>
+        }
+        ref={filterSheet}
+        onClose={onFiltersClose}
+      >
+        <YStack gap={20}>
           <YStack gap={4}>
             <Text {...appTypography.label3} color="$gray10">
               Payment type
@@ -563,7 +562,7 @@ export function HistoryScreen({
           >
             Show activity
           </AppButton>
-        </BottomSheetScrollView>
+        </YStack>
       </AppBottomSheet>
     </YStack>
   );

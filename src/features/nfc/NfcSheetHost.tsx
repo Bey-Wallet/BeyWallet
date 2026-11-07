@@ -4,12 +4,12 @@ import { formatPaymentDateTime } from '~/shared/utils/time';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
-import { AppState, Platform, useWindowDimensions } from 'react-native';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { AppState, Platform } from 'react-native';
+
 import { FullWindowOverlay } from 'react-native-screens';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { AlertTriangle, Settings2, Ban, Check } from '@tamagui/lucide-icons';
 import NfcIcon from '~/shared/icons/NfcIcon';
@@ -61,8 +61,6 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     state.status === 'confirmed' ? state.eventTime : undefined,
   );
   const sheetRef = useRef<AppBottomSheetRef>(null);
-  const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
   const theme = useTheme();
   const authenticated = useAuthStore((store) => store.isAuthenticated);
   const biometric = useSettingsStore((store) => store.biometricEnabled);
@@ -155,174 +153,156 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     <AppBottomSheet
       ref={sheetRef}
       backgroundColor="$background"
-      scrollable
+      title={titles[state.status]}
+      titleLiveRegion="polite"
+      navigationLabel="Close NFC"
+      onNavigate={close}
       containerComponent={Platform.OS === 'ios' ? NfcWindowOverlay : undefined}
       canDismiss={!state.visible || !state.locked}
       onClose={close}
     >
-      <BottomSheetScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: Math.max(insets.bottom, 16),
-        }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <YStack gap="$4" minHeight={Math.min(300, Math.round(height * 0.65))}>
-          <BUIHeader
-            title={titles[state.status]}
-            titleLiveRegion="polite"
-            navigation="close"
-            navigationLabel="Close NFC"
-            navigationDisabled={state.locked}
-            onNavigate={close}
-            horizontalInset={0}
-          />
-          <YStack gap="$3" items="center">
-            <YStack
-              testID="nfc-sheet-status"
-              width="100%"
-              minHeight={200}
-              py="$4"
-              gap="$3"
-              items="center"
-              justify="center"
-            >
-              {state.status === 'confirmed' || state.status === 'error' ? (
-                <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
-              ) : (
-                <View
-                  backgroundColor={badgeColor}
-                  borderRadius={100}
-                  width={72}
-                  height={72}
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <StateIcon size={40} color={iconColor} />
-                </View>
-              )}
-              {state.amount !== undefined && (
-                <PaymentAmount amount={state.amount} compact size="prominent" />
-              )}
-              {state.message !== state.error && (
+      <YStack gap="$4">
+        <YStack gap="$3" items="center">
+          <YStack
+            testID="nfc-sheet-status"
+            width="100%"
+            minHeight={200}
+            py="$4"
+            gap="$3"
+            items="center"
+            justify="center"
+          >
+            {state.status === 'confirmed' || state.status === 'error' ? (
+              <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
+            ) : (
+              <View
+                backgroundColor={badgeColor}
+                borderRadius={100}
+                width={72}
+                height={72}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <StateIcon size={40} color={iconColor} />
+              </View>
+            )}
+            {state.amount !== undefined && (
+              <PaymentAmount amount={state.amount} compact size="prominent" />
+            )}
+            {state.message !== state.error && (
+              <Text
+                fontFamily="$body"
+                {...appTypography.body2}
+                color="$gray10"
+                textAlign="center"
+                maxWidth={360}
+                accessibilityLiveRegion="polite"
+              >
+                {state.message}
+              </Text>
+            )}
+          </YStack>
+          <YStack width="100%" gap="$3" items="center">
+            {state.error && (
+              <YStack width="100%" bg="$gray2" rounded="$6" p="$3">
                 <Text
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="assertive"
                   fontFamily="$body"
                   {...appTypography.body2}
-                  color="$gray10"
-                  textAlign="center"
-                  maxWidth={360}
-                  accessibilityLiveRegion="polite"
+                  color="$red10"
                 >
-                  {state.message}
+                  {state.error}
                 </Text>
-              )}
-            </YStack>
-            <YStack width="100%" gap="$3" items="center">
-              {state.error && (
-                <YStack width="100%" bg="$gray2" rounded="$6" p="$3">
-                  <Text
-                    accessibilityRole="alert"
-                    accessibilityLiveRegion="assertive"
-                    fontFamily="$body"
-                    {...appTypography.body2}
-                    color="$red10"
-                  >
-                    {state.error}
-                  </Text>
-                </YStack>
-              )}
-              {state.mintUrl && (
-                <ListTable width="100%">
-                  <ListTableRow
-                    label="Mint"
-                    value={mint?.nickname || mint?.name || state.mintUrl}
-                  />
-                  {state.eventTime && (
-                    <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
-                  )}
-                  {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
-                    <ListTableRow label="Fee" value={`${state.fees} sat`} />
-                  )}
-                </ListTable>
-              )}
+              </YStack>
+            )}
+            {state.mintUrl && (
+              <ListTable width="100%">
+                <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
+                {state.eventTime && (
+                  <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
+                )}
+                {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
+                  <ListTableRow label="Fee" value={`${state.fees} sat`} />
+                )}
+              </ListTable>
+            )}
 
-              {primaryAction && (
-                <XStack width="100%" gap="$3">
-                  <AppButton
-                    variant="default"
-                    emphasis="primary"
-                    size="large"
-                    flex={1}
-                    disabled={state.locked || state.checkingStatus}
-                    loading={primaryAction.label === 'Refresh status' && state.checkingStatus}
-                    loadingText="Checking status…"
-                    onPress={primaryAction.run}
-                  >
-                    {primaryAction.label}
-                  </AppButton>
-                </XStack>
-              )}
-              {showNewPayment && (
-                <YStack width="100%" gap="$2">
+            {primaryAction && (
+              <XStack width="100%" gap="$3">
+                <AppButton
+                  variant="default"
+                  emphasis="primary"
+                  size="large"
+                  flex={1}
+                  disabled={state.locked || state.checkingStatus}
+                  loading={primaryAction.label === 'Refresh status' && state.checkingStatus}
+                  loadingText="Checking status…"
+                  onPress={primaryAction.run}
+                >
+                  {primaryAction.label}
+                </AppButton>
+              </XStack>
+            )}
+            {showNewPayment && (
+              <YStack width="100%" gap="$2">
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="large"
+                  fullWidth
+                  disabled={state.locked}
+                  onPress={nfcFlow.newPayment}
+                >
+                  Start new payment
+                </AppButton>
+                <Text {...appTypography.body3} color="$gray10" textAlign="center">
+                  The previous payment may still complete. Check History before paying it again.
+                </Text>
+              </YStack>
+            )}
+            {(showHistory || showRefresh || showCheckNfc) && (
+              <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
+                {showRefresh && (
                   <AppButton
                     variant="default"
                     emphasis="secondary"
-                    size="large"
-                    fullWidth
-                    disabled={state.locked}
-                    onPress={nfcFlow.newPayment}
+                    size="xsmall"
+                    disabled={state.locked || state.checkingStatus}
+                    loading={state.checkingStatus}
+                    loadingText="Checking status…"
+                    onPress={nfcFlow.refresh}
                   >
-                    Start new payment
+                    Refresh status
                   </AppButton>
-                  <Text {...appTypography.body3} color="$gray10" textAlign="center">
-                    The previous payment may still complete. Check History before paying it again.
-                  </Text>
-                </YStack>
-              )}
-              {(showHistory || showRefresh || showCheckNfc) && (
-                <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
-                  {showRefresh && (
-                    <AppButton
-                      variant="default"
-                      emphasis="secondary"
-                      size="xsmall"
-                      disabled={state.locked || state.checkingStatus}
-                      loading={state.checkingStatus}
-                      loadingText="Checking status…"
-                      onPress={nfcFlow.refresh}
-                    >
-                      Refresh status
-                    </AppButton>
-                  )}
-                  {showCheckNfc && (
-                    <AppButton
-                      variant="default"
-                      emphasis="secondary"
-                      size="xsmall"
-                      disabled={state.locked || state.checkingStatus}
-                      onPress={nfcFlow.retry}
-                    >
-                      Check NFC
-                    </AppButton>
-                  )}
-                  {showHistory && (
-                    <AppButton
-                      variant="default"
-                      emphasis="secondary"
-                      size="xsmall"
-                      disabled={state.locked}
-                      onPress={viewHistory}
-                    >
-                      View History
-                    </AppButton>
-                  )}
-                </XStack>
-              )}
-            </YStack>
+                )}
+                {showCheckNfc && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
+                    disabled={state.locked || state.checkingStatus}
+                    onPress={nfcFlow.retry}
+                  >
+                    Check NFC
+                  </AppButton>
+                )}
+                {showHistory && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="xsmall"
+                    disabled={state.locked}
+                    onPress={viewHistory}
+                  >
+                    View History
+                  </AppButton>
+                )}
+              </XStack>
+            )}
           </YStack>
         </YStack>
-      </BottomSheetScrollView>
+      </YStack>
     </AppBottomSheet>
   );
 }

@@ -132,13 +132,28 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
   const React = require('react');
   return {
     __esModule: true,
-    default: React.forwardRef(({ children }: any, ref: any) => {
+    default: React.forwardRef(({ children, ...props }: any, ref: any) => {
       const [open, setOpen] = React.useState(false);
       React.useImperativeHandle(ref, () => ({
         present: () => setOpen(true),
         dismiss: () => setOpen(false),
       }));
-      return React.createElement('AppBottomSheet', { open }, open ? children : null);
+      return React.createElement(
+        'AppBottomSheet',
+        { open },
+        open ? (
+          <>
+            {props.title &&
+              React.createElement(require('~/shared/ui/BUI/BUIHeader').BUIHeader, {
+                title: props.title,
+                navigation: props.navigation ?? 'close',
+                navigationLabel: props.navigationLabel,
+                onNavigate: props.onNavigate,
+              })}
+            {children}
+          </>
+        ) : null,
+      );
     }),
   };
 });

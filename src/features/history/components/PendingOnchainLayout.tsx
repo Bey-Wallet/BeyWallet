@@ -195,7 +195,7 @@ export function PendingOnchainLayout({
         appearance={appearance}
         canDismiss={!checking}
       >
-        <YStack px={16}>{extraDetails}</YStack>
+        <YStack>{extraDetails}</YStack>
       </BUISheet>
     </>
   );

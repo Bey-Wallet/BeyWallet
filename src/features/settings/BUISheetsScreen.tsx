@@ -229,7 +229,7 @@ export function BUISheetsScreen() {
         }}
       >
         {sheetKind === 'Information' && (
-          <YStack p={16} gap={16} items="center">
+          <YStack gap={16} items="center">
             <YStack
               width={44}
               height={44}
@@ -253,7 +253,7 @@ export function BUISheetsScreen() {
         )}
         {sheetKind === 'Selection' && (
           <>
-            <YStack px={16} pt={16}>
+            <YStack>
               <BUIText kind="body2" color={c.muted}>
                 Choose a sample wallet. There is no search or live wallet data.
               </BUIText>
@@ -271,7 +271,7 @@ export function BUISheetsScreen() {
                 />
               ))}
             </BUIListGroup>
-            <YStack px={16}>
+            <YStack>
               <BUIButton
                 appearance={appearance}
                 size="large"
@@ -288,7 +288,7 @@ export function BUISheetsScreen() {
           </>
         )}
         {sheetKind === 'Form' && (
-          <YStack p={16} gap={16}>
+          <YStack gap={16}>
             <BUIText kind="body2" color={c.muted}>
               Try the device keyboard. The input and save only affect this sample.
             </BUIText>
@@ -320,7 +320,7 @@ export function BUISheetsScreen() {
         )}
         {sheetKind === 'Scrollable' && (
           <>
-            <YStack px={16} pt={16}>
+            <YStack>
               <BUIText kind="body2" color={c.muted}>
                 {lastOption === null
                   ? 'Scroll this list independently.'
@@ -337,7 +337,7 @@ export function BUISheetsScreen() {
                 />
               ))}
             </BUIListGroup>
-            <YStack px={16}>
+            <YStack>
               <BUIButton appearance={appearance} size="large" fullWidth onPress={closeSheet}>
                 Close preview
               </BUIButton>
@@ -345,7 +345,7 @@ export function BUISheetsScreen() {
           </>
         )}
         {sheetKind === 'Steps' && (
-          <YStack p={16} gap={16}>
+          <YStack gap={16}>
             <BUIText kind="h3">
               {step === 0
                 ? 'Start a sample flow'

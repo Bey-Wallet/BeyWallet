@@ -75,6 +75,7 @@ jest.mock('@gorhom/bottom-sheet', () => ({
     require('react').createElement(
       'MintList',
       props,
+      props.ListHeaderComponent,
       props.data.length
         ? props.data.map((item: any) =>
             require('react').createElement(
@@ -234,7 +235,12 @@ it('uses a simple bottom-sheet mint list without search controls', async () => {
   await render();
   expect(tree.root.findAllByType(Modal)).toHaveLength(0);
   expect(sheet().props.open).toBe(true);
-  expect(sheet().props.snapPoints[0]).toBeGreaterThan(0);
+  expect(sheet().props.snapPoints).toBeUndefined();
+  expect(sheet().props.scrollable).toBe(true);
+  const headerChildren = React.Children.toArray(list().props.ListHeaderComponent.props.children);
+  expect(
+    headerChildren.some((child) => typeof child === 'string' || typeof child === 'number'),
+  ).toBe(false);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Search mints' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
   expect(list().props.data).toHaveLength(4);
