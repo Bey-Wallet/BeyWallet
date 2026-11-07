@@ -224,6 +224,8 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               <>
                 <View
                   bg={appColors.light.canvas}
+                  borderWidth={1}
+                  borderColor="$borderColor"
                   p={appSpacing.gap}
                   rounded="$6"
                   items="center"
