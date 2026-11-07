@@ -156,6 +156,18 @@ it('shows the complete small token as a static pending QR with no animation time
   expect(jest.getTimerCount()).toBe(0);
 });
 
+it('allows token copy during polling but keeps it locked during a reclaim', async () => {
+  await render(<PendingTokenLayout token="cashuBsynthetic" amount={1} isCheckingStatus />);
+  const copy = () => tree.root.findByType('Button' as any);
+  expect(copy().props.disabled).toBe(false);
+  await act(async () => copy().props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith('cashuBsynthetic');
+  await act(async () =>
+    tree.update(<PendingTokenLayout token="cashuBsynthetic" amount={1} isReclaiming />),
+  );
+  expect(copy().props.disabled).toBe(true);
+});
+
 it('places the receipt action in the shared pending payment menu', async () => {
   const share = jest.fn();
   await render(

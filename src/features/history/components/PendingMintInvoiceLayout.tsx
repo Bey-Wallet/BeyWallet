@@ -139,7 +139,7 @@ export function PendingMintInvoiceLayout({
             size="large"
             emphasis="secondary"
             onPress={handleCopy}
-            disabled={isCheckingPaid || !savedInvoice}
+            disabled={!savedInvoice}
           >
             {copied ? 'Copied' : 'Copy'}
           </AppButton>

@@ -235,6 +235,24 @@ it('keeps the invoice available after an unsuccessful payment check', async () =
   await act(async () => tree.unmount());
 });
 
+it('allows copying a live invoice while its payment check is still in flight', async () => {
+  let finish!: (quote: { state: string }) => void;
+  mockCheckMintQuote.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const tree = await render(<PaymentStage {...paymentProps} />);
+  await act(async () => menuAction(tree, 'refresh').onPress());
+  expect(tree.root.findByType('PaymentMenu' as any).props.busy).toBe(true);
+  expect(button(tree, 'Copy').props.disabled).toBe(false);
+  await act(async () => button(tree, 'Copy').props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(paymentProps.invoice);
+  await act(async () => finish({ state: 'UNPAID' }));
+  expect(paymentProps.onPaid).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
 it('keeps technical errors behind details and closes through the existing callback', async () => {
   const onClose = jest.fn();
   const tree = await render(

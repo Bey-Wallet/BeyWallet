@@ -190,7 +190,7 @@ export function PaymentStage({
       fullWidth
       variant="default"
       emphasis="secondary"
-      disabled={busy || isExpired}
+      disabled={!!requestDelivery?.sending || isExpired || !invoice}
       onPress={handleCopy}
     >
       Copy

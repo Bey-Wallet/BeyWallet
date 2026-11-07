@@ -151,7 +151,7 @@ export function PendingOnchainLayout({
             emphasis="secondary"
             size="large"
             fullWidth
-            disabled={!destination || checking}
+            disabled={!destination}
             onPress={async () => {
               if (await copyWithFeedback(destination, toast)) setCopied(true);
             }}
