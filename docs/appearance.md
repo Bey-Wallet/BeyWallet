@@ -16,6 +16,17 @@ Utility icon buttons, including Ghost buttons, use proportional 14/16/18/20/24-p
 from xxsmall through large. An explicit `iconSize` overrides the glyph size without shrinking
 the touch target. Home action cards, tab icons, and status artwork retain their own sizing.
 
+My addresses follows the pending-payment layout with a BUI header, standalone QR and
+neutral address card. The header uses a back arrow in Settings and a close control in the
+receiving modal, with sharing and management in its overflow menu. Ecash/Lightning switches
+replace the header title using text tabs with a selected underline. A horizontal pager
+switches addresses using the same interaction as People. Full addresses and the npub wrap
+inside compact neutral cards, with a text-emphasis icon-only Copy button matching the small
+card title size in each card header. QR
+modules remain black on white in both themes. A small secondary payment request/invoice
+action sits below the scroll area with safe-area padding. Lightning
+setup/loading, verified usernames and exact QR/copy/share payloads retain their guards.
+
 `src/shared/theme/appearance.ts` defines semantic colors, typography, spacing, dimensions and
 roundness. The existing `dark` and `light` themes apply them through the current provider.
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
