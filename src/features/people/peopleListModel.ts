@@ -59,7 +59,7 @@ function summarize(
   activity: ConversationActivity | undefined,
   formatAmount: (amount: number) => string,
 ) {
-  if (!activity) return { preview: 'Start a conversation' };
+  if (!activity) return { preview: 'No payments yet' };
   if (activity.kind === 'text') {
     const prefix = activity.direction === 'outgoing' ? 'You: ' : '';
     const state = ['Sending', 'Failed'].includes(activity.status) ? `${activity.status} · ` : '';

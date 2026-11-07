@@ -1,19 +1,10 @@
 import React from 'react';
-import {
-  AlertCircle,
-  Check,
-  Clock3,
-  Zap,
-  Banknote,
-  HandCoins,
-  X,
-  ArrowDownLeft,
-} from '@tamagui/lucide-icons';
+import { AlertCircle, Check, Clock3, X, ArrowDownLeft } from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import type { ConversationActivity } from '../conversationActivity';
-import { appRadii } from '~/shared/theme/appearance';
+import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 export interface ConversationItemCardProps {
   item: ConversationActivity;
@@ -25,34 +16,24 @@ export interface ConversationItemCardProps {
   payDisabled?: boolean;
 }
 
-function palette(item: ConversationActivity) {
-  if (item.direction === 'incoming' && item.requiresAction)
-    return { background: '$buttonWarningSecondary', color: '$buttonWarningSecondaryText' } as const;
-  if (item.direction === 'incoming')
-    return { background: '$gray2', color: '$buttonDefaultSecondaryText' } as const;
-  return { background: '$buttonDefaultPrimary', color: '$buttonDefaultPrimaryText' } as const;
+function paymentTitle(item: ConversationActivity) {
+  if (item.type?.startsWith('Lightning') || item.paymentInput?.route === 'lightning') return 'LN';
+  if (item.type?.startsWith('Bitcoin') || item.paymentInput?.route === 'onchain') return 'Bitcoin';
+  if (item.type?.startsWith('Ecash') || item.paymentInput?.route?.startsWith('cashu_'))
+    return 'Ecash';
+  return 'Payment';
 }
 
 export function ConversationTextBubble({ item }: ConversationItemCardProps) {
-  const { color } = palette(item);
-  const StateIcon =
-    item.status === 'Failed' ? AlertCircle : item.status === 'Sending' ? Clock3 : Check;
   return (
-    <XStack gap="$2" items="flex-end">
-      <Text color={color} fontSize={14} lineHeight={21} flexShrink={1}>
+    <YStack gap={appSpacing.small}>
+      <Text {...appTypography.body3} color="$gray10">
+        Message
+      </Text>
+      <Text {...appTypography.body2} color="$color">
         {item.text}
       </Text>
-      {item.direction === 'outgoing' && (
-        <XStack
-          pb={4}
-          opacity={0.7}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <StateIcon size={12} color={color} />
-        </XStack>
-      )}
-    </XStack>
+    </YStack>
   );
 }
 
@@ -61,58 +42,92 @@ export function ConversationPaymentCard({
   primaryAmount,
   secondaryAmount,
 }: ConversationItemCardProps) {
-  const { color } = palette(item);
-  const TypeIcon =
-    item.type === 'Ecash request' ? HandCoins : item.type?.startsWith('Lightning') ? Zap : Banknote;
-  const typeLabel = item.type?.startsWith('Lightning') ? 'Lightning' : item.type || 'Payment';
-  const StatusIcon = ['Claimed', 'Received', 'Paid'].includes(item.status)
+  const complete = ['Claimed', 'Received', 'Paid'].includes(item.status);
+  const returned = ['Refunded', 'Reclaimed'].includes(item.status);
+  const ended = ['Cancelled', 'Expired', 'Dismissed'].includes(item.status);
+  const attention =
+    item.requiresAction || /fail|unverified|unresolved|invalid|unsupported/i.test(item.status);
+  const StatusIcon = complete
     ? Check
-    : ['Refunded', 'Reclaimed'].includes(item.status)
+    : returned
       ? ArrowDownLeft
-      : ['Cancelled', 'Expired', 'Dismissed'].includes(item.status)
+      : ended
         ? X
-        : item.requiresAction || /fail|unverified|unresolved|invalid|unsupported/i.test(item.status)
+        : attention
           ? AlertCircle
           : Clock3;
+  const statusColor = complete ? '$green11' : attention ? '$buttonWarningSecondaryText' : '$gray10';
+  const status =
+    item.status === 'Claimed' ? (item.direction === 'outgoing' ? 'Paid' : 'Received') : item.status;
+  const date = new Date(item.time);
+  const today = new Date();
+  const time =
+    date.toDateString() === today.toDateString()
+      ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : date.toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short',
+          ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
+        });
   return (
-    <YStack gap="$1" minW={130}>
-      <Text
-        color={color}
-        fontFamily={primaryAmount ? '$display' : '$body'}
-        fontSize={primaryAmount ? '$8' : 14}
-        lineHeight={primaryAmount ? '$8' : 22}
-        fontWeight="600"
-      >
-        {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
+    <YStack gap={appSpacing.compact} minWidth={0}>
+      <Text {...appTypography.body2} color="$gray10">
+        {paymentTitle(item)}
       </Text>
-      {!!secondaryAmount && (
-        <Text color={color} opacity={0.7} fontSize={11} lineHeight={14}>
-          {secondaryAmount}
+      {/* Layout adapted from Radar Android's AGPL-3.0 PaymentMessageView:
+          https://github.com/radar-labs/radar-android/blob/b6c4fff179e47368f24444281a9b5a0ba4b70bc4/app/src/main/res/layout/payment_message_view.xml */}
+      <YStack
+        minHeight={80}
+        rounded="$6"
+        bg="$gray3"
+        items="flex-start"
+        justify="center"
+        gap={appSpacing.small}
+        p={appSpacing.compact}
+      >
+        <Text
+          {...(primaryAmount ? appTypography.amount : appTypography.body2)}
+          color="$color"
+          textAlign="left"
+        >
+          {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
         </Text>
-      )}
+        {!!secondaryAmount && (
+          <Text {...appTypography.caption} color="$gray10" textAlign="left">
+            {secondaryAmount}
+          </Text>
+        )}
+      </YStack>
       {!!item.note && (
-        <Text color={color} fontSize={13} lineHeight={18}>
+        <Text {...appTypography.body3} color="$gray10">
           {item.note}
         </Text>
       )}
-      <XStack gap={6} items="center" mt={4}>
-        <TypeIcon size={14} color={color} />
-        <Text
-          color={color}
-          opacity={0.75}
-          fontSize={11}
-          lineHeight={14}
-          fontWeight="500"
-          flex={1}
-          flexShrink={1}
-          numberOfLines={1}
-          ellipsizeMode="tail"
+      <XStack gap={appSpacing.small} items="center" justify="flex-end">
+        <YStack
+          accessibilityRole="image"
+          accessibilityLabel={item.status}
+          flexShrink={0}
+          width={14}
+          height={14}
+          rounded={7}
+          items="center"
+          justify="center"
+          bg={complete ? '$green11' : 'transparent'}
         >
-          {typeLabel}
-        </Text>
-        <YStack accessibilityRole="image" accessibilityLabel={item.status} opacity={0.75}>
-          <StatusIcon size={14} color={color} />
+          <StatusIcon size={complete ? 10 : 14} color={complete ? '$background' : statusColor} />
         </YStack>
+        <Text
+          {...appTypography.label3}
+          color={attention && !complete ? statusColor : '$color'}
+          flexShrink={1}
+          minWidth={0}
+          textAlign="right"
+        >
+          {status}
+          {' · '}
+          {time}
+        </Text>
       </XStack>
     </YStack>
   );
@@ -121,53 +136,60 @@ export function ConversationPaymentCard({
 export function ConversationItemCard(props: ConversationItemCardProps) {
   const { item, primaryAmount, onPress, onLongPress, onPay, payDisabled } = props;
   const payment = item.kind === 'payment';
-  const { background } = palette(item);
-  const card = (
-    <AppPressable
-      accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityLabel={
-        payment
-          ? `${item.type || 'Payment'}, ${primaryAmount ?? 'Amount unavailable'}, ${item.status}${onPress ? '. Show payment details' : ''}`
-          : `${item.text}. ${item.status}${onPress ? '. Show message details' : ''}`
-      }
-      onPress={onPress}
-      onLongPress={onLongPress}
-      accessibilityHint={onLongPress ? 'Touch and hold for message actions' : undefined}
-      accessibilityActions={
-        onLongPress ? [{ name: 'longpress', label: 'Message actions' }] : undefined
-      }
-      onAccessibilityAction={
-        onLongPress
-          ? (event) => {
-              if (event.nativeEvent.actionName === 'longpress') onLongPress();
-            }
-          : undefined
-      }
-      self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
-      minHeight={44}
-      maxW={onPay ? '75%' : '85%'}
-      px={14}
-      py={payment ? 12 : 10}
-      rounded={appRadii.card}
-      bg={background}
-    >
-      {payment ? <ConversationPaymentCard {...props} /> : <ConversationTextBubble {...props} />}
-    </AppPressable>
-  );
-  if (!onPay) return card;
   return (
-    <XStack self="flex-start" items="center" gap="$2" flexWrap="wrap" maxW="100%">
-      {card}
-      <AppButton
-        variant="default"
-        emphasis="secondary"
-        size="small"
-        accessibilityLabel={`Pay ${item.type || 'payment'}`}
-        disabled={payDisabled}
-        onPress={onPay}
+    <YStack
+      self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
+      width={payment ? 236 : undefined}
+      maxWidth={payment ? '100%' : '80%'}
+      gap={appSpacing.compact}
+    >
+      <AppPressable
+        accessibilityRole={onPress ? 'button' : 'text'}
+        accessibilityLabel={
+          payment
+            ? `${item.type || 'Payment'}, ${primaryAmount ?? 'Amount unavailable'}, ${item.status}${onPress ? '. Show payment details' : ''}`
+            : `${item.text}. ${item.status}${onPress ? '. Show message details' : ''}`
+        }
+        onPress={onPress}
+        onLongPress={onLongPress}
+        accessibilityHint={
+          onLongPress ? `Touch and hold for ${payment ? 'payment' : 'message'} actions` : undefined
+        }
+        accessibilityActions={
+          onLongPress
+            ? [{ name: 'longpress', label: payment ? 'Payment actions' : 'Message actions' }]
+            : undefined
+        }
+        onAccessibilityAction={
+          onLongPress
+            ? (event) => {
+                if (event.nativeEvent.actionName === 'longpress') onLongPress();
+              }
+            : undefined
+        }
+        minHeight={48}
+        p={payment ? appSpacing.compact : appSpacing.gap}
+        rounded={appRadii.card}
+        bg="$buttonDefaultSecondary"
+        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+        pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
       >
-        Pay
-      </AppButton>
-    </XStack>
+        {payment ? <ConversationPaymentCard {...props} /> : <ConversationTextBubble {...props} />}
+      </AppPressable>
+      {!!onPay && (
+        <AppButton
+          variant="accent"
+          emphasis="primary"
+          size="small"
+          self="flex-end"
+          fullWidth={false}
+          accessibilityLabel={`Pay ${item.type || 'payment'}`}
+          disabled={payDisabled}
+          onPress={onPay}
+        >
+          Pay
+        </AppButton>
+      )}
+    </YStack>
   );
 }
