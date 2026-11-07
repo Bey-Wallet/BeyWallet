@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+
 import { Text, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -32,83 +32,75 @@ export const ConversationMessageSheet = forwardRef<
   };
   return (
     <AppBottomSheet
+      title={item?.kind === 'text' ? 'Message details' : 'Payment details'}
       ref={ref}
-      snapPoints={['65%', '90%']}
-      bottomInset={bottomInset}
       backgroundColor="$background"
     >
-      <BottomSheetScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: Math.max(bottomInset, 20) + 12 }}
-      >
-        {item && (
-          <YStack gap="$4">
-            <Text fontSize="$6" fontWeight="800">
-              {item.kind === 'text' ? 'Message details' : 'Payment details'}
-            </Text>
-            <ConversationItemCard
-              item={item}
-              primaryAmount={primaryAmount}
-              secondaryAmount={secondaryAmount}
+      {item && (
+        <YStack gap="$4">
+          <ConversationItemCard
+            item={item}
+            primaryAmount={primaryAmount}
+            secondaryAmount={secondaryAmount}
+          />
+          <ListTable>
+            <Detail label="Status" value={item.status} />
+            {item.type && <Detail label="Type" value={item.type} />}
+            <ListTableRow
+              label={item.kind === 'text' ? 'Copy message' : 'Copy payment details'}
+              labelColor="$color"
+              isCopyable
+              onCopy={() => void copy()}
+              onPress={() => void copy()}
             />
-            <ListTable>
-              <Detail label="Status" value={item.status} />
-              {item.type && <Detail label="Type" value={item.type} />}
+            {!!item.note && (
               <ListTableRow
-                label={item.kind === 'text' ? 'Copy message' : 'Copy payment details'}
-                labelColor="$color"
+                label="Note"
+                value={item.note}
                 isCopyable
-                onCopy={() => void copy()}
-                onPress={() => void copy()}
+                copyValue={item.note}
+                multiline
               />
-              {!!item.note && (
-                <ListTableRow
-                  label="Note"
-                  value={item.note}
-                  isCopyable
-                  copyValue={item.note}
-                  multiline
-                />
-              )}
-              <Detail
-                label="Direction"
-                value={item.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}
-              />
-              <Detail label="Time" value={new Date(item.time).toLocaleString()} />
-              {item.message?.direction === 'incoming' && (
-                <Detail
-                  label="Saved on device"
-                  value={new Date(item.message.receivedAt).toLocaleString()}
-                />
-              )}
-              {item.message && (
-                <Detail
-                  label="Transport"
-                  value={
-                    item.message.transport === 'nip17'
-                      ? 'NIP-17 encrypted chat'
-                      : 'Legacy encrypted message'
-                  }
-                />
-              )}
-              {item.mintUrl && <Detail label="Mint" value={item.mintUrl} />}
-              {item.message && <Detail label="Message ID" value={item.message.id} />}
-              {actionLabel && onAction && (
-                <ListTableRow
-                  label={actionLabel}
-                  labelColor={item.requiresAction ? '$buttonWarningSecondaryText' : '$color'}
-                  onPress={onAction}
-                  multiline
-                />
-              )}
-            </ListTable>
-            {item.direction === 'outgoing' && item.message && (
-              <Text color="$gray10" fontSize="$2">
-                Sent to relay confirms relay publication. It does not confirm delivery or reading.
-              </Text>
             )}
-          </YStack>
-        )}
-      </BottomSheetScrollView>
+            <Detail
+              label="Direction"
+              value={item.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}
+            />
+            <Detail label="Time" value={new Date(item.time).toLocaleString()} />
+            {item.message?.direction === 'incoming' && (
+              <Detail
+                label="Saved on device"
+                value={new Date(item.message.receivedAt).toLocaleString()}
+              />
+            )}
+            {item.message && (
+              <Detail
+                label="Transport"
+                value={
+                  item.message.transport === 'nip17'
+                    ? 'NIP-17 encrypted chat'
+                    : 'Legacy encrypted message'
+                }
+              />
+            )}
+            {item.mintUrl && <Detail label="Mint" value={item.mintUrl} />}
+            {item.message && <Detail label="Message ID" value={item.message.id} />}
+            {actionLabel && onAction && (
+              <ListTableRow
+                label={actionLabel}
+                labelColor={item.requiresAction ? '$buttonWarningSecondaryText' : '$color'}
+                onPress={onAction}
+                multiline
+              />
+            )}
+          </ListTable>
+          {item.direction === 'outgoing' && item.message && (
+            <Text color="$gray10" fontSize="$2">
+              Sent to relay confirms relay publication. It does not confirm delivery or reading.
+            </Text>
+          )}
+        </YStack>
+      )}
     </AppBottomSheet>
   );
 });

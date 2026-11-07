@@ -20,7 +20,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -381,18 +381,9 @@ export function NostrSendStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack gap="$1.5">
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} gap="$2">
         <MintBalanceRow
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
@@ -409,13 +400,35 @@ export function NostrSendStage({
           maxDisabled={balance === 0}
         />
 
+        {/* Recipient display / selector bar */}
+        <DestinationInputRow
+          value={recipientUsername || recipientNpub}
+          onChangeText={(val) => {
+            if (val === '') {
+              clearRecipient();
+            } else {
+              setRecipientNpub('');
+              setRecipientUsername(val);
+              setSearch(val);
+              contactSheetRef.current?.present();
+            }
+          }}
+          placeholder="NIP-05, name, npub, or nprofile"
+          onPaste={handlePaste}
+          onScan={handleOpenScanner}
+          defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
+          onIconPress={() => contactSheetRef.current?.present()}
+          isError={isInvalidRecipient}
+        />
         {/* Card Box Container matching AmountStage & P2PKAmountStage */}
         <YStack
           width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$3"
-          py="$5"
           items="center"
           gap="$3"
           borderWidth={0}
@@ -434,7 +447,6 @@ export function NostrSendStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -461,27 +473,6 @@ export function NostrSendStage({
             )}
           </YStack>
         </YStack>
-
-        {/* Recipient display / selector bar */}
-        <DestinationInputRow
-          value={recipientUsername || recipientNpub}
-          onChangeText={(val) => {
-            if (val === '') {
-              clearRecipient();
-            } else {
-              setRecipientNpub('');
-              setRecipientUsername(val);
-              setSearch(val);
-              contactSheetRef.current?.present();
-            }
-          }}
-          placeholder="NIP-05, name, npub, or nprofile"
-          onPaste={handlePaste}
-          onScan={handleOpenScanner}
-          defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
-          onIconPress={() => contactSheetRef.current?.present()}
-          isError={isInvalidRecipient}
-        />
       </YStack>
 
       <NumericKeypad
@@ -496,12 +487,8 @@ export function NostrSendStage({
       />
 
       {/* ── Contact Search Sheet ──────────────────────────────────── */}
-      <AppBottomSheet ref={contactSheetRef} snapPoints={['70%', '90%']}>
-        <YStack p="$4" gap="$3" flex={1}>
-          <Text fontSize="$6" fontWeight="800" color="$accent5" style={{ textAlign: 'center' }}>
-            Send to
-          </Text>
-
+      <AppBottomSheet title="Send to" ref={contactSheetRef}>
+        <YStack gap="$3">
           <XStack width="100%" bg="$gray4" rounded="$4" px="$3" height={50} items="center" gap="$2">
             <Search size={20} color="$gray10" />
             <Input
@@ -529,65 +516,63 @@ export function NostrSendStage({
             )}
           </XStack>
 
-          <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-            <YStack gap="$2" pb="$4">
-              {search.trim() ? (
-                searchResults.map((profile, index) => (
-                  <NostrProfileItem
-                    key={profile.pubkeyHex}
-                    profile={profile}
-                    onPress={selectProfile}
-                    onSend={selectProfile}
-                    showTopSeparator={index === 0}
-                  />
-                ))
-              ) : (
-                <>
-                  {acceptedProfiles.length > 0 && (
-                    <YStack gap="$1">
-                      <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
-                        Contacts
-                      </Text>
-                      {acceptedProfiles.map((profile, index) => (
-                        <NostrProfileItem
-                          key={profile.pubkeyHex}
-                          profile={profile}
-                          onPress={selectProfile}
-                          onSend={selectProfile}
-                          showTopSeparator={index === 0}
-                        />
-                      ))}
-                    </YStack>
-                  )}
+          <YStack gap="$2">
+            {search.trim() ? (
+              searchResults.map((profile, index) => (
+                <NostrProfileItem
+                  key={profile.pubkeyHex}
+                  profile={profile}
+                  onPress={selectProfile}
+                  onSend={selectProfile}
+                  showTopSeparator={index === 0}
+                />
+              ))
+            ) : (
+              <>
+                {acceptedProfiles.length > 0 && (
+                  <YStack gap="$1">
+                    <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
+                      Contacts
+                    </Text>
+                    {acceptedProfiles.map((profile, index) => (
+                      <NostrProfileItem
+                        key={profile.pubkeyHex}
+                        profile={profile}
+                        onPress={selectProfile}
+                        onSend={selectProfile}
+                        showTopSeparator={index === 0}
+                      />
+                    ))}
+                  </YStack>
+                )}
 
-                  {otherProfiles.length > 0 && (
-                    <YStack mt="$3" gap="$1">
-                      <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
-                        People
-                      </Text>
-                      {otherProfiles.map((profile, index) => (
-                        <NostrProfileItem
-                          key={profile.pubkeyHex}
-                          profile={profile}
-                          onPress={selectProfile}
-                          onSend={selectProfile}
-                          showTopSeparator={index === 0}
-                        />
-                      ))}
-                    </YStack>
-                  )}
-                </>
-              )}
+                {otherProfiles.length > 0 && (
+                  <YStack mt="$3" gap="$1">
+                    <Text fontSize="$3" fontWeight="700" color="$gray10" px="$1">
+                      People
+                    </Text>
+                    {otherProfiles.map((profile, index) => (
+                      <NostrProfileItem
+                        key={profile.pubkeyHex}
+                        profile={profile}
+                        onPress={selectProfile}
+                        onSend={selectProfile}
+                        showTopSeparator={index === 0}
+                      />
+                    ))}
+                  </YStack>
+                )}
+              </>
+            )}
 
-              {search.trim() && !isSearching && !searchResults.length && (
-                <YStack mt="$3" gap="$2">
-                  <Text color="$gray10" style={{ textAlign: 'center' }}>
-                    {searchError || 'No people found'}
-                  </Text>
-                </YStack>
-              )}
-            </YStack>
-          </BottomSheetScrollView>
+            {search.trim() && !isSearching && !searchResults.length && (
+              <YStack mt="$3" gap="$2">
+                <Text color="$gray10" style={{ textAlign: 'center' }}>
+                  {searchError || 'No people found'}
+                </Text>
+              </YStack>
+            )}
+          </YStack>
         </YStack>
       </AppBottomSheet>
 

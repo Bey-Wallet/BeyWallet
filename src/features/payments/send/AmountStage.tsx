@@ -197,18 +197,9 @@ export function AmountStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
-
   return (
-    <Flex fill justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <Flex fill gap="$2">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         <MintBalanceRow
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
@@ -228,10 +219,12 @@ export function AmountStage({
         {/* Card Box Container */}
         <YStack
           width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$3"
-          py={fiatEnabled ? '$8' : '$6'}
           items="center"
           gap="$3"
           borderWidth={0}
@@ -250,7 +243,6 @@ export function AmountStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />

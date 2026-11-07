@@ -141,7 +141,7 @@ export function GetChangeSettingsScreen() {
               />
             ))}
         </SettingsGroup>
-        <ListTable compact bg="$buttonDefaultSecondary">
+        <ListTable compact bg="$gray2">
           {review && (
             <>
               <ListTableRow label="Available balance" value={`${review.inputAmount} sat`} />

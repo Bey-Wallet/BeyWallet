@@ -119,12 +119,12 @@ function ActivityContent({
         )}
       </ListTable>
       {activity.kind === 'recovery' && (
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           Observed balance includes existing funds. It is not a newly received payment.
         </Text>
       )}
       {activity.kind === 'optimize' && (
-        <Text color="$gray10" fontSize={12}>
+        <Text color="$gray10" fontSize={11}>
           This groups the internal send and receive. The saved operation does not establish an exact
           fee.
         </Text>

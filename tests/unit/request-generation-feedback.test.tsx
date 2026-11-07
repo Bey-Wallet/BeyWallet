@@ -1,4 +1,8 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+const mockMarkPos = jest.fn(async (_origin: unknown) => {});
+jest.mock('~/services/wallet/historyService', () => ({
+  historyService: { markPosOrigin: (origin: unknown) => mockMarkPos(origin) },
+}));
 jest.mock('~/features/history/components/ReceiptImageShare', () => ({
   ReceiptImageShare: 'ReceiptShare',
 }));
@@ -164,7 +168,12 @@ jest.mock('~/services/wallet/currencyService', () => ({
 }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
-  useTheme: () => ({ color: { val: '#000' }, gray3: { val: '#eee' }, gray10: { val: '#888' } }),
+  useTheme: () => ({
+    color: { val: '#000' },
+    gray2: { val: '#eee' },
+    gray3: { val: '#eee' },
+    gray10: { val: '#888' },
+  }),
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',
@@ -207,6 +216,11 @@ it('creates one merchant request for the frozen sale and confirms only verified 
   expect(useNostrRequestStore.getState().requests).toHaveLength(1);
   const request = useNostrRequestStore.getState().requests[0];
   expect(request).toMatchObject({ amount: 64, mintUrl: merchant.mintUrl, description: 'Coffee' });
+  expect(mockMarkPos).toHaveBeenCalledWith({
+    kind: 'request',
+    mintUrl: merchant.mintUrl,
+    reference: request.id,
+  });
   expect(onReceived).not.toHaveBeenCalled();
   expect(mockPresentRequest).toHaveBeenCalled();
   const stopsBeforeSwitch = mockStopBroadcast.mock.calls.length;

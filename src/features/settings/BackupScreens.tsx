@@ -35,7 +35,7 @@ export function RecoveryPhraseSettingsScreen() {
       </SettingsMessage>
       {secret.value ? (
         <>
-          <YStack rounded="$6" bg="$buttonDefaultSecondary" p="$4" gap="$3">
+          <YStack rounded="$6" bg="$gray2" p="$4" gap="$3">
             <XStack flexWrap="wrap" gap="$3">
               {secret.value.split(' ').map((word, index) => (
                 <XStack key={index} width="45%" gap="$2" py="$1">
@@ -245,7 +245,7 @@ export function DeleteWalletSettingsScreen() {
       </SettingsMessage>
       {secret.value ? (
         <>
-          <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4" gap="$3">
+          <YStack bg="$gray2" rounded="$6" p="$4" gap="$3">
             <Text fontSize="$5" fontWeight="600">
               Recovery phrase
             </Text>

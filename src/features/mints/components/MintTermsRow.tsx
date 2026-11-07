@@ -1,9 +1,9 @@
+import { MintDetailRow } from './MintUI';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
 import { ExternalLink } from '@tamagui/lucide-icons';
 import { useAppToast } from '~/shared/hooks/useAppToast';
-import { ListTableRow } from '~/shared/ui/ListTable';
 
 export function MintTermsRow({ url }: { url: unknown }) {
   const toast = useAppToast();
@@ -17,7 +17,7 @@ export function MintTermsRow({ url }: { url: unknown }) {
     return null;
   }
   return (
-    <ListTableRow
+    <MintDetailRow
       label="Terms of service"
       value="Read"
       valueColor="$accentColor"

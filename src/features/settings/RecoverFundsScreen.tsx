@@ -235,11 +235,11 @@ export function RecoverFundsScreen() {
           {session.results.map((result) => (
             <YStack key={result.mintUrl} p="$3" gap="$1" minHeight={48}>
               <XStack items="center" justify="space-between" gap="$3">
-                <Text fontSize={14} color="$color" flex={1}>
+                <Text fontSize={13} color="$color" flex={1}>
                   {name(result.mintUrl)}
                 </Text>
                 <Text
-                  fontSize={12}
+                  fontSize={11}
                   color={
                     result.status === 'error'
                       ? '$red10'
@@ -257,7 +257,7 @@ export function RecoverFundsScreen() {
                         : 'Failed'}
                 </Text>
               </XStack>
-              <Text fontSize={12} color="$gray10">
+              <Text fontSize={11} color="$gray10">
                 Current balance: {(balances[result.mintUrl] ?? result.balance).toLocaleString()} sat
               </Text>
             </YStack>

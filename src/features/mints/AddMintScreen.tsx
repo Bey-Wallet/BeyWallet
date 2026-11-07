@@ -1,6 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
@@ -15,7 +16,6 @@ import {
   Zap,
   Bitcoin,
   Globe,
-  ArrowRight,
   RefreshCw,
   ChevronDown,
   Landmark,
@@ -41,6 +41,7 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
 import { mintMetadataFromInfo } from '~/features/explore/components/mintMeta';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { appTypography } from '~/shared/theme/appearance';
 import { useMintDiscovery } from './hooks/useMintDiscovery';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
@@ -284,8 +285,8 @@ const ConnectedMintRow = React.memo(
           <YStack flex={1} mr="$2" justify="center" gap={3}>
             <XStack items="center" gap="$2" flexWrap="nowrap">
               <Text
-                fontSize="$4"
-                fontWeight="700"
+                {...appTypography.label1}
+                fontWeight="600"
                 color="$color"
                 numberOfLines={1}
                 style={{ maxWidth: '70%' }}
@@ -295,7 +296,7 @@ const ConnectedMintRow = React.memo(
               <MintBadges supportsNut30={meta?.supportsNut30} />
             </XStack>
 
-            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+            <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
               {hostname}
             </Text>
           </YStack>
@@ -303,8 +304,9 @@ const ConnectedMintRow = React.memo(
           {/* Right: Balance */}
           <YStack items="flex-end" justify="center">
             <RollingNumber
-              fontSize={16}
-              fontWeight="800"
+              fontSize={appTypography.label1.fontSize}
+              lineHeight={appTypography.label1.lineHeight}
+              fontWeight="600"
               color="$color"
               decimalOpacity={0.4}
               showDecimals={!displayAsSats}
@@ -387,8 +389,8 @@ const DiscoveredMintRow = React.memo(
           <YStack flex={1} mr="$2" justify="center" gap={3}>
             <XStack items="center" gap="$2" flexWrap="nowrap">
               <Text
-                fontSize="$4"
-                fontWeight="700"
+                {...appTypography.label1}
+                fontWeight="600"
                 color="$color"
                 numberOfLines={1}
                 style={{ maxWidth: '70%' }}
@@ -398,7 +400,7 @@ const DiscoveredMintRow = React.memo(
               <MintBadges supportsNut30={meta?.supportsNut30} />
             </XStack>
 
-            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+            <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
               {hostname}
             </Text>
           </YStack>
@@ -408,14 +410,16 @@ const DiscoveredMintRow = React.memo(
             {isAdded ? (
               <XStack rounded="$10" items="center" gap="$1" px="$2">
                 <Check size={12} color="$accent4" strokeWidth={3} />
-                <Text fontSize="$2" fontWeight="700" color="$accent4">
+                <Text {...appTypography.body3} fontWeight="600" color="$accent4">
                   Added
                 </Text>
               </XStack>
             ) : (
-              <AppButton
+              <AppIconButton
                 variant="default"
-                emphasis="primary"
+                shape="circular"
+                accessibilityLabel={`Add ${displayName}`}
+                emphasis="secondary"
                 size="small"
                 loading={connecting}
                 loadingText={`Connecting to ${displayName}`}
@@ -426,14 +430,12 @@ const DiscoveredMintRow = React.memo(
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onAdd(mint.url);
                 }}
-              >
-                Add
-              </AppButton>
+              />
             )}
           </View>
         </TouchableOpacity>
         {error && (
-          <Text color="$red10" fontSize={12} accessibilityRole="alert" pb="$2">
+          <Text color="$red10" fontSize={11} accessibilityRole="alert" pb="$2">
             {error}
           </Text>
         )}
@@ -751,7 +753,7 @@ export default function AddMintScreen() {
         <FirstUseGuidance topic="mintTrust" spaceBelow />
         <YStack gap="$3" mb="$4">
           <XStack
-            bg="$gray3"
+            bg="$gray2"
             rounded="$6"
             px="$3.5"
             py="$2"
@@ -774,9 +776,9 @@ export default function AddMintScreen() {
               returnKeyType="search"
               borderWidth={0}
               bg="transparent"
-              fontSize="$4"
+              {...appTypography.label2}
               color="$color"
-              fontWeight={800}
+              fontWeight="500"
               p={0}
               focusStyle={{ borderWidth: 0 }}
               placeholderTextColor={theme.gray9.val}
@@ -815,10 +817,10 @@ export default function AddMintScreen() {
                     <Landmark size={18} color="$gray10" />
                   </View>
                   <YStack flex={1}>
-                    <Text fontSize="$3" fontWeight="700" color="$color">
+                    <Text {...appTypography.body2} fontWeight="600" color="$color">
                       Custom Mint URL Detected
                     </Text>
-                    <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                    <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
                       {formattedDetectedUrl}
                     </Text>
                   </YStack>
@@ -827,23 +829,23 @@ export default function AddMintScreen() {
                 {isDetectedUrlAlreadyAdded ? (
                   <XStack bg="$green3" px="$2.5" py="$1.5" rounded="$10" items="center" gap="$1">
                     <Check size={12} color="$green10" />
-                    <Text fontSize="$2" fontWeight="700" color="$green10">
+                    <Text {...appTypography.body3} fontWeight="600" color="$green10">
                       Connected
                     </Text>
                   </XStack>
                 ) : (
-                  <AppButton
+                  <AppIconButton
                     variant="default"
-                    emphasis="primary"
+                    shape="circular"
+                    accessibilityLabel="Add mint"
+                    emphasis="secondary"
                     size="xsmall"
                     loading={connectingUrl === normalizeUrl(formattedDetectedUrl)}
                     loadingText="Connecting to mint…"
                     disabled={!!connectingUrl}
-                    iconAfter={<ArrowRight size={14} />}
+                    icon={<Plus size={16} strokeWidth={2.5} />}
                     onPress={() => handleAddMintAction(formattedDetectedUrl)}
-                  >
-                    Add
-                  </AppButton>
+                  />
                 )}
               </XStack>
             </YStack>
@@ -853,7 +855,7 @@ export default function AddMintScreen() {
         {connectionError &&
           isDetectedAsUrl &&
           connectionError.url === normalizeUrl(formattedDetectedUrl) && (
-            <Text color="$red10" fontSize={12} accessibilityRole="alert" mb="$3">
+            <Text color="$red10" fontSize={11} accessibilityRole="alert" mb="$3">
               {connectionError.message}
             </Text>
           )}
@@ -862,11 +864,11 @@ export default function AddMintScreen() {
         <YStack gap="$2" mb="$5">
           <XStack justify="space-between" items="center" mb="$1" px="$1">
             <XStack items="center" gap="$2">
-              <Text fontSize="$4" fontWeight="800" color="$gray10">
+              <Text {...appTypography.label2} fontWeight="600" color="$gray10">
                 Connected Mints
               </Text>
               <View bg="$gray4" px="$2" py="$0.5" rounded="$10">
-                <Text fontSize="$2" fontWeight="700" color="$gray10">
+                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
                   {filteredConnectedMints.length}
                 </Text>
               </View>
@@ -876,19 +878,12 @@ export default function AddMintScreen() {
           {isInitializing ? (
             <MintSkeletonList count={2} />
           ) : filteredConnectedMints.length === 0 ? (
-            <YStack
-              py="$5"
-              items="center"
-              justify="center"
-              gap="$2"
-              bg="$buttonDefaultSecondary"
-              rounded="$6"
-            >
+            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Globe size={24} color="$gray10" />
-              <Text fontWeight="600" fontSize="$3" color="$color">
+              <Text {...appTypography.body2} fontWeight="600" color="$color">
                 {cleanQuery ? 'No matching connected mints' : 'No mints connected yet'}
               </Text>
-              <Text fontSize="$2" color="$gray10" textAlign="center" px="$4">
+              <Text {...appTypography.body3} color="$gray10" textAlign="center" px="$4">
                 {cleanQuery
                   ? 'Try searching discovered mints below or connect via URL.'
                   : 'Add a Cashu mint to start sending and receiving ecash.'}
@@ -931,11 +926,11 @@ export default function AddMintScreen() {
         <YStack gap="$2">
           <XStack justify="space-between" items="center" mb="$1" px="$1">
             <XStack items="center" gap="$2">
-              <Text fontSize="$4" fontWeight="800" color="$gray10">
+              <Text {...appTypography.label2} fontWeight="600" color="$gray10">
                 Discover Mints
               </Text>
               <View bg="$gray4" px="$2" py="$0.5" rounded="$10">
-                <Text fontSize="$2" fontWeight="700" color="$gray10">
+                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
                   {filteredDiscoveredMints.length}
                 </Text>
               </View>
@@ -956,7 +951,7 @@ export default function AddMintScreen() {
             <MintSkeletonList count={6} />
           ) : isDiscoverError ? (
             <YStack py="$5" items="center" justify="center" gap="$2" bg="$color2" rounded="$5">
-              <Text color="$red10" fontWeight="600" fontSize="$3">
+              <Text color="$red10" {...appTypography.body2} fontWeight="600">
                 Failed to discover mints
               </Text>
               <AppButton
@@ -969,18 +964,11 @@ export default function AddMintScreen() {
               </AppButton>
             </YStack>
           ) : filteredDiscoveredMints.length === 0 ? (
-            <YStack
-              py="$5"
-              items="center"
-              justify="center"
-              gap="$2"
-              bg="$buttonDefaultSecondary"
-              rounded="$6"
-            >
-              <Text fontWeight="600" fontSize="$3" color="$color">
+            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
+              <Text {...appTypography.body2} fontWeight="600" color="$color">
                 {cleanQuery ? 'No matching mints' : 'No mints found'}
               </Text>
-              <Text fontSize="$2" color="$gray10" textAlign="center" px="$4">
+              <Text {...appTypography.body3} color="$gray10" textAlign="center" px="$4">
                 {cleanQuery
                   ? 'Try a different keyword or enter the exact mint URL above.'
                   : 'Connect directly using a Cashu mint URL.'}

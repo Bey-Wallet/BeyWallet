@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
   nfcReceiveCoordinator: {
     getSnapshot: () => ({ status: 'idle' }),
@@ -29,11 +30,23 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
       present: mockSheetPresent,
       dismiss: mockSheetDismiss,
     }));
-    return require('react').createElement('Sheet', props, props.children);
+    return require('react').createElement(
+      'Sheet',
+      props,
+      require('react').createElement(require('~/shared/ui/BUI/BUIHeader').BUIHeader, {
+        title: props.title,
+        navigation: props.navigation ?? 'close',
+        navigationLabel: props.navigationLabel,
+        navigationDisabled: props.canDismiss === false,
+        onNavigate: props.onNavigate,
+      }),
+      props.children,
+    );
   }),
 }));
 
 jest.mock('tamagui', () => ({
+  useThemeName: () => mockAppearance,
   Button: 'Button',
   Text: 'Text',
   View: 'View',
@@ -85,6 +98,7 @@ jest.mock('~/features/nfc/nfcFlow', () => ({
     dismiss: jest.fn(() => true),
     retry: jest.fn(),
     refresh: jest.fn(),
+    newPayment: jest.fn(),
   },
 }));
 
@@ -177,7 +191,7 @@ it('presents NFC as a bottom sheet and protects dismissal during a payment', asy
   expect(sheet.root.findAllByType(Modal)).toHaveLength(0);
   expect(mockSheetPresent).toHaveBeenCalledTimes(1);
   expect(presentation().props.canDismiss).toBe(true);
-  expect(presentation().props.scrollable).toBe(true);
+  expect(presentation().props.scrollable).toBeUndefined();
   expect(presentation().props.snapPoints).toBeUndefined();
   await act(async () => presentation().props.onClose());
   expect(nfcFlow.dismiss).toHaveBeenCalledTimes(1);
@@ -271,7 +285,11 @@ it('offers settlement refresh without delivery retry after acknowledged publicat
     sheet = create(<NfcSheetHost walletReady />);
   });
   const buttons = sheet.root.findAllByType('Button' as any);
-  expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Refresh status']);
+  expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual([
+    'Refresh status',
+    'Start new payment',
+    'View History',
+  ]);
   await act(async () => sheet.unmount());
 });
 
@@ -287,6 +305,60 @@ it('keeps NFC retry and refresh blocked while the session is locked', async () =
   }
   expect(nfcFlow.retry).not.toHaveBeenCalled();
   expect(nfcFlow.refresh).not.toHaveBeenCalled();
+  expect(nfcFlow.newPayment).not.toHaveBeenCalled();
   await act(async () => sheet.unmount());
 });
 jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
+
+it.each(['reading', 'sending', 'receiving', 'paying', 'pending'] as const)(
+  'shows progress during %s',
+  async (status) => {
+    mockState = { ...mockState, status, canRetryDelivery: false };
+    let sheet!: ReactTestRenderer;
+    await act(async () => {
+      sheet = create(<NfcSheetHost walletReady />);
+    });
+    expect(sheet.root.findAllByType('Spinner' as any).length).toBeGreaterThan(0);
+    await act(async () => sheet.unmount());
+  },
+);
+
+it('shows errors in the sheet and offers a new payment with the pending-payment notice', async () => {
+  mockState = { ...mockState, error: 'Could not check payment status.' };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  expect(sheet.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    mockState.error,
+  );
+  const newPayment = sheet.root
+    .findAllByType('Button' as any)
+    .find((button) => button.props.accessibilityLabel === 'Start new payment')!;
+  await act(async () => newPayment.props.onPress({}));
+  expect(nfcFlow.newPayment).toHaveBeenCalledTimes(1);
+  expect(
+    sheet.root
+      .findAllByType('Text' as any)
+      .some((text) => String(text.props.children).includes('previous payment may still complete')),
+  ).toBe(true);
+  await act(async () => sheet.unmount());
+});
+
+it('shows a loader while refreshing and keeps new-payment recovery available', async () => {
+  mockState = { ...mockState, status: 'pending', canRetryDelivery: false, checkingStatus: true };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  const buttons = sheet.root.findAllByType('Button' as any);
+  expect(
+    buttons.find((button) => button.props.accessibilityLabel === 'Checking status…')?.props
+      .disabled,
+  ).toBe(true);
+  expect(
+    buttons.find((button) => button.props.accessibilityLabel === 'Start new payment')?.props
+      .disabled,
+  ).toBe(false);
+  await act(async () => sheet.unmount());
+});

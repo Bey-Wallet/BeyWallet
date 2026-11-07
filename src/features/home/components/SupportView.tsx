@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronRight } from '@tamagui/lucide-icons';
-import { H6, XStack, YStack, ScrollView } from 'tamagui';
+import { H6, XStack, YStack } from 'tamagui';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import * as Haptics from 'expo-haptics';
 import { SUPPORT_ITEMS, SupportItem } from '~/features/home/components/constants/support';
@@ -47,8 +47,8 @@ export default function SupportView() {
         })}
       </YStack>
 
-      <AppBottomSheet ref={sheetRef}>
-        <ScrollView showsVerticalScrollIndicator={false}>{activeItem?.content}</ScrollView>
+      <AppBottomSheet title={activeItem?.title ?? 'Support'} ref={sheetRef}>
+        {activeItem?.content}
       </AppBottomSheet>
     </YStack>
   );

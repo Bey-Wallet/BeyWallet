@@ -70,14 +70,14 @@ it.each(['dark', 'light'] as const)(
         ),
       ).toBe(true);
       expect(
-        styles('primary').some((style) => style?.color === c.text && style?.fontSize === 16),
+        styles('primary').some((style) => style?.color === c.text && style?.fontSize === 14),
       ).toBe(true);
       expect(styles('secondary').some((style) => style?.color === c.secondaryText)).toBe(true);
       expect(styles('tertiary').some((style) => style?.color === c.tertiaryText)).toBe(true);
       expect(styles('field')).toEqual(
         expect.arrayContaining([expect.objectContaining({ backgroundColor: c.field })]),
       );
-      expect(styles('button').some((style) => style?.minHeight === 48)).toBe(true);
+      expect(styles('button').some((style) => style?.minHeight === 56)).toBe(true);
       const tabBar = tree.root.findByType(CustomTabBar);
       expect(
         tabBar.findAll((node) => {
@@ -97,9 +97,9 @@ it.each(['dark', 'light'] as const)(
       expect(
         labelStyles.some(
           (style) =>
-            style?.fontFamily === 'InterTextSemiBold' &&
+            style?.fontFamily === 'InterTextMedium' &&
             style?.fontSize === 16 &&
-            style?.lineHeight === 24,
+            style?.lineHeight === 22,
         ),
       ).toBe(true);
     } finally {

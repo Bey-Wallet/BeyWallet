@@ -226,10 +226,10 @@ export function OnchainMintFlow() {
           inset={false}
           hero={
             <>
-              <Text fontSize={14} fontWeight="500" color="$gray10">
+              <Text fontSize={13} fontWeight="500" color="$gray10">
                 You're adding
               </Text>
-              <Text fontSize={28} fontWeight="500" color="$color" textAlign="center">
+              <Text fontSize={25} fontWeight="500" color="$color" textAlign="center">
                 Bitcoin on-chain
               </Text>
             </>

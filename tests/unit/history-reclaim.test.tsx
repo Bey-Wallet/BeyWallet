@@ -94,6 +94,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: mockToast }) }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',
@@ -122,7 +123,8 @@ jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('@gorhom/bottom-sheet', () => ({
   BottomSheetModalProvider: ({ children }: any) => children,
 }));
-jest.mock('~/shared/ui/AppBottomSheet', () => ({ __esModule: true, default: 'Sheet' }));
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({ BUISheet: 'Sheet' }));
+jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 jest.mock('~/features/history/components/PendingOnchainLayout', () => ({
   PendingOnchainLayout: 'Onchain',
 }));
@@ -196,19 +198,27 @@ async function render() {
 }
 const pending = () => tree.root.findByType('PendingToken' as any);
 
-it('places receipt sharing inside the pending action footer instead of after the flex layout', async () => {
+const menuAction = (id: string) =>
+  tree.root
+    .findByType('ReceiptSheet' as any)
+    .props.headerActions.props.actions.find((action: any) => action.id === id);
+
+it('places receipt sharing and deletion in the shared pending menu', async () => {
   await render();
-  const share = pending().props.footerExtra;
-  expect(share.type).toBe('ReceiptShare');
+  expect(pending().props.menuActions.map((action: any) => action.title)).toEqual([
+    'Share receipt image',
+    'Delete transaction',
+  ]);
+  const share = tree.root.findByType('ReceiptShare' as any);
+  expect(share.props.hideTrigger).toBe(true);
   expect(share.props.ecashToken).toBe('synthetic-token');
   expect(share.props.receipt).toMatchObject({ status: 'Pending', direction: 'Sending' });
-  expect(tree.root.findAllByType('ReceiptShare' as any)).toHaveLength(0);
 });
 
-it('keeps a pending incoming receipt in the footer without exporting its spendable token', async () => {
+it('shares a pending incoming receipt without exporting its spendable token', async () => {
   mockEntry.type = 'receive';
   await render();
-  expect(pending().props.footerExtra.props.ecashToken).toBeUndefined();
+  expect(tree.root.findByType('ReceiptShare' as any).props.ecashToken).toBeUndefined();
 });
 
 it('waits for local receipt details before opening the final presentation', async () => {
@@ -256,8 +266,7 @@ it('retires an expired invoice QR without writing a financial failure', async ()
 it('checks an interrupted Lightning payment without redeeming or resubmitting it', async () => {
   mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
   await render();
-  const button = tree.root.findByType('StatusRow' as any);
-  await act(async () => button.props.onRefresh());
+  await act(async () => menuAction('refresh').onPress());
   expect(mockCheckHistory).toHaveBeenCalledWith(mockEntry);
   expect(mockRedeemQuote).not.toHaveBeenCalled();
   expect(mockReceive).not.toHaveBeenCalled();
@@ -273,7 +282,7 @@ it('retains an uncertain payment state and offers guidance when its status check
   mockEntry = { ...mockEntry, type: 'melt', state: 'pending', quoteId: 'quote' };
   await render();
   mockCheckHistory.mockRejectedValueOnce(new Error('synthetic connection failure'));
-  await act(async () => tree.root.findByType('StatusRow' as any).props.onRefresh());
+  await act(async () => menuAction('refresh').onPress());
   expect(mockUpdate).not.toHaveBeenCalled();
   expect(mockEntry.state).toBe('pending');
   expect(
@@ -288,9 +297,7 @@ it('offers collection for a paid top-up with no saved invoice and guards duplica
   await render();
   const operation = deferred<void>();
   mockRedeemQuote.mockClear().mockReturnValue(operation.promise);
-  const button = tree.root
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Collect ecash')!;
+  const button = { props: { onPress: menuAction('collect').onPress } };
   let first!: Promise<void>, second!: Promise<void>;
   await act(async () => {
     first = button.props.onPress();
@@ -313,9 +320,7 @@ it('does not start a manual collection while a background quote redemption is un
   mockRedeemQuote.mockReturnValue(operation.promise);
   await render();
   expect(mockRedeemQuote).toHaveBeenCalledTimes(1);
-  const button = tree.root
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Collect ecash')!;
+  const button = { props: { onPress: menuAction('collect').onPress } };
   await act(async () => {
     await button.props.onPress();
     jest.advanceTimersByTime(9000);

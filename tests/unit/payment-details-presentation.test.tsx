@@ -34,6 +34,7 @@ jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({
@@ -155,10 +156,13 @@ it('shares compact mint and balance rows while keeping selector and maximum acti
       onMaxPress={max}
     />,
   );
-  const rows = tree.root.findAllByType(ListTableRow);
-  expect(rows.map((row) => row.props.label)).toEqual(['Mint', 'Available balance']);
-  expect(rows[1].props.value).toBe('21 sat');
-  await act(async () => rows[0].props.onPress());
+  expect(tree.root.findAllByType(ListTableRow)).toHaveLength(0);
+  const selector = tree.root.findByType('AppPressable' as any);
+  expect(selector.props.accessibilityLabel).toBe('Mint, Sample mint, available 21 sat');
+  expect(tree.root.findAllByType('Text' as any).map((text) => text.props.children)).toEqual(
+    expect.arrayContaining(['Sample mint', '21 sat']),
+  );
+  await act(async () => selector.props.onPress());
   expect(select).toHaveBeenCalledTimes(1);
   expect(max).not.toHaveBeenCalled();
   const button = tree.root.findByType('Button' as any);
@@ -169,7 +173,7 @@ it('shares compact mint and balance rows while keeping selector and maximum acti
 
 it('keeps read-only mint selectors and empty-balance maximum actions disabled', async () => {
   await render(<MintBalanceRow balance={0} isSelector={false} showMax onMaxPress={jest.fn()} />);
-  expect(tree.root.findAllByType(ListTableRow)[0].props.onPress).toBeUndefined();
+  expect(tree.root.findByType('AppPressable' as any).props.onPress).toBeUndefined();
   expect(tree.root.findByType('Button' as any).props.disabled).toBe(true);
 });
 
@@ -182,9 +186,9 @@ it('renders row-owned dividers through fragments, nested helpers, and conditiona
       </>
     );
   }
-  function Fixture({ show }: { show: boolean }) {
+  function Fixture({ show, separators }: { show: boolean; separators?: boolean }) {
     return (
-      <ListTable>
+      <ListTable separators={separators}>
         <ListTableRow label="Date" value="Today" />
         <>
           <ListTableRow label="Mint" value="Sample mint" />
@@ -207,6 +211,14 @@ it('renders row-owned dividers through fragments, nested helpers, and conditiona
       StyleSheet.flatten(rowGroup.props.style)?.marginTop,
   ).toBe(-2);
   expect(tree.root.findAllByType('YStack' as any).some((node) => node.props.separator)).toBe(false);
+  await act(async () => tree.update(<Fixture show={false} />));
+  expect(dividers()).toHaveLength(4);
+  await act(async () => tree.update(<Fixture show={false} separators={false} />));
+  expect(dividers()).toHaveLength(0);
+  expect(tree.root.findByProps({ testID: 'list-table-rows' }).props.mt).toBe(0);
+  expect(
+    tree.root.findAllByType('Text' as any).some((text) => text.props.children === 'Sample mint'),
+  ).toBe(true);
   await act(async () => tree.update(<Fixture show={false} />));
   expect(dividers()).toHaveLength(4);
 });
@@ -238,7 +250,7 @@ it.each(['filled', 'outlined'] as const)(
   },
 );
 
-it('uses outlined tables for shared receipts', async () => {
+it('uses the same filled tables as confirmation screens for shared receipts', async () => {
   await render(
     <PaymentReceipt
       title="Payment"
@@ -249,7 +261,7 @@ it('uses outlined tables for shared receipts', async () => {
     />,
   );
   const divider = tree.root.findByProps({ testID: 'list-table-divider' });
-  expect(divider.props.bg ?? divider.props.backgroundColor).toBe('$borderColor');
+  expect(divider.props.bg ?? divider.props.backgroundColor).toBe('$background');
 });
 
 it('does not add table dividers to standalone rows', async () => {
@@ -293,7 +305,7 @@ it('allows an explicit regular-size table while compact remains the default', as
   const [label, value] = tree.root.findAllByType('Text' as any);
   expect(label.props.fontWeight).toBe('400');
   expect(value.props.fontWeight).toBe('500');
-  expect(value.props.fontSize).toBe(16);
+  expect(value.props.fontSize).toBe(14);
   expect(value.props.numberOfLines).toBe(1);
 });
 

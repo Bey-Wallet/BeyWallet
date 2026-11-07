@@ -1,8 +1,9 @@
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { XStack } from 'tamagui';
+import { Text, XStack } from 'tamagui';
+import { appDimensions, appSpacing } from '~/shared/theme/appearance';
 import { SlidersHorizontal, Search, X } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { HistoryScreen } from './index';
@@ -31,34 +32,45 @@ export function HistoryTabScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerTitle: () => (
+        <Text
+          fontFamily="$heading"
+          fontWeight="600"
+          fontSize="$7"
+          color="$color"
+          accessibilityRole="header"
+        >
+          History
+        </Text>
+      ),
       headerRight: () => (
-        <XStack pr="$4" gap="$2">
-          <AppIconButton
-            variant="default"
-            emphasis={showSearch ? 'primary' : 'secondary'}
-            size="small"
-            shape="circular"
-            iconSize={22}
-            accessibilityLabel={showSearch ? 'Close history search' : 'Search history'}
-            accessibilityState={{ expanded: showSearch }}
-            icon={showSearch ? <X color="$onAccent" /> : <Search color="$iconPrimary" />}
-            onPress={toggleSearch}
-          />
-          <AppIconButton
-            variant="default"
-            emphasis={filterHighlighted ? 'primary' : 'secondary'}
-            size="small"
-            shape="circular"
-            iconSize={22}
-            accessibilityLabel="Filter history"
-            icon={
-              <SlidersHorizontal
-                strokeWidth={2}
-                color={filterHighlighted ? '$onAccent' : '$iconPrimary'}
-              />
-            }
-            onPress={toggleFilters}
-          />
+        <XStack height={appDimensions.touchTarget} pr={appSpacing.page} items="center">
+          <XStack
+            width={appDimensions.touchTarget}
+            height={appDimensions.touchTarget}
+            items="center"
+            justify="center"
+          >
+            <HeaderIconButton
+              accessibilityLabel={showSearch ? 'Close history search' : 'Search history'}
+              accessibilityState={{ expanded: showSearch }}
+              icon={showSearch ? X : Search}
+              onPress={toggleSearch}
+            />
+          </XStack>
+          <XStack
+            width={appDimensions.touchTarget}
+            height={appDimensions.touchTarget}
+            items="center"
+            justify="center"
+          >
+            <HeaderIconButton
+              accessibilityState={{ selected: filterHighlighted }}
+              accessibilityLabel="Filter history"
+              icon={SlidersHorizontal}
+              onPress={toggleFilters}
+            />
+          </XStack>
         </XStack>
       ),
     });

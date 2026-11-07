@@ -1,18 +1,18 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import React, { useEffect, useState, useRef } from 'react';
-import { YStack, XStack, Text, Separator, View, Popover, ListItem, Adapt, Sheet } from 'tamagui';
+import { YStack, XStack, Text, Separator, View } from 'tamagui';
 import {
   Copy,
   Share,
   Zap,
   ArrowUpDown,
-  MoreHorizontal,
   Link,
   Contact2,
   Trash2,
@@ -303,56 +303,22 @@ export default function TokenDetailsModal() {
           title: 'Token Details',
           presentation: 'modal',
           headerRight: () => (
-            <Popover size="$5" allowFlip placement="bottom-end">
-              <Adapt when="sm" platform="touch">
-                <Sheet modal dismissOnSnapToBottom animation="bouncy">
-                  <Sheet.Frame pb="$5" bg="$sheetBackground">
-                    <Adapt.Contents />
-                  </Sheet.Frame>
-                  <Sheet.Overlay
-                    animation="lazy"
-                    enterStyle={{ opacity: 0 }}
-                    exitStyle={{ opacity: 0 }}
-                  />
-                </Sheet>
-              </Adapt>
-
-              <Popover.Trigger asChild>
-                <HeaderIconButton
-                  accessibilityLabel="More options"
-                  icon={<MoreHorizontal />}
-                  onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-                />
-              </Popover.Trigger>
-
-              <Popover.Content
-                borderWidth={1}
-                borderColor="$borderColor"
-                enterStyle={{ y: -10, opacity: 0, scale: 0.95 }}
-                exitStyle={{ y: -10, opacity: 0, scale: 0.95 }}
-                elevate
-                animation="quick"
-                p={0}
-                width={220}
-              >
-                <Popover.Arrow borderWidth={1} borderColor="$borderColor" />
-                <YStack>
-                  <ListItem
-                    icon={Link}
-                    title="Copy as Emoji"
-                    onPress={handleCopyEmoji}
-                    pressStyle={{ bg: '$backgroundHover' }}
-                  />
-                  <ListItem
-                    icon={Hexagon}
-                    title={`Switch to ${tokenVersion === 'V3' ? 'V4' : 'V3'}`}
-                    onPress={handleToggleVersion}
-                    pressStyle={{ bg: '$backgroundHover' }}
-                  />
-                  <Separator />
-                </YStack>
-              </Popover.Content>
-            </Popover>
+            <PaymentActionsMenu
+              actions={[
+                {
+                  id: 'emoji',
+                  title: 'Copy as Emoji',
+                  icon: <Link size={20} />,
+                  onPress: handleCopyEmoji,
+                },
+                {
+                  id: 'version',
+                  title: `Switch to ${tokenVersion === 'V3' ? 'V4' : 'V3'}`,
+                  icon: <Hexagon size={20} />,
+                  onPress: handleToggleVersion,
+                },
+              ]}
+            />
           ),
         }}
       />

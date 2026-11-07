@@ -1,5 +1,13 @@
 import { defaultConfig } from '@tamagui/config/v5';
 
+/** Obsidian's default accent: hsl(258, 88%, 66%). Explicitly opt in to this fill. */
+export const appAccent = {
+  background: '#8A5CF5',
+  pressed: '#7848E0',
+  disabled: '#655184',
+  foreground: '#FFFFFF',
+} as const;
+
 /** Semantic colors shared by the native and Tamagui surfaces. */
 export const appColors = {
   dark: {
@@ -23,7 +31,7 @@ export const appColors = {
     overlayStrong: '#0F0F0FB8',
     overlayLight: '#0F0F0F7A',
     overlayExtraLight: '#0F0F0F3D',
-    secondaryButtonDisabled: '#0E0E0F',
+    secondaryButtonDisabled: '#17171A',
     ghostButtonHighlighted: '#2A2A2E',
     buttonForeground: '#FFFFFF',
     inactiveTab: '#8D8D93',
@@ -40,9 +48,9 @@ export const appColors = {
   },
   light: {
     canvas: '#FFFFFF',
-    surface: '#F7F7F8',
-    raised: '#EFEFF1',
-    pressed: '#E7E7EA',
+    surface: defaultConfig.themes.light.gray2,
+    raised: defaultConfig.themes.light.gray3,
+    pressed: defaultConfig.themes.light.gray4,
     text: '#000000',
     secondaryText: '#6B6B73',
     tertiaryText: '#8D8D95',
@@ -53,14 +61,14 @@ export const appColors = {
     accentPress: '#2F2F33',
     accentDisabled: '#B9B9BE',
     alternateCanvas: '#FFFFFF',
-    alternateSurface: '#F7F7F8',
+    alternateSurface: defaultConfig.themes.light.gray2,
     transparentCanvas: '#FFFFFFF5',
     highlighted: '#00000008',
     overlayStrong: '#141414B8',
     overlayLight: '#1414147A',
     overlayExtraLight: '#1414143D',
-    secondaryButtonDisabled: '#F7F7F8',
-    ghostButtonHighlighted: '#E7E7EA',
+    secondaryButtonDisabled: defaultConfig.themes.light.gray2,
+    ghostButtonHighlighted: defaultConfig.themes.light.gray4,
     buttonForeground: '#000000',
     inactiveTab: '#8D8D95',
     positive: '#25B86F',
@@ -68,7 +76,7 @@ export const appColors = {
     warning: '#F5A73B',
     separator: '#00000014',
     alternateSeparator: '#0000000F',
-    field: '#F1F1F3',
+    field: defaultConfig.themes.light.gray2,
     fieldError: '#FF3B3014',
     offlineAmountLower: '#B42335',
     offlineAmountHigher: '#2056BA',
@@ -76,11 +84,55 @@ export const appColors = {
   },
 } as const;
 
-export const appRadii = { tiny: 4, small: 8, control: 12, card: 16, sheet: 20 } as const;
-export const appSpacing = { tiny: 2, small: 4, compact: 8, gap: 12, page: 16, large: 32 } as const;
+export const appRadii = {
+  tiny: 4,
+  small: 8,
+  control: 12,
+  card: 16,
+  sheet: 20,
+  pill: 1000,
+} as const;
+export const appSpacing = {
+  tiny: 2,
+  small: 4,
+  compact: 8,
+  gap: 12,
+  page: 16,
+  group: 24,
+  section: 32,
+  large: 32,
+} as const;
 export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
+export const appBorders = { outline: 1, separator: 2, focus: 2, focusOffset: 2 } as const;
+export const appIconSizes = { header: 22, navigation: 24, list: 20, navigationCue: 18 } as const;
 
-/** Shared metrics: Inter Text for UI copy, Inter Display for large text and amounts. */
+/** Existing control geometry, shared by components and the in-app catalog. */
+export const appButtonSizes = {
+  xxsmall: { height: 32, icon: 14, text: 'label3' },
+  xsmall: { height: 36, icon: 16, text: 'label2' },
+  small: { height: 40, icon: 18, text: 'label2' },
+  medium: { height: 48, icon: 20, text: 'label1' },
+  large: { height: 56, icon: 24, text: 'label1' },
+} as const;
+
+export const appButtonStates = {
+  pressedScale: 0.98,
+  hoverOpacity: 0.85,
+  pressOpacity: 0.65,
+  disabledTextOpacity: 0.4,
+} as const;
+
+/** Preserve existing motion; the spinner keeps its own established implementation. */
+export const appMotion = {
+  duration: { switch: 140, sheet: 250 },
+  animations: {
+    bouncy: { type: 'spring', damping: 10, mass: 0.9, stiffness: 100 },
+    lazy: { type: 'timing', duration: 300 },
+    quick: { type: 'spring', damping: 20, mass: 1, stiffness: 250 },
+  },
+} as const;
+
+/** Committed typography reduced by 10%, rounded to whole points; control/icon geometry is unchanged. */
 export const appTypography = {
   display: {
     fontFamily: '$display',
@@ -91,28 +143,35 @@ export const appTypography = {
   },
   amount: {
     fontFamily: '$display',
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 29,
+    lineHeight: 36,
+    fontWeight: '600',
+    letterSpacing: 0,
+  },
+  amountSmall: {
+    fontFamily: '$display',
+    fontSize: 25,
+    lineHeight: 32,
     fontWeight: '600',
     letterSpacing: 0,
   },
   title1: {
     fontFamily: '$display',
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 29,
+    lineHeight: 36,
     fontWeight: '600',
     letterSpacing: 0,
   },
-  title2: { fontSize: 24, lineHeight: 32, fontWeight: '600', letterSpacing: 0 },
-  title3: { fontSize: 20, lineHeight: 28, fontWeight: '600', letterSpacing: 0 },
-  label1: { fontSize: 16, lineHeight: 24, fontWeight: '500', letterSpacing: 0.08 },
-  label2: { fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: 0.07 },
-  label3: { fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 0.12 },
-  body1: { fontSize: 16, lineHeight: 24, fontWeight: '400', letterSpacing: 0.08 },
-  body2: { fontSize: 14, lineHeight: 20, fontWeight: '400', letterSpacing: 0.07 },
-  body3: { fontSize: 12, lineHeight: 16, fontWeight: '400', letterSpacing: 0.12 },
-  caption: { fontSize: 10, lineHeight: 14, fontWeight: '500', letterSpacing: 0.1 },
-  mono: { fontSize: 16, lineHeight: 24, fontWeight: '400', letterSpacing: 0.5 },
+  title2: { fontSize: 22, lineHeight: 29, fontWeight: '600', letterSpacing: 0 },
+  title3: { fontSize: 18, lineHeight: 25, fontWeight: '600', letterSpacing: 0 },
+  label1: { fontSize: 14, lineHeight: 22, fontWeight: '500', letterSpacing: 0.08 },
+  label2: { fontSize: 13, lineHeight: 18, fontWeight: '500', letterSpacing: 0.07 },
+  label3: { fontSize: 11, lineHeight: 14, fontWeight: '500', letterSpacing: 0.12 },
+  body1: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: 0.08 },
+  body2: { fontSize: 13, lineHeight: 18, fontWeight: '400', letterSpacing: 0.07 },
+  body3: { fontSize: 11, lineHeight: 14, fontWeight: '400', letterSpacing: 0.12 },
+  caption: { fontSize: 9, lineHeight: 13, fontWeight: '500', letterSpacing: 0.1 },
+  mono: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: 0.5 },
 } as const;
 
 export function createAppColorTheme(appearance: keyof typeof appColors) {
@@ -149,6 +208,11 @@ export function createAppColorTheme(appearance: keyof typeof appColors) {
     borderColorHover: c.secondaryText,
     borderColorFocus: c.accent,
     placeholderColor: c.secondaryText,
+    // Legacy accentColor/onAccent remain primary aliases for existing wallet controls.
+    primaryColor: c.accent,
+    onPrimary: c.onAccent,
+    accentBackground: appAccent.background,
+    accentForeground: appAccent.foreground,
     accentColor: c.accent,
     onAccent: c.onAccent,
     offlineAmountLower: c.offlineAmountLower,

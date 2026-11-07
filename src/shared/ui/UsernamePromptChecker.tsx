@@ -61,19 +61,17 @@ export function UsernamePromptChecker() {
   ]);
 
   return (
-    <AppBottomSheet ref={sheetRef} snapPoints={['43%']}>
-      <YStack p="$4" gap="$4" items="center" flex={1}>
+    <AppBottomSheet title="Claim your username" ref={sheetRef}>
+      <YStack gap="$4" items="center">
         <View p="$3" bg="$blue9" rounded={1000} mb="$2">
           <AtSign size={32} color="$onAccent" />
         </View>
-        <Text fontSize={20} fontWeight="bold" textAlign="center">
-          Claim Your Free Username
-        </Text>
-        <Text fontSize={16} color="$color11" textAlign="center" marginBottom="$4">
+
+        <Text fontSize={14} color="$color11" textAlign="center" marginBottom="$4">
           It looks like you haven't claimed a bey.cash username yet. Claim one now to make it easier
           for friends to send you money!
         </Text>
-        <XStack space="$3" width="100%" justifyContent="center" marginTop="auto">
+        <XStack space="$3" width="100%" justifyContent="center" marginTop="$2">
           <AppButton
             variant="default"
             emphasis="text"

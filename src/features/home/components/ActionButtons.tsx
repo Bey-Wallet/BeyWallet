@@ -1,12 +1,11 @@
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { BUIActionButton } from '~/shared/ui/BUI/BUIButton';
 import React, { useRef, useCallback } from 'react';
-import { Text, View, XStack, useTheme } from 'tamagui';
-import { Scan } from '@tamagui/lucide-icons';
+import { XStack } from 'tamagui';
+import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import ArrowDownIcon from '~/shared/icons/ArrowDown';
-import SendIcon from '~/shared/icons/Send';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
+import { appSpacing } from '~/shared/theme/appearance';
 
 function HomeAction({
   label,
@@ -23,41 +22,19 @@ function HomeAction({
   iconStrokeWidth?: number;
   onPress: () => void;
 }) {
-  const theme = useTheme();
-  const iconColor = String(theme.color.val);
-
   return (
-    <AppPressable
+    <BUIActionButton
       flex={1}
-      minWidth={0}
-      minHeight={80}
-      rounded="$6"
-      p={12}
-      gap={12}
-      items="flex-start"
-      justify="space-between"
-      bg="$buttonDefaultSecondary"
-      hoverStyle={{
-        bg: '$buttonDefaultSecondaryHover',
-      }}
-      pressStyle={{
-        bg: '$buttonDefaultSecondaryPress',
-        scale: 0.98,
-      }}
+      title={label}
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
     >
-      <View aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Icon
-          size={iconSize}
-          color={iconColor}
-          {...(iconStrokeWidth !== undefined ? { strokeWidth: iconStrokeWidth } : {})}
-        />
-      </View>
-      <Text color="$color" fontSize={14} lineHeight={20} fontWeight="600" flexShrink={1}>
-        {label}
-      </Text>
-    </AppPressable>
+      <Icon
+        size={iconSize}
+        color="$buttonDefaultSecondaryText"
+        {...(iconStrokeWidth !== undefined ? { strokeWidth: iconStrokeWidth } : {})}
+      />
+    </BUIActionButton>
   );
 }
 
@@ -82,10 +59,14 @@ export default React.memo(function ActionButtons() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     actionSheetRef.current?.present('send');
   }, []);
+  const handleTransfer = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(modals)/swap');
+  }, [router]);
 
   return (
     <>
-      <XStack gap={8} items="stretch" width="100%">
+      <XStack gap={appSpacing.compact} items="stretch" width="100%">
         <HomeAction
           label="Scan"
           accessibilityLabel="Scan QR code"
@@ -94,8 +75,9 @@ export default React.memo(function ActionButtons() {
           iconStrokeWidth={3}
           onPress={handleScan}
         />
-        <HomeAction label="Receive" icon={ArrowDownIcon} onPress={handleReceive} />
-        <HomeAction label="Send" icon={SendIcon} onPress={handleSend} />
+        <HomeAction label="Transfer" icon={ArrowRightLeft} onPress={handleTransfer} />
+        <HomeAction label="Receive" icon={ArrowDown} onPress={handleReceive} />
+        <HomeAction label="Send" icon={ArrowUp} onPress={handleSend} />
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />

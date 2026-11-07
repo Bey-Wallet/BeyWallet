@@ -2,6 +2,10 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { MerchantLightningStage } from '~/features/payments/receive/MerchantLightningStage';
 const mockCreate = jest.fn();
+const mockMarkPos = jest.fn(async (_origin: unknown) => {});
+jest.mock('~/services/wallet/historyService', () => ({
+  historyService: { markPosOrigin: (origin: unknown) => mockMarkPos(origin) },
+}));
 const mockRedeem = jest.fn();
 const mockOffline = jest.fn();
 const mockUnsubscribe = jest.fn();
@@ -57,6 +61,11 @@ it('creates one invoice across renders and accepts only redemption for that mint
   await act(async () => tree.update(<MerchantLightningStage {...props} />));
   expect(mockCreate).toHaveBeenCalledTimes(1);
   expect(mockCreate).toHaveBeenCalledWith('mint-a', 64);
+  expect(mockMarkPos).toHaveBeenCalledWith({
+    kind: 'quote',
+    mintUrl: 'mint-a',
+    reference: 'sale-quote',
+  });
   expect(props.onReceived).not.toHaveBeenCalled();
   await act(async () => {
     mockListener({ mintUrl: 'mint-b', quoteId: 'sale-quote' });
@@ -71,6 +80,16 @@ it('passes the sale note to invoice creation', async () => {
     tree = create(<MerchantLightningStage {...props} note="Coffee" />);
   });
   expect(mockCreate).toHaveBeenCalledWith('mint-a', 64, 'Coffee');
+});
+
+it('retries saving POS provenance without creating a second invoice', async () => {
+  mockMarkPos.mockRejectedValueOnce(new Error('Database busy'));
+  await open();
+  expect(tree.root.findAllByType('Payment' as any)).toHaveLength(0);
+  await act(async () => tree.root.findByType('Button' as any).props.onPress());
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  expect(mockMarkPos).toHaveBeenCalledTimes(2);
+  expect(tree.root.findByType('Payment' as any).props.quoteId).toBe('sale-quote');
 });
 
 it('does not confirm a failed collection and prevents duplicate manual redemption', async () => {

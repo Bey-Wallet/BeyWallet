@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Text, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
+import { MintCard, MintRows, MintSection, MintDetailRow, MintText as Text } from './MintUI';
 import { Activity, RefreshCw, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { MintAboutRows } from './MintAboutRows';
+import { appSpacing } from '~/shared/theme/appearance';
 
 export function MintOverview({
   url,
@@ -21,6 +22,9 @@ export function MintOverview({
   connectionCheckedAt?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const description =
+    (typeof info.description_long === 'string' && info.description_long.trim()) ||
+    (typeof info.description === 'string' && info.description.trim());
   const radar = useRadarHealth(url);
   const list = useCashuHealthList();
   const monitoredMint = list.data?.find((mint) => mint.url === mintHealthUrl(url));
@@ -37,33 +41,34 @@ export function MintOverview({
           : 'Unavailable';
 
   return (
-    <YStack gap="$4">
+    <YStack gap={appSpacing.group}>
       {(radar.data?.isTest || monitoredMint?.isTest) && (
-        <Text color="$orange10" fontSize={14} accessibilityRole="alert">
+        <Text kind="body2" color="$orange10" accessibilityRole="alert">
           Test mint · Not real bitcoin
         </Text>
       )}
       {typeof info.motd === 'string' && info.motd.trim() && (
-        <YStack gap="$2">
-          <Text color="$gray10" fontSize={12}>
-            Message from the mint
-          </Text>
-          <Text color="$color" fontSize={14}>
-            {info.motd}
-          </Text>
-        </YStack>
+        <MintSection title="Message from the mint">
+          <MintCard>
+            <Text kind="body2">{info.motd}</Text>
+          </MintCard>
+        </MintSection>
       )}
-      <YStack gap="$2">
-        <Text color="$gray10" fontSize={14} fontWeight="600">
-          Mint details
-        </Text>
-        <ListTable compact>
-          <MintAboutRows url={url} info={info} />
-        </ListTable>
-      </YStack>
-      <YStack gap="$2">
-        <ListTable compact>
-          <ListTableRow
+      {description && (
+        <MintSection title="About">
+          <MintCard>
+            <Text kind="body2">{description}</Text>
+          </MintCard>
+        </MintSection>
+      )}
+      <MintSection title="Overview">
+        <MintRows>
+          <MintAboutRows url={url} info={info} showDescription={false} />
+        </MintRows>
+      </MintSection>
+      <MintSection title="Connection and reliability">
+        <MintRows>
+          <MintDetailRow
             label="Connection"
             value={
               connection === 'checking'
@@ -87,7 +92,7 @@ export function MintOverview({
             }
           />
 
-          <ListTableRow
+          <MintDetailRow
             label="Reliability"
             icon={Activity}
             value={reliability}
@@ -110,11 +115,11 @@ export function MintOverview({
               showConnection={false}
             />
           )}
-        </ListTable>
-        <Text color="$gray10" fontSize={12}>
+        </MintRows>
+        <Text kind="body3" color="$gray10" px={16} pt={8}>
           Uptime: {source} · Does not verify fund safety.
         </Text>
-      </YStack>
+      </MintSection>
     </YStack>
   );
 }

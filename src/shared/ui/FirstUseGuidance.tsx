@@ -35,15 +35,9 @@ export function FirstUseGuidance({
   if (dismissed) return null;
   const { title, description } = explanations[topic];
   return (
-    <YStack
-      rounded="$6"
-      bg="$buttonDefaultSecondary"
-      p="$3"
-      gap="$1"
-      mb={spaceBelow ? '$3' : undefined}
-    >
+    <YStack rounded="$6" bg="$gray2" p="$3" gap="$1" mb={spaceBelow ? '$3' : undefined}>
       <XStack items="center" gap="$2">
-        <Text fontFamily="$body" {...appTypography.label2} color="$color" flex={1}>
+        <Text fontFamily="$body" {...appTypography.label1} color="$color" flex={1}>
           {title}
         </Text>
         <AppIconButton
@@ -56,7 +50,7 @@ export function FirstUseGuidance({
           onPress={() => dismiss(topic)}
         />
       </XStack>
-      <Text fontFamily="$body" {...appTypography.body3} color="$gray10">
+      <Text fontFamily="$body" {...appTypography.body2} color="$gray10">
         {description}
       </Text>
     </YStack>

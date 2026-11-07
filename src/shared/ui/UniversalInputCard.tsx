@@ -40,6 +40,8 @@ export interface UniversalInputCardProps {
   scrollComponent?: React.ElementType;
   inputComponent?: React.ElementType;
   bottomInset?: number;
+  /** A parent sheet owns scrolling and safe-area padding. */
+  contentSized?: boolean;
   onProcessingChange?: (processing: boolean) => void;
   label?: string;
   placeholder?: string;
@@ -59,6 +61,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       scrollComponent: ScrollComponent = ScrollView,
       inputComponent: InputComponent,
       bottomInset = 0,
+      contentSized = false,
       onProcessingChange,
       label = 'Payment details',
       placeholder = 'Token, request, invoice, address, LNURL or link',
@@ -79,6 +82,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const navigating = useRef(false);
     const stacked = layout === 'stacked';
     const screen = layout === 'screen';
+    const ScreenContainer = contentSized ? YStack : ScrollComponent;
     useEffect(
       () => () => {
         ++generation.current;
@@ -263,8 +267,8 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         rounded={screen ? '$6' : undefined}
         fontFamily="$body"
         fontWeight="400"
-        fontSize={screen ? 14 : compact && !stacked ? '$3' : '$4'}
-        lineHeight={screen ? 20 : stacked ? 24 : compact ? 20 : undefined}
+        fontSize={screen ? 13 : compact && !stacked ? '$3' : '$4'}
+        lineHeight={screen ? 18 : stacked ? 22 : compact ? 18 : undefined}
         color="$color"
         p={10}
         flex={stacked || screen ? undefined : 1}
@@ -293,12 +297,16 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
 
     if (screen)
       return (
-        <ScrollComponent
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <ScreenContainer
+          {...(contentSized
+            ? {}
+            : {
+                style: { flex: 1 },
+                showsVerticalScrollIndicator: false,
+                keyboardShouldPersistTaps: 'handled',
+              })}
         >
-          <YStack gap="$4" pb={Math.max(bottomInset, 16)}>
+          <YStack gap="$4" pb={contentSized ? 0 : Math.max(bottomInset, 16)}>
             <View position="relative" testID="payment-input-field">
               {input}
               {hasText && (
@@ -317,7 +325,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               )}
             </View>
             {validationError && (
-              <Text fontFamily="$body" fontSize={12} color="$red10" accessibilityRole="alert">
+              <Text fontFamily="$body" fontSize={11} color="$red10" accessibilityRole="alert">
                 {validationError}
               </Text>
             )}
@@ -338,7 +346,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
               </AppButton>
             </XStack>
           </YStack>
-        </ScrollComponent>
+        </ScreenContainer>
       );
 
     if (stacked)
@@ -351,7 +359,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
           minHeight={132}
           borderWidth={1}
           borderColor={validationError ? '$red8' : '$borderColor'}
-          bg="$gray3"
+          bg="$gray2"
         >
           {input}
           <XStack width="100%" items="center" justify="space-between" gap="$2" flexWrap="wrap">
@@ -416,7 +424,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         borderWidth={1}
         items="center"
         borderColor={validationError ? '$red10' : compact ? 'transparent' : '$gray4'}
-        bg={compact ? '$buttonDefaultSecondary' : '$gray3'}
+        bg="$gray2"
       >
         <XStack
           width={compact ? '100%' : undefined}

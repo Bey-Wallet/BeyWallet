@@ -26,10 +26,10 @@ beforeEach(() => {
 });
 
 it.each([
-  ['standard', false, 32, 14],
-  ['standard', true, 32, 14],
-  ['prominent', false, 40, 16],
-  ['prominent', true, 40, 16],
+  ['standard', false, 29, 13],
+  ['standard', true, 29, 13],
+  ['prominent', false, 40, 14],
+  ['prominent', true, 40, 14],
 ] as const)(
   'uses %s amount sizing independently of compact=%s',
   async (size, compact, primary, secondary) => {
@@ -62,7 +62,7 @@ it.each(['USD', 'EUR', 'INR'])(
     const fiat = paymentAmounts(10000, 'FIAT', currency, true, 100000);
     expect(sats.primary).toBe('10,000 sat');
     expect(fiat.primary).toBe(sats.secondary);
-    expect(fiat.secondary).toBe('₿10,000');
+    expect(fiat.secondary).toBe('₿\u202f10,000');
   },
 );
 
@@ -80,7 +80,7 @@ it.each(['SATS', 'FIAT'] as const)(
       secondary: null,
     });
     expect(paymentAmounts(-10000, primary, 'NONE', true)).toEqual({
-      primary: '₿-10,000',
+      primary: '₿\u202f-10,000',
       secondary: null,
     });
     expect(tree.root.findAllByProps({ testID: 'amount-secondary-amount' })).toHaveLength(0);
@@ -103,16 +103,16 @@ it.each([undefined, 0, NaN, Infinity, -1])(
 );
 
 it('retains a real zero amount with an available conversion', () => {
-  expect(paymentAmounts(0, 'FIAT', 'USD', false, 100000).primary).toBe('$0.00');
+  expect(paymentAmounts(0, 'FIAT', 'USD', false, 100000).primary).toBe('$\u202f0.00');
 });
 
 it('shows sub-cent conversions in both primary and secondary payment amounts', () => {
   expect(paymentAmounts(1, 'SATS', 'USD', false, 100000)).toEqual({
     primary: '1 sat',
-    secondary: '<$0.01',
+    secondary: '<$\u202f0.01',
   });
   expect(paymentAmounts(1, 'FIAT', 'USD', false, 100000)).toEqual({
-    primary: '<$0.01',
+    primary: '<$\u202f0.01',
     secondary: '1 sat',
   });
 });

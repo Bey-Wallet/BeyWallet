@@ -205,7 +205,7 @@ export default function PeopleSearchScreen() {
           {results.map((person, i) => (
             <XStack
               key={i}
-              bg="$gray3"
+              bg="$gray2"
               p="$3"
               rounded="$4"
               items="center"
@@ -246,7 +246,7 @@ export default function PeopleSearchScreen() {
               {acceptedPeople.map((person, i) => (
                 <XStack
                   key={`fav-${i}`}
-                  bg="$gray3"
+                  bg="$gray2"
                   p="$3"
                   rounded="$4"
                   items="center"
@@ -292,7 +292,7 @@ export default function PeopleSearchScreen() {
                 return (
                   <XStack
                     key={name}
-                    bg="$gray3"
+                    bg="$gray2"
                     p="$3"
                     rounded="$4"
                     items="center"

@@ -225,6 +225,7 @@ export function RootLayoutNav() {
       <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <YStack flex={1} bg="$background">
         <Stack
+          initialRouteName="(tabs)"
           screenOptions={{
             headerTitleStyle: { fontFamily: 'InterTextSemiBold', fontWeight: 'normal' },
             headerBackTitleStyle: { fontFamily: 'InterTextRegular' },

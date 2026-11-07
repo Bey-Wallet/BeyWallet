@@ -252,18 +252,9 @@ export function P2PKAmountStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector & Balance Row */}
         <MintBalanceRow
           activeMint={activeMint}
@@ -281,13 +272,25 @@ export function P2PKAmountStage({
           maxDisabled={balance === 0}
         />
 
+        {/* NPUB / Pubkey Input Row */}
+        <DestinationInputRow
+          value={receiverPubkey}
+          onChangeText={setReceiverPubkey}
+          placeholder="Hex public key, npub, or nprofile"
+          onPaste={handlePaste}
+          onScan={handleOpenScanner}
+          defaultIcon={<KeyRound size="$1.5" color="$accent5" strokeWidth={2.5} />}
+          isError={isInvalidPubkey}
+        />
         {/* Card Box Container */}
         <YStack
           width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$4"
-          py="$5"
           items="center"
           gap="$3"
           borderWidth={0}
@@ -306,7 +309,6 @@ export function P2PKAmountStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -332,17 +334,6 @@ export function P2PKAmountStage({
             )}
           </YStack>
         </YStack>
-
-        {/* NPUB / Pubkey Input Row */}
-        <DestinationInputRow
-          value={receiverPubkey}
-          onChangeText={setReceiverPubkey}
-          placeholder="Hex public key, npub, or nprofile"
-          onPaste={handlePaste}
-          onScan={handleOpenScanner}
-          defaultIcon={<KeyRound size="$1.5" color="$accent5" strokeWidth={2.5} />}
-          isError={isInvalidPubkey}
-        />
       </YStack>
 
       <NumericKeypad

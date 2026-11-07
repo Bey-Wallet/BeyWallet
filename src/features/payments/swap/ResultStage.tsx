@@ -75,12 +75,12 @@ export function ResultStage({
         />
       )}
       {status === 'pending' && (
-        <Text color="$gray10" fontSize={12} px="$4" py="$3">
+        <Text color="$gray10" fontSize={11} px="$4" py="$3">
           The transfer will continue checking automatically. You can close this screen.
         </Text>
       )}
       {onRetry && (
-        <AppButton size="medium" emphasis="secondary" onPress={onRetry}>
+        <AppButton size="large" emphasis="secondary" onPress={onRetry}>
           Try again
         </AppButton>
       )}

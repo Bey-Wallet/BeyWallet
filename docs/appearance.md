@@ -4,6 +4,9 @@ Screen headers use centered `ModalHeaderTitle` text and the canvas background, w
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
+Shared bottom sheets use `$background` with a 1-point `$borderColor` top border.
+Pending payment screens use short header titles (at most two words) and a right-side header icon
+for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
 step; `X` dismisses a standalone modal, scanner, root sheet, or finished flow. Nested sheet steps
 use a back arrow. Other header actions stay on the right. Screen-specific callbacks, loading
@@ -13,10 +16,40 @@ Utility icon buttons, including Ghost buttons, use proportional 14/16/18/20/24-p
 from xxsmall through large. An explicit `iconSize` overrides the glyph size without shrinking
 the touch target. Home action cards, tab icons, and status artwork retain their own sizing.
 
+My addresses follows the pending-payment layout with a BUI header, standalone QR and
+neutral address card. The header uses a back arrow in Settings and a close control in the
+receiving modal, with sharing and management in its overflow menu. Ecash/Lightning switches
+replace the header title using text tabs with a selected underline. A horizontal pager
+switches addresses using the same interaction as People. Full addresses and the npub wrap
+inside compact neutral cards, with a text-emphasis icon-only Copy button matching the small
+card title size in each card header. QR
+modules remain black on white in both themes. A small secondary payment request/invoice
+action sits below the scroll area with safe-area padding. Lightning
+setup/loading, verified usernames and exact QR/copy/share payloads retain their guards.
+
 `src/shared/theme/appearance.ts` defines semantic colors, typography, spacing, dimensions and
 roundness. The existing `dark` and `light` themes apply them through the current provider.
 Brand accents are white in dark mode and black in light mode, with the opposite foreground
 available as `$onAccent`. Existing blue aliases resolve to neutral colors for compatibility.
+
+Home follows the supplied Tangem reference for composition while keeping Bey's theme and type
+sizes. Page edges are 16 points, the centered balance has a 160-point minimum height, equal
+24-point vertical padding and matching 16-point gaps before the balance and actions. Its
+secondary currency remains a compact neutral pill button for switching sats and fiat: 36 points
+visually, 8-point horizontal padding and an expanded 48-point touch target. The full main balance,
+including decimals, uses `$color` at full opacity. Scan, Transfer, Receive and Send fill the row as four equal
+columns. Each circle occupies 80% of its column with a 48-point minimum diameter and its label
+outside. There are 8 points between circle and label, 8 points between actions and a
+32-point gap before the mint
+panel. Connected mints share one `$buttonDefaultSecondary` panel with 16-point corners and
+horizontal padding, circular 40-point artwork and 56-point minimum rows. Names and amounts use
+14-point medium text, and hostnames use 11-point muted text. All actions retain at
+least 48-point touch targets; enlarged system text can grow the balance and list naturally.
+The visual reference is [Tangem's Android UI source](https://github.com/tangem/tangem-app-android/tree/master/core/ui/src/main/java/com/tangem/core/ui).
+
+Currency prefixes have a narrow, non-breaking gap before the amount across fiat formatting, Bitcoin amounts and
+amount entry (for example `$ 1,234.50`, `₹ 1,234.50` and `₿ 12,500`). Existing suffix placement,
+localized decimal/group separators, signs and lower display limits remain intact.
 
 The Point of sale flow is an explicit visual exception. Its local `light_pos` theme uses lime
 (`#D4FF5A`) canvas backgrounds and black (`#000000`) typography in both app appearances.
@@ -40,8 +73,9 @@ and disabled fills stay neutral, and separators remain subtle. Dark-mode colors 
 Color roles include page and alternate backgrounds, content and tinted surfaces, three text
 and icon levels, input backgrounds and error states, separators, three overlay strengths,
 active/inactive tab icons, and enabled/highlighted/disabled button states. Success, warning,
-and error retain their semantic colors. Neutral cards and secondary buttons use the approved
-neutral surface palette. There is one neutral button family; the duplicate Branded family is removed.
+and error retain their semantic colors. Neutral cards use ListTable's `$gray2` surface, with `$gray3`
+for interactive highlights. Secondary buttons retain their button palette. There is one neutral
+button family; the duplicate Branded family is removed.
 
 `AppButton` uses `variant="default" | "critical" | "warning"` for intent, and
 `emphasis="primary" | "secondary" | "ghost" | "text"` for presentation. Primary is filled;
@@ -52,31 +86,48 @@ loading, disabled state, and native link semantics remain supported. Switch vari
 
 Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
 open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
-use 10/12/14/16 for captions and body text and 20/24/32 for headings. Pending amounts use 32-point
-primary text and 14-point secondary conversion text. Confirmation screens, final results, and
-transaction details use 40-point primary amounts and 16-point secondary conversions.
+use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
+points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
+headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
+use 40 points. Standard payment amounts use 29-point primary text and 13-point secondary conversions;
+prominent amounts use 40-point primary text and 14-point secondary conversions.
+Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
+reduction. Inter families, tracking, font weights, icons, padding, control heights and system
+accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,
+not repeated scaling. See the [current typography inventory](typography-10-percent.md).
 Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
 amount-input and screen-specific amount-entry sizes remain supported. All button styles use
 SemiBold (600) labels.
 
-Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Every rounded
-button size uses the same **16-point radius** (`$6`). `AppInput`/`AppTextArea` and mode-selector
+Corner radii use 4/8/12/16/20 points for small details, controls, cards, and sheets. Shared labeled
+buttons use a **full pill radius** (`appRadii.pill`) at every size. Icon controls remain circular.
+`AppInput`/`AppTextArea` and mode-selector
 triggers default to 12 points (`$5`).
 Cards and grouped lists use **16 points** (`$6`) with clipped child rows; sheets use **20 points**.
 Circular icon controls, avatars, status badges, switch tracks, and the approved toast pill retain
 their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
 conversation cards use the shared card radius. Explicit caller shapes remain available for special
 input contexts; their sizing cannot silently change the default radius.
-Lists default to compact 14-point text with a 48-point minimum row height and 16-point
-horizontal padding. Settings descriptions use 12-point text. Mint details and previews share
+
+Settings → Advanced → BUI provides component previews in the native development client only;
+see [the BUI catalog](new-ui.md). Its preview themes remain separate from production appearances.
+`ListTable` supports `separators={false}`; existing lists keep their default full-width dividers.
+Lists default to compact 14-point primary text with a 48-point minimum row height and 16-point
+horizontal padding. Settings descriptions use 13-point text. Mint details and previews share
 the same base surfaces, clipped corners and full-width 2-point separators as Settings.
-Explicit regular-size tables can use 16-point text and a 56-point minimum. The tab bar is 64 points high,
-plus the device's safe area. Existing button sizes and their minimum 48-point touch targets
+Mint list names use `label1`, with `body2` hostnames; section labels use `label2`. Mint previews use
+`title3` names; mint details use `amountSmall` balances, `label2` conversions and `label3` status
+badges. These top sections use explicit shared roles rather than inherited or separate hero sizes.
+Explicit regular-size tables use 14-point text and a 56-point minimum. The tab bar is 64
+points high, with 24-point icons and the standard top padding, plus the device's bottom safe area.
+Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
 Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
-Home balances and editable amount inputs retain their
-existing sizes. Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
+Home balances use the 40-point display role; editable amounts use responsive 40/29/25/22/18-point
+steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
+every route, feature component, shared surface and the remaining device checks.
+Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.
 Navigation behavior, wallet operations
 and the current spinner implementation remain unchanged. No additional font dependency,
@@ -88,9 +139,18 @@ Switching is disabled while balances are hidden; when fiat currency is None the 
 is absent. Settings retains the fiat-currency picker and removes the redundant Display
 unit toggle. The Home-only visibility guard does not change other currency controls.
 
-Home keeps the balance, Scan/Receive/Send actions, and connected mints together in that order.
-Home's mints use an open list on the page background, with 44-point artwork and compact
-14-point row text. Keep the current semantic font colors and omit the grouped fill and separators.
+Home keeps the balance, Scan/Transfer/Receive/Send actions, and connected mints together in that order.
+Home's mints use a grouped neutral panel with 40-point artwork, compact 14-point row text
+and no separators. A small green circle with a check follows the active mint's name. Visible zero
+balances use `$gray10`; hidden balances retain a uniform color. The header mint selector
+uses a white pill with black text and chevron in dark mode, and black with white text
+and chevron in light mode, with a subtle theme border
+and a clipped circular 32-point mint icon. Its semantic offline treatment is preserved.
+Long mint names truncate while the active check and amount remain visible. Home header
+side controls occupy matching 64-point slots with 48-point touch targets. Tapping or holding
+the main balance toggles privacy with a light haptic. Refresh feedback shares the status area
+above the balance: successful updates briefly show `Updated just now`, then fade away
+(without animation when reduced motion is enabled). Offline and restore status take priority.
 Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
 Recovery progress and incoming payments follow the mints list. Home does not show backup,
 username, or supporter prompt cards; their dedicated destinations remain available.

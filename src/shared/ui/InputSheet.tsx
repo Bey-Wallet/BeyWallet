@@ -34,11 +34,8 @@ export const InputSheet = forwardRef<
     onSave(draft.trim());
   };
   return (
-    <AppBottomSheet ref={sheet} onClose={Keyboard.dismiss}>
-      <YStack p="$4" gap="$4">
-        <Text fontSize={20} fontWeight="600" color="$color">
-          {title}
-        </Text>
+    <AppBottomSheet title={title} ref={sheet} onClose={Keyboard.dismiss}>
+      <YStack gap="$4">
         <BottomSheetTextInput
           accessibilityLabel={title}
           placeholder={placeholder}
@@ -50,10 +47,10 @@ export const InputSheet = forwardRef<
           onSubmitEditing={save}
           style={{
             color: theme.color.val,
-            backgroundColor: theme.gray3.val,
+            backgroundColor: theme.gray2.val,
             borderRadius: 12,
             padding: 16,
-            fontSize: 16,
+            fontSize: 14,
             fontFamily: 'InterTextRegular',
           }}
         />

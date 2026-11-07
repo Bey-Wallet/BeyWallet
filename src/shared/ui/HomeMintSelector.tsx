@@ -1,10 +1,11 @@
+import { BUIHeader } from './BUI/BUIHeader';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { Check, ChevronDown, Sprout, Plus, Landmark, X } from '@tamagui/lucide-icons';
-import { Text, YStack, XStack, View, Avatar, Square } from 'tamagui';
-import { useWindowDimensions } from 'react-native';
+import { Check, ChevronDown, Sprout, Plus, Landmark } from '@tamagui/lucide-icons';
+import { Text, YStack, XStack, View, Square } from 'tamagui';
+
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ import { mintManager } from '~/services/wallet/mintManager';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
+import { appRadii, appSpacing } from '~/shared/theme/appearance';
 
 export interface MintSelectorSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -88,7 +90,14 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
       onPress={() => onSelect(url)}
     >
       {url === 'all' ? (
-        <View width={48} height={48} rounded={10} bg="$gray4" items="center" justify="center">
+        <View
+          width={48}
+          height={48}
+          rounded={appRadii.control}
+          bg="$gray4"
+          items="center"
+          justify="center"
+        >
           <Landmark size={22} color="$gray10" />
         </View>
       ) : (
@@ -97,7 +106,7 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
           src={icon}
           width={48}
           height={48}
-          borderRadius={10}
+          borderRadius={appRadii.control}
           flexShrink={0}
           fallback={<Landmark size={22} color="$gray10" />}
         />
@@ -145,7 +154,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     const hideBalance = useSettingsStore((s) => s.hideBalance);
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const insets = useSafeAreaInsets();
-    const { height } = useWindowDimensions();
     const visibleRef = useRef(false);
     const selectionLock = useRef(false);
     const mounted = useRef(true);
@@ -267,7 +275,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
         }
         return showBitcoinSymbol
-          ? `₿${balance.toLocaleString()}`
+          ? `₿\u202f${balance.toLocaleString()}`
           : `${balance.toLocaleString()} sat`;
       },
       [hideBalance, displayAsSats, btcData?.price, secondaryCurrency, showBitcoinSymbol],
@@ -348,20 +356,6 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       router.push('/(modals)/add-mint');
     }, [router]);
     const checkingMethods = !!method && candidates.length > 0 && capabilities.isPending;
-    const snapPoints = useMemo(
-      () => [
-        Math.min(
-          height * 0.85,
-          Math.max(
-            220,
-            88 +
-              Math.max(choices.length, checkingMethods ? candidates.length : 1) * 76 +
-              Math.max(insets.bottom, 16),
-          ),
-        ),
-      ],
-      [height, choices.length, checkingMethods, candidates.length, insets.bottom],
-    );
     const renderItem = useCallback(
       ({ item }: { item: MintChoice }) => (
         <MintChoiceRow
@@ -381,80 +375,79 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
     return (
       <AppBottomSheet
         ref={sheetRef}
-        snapPoints={snapPoints}
+        scrollable
         canDismiss={switchingUrl === null}
         onOpenChange={handleOpenChange}
       >
-        <YStack flex={1} minWidth={0}>
-          <XStack px="$4" py="$2" items="center" gap="$3">
-            <HeaderIconButton
-              accessibilityLabel="Close mint selector"
-              disabled={locked}
-              icon={X}
-              onPress={handleClose}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-            >
-              Choose mint
-            </Text>
-            <HeaderIconButton
-              accessibilityLabel="Add mint"
-              disabled={locked}
-              icon={Plus}
-              onPress={handleAddMint}
-            />
-          </XStack>
-          {selectionError && (
-            <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
-              {selectionError}
-            </Text>
-          )}
-          <BottomSheetFlatList
-            style={{ flex: 1 }}
-            data={choices}
-            keyExtractor={(item: MintChoice) => item.url}
-            renderItem={renderItem}
-            extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={5}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
-            ListEmptyComponent={
-              <YStack px="$5" py="$6" gap="$3" items="center">
-                {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
-                <Text textAlign="center" color="$gray10">
-                  {checkingMethods
-                    ? 'Checking available mints…'
-                    : capabilities.isError && method
-                      ? 'Could not check available mints.'
-                      : storedMints.length
-                        ? 'No mints match this selection.'
-                        : 'No connected mints yet.'}
+        <BottomSheetFlatList
+          ListHeaderComponent={
+            <>
+              <BUIHeader
+                title="Choose mint"
+                divider
+                navigation="close"
+                navigationLabel="Close mint selector"
+                navigationDisabled={locked}
+                onNavigate={handleClose}
+                actions={
+                  <HeaderIconButton
+                    accessibilityLabel="Add mint"
+                    disabled={locked}
+                    icon={Plus}
+                    onPress={handleAddMint}
+                  />
+                }
+              />
+              {selectionError && (
+                <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
+                  {selectionError}
                 </Text>
-                {method && capabilities.isError && (
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="small"
-                    onPress={() => void capabilities.refetch()}
-                  >
-                    Try again
-                  </AppButton>
-                )}
-              </YStack>
-            }
-          />
-        </YStack>
+              )}
+              <YStack height={appSpacing.gap} />
+            </>
+          }
+          style={{ flex: 1 }}
+          data={choices}
+          keyExtractor={(item: MintChoice) => item.url}
+          renderItem={renderItem}
+          extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            paddingBottom: insets.bottom + appSpacing.page,
+          }}
+          ListEmptyComponent={
+            <YStack px="$5" py="$6" gap="$3" items="center">
+              {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
+              <Text textAlign="center" color="$gray10">
+                {checkingMethods
+                  ? 'Checking available mints…'
+                  : capabilities.isError && method
+                    ? 'Could not check available mints.'
+                    : storedMints.length
+                      ? 'No mints match this selection.'
+                      : 'No connected mints yet.'}
+              </Text>
+              {method && capabilities.isError && (
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="small"
+                  onPress={() => void capabilities.refetch()}
+                >
+                  Try again
+                </AppButton>
+              )}
+            </YStack>
+          }
+        />
       </AppBottomSheet>
     );
   },
@@ -507,22 +500,31 @@ export default function HomeHeaderMintSelector() {
   return (
     <>
       <AppPressable
-        py={4}
+        py={3}
         accessibilityState={{ expanded, busy: isLoading }}
-        rounded="$5"
-        bg={isOffline ? '$red10' : '$blue10'}
-        px={isLoading ? '$3' : '$1.5'}
-        borderWidth={0}
+        rounded={appRadii.control}
+        bg={isOffline ? '$red10' : '$accentColor'}
+        pl={isLoading ? appSpacing.gap : appSpacing.small}
+        pr={appSpacing.gap}
+        borderWidth={1}
+        borderColor={isOffline ? '$red10' : '$accentColor'}
+        accessibilityHint="Choose the active mint"
         disabled={isLoading}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
           sheetRef.current?.present();
         }}
-        maxW={170}
+        maxW={200}
         minW={0}
         flexShrink={1}
-        pressStyle={{ scale: 0.97, opacity: 0.95, bg: isOffline ? '$red11' : '$blue11' }}
+        hoverStyle={{ bg: isOffline ? '$red11' : '$accentColor' }}
+        pressStyle={{
+          scale: 0.97,
+          opacity: 0.95,
+          bg: isOffline ? '$red11' : '$accentColor',
+        }}
         minHeight={36}
+        hitSlop={6}
         flexDirection="row"
         items="center"
         justify="center"
@@ -531,20 +533,21 @@ export default function HomeHeaderMintSelector() {
         {isLoading ? (
           <Spinner size={14} color={isOffline ? 'white' : '$onAccent'} />
         ) : (
-          <Avatar rounded="$3" size="$2" flexShrink={0}>
+          <View width={28} height={28} rounded={appRadii.small} overflow="hidden" flexShrink={0}>
             <MintImage
               mintUrl={activeMint?.mintUrl}
-              width="100%"
-              height="100%"
+              width={28}
+              height={28}
+              borderRadius={appRadii.small}
               src={activeMint?.icon}
             />
-          </Avatar>
+          </View>
         )}
 
         <Text
           {...{
             fontSize: '$3',
-            fontWeight: '700',
+            fontWeight: '600',
             flexShrink: 1,
             minWidth: 0,
             numberOfLines: 1,
@@ -555,8 +558,8 @@ export default function HomeHeaderMintSelector() {
         </Text>
 
         {isLoading ? undefined : (
-          <View pr="$1">
-            <ChevronDown size={22} strokeWidth={3} color={isOffline ? 'white' : '$onAccent'} />
+          <View flexShrink={0}>
+            <ChevronDown size={20} strokeWidth={2.5} color={isOffline ? 'white' : '$onAccent'} />
           </View>
         )}
       </AppPressable>

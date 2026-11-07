@@ -2,7 +2,7 @@ import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { XStack, YStack, Text } from 'tamagui';
+import { YStack, Text } from 'tamagui';
 import { ArrowUpDown, Zap } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -36,7 +36,6 @@ interface InvoiceStageProps {
   isLoading?: boolean;
   disabled?: boolean;
   error?: string | null;
-  amountPresets?: readonly number[];
 }
 
 export function InvoiceStage({
@@ -51,7 +50,6 @@ export function InvoiceStage({
   isLoading,
   disabled,
   error,
-  amountPresets,
 }: InvoiceStageProps) {
   const [isPasting, setIsPasting] = useState(false);
   const {
@@ -271,18 +269,9 @@ export function InvoiceStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack items="center" gap="$1.5" width="100%">
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector & Balance Row */}
         <MintBalanceRow
           activeMint={activeMint}
@@ -300,13 +289,28 @@ export function InvoiceStage({
           maxDisabled={balance === 0}
         />
 
+        {/* Invoice / LN Address Input Row */}
+        <DestinationInputRow
+          value={invoice}
+          onChangeText={setInvoice}
+          placeholder="Lightning address, LNURL or invoice"
+          onPaste={handlePaste}
+          onScan={handleOpenScanner}
+          defaultIcon={<Zap size="$1.5" color="$accent10" />}
+          isPasting={isPasting}
+          isError={invoice.trim().length > 0 && !isValidInvoice}
+          multiline={true}
+        />
+
         {/* Card Box Container */}
         <YStack
           width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
           bg="$gray2"
           rounded="$6"
           p="$4"
-          py="$6"
           items="center"
           gap="$3"
           borderWidth={0}
@@ -334,7 +338,6 @@ export function InvoiceStage({
 
               <BouncyAmount
                 value={formattedDisplayValue}
-                fontSize={dynamicFontSize}
                 prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
                 suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
               />
@@ -364,49 +367,6 @@ export function InvoiceStage({
             </YStack>
           )}
         </YStack>
-        {/* Invoice / LN Address Input Row */}
-        <DestinationInputRow
-          value={invoice}
-          onChangeText={setInvoice}
-          placeholder="Lightning address, LNURL or invoice"
-          onPaste={handlePaste}
-          onScan={handleOpenScanner}
-          defaultIcon={<Zap size="$1.5" color="$accent10" />}
-          isPasting={isPasting}
-          isError={invoice.trim().length > 0 && !isValidInvoice}
-          multiline={true}
-        />
-        {!isBolt11 && amountPresets && (
-          <XStack width="100%" gap="$1.5">
-            {amountPresets.map((sats) => (
-              <AppPressable
-                key={sats}
-                accessibilityRole="button"
-                accessibilityLabel={`${sats.toLocaleString('en-US')} sat`}
-                flex={1}
-                minHeight={48}
-                rounded="$6"
-                bg="$gray2"
-                items="center"
-                justify="center"
-                disabled={disabled || isLoading}
-                pressStyle={{ bg: '$gray3' }}
-                onPress={() => {
-                  setAmount(String(sats));
-                  setLocalInputValue(
-                    inputMode === 'SATS'
-                      ? String(sats)
-                      : btcData?.price
-                        ? currencyService.convertSatsToCurrency(sats, btcData.price).toFixed(2)
-                        : '0',
-                  );
-                }}
-              >
-                <Text fontSize={14} color="$color" fontWeight="500">{`${sats / 1000}k sat`}</Text>
-              </AppPressable>
-            ))}
-          </XStack>
-        )}
       </YStack>
 
       {isBolt11 ? (

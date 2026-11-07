@@ -94,7 +94,7 @@ export function WelcomeStep({
           >
             {hasSavedWallet ? 'Finish Setup' : 'Bitcoin, Reimagined.'}
           </H1>
-          <Text color="$gray10" pb="$4" fontSize="$4" text="center" px="$4" lineHeight={22}>
+          <Text color="$gray10" pb="$4" fontSize="$4" text="center" px="$4" lineHeight={20}>
             {hasSavedWallet
               ? "We found a wallet setup in progress. Let's finish initializing it."
               : 'A beautiful e-cash wallet designed for instant payments, privacy, and full offline support.'}

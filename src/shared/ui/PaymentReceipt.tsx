@@ -72,7 +72,7 @@ export function PaymentReceipt({
             <PaymentStatusIcon status={receiptStatus} />
             <Text
               accessibilityRole="header"
-              fontSize={16}
+              fontSize={14}
               fontWeight="500"
               color="$color"
               textAlign="center"
@@ -88,8 +88,10 @@ export function PaymentReceipt({
             {!!error && (
               <>
                 <AppButton
+                  variant="default"
                   size="small"
-                  emphasis="text"
+                  emphasis="secondary"
+                  fullWidth={false}
                   accessibilityState={{ expanded: details }}
                   onPress={() => setDetails(!details)}
                 >
@@ -107,7 +109,7 @@ export function PaymentReceipt({
         footer={
           <AppButton
             variant="default"
-            emphasis={actionEmphasis}
+            emphasis={actionLabel === 'Done' ? 'secondary' : actionEmphasis}
             size="large"
             fullWidth
             onPress={onClose}
@@ -119,7 +121,7 @@ export function PaymentReceipt({
         {!sheet && (
           <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
         )}
-        <ListTable compact variant="outlined">
+        <ListTable compact variant="filled">
           {receiptStatus === 'pending' && onCheckStatus && (
             <PaymentStatusRow
               status="pending"

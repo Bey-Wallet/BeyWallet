@@ -1,3 +1,4 @@
+import { MintDetailRow, MintRows } from '~/features/mints/components/MintUI';
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Share } from 'react-native';
@@ -138,13 +139,16 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'BottomSheetScrollView' }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useTheme: () => ({}),
+  useThemeName: () => 'dark',
+  Theme: 'Theme',
+  ...Object.fromEntries(
     ['YStack', 'XStack', 'Text', 'H2', 'H3', 'H4', 'Separator', 'ScrollView', 'View', 'Card'].map(
       (name) => [name, name],
     ),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     [
@@ -156,6 +160,9 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Check',
       'X',
       'ChevronLeft',
+      'ChevronRight',
+      'ArrowLeft',
+      'Activity',
       'Sprout',
       'Share2',
       'MessageSquare',
@@ -195,7 +202,8 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: ({ children, ...props }: any) =>
     require('react').createElement('ListTable', props, children),
-  ListTableRow: 'ListTableRow',
+  ListTableRow: ({ value, ...props }: any) =>
+    require('react').createElement('ListTableRow', { ...props, value }, value),
 }));
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
@@ -215,9 +223,15 @@ jest.mock('react-native/Libraries/Modal/Modal', () => ({
 }));
 
 let tree: ReactTestRenderer;
+const advertisedFeatures = () =>
+  tree.root.findAll(
+    (node) =>
+      node.props.accessible === true &&
+      String(node.props.accessibilityLabel ?? '').startsWith('NUT-'),
+  );
 const row = (label: string) =>
   tree.root
-    .findAll((node) => node.type === ('ListTableRow' as any) || node.type === MintInfoRow)
+    .findAll((node) => node.type === MintDetailRow || node.type === MintInfoRow)
     .find((node) => node.props.label === label)!;
 const button = (label: string) =>
   tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === label)!;
@@ -301,15 +315,13 @@ it('shows compact mint facts on preview and keeps reliability in its own card', 
   await act(async () => row('Payment details').props.onPress());
   expect(row('Minimum')).toBeDefined();
   expect(row('Payment details').props.expanded).toBe(true);
-  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
+  expect(tree.root.findAllByType(MintRows)).toHaveLength(2);
   await act(async () => row('Reliability').props.onPress());
   expect(row('Uptime · 24 hours')).toBeDefined();
   expect(row('Version').props.value).toBe('cdk/0.17');
-  expect(tree.root.findAllByType('ListTable' as any)).toHaveLength(2);
+  expect(tree.root.findAllByType(MintRows)).toHaveLength(2);
   expect(
-    tree.root
-      .findAllByType('ListTableRow' as any)
-      .filter((node) => node.props.label === 'Connection'),
+    tree.root.findAllByType(MintDetailRow).filter((node) => node.props.label === 'Connection'),
   ).toHaveLength(1);
   expect(mockPush).not.toHaveBeenCalled();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
@@ -338,7 +350,7 @@ it('keeps payment limits expandable inline and technical details directly inside
   });
   expect(row('Version').props.value).toBe('cdk/0.17');
   expect(row('URL').props.copyValue).toBe(url);
-  expect(tree.root.findAllByProps({ accessibilityRole: 'text' })).toHaveLength(3);
+  expect(advertisedFeatures()).toHaveLength(3);
   expect(mockPush).not.toHaveBeenCalled();
 });
 
@@ -440,15 +452,14 @@ it('retains the new-mint cap explanation with historical scores', async () => {
   ).toBe(true);
 });
 
-it('shows advertised feature names in two columns with their NUT numbers accessible', async () => {
+it('shows advertised features as BUI list rows with their NUT numbers accessible', async () => {
   await render('technical');
-  const entries = tree.root.findAllByProps({ accessibilityRole: 'text' });
+  const entries = advertisedFeatures();
   expect(entries.map((node) => node.props.accessibilityLabel)).toEqual([
     'NUT-04 · Minting tokens',
     'NUT-05 · Melting tokens',
     'NUT-14 · HTLC locking',
   ]);
-  expect(entries.every((node) => node.props.width === '50%')).toBe(true);
   expect(tree.root.findAllByType('Check' as any)).toHaveLength(3);
 });
 
@@ -470,11 +481,11 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
       />,
     );
   });
-  expect(
-    tree.root
-      .findAllByProps({ accessibilityRole: 'text' })
-      .map((node) => node.props.accessibilityLabel),
-  ).toEqual(['NUT-04 · Minting tokens', 'NUT-14 · HTLC locking', 'NUT-44 · Additional capability']);
+  expect(advertisedFeatures().map((node) => node.props.accessibilityLabel)).toEqual([
+    'NUT-04 · Minting tokens',
+    'NUT-14 · HTLC locking',
+    'NUT-44 · Additional capability',
+  ]);
 });
 
 it('copies a long public key in full while keeping the displayed value to one line', async () => {
@@ -538,7 +549,7 @@ it('omits terms links that are not valid public web URLs', async () => {
     'invalid',
   ]) {
     await act(async () => tree.update(<MintTermsRow url={link} />));
-    expect(tree.root.findAllByType('ListTableRow' as any)).toHaveLength(0);
+    expect(tree.root.findAllByType(MintDetailRow)).toHaveLength(0);
   }
 });
 
@@ -562,8 +573,12 @@ it('trims days outside recorded history while retaining gaps and zero-uptime day
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
   await render('preview');
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Restore funds' })).toHaveLength(0);
   await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Share mint' }).props.onPress(),
+    tree.root
+      .findByType('Screen' as any)
+      .props.options.headerRight()
+      .props.onAction('share'),
   );
   expect(share).toHaveBeenCalledWith({ message: url });
   await act(async () =>
@@ -651,12 +666,20 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
   expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
 });
 
-it('shows bullet points and remembers the checkbox only after a successful connection', async () => {
+it('shows the full warning list and remembers the checkbox only after a successful connection', async () => {
   await render('preview');
   await act(async () => button('Connect').props.onPress());
+  const warnings = [
+    'This mint holds the bitcoin backing your ecash.',
+    'You rely on its operator to redeem your ecash. Only connect if you trust them.',
+    'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
+  ];
   expect(
-    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '•'),
-  ).toHaveLength(3);
+    tree.root
+      .findAllByType(MintDetailRow)
+      .filter((node) => warnings.includes(node.props.label))
+      .map((node) => node.props.label),
+  ).toEqual(warnings);
   const checkbox = () => tree.root.findByProps({ accessibilityRole: 'checkbox' });
   expect(checkbox().props.accessibilityState.checked).toBe(false);
   await act(async () => checkbox().props.onPress());

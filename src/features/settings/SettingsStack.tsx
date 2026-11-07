@@ -6,6 +6,8 @@ import { useTheme } from 'tamagui';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 import { settingsTitles } from './settingsCatalog';
 import { settingsReturnPath } from './settingsNavigation';
+import { isDevelopmentClient } from '~/shared/utils/developmentClient';
+import { buiRouteNames } from './bui/buiRoutes';
 
 export default function SettingsStack() {
   const theme = useTheme();
@@ -29,6 +31,12 @@ export default function SettingsStack() {
           />
         ),
       })}
-    />
+    >
+      <Stack.Protected guard={isDevelopmentClient()}>
+        {buiRouteNames.map((name) => (
+          <Stack.Screen key={name} name={name} />
+        ))}
+      </Stack.Protected>
+    </Stack>
   );
 }

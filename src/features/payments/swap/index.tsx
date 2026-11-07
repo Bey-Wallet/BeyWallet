@@ -222,7 +222,7 @@ export default function SwapScreen() {
               />
             </ListTable>
             {!quoting && error && (
-              <AppButton size="medium" emphasis="secondary" onPress={() => setStep('amount')}>
+              <AppButton size="large" emphasis="secondary" onPress={() => setStep('amount')}>
                 Change amount or retry
               </AppButton>
             )}

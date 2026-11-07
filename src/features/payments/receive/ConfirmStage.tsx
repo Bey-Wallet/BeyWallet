@@ -5,12 +5,13 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
+import { appTypography } from '~/shared/theme/appearance';
 
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
-import { Text } from 'tamagui';
-import { RefreshCw } from '@tamagui/lucide-icons';
+import { Text, XStack } from 'tamagui';
+import { AlertTriangle, RefreshCw } from '@tamagui/lucide-icons';
 
 import * as Haptics from 'expo-haptics';
 
@@ -242,9 +243,10 @@ export function ConfirmStage({
         {!offline && (
           <AppButton
             variant="default"
-            emphasis="text"
-            flex={1}
+            emphasis="secondary"
             size="small"
+            fullWidth={false}
+            self="center"
             loading={isSavingLater}
             disabled={isLoading || isSavingLater}
             onPress={async () => {
@@ -257,7 +259,7 @@ export function ConfirmStage({
               }
             }}
           >
-            {isSavingLater ? 'Saving...' : 'Claim Later'}
+            {isSavingLater ? 'Saving...' : 'Claim later'}
           </AppButton>
         )}
         {offline && (
@@ -328,11 +330,21 @@ export function ConfirmStage({
           {expiresAt && <ListTableRow label="Expiry" value={timeLeftStr || 'Checking...'} />}
         </ListTable>
         {!isMintTrusted && (
-          <Text color="$orange10" fontSize="$2" textAlign="center">
-            {offline
-              ? 'Saving does not add or trust this mint. Review it when claiming online.'
-              : 'Receiving will add and trust this mint.'}
-          </Text>
+          <XStack width="100%" gap="$2" items="flex-start" accessibilityRole="alert">
+            <AlertTriangle size={18} color="$orange10" flexShrink={0} aria-hidden />
+            <Text
+              fontFamily="$body"
+              {...appTypography.body2}
+              color="$orange10"
+              textAlign="left"
+              flex={1}
+              minWidth={0}
+            >
+              {offline
+                ? 'Saving does not add or trust this mint. Review it when claiming online.'
+                : 'Receiving will add and trust this mint.'}
+            </Text>
+          </XStack>
         )}
       </PaymentStageLayout>
     </>

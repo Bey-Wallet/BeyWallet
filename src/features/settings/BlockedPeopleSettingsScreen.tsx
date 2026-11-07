@@ -121,7 +121,7 @@ export function BlockedPeopleSettingsScreen() {
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
-          backgroundColor: theme.buttonDefaultSecondary?.val,
+          backgroundColor: theme.gray2.val,
           borderRadius: getTokens().radius.$6.val,
           overflow: 'hidden',
         }}
@@ -151,8 +151,8 @@ export function BlockedPeopleSettingsScreen() {
             flexDirection="row"
             items="center"
             gap="$3"
-            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
-            hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+            pressStyle={{ bg: '$gray4' }}
+            hoverStyle={{ bg: '$gray3' }}
           >
             <UserRound size={20} color="$color" />
             <YStack flex={1} gap="$1">

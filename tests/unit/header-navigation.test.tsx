@@ -21,6 +21,7 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',
@@ -33,6 +34,9 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Banknote: 'Banknote',
   Bitcoin: 'Bitcoin',
   Zap: 'Zap',
+  Nfc: 'Nfc',
+  AtSign: 'AtSign',
+  Store: 'Store',
 }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'ScrollView' }));
 jest.mock('expo-haptics', () => ({
@@ -41,6 +45,10 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 jest.mock('~/shared/ui/useScreenHeaderOptions', () => ({ useScreenHeaderOptions: () => ({}) }));
+jest.mock('~/features/nfc/nfcFlow', () => ({ nfcFlow: { openReader: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ __esModule: true, default: () => null }));
@@ -91,7 +99,7 @@ it('uses one left close control at the sheet root and a back arrow for nested ch
   await act(async () => {
     tree = create(<ActionSelectorSheet ref={ref} />);
   });
-  await act(async () => ref.current!.present('send'));
+  await act(async () => ref.current!.present('receive'));
   const button = () => tree.root.findByType('IconButton' as any);
   expect(button().props).toMatchObject({ accessibilityLabel: 'Close', icon: 'X' });
   const bitcoin = tree.root

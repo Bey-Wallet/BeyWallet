@@ -92,7 +92,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                 <Text fontWeight="800" fontSize="$4" color="$color">
                   Only you control your funds
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   Bey Wallet can't hold, freeze, or touch it.
                 </Text>
               </YStack>
@@ -114,7 +114,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                 <Text fontWeight="800" fontSize="$4" color="$color">
                   Your recovery phrase is the key
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   12 words secure your wallet.
                 </Text>
               </YStack>
@@ -129,7 +129,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                 <Text fontWeight="800" fontSize="$4" color="$color">
                   Lose the phrase, lose access
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   No one can recover your wallet for you.
                 </Text>
               </YStack>
@@ -151,7 +151,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                 <Text fontWeight="800" fontSize="$4" color="$color">
                   Mints hold the backing Bitcoin
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   If a mint shuts down, its tokens are lost.
                 </Text>
               </YStack>
@@ -173,7 +173,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
                 <Text fontWeight="800" fontSize="$4" color="$color">
                   Experimental protocol
                 </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={16}>
+                <Text fontSize="$2" color="$gray10" lineHeight={14}>
                   Avoid storing large balances in ecash.
                 </Text>
               </YStack>
@@ -224,7 +224,7 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
           >
             {checked && <Check size={14} color="$onAccent" strokeWidth={4} />}
           </View>
-          <Text fontSize="$3" color={checked ? '$accent5' : '$gray10'} flex={1} lineHeight={18}>
+          <Text fontSize="$3" color={checked ? '$accent5' : '$gray10'} flex={1} lineHeight={16}>
             I understand I'm solely responsible for my recovery phrase, and I agree to the{' '}
             <Text
               color="$accent9"

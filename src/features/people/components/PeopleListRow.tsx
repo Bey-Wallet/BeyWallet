@@ -33,7 +33,7 @@ export const PeopleListRow = React.memo(function PeopleListRow({
         <XStack items="center" gap={5}>
           <Text
             color="$color"
-            fontSize={16}
+            fontSize={14}
             fontWeight={item.unread ? '700' : '600'}
             numberOfLines={1}
             flexShrink={1}
@@ -51,7 +51,7 @@ export const PeopleListRow = React.memo(function PeopleListRow({
           )}
           <Text
             color={item.kind === 'issue' ? '$buttonWarningSecondaryText' : '$gray10'}
-            fontSize={14}
+            fontSize={13}
             numberOfLines={1}
             flexShrink={1}
           >
@@ -62,7 +62,7 @@ export const PeopleListRow = React.memo(function PeopleListRow({
       {(time || item.unread) && (
         <YStack self="stretch" items="flex-end" justify="space-between" maxW="28%" gap={5}>
           {!!time && (
-            <Text fontSize={12} color="$gray10" numberOfLines={1}>
+            <Text fontSize={11} color="$gray10" numberOfLines={1}>
               {time}
             </Text>
           )}

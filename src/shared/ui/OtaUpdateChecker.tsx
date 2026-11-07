@@ -45,8 +45,8 @@ export function OtaUpdateChecker() {
   if (!hasUpdate) return null;
 
   return (
-    <AppBottomSheet ref={sheetRef}>
-      <YStack padding="$4" space="$4" alignItems="center">
+    <AppBottomSheet title="Update available" ref={sheetRef}>
+      <YStack gap="$4" alignItems="center">
         <View
           style={{
             backgroundColor: theme.color5?.val,
@@ -57,10 +57,8 @@ export function OtaUpdateChecker() {
         >
           <Download size={32} color={theme.color?.val} />
         </View>
-        <Text fontSize={20} fontWeight="bold" textAlign="center">
-          Update Available
-        </Text>
-        <Text fontSize={16} color="$color11" textAlign="center" marginBottom="$4">
+
+        <Text fontSize={14} color="$color11" textAlign="center" marginBottom="$4">
           A new version of Bey Wallet is available. Update now to get the latest features and bug
           fixes.
         </Text>

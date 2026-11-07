@@ -1,7 +1,7 @@
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, Text, Input } from 'tamagui';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -67,6 +67,20 @@ export function AmountStage({
   });
   const { fiatEnabled, inputMode, setInputMode, localInputValue, setLocalInputValue } =
     useCurrencyInput(primaryCurrency, secondaryCurrency, amount, btcData?.price);
+  const posFiat = pos && inputMode === 'FIAT';
+  const hasPrice = !!btcData?.price && Number.isFinite(btcData.price) && btcData.price > 0;
+
+  // POS enters minor units (1234 → 12.34); the canonical wallet amount stays in sats.
+  const posMinorUnits = String(Math.round((Number(localInputValue) || 0) * 100));
+  React.useEffect(() => {
+    if (posFiat && hasPrice) {
+      const sats = currencyService.convertCurrencyToSats(
+        Number(localInputValue) || 0,
+        btcData!.price,
+      );
+      if (String(sats) !== amount) setAmount(String(sats));
+    }
+  }, [posFiat, hasPrice, btcData?.price, localInputValue, amount, setAmount]);
 
   const currencySymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency)?.symbol || '$';
@@ -111,6 +125,15 @@ export function AmountStage({
   }, [amount, inputMode]);
 
   const onKeypadChange = (rawVal: string) => {
+    if (posFiat) {
+      if (!/^\d+$/.test(rawVal) || rawVal.length > 11) return;
+      const fiat = (Number(rawVal) / 100).toFixed(2);
+      setLocalInputValue(fiat);
+      if (hasPrice) {
+        setAmount(String(currencyService.convertCurrencyToSats(Number(fiat), btcData!.price)));
+      }
+      return;
+    }
     if (!fiatEnabled && !/^\d*$/.test(rawVal)) return;
     let val = rawVal;
 
@@ -173,18 +196,13 @@ export function AmountStage({
     }
   };
 
-  const handlePreset = (presetSats: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setAmount(presetSats);
-    if (inputMode === 'SATS') {
-      setLocalInputValue(presetSats);
-    } else if (btcData?.price) {
-      const fiat = currencyService.convertSatsToCurrency(Number(presetSats), btcData.price);
-      setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
-    }
-  };
-
   const formattedDisplayValue = useMemo(() => {
+    if (posFiat) {
+      return (Number(localInputValue) || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
     if (!localInputValue || localInputValue === '0') return '0';
     if (inputMode === 'SATS') {
       const num = Number(localInputValue);
@@ -200,27 +218,11 @@ export function AmountStage({
       }
     }
     return localInputValue;
-  }, [localInputValue, inputMode]);
-
-  // Dynamic font size based on string length to scale seamlessly
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
+  }, [localInputValue, inputMode, posFiat]);
 
   return (
-    <YStack flex={1} justify="space-between" gap="$3">
-      <YStack
-        flex={onNoteChange ? 1 : undefined}
-        minHeight={0}
-        items="center"
-        gap="$1.5"
-        width="100%"
-      >
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector Row */}
         <MintBalanceRow
           activeMint={activeMint}
@@ -246,7 +248,7 @@ export function AmountStage({
                   accessibilityLabel="Payment note"
                   maxLength={200}
                   fontFamily="$body"
-                  fontSize={14}
+                  fontSize={13}
                   minHeight={48}
                   width={180}
                   maxWidth="100%"
@@ -265,7 +267,8 @@ export function AmountStage({
         {/* Card Box Container */}
         <YStack
           width="100%"
-          flex={onNoteChange ? 1 : undefined}
+          flex={1}
+          minHeight={0}
           justify="center"
           bg={pos ? 'transparent' : '$gray2'}
           rounded="$6"
@@ -277,13 +280,12 @@ export function AmountStage({
         >
           {/* Amount Display Section */}
           <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize={pos ? 16 : '$3'} fontWeight="500">
+            <Text color="$gray10" fontSize={pos ? 14 : '$3'} fontWeight="500">
               {pos ? 'New sale' : 'Enter Amount'}
             </Text>
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={pos ? Math.min(64, dynamicFontSize + 20) : dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -310,77 +312,19 @@ export function AmountStage({
             )}
           </YStack>
         </YStack>
-        {/* 3 Preset buttons above numpad */}
-        {!onNoteChange && (
-          <XStack width="100%" justify="center" gap="$1.5">
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('1000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                1k
-              </Text>
-            </AppPressable>
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('5000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                5k
-              </Text>
-            </AppPressable>
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('20000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                20k
-              </Text>
-            </AppPressable>
-          </XStack>
-        )}
       </YStack>
 
-      {/* Presets and Numeric Keypad */}
+      {/* Numeric Keypad */}
       <YStack width="100%" gap="$4">
         <NumericKeypad
           appearance={appearance}
-          allowDecimal={fiatEnabled}
+          allowDecimal={!pos && fiatEnabled}
           showAmountDisplay={false}
-          value={localInputValue}
+          value={posFiat ? posMinorUnits : localInputValue}
           onValueChange={onKeypadChange}
           onConfirm={onContinue}
           confirmLabel={confirmLabel}
+          confirmDisabled={posFiat && (!hasPrice || !(Number(amount) > 0))}
         />
       </YStack>
 

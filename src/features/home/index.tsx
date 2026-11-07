@@ -1,5 +1,6 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { RefreshControl, Animated, Easing } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -13,7 +14,7 @@ import BeyIcon from '~/shared/icons/BeyIcon';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
 import { ChevronRight, Zap } from '@tamagui/lucide-icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { appTypography } from '~/shared/theme/appearance';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 // Lazy-load below-the-fold components — they mount AFTER the above-fold
 // content (WalletCard + ActionButtons) is already painted, so the user
@@ -55,14 +56,7 @@ function HomeSkeleton() {
   }, [pulseAnim]);
 
   return (
-    <YStack
-      width="100%"
-      height={300}
-      bg="$buttonDefaultSecondary"
-      rounded="$6"
-      items="center"
-      justify="center"
-    >
+    <YStack width="100%" height={300} bg="$gray2" rounded="$6" items="center" justify="center">
       <Animated.View style={{ opacity: pulseAnim }}>
         <BeyIcon size={40} />
       </Animated.View>
@@ -72,6 +66,7 @@ function HomeSkeleton() {
 
 export function HomeTabScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const pendingLightning = useLightningAddressStore((s) => s.pending.length);
   const queryClient = useQueryClient();
@@ -151,10 +146,19 @@ export function HomeTabScreen() {
         />
       }
     >
-      <YStack flex={1} items="center" gap="$4" px="$4" pt="$2" pb="$20">
+      <YStack
+        flex={1}
+        items="center"
+        gap={appSpacing.group}
+        px={appSpacing.page}
+        pt={appSpacing.page}
+        pb={appDimensions.bar + insets.bottom + appSpacing.group}
+      >
         {/* Above-the-fold: renders immediately */}
-        <WalletCard />
-        <ActionButtons />
+        <YStack width="100%" gap={appSpacing.page} pb={appSpacing.compact}>
+          <WalletCard />
+          <ActionButtons />
+        </YStack>
         <ConnectedMintsCard />
         <RecoveryStatusRow />
         {pendingLightning > 0 && (
@@ -162,14 +166,14 @@ export function HomeTabScreen() {
             width="100%"
             minHeight={56}
             rounded="$6"
-            bg="$buttonDefaultSecondary"
+            bg="$gray2"
             px="$4"
             py="$3"
             flexDirection="row"
             items="center"
             gap="$3"
-            hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            hoverStyle={{ bg: '$gray3' }}
+            pressStyle={{ bg: '$gray4' }}
             accessibilityLabel={`Pending Lightning payments (${pendingLightning})`}
             accessibilityHint="View incoming Lightning payments awaiting collection"
             onPress={() => router.push('/(tabs)/settings/lightning-address-payments' as Href)}

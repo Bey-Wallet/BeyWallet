@@ -1,10 +1,9 @@
+import { BUIHeader } from './BUI/BUIHeader';
 import React from 'react';
 import { KeyboardAvoidingView, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, XStack, YStack } from 'tamagui';
-import { ArrowLeft, X } from '@tamagui/lucide-icons';
+import { YStack } from 'tamagui';
 import { appSpacing } from '~/shared/theme/appearance';
-import { HeaderIconButton } from './HeaderIconButton';
 
 interface AppFullScreenModalProps {
   visible: boolean;
@@ -48,28 +47,16 @@ export function AppFullScreenModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <YStack flex={1} bg="$background" pt={insets.top + appSpacing.gap} pb={insets.bottom}>
-          <XStack px="$4" py="$2" items="center" gap="$3">
-            <HeaderIconButton
-              accessibilityLabel={onBack ? 'Back' : closeLabel}
-              icon={onBack ? ArrowLeft : X}
-              disabled={!canDismiss}
-              onPress={() => {
-                if (canDismiss) (onBack ?? onClose)();
-              }}
-            />
-            <Text
-              accessibilityRole="header"
-              flex={1}
-              textAlign="center"
-              fontFamily="$heading"
-              fontSize="$6"
-              fontWeight="500"
-              color="$color"
-            >
-              {title}
-            </Text>
-            {headerRight ?? <View width={40} />}
-          </XStack>
+          <BUIHeader
+            title={title}
+            navigation={onBack ? 'back' : 'close'}
+            navigationLabel={onBack ? 'Back' : closeLabel}
+            navigationDisabled={!canDismiss}
+            onNavigate={() => {
+              if (canDismiss) (onBack ?? onClose)();
+            }}
+            actions={headerRight}
+          />
           {children}
         </YStack>
       </KeyboardAvoidingView>

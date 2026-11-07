@@ -213,17 +213,6 @@ export function OnchainMeltFlow() {
     }
   };
 
-  const handlePreset = (presetSats: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setAmount(presetSats);
-    if (inputMode === 'SATS') {
-      setLocalInputValue(presetSats);
-    } else if (btcData?.price) {
-      const fiat = currencyService.convertSatsToCurrency(Number(presetSats), btcData.price);
-      setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
-    }
-  };
-
   const handleMax = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const balString = String(balance);
@@ -253,16 +242,6 @@ export function OnchainMeltFlow() {
     }
     return localInputValue;
   }, [localInputValue, inputMode]);
-
-  // Dynamic font size based on string length to scale seamlessly
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 44;
-    if (len <= 8) return 38;
-    if (len <= 10) return 32;
-    if (len <= 13) return 26;
-    return 20;
-  }, [formattedDisplayValue]);
 
   // Watch for scanned QR codes
   useEffect(() => {
@@ -607,7 +586,7 @@ export function OnchainMeltFlow() {
         ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
         : '—';
 
-    const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 32 : 40;
+    const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 29 : 36;
 
     return (
       <>
@@ -629,7 +608,7 @@ export function OnchainMeltFlow() {
           {/* Fee Option Selection Selector */}
           {meltQuote.fee_options && meltQuote.fee_options.length > 0 && (
             <YStack gap="$2">
-              <Text fontSize={12} color="$gray10" px="$1">
+              <Text fontSize={11} color="$gray10" px="$1">
                 Choose confirmation speed
               </Text>
               <ListTable>
@@ -651,7 +630,7 @@ export function OnchainMeltFlow() {
                   );
                 })}
               </ListTable>
-              <Text fontSize={12} color="$gray10" px="$1">
+              <Text fontSize={11} color="$gray10" px="$1">
                 Estimated confirmation time and maximum network fee.
               </Text>
             </YStack>
@@ -699,9 +678,9 @@ export function OnchainMeltFlow() {
 
   // Render input form state (AmountStage look-alike with address field)
   return (
-    <YStack flex={1} justify="space-between" bg="$background">
+    <YStack flex={1} gap="$2" bg="$background">
       <PaymentFlowHeader title="Pay on-chain" navigationAction="close" />
-      <YStack items="center" gap="$1.5" width="100%">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector & Balance Row */}
         <MintBalanceRow
           activeMint={activeMint}
@@ -718,43 +697,6 @@ export function OnchainMeltFlow() {
           onMaxPress={handleMax}
           maxDisabled={balance === 0}
         />
-
-        {/* Card Box Container (Amount Display) */}
-        <YStack width="100%" bg="$gray2" rounded="$6" p="$4" py="$5" items="center" gap="$3">
-          <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize="$3" fontWeight="500">
-              Enter Amount
-            </Text>
-
-            <BouncyAmount
-              value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
-              prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
-              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
-            />
-
-            {fiatEnabled && (
-              <AppPressable
-                px={12}
-                py={4}
-                rounded="$10"
-                bg="$gray4"
-                pressStyle={{ scale: 0.96, bg: '$gray5' }}
-                onPress={toggleMode}
-                minHeight={36}
-                flexDirection="row"
-                items="center"
-                justify="center"
-                gap={8}
-              >
-                <Text fontSize="$3" fontWeight="600" color="$accent10">
-                  {conversionValue}
-                </Text>
-                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
-              </AppPressable>
-            )}
-          </YStack>
-        </YStack>
 
         {/* Destination Address Row (moved below Amount Card) */}
         <DestinationInputRow
@@ -801,6 +743,51 @@ export function OnchainMeltFlow() {
               </Text>
             </XStack>
           )}
+        </YStack>
+        {/* Card Box Container (Amount Display) */}
+        <YStack
+          width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
+          bg="$gray2"
+          rounded="$6"
+          p="$4"
+          items="center"
+          gap="$3"
+        >
+          <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
+            <Text color="$gray10" fontSize="$3" fontWeight="500">
+              Enter Amount
+            </Text>
+
+            <BouncyAmount
+              value={formattedDisplayValue}
+              prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
+              suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
+            />
+
+            {fiatEnabled && (
+              <AppPressable
+                px={12}
+                py={4}
+                rounded="$10"
+                bg="$gray4"
+                pressStyle={{ scale: 0.96, bg: '$gray5' }}
+                onPress={toggleMode}
+                minHeight={36}
+                flexDirection="row"
+                items="center"
+                justify="center"
+                gap={8}
+              >
+                <Text fontSize="$3" fontWeight="600" color="$accent10">
+                  {conversionValue}
+                </Text>
+                <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
+              </AppPressable>
+            )}
+          </YStack>
         </YStack>
       </YStack>
       <NumericKeypad

@@ -10,7 +10,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { usePeopleUnreadCounts } from '~/features/people/hooks/usePeopleUnreadCounts';
 import { UnreadBadge } from './UnreadBadge';
-import { appDimensions, appSpacing } from '~/shared/theme/appearance';
+import { appDimensions, appIconSizes, appSpacing } from '~/shared/theme/appearance';
 
 export function CustomTabBar({
   state,
@@ -34,7 +34,6 @@ export function CustomTabBar({
       backgroundColor="$background"
       borderColor="$borderColor"
       borderTopWidth={0.3}
-
       pb={insets.bottom}
     >
       <XStack height={appDimensions.bar} alignItems="center" justifyContent="space-between">
@@ -70,7 +69,7 @@ export function CustomTabBar({
             ? options.tabBarIcon({
                 focused: isFocused,
                 color: isFocused ? activeColor : inactiveColor,
-                size: 24,
+                size: appIconSizes.navigation,
               })
             : null;
 
@@ -88,6 +87,8 @@ export function CustomTabBar({
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100%',
+                minHeight: appDimensions.touchTarget,
+                minWidth: appDimensions.touchTarget,
               }}
             >
               <YStack position="relative">

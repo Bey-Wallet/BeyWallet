@@ -50,11 +50,13 @@ jest.mock('expo-haptics', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, bottom: 24 }),
 }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useTheme: () => ({}),
+  useThemeName: () => 'dark',
+  ...Object.fromEntries(
     ['Text', 'YStack', 'XStack', 'View', 'Avatar', 'Square', 'Input'].map((name) => [name, name]),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     ['Check', 'ChevronDown', 'Sprout', 'Plus', 'Landmark', 'X', 'Search'].map((name) => [
@@ -73,6 +75,7 @@ jest.mock('@gorhom/bottom-sheet', () => ({
     require('react').createElement(
       'MintList',
       props,
+      props.ListHeaderComponent,
       props.data.length
         ? props.data.map((item: any) =>
             require('react').createElement(
@@ -232,7 +235,12 @@ it('uses a simple bottom-sheet mint list without search controls', async () => {
   await render();
   expect(tree.root.findAllByType(Modal)).toHaveLength(0);
   expect(sheet().props.open).toBe(true);
-  expect(sheet().props.snapPoints[0]).toBeGreaterThan(0);
+  expect(sheet().props.snapPoints).toBeUndefined();
+  expect(sheet().props.scrollable).toBe(true);
+  const headerChildren = React.Children.toArray(list().props.ListHeaderComponent.props.children);
+  expect(
+    headerChildren.some((child) => typeof child === 'string' || typeof child === 'number'),
+  ).toBe(false);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Search mints' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
   expect(list().props.data).toHaveLength(4);
@@ -374,8 +382,8 @@ it('uses the saved primary fiat conversion offline and respects hidden balances'
   mockCachedPrice = { price: 100_000, change24h: 0, updatedAt: Date.now() / 1000 };
   useSettingsStore.setState({ primaryCurrency: 'FIAT' });
   await render();
-  expect(row(a).props.accessibilityLabel).toBe('Alpha, $10.00');
-  expect(row(b).props.accessibilityLabel).toBe('Beta, $0.00');
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, $\u202f10.00');
+  expect(row(b).props.accessibilityLabel).toBe('Beta, $\u202f0.00');
   expect(mockFetchPrice).not.toHaveBeenCalled();
   await act(async () => {
     useSettingsStore.setState({ hideBalance: true });
@@ -388,7 +396,7 @@ it('shows sats instead of inventing a fiat value when no exchange rate is saved'
   useSettingsStore.setState({ primaryCurrency: 'FIAT' });
   await render();
   expect(row(a).props.accessibilityLabel).toBe('Alpha, 10,000 sat');
-  expect(row(b).props.accessibilityLabel).toBe('Beta, $0.00');
+  expect(row(b).props.accessibilityLabel).toBe('Beta, $\u202f0.00');
 });
 
 it('uses sats for None with a saved FIAT preference without fetching quotes while online', async () => {
@@ -398,7 +406,7 @@ it('uses sats for None with a saved FIAT preference without fetching quotes whil
   expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
   expect(mockFetchPrice).not.toHaveBeenCalled();
   await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true }));
-  expect(row(a).props.accessibilityLabel).toBe('Alpha, ₿10,000');
+  expect(row(a).props.accessibilityLabel).toBe('Alpha, ₿\u202f10,000');
   expect(mockFetchPrice).not.toHaveBeenCalled();
 });
 

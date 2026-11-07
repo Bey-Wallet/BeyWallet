@@ -42,7 +42,7 @@ export default function BitcoinPriceCard() {
     const value = satPrice === 0 ? '0.00' : satPrice.toFixed(satPrice < 0.01 ? 5 : 2);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? `${value} ${symbol}/SAT`
-      : `${symbol}${value}/SAT`;
+      : `${symbol}\u202f${value}/SAT`;
   };
 
   const [now, setNow] = React.useState(Date.now());
@@ -79,7 +79,7 @@ export default function BitcoinPriceCard() {
       borderColor="$gray3"
       borderWidth={0.5}
       rounded="$5"
-      bg={isExpanded ? '$gray2' : '$orange5'}
+      bg="$gray2"
       p="$2"
       px="$3"
       animation="lazy"
@@ -143,16 +143,16 @@ export default function BitcoinPriceCard() {
           <XStack gap="$3" items="center">
             {data ? (
               showSats ? (
-                <Text fontSize={16} fontWeight="700" color="$orange12">
+                <Text fontSize={14} fontWeight="700" color="$orange12">
                   {formatSatPrice(data.price)}
                 </Text>
               ) : (
-                <Text fontSize={16} fontWeight="700" color="$orange12">
+                <Text fontSize={14} fontWeight="700" color="$orange12">
                   {formatCurrency(data.price)}
                 </Text>
               )
             ) : (
-              <Text color="$gray10" fontSize={14}>
+              <Text color="$gray10" fontSize={13}>
                 {isFetching ? 'Loading price…' : 'Price unavailable'}
               </Text>
             )}
@@ -186,18 +186,18 @@ export default function BitcoinPriceCard() {
                     fontWeight={800}
                     letterSpacing={-1.2}
                     color="$accent4"
-                    lineHeight={36}
+                    lineHeight={32}
                   >
                     {formatSatPrice(data.price)}
                   </Text>
                 ) : (
                   <RollingNumber
                     showDecimals={false}
-                    fontSize={24}
+                    fontSize={22}
                     fontWeight={800}
                     letterSpacing={-1.5}
                     color="$accent4"
-                    lineHeight={36}
+                    lineHeight={32}
                   >
                     {formatCurrency(data.price)}
                   </RollingNumber>

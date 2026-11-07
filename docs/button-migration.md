@@ -1,5 +1,80 @@
 # Button migration report
 
+## BUI rollout (2026-11-06)
+
+AppButton, AppIconButton, HeaderIconButton and AppTextButton now share the BUI renderer in
+`src/shared/ui/BUI/BUIButtonControl.tsx`. The BUI catalog uses that renderer too. AppButton remains
+the compatibility API, preserving event handlers, loading labels, refs, accessibility states,
+semantic intent and navigation integrations.
+
+Buttons use monochrome primary fills (black in light mode, white in dark mode), neutral secondary
+fills, transparent tertiary actions, 500-weight
+Inter labels, and size-specific corners (large: 56 high / radius 16; medium: 48 / radius 24).
+Compact icon controls retain proportional glyphs and hit slop reaching 48 points. Large labeled
+actions default to full width; explicit width, flex layouts and `fullWidth={false}` support paired
+and inline controls. Main mint connection, scanner recovery and Transfer recovery actions now
+use large buttons. Home shortcuts use BUI action controls, retaining Scan's 20-point glyph and
+3-point stroke. The Home mint selector keeps a compact 36-point height, 12-point corners and
+theme-inverse accent fill/foreground, with hit slop reaching 48 points and its offline error color.
+
+The optional Accent style uses Obsidian purple (`#8A5CF5`, from hsl(258, 88%, 66%)) with white
+text in both themes. Use `AppButton variant="accent"` or `BUIButton variant="Accent"` explicitly;
+existing callers remain default primary. Hover/press accent fills retain their purple colors.
+Disabled filled primary/accent/semantic buttons use neutral `gray3`; disabled secondary buttons
+use `gray2`. All disabled labels and icons use the muted foreground, including ghost/text actions
+and catalog buttons. Loading retains the enabled palette and spinner color.
+Custom fills can use `$accentBackground` and `$accentForeground`. `$primaryColor` / `$onPrimary`
+expose the monochrome pair; legacy `$accentColor` / `$onAccent` remain monochrome compatibility
+aliases so existing controls (including Home's mint trigger) retain their intended palette.
+The accent reference is [Obsidian's color documentation](https://docs.obsidian.md/Reference/CSS%20variables/Foundations/Colors).
+The POS theme retains its existing palette. Semantic supporting-action contrast checks remain.
+Wallet, payment, authentication and recovery logic are unchanged. Device checks remain necessary
+for small screens, text scaling, screen readers, NFC, biometrics and end-to-end payments.
+
+Light-theme secondary/card surfaces resolve Tamagui's standard `gray2`, and secondary button
+fills resolve `gray3` (`gray4` when pressed, `gray2` when disabled). The BUI gray
+tokens retain those same Tamagui values instead of the former violet-tinted overrides.
+
+The wallet and BUI themes share these neutral roles across Home, mint details/preview, Settings,
+People, history, NFC and shared fields/loading surfaces. Cards and grouped navigation rows use
+`$gray2`, with `$gray3` hover and `$gray4` press feedback. Secondary buttons
+and header/navigation controls use `$gray3`, with `$gray4` feedback and `$gray2` disabled fills.
+The Home secondary-currency control and the Scan/Transfer/Receive/Send action circles also use
+`$gray2`; the currency control retains gray3/4 interaction feedback.
+Dark mode uses its existing gray2/3/4 values with the same hierarchy. Semantic status colors,
+the POS palette, the compact inverse Home mint trigger, and tab/header layouts stay intact.
+
+### Mint details and preview
+
+Mint details and the unconnected mint preview use BUI cards, list/property rows, action buttons,
+status labels and text roles. Cards keep 16-point corners and grow with their content. Page/card
+padding and section gaps use 16 points, with 8-point gaps for related items. The balance uses the
+BUI numeric role; descriptions, metadata, facts and headings use the corresponding BUI text roles.
+Long fact values and warnings remain readable without a fixed card height. Both screens use
+BUI list groups and section headers, semantic typography roles, and full-width 2-point BUI
+separators. Share and Show QR have visible button labels; recovery is labeled Restore funds.
+Advertised features and connection warnings use BUI rows, and consent uses BUISelectionRow.
+
+`MintAppearance` scopes the active light/dark BUI theme through `BUIAppearanceProvider`; it does
+not change the catalog preference or other screens. `BUIListRow.expanded` carries the existing
+payment-detail and reliability disclosure state into accessibility. Connection, nickname edits,
+recovery, removal, sharing, QR and payment callbacks retain their existing behavior.
+
+### Headers and navigation
+
+Settings and non-tab route headers use BUIHeader through AppScreenHeader and the existing
+useScreenHeaderOptions hook. Payment receipts, the scanner, NFC, Send/Receive and mint sheets,
+conversation screens, and receipt previews use the same BUI header geometry. Custom title content
+(such as mint-name editing and contact details), navigation callbacks and operation locks stay
+owned by their screens. NFC title changes retain polite announcements. BUI chrome follows the
+active light/dark theme rather than the catalog preference, and retains the POS palette.
+
+Main Home/History/People tab headers and the original custom bottom navigation stay in place.
+Settings remains the explicit exception, with its centered BUI header, back behavior and hidden
+tab bar. HeaderIconButton uses a 32-point neutral circle with a 22-point glyph and hit slop to
+48 points; selected/expanded header controls use primary emphasis. This includes Home's NFC
+shortcut without changing its reader action.
+
 All 286 former Tamagui Button usages in 95 caller files have been migrated: **248 AppButton actions, 35 AppPressable controls, and 3 noninteractive badges**. The Button inside AppButton is the only permitted raw Tamagui Button.
 
 ## Operation feedback and compact icon actions

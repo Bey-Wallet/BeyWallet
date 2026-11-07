@@ -8,6 +8,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Text, type TextProps } from 'tamagui';
+import { spaceCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 
 interface RollingDigitProps {
   digit: string | number;
@@ -142,9 +143,9 @@ export const RollingNumber = ({
   }
 
   const hasSatsSuffix = suffix.trim() === 'sat';
-  const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
-  const itemHeight = lineHeight || fontSize * 1.1;
-  const resolvedFamily = fontFamily ?? (fontSize >= 28 ? '$display' : '$body');
+  const valueStr = spaceCurrencyPrefix(prefix + formattedValue + (hasSatsSuffix ? '' : suffix));
+  const itemHeight = Math.round(lineHeight || fontSize * 1.1);
+  const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -205,7 +206,7 @@ export const RollingNumber = ({
         <Text
           color={color}
           fontWeight={fontWeight}
-          fontSize={Math.max(12, Math.round(fontSize * 0.55))}
+          fontSize={Math.max(11, Math.round(fontSize * 0.55))}
         >
           {' sat'}
         </Text>

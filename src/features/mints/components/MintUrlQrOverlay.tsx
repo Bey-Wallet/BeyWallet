@@ -26,7 +26,7 @@ export function MintUrlQrOverlay({
       >
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           <YStack items="center" justify="center" p="$4" gap="$4">
-            <Text fontSize={20} fontWeight="600">
+            <Text fontSize={18} fontWeight="600">
               Mint URL
             </Text>
             <YStack p="$4" bg="white" rounded="$6">
@@ -35,7 +35,7 @@ export function MintUrlQrOverlay({
             <Text selectable textAlign="center">
               {url}
             </Text>
-            <AppButton variant="default" emphasis="secondary" size="medium" onPress={onClose}>
+            <AppButton variant="default" emphasis="secondary" size="large" onPress={onClose}>
               Close QR
             </AppButton>
           </YStack>

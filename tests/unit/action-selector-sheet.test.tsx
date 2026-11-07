@@ -17,7 +17,14 @@ jest.mock('react-native-safe-area-context', () => ({
 const mockOpenReader = jest.fn();
 jest.mock('~/features/nfc/nfcFlow', () => ({ nfcFlow: { openReader: () => mockOpenReader() } }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text', View: 'View' }));
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  YStack: 'YStack',
+  XStack: 'XStack',
+  Text: 'Text',
+  View: 'View',
+}));
 jest.mock('@tamagui/lucide-icons', () => ({
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
@@ -51,7 +58,18 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
           if (props.canDismiss !== false) mockDismiss();
         },
       }));
-      return React.createElement('Sheet', props, props.children);
+      return require('react').createElement(
+        'Sheet',
+        props,
+        require('react').createElement(require('~/shared/ui/BUI/BUIHeader').BUIHeader, {
+          title: props.title,
+          navigation: props.navigation ?? 'close',
+          navigationLabel: props.navigationLabel,
+          navigationDisabled: props.canDismiss === false,
+          onNavigate: props.onNavigate,
+        }),
+        props.children,
+      );
     }),
   };
 });
@@ -68,7 +86,10 @@ jest.mock('~/shared/ui/UniversalInputCard', () => {
 
 let tree: ReactTestRenderer;
 let ref: React.RefObject<ActionSelectorSheetRef | null>;
-const options = () => tree.root.findAllByType('Option' as any);
+const options = () =>
+  tree.root
+    .findAllByType('Option' as any)
+    .filter((node) => !['Back', 'Close'].includes(node.props.accessibilityLabel));
 const labels = () => options().map((option) => option.props.accessibilityLabel);
 const input = () => tree.root.findByType('InputCard' as any);
 async function open(type: ActionSheetType) {
@@ -97,7 +118,7 @@ it.each(['send', 'receive'] as const)('opens %s as an Android bottom sheet', asy
   expect(mockPresent).toHaveBeenCalledTimes(1);
   expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(true);
   expect(tree.root.findByType('Sheet' as any).props.backgroundColor).toBe('$background');
-  expect(input().props.scrollComponent).toBe(BottomSheetScrollView);
+  expect(input().props.contentSized).toBe(true);
   expect(labels()).toEqual(
     type === 'send'
       ? ['Share ecash', 'Tap to pay']
@@ -226,7 +247,7 @@ it.each([
 ] as const)('keeps Fund & withdraw routing for %s', async (label, path) => {
   await open('mint');
   expect(options()).toHaveLength(4);
-  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toEqual(['75%', '90%']);
+  expect(tree.root.findByType('Sheet' as any).props.snapPoints).toBeUndefined();
   await press(label);
   expect(mockPush).toHaveBeenCalledWith(path);
 });
@@ -235,14 +256,12 @@ it.each(['send', 'receive'] as const)(
   'uses separate action cards with History icon styling for %s',
   async (type) => {
     await open(type);
-    const [initialHeight, expandedHeight] = tree.root.findByType('Sheet' as any).props.snapPoints;
-    expect(initialHeight).toBeGreaterThan(0);
-    expect(expandedHeight).toBe('90%');
+    expect(tree.root.findByType('Sheet' as any).props.snapPoints).toBeUndefined();
     expect(input().props).toMatchObject({
       layout: 'screen',
       compact: true,
       inputComponent: BottomSheetTextInput,
-      bottomInset: 16,
+      contentSized: true,
     });
     const group = options()[0].parent!;
     expect(group.props.gap).toBe(12);
@@ -252,7 +271,7 @@ it.each(['send', 'receive'] as const)(
       expect(option.props).toMatchObject({
         minHeight: 48,
         flexDirection: 'row',
-        bg: '$buttonDefaultSecondary',
+        bg: '$gray2',
         items: 'center',
         rounded: '$6',
         overflow: 'hidden',
@@ -268,8 +287,8 @@ it.each(['send', 'receive'] as const)(
       });
       expect(option.findAllByType('ChevronRight' as any)).toHaveLength(0);
       const [label, description] = option.findAllByType('Text' as any);
-      expect(label.props).toMatchObject({ fontSize: 16, fontWeight: '500' });
-      expect(description.props).toMatchObject({ fontSize: 14, color: '$gray10' });
+      expect(label.props).toMatchObject({ fontSize: 14, fontWeight: '500' });
+      expect(description.props).toMatchObject({ fontSize: 13, color: '$gray10' });
       expect(description.props.children).toBe(option.props.accessibilityHint);
       expect(label.props.numberOfLines).toBeUndefined();
     }

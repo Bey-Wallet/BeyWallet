@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack, Separator } from 'tamagui';
 import { ChevronDown, Pencil, ArrowUpDown } from '@tamagui/lucide-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { InputSheet, type InputSheetRef } from '~/shared/ui/InputSheet';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -29,7 +29,6 @@ export function RequestAmountEditor({
   onChange: (amount: number) => void;
 }) {
   const sheet = useRef<AppBottomSheetRef>(null);
-  const insets = useSafeAreaInsets();
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
   const fiatEnabled = secondaryCurrency !== 'NONE';
   const [draftSats, setDraftSats] = useState(0);
@@ -91,11 +90,8 @@ export function RequestAmountEditor({
         onPress={open}
         rightContent={!disabled ? <Pencil size={16} color="$gray10" /> : undefined}
       />
-      <AppBottomSheet ref={sheet} bottomInset={insets.bottom}>
-        <YStack px="$4" pt="$3" pb="$4" gap="$3">
-          <Text fontSize="$4" text="center" fontWeight="500" color="$color">
-            Request amount
-          </Text>
+      <AppBottomSheet title="Request amount" ref={sheet}>
+        <YStack gap="$3">
           <Text
             textAlign="center"
             fontFamily="$display"
@@ -107,7 +103,7 @@ export function RequestAmountEditor({
           >
             {mode === 'FIAT' ? symbol : showBitcoinSymbol ? '₿' : ''}
             {draft}
-            {mode === 'SATS' && !showBitcoinSymbol && <Text fontSize={22}>{' sat'}</Text>}
+            {mode === 'SATS' && !showBitcoinSymbol && <Text fontSize={14}>{' sat'}</Text>}
           </Text>
           {fiatEnabled && (
             <AppPressable

@@ -76,8 +76,8 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     <SettingsPage>
       {category === 'advanced' && (
         <SettingsDescription>
-          Inspect your wallet’s ecash proofs and verify mint signatures. These tools are intended
-          for troubleshooting.
+          Inspect ecash proofs and verify mint signatures. These tools are intended for
+          troubleshooting.
         </SettingsDescription>
       )}
       <SettingsGroup>

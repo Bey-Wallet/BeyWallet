@@ -1,3 +1,4 @@
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MintDetailsScreen from '~/features/mints/MintDetailsScreen';
@@ -29,18 +30,24 @@ jest.mock('expo-router', () => ({
     ),
   },
 }));
-jest.mock('tamagui', () =>
-  Object.fromEntries(
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  Theme: 'Theme',
+  ...Object.fromEntries(
     ['YStack', 'XStack', 'Text', 'ScrollView', 'View', 'Separator', 'Input'].map((name) => [
       name,
       name,
     ]),
   ),
-);
+}));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
     [
       'ChevronLeft',
+      'ChevronRight',
+      'ArrowLeft',
+      'Activity',
       'Share2',
       'QrCode',
       'Pencil',
@@ -99,6 +106,7 @@ jest.mock('~/features/mints/components/MintUrlQrOverlay', () => ({
   MintUrlQrOverlay: 'MintUrlQrOverlay',
 }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/BUI/BUIActionMenu', () => ({ BUIActionMenu: 'BUIActionMenu' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
@@ -132,7 +140,12 @@ jest.mock('expo-haptics', () => ({
 let tree: ReactTestRenderer;
 const iconButton = (label: string) =>
   tree.root
-    .findAllByType('AppIconButton' as any)
+    .findAll(
+      (node) =>
+        node.type === ('AppIconButton' as any) ||
+        node.type === ('AppButton' as any) ||
+        node.type === ('AppPressable' as any),
+    )
     .find((node) => node.props.accessibilityLabel === label)!;
 const render = async () => {
   await act(async () => {
@@ -193,7 +206,7 @@ it('shows only a sats balance for None with FIAT saved and restores fiat when se
 it('edits the header name inline and saves its trimmed nickname on the check button', async () => {
   await render();
   expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
-  expect(iconButton('Edit mint name').props.iconSize).toBe(22);
+  expect(tree.root.findByType('Pencil' as any).props.size).toBe(16);
   await act(async () => iconButton('Edit mint name').props.onPress());
   const input = tree.root.findByType('Input' as any);
   expect(input.props.defaultValue).toBe('My mint');
@@ -276,23 +289,29 @@ it('opens inline editing from a mint selector without reopening it after save', 
   expect(useWalletStore.getState().setMintNickname).toHaveBeenCalledWith(url, 'Picker nickname');
 });
 
-it('keeps the balance and actions, shows mint information, and stops fetching transactions', async () => {
+it('keeps the balance, replaces payment actions with QR and Restore, and shows mint information', async () => {
   await render();
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
-  expect(labels).toEqual(
-    expect.arrayContaining(['Deposit', 'Withdraw', 'Transfer', 'Trusted by you']),
-  );
+  expect(labels).toEqual(expect.arrayContaining(['QR', 'Restore', 'TRUSTED BY YOU']));
+  for (const label of ['Deposit', 'Withdraw', 'Transfer']) expect(labels).not.toContain(label);
   expect(labels).not.toEqual(expect.arrayContaining(['Mint Transactions']));
   expect(labels).not.toEqual(expect.arrayContaining(['About Mint']));
-  for (const label of ['Restore', 'Remove mint']) {
-    expect(
-      tree.root.findAllByType('ListTableRow' as any).find((node) => node.props.label === label)
-        ?.props.onPress,
-    ).toBeDefined();
-  }
   expect(tree.root.findAllByType('MintPreviewHealth' as any)).toHaveLength(0);
-  expect(iconButton('Share mint')).toBeDefined();
-  expect(iconButton('Show mint QR code')).toBeDefined();
+  const menu = tree.root.findByType('BUIActionMenu' as any);
+  expect(menu.props.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: 'share', title: 'Share mint' }),
+      expect.objectContaining({ id: 'remove', title: 'Remove mint', destructive: true }),
+    ]),
+  );
+  await act(async () => menu.props.onAction('remove'));
+  expect(mockSheetPresent).toHaveBeenCalledTimes(1);
+  expect(useWalletStore.getState().removeMint).not.toHaveBeenCalled();
+  const quickAction = (label: string) =>
+    tree.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel === label)!;
+  expect(quickAction('Show mint QR code')).toBeDefined();
   expect(tree.root.findByType('MintOverview' as any).props).toMatchObject({
     url,
     connection: 'online',
@@ -302,19 +321,13 @@ it('keeps the balance and actions, shows mint information, and stops fetching tr
   expect(keys).not.toContain('auditor-mint');
   const balance = tree.root
     .findAllByType('Text' as any)
-    .find((node) => node.props.fontSize === 36)!;
+    .find((node) => node.props.fontSize === 28)!;
   expect(balance.props.children).toContain('0');
-  for (const [label, route] of [
-    ['Deposit', '/(modals)/mint'],
-    ['Withdraw', '/(modals)/melt'],
-    ['Transfer', '/(modals)/swap'],
-  ]) {
-    const action = tree.root
-      .findAllByType('Text' as any)
-      .find((node) => node.props.children === label)!;
-    await act(async () => action.parent!.props.onPress());
-    expect(mockPush).toHaveBeenCalledWith(route);
-  }
+  await act(async () => quickAction('Restore funds').props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(tabs)/settings/recover-funds',
+    params: { mintUrl: url },
+  });
 });
 
 it('wires the connected mint connection row to a fresh metadata check', async () => {

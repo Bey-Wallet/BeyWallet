@@ -32,7 +32,7 @@ export function NostrHealthRow() {
       accessibilityLabel={`Nostr health, ${value}`}
     >
       <HeartPulse size={20} color="$color" />
-      <Text flex={1} {...appTypography.label2} color="$color">
+      <Text flex={1} {...appTypography.label1} color="$color">
         Nostr health
       </Text>
       <Text fontSize="$3" color="$gray10" accessibilityLiveRegion="polite">

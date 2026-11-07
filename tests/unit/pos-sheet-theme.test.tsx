@@ -7,6 +7,9 @@ import AppBottomSheet, { AppBottomSheetThemeProvider } from '~/shared/ui/AppBott
 import { posColors } from '~/shared/theme/pos';
 
 let mockContainer: React.ComponentType<React.PropsWithChildren> | undefined;
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 20, left: 0, right: 0 }),
+}));
 jest.mock('@gorhom/bottom-sheet', () => ({
   BottomSheetModal: require('react').forwardRef((props: any, _ref: any) => {
     mockContainer = props.containerComponent;

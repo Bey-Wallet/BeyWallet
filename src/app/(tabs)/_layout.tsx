@@ -1,4 +1,5 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router, Tabs } from 'expo-router';
@@ -18,28 +19,36 @@ import HomeIcon from '~/shared/icons/Home';
 import Blockies from '~/shared/ui/Blockies';
 import { useSettingsStore } from '~/state/settingsStore';
 import { CustomTabBar } from '~/shared/ui/CustomTabBar';
+import { appDimensions, appSpacing } from '~/shared/theme/appearance';
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
   <XStack
-    accessibilityRole="button"
-    accessibilityLabel="My addresses"
-    minHeight={48}
-    minWidth={48}
-    pressStyle={{ opacity: 0.7, scale: 0.95 }}
-    onPress={() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push('/(modals)/nostr-profile');
-    }}
+    width={appDimensions.touchTarget + appSpacing.page}
+    height={appDimensions.touchTarget}
+    pl={appSpacing.page}
     items="center"
-    pl="$4"
   >
-    <Blockies
-      style={{ borderRadius: 9 }}
-      seed={useSettingsStore((state) => state.npub) || 'bey-cash'}
-      size={10}
-      scale={3.3}
-    />
+    <AppPressable
+      accessibilityRole="button"
+      accessibilityLabel="My addresses"
+      minHeight={appDimensions.touchTarget}
+      width={appDimensions.touchTarget}
+      pressStyle={{ opacity: 0.7, scale: 0.95 }}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/(modals)/nostr-profile');
+      }}
+      items="center"
+      justify="center"
+    >
+      <Blockies
+        style={{ borderRadius: 9 }}
+        seed={useSettingsStore((state) => state.npub) || 'bey-cash'}
+        size={10}
+        scale={3.3}
+      />
+    </AppPressable>
   </XStack>
 ));
 
@@ -86,9 +95,15 @@ export default function TabLayout() {
           headerTitleAlign: 'center',
           headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color }) => <BeyIcon size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <BeyIcon size={size} color={color} />,
           headerRight: () => (
-            <XStack pr="$4" gap="$2">
+            <XStack
+              width={appDimensions.touchTarget + appSpacing.page}
+              height={appDimensions.touchTarget}
+              pr={appSpacing.page}
+              items="center"
+              justify="center"
+            >
               <HeaderIconButton
                 accessibilityLabel="Open NFC"
                 icon={<Nfc />}
@@ -109,7 +124,9 @@ export default function TabLayout() {
         }}
         options={{
           title: 'History',
-          tabBarIcon: ({ color }) => <Clock size={24} strokeWidth={2.5} color={color as any} />,
+          tabBarIcon: ({ color, size }) => (
+            <Clock size={size} strokeWidth={2.5} color={color as any} />
+          ),
         }}
       />
 
@@ -121,7 +138,9 @@ export default function TabLayout() {
         options={{
           title: 'People',
           headerShown: false,
-          tabBarIcon: ({ color }) => <AtSign size={24} strokeWidth={2.5} color={color as any} />,
+          tabBarIcon: ({ color, size }) => (
+            <AtSign size={size} strokeWidth={2.5} color={color as any} />
+          ),
         }}
       />
 
@@ -134,7 +153,7 @@ export default function TabLayout() {
           title: 'Settings',
           headerShown: false,
 
-          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color as any} />,
+          tabBarIcon: ({ color, size }) => <SettingsIcon size={size} color={color as any} />,
         }}
       />
     </Tabs>

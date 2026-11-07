@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { YStack } from 'tamagui';
-import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import type { ReceiptField } from '../receiptDetails';
 
@@ -9,22 +9,19 @@ export function ReceiptExtraDetails({ fields }: { fields: ReceiptField[] }) {
   if (!fields.length) return null;
   return (
     <YStack gap="$2">
-      <ListTable variant="outlined">
-        <ListTableRow
-          label={open ? 'Hide details' : 'Show details'}
-          onPress={() => setOpen(!open)}
-          expanded={open}
-          rightContent={
-            open ? (
-              <ChevronUp size={20} color="$gray10" />
-            ) : (
-              <ChevronDown size={20} color="$gray10" />
-            )
-          }
-        />
-      </ListTable>
+      <AppButton
+        variant="default"
+        emphasis="secondary"
+        size="small"
+        fullWidth={false}
+        self="center"
+        onPress={() => setOpen(!open)}
+        accessibilityState={{ expanded: open }}
+      >
+        {open ? 'Hide details' : 'Show details'}
+      </AppButton>
       {open && (
-        <ListTable variant="outlined">
+        <ListTable variant="filled">
           {fields.map((field) => (
             <ListTableRow
               key={field.label}

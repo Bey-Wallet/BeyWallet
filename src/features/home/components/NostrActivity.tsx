@@ -89,8 +89,8 @@ const RowContainer = styled(XStack, {
   items: 'center',
   justify: 'space-between',
   gap: '$2',
-  hoverStyle: { bg: '$buttonDefaultSecondaryHover' },
-  pressStyle: { opacity: 0.7, bg: '$buttonDefaultSecondaryPress' },
+  hoverStyle: { bg: '$gray3' },
+  pressStyle: { opacity: 0.7, bg: '$gray4' },
 });
 
 function SenderAvatar({
@@ -131,7 +131,7 @@ function SenderAvatar({
           height={8}
           rounded="$10"
           borderWidth={1.5}
-          borderColor="$buttonDefaultSecondary"
+          borderColor="$gray2"
         />
       )}
     </View>
@@ -224,7 +224,7 @@ export default function NostrActivity() {
   if (unclaimed.length === 0) return null;
 
   return (
-    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg="$buttonDefaultSecondary">
+    <YStack width="100%" gap="$4" p="$2.5" pr="$4" rounded="$6" bg="$gray2">
       {/* Section header */}
       <XStack items="center" justify="space-between">
         <XStack items="center" gap="$2">
@@ -232,7 +232,7 @@ export default function NostrActivity() {
             Incoming
           </H6>
           <View bg="$red10" px="$1.5" py="$0.5" rounded="$10" minWidth={20} items="center">
-            <Text color="white" fontSize={10} fontWeight="600">
+            <Text color="white" fontSize={9} fontWeight="600">
               {unclaimed.length}
             </Text>
           </View>
@@ -308,7 +308,7 @@ export default function NostrActivity() {
               </XStack>
 
               <YStack items="flex-end" justify="center" flexShrink={0}>
-                <Text fontWeight="600" fontSize={20} color="$color">
+                <Text fontWeight="600" fontSize={18} color="$color">
                   {primaryAmount}
                 </Text>
                 {secondaryAmount ? (
@@ -322,12 +322,9 @@ export default function NostrActivity() {
         })}
       </YStack>
 
-      <AppBottomSheet ref={sheetRef} snapPoints={['35%']}>
-        <YStack p="$4" gap="$4" flex={1}>
+      <AppBottomSheet title="Payment request" ref={sheetRef}>
+        <YStack gap="$4">
           <YStack items="center" gap="$2" mb="$2">
-            <Text fontSize="$5" fontWeight="800" color="$color">
-              Payment Request
-            </Text>
             <Text fontSize="$3" color="$gray10" textAlign="center">
               {requestDisplayName} is requesting{' '}
               {currencyService.formatSats(selectedRequest?.amount ?? 0)} from you.

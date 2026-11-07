@@ -1,6 +1,8 @@
+import { MintDetailRow } from './MintUI';
+import { BUIListHeader } from '~/shared/ui/BUI/BUIListRow';
 import React from 'react';
 import { Check } from '@tamagui/lucide-icons';
-import { Text, XStack, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 // Names follow https://github.com/cashubtc/nuts; only advertised entries are rendered.
 const nutNames: Record<number, string> = {
@@ -56,30 +58,18 @@ export function MintNutsRow({ nuts }: { nuts: unknown }) {
   const entries = advertisedNuts(nuts);
   if (!entries.length) return null;
   return (
-    <YStack borderTopWidth={2} borderColor="$background">
-      <Text px="$page" pt="$3" pb="$2" fontSize={12} fontWeight="600" color="$gray10">
-        Advertised features
-      </Text>
-      <XStack flexWrap="wrap">
-        {entries.map(([id, name]) => (
-          <XStack
-            key={id}
-            width="50%"
-            px="$page"
-            py="$2"
-            gap="$2"
-            items="flex-start"
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
-          >
-            <Check size={16} color="$green11" />
-            <Text color="$color" fontSize={14} lineHeight={20} flex={1}>
-              {name}
-            </Text>
-          </XStack>
-        ))}
-      </XStack>
+    <YStack>
+      <BUIListHeader title="Advertised features" />
+      {entries.map(([id, name]) => (
+        <MintDetailRow
+          key={id}
+          label={name}
+          value={`NUT-${String(id).padStart(2, '0')}`}
+          icon={Check}
+          iconColor="$green11"
+          accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
+        />
+      ))}
     </YStack>
   );
 }

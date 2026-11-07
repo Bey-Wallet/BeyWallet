@@ -24,6 +24,7 @@
     "test:web:buttons": "jest --preset jest-expo/web --runInBand --watchAll=false --setupFilesAfterEnv ./tests/unit/setupButtonsWeb.ts --runTestsByPath tests/unit/app-controls.test.web.tsx",
     "check:structure": "node scripts/check-structure.mjs",
     "check:buttons": "node scripts/check-buttons.mjs",
+    "audit:design-system": "node scripts/audit-design-system.mjs",
     "validate": "yarn typecheck && yarn test:ci && yarn check:structure && yarn check:buttons",
     "postinstall": "npx patch-package",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",

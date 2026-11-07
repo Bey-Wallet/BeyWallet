@@ -101,7 +101,7 @@ export function buildShareableReceipt(
               : entry.type === 'receive'
                 ? 'Ecash received'
                 : 'Ecash sent',
-    amount: `${options.bitcoinSymbol === false ? '' : '₿ '}${amount.toLocaleString('en-US')}${options.bitcoinSymbol === false ? ' sat' : ''}`,
+    amount: `${options.bitcoinSymbol === false ? '' : '₿\u202f'}${amount.toLocaleString('en-US')}${options.bitcoinSymbol === false ? ' sat' : ''}`,
     method: transfer
       ? 'Transfer'
       : rail === 'lightning'

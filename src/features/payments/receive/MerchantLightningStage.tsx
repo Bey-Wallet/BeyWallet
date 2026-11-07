@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
 import { quotesService, eventService } from '~/services/wallet';
+import { historyService } from '~/services/wallet/historyService';
 import { networkService } from '~/services/platform/networkService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
@@ -18,6 +19,7 @@ export function MerchantLightningStage({
   onBusyChange,
   onClose,
   listening = true,
+  renderHeader,
 }: {
   amount: number;
   mintUrl: string;
@@ -26,6 +28,7 @@ export function MerchantLightningStage({
   onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   listening?: boolean;
+  renderHeader?: (action: React.ReactNode) => React.ReactNode;
 }) {
   const [quote, setQuote] = useState<Quote>();
   const [failed, setFailed] = useState(false);
@@ -33,6 +36,7 @@ export function MerchantLightningStage({
   const [collecting, setCollecting] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const pendingQuote = useRef<Promise<Quote> | null>(null);
+  const createdQuote = useRef<Quote | null>(null);
   const collectLock = useRef(false);
   useFeedbackOwner(quote?.quote);
   // An unused invoice may finish creating after ecash completes the sale.
@@ -47,9 +51,14 @@ export function MerchantLightningStage({
     setFailed(false);
     pendingQuote.current ??= (async () => {
       if (await networkService.isOffline()) throw new Error('Offline');
-      return note
-        ? quotesService.createMintQuote(mintUrl, amount, note)
-        : quotesService.createMintQuote(mintUrl, amount);
+      const created =
+        createdQuote.current ??
+        (await (note
+          ? quotesService.createMintQuote(mintUrl, amount, note)
+          : quotesService.createMintQuote(mintUrl, amount)));
+      createdQuote.current = created;
+      await historyService.markPosOrigin({ kind: 'quote', mintUrl, reference: created.quote });
+      return created;
     })();
     void pendingQuote.current
       .then((created) => {
@@ -88,28 +97,32 @@ export function MerchantLightningStage({
   };
   if (!quote)
     return (
-      <YStack flex={1} items="center" justify="center" gap="$3">
-        {creating && <Spinner size="large" />}
-        {failed && (
-          <>
-            <Text fontFamily="$body" fontSize={14} color="$gray10" text="center">
-              Could not create the invoice. Check your connection and try again.
-            </Text>
-            <AppButton
-              emphasis="secondary"
-              onPress={() => {
-                pendingQuote.current = null;
-                setAttempt((value) => value + 1);
-              }}
-            >
-              Retry
-            </AppButton>
-          </>
-        )}
-      </YStack>
+      <>
+        {renderHeader?.(null)}
+        <YStack flex={1} items="center" justify="center" gap="$3">
+          {creating && <Spinner size="large" />}
+          {failed && (
+            <>
+              <Text fontFamily="$body" fontSize={13} color="$gray10" text="center">
+                Could not create the invoice. Check your connection and try again.
+              </Text>
+              <AppButton
+                emphasis="secondary"
+                onPress={() => {
+                  pendingQuote.current = null;
+                  setAttempt((value) => value + 1);
+                }}
+              >
+                Retry
+              </AppButton>
+            </>
+          )}
+        </YStack>
+      </>
     );
   return (
     <PaymentStage
+      renderHeader={renderHeader}
       appearance="pos"
       note={note}
       amount={String(amount)}

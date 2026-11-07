@@ -256,7 +256,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               )}
             </XStack>
             <Text
-              {...appTypography.body3}
+              {...appTypography.body2}
               color={failed ? '$red10' : pending ? '$orange10' : '$gray10'}
               numberOfLines={1}
             >

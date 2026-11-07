@@ -28,6 +28,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrRequestStore, type NostrRequestState } from '~/state/nostrRequestStore';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
 import { matchReceiveRequest } from '~/services/wallet/requestReceiptMatching';
+import { historyService } from '~/services/wallet/historyService';
 import { PaymentRequest, PaymentRequestTransportType } from '@cashu/cashu-ts';
 import { decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19';
 import { ResultStage } from '~/features/payments/send/ResultStage';
@@ -59,6 +60,7 @@ interface RequestEcashStageProps {
     note?: string;
     onReceived: () => void;
     onBusyChange: (busy: boolean) => void;
+    renderHeader?: (action: React.ReactNode) => React.ReactNode;
   };
 }
 
@@ -228,6 +230,14 @@ export function RequestEcashStage({
         const encoded = pr.toEncodedRequest();
 
         if (!npub) throw new Error('Wallet identity is unavailable.');
+        // Save provenance before exposing the request, including future NFC/Nostr receipts.
+        if (merchant) {
+          await historyService.markPosOrigin({
+            kind: 'request',
+            mintUrl: draft.mintUrl,
+            reference: reqId,
+          });
+        }
         await addRequest({
           id: reqId,
           mintUrl: draft.mintUrl,
@@ -268,6 +278,7 @@ export function RequestEcashStage({
       addRequest,
       targetNpub,
       targetUsername,
+      merchant,
       isGenerating,
       isSending,
       setActiveMint,
@@ -492,14 +503,6 @@ export function RequestEcashStage({
       ? nfcRequest
       : null,
   );
-  const header = (
-    <PaymentFlowHeader
-      navigationAction="close"
-      title={step === 'success' ? 'Payment received' : 'Request ecash'}
-      onBack={onClose}
-      disabled={isGenerating || isSending}
-    />
-  );
   const savedRequest = useNostrRequestStore
     .getState()
     .requests.find((request) => request.id === currentRequestId);
@@ -509,6 +512,18 @@ export function RequestEcashStage({
         { request: creqString || undefined },
       )
     : null;
+  const shareAction = publicReceipt && (
+    <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isRequestBusy} />
+  );
+  const header = (
+    <PaymentFlowHeader
+      navigationAction="close"
+      title={step === 'success' ? 'Payment received' : 'Request ecash'}
+      onBack={onClose}
+      disabled={isGenerating || isSending}
+      headerRight={() => shareAction}
+    />
+  );
   if (step === 'success') {
     if (merchant) return null;
     return (
@@ -527,7 +542,7 @@ export function RequestEcashStage({
 
   return (
     <>
-      {!merchant && header}
+      {merchant ? merchant.renderHeader?.(shareAction) : header}
       <PaymentStageLayout
         variant="qr"
         inset={!merchant}
@@ -537,11 +552,11 @@ export function RequestEcashStage({
               <YStack items="center" gap="$2" width="100%">
                 <PaymentAmount amount={merchant.amount} size="prominent" compact />
                 {!!merchant.note && (
-                  <Text color="$color" fontSize={14} textAlign="center">
+                  <Text color="$color" fontSize={13} textAlign="center">
                     {merchant.note}
                   </Text>
                 )}
-                <Text color="$color" fontSize={14}>
+                <Text color="$color" fontSize={13}>
                   Scan to pay with Ecash
                 </Text>
               </YStack>
@@ -692,7 +707,6 @@ export function RequestEcashStage({
             Send request
           </AppButton>
         )}
-        {publicReceipt && <ReceiptImageShare receipt={publicReceipt} disabled={isRequestBusy} />}
       </PaymentStageLayout>
     </>
   );

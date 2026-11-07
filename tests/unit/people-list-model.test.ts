@@ -89,7 +89,7 @@ it('sorts accepted contacts with no activity alphabetically after active convers
   });
   expect(model.conversations.map((row) => row.name)).toEqual(['Zed', 'Amy', 'Middle']);
   expect(model.conversations[1]).toMatchObject({
-    preview: 'Start a conversation',
+    preview: 'No payments yet',
     updatedAt: undefined,
   });
 });

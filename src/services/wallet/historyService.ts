@@ -6,6 +6,7 @@
 
 import { initService } from '~/services/wallet/initService';
 import type { HistoryEntry } from 'coco-cashu-core';
+import { PosRepository, type PosOrigin } from '~/storage/sqlite/repositories/PosRepository';
 import {
   getWalletActivities,
   getOptimizationLinks,
@@ -13,6 +14,11 @@ import {
 } from './walletActivityService';
 
 export const historyService = {
+  getPosOrigins: (): Promise<PosOrigin[]> => new PosRepository(initService.getRepo().db).list(),
+
+  markPosOrigin: (origin: PosOrigin): Promise<void> =>
+    new PosRepository(initService.getRepo().db).mark(origin),
+
   getActivityHistory: async (limit = 200, offset = 0) => {
     const payments = await initService.getManager().history.getPaginatedHistory(offset, limit);
     const activities = await getWalletActivities(limit);

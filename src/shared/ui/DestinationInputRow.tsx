@@ -142,7 +142,7 @@ export function DestinationInputRow({
               ellipsizeMode="tail"
               onPress={() => setIsFocused(true)}
               height={30}
-              style={{ lineHeight: 30 }}
+              style={{ lineHeight: 27 }}
             >
               {value}
             </Text>

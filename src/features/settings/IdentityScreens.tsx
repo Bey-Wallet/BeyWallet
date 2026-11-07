@@ -22,7 +22,7 @@ export function PublicKeySettingsScreen() {
       <SettingsDescription>
         Your public Nostr key identifies you. It is safe to share.
       </SettingsDescription>
-      <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4">
+      <YStack bg="$gray2" rounded="$6" p="$4">
         <Text selectable color="$color">
           {npub || 'Public key unavailable.'}
         </Text>
@@ -78,7 +78,7 @@ export function SecretKeySettingsScreen() {
       </SettingsMessage>
       {secret.value ? (
         <>
-          <YStack bg="$buttonDefaultSecondary" rounded="$6" p="$4">
+          <YStack bg="$gray2" rounded="$6" p="$4">
             <Text selectable color="$color">
               {secret.value}
             </Text>

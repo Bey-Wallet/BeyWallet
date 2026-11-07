@@ -1,3 +1,4 @@
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import ScannerScreen from '~/features/payments/ScannerScreen';
@@ -57,6 +58,8 @@ jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',

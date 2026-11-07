@@ -16,11 +16,17 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BackHandler } from 'react-native';
 
+jest.mock('~/shared/ui/BUI/BUIHeader', () => ({ BUIHeader: 'Header' }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 30, bottom: 20, left: 6, right: 10 }),
+}));
 jest.mock('tamagui', () => ({
+  YStack: 'YStack',
   useTheme: () => ({
     color8: { val: 'gray' },
     color2: { val: 'black' },
-    sheetBackground: { val: 'black' },
+    background: { val: 'black' },
+    borderColor: { val: 'gray' },
     overlayLight: { val: '#0F0F0F7A' },
   }),
 }));
@@ -36,6 +42,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
       return React.createElement('Modal', props, props.children);
     }),
     BottomSheetView: 'View',
+    BottomSheetScrollView: 'Scroll',
     BottomSheetBackdrop: 'Backdrop',
   };
 });
@@ -143,4 +150,32 @@ it('guards Android Back, backdrop, swipe and imperative dismissal consistently',
   expect(onOpenChange).toHaveBeenLastCalledWith(false);
   await act(async () => sheet.unmount());
   listener.mockRestore();
+});
+
+it('measures the standard header, body and safe insets together without a fixed snap point', async () => {
+  let sheet!: ReactTestRenderer;
+  const ref = React.createRef<AppBottomSheetRef>();
+  await act(async () => {
+    sheet = create(
+      <AppBottomSheet ref={ref} title="Edit payment" canDismiss={false}>
+        Body
+      </AppBottomSheet>,
+    );
+  });
+  const modal = sheet.root.findByType('Modal' as any);
+  expect(modal.props.enableDynamicSizing).toBe(true);
+  expect(modal.props.snapPoints).toBeUndefined();
+  expect(modal.props.maxDynamicContentSize).toBeGreaterThan(0);
+  const scroll = sheet.root.findByType('Scroll' as any);
+  expect(scroll.props.contentContainerStyle.paddingBottom).toBe(36);
+  expect(scroll.props.showsVerticalScrollIndicator).toBe(false);
+  expect(scroll.findByType('Header' as any).props.navigationDisabled).toBe(true);
+  expect(
+    scroll
+      .findAllByType('YStack' as any)
+      .some((node) => node.props.pl === 22 && node.props.pr === 26),
+  ).toBe(true);
+  ref.current?.dismiss();
+  expect(mockDismiss).not.toHaveBeenCalled();
+  await act(async () => sheet.unmount());
 });

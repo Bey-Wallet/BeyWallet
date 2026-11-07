@@ -4,8 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, DeviceEventEmitter } from 'react-native';
 import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { nip19 } from 'nostr-tools';
@@ -45,7 +44,6 @@ function safeNpub(pubkey: string): string {
 export function NostrClaimSheet() {
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const presented = useRef(new Set<string>());
-  const insets = useSafeAreaInsets();
   const offline = useOfflineStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mintTrusted, setMintTrusted] = useState<boolean | null>(null);
@@ -191,9 +189,8 @@ export function NostrClaimSheet() {
   return (
     <>
       <AppBottomSheet
+        title={claimStatus === 'success' ? 'Payment received' : 'Incoming payment'}
         ref={sheetRef}
-        snapPoints={['85%']}
-        bottomInset={insets.bottom}
         onClose={() => {
           setActiveId(null);
           setClaimStatus('idle');
@@ -201,171 +198,167 @@ export function NostrClaimSheet() {
         enablePanDownToClose={claimStatus !== 'claiming'}
         canDismiss={claimStatus !== 'claiming'}
       >
-        <BottomSheetScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 8 }}
-        >
-          <YStack gap="$4" items="center">
-            {claimStatus === 'success' ? (
-              <>
-                <Text fontFamily="$display" fontSize={42} fontWeight="900" color="$color">
+        <YStack gap="$4" items="center">
+          {claimStatus === 'success' ? (
+            <>
+              <Text fontFamily="$display" fontSize={40} fontWeight="600" color="$color">
+                {primaryAmount}
+              </Text>
+              {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
+              <Text color="$green10" fontSize="$5" fontWeight="800">
+                Received successfully
+              </Text>
+            </>
+          ) : (
+            <>
+              <View
+                width={72}
+                height={72}
+                rounded="$10"
+                overflow="hidden"
+                bg="$gray4"
+                items="center"
+                justify="center"
+              >
+                {senderProfile?.picture && !pictureFailed ? (
+                  <RemoteImage
+                    identity={npub}
+                    source={{ uri: senderProfile.picture }}
+                    width={72}
+                    height={72}
+                    onError={() => setPictureFailed(true)}
+                  />
+                ) : (
+                  <Blockies seed={npub} size={10} scale={7.2} style={{ borderRadius: 12 }} />
+                )}
+              </View>
+              <YStack items="center" gap="$1">
+                <Text fontSize="$3" color="$gray10">
+                  Incoming Nostr payment
+                </Text>
+                {displayName && (
+                  <Text
+                    fontSize="$5"
+                    fontWeight="800"
+                    color="$color"
+                    textAlign="center"
+                    numberOfLines={2}
+                  >
+                    {displayName}
+                  </Text>
+                )}
+                <XStack items="center" justify="center" gap="$1.5" px="$2">
+                  <Text
+                    fontSize="$3"
+                    fontWeight="700"
+                    color="$gray12"
+                    textAlign="center"
+                    numberOfLines={2}
+                  >
+                    {sender}
+                  </Text>
+                  {senderProfile?.nip05Verified === true && <Nip05VerifiedBadge />}
+                </XStack>
+                <Text fontFamily="$display" fontSize={29} fontWeight="600" color="$color">
                   {primaryAmount}
                 </Text>
                 {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
-                <Text color="$green10" fontSize="$5" fontWeight="800">
-                  Received successfully
+              </YStack>
+              <YStack width="100%" borderWidth={1} borderColor="$borderColor" rounded="$4">
+                <DetailRow icon={<User size={16} color="$gray9" />} label="From" value={sender} />
+                <Separator opacity={0.3} />
+                <DetailRow
+                  icon={<Landmark size={16} color="$gray9" />}
+                  label="Mint"
+                  value={mintDomain}
+                />
+                <Separator opacity={0.3} />
+                <DetailRow
+                  icon={<ShieldCheck size={16} color="$gray9" />}
+                  label="Type"
+                  value={senderProfile?.nip05Verified === true ? 'Nostr · NIP-05' : 'Nostr'}
+                />
+              </YStack>
+              {!contactAccepted && (
+                <Text color="$gray10">
+                  {contactBlocked
+                    ? 'This person is blocked. Unblock them in Nostr Settings first.'
+                    : 'Contact acceptance needed. Accepting this person does not approve their mint.'}
                 </Text>
-              </>
-            ) : (
-              <>
-                <View
-                  width={72}
-                  height={72}
-                  rounded="$10"
-                  overflow="hidden"
-                  bg="$gray4"
-                  items="center"
-                  justify="center"
-                >
-                  {senderProfile?.picture && !pictureFailed ? (
-                    <RemoteImage
-                      identity={npub}
-                      source={{ uri: senderProfile.picture }}
-                      width={72}
-                      height={72}
-                      onError={() => setPictureFailed(true)}
-                    />
-                  ) : (
-                    <Blockies seed={npub} size={10} scale={7.2} style={{ borderRadius: 12 }} />
-                  )}
-                </View>
-                <YStack items="center" gap="$1">
-                  <Text fontSize="$3" color="$gray10">
-                    Incoming Nostr payment
+              )}
+              {contactAccepted && mintTrusted === false && (
+                <YStack width="100%" bg="$orange2" rounded="$4" p="$3">
+                  <Text color="$orange10" fontWeight="800">
+                    Unknown mint
                   </Text>
-                  {displayName && (
-                    <Text
-                      fontSize="$5"
-                      fontWeight="800"
-                      color="$color"
-                      textAlign="center"
-                      numberOfLines={2}
-                    >
-                      {displayName}
+                  <Text color="$orange10">Only continue if you trust {mintDomain}.</Text>
+                </YStack>
+              )}
+              {(claimStatus === 'error' || activeItem.failure?.code === 'receipt_unverified') &&
+                activeItem.error && (
+                  <XStack width="100%" bg="$red3" rounded="$4" p="$3" gap="$2">
+                    <XCircle size={18} color="$red10" />
+                    <Text color="$red10" flex={1}>
+                      {activeItem.error}
                     </Text>
-                  )}
-                  <XStack items="center" justify="center" gap="$1.5" px="$2">
-                    <Text
-                      fontSize="$3"
-                      fontWeight="700"
-                      color="$gray12"
-                      textAlign="center"
-                      numberOfLines={2}
-                    >
-                      {sender}
-                    </Text>
-                    {senderProfile?.nip05Verified === true && <Nip05VerifiedBadge />}
                   </XStack>
-                  <Text fontFamily="$display" fontSize={36} fontWeight="900" color="$color">
-                    {primaryAmount}
-                  </Text>
-                  {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
-                </YStack>
-                <YStack width="100%" borderWidth={1} borderColor="$borderColor" rounded="$4">
-                  <DetailRow icon={<User size={16} color="$gray9" />} label="From" value={sender} />
-                  <Separator opacity={0.3} />
-                  <DetailRow
-                    icon={<Landmark size={16} color="$gray9" />}
-                    label="Mint"
-                    value={mintDomain}
-                  />
-                  <Separator opacity={0.3} />
-                  <DetailRow
-                    icon={<ShieldCheck size={16} color="$gray9" />}
-                    label="Type"
-                    value={senderProfile?.nip05Verified === true ? 'Nostr · NIP-05' : 'Nostr'}
-                  />
-                </YStack>
-                {!contactAccepted && (
-                  <Text color="$gray10">
-                    {contactBlocked
-                      ? 'This person is blocked. Unblock them in Nostr Settings first.'
-                      : 'Contact acceptance needed. Accepting this person does not approve their mint.'}
-                  </Text>
                 )}
-                {contactAccepted && mintTrusted === false && (
-                  <YStack width="100%" bg="$orange2" rounded="$4" p="$3">
-                    <Text color="$orange10" fontWeight="800">
-                      Unknown mint
-                    </Text>
-                    <Text color="$orange10">Only continue if you trust {mintDomain}.</Text>
-                  </YStack>
-                )}
-                {(claimStatus === 'error' || activeItem.failure?.code === 'receipt_unverified') &&
-                  activeItem.error && (
-                    <XStack width="100%" bg="$red3" rounded="$4" p="$3" gap="$2">
-                      <XCircle size={18} color="$red10" />
-                      <Text color="$red10" flex={1}>
-                        {activeItem.error}
-                      </Text>
-                    </XStack>
-                  )}
-              </>
-            )}
-            {offline && claimStatus !== 'success' && (
-              <Text color="$gray10" fontSize="$3">
-                This payment is saved for later. Go online to claim it.
-              </Text>
-            )}
-            <XStack width="100%" gap="$3">
+            </>
+          )}
+          {offline && claimStatus !== 'success' && (
+            <Text color="$gray10" fontSize="$3">
+              This payment is saved for later. Go online to claim it.
+            </Text>
+          )}
+          <XStack width="100%" gap="$3">
+            <AppButton
+              variant={claimStatus === 'success' || offline ? 'default' : 'critical'}
+              emphasis={claimStatus === 'success' ? 'primary' : 'secondary'}
+              size="large"
+              flex={1}
+              onPress={
+                offline && claimStatus !== 'success'
+                  ? () => sheetRef.current?.dismiss()
+                  : claimStatus === 'success'
+                    ? handleClose
+                    : () =>
+                        Alert.alert(
+                          'Delete incoming payment?',
+                          'This removes the payment from your pending list. Only continue if you no longer need to claim it.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Delete', style: 'destructive', onPress: handleClose },
+                          ],
+                        )
+              }
+              disabled={claimStatus === 'claiming'}
+            >
+              {claimStatus === 'success' ? 'Done' : offline ? 'Claim later' : 'Delete'}
+            </AppButton>
+            {claimStatus !== 'success' && (
               <AppButton
-                variant={claimStatus === 'success' || offline ? 'default' : 'critical'}
-                emphasis={claimStatus === 'success' ? 'primary' : 'secondary'}
+                variant="default"
+                emphasis="primary"
                 size="large"
                 flex={1}
-                onPress={
-                  offline && claimStatus !== 'success'
-                    ? () => sheetRef.current?.dismiss()
-                    : claimStatus === 'success'
-                      ? handleClose
-                      : () =>
-                          Alert.alert(
-                            'Delete incoming payment?',
-                            'This removes the payment from your pending list. Only continue if you no longer need to claim it.',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Delete', style: 'destructive', onPress: handleClose },
-                            ],
-                          )
-                }
-                disabled={claimStatus === 'claiming'}
+                onPress={handleClaim}
+                loading={claimStatus === 'claiming'}
+                loadingText="Receiving ecash…"
+                disabled={offline || claimStatus === 'claiming' || contactBlocked}
               >
-                {claimStatus === 'success' ? 'Done' : offline ? 'Claim later' : 'Delete'}
+                {offline
+                  ? 'Claim when online'
+                  : !contactAccepted
+                    ? 'Accept contact'
+                    : activeItem.failure?.code === 'receipt_unverified'
+                      ? 'Verify receipt'
+                      : mintTrusted === false
+                        ? 'Trust & Claim'
+                        : 'Try Again'}
               </AppButton>
-              {claimStatus !== 'success' && (
-                <AppButton
-                  variant="default"
-                  emphasis="primary"
-                  size="large"
-                  flex={1}
-                  onPress={handleClaim}
-                  loading={claimStatus === 'claiming'}
-                  loadingText="Receiving ecash…"
-                  disabled={offline || claimStatus === 'claiming' || contactBlocked}
-                >
-                  {offline
-                    ? 'Claim when online'
-                    : !contactAccepted
-                      ? 'Accept contact'
-                      : activeItem.failure?.code === 'receipt_unverified'
-                        ? 'Verify receipt'
-                        : mintTrusted === false
-                          ? 'Trust & Claim'
-                          : 'Try Again'}
-                </AppButton>
-              )}
-            </XStack>
-          </YStack>
-        </BottomSheetScrollView>
+            )}
+          </XStack>
+        </YStack>
       </AppBottomSheet>
     </>
   );

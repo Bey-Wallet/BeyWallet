@@ -40,7 +40,7 @@ import { normalizeNpub } from '~/shared/utils/nostr';
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
-  const { mode, lightningAddress, source, conversationNpub, username } = useLocalSearchParams<{
+  const { mode, lightningAddress, conversationNpub, username } = useLocalSearchParams<{
     mode?: string;
     lightningAddress?: string;
     source?: string;
@@ -220,7 +220,7 @@ export default function MeltScreen() {
     const val = currencyService.convertSatsToCurrency(quoteAmount, btcData.price);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? currencyService.formatValue(val, secondaryCurrency)
-      : `${symbol}${val.toFixed(2)}`;
+      : `${symbol}\u202f${val.toFixed(2)}`;
   }, [quoteAmount, btcData?.price, secondaryCurrency]);
 
   const totalFiatValue = useMemo(() => {
@@ -232,7 +232,7 @@ export default function MeltScreen() {
     const val = currencyService.convertSatsToCurrency(totalCost, btcData.price);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? currencyService.formatValue(val, secondaryCurrency)
-      : `${symbol}${val.toFixed(2)}`;
+      : `${symbol}\u202f${val.toFixed(2)}`;
   }, [totalCost, btcData?.price, secondaryCurrency]);
 
   // ─── Invoice Stage: Continue Handler ──────────────────────
@@ -529,7 +529,6 @@ export default function MeltScreen() {
             isLoading={isResolvingAddress || isManualQuote || isGettingQuote}
             disabled={isGettingQuote || isManualQuote}
             error={error}
-            amountPresets={source === 'support' ? [1000, 5000, 10000] : undefined}
           />
         </YStack>
       )}

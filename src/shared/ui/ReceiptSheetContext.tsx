@@ -5,5 +5,6 @@ export const ReceiptSheetContext = createContext<{
   busy?: boolean;
   presentation?: 'sheet' | 'screen';
   headerInset?: number;
+  hasSheetHeader?: boolean;
 } | null>(null);
 export const useReceiptSheet = () => useContext(ReceiptSheetContext);

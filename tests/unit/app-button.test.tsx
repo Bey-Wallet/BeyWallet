@@ -5,6 +5,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { buttonThemes } from '~/tamagui.config';
 import { defaultConfig } from '@tamagui/config/v5';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { processColor } from 'react-native';
 
 let mockTheme: Record<string, { val: string }>;
@@ -38,7 +39,11 @@ async function render(
 ) {
   let tree!: ReactTestRenderer;
   await act(async () => {
-    tree = create(<AppButton {...props}>Submit example</AppButton>);
+    tree = create(
+      <AppButton size="medium" {...props}>
+        Submit example
+      </AppButton>,
+    );
   });
   return tree;
 }
@@ -89,7 +94,7 @@ it('centers only the loader, preserves label geometry, and restores icons after 
   expect(tree.root.findByType('Button' as any).props.accessibilityLabel).toBe('Preparing…');
   await act(async () =>
     tree.update(
-      <AppButton icon={Icon} iconAfter={Icon} onPress={onPress}>
+      <AppButton size="medium" icon={Icon} iconAfter={Icon} onPress={onPress}>
         Submit example
       </AppButton>,
     ),
@@ -112,11 +117,11 @@ it('centers only the loader, preserves label geometry, and restores icons after 
 });
 
 it.each([
-  ['xxsmall', '$6'],
-  ['xsmall', '$6'],
-  ['small', '$6'],
-  ['medium', '$6'],
-  ['large', '$6'],
+  ['xxsmall', 18],
+  ['xsmall', 18],
+  ['small', 18],
+  ['medium', 24],
+  ['large', 16],
 ] as const)('keeps the control radius consistent for %s buttons', async (size, radius) => {
   const tree = await render({ size });
   expect(tree.root.findByType('Button' as any).props.rounded).toBe(radius);
@@ -304,6 +309,82 @@ it('resolves the current theme, preserves loading colors and removes reduced-mot
   await act(async () => tree.unmount());
 });
 
+it.each(['light', 'dark'] as const)(
+  'requires an explicit accent variant in %s',
+  async (appearance) => {
+    mockTheme = Object.fromEntries(
+      Object.entries(buttonThemes[appearance]).map(([key, val]) => [key, { val }]),
+    );
+    const tree = await render();
+    expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe(
+      appearance === 'light' ? '#000000' : '#FFFFFF',
+    );
+    for (const state of [{}, { disabled: true }, { loading: true, disabled: true }]) {
+      await act(async () =>
+        tree.update(
+          <AppButton variant="accent" {...state}>
+            Accent
+          </AppButton>,
+        ),
+      );
+      expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe(
+        state.disabled && !('loading' in state) ? getBUITheme(appearance).raised : '#8A5CF5',
+      );
+      expect(tree.root.findByType('Text' as any).props.color).toBe(
+        state.disabled && !('loading' in state)
+          ? getBUITheme(appearance).disabledForeground
+          : '#FFFFFF',
+      );
+      if ('loading' in state) {
+        expect(tree.root.findByType('Spinner' as any).props.color).toBe('#FFFFFF');
+      }
+    }
+    await act(async () => tree.unmount());
+  },
+);
+
+it.each(['light', 'dark'] as const)(
+  'mutes disabled labels and icons across button styles in %s',
+  async (appearance) => {
+    mockTheme = Object.fromEntries(
+      Object.entries(buttonThemes[appearance]).map(([key, val]) => [key, { val }]),
+    );
+    const c = getBUITheme(appearance);
+    const Icon = (_props: { size: number; color: string }) => null;
+    const tree = await render();
+    for (const variant of ['default', 'accent', 'critical', 'warning'] as const) {
+      for (const emphasis of ['primary', 'secondary', 'ghost', 'text'] as const) {
+        await act(async () =>
+          tree.update(
+            <AppButton
+              variant={variant}
+              emphasis={emphasis}
+              disabled
+              icon={Icon}
+              iconAfter={Icon}
+              textColor="#FF0000"
+            >
+              Disabled
+            </AppButton>,
+          ),
+        );
+        expect(tree.root.findByType('Text' as any).props.color).toBe(c.disabledForeground);
+        expect(tree.root.findAllByType(Icon).map((icon) => icon.props.color)).toEqual([
+          c.disabledForeground,
+          c.disabledForeground,
+        ]);
+        const button = tree.root.findByType('Button' as any);
+        expect(button.props.backgroundColor).toBe(
+          emphasis === 'primary' ? c.raised : emphasis === 'secondary' ? c.surface : 'transparent',
+        );
+        expect(button.props.hoverStyle).toEqual({});
+        expect(button.props.pressStyle).toEqual({});
+      }
+    }
+    await act(async () => tree.unmount());
+  },
+);
+
 it('keeps Ghost touch feedback distinct from background-free Text actions', async () => {
   const tree = await render({ emphasis: 'ghost' });
   let button = tree.root.findByType('Button' as any);
@@ -336,33 +417,55 @@ const luminance = (color: string) => {
   });
   return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
 };
-it('maintains readable contrast for enabled solid palettes in every state', () => {
+it.each(['light', 'dark'] as const)('uses the BUI reference palettes in %s', (appearance) => {
+  const palette: Record<string, string> = buttonThemes[appearance];
+  const bui = getBUITheme(appearance);
+  expect(palette.buttonDefaultPrimary).toBe(bui.buttons.Primary[0]);
+  expect(palette.buttonDefaultPrimaryPress).toBe(bui.buttons.Primary[2]);
+  expect(palette.buttonDefaultPrimaryText).toBe(bui.buttons.Primary[3]);
+  expect(palette.buttonDisabled).toBe(bui.buttons.Primary[1]);
+  expect(palette.buttonDefaultSecondary).toBe(bui.secondaryButton[0]);
+  expect(palette.buttonSecondaryDisabled).toBe(bui.secondaryButton[1]);
+  expect(palette.buttonCriticalPrimary).toBe(bui.buttons.Red[0]);
+  expect(palette.buttonWarningPrimary).toBe(bui.buttons.Orange[0]);
+});
+
+it('maintains readable contrast for semantic supporting actions', () => {
   for (const palette of Object.values(buttonThemes)) {
-    for (const variant of ['Default', 'Critical', 'Warning']) {
-      for (const emphasis of ['Primary', 'Secondary']) {
-        for (const state of ['', 'Hover', 'Press']) {
-          const prefix = `button${variant}${emphasis}`;
-          const background = luminance(palette[`${prefix}${state}`]);
-          const foreground = luminance(palette[`${prefix}Text`]);
-          expect(
-            (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05),
-          ).toBeGreaterThanOrEqual(4.5);
-        }
-      }
+    for (const variant of ['Critical', 'Warning']) {
       for (const state of ['', 'Hover', 'Press']) {
-        const textKey = `button${variant}Text`;
-        const foreground = luminance(palette[textKey]);
-        const background = luminance(
-          state
-            ? palette[`button${variant}Secondary${state}`]
-            : palette === buttonThemes.light
-              ? '#FFFFFF'
-              : '#000000',
-        );
+        const prefix = `button${variant}Secondary`;
+        const background = luminance(palette[`${prefix}${state}`]);
+        const foreground = luminance(palette[`${prefix}Text`]);
         expect(
           (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05),
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
   }
+});
+
+it('defaults standalone actions to large full width and honors paired and inline layouts', async () => {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<AppButton>Continue</AppButton>);
+  });
+  expect(tree.root.findByType('Button' as any).props).toMatchObject({
+    width: '100%',
+    minHeight: 56,
+    rounded: 16,
+  });
+  await act(async () => {
+    tree.update(<AppButton flex={1}>Confirm</AppButton>);
+  });
+  expect(tree.root.findByType('Button' as any).props.width).toBeUndefined();
+  await act(async () => {
+    tree.update(<AppButton fullWidth={false}>Add</AppButton>);
+  });
+  expect(tree.root.findByType('Button' as any).props.width).toBeUndefined();
+  await act(async () => {
+    tree.update(<AppButton emphasis="text">Skip</AppButton>);
+  });
+  expect(tree.root.findByType('Button' as any).props.width).toBeUndefined();
+  await act(async () => tree.unmount());
 });

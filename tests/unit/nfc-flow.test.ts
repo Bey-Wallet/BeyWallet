@@ -659,6 +659,203 @@ it('does not automatically pay the same request again after Done and a new NFC l
   expect(flow.getSnapshot().status).toBe('confirmed');
 });
 
+it('starts a different payment without losing the previous request deduplication', async () => {
+  flow.openReader();
+  await flush();
+  const original = jest.mocked(PaymentRequestPayment).mock.results[0].value;
+  jest.mocked(parsePaymentRequest).mockReturnValueOnce({
+    raw: 'second-request',
+    amount: 8,
+    delivery: 'nfc',
+  } as any);
+  expect(await flow.newPayment()).toBe(true);
+  await flush();
+  expect(close).toHaveBeenCalled();
+  expect(PaymentRequestPayment).toHaveBeenCalledTimes(2);
+  expect(flow.getSnapshot()).toMatchObject({ status: 'pending', amount: 8 });
+  expect(await flow.newPayment()).toBe(true);
+  await flush();
+  expect(PaymentRequestPayment).toHaveBeenCalledTimes(2);
+  expect(deliver).toHaveBeenCalledTimes(2);
+  expect(original.refresh).toHaveBeenCalled();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'unconfirmed', amount: 4 });
+});
+
+it('does not allow a new payment while the previous wallet mutation is running', async () => {
+  let release!: () => void;
+  deliver.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  flow.openReader();
+  await flush();
+  expect(await flow.newPayment()).toBe(false);
+  expect(PaymentRequestPayment).toHaveBeenCalledTimes(1);
+  release();
+  await flush();
+});
+
+it('shows status-check progress and an inline error without losing the payment', async () => {
+  flow.openReader();
+  await flush();
+  let fail!: (error: Error) => void;
+  refresh.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      }),
+  );
+  const checking = flow.refresh();
+  expect(flow.getSnapshot().checkingStatus).toBe(true);
+  fail(new Error('network payload must stay private'));
+  await checking;
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'pending',
+    hasPayment: true,
+    checkingStatus: false,
+    error: 'Could not check payment status. Check your connection and refresh again.',
+  });
+  expect(JSON.stringify(flow.getSnapshot())).not.toContain('payload');
+  await flow.refresh();
+  expect(flow.getSnapshot().error).toBeUndefined();
+});
+
+it('ignores a late settlement check after starting a new NFC session', async () => {
+  flow.openReader();
+  await flush();
+  let settle!: (confirmed: boolean) => void;
+  refresh.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+  );
+  const checking = flow.refresh();
+  jest.mocked(nfcService.openPaymentSession).mockImplementationOnce(() => ({
+    read: (ready) => {
+      ready?.();
+      return new Promise(() => {});
+    },
+    close,
+    write,
+  }));
+  expect(await flow.newPayment()).toBe(true);
+  await flush();
+  settle(true);
+  await checking;
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'ready',
+    hasPayment: false,
+    checkingStatus: false,
+    amount: undefined,
+    mintUrl: undefined,
+    fees: undefined,
+  });
+  expect(PaymentRequestPayment).toHaveBeenCalledTimes(1);
+});
+
+it('releases a stuck HCE contact without discarding or resending its token', async () => {
+  flow.openSend({ token: 'token', amount: 4, mintUrl: 'mint', operationId: 'op' });
+  await flush();
+  events.connected();
+  expect(flow.getSnapshot().locked).toBe(true);
+  expect(await flow.newPayment()).toBe(false);
+  jest.advanceTimersByTime(20_000);
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'unconfirmed',
+    locked: false,
+    hasPayment: true,
+    canRetryDelivery: true,
+    error: 'NFC contact timed out. Refresh status or retry delivery.',
+  });
+  jest.mocked(nfcService.openPaymentSession).mockImplementationOnce(() => ({
+    read: (ready) => {
+      ready?.();
+      return new Promise(() => {});
+    },
+    close,
+    write,
+  }));
+  expect(await flow.newPayment()).toBe(true);
+  await flush();
+  expect(nfcService.stopHceSimulation).toHaveBeenCalledTimes(1);
+  expect(nfcService.startHceSimulation).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'ready',
+    hasPayment: false,
+    error: undefined,
+  });
+});
+
+it('keeps native failure details private while reporting contact loss in the sheet', async () => {
+  jest.mocked(nfcService.openPaymentSession).mockImplementationOnce(() => ({
+    read: jest.fn(async () => {
+      throw new Error('TagLost: secret-token-payload');
+    }),
+    close,
+    write,
+  }));
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'error',
+    error: 'NFC contact was lost. Keep the phones together and try again.',
+  });
+  expect(JSON.stringify(flow.getSnapshot())).not.toContain('secret-token-payload');
+});
+
+it('keeps an old invoice from being paid again after choosing a new payment', async () => {
+  jest.mocked(parsePaymentInput).mockReturnValue({
+    matched: true,
+    ok: true,
+    value: { primary: { type: 'lightning_invoice', value: 'invoice' } },
+  } as any);
+  const pay = jest.fn(async () => 'pending');
+  jest.mocked(LightningPayment).mockImplementation(
+    () =>
+      ({
+        preview: async () => ({ amount: 4, fee_reserve: 1 }),
+        pay,
+        refresh: async () => 'pending',
+        dispose: async () => {},
+      }) as any,
+  );
+  flow.openReader();
+  await flush();
+  expect(await flow.newPayment()).toBe(true);
+  await flush();
+  expect(LightningPayment).toHaveBeenCalledTimes(1);
+  expect(pay).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot()).toMatchObject({ status: 'unconfirmed', hasPayment: true });
+});
+
+it('allows status checks after closing during a previous refresh', async () => {
+  flow.openReader();
+  await flush();
+  let finish!: (confirmed: boolean) => void;
+  refresh.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const checking = flow.refresh();
+  expect(flow.dismiss()).toBe(true);
+  await flush();
+  flow.openReader();
+  await flush();
+  expect(refresh).toHaveBeenCalledTimes(2);
+  expect(flow.getSnapshot().checkingStatus).toBe(false);
+  finish(true);
+  await checking;
+  expect(flow.getSnapshot().status).toBe('pending');
+  await flow.refresh();
+  expect(refresh).toHaveBeenCalledTimes(3);
+});
+
 it('releases the dismissal guard when backgrounding interrupts an HCE transfer', async () => {
   flow.openSend({ token: 'token', amount: 4, mintUrl: 'mint' });
   await flush();

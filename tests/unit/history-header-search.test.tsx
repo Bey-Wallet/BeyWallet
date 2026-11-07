@@ -6,12 +6,14 @@ import { HistoryTabScreen } from '~/features/history/HistoryTabScreen';
 const mockSetOptions = jest.fn();
 const mockNavigation = { setOptions: mockSetOptions };
 jest.mock('expo-router', () => ({ useNavigation: () => mockNavigation }));
-jest.mock('react-native', () => ({
-  View: 'View',
-  Keyboard: { dismiss: jest.fn() },
-  StyleSheet: { create: (styles: unknown) => styles },
+jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
+  useTheme: () => ({}),
+  XStack: 'XStack',
+  Text: 'Text',
 }));
-jest.mock('tamagui', () => ({ XStack: 'XStack' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('@tamagui/lucide-icons', () => ({
   Search: 'Search',
   X: 'X',
@@ -55,6 +57,40 @@ it('places search beside filters and toggles the expanded bar without changing f
     expect(screen().props.showSearch).toBe(false);
     expect(screen().props.showFilters).toBe(true);
     expect(Keyboard.dismiss).toHaveBeenCalled();
+  } finally {
+    await act(async () => {
+      tree.unmount();
+      header?.unmount();
+    });
+  }
+});
+
+it('keeps POS out of the title and gives both header buttons 22-point icons and separate touch slots', async () => {
+  let tree!: ReactTestRenderer;
+  let header!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<HistoryTabScreen />);
+  });
+  try {
+    const options = mockSetOptions.mock.calls.at(-1)![0];
+    await act(async () => {
+      header = create(
+        <>
+          {options.headerTitle()}
+          {options.headerRight()}
+        </>,
+      );
+    });
+    expect(JSON.stringify(header.toJSON())).not.toContain('POS');
+    const buttons = header.root.findAllByType('Button' as any);
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect(button.props).toMatchObject({ iconSize: 22, size: 'xxsmall', shape: 'circular' });
+    }
+    const slots = header.root
+      .findAllByType('XStack' as any)
+      .filter((node) => node.props.width === 48 && node.props.height === 48);
+    expect(slots).toHaveLength(2);
   } finally {
     await act(async () => {
       tree.unmount();
