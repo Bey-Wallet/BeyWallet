@@ -6,6 +6,7 @@ import { BUIIcon } from './BUIIcon';
 import { BUIText } from './BUIText';
 import { useBUITheme } from './useBUITheme';
 import { buiRowLayout, buiSeparator } from './layout';
+import { appDimensions, appSpacing, appTypography, appBorders } from '~/shared/theme/appearance';
 
 export type BUIListRowProps = {
   title: React.ReactNode;
@@ -44,8 +45,8 @@ export function BUIListRow({
   destination,
   tone = 'default',
   subtitleTone = 'default',
-  minHeight = 56,
-  paddingY = buiRowLayout.paddingY,
+  minHeight = appDimensions.touchTarget,
+  paddingY = appSpacing.gap,
   textGap = true,
   maxTitleLines = 1,
   maxSubtitleLines = 1,
@@ -72,7 +73,7 @@ export function BUIListRow({
     <>
       {leading != null && (
         <YStack
-          style={{ marginEnd: buiRowLayout.iconGap }}
+          style={{ marginEnd: appSpacing.compact }}
           flexShrink={0}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
@@ -86,6 +87,7 @@ export function BUIListRow({
             <BUIText
               flexShrink={1}
               kind="label1"
+              {...appTypography.label1}
               numberOfLines={maxTitleLines}
               color={tone === 'destructive' ? c.negative : c.text}
             >
@@ -100,7 +102,7 @@ export function BUIListRow({
           (typeof subtitle === 'string' ? (
             <BUIText
               kind="body2"
-              lineHeight={undefined}
+              {...appTypography.body2}
               numberOfLines={maxSubtitleLines}
               color={
                 { default: c.muted, success: c.positive, warning: c.warning, error: c.negative }[
@@ -115,7 +117,7 @@ export function BUIListRow({
           ))}
         {description != null &&
           (typeof description === 'string' ? (
-            <BUIText kind="body2" color={c.muted}>
+            <BUIText kind="body2" {...appTypography.body2} color={c.muted}>
               {description}
             </BUIText>
           ) : (
@@ -130,7 +132,7 @@ export function BUIListRow({
           flexShrink={0}
         >
           {value !== undefined && (
-            <BUIText kind="label1" color={c.muted}>
+            <BUIText kind="label1" {...appTypography.label1} color={c.text}>
               {value}
             </BUIText>
           )}
@@ -197,9 +199,11 @@ export function BUIListRow({
 export function BUIListSeparator({
   extraStartInset = 0,
   thickness = buiSeparator.thickness,
+  color,
 }: {
   extraStartInset?: number;
   thickness?: number;
+  color?: string;
 }) {
   const c = useBUITheme();
   return (
@@ -211,7 +215,7 @@ export function BUIListSeparator({
       r={0}
       height={thickness}
       style={{ marginStart: buiSeparator.startInset + extraStartInset }}
-      bg={c.separator}
+      bg={color ?? c.separator}
     />
   );
 }
@@ -231,12 +235,18 @@ export function BUIListGroup({
   const rows = React.Children.toArray(children);
   if (!rows.length) return null;
   return (
-    <YStack mx={inset} rounded={16} bg={c.surface} overflow="hidden">
+    <YStack mx={inset} rounded="$6" bg={c.surface} overflow="hidden">
       {rows.map((child, index) => (
         <YStack key={React.isValidElement(child) ? (child.key ?? index) : index}>
           {child}
           {separators && index < rows.length - 1 && (
-            <BUIListSeparator extraStartInset={separatorExtraInset} />
+            <YStack height={appBorders.separator}>
+              <BUIListSeparator
+                thickness={appBorders.separator}
+                extraStartInset={separatorExtraInset - buiSeparator.startInset}
+                color={c.canvas}
+              />
+            </YStack>
           )}
         </YStack>
       ))}

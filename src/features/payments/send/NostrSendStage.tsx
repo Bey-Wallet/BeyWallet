@@ -381,18 +381,9 @@ export function NostrSendStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 40;
-    if (len <= 8) return 29;
-    if (len <= 10) return 25;
-    if (len <= 13) return 22;
-    return 18;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack gap="$1.5">
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} gap="$2">
         <MintBalanceRow
           activeMint={activeMint}
           activeMintUrl={activeMintUrl || undefined}
@@ -409,13 +400,35 @@ export function NostrSendStage({
           maxDisabled={balance === 0}
         />
 
+        {/* Recipient display / selector bar */}
+        <DestinationInputRow
+          value={recipientUsername || recipientNpub}
+          onChangeText={(val) => {
+            if (val === '') {
+              clearRecipient();
+            } else {
+              setRecipientNpub('');
+              setRecipientUsername(val);
+              setSearch(val);
+              contactSheetRef.current?.present();
+            }
+          }}
+          placeholder="NIP-05, name, npub, or nprofile"
+          onPaste={handlePaste}
+          onScan={handleOpenScanner}
+          defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
+          onIconPress={() => contactSheetRef.current?.present()}
+          isError={isInvalidRecipient}
+        />
         {/* Card Box Container matching AmountStage & P2PKAmountStage */}
         <YStack
           width="100%"
-          bg="$gray2"
+          flex={1}
+          minHeight={0}
+          justify="center"
+          bg="$buttonDefaultSecondary"
           rounded="$6"
           p="$3"
-          py="$5"
           items="center"
           gap="$3"
           borderWidth={0}
@@ -434,7 +447,6 @@ export function NostrSendStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -461,27 +473,6 @@ export function NostrSendStage({
             )}
           </YStack>
         </YStack>
-
-        {/* Recipient display / selector bar */}
-        <DestinationInputRow
-          value={recipientUsername || recipientNpub}
-          onChangeText={(val) => {
-            if (val === '') {
-              clearRecipient();
-            } else {
-              setRecipientNpub('');
-              setRecipientUsername(val);
-              setSearch(val);
-              contactSheetRef.current?.present();
-            }
-          }}
-          placeholder="NIP-05, name, npub, or nprofile"
-          onPaste={handlePaste}
-          onScan={handleOpenScanner}
-          defaultIcon={<User size="$1.5" color="$accent5" strokeWidth={2.5} />}
-          onIconPress={() => contactSheetRef.current?.present()}
-          isError={isInvalidRecipient}
-        />
       </YStack>
 
       <NumericKeypad

@@ -202,7 +202,8 @@ jest.mock('~/shared/ui/AppBottomSheet', () => {
 jest.mock('~/shared/ui/ListTable', () => ({
   ListTable: ({ children, ...props }: any) =>
     require('react').createElement('ListTable', props, children),
-  ListTableRow: 'ListTableRow',
+  ListTableRow: ({ value, ...props }: any) =>
+    require('react').createElement('ListTableRow', { ...props, value }, value),
 }));
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

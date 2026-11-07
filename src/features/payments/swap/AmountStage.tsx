@@ -185,18 +185,9 @@ export function AmountStage({
     return localInputValue;
   }, [localInputValue, inputMode]);
 
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 40;
-    if (len <= 8) return 29;
-    if (len <= 10) return 25;
-    if (len <= 13) return 22;
-    return 18;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between">
-      <YStack gap="$1.5" width="100%">
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} gap="$2" width="100%">
         {/* Source Mint Selector */}
         <MintBalanceRow
           activeMint={sourceMint}
@@ -209,8 +200,29 @@ export function AmountStage({
           showMax={false}
         />
 
+        {/* Target Mint Selector */}
+        <MintBalanceRow
+          activeMint={targetMint}
+          activeMintUrl={targetMintUrl}
+          displayName={targetDisplayName}
+          label="To Mint"
+          balance={targetBalance}
+          isSelector={true}
+          onPress={() => targetSheetRef.current?.present()}
+          showMax={false}
+        />
         {/* Amount Display Card */}
-        <YStack width="100%" bg="$gray2" rounded="$6" p="$4" items="center" gap="$2">
+        <YStack
+          width="100%"
+          flex={1}
+          minHeight={0}
+          justify="center"
+          bg="$buttonDefaultSecondary"
+          rounded="$6"
+          p="$4"
+          items="center"
+          gap="$2"
+        >
           <YStack items="center" justify="center" py="$3" gap="$2" width="100%">
             {error || isOverBalance ? (
               <Text color="$red10" fontSize="$3" fontWeight="600" textAlign="center">
@@ -224,7 +236,6 @@ export function AmountStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
               color={isOverBalance ? '$red10' : '$color'}
@@ -252,18 +263,6 @@ export function AmountStage({
             )}
           </YStack>
         </YStack>
-
-        {/* Target Mint Selector */}
-        <MintBalanceRow
-          activeMint={targetMint}
-          activeMintUrl={targetMintUrl}
-          displayName={targetDisplayName}
-          label="To Mint"
-          balance={targetBalance}
-          isSelector={true}
-          onPress={() => targetSheetRef.current?.present()}
-          showMax={false}
-        />
       </YStack>
 
       {/* Numeric Keypad */}

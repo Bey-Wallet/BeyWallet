@@ -173,7 +173,7 @@ it('uses integer sats and Max without a rate or a currency switch when None is s
   expect(mockSettings.primaryCurrency).toBe('FIAT');
 });
 
-it('opens support with its address and presets without requesting an invoice or paying', async () => {
+it('opens support with its address and manual amount entry without requesting an invoice or paying', async () => {
   mockRouteParams = { lightningAddress: 'beywallet@blitzwalletapp.com', source: 'support' };
   mockWallet.balances['mint-a'] = 20000;
   await open();
@@ -182,8 +182,8 @@ it('opens support with its address and presets without requesting an invoice or 
   expect(mockRequestInvoice).not.toHaveBeenCalled();
   expect(mockPreview).not.toHaveBeenCalled();
   expect(mockPay).not.toHaveBeenCalled();
-  const preset = tree.root.findByProps({ accessibilityLabel: '5,000 sat' });
-  await act(async () => preset.props.onPress());
+  expect(tree.root.findAllByProps({ accessibilityLabel: '5,000 sat' })).toHaveLength(0);
+  await act(async () => keypad().props.onValueChange('5000'));
   expect(keypad().props.value).toBe('5000');
   expect(mockRequestInvoice).not.toHaveBeenCalled();
   await act(async () => keypad().props.onValueChange('2500'));

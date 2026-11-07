@@ -1,7 +1,7 @@
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
-import { YStack, XStack, Text, Input } from 'tamagui';
+import { YStack, Text, Input } from 'tamagui';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -196,17 +196,6 @@ export function AmountStage({
     }
   };
 
-  const handlePreset = (presetSats: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setAmount(presetSats);
-    if (inputMode === 'SATS') {
-      setLocalInputValue(presetSats);
-    } else if (btcData?.price) {
-      const fiat = currencyService.convertSatsToCurrency(Number(presetSats), btcData.price);
-      setLocalInputValue(fiat > 0 ? fiat.toFixed(2) : '0');
-    }
-  };
-
   const formattedDisplayValue = useMemo(() => {
     if (posFiat) {
       return (Number(localInputValue) || 0).toLocaleString('en-US', {
@@ -231,25 +220,9 @@ export function AmountStage({
     return localInputValue;
   }, [localInputValue, inputMode, posFiat]);
 
-  // Dynamic font size based on string length to scale seamlessly
-  const dynamicFontSize = useMemo(() => {
-    const len = formattedDisplayValue.length;
-    if (len <= 6) return 40;
-    if (len <= 8) return 29;
-    if (len <= 10) return 25;
-    if (len <= 13) return 22;
-    return 18;
-  }, [formattedDisplayValue]);
-
   return (
-    <YStack flex={1} justify="space-between" gap="$3">
-      <YStack
-        flex={onNoteChange ? 1 : undefined}
-        minHeight={0}
-        items="center"
-        gap="$1.5"
-        width="100%"
-      >
+    <YStack flex={1} gap="$2">
+      <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector Row */}
         <MintBalanceRow
           activeMint={activeMint}
@@ -294,9 +267,10 @@ export function AmountStage({
         {/* Card Box Container */}
         <YStack
           width="100%"
-          flex={onNoteChange ? 1 : undefined}
+          flex={1}
+          minHeight={0}
           justify="center"
-          bg={pos ? 'transparent' : '$gray2'}
+          bg={pos ? 'transparent' : '$buttonDefaultSecondary'}
           rounded="$6"
           p="$4"
           items="center"
@@ -312,7 +286,6 @@ export function AmountStage({
 
             <BouncyAmount
               value={formattedDisplayValue}
-              fontSize={dynamicFontSize}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
             />
@@ -339,68 +312,9 @@ export function AmountStage({
             )}
           </YStack>
         </YStack>
-        {/* 3 Preset buttons above numpad */}
-        {!onNoteChange && (
-          <XStack width="100%" justify="center" gap="$1.5">
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('1000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                1k
-              </Text>
-            </AppPressable>
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('5000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                5k
-              </Text>
-            </AppPressable>
-            <AppPressable
-              px={12}
-              py={4}
-              flex={1}
-              rounded="$6"
-              bg="$gray2"
-              pressStyle={{ scale: 0.95 }}
-              onPress={() => handlePreset('20000')}
-              minHeight={64}
-              flexDirection="row"
-              items="center"
-              justify="center"
-              gap={8}
-            >
-              <Text color="$color" fontSize="$4" fontWeight="600">
-                20k
-              </Text>
-            </AppPressable>
-          </XStack>
-        )}
       </YStack>
 
-      {/* Presets and Numeric Keypad */}
+      {/* Numeric Keypad */}
       <YStack width="100%" gap="$4">
         <NumericKeypad
           appearance={appearance}

@@ -9,7 +9,8 @@ import {
   BUIListSeparator,
   BUIListCheckRow,
 } from '~/shared/ui/BUI/BUIListRow';
-import { BUICopyRow } from '~/shared/ui/BUI/BUIPropertyRow';
+import { BUICopyRow, BUIPropertyRow } from '~/shared/ui/BUI/BUIPropertyRow';
+import { ListTableRow } from '~/shared/ui/ListTable';
 import { BUIChoices } from '~/shared/ui/BUI/BUIPage';
 import { BUIText } from '~/shared/ui/BUI/BUIText';
 import { BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';
@@ -19,6 +20,7 @@ import { useBUIStore } from '~/state/buiStore';
 
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 const wrap = (children: React.ReactNode) => (
   <TamaguiProvider config={config} defaultTheme="dark">
@@ -124,12 +126,38 @@ it('updates group boundaries when rows are removed and omits empty groups', asyn
       tree = create(sample(3));
     });
     expect(tree!.root.findAllByType(BUIListSeparator)).toHaveLength(2);
+    expect(tree!.root.findAllByType(BUIListSeparator)[0].props).toMatchObject({
+      thickness: 2,
+      extraStartInset: -16,
+    });
     await act(async () => tree!.update(sample(1)));
     expect(tree!.root.findAllByType(BUIListSeparator)).toHaveLength(0);
     await act(async () => tree!.update(sample(0)));
     expect(tree!.toJSON()).toBeNull();
   } finally {
     if (tree) await act(async () => tree!.unmount());
+  }
+});
+
+it('uses the confirmation row for standard properties and keeps long values constrained', async () => {
+  let tree!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      tree = create(
+        wrap(
+          <BUIListGroup>
+            <BUIPropertyRow title="Mint" value="A long mint name" maxValueLines={2} />
+          </BUIListGroup>,
+        ),
+      );
+    });
+    expect(tree.root.findByType(ListTableRow).props).toMatchObject({
+      label: 'Mint',
+      multiline: true,
+    });
+    expect(tree.root.findAllByType(AppPressable)).toHaveLength(0);
+  } finally {
+    if (tree) await act(async () => tree.unmount());
   }
 });
 

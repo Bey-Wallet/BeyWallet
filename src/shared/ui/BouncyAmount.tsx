@@ -1,6 +1,7 @@
 import React from 'react';
 import { H1, Text, View } from 'tamagui';
 import { spaceCurrencyPrefix } from '~/shared/utils/currencyDisplay';
+import { appTypography } from '~/shared/theme/appearance';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,7 +17,7 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 
 interface BouncyAmountProps {
   value: string;
-  fontSize: number;
+  fontSize?: number;
   prefix?: string;
   suffix?: string;
   color?: string;
@@ -25,7 +26,7 @@ interface BouncyAmountProps {
 
 export function BouncyAmount({
   value,
-  fontSize,
+  fontSize = appTypography.display.fontSize,
   prefix = '',
   suffix = '',
   color = '$color',
@@ -72,6 +73,8 @@ export function BouncyAmount({
 
   return (
     <AnimatedH1
+      width="100%"
+      minWidth={0}
       fontFamily="$display"
       fontSize={fontSize}
       fontVariant={['tabular-nums']}

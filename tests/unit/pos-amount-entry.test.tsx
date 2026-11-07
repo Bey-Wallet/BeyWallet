@@ -71,13 +71,16 @@ it('keeps mint selection, replaces the POS balance with an editable note, and ch
   await act(async () => keypad.props.onConfirm());
   expect(onContinue).toHaveBeenCalledTimes(1);
 });
-it('retains the normal minting balance and presets outside POS', async () => {
+it('retains the normal minting balance without amount presets outside POS', async () => {
   await act(async () => {
     tree = create(<AmountStage amount="64" setAmount={jest.fn()} onContinue={jest.fn()} />);
   });
   expect(tree.root.findByType('MintRow' as any).props.showBalance).toBe(true);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Payment note' })).toHaveLength(0);
   expect(tree.root.findByType('Keypad' as any).props.confirmLabel).toBe('Continue');
+  expect(tree.root.findAllByType('Text' as any).map((text) => text.props.children)).not.toEqual(
+    expect.arrayContaining(['1k', '5k', '20k']),
+  );
 });
 
 function Entry({ pos = true }: { pos?: boolean }) {

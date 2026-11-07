@@ -4,6 +4,7 @@ import { ReceiptExtraDetails } from '~/features/history/components/ReceiptExtraD
 jest.mock('tamagui', () => ({ YStack: 'YStack' }));
 jest.mock('@tamagui/lucide-icons', () => ({ ChevronDown: 'Down', ChevronUp: 'Up' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
+jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 let tree: ReactTestRenderer;
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -22,16 +23,22 @@ it('keeps identifiers hidden until requested and preserves complete copy values'
       />,
     );
   });
-  expect(tree.root.findAllByType('Row' as any)).toHaveLength(1);
-  expect(tree.root.findByType('Row' as any).props.expanded).toBe(false);
-  await act(async () => tree.root.findByType('Row' as any).props.onPress());
+  expect(tree.root.findAllByType('Row' as any)).toHaveLength(0);
+  const toggle = () => tree.root.findByType('Button' as any);
+  expect(toggle().props).toMatchObject({
+    emphasis: 'secondary',
+    size: 'small',
+    fullWidth: false,
+    accessibilityState: { expanded: false },
+  });
+  await act(async () => toggle().props.onPress());
   const rows = tree.root.findAllByType('Row' as any);
-  expect(rows[0].props.expanded).toBe(true);
-  expect(rows[1].props).toMatchObject({
+  expect(toggle().props.accessibilityState.expanded).toBe(true);
+  expect(rows[0].props).toMatchObject({
     label: 'Invoice',
     copyValue: 'complete invoice',
     isCopyable: true,
   });
-  await act(async () => rows[0].props.onPress());
-  expect(tree.root.findAllByType('Row' as any)).toHaveLength(1);
+  await act(async () => toggle().props.onPress());
+  expect(tree.root.findAllByType('Row' as any)).toHaveLength(0);
 });

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Copy } from '@tamagui/lucide-icons';
-import { XStack, YStack } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
+import { ListTableRow } from '~/shared/ui/ListTable';
+import { appTypography } from '~/shared/theme/appearance';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIListRow } from './BUIListRow';
 import { BUIText } from './BUIText';
@@ -26,6 +28,32 @@ export function BUIPropertyRow({
   onPress?: () => void;
 }) {
   const c = useBUITheme();
+  if (!large)
+    return (
+      <ListTableRow
+        label={title}
+        value={
+          <XStack gap={4} minWidth={0} flexShrink={1} items="center">
+            {prefix}
+            <Text
+              fontFamily="$body"
+              {...appTypography.label1}
+              color="$color"
+              numberOfLines={maxValueLines}
+              ellipsizeMode={maxValueLines === 1 ? 'middle' : 'tail'}
+              textAlign="right"
+              minWidth={0}
+              flexShrink={1}
+            >
+              {value}
+            </Text>
+          </XStack>
+        }
+        rightContent={postfix}
+        multiline={maxValueLines !== 1}
+        onPress={onPress}
+      />
+    );
   const content = (
     <>
       <XStack gap={4} items="center" flexShrink={1}>

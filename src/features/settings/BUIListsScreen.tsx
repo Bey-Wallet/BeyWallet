@@ -59,8 +59,19 @@ export function BUIListsScreen() {
       {category === 'Rows' && (
         <>
           <BUISection
+            name="Confirmation & result list"
+            measurement="The standard BUI list uses the payment confirmation rows: filled surface, 16-point clipped corners, full-width 2-point separators, horizontal16 / vertical12 padding, 14-point labels and values, and a minimum48-point row."
+          >
+            <BUIListGroup>
+              <BUIPropertyRow title="Mint" value="Everyday mint" />
+              <BUIPropertyRow title="Method" value="Ecash" />
+              <BUIPropertyRow title="Amount" value="12,500 sat" />
+              <BUIPropertyRow title="Fee" value="2 sat" />
+            </BUIListGroup>
+          </BUISection>
+          <BUISection
             name="Text rows"
-            measurement="Minimum56 / padding16 × 8 / title16 Medium / subtitle14 Regular with native line metrics / text gaps2 / leading gap16 / trailing gap8. Blank subtitles are omitted."
+            measurement="Minimum48 / padding16 × 12 / title14 Medium / subtitle13 Regular / text gaps2 / leading and trailing gaps8. Blank subtitles are omitted."
           >
             <BUIListGroup>
               <BUIListRow title="Title only" />
@@ -174,7 +185,7 @@ export function BUIListsScreen() {
         <>
           <BUISection
             name="Whole-row check selection"
-            measurement="Minimum56 / base row spacing / selected check28 / BUI blue. This sample is a radio group; tapping the selected row keeps it selected."
+            measurement="Minimum48 / standard row spacing / selected check28 / BUI blue. This sample is a radio group; tapping the selected row keeps it selected."
           >
             <BUIListGroup>
               {['Everyday wallet', 'Travel wallet'].map((title) => (
@@ -225,7 +236,7 @@ export function BUIListsScreen() {
         <>
           <BUISection
             name="Property rows"
-            measurement="Default padding19 × 12 / key14 Regular / value14 Medium / key-value gap8 / prefix-postfix gaps4 / top alignment. Single-line values use middle ellipsis."
+            measurement="Uses the same ListTableRow as confirmations and results: minimum48 / padding16 × 12 / key14 Regular / value14 Medium / gap8 / centered alignment. Single-line values use middle ellipsis."
           >
             <BUIListGroup>
               <BUIPropertyRow title="Network" value="Bitcoin" />
@@ -425,7 +436,7 @@ export function BUIListsScreen() {
         <>
           <BUISection
             name="Grouped rows"
-            measurement="Outer margins16 / card fill / corners16. Dividers0.5 / start inset16 overlay the preceding row without adding height. Child rows stay square inside the clipped group."
+            measurement="Outer margins16 / filled surface / corners16. Full-width 2-point page-color dividers separate square child rows inside the clipped group."
           >
             <BUIListHeader
               title="Preferences"
@@ -474,7 +485,7 @@ export function BUIListsScreen() {
           </BUISection>
           <BUISection
             name="Extra divider inset"
-            measurement="Extra inset adds to the default16. This sample uses16 + 36 + 16 = 68, matching a36-point leading slot plus gap16."
+            measurement="Optional explicit inset52. Standard confirmation and result lists use full-width 2-point dividers."
           >
             <BUIListGroup separatorExtraInset={52}>
               <BUIListRow title="First row" leading={icon} onPress={action} />

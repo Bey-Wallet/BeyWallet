@@ -101,8 +101,8 @@ it.each(['SATS', 'FIAT'])(
   'keeps %s primary across payment and success screens',
   async (currency) => {
     mockPrimaryCurrency = currency;
-    const primary = currency === 'SATS' ? '10,000 sat' : '$10.00';
-    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 sat';
+    const primary = currency === 'SATS' ? '10,000 sat' : '$\u202f10.00';
+    const secondary = currency === 'SATS' ? '≈ $\u202f10.00' : '≈ 10,000 sat';
     const payment = await render(<PaymentStage {...paymentProps} />);
     const result = await render(
       <ResultStage
@@ -138,8 +138,12 @@ it.each(['SATS', 'FIAT'])(
       ['Mint', 'My mint', undefined],
       ['Time', formatPaymentDateTime(Date.now()), undefined],
       ['Method', 'Lightning', undefined],
-      ['Show details', undefined, undefined],
     ]);
+    expect(button(result, 'Show details').props).toMatchObject({
+      emphasis: 'secondary',
+      size: 'small',
+      fullWidth: false,
+    });
     await act(async () => {
       payment.unmount();
       result.unmount();
