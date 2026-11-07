@@ -68,7 +68,7 @@ export function MintBalanceRow({
   };
 
   return (
-    <ListTable width="100%" bg="$buttonDefaultSecondary">
+    <ListTable width="100%">
       <XStack items="center" gap={appSpacing.compact} px={appSpacing.gap}>
         <AppPressable
           flex={1}

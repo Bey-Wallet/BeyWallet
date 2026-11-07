@@ -426,7 +426,7 @@ export function NostrSendStage({
           flex={1}
           minHeight={0}
           justify="center"
-          bg="$buttonDefaultSecondary"
+          bg="$gray2"
           rounded="$6"
           p="$3"
           items="center"

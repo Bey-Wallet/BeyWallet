@@ -128,6 +128,6 @@ it('keeps sent cards neutral and right aligned, with the full note visible', asy
     self: 'flex-end',
     width: 236,
   });
-  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$buttonDefaultSecondary');
+  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$gray2');
   expect(JSON.stringify(tree.toJSON())).toContain('Shared dinner');
 });

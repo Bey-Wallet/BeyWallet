@@ -750,7 +750,7 @@ export function OnchainMeltFlow() {
           flex={1}
           minHeight={0}
           justify="center"
-          bg="$buttonDefaultSecondary"
+          bg="$gray2"
           rounded="$6"
           p="$4"
           items="center"

@@ -170,9 +170,9 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
         minHeight={48}
         p={payment ? appSpacing.compact : appSpacing.gap}
         rounded={appRadii.card}
-        bg="$buttonDefaultSecondary"
-        hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
-        pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+        bg="$gray2"
+        hoverStyle={{ bg: '$gray3' }}
+        pressStyle={{ bg: '$gray3' }}
       >
         {payment ? <ConversationPaymentCard {...props} /> : <ConversationTextBubble {...props} />}
       </AppPressable>

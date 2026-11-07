@@ -271,7 +271,7 @@ it.each(['send', 'receive'] as const)(
       expect(option.props).toMatchObject({
         minHeight: 48,
         flexDirection: 'row',
-        bg: '$buttonDefaultSecondary',
+        bg: '$gray2',
         items: 'center',
         rounded: '$6',
         overflow: 'hidden',

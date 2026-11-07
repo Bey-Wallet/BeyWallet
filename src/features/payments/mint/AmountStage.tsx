@@ -270,7 +270,7 @@ export function AmountStage({
           flex={1}
           minHeight={0}
           justify="center"
-          bg={pos ? 'transparent' : '$buttonDefaultSecondary'}
+          bg={pos ? 'transparent' : '$gray2'}
           rounded="$6"
           p="$4"
           items="center"

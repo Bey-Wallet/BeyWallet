@@ -79,7 +79,7 @@ export default function BitcoinPriceCard() {
       borderColor="$gray3"
       borderWidth={0.5}
       rounded="$5"
-      bg={isExpanded ? '$gray2' : '$orange5'}
+      bg="$gray2"
       p="$2"
       px="$3"
       animation="lazy"

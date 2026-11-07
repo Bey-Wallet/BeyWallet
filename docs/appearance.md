@@ -62,8 +62,9 @@ and disabled fills stay neutral, and separators remain subtle. Dark-mode colors 
 Color roles include page and alternate backgrounds, content and tinted surfaces, three text
 and icon levels, input backgrounds and error states, separators, three overlay strengths,
 active/inactive tab icons, and enabled/highlighted/disabled button states. Success, warning,
-and error retain their semantic colors. Neutral cards and secondary buttons use the approved
-neutral surface palette. There is one neutral button family; the duplicate Branded family is removed.
+and error retain their semantic colors. Neutral cards use ListTable's `$gray2` surface, with `$gray3`
+for interactive highlights. Secondary buttons retain their button palette. There is one neutral
+button family; the duplicate Branded family is removed.
 
 `AppButton` uses `variant="default" | "critical" | "warning"` for intent, and
 `emphasis="primary" | "secondary" | "ghost" | "text"` for presentation. Primary is filled;

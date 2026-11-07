@@ -48,7 +48,7 @@ export function BUIBannerCard({
     </XStack>
   );
   return (
-    <YStack mx={16} minHeight={90} rounded={20} overflow="hidden" bg={c.alternateCanvas}>
+    <YStack mx={16} minHeight={90} rounded={20} overflow="hidden" bg={c.surface}>
       {onPress ? (
         <AppPressable
           accessibilityLabel={`${title}${action ? `, ${action}` : ''}`}

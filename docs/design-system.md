@@ -24,9 +24,9 @@ UI components, app stores, or wallet services. The adapter consumes the foundati
 
 ## Color roles and themes
 
-For the recorded migration direction, use `$background` for canvas and `$buttonDefaultSecondary`
-for neutral groups, fields and secondary actions. Existing `$gray2`/`$gray3` consumers remain until
-their screen is reviewed; avoid adding a second neutral fill without a functional reason.
+Use `$background` for canvas and `$gray2` for neutral cards and grouped lists, matching ListTable.
+Payment amount, mint/balance and action cards share this fill; hover/pressed cards use `$gray3`.
+Fields and secondary actions retain their existing field and button tokens.
 Use `$color` for primary copy, `$gray10` for secondary copy, and `$iconPrimary`/`$iconSecondary`
 for icons. Primary brand fills use `$accentColor` with `$onAccent` for the foreground. Buttons
 consume their existing `buttonDefault*`, `buttonCritical*`, and `buttonWarning*` state tokens.

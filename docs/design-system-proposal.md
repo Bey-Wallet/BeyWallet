@@ -12,9 +12,10 @@ isolated from production wallet screens.
 
 ## Surface and color
 
-- Page: `$background`. Ordinary neutral cards, grouped lists, action groups, fields and
-  secondary buttons: `$buttonDefaultSecondary`.
-- Interactive fills use the existing secondary hover/pressed tokens and row feedback.
+- Page: `$background`. Ordinary neutral cards, grouped lists and payment-flow cards:
+  `$gray2`, matching ListTable. This includes amount cards, mint/balance cards and action cards.
+- Interactive cards use `$gray3` for hover/pressed fills and retain existing feedback.
+  Fields and secondary buttons retain their existing field/button tokens.
   Focus, disabled, error and loading states remain visible and accessible.
 - Establish hierarchy through placement, spacing and typography. Avoid extra gray layers,
   decorative borders and shadows around every child. Group only related content.
