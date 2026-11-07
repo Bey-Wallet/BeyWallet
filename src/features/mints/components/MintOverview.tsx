@@ -6,6 +6,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { MintAboutRows } from './MintAboutRows';
+import { appSpacing } from '~/shared/theme/appearance';
 
 export function MintOverview({
   url,
@@ -21,6 +22,9 @@ export function MintOverview({
   connectionCheckedAt?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const description =
+    (typeof info.description_long === 'string' && info.description_long.trim()) ||
+    (typeof info.description === 'string' && info.description.trim());
   const radar = useRadarHealth(url);
   const list = useCashuHealthList();
   const monitoredMint = list.data?.find((mint) => mint.url === mintHealthUrl(url));
@@ -37,7 +41,7 @@ export function MintOverview({
           : 'Unavailable';
 
   return (
-    <YStack gap={16}>
+    <YStack gap={appSpacing.group}>
       {(radar.data?.isTest || monitoredMint?.isTest) && (
         <Text kind="body2" color="$orange10" accessibilityRole="alert">
           Test mint · Not real bitcoin
@@ -50,9 +54,16 @@ export function MintOverview({
           </MintCard>
         </MintSection>
       )}
-      <MintSection title="Mint information">
+      {description && (
+        <MintSection title="About">
+          <MintCard>
+            <Text kind="body2">{description}</Text>
+          </MintCard>
+        </MintSection>
+      )}
+      <MintSection title="Overview">
         <MintRows>
-          <MintAboutRows url={url} info={info} />
+          <MintAboutRows url={url} info={info} showDescription={false} />
         </MintRows>
       </MintSection>
       <MintSection title="Connection and reliability">

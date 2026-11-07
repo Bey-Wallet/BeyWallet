@@ -33,6 +33,7 @@ export function BUIButton({
   return (
     <BUIButtonControl
       paletteOverride={palette}
+      disabledColorOverride={theme.disabledForeground}
       emphasis={textOnly ? 'text' : variant === 'Tertiary' ? 'ghost' : 'primary'}
       size={size === 'small' ? 'xsmall' : size}
       disabled={state === 'Disabled'}

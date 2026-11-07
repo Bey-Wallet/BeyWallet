@@ -299,8 +299,8 @@ it('resolves the current theme, preserves loading colors and removes reduced-mot
     Object.entries(buttonThemes.dark).map(([key, val]) => [key, { val }]),
   );
   const tree = await render({ variant: 'default', loading: true, disabled: true });
-  expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe('#3C95FA');
-  expect(tree.root.findByType('Text' as any).props.color).toBe('#FFFFFF');
+  expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe('#FFFFFF');
+  expect(tree.root.findByType('Text' as any).props.color).toBe('#000000');
   mockReducedMotion = true;
   await act(async () => tree.update(<AppButton size="xxsmall">Submit example</AppButton>));
   const button = tree.root.findByType('Button' as any);
@@ -308,6 +308,82 @@ it('resolves the current theme, preserves loading colors and removes reduced-mot
   expect(button.props.hitSlop.top * 2 + button.props.minHeight).toBe(48);
   await act(async () => tree.unmount());
 });
+
+it.each(['light', 'dark'] as const)(
+  'requires an explicit accent variant in %s',
+  async (appearance) => {
+    mockTheme = Object.fromEntries(
+      Object.entries(buttonThemes[appearance]).map(([key, val]) => [key, { val }]),
+    );
+    const tree = await render();
+    expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe(
+      appearance === 'light' ? '#000000' : '#FFFFFF',
+    );
+    for (const state of [{}, { disabled: true }, { loading: true, disabled: true }]) {
+      await act(async () =>
+        tree.update(
+          <AppButton variant="accent" {...state}>
+            Accent
+          </AppButton>,
+        ),
+      );
+      expect(tree.root.findByType('Button' as any).props.backgroundColor).toBe(
+        state.disabled && !('loading' in state) ? getBUITheme(appearance).raised : '#8A5CF5',
+      );
+      expect(tree.root.findByType('Text' as any).props.color).toBe(
+        state.disabled && !('loading' in state)
+          ? getBUITheme(appearance).disabledForeground
+          : '#FFFFFF',
+      );
+      if ('loading' in state) {
+        expect(tree.root.findByType('Spinner' as any).props.color).toBe('#FFFFFF');
+      }
+    }
+    await act(async () => tree.unmount());
+  },
+);
+
+it.each(['light', 'dark'] as const)(
+  'mutes disabled labels and icons across button styles in %s',
+  async (appearance) => {
+    mockTheme = Object.fromEntries(
+      Object.entries(buttonThemes[appearance]).map(([key, val]) => [key, { val }]),
+    );
+    const c = getBUITheme(appearance);
+    const Icon = (_props: { size: number; color: string }) => null;
+    const tree = await render();
+    for (const variant of ['default', 'accent', 'critical', 'warning'] as const) {
+      for (const emphasis of ['primary', 'secondary', 'ghost', 'text'] as const) {
+        await act(async () =>
+          tree.update(
+            <AppButton
+              variant={variant}
+              emphasis={emphasis}
+              disabled
+              icon={Icon}
+              iconAfter={Icon}
+              textColor="#FF0000"
+            >
+              Disabled
+            </AppButton>,
+          ),
+        );
+        expect(tree.root.findByType('Text' as any).props.color).toBe(c.disabledForeground);
+        expect(tree.root.findAllByType(Icon).map((icon) => icon.props.color)).toEqual([
+          c.disabledForeground,
+          c.disabledForeground,
+        ]);
+        const button = tree.root.findByType('Button' as any);
+        expect(button.props.backgroundColor).toBe(
+          emphasis === 'primary' ? c.raised : emphasis === 'secondary' ? c.surface : 'transparent',
+        );
+        expect(button.props.hoverStyle).toEqual({});
+        expect(button.props.pressStyle).toEqual({});
+      }
+    }
+    await act(async () => tree.unmount());
+  },
+);
 
 it('keeps Ghost touch feedback distinct from background-free Text actions', async () => {
   const tree = await render({ emphasis: 'ghost' });

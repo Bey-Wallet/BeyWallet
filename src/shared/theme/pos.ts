@@ -48,6 +48,8 @@ export const posThemeOverrides = {
   green10: posColors.ink,
   green11: posColors.ink,
   accentColor: posColors.ink,
+  primaryColor: posColors.ink,
+  onPrimary: posColors.canvas,
   accent10: posColors.ink,
   onAccent: posColors.canvas,
   borderColor: posColors.ink,

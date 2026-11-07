@@ -10,6 +10,7 @@ import {
 } from '~/shared/ui/BUI/BUIListRow';
 import { buiSeparator } from '~/shared/ui/BUI/layout';
 import { BUIAppearanceProvider } from '~/shared/ui/BUI/useBUITheme';
+import { appSpacing } from '~/shared/theme/appearance';
 
 /** BUI surfaces are scoped to mint details and preview, including their sheets. */
 export function MintAppearance({ children }: { children: React.ReactNode }) {
@@ -67,7 +68,9 @@ export function MintSection({
 }) {
   return (
     <YStack>
-      <BUIListHeader title={title} description={description} />
+      <YStack mx={-appSpacing.page}>
+        <BUIListHeader title={title} description={description} />
+      </YStack>
       {children}
     </YStack>
   );

@@ -9,7 +9,15 @@ import { MintContacts } from './MintContacts';
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
-export function MintAboutRows({ url, info }: { url: string; info: Record<string, any> }) {
+export function MintAboutRows({
+  url,
+  info,
+  showDescription = true,
+}: {
+  url: string;
+  info: Record<string, any>;
+  showDescription?: boolean;
+}) {
   const description = text(info.description) || text(info.description_long);
   const units = [
     ...new Set([
@@ -21,7 +29,7 @@ export function MintAboutRows({ url, info }: { url: string; info: Record<string,
   ];
   return (
     <>
-      {description && (
+      {showDescription && description && (
         <YStack px="$page" py="$rowGap">
           <Text color="$color" kind="body2">
             {description}

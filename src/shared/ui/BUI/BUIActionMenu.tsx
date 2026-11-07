@@ -4,6 +4,7 @@ import { Check, MoreHorizontal } from '@tamagui/lucide-icons';
 import { ScrollView, Theme, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIText } from './BUIText';
+import { BUIHeaderAction } from './BUIHeader';
 import { useBUITheme } from './useBUITheme';
 import { useBUIAnchoredPopup } from './useBUIAnchoredPopup';
 import { buiSelectorPosition } from './selectorGeometry';
@@ -23,6 +24,7 @@ export function BUIActionMenu({
   onAction,
   alignment = 'start',
   iconTrigger = false,
+  headerTrigger = false,
   renderContent,
 }: {
   label: string;
@@ -31,6 +33,7 @@ export function BUIActionMenu({
   onAction?: (id: string) => void;
   alignment?: 'start' | 'center';
   iconTrigger?: boolean;
+  headerTrigger?: boolean;
   renderContent?: (dismiss: () => boolean) => React.ReactNode;
 }) {
   const c = useBUITheme();
@@ -50,26 +53,38 @@ export function BUIActionMenu({
   );
   return (
     <>
-      <AppPressable
-        ref={popup.trigger}
-        accessibilityLabel={label}
-        accessibilityState={{ expanded: popup.expanded }}
-        minHeight={48}
-        minWidth={48}
-        px={iconTrigger ? 0 : 16}
-        py={8}
-        rounded={16}
-        bg={iconTrigger ? 'transparent' : c.secondaryButton[0]}
-        flexDirection="row"
-        items="center"
-        justify="center"
-        gap={8}
-        onPress={popup.open}
-        onLongPress={popup.open}
-      >
-        <MoreHorizontal size={iconTrigger ? 22 : 20} color={c.text} />
-        {!iconTrigger && <BUIText kind="label2">{label}</BUIText>}
-      </AppPressable>
+      {headerTrigger ? (
+        <BUIHeaderAction
+          ref={popup.trigger}
+          label={label}
+          accessibilityState={{ expanded: popup.expanded }}
+          onPress={popup.open}
+          onLongPress={popup.open}
+        >
+          <MoreHorizontal size={22} color={popup.expanded ? '$onAccent' : c.text} />
+        </BUIHeaderAction>
+      ) : (
+        <AppPressable
+          ref={popup.trigger}
+          accessibilityLabel={label}
+          accessibilityState={{ expanded: popup.expanded }}
+          minHeight={48}
+          minWidth={48}
+          px={iconTrigger ? 0 : 16}
+          py={8}
+          rounded={16}
+          bg={iconTrigger ? 'transparent' : c.secondaryButton[0]}
+          flexDirection="row"
+          items="center"
+          justify="center"
+          gap={8}
+          onPress={popup.open}
+          onLongPress={popup.open}
+        >
+          <MoreHorizontal size={iconTrigger ? 22 : 20} color={c.text} />
+          {!iconTrigger && <BUIText kind="label2">{label}</BUIText>}
+        </AppPressable>
+      )}
       <Modal
         visible={!!popup.anchor}
         transparent

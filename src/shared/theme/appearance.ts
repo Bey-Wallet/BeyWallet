@@ -1,5 +1,13 @@
 import { defaultConfig } from '@tamagui/config/v5';
 
+/** Obsidian's default accent: hsl(258, 88%, 66%). Explicitly opt in to this fill. */
+export const appAccent = {
+  background: '#8A5CF5',
+  pressed: '#7848E0',
+  disabled: '#655184',
+  foreground: '#FFFFFF',
+} as const;
+
 /** Semantic colors shared by the native and Tamagui surfaces. */
 export const appColors = {
   dark: {
@@ -200,6 +208,11 @@ export function createAppColorTheme(appearance: keyof typeof appColors) {
     borderColorHover: c.secondaryText,
     borderColorFocus: c.accent,
     placeholderColor: c.secondaryText,
+    // Legacy accentColor/onAccent remain primary aliases for existing wallet controls.
+    primaryColor: c.accent,
+    onPrimary: c.onAccent,
+    accentBackground: appAccent.background,
+    accentForeground: appAccent.foreground,
     accentColor: c.accent,
     onAccent: c.onAccent,
     offlineAmountLower: c.offlineAmountLower,

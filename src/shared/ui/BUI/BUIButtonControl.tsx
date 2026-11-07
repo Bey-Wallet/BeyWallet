@@ -21,7 +21,7 @@ import {
   appSpacing,
 } from '~/shared/theme/appearance';
 
-export type AppButtonVariant = 'default' | 'critical' | 'warning';
+export type AppButtonVariant = 'default' | 'accent' | 'critical' | 'warning';
 export type AppButtonEmphasis = 'primary' | 'secondary' | 'ghost' | 'text';
 export type AppButtonSize = keyof typeof appButtonSizes;
 type IconProps = { size: number; color: string };
@@ -78,6 +78,7 @@ function renderIcon(icon: AppButtonIcon | undefined, props: IconProps) {
 type BUIButtonControlProps = AppButtonProps & {
   /** Explicit palette for the catalog; wallet callers resolve their active Tamagui theme. */
   paletteOverride?: readonly [string, string, string, string];
+  disabledColorOverride?: string;
   highlighted?: boolean;
 };
 
@@ -97,6 +98,7 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
       shape = 'rounded',
       fullWidth,
       paletteOverride,
+      disabledColorOverride,
       highlighted = false,
       labelFontSize,
       textColor,
@@ -120,10 +122,16 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
     // Loading retains the enabled palette, including when both flags are set.
     const muted = disabled && !loading;
     const level = emphasis === 'primary' ? 'Primary' : 'Secondary';
+    const disabledFill =
+      level === 'Primary'
+        ? variant === 'accent'
+          ? 'buttonAccentDisabled'
+          : 'buttonDisabled'
+        : 'buttonSecondaryDisabled';
     const background = paletteOverride
       ? paletteOverride[muted ? 1 : highlighted ? 2 : 0]
       : muted
-        ? token(level === 'Primary' ? 'buttonDisabled' : 'buttonSecondaryDisabled')
+        ? token(disabledFill)
         : token(`${prefix}${level}`);
     const customColor =
       textOnly && textColor != null
@@ -131,16 +139,11 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
           ? token(textColor.slice(1))
           : String(getVariableValue(textColor))
         : undefined;
-    const color =
-      customColor ??
-      paletteOverride?.[3] ??
-      token(
-        muted && !textOnly
-          ? level === 'Primary'
-            ? 'buttonDisabledText'
-            : 'buttonSecondaryDisabledText'
-          : `${prefix}${transparent ? 'Text' : `${level}Text`}`,
-      );
+    const color = muted
+      ? (disabledColorOverride ?? token(`${disabledFill}Text`))
+      : (customColor ??
+        paletteOverride?.[3] ??
+        token(`${prefix}${transparent ? 'Text' : `${level}Text`}`));
     const blocked = disabled || loading;
     const ghostNeutral = emphasis === 'ghost' && variant === 'default';
     const interactionBackground = (state: 'Hover' | 'Press') =>
@@ -212,7 +215,7 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
               : 'transparent'
             : background
         }
-        opacity={muted && textOnly ? appButtonStates.disabledTextOpacity : 1}
+        opacity={1}
         cursor={blocked ? 'default' : 'pointer'}
         hoverStyle={
           blocked

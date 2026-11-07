@@ -1,13 +1,14 @@
 import { BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';
 import {
   MintAppearance,
-  MintCard,
   MintRows,
   MintDetailRow,
   MintSection,
   MintText as Text,
 } from './components/MintUI';
 import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
+import { MintQuickActions } from './components/MintQuickActions';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintImage } from '~/shared/ui/RemoteImage';
@@ -16,7 +17,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack, XStack, ScrollView, View } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Globe, Sprout, Share2, Plus, QrCode, Check, X } from '@tamagui/lucide-icons';
+import { Globe, Sprout, Share2, Plus, Check, X } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import * as Haptics from 'expo-haptics';
@@ -188,88 +189,80 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
         options={{
           title: name,
           gestureEnabled: !isConnecting,
+          headerRight: () => (
+            <BUIActionMenu
+              label="Mint actions"
+              headerTrigger
+              items={[
+                { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
+              ]}
+              onAction={() => void handleShare()}
+            />
+          ),
         }}
       />
 
       <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-        <YStack px={16} pt={16} pb={24} gap={16}>
-          <MintCard>
-            <YStack gap={16}>
-              <XStack items="center" gap="$3">
-                <View
-                  width={64}
-                  height={64}
-                  flexShrink={0}
-                  rounded="$6"
-                  bg="$gray3"
-                  items="center"
-                  justify="center"
-                  overflow="hidden"
-                >
-                  <MintImage
-                    mintUrl={url}
-                    source={{
-                      uri: iconToUse,
-                      width: 64,
-                      height: 64,
-                    }}
-                    fallback={<Sprout size={32} color="$accentColor" />}
-                  />
-                </View>
-                <YStack flex={1} minWidth={0} gap="$2" items="stretch">
-                  <XStack items="center" gap="$2">
-                    <Text kind="h3" accessibilityRole="header" text="left" flexShrink={1}>
-                      {name}
-                    </Text>
-                  </XStack>
-                  <AppPressable
-                    bg="transparent"
-                    minHeight={48}
-                    flexDirection="row"
-                    accessibilityLabel="Copy mint URL"
-                    px={0}
-                    py={0}
-                    rounded={100}
-                    items="center"
-                    gap="$2"
-                    maxWidth="100%"
-                    onPress={() => handleCopy(url, 'URL')}
-                  >
+        <YStack
+          px={appSpacing.page}
+          pt={appSpacing.group}
+          pb={appSpacing.group}
+          gap={appSpacing.group}
+        >
+          <YStack gap={appSpacing.page}>
+            <XStack items="center" gap={appSpacing.gap}>
+              <View
+                width={64}
+                height={64}
+                flexShrink={0}
+                rounded="$6"
+                bg="$gray3"
+                items="center"
+                justify="center"
+                overflow="hidden"
+              >
+                <MintImage
+                  mintUrl={url}
+                  source={{
+                    uri: iconToUse,
+                    width: 64,
+                    height: 64,
+                  }}
+                  fallback={<Sprout size={32} color="$accentColor" />}
+                />
+              </View>
+              <AppPressable
+                flex={1}
+                minWidth={0}
+                minHeight={64}
+                accessibilityLabel="Copy mint URL"
+                bg="transparent"
+                justify="center"
+                gap={appSpacing.small}
+                onPress={() => handleCopy(url, 'URL')}
+              >
+                <Text kind="h3" accessibilityRole="header" text="left">
+                  {name}
+                </Text>
+                <XStack items="center" gap={appSpacing.small}>
+                  <View flexShrink={0}>
                     <Globe size={14} color="$gray10" />
-                    <Text kind="body2" color="$gray10" flexShrink={1}>
-                      {url}
-                    </Text>
-                  </AppPressable>
-                </YStack>
-              </XStack>
-              <XStack gap="$2" items="center">
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="small"
-                  flex={1}
-                  fullWidth={false}
-                  icon={Share2}
-                  accessibilityLabel="Share mint"
-                  onPress={handleShare}
-                >
-                  Share
-                </AppButton>
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="small"
-                  flex={1}
-                  fullWidth={false}
-                  icon={QrCode}
-                  accessibilityLabel="Show mint QR code"
-                  onPress={() => setShowQr(true)}
-                >
-                  Show QR
-                </AppButton>
-              </XStack>
-            </YStack>
-          </MintCard>
+                  </View>
+                  <Text
+                    kind="body2"
+                    color="$gray10"
+                    flex={1}
+                    minWidth={0}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {url}
+                  </Text>
+                </XStack>
+              </AppPressable>
+            </XStack>
+          </YStack>
+          <MintQuickActions onQr={() => setShowQr(true)} />
           <MintOverview
             url={url}
             info={info}

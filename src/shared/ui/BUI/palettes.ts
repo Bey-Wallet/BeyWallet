@@ -1,4 +1,6 @@
-// Exact Android color values from the pinned design reference, revision70abb50.
+import { appAccent, appColors } from '~/shared/theme/appearance';
+
+// Android source colors from the pinned design reference, revision70abb50.
 // Android ARGB literals are written as React Native RRGGBBAA below.
 export const buiBaseColors = {
   light: {
@@ -79,7 +81,13 @@ export const buiBaseColors = {
 
 export const buiButtonPalettes = {
   light: {
-    Primary: ['#007AFF', '#3D9AFF', '#1F8AFF', '#FFFFFF'],
+    Primary: [
+      appColors.light.accent,
+      appColors.light.accentDisabled,
+      appColors.light.accentPress,
+      appColors.light.onAccent,
+    ],
+    Accent: [appAccent.background, appAccent.disabled, appAccent.pressed, appAccent.foreground],
     Secondary: ['#D3D4DB', '#D8D9E0', '#C9CAD1', '#000000'],
     Tertiary: ['#D3D4DB', '#D8D9E0', '#C9CAD1', '#000000'],
     Green: ['#25B86F', '#2B9962', '#17C26D', '#FFFFFF'],
@@ -87,7 +95,13 @@ export const buiButtonPalettes = {
     Red: ['#FF3B30', '#C2364E', '#FF5E79', '#FFFFFF'],
   },
   dark: {
-    Primary: ['#3C95FA', '#387BC7', '#55A2FA', '#FFFFFF'],
+    Primary: [
+      appColors.dark.accent,
+      appColors.dark.accentDisabled,
+      appColors.dark.accentPress,
+      appColors.dark.onAccent,
+    ],
+    Accent: [appAccent.background, appAccent.disabled, appAccent.pressed, appAccent.foreground],
     Secondary: ['#17171A', '#0E0E0F', '#202024', '#FFFFFF'],
     Tertiary: ['#222224', '#18181A', '#2A2A2E', '#FFFFFF'],
     Green: ['#39CC83', '#2B9962', '#49CC8B', '#FFFFFF'],

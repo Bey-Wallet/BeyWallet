@@ -7,14 +7,14 @@ import { buiColors, getBUITheme, createBUITamaguiTheme } from '~/shared/ui/BUI/t
 const expectedPalettes = {
   light: {
     buttons: {
-      Primary: ['#007AFF', '#3D9AFF', '#1F8AFF', '#FFFFFF'],
+      Primary: ['#000000', defaultConfig.themes.light.gray3, '#2F2F33', '#FFFFFF'],
       Secondary: ['#D3D4DB', '#D8D9E0', '#C9CAD1', '#000000'],
       Tertiary: ['#D3D4DB'],
     },
   },
   dark: {
     buttons: {
-      Primary: ['#3C95FA', '#387BC7', '#55A2FA', '#FFFFFF'],
+      Primary: ['#FFFFFF', '#222224', '#D9D9D9', '#000000'],
       Secondary: ['#17171A', '#0E0E0F', '#202024', '#FFFFFF'],
       Tertiary: ['#222224'],
     },
@@ -52,19 +52,22 @@ it('keeps source colors outside the approved brand and light-surface overrides',
   expect(theme.buttonDefaultSecondary).toBe(theme.gray3);
 });
 
-it.each(['light', 'dark'] as const)('uses blue primary and matching focus in %s', (appearance) => {
-  const c = getBUITheme(appearance);
-  const theme = createBUITamaguiTheme(appearance);
-  expect([c.buttons.Primary[0], c.buttons.Primary[3]]).toEqual(
-    appearance === 'light' ? ['#007AFF', '#FFFFFF'] : ['#3C95FA', '#FFFFFF'],
-  );
-  expect(c.buttons.Primary[1]).toBe(c.primaryDisabled);
-  expect(c.buttons.Primary[2]).toBe(c.primaryPressed);
-  expect(theme.accentColor).toBe(c.primary);
-  expect(theme.onAccent).toBe(c.primaryForeground);
-  expect(theme.borderColorFocus).toBe(c.primary);
-  expect(theme.tabActive).toBe(c.primary);
-});
+it.each(['light', 'dark'] as const)(
+  'uses monochrome primary and matching focus in %s',
+  (appearance) => {
+    const c = getBUITheme(appearance);
+    const theme = createBUITamaguiTheme(appearance);
+    expect([c.buttons.Primary[0], c.buttons.Primary[3]]).toEqual(
+      appearance === 'light' ? ['#000000', '#FFFFFF'] : ['#FFFFFF', '#000000'],
+    );
+    expect(c.buttons.Primary[1]).toBe(c.primaryDisabled);
+    expect(c.buttons.Primary[2]).toBe(c.primaryPressed);
+    expect(theme.accentColor).toBe(c.primary);
+    expect(theme.onAccent).toBe(c.primaryForeground);
+    expect(theme.borderColorFocus).toBe(c.primary);
+    expect(theme.tabActive).toBe(c.primary);
+  },
+);
 
 it('feeds the same palette into semantic preview controls', () => {
   const theme = createBUITamaguiTheme('dark');
@@ -74,7 +77,7 @@ it('feeds the same palette into semantic preview controls', () => {
 });
 
 it.each(['light', 'dark'] as const)(
-  'defaults to source blue and preserves button hierarchy in %s',
+  'defaults to monochrome and preserves button hierarchy in %s',
   (appearance) => {
     expect(getBUITheme(appearance).buttons.Primary).toEqual(
       expectedPalettes[appearance].buttons.Primary,
@@ -106,6 +109,31 @@ it.each(['light', 'dark'] as const)(
     expect(c.buttons.Tertiary[3]).toBe(c.primary);
     expect(c.buttons.Tertiary[2]).not.toBe('transparent');
     expect(c.switchInactive).toBe(c.raised);
+  },
+);
+
+it.each(['light', 'dark'] as const)(
+  'keeps purple accent opt-in and consistent across wallet and BUI in %s',
+  (appearance) => {
+    const c = getBUITheme(appearance);
+    const wallet = createAppColorTheme(appearance);
+    const bui = createBUITamaguiTheme(appearance);
+    const buttons: Record<string, string> = buttonThemes[appearance];
+    expect(c.buttons.Accent).toEqual(['#8A5CF5', c.raised, '#7848E0', '#FFFFFF']);
+    for (const theme of [wallet, bui]) {
+      expect(theme.primaryColor).toBe(c.primary);
+      expect(theme.accentBackground).toBe(c.buttons.Accent[0]);
+      expect(theme.accentForeground).toBe('#FFFFFF');
+    }
+    expect(buttons.buttonDefaultPrimary).toBe(c.primary);
+    expect(buttons.buttonDefaultPrimary).not.toBe(buttons.buttonAccentPrimary);
+    expect(buttons.buttonAccentPrimary).toBe(bui.buttonAccentPrimary);
+    expect(buttons.buttonAccentPrimaryText).toBe('#FFFFFF');
+    expect(buttons.buttonAccentDisabled).toBe(bui.buttonAccentDisabled);
+    expect(buttons.buttonDisabled).toBe(bui.gray3);
+    expect(buttons.buttonAccentDisabledText).toBe(c.disabledForeground);
+    expect(buttons.buttonDisabledText).toBe(c.disabledForeground);
+    expect(buttons.buttonSecondaryDisabledText).toBe(c.disabledForeground);
   },
 );
 

@@ -572,8 +572,12 @@ it('trims days outside recorded history while retaining gaps and zero-uptime day
 it('shares the exact URL and opens and dismisses the QR overlay without connecting', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
   await render('preview');
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Restore funds' })).toHaveLength(0);
   await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Share mint' }).props.onPress(),
+    tree.root
+      .findByType('Screen' as any)
+      .props.options.headerRight()
+      .props.onAction('share'),
   );
   expect(share).toHaveBeenCalledWith({ message: url });
   await act(async () =>

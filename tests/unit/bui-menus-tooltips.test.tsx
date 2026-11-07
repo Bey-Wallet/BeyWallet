@@ -95,57 +95,61 @@ it('fits tooltip width, flips above, keeps source tail geometry and clamps small
   expect(small).toMatchObject({ x: 0, y: 0, width: 50, height: 80 });
 });
 
-it('supports selection ids, disabled actions and single dispatch while closing', async () => {
-  const select = jest.fn();
-  let tree: ReactTestRenderer | undefined;
-  try {
-    await act(async () => {
-      tree = create(
-        wrap(
-          <BUIActionMenu
-            label="Open menu"
-            selectedId="one"
-            items={[
-              { id: 'one', title: 'Same label' },
-              { id: 'two', title: 'Same label' },
-              { id: 'disabled', title: 'Disabled', disabled: true },
-            ]}
-            onAction={select}
-          />,
-        ),
-      );
-    });
-    const target = (label: string) =>
-      tree!.root
+it.each([false, true])(
+  'supports selection and dismissal with header trigger %s',
+  async (headerTrigger) => {
+    const select = jest.fn();
+    let tree: ReactTestRenderer | undefined;
+    try {
+      await act(async () => {
+        tree = create(
+          wrap(
+            <BUIActionMenu
+              label="Open menu"
+              headerTrigger={headerTrigger}
+              selectedId="one"
+              items={[
+                { id: 'one', title: 'Same label' },
+                { id: 'two', title: 'Same label' },
+                { id: 'disabled', title: 'Disabled', disabled: true },
+              ]}
+              onAction={select}
+            />,
+          ),
+        );
+      });
+      const target = (label: string) =>
+        tree!.root
+          .findAllByType(AppPressable)
+          .find((node) => node.props.accessibilityLabel === label)!;
+      await act(async () => target('Open menu').props.onLongPress());
+      expect(tree!.root.findByType(Modal).props.visible).toBe(true);
+      const options = tree!.root
         .findAllByType(AppPressable)
-        .find((node) => node.props.accessibilityLabel === label)!;
-    await act(async () => target('Open menu').props.onLongPress());
-    expect(tree!.root.findByType(Modal).props.visible).toBe(true);
-    const options = tree!.root
-      .findAllByType(AppPressable)
-      .filter((node) => node.props.accessibilityRole === 'radio');
-    expect(options.map((node) => node.props.accessibilityState.checked)).toEqual([
-      true,
-      false,
-      false,
-    ]);
-    await act(async () => target('Disabled').props.onPress());
-    expect(select).not.toHaveBeenCalled();
-    expect(tree!.root.findByType(Modal).props.visible).toBe(true);
-    await act(async () => {
-      options[1].props.onPress();
-      options[1].props.onPress();
-    });
-    expect(select).toHaveBeenCalledTimes(1);
-    expect(select).toHaveBeenCalledWith('two');
-    expect(tree!.root.findByType(Modal).props.visible).toBe(false);
-    await act(async () => target('Open menu').props.onPress());
-    await act(async () => tree!.root.findByType(Modal).props.onRequestClose());
-    expect(tree!.root.findByType(Modal).props.visible).toBe(false);
-  } finally {
-    if (tree) await act(async () => tree!.unmount());
-  }
-});
+        .filter((node) => node.props.accessibilityRole === 'radio');
+      expect(options.map((node) => node.props.accessibilityState.checked)).toEqual([
+        true,
+        false,
+        false,
+      ]);
+      await act(async () => target('Disabled').props.onPress());
+      expect(select).not.toHaveBeenCalled();
+      expect(tree!.root.findByType(Modal).props.visible).toBe(true);
+      await act(async () => {
+        options[1].props.onPress();
+        options[1].props.onPress();
+      });
+      expect(select).toHaveBeenCalledTimes(1);
+      expect(select).toHaveBeenCalledWith('two');
+      expect(tree!.root.findByType(Modal).props.visible).toBe(false);
+      await act(async () => target('Open menu').props.onPress());
+      await act(async () => tree!.root.findByType(Modal).props.onRequestClose());
+      expect(tree!.root.findByType(Modal).props.visible).toBe(false);
+    } finally {
+      if (tree) await act(async () => tree!.unmount());
+    }
+  },
+);
 
 it('does not reopen after a stale measurement completes in the background or after unmount', async () => {
   let measure: ((x: number, y: number, width: number, height: number) => void) | undefined;

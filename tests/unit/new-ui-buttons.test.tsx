@@ -35,7 +35,7 @@ it('switches width and blocked states without showing reference branding or fami
     const choices = () => tree!.root.findAllByType(ReferenceChoices);
     const variants = () => tree!.root.findAllByType(BUIButton);
     expect(JSON.stringify(tree!.toJSON())).not.toMatch(
-      /compose|android views|Primary color|Purple|Mono|Indigo|Emerald|Cyan|Amber|Rose|Pink/i,
+      /compose|android views|Primary color|Mono|Indigo|Emerald|Cyan|Amber|Rose|Pink/i,
     );
     expect(choices().some((node) => node.props.values[0] === 'Blue')).toBe(false);
     const primary = variants().find((node) => node.props.children === 'Primary')!;
@@ -51,6 +51,19 @@ it('switches width and blocked states without showing reference branding or fami
       expect(
         primary.findByType(BUIButtonControl).props[state === 'Loading' ? 'loading' : 'disabled'],
       ).toBe(true);
+      if (state === 'Disabled') {
+        const theme = getBUITheme(primary.props.appearance);
+        expect(
+          primary.findAll(
+            (node) => StyleSheet.flatten(node.props.style)?.color === theme.disabledForeground,
+          ).length,
+        ).toBeGreaterThan(0);
+        expect(
+          primary.findAll(
+            (node) => StyleSheet.flatten(node.props.style)?.backgroundColor === theme.raised,
+          ).length,
+        ).toBeGreaterThan(0);
+      }
     }
     expect(variants().every((node) => !node.props.androidView)).toBe(true);
   } finally {

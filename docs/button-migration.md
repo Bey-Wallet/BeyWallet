@@ -7,7 +7,8 @@ AppButton, AppIconButton, HeaderIconButton and AppTextButton now share the BUI r
 the compatibility API, preserving event handlers, loading labels, refs, accessibility states,
 semantic intent and navigation integrations.
 
-Buttons use BUI primary blue, neutral secondary fills, transparent tertiary actions, 500-weight
+Buttons use monochrome primary fills (black in light mode, white in dark mode), neutral secondary
+fills, transparent tertiary actions, 500-weight
 Inter labels, and size-specific corners (large: 56 high / radius 16; medium: 48 / radius 24).
 Compact icon controls retain proportional glyphs and hit slop reaching 48 points. Large labeled
 actions default to full width; explicit width, flex layouts and `fullWidth={false}` support paired
@@ -16,9 +17,17 @@ use large buttons. Home shortcuts use BUI action controls, retaining Scan's 20-p
 3-point stroke. The Home mint selector keeps a compact 36-point height, 12-point corners and
 theme-inverse accent fill/foreground, with hit slop reaching 48 points and its offline error color.
 
-This supersedes the historical monochrome button palette and pill-radius details below. Other
-wallet branding and the POS theme remain unchanged. Exact BUI palette checks replace the former
-monochrome primary contrast assertions; semantic supporting-action contrast checks remain.
+The optional Accent style uses Obsidian purple (`#8A5CF5`, from hsl(258, 88%, 66%)) with white
+text in both themes. Use `AppButton variant="accent"` or `BUIButton variant="Accent"` explicitly;
+existing callers remain default primary. Hover/press accent fills retain their purple colors.
+Disabled filled primary/accent/semantic buttons use neutral `gray3`; disabled secondary buttons
+use `gray2`. All disabled labels and icons use the muted foreground, including ghost/text actions
+and catalog buttons. Loading retains the enabled palette and spinner color.
+Custom fills can use `$accentBackground` and `$accentForeground`. `$primaryColor` / `$onPrimary`
+expose the monochrome pair; legacy `$accentColor` / `$onAccent` remain monochrome compatibility
+aliases so existing controls (including Home's mint trigger) retain their intended palette.
+The accent reference is [Obsidian's color documentation](https://docs.obsidian.md/Reference/CSS%20variables/Foundations/Colors).
+The POS theme retains its existing palette. Semantic supporting-action contrast checks remain.
 Wallet, payment, authentication and recovery logic are unchanged. Device checks remain necessary
 for small screens, text scaling, screen readers, NFC, biometrics and end-to-end payments.
 

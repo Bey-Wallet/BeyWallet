@@ -61,6 +61,12 @@ it.each(['light', 'dark'] as const)(
         <TamaguiProvider config={config} defaultTheme={theme === 'light' ? 'dark' : 'light'}>
           <Theme name={theme}>
             <AppButton testID="branded">Branded</AppButton>
+            <AppButton testID="accent" variant="accent">
+              Accent
+            </AppButton>
+            <AppButton testID="accent-disabled" variant="accent" disabled>
+              Accent disabled
+            </AppButton>
             <AppButton testID="neutral" variant="default" emphasis="secondary">
               Neutral
             </AppButton>
@@ -78,6 +84,18 @@ it.each(['light', 'dark'] as const)(
       .map((node) => StyleSheet.flatten(node.props.style)?.color);
     expect(foregrounds).toContain(getBUITheme(theme).primaryForeground);
     expect(backgrounds('neutral')).toContain(getBUITheme(theme).secondaryButton[0]);
+    expect(backgrounds('accent')).toContain('#8A5CF5');
+    expect(backgrounds('accent-disabled')).toContain(getBUITheme(theme).raised);
+    expect(
+      tree.root
+        .findAll((node) => node.props.children === 'Accent disabled')
+        .map((node) => StyleSheet.flatten(node.props.style)?.color),
+    ).toContain(getBUITheme(theme).disabledForeground);
+    expect(
+      tree.root
+        .findAll((node) => node.props.children === 'Accent')
+        .map((node) => StyleSheet.flatten(node.props.style)?.color),
+    ).toContain('#FFFFFF');
     await act(async () => tree.unmount());
   },
 );

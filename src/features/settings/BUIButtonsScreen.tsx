@@ -92,7 +92,7 @@ export function BUIButtonsScreen() {
       </ReferenceSpec>
       <ReferenceSpec
         name="Button variants"
-        measurement="Primary is blue with white text. Secondary is filled neutral grey. Tertiary is transparent with blue text and a subtle pressed fill. Green, Orange and Red keep their semantic colors. Loading blocks taps. Highlighted shows the pressed color."
+        measurement="Primary is black in light mode and white in dark mode, with inverse text. Accent is Obsidian purple with white text. Secondary is filled neutral grey. Tertiary is transparent with primary text and a subtle pressed fill. Green, Orange and Red keep their semantic colors. Loading blocks taps. Highlighted shows the pressed color."
       >
         <YStack px={16} gap={16}>
           {referenceVariants.map((variant) => (

@@ -23,6 +23,7 @@ export const buiButtonSizes = {
 } as const;
 export const buiButtonVariants = [
   'Primary',
+  'Accent',
   'Secondary',
   'Tertiary',
   'Green',
@@ -35,7 +36,10 @@ export type BUIButtonState = 'Default' | 'Highlighted' | 'Disabled' | 'Loading';
 
 export function getBUITheme(appearance: BUIAppearance) {
   const c = buiColors[appearance];
-  const primary = buiButtonPalettes[appearance].Primary;
+  const disabledPalette = (palette: readonly [string, string, string, string]) =>
+    [palette[0], c.raised, palette[2], palette[3]] as const;
+  const primary = disabledPalette(buiButtonPalettes[appearance].Primary);
+  const accent = disabledPalette(buiButtonPalettes[appearance].Accent);
   const secondary =
     appearance === 'light'
       ? ([lightGray.gray3, lightGray.gray2, lightGray.gray4, '#000000'] as const)
@@ -46,6 +50,9 @@ export function getBUITheme(appearance: BUIAppearance) {
     primaryDisabled: primary[1],
     primaryPressed: primary[2],
     primaryForeground: primary[3],
+    disabledForeground: c.secondaryText,
+    accent: buiButtonPalettes[appearance].Accent[0],
+    accentForeground: buiButtonPalettes[appearance].Accent[3],
     fieldActiveBorder: primary[0],
     tabActive: primary[0],
     page: c.canvas,
@@ -58,6 +65,10 @@ export function getBUITheme(appearance: BUIAppearance) {
     buttons: {
       ...buiButtonPalettes[appearance],
       Primary: primary,
+      Accent: accent,
+      Green: disabledPalette(buiButtonPalettes[appearance].Green),
+      Orange: disabledPalette(buiButtonPalettes[appearance].Orange),
+      Red: disabledPalette(buiButtonPalettes[appearance].Red),
       Secondary: secondary,
       Tertiary: ['transparent', 'transparent', c.highlighted, primary[0]] as const,
     },
@@ -101,6 +112,11 @@ export function createBUITamaguiTheme(appearance: BUIAppearance) {
     borderColorHover: c.secondaryText,
     borderColorFocus: c.fieldActiveBorder,
     placeholderColor: c.secondaryText,
+    primaryColor: c.primary,
+    onPrimary: c.primaryForeground,
+    accentBackground: c.accent,
+    accentForeground: c.accentForeground,
+    // Compatibility aliases preserve the existing monochrome controls.
     accentColor: c.primary,
     onAccent: c.primaryForeground,
     blue9: c.primary,
@@ -141,10 +157,21 @@ export function createBUITamaguiTheme(appearance: BUIAppearance) {
     buttonDefaultSecondaryPress: secondary[2],
     buttonDefaultSecondaryText: secondary[3],
     buttonDefaultText: c.text,
+    buttonAccentPrimary: c.buttons.Accent[0],
+    buttonAccentPrimaryHover: c.buttons.Accent[2],
+    buttonAccentPrimaryPress: c.buttons.Accent[2],
+    buttonAccentPrimaryText: c.buttons.Accent[3],
+    buttonAccentSecondary: secondary[0],
+    buttonAccentSecondaryHover: secondary[2],
+    buttonAccentSecondaryPress: secondary[2],
+    buttonAccentSecondaryText: c.accent,
+    buttonAccentText: c.accent,
+    buttonAccentDisabled: c.buttons.Accent[1],
+    buttonAccentDisabledText: c.disabledForeground,
     buttonDisabled: primary[1],
-    buttonDisabledText: primary[3],
+    buttonDisabledText: c.disabledForeground,
     buttonSecondaryDisabled: secondary[1],
-    buttonSecondaryDisabledText: secondary[3],
+    buttonSecondaryDisabledText: c.disabledForeground,
     buttonGhostHighlighted: c.buttons.Tertiary[2],
     buttonFocus: c.primary,
   };

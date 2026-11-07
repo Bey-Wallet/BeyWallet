@@ -1,14 +1,8 @@
 import { BUILabel } from '~/shared/ui/BUI/BUIBadge';
-import {
-  MintAppearance,
-  MintCard,
-  MintRows,
-  MintSection,
-  MintDetailRow,
-  MintText as Text,
-} from './components/MintUI';
-import { BUIActionButton } from '~/shared/ui/BUI/BUIButton';
-import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+import { MintAppearance, MintCard, MintText as Text } from './components/MintUI';
+import { MintQuickActions } from './components/MintQuickActions';
+import { BUIHeader, BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
+import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
 import { buiTypography } from '~/shared/ui/BUI/typography';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
@@ -18,19 +12,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, ScrollView, View } from 'tamagui';
-import {
-  ArrowLeft,
-  Share2,
-  QrCode,
-  Pencil,
-  Check,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowRightLeft,
-  AlertTriangle,
-  Trash2,
-  RefreshCw,
-} from '@tamagui/lucide-icons';
+import { ArrowLeft, Share2, Pencil, Check, AlertTriangle, Trash2 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -69,7 +51,6 @@ function MintDetailsContent() {
   const {
     mints,
     balances,
-    setActiveMint,
     activeMintUrl,
     setMintNickname,
     removeMint,
@@ -276,24 +257,6 @@ function MintDetailsContent() {
     }
   };
 
-  const handleDeposit = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setActiveMint(mintUrl);
-    router.push('/(modals)/mint');
-  };
-
-  const handleWithdraw = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setActiveMint(mintUrl);
-    router.push('/(modals)/melt');
-  };
-
-  const handleTransfer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setActiveMint(mintUrl);
-    router.push('/(modals)/swap');
-  };
-
   return (
     <YStack flex={1} bg="$background">
       <Stack.Screen
@@ -310,19 +273,47 @@ function MintDetailsContent() {
             />
           ),
           headerRight: () => (
-            <HeaderIconButton
-              accessibilityLabel={isEditingName ? 'Save mint name' : 'Edit mint name'}
-              icon={isEditingName ? <Check color="$color" /> : <Pencil color="$color" />}
-              disabled={isSavingName}
-              onPress={
-                isEditingName
-                  ? handleSaveName
-                  : () => {
-                      nameDraft.current = name;
-                      setIsEditingName(true);
-                    }
-              }
-            />
+            <XStack items="center" gap={appSpacing.page}>
+              <BUIHeaderAction
+                label={isEditingName ? 'Save mint name' : 'Edit mint name'}
+                disabled={isSavingName}
+                onPress={
+                  isEditingName
+                    ? handleSaveName
+                    : () => {
+                        nameDraft.current = name;
+                        setIsEditingName(true);
+                      }
+                }
+              >
+                {isEditingName ? (
+                  <Check size={22} color="$color" />
+                ) : (
+                  <Pencil size={16} color="$color" />
+                )}
+              </BUIHeaderAction>
+              <BUIActionMenu
+                label="Mint actions"
+                headerTrigger
+                items={[
+                  { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
+                  {
+                    id: 'remove',
+                    title: 'Remove mint',
+                    destructive: true,
+                    icon: <Trash2 size={20} color="$red11" />,
+                    disabled: isRemoving,
+                  },
+                ]}
+                onAction={(id) => {
+                  if (id === 'share') void handleShare();
+                  if (id === 'remove') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    removeMintSheetRef.current?.present();
+                  }
+                }}
+              />
+            </XStack>
           ),
         }}
       />
@@ -332,100 +323,69 @@ function MintDetailsContent() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
-          <YStack px={16} pt={16} gap={16}>
-            <MintCard>
-              <YStack gap={16}>
-                <XStack justify="space-between" items="center" gap={16}>
-                  <YStack gap={8} flex={1} minWidth={0}>
-                    <XStack items="baseline" gap="$1">
-                      {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                        <Text kind="num2" color="$color">
-                          {showBitcoinSymbol ? '₿' : ''}
-                          {balance.toLocaleString()}
-                          {!showBitcoinSymbol && <Text kind="label2">{' sat'}</Text>}
-                        </Text>
-                      ) : (
-                        <Text kind="num2" color="$color">
-                          {currencyService.formatValue(
-                            fiatBalance,
-                            secondaryCurrency as CurrencyCode,
-                          )}
-                        </Text>
-                      )}
-                    </XStack>
-                    {secondaryCurrency !== 'NONE' && (
-                      <Text kind="label2" color="$gray10">
-                        {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
-                          ? currencyService.formatValue(
-                              fiatBalance,
-                              secondaryCurrency as CurrencyCode,
-                            )
-                          : showBitcoinSymbol
-                            ? `₿\u202f${balance.toLocaleString()}`
-                            : `${balance.toLocaleString()} sat`}
+          <YStack px={appSpacing.page} pt={appSpacing.group} gap={appSpacing.group}>
+            <YStack gap={appSpacing.page}>
+              <XStack justify="space-between" items="center" gap={16}>
+                <YStack gap={8} flex={1} minWidth={0}>
+                  <Text kind="body2" color="$gray10">
+                    Mint balance
+                  </Text>
+                  <XStack items="baseline" gap="$1">
+                    {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
+                      <Text kind="num2" color="$color">
+                        {showBitcoinSymbol ? '₿' : ''}
+                        {balance.toLocaleString()}
+                        {!showBitcoinSymbol && <Text kind="label2">{' sat'}</Text>}
+                      </Text>
+                    ) : (
+                      <Text kind="num2" color="$color">
+                        {currencyService.formatValue(
+                          fiatBalance,
+                          secondaryCurrency as CurrencyCode,
+                        )}
                       </Text>
                     )}
+                  </XStack>
+                  {secondaryCurrency !== 'NONE' && (
+                    <Text kind="label2" color="$gray10">
+                      {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
+                        ? currencyService.formatValue(
+                            fiatBalance,
+                            secondaryCurrency as CurrencyCode,
+                          )
+                        : showBitcoinSymbol
+                          ? `₿\u202f${balance.toLocaleString()}`
+                          : `${balance.toLocaleString()} sat`}
+                    </Text>
+                  )}
 
-                    <XStack mt={8} gap={8} items="center" flexWrap="wrap">
-                      <BUILabel tone={isTrusted ? 'success' : 'error'}>
-                        {isTrusted ? 'Trusted by you' : 'Untrusted'}
-                      </BUILabel>
-                      {isActive && <BUILabel tone="primary">Active</BUILabel>}
-                    </XStack>
-                  </YStack>
+                  <XStack mt={8} gap={8} items="center" flexWrap="wrap">
+                    <BUILabel tone={isTrusted ? 'success' : 'error'}>
+                      {isTrusted ? 'Trusted by you' : 'Untrusted'}
+                    </BUILabel>
+                    {isActive && <BUILabel tone="primary">Active</BUILabel>}
+                  </XStack>
+                </YStack>
 
-                  <YStack items="center" gap="$2">
-                    <MintImage
-                      mintUrl={mintUrl}
-                      source={{ uri: iconToUse }}
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 16,
-                      }}
-                    />
-                  </YStack>
-                </XStack>
-
-                <XStack gap="$2" items="center">
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="small"
-                    flex={1}
-                    fullWidth={false}
-                    icon={Share2}
-                    accessibilityLabel="Share mint"
-                    onPress={handleShare}
-                  >
-                    Share
-                  </AppButton>
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="small"
-                    flex={1}
-                    fullWidth={false}
-                    icon={QrCode}
-                    accessibilityLabel="Show mint QR code"
-                    onPress={() => setShowQr(true)}
-                  >
-                    Show QR
-                  </AppButton>
-                </XStack>
-                <XStack gap={8}>
-                  <BUIActionButton flex={1} plain title="Deposit" onPress={handleDeposit}>
-                    <ArrowDownToLine size={22} color="$color" />
-                  </BUIActionButton>
-                  <BUIActionButton flex={1} plain title="Withdraw" onPress={handleWithdraw}>
-                    <ArrowUpFromLine size={22} color="$color" />
-                  </BUIActionButton>
-                  <BUIActionButton flex={1} plain title="Transfer" onPress={handleTransfer}>
-                    <ArrowRightLeft size={22} color="$color" />
-                  </BUIActionButton>
-                </XStack>
-              </YStack>
-            </MintCard>
+                <YStack items="center" gap="$2">
+                  <MintImage
+                    mintUrl={mintUrl}
+                    source={{ uri: iconToUse }}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 16,
+                    }}
+                  />
+                </YStack>
+              </XStack>
+            </YStack>
+            <MintQuickActions
+              onQr={() => setShowQr(true)}
+              onRestore={handleRestoreProofs}
+              restoring={isRestoring && restoringMintUrl === mintUrl}
+              restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
+            />
 
             <MintOverview
               url={mintUrl}
@@ -436,27 +396,6 @@ function MintDetailsContent() {
                 void recheckConnection({ cancelRefetch: false });
               }}
             />
-            <MintSection title="Manage mint">
-              <MintRows>
-                <MintDetailRow
-                  label="Restore funds"
-                  icon={RefreshCw}
-                  value={isRestoring && restoringMintUrl === mintUrl ? 'Restoring…' : undefined}
-                  disabled={isRestoring}
-                  onPress={handleRestoreProofs}
-                />
-                <MintDetailRow
-                  label="Remove mint"
-                  icon={Trash2}
-                  labelColor="$red11"
-                  iconColor="$red11"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    removeMintSheetRef.current?.present();
-                  }}
-                />
-              </MintRows>
-            </MintSection>
           </YStack>
         </ScrollView>
 

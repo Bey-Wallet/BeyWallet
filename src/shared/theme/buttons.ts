@@ -15,6 +15,7 @@ const blend = (background: string, foreground: string, amount: number) =>
 function createButtonTheme(dark: boolean) {
   const c = getBUITheme(dark ? 'dark' : 'light');
   const primary = c.buttons.Primary;
+  const accent = c.buttons.Accent;
   const secondary = c.secondaryButton;
   const semantic = (background: string, color: string) => [
     background,
@@ -51,6 +52,14 @@ function createButtonTheme(dark: boolean) {
       primary[0],
     ),
     ...palette(
+      'Accent',
+      [accent[0], accent[2], accent[2]],
+      accent[3],
+      [secondary[0], secondary[2], secondary[2]],
+      accent[0],
+      accent[0],
+    ),
+    ...palette(
       'Critical',
       [c.buttons.Red[0], c.buttons.Red[2], c.buttons.Red[2]],
       '#FFFFFF',
@@ -67,9 +76,11 @@ function createButtonTheme(dark: boolean) {
       warningColor,
     ),
     buttonDisabled: primary[1],
-    buttonDisabledText: primary[3],
+    buttonAccentDisabled: accent[1],
+    buttonAccentDisabledText: c.disabledForeground,
+    buttonDisabledText: c.disabledForeground,
     buttonSecondaryDisabled: secondary[1],
-    buttonSecondaryDisabledText: secondary[3],
+    buttonSecondaryDisabledText: c.disabledForeground,
     buttonGhostHighlighted: c.buttons.Tertiary[2],
     buttonFocus: primary[0],
   };
