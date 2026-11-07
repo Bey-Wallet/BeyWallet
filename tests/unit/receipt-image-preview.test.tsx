@@ -44,9 +44,9 @@ jest.mock('@tamagui/lucide-icons', () => ({
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'Close' }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'Scroll' }));
-jest.mock('~/shared/ui/AppBottomSheet', () => ({
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({
   __esModule: true,
-  default: require('react').forwardRef(({ children }: any, ref: any) => {
+  BUISheet: require('react').forwardRef(({ children }: any, ref: any) => {
     require('react').useImperativeHandle(ref, () => ({ present: jest.fn() }));
     return children;
   }),

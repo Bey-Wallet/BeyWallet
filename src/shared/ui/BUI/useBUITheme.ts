@@ -7,6 +7,11 @@ const BUIAppearanceContext = createContext<BUIAppearance | undefined>(undefined)
 /** Scope production BUI content without changing the catalog preference. */
 export const BUIAppearanceProvider = BUIAppearanceContext.Provider;
 
+export function useBUIAppearance() {
+  const catalog = useBUIStore((state) => state.appearance);
+  return useContext(BUIAppearanceContext) ?? catalog;
+}
+
 export function useBUITheme(appearanceOverride?: BUIAppearance) {
   const appearance = useBUIStore((state) => state.appearance);
   const scopedAppearance = useContext(BUIAppearanceContext);

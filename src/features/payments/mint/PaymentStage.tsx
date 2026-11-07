@@ -7,16 +7,21 @@ import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPollin
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { Text, YStack } from 'tamagui';
+import { Share as RNShare } from 'react-native';
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
 import { useWalletStore } from '~/state/walletStore';
 import { quotesService } from '~/services/wallet';
-import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
+import {
+  ReceiptImageShare,
+  type ReceiptImageShareAction,
+} from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 
@@ -60,6 +65,7 @@ export function PaymentStage({
   const sats = parseInt(amount, 10) || 0;
   const pos = appearance === 'pos';
   const toast = useAppToast();
+  const receiptAction = useRef<ReceiptImageShareAction>(null);
   const [isChecking, setIsChecking] = useState(false);
   const checkLock = useRef(false);
   const offline = useOfflineStatus();
@@ -125,53 +131,83 @@ export function PaymentStage({
     }
   };
   usePendingPaymentPolling(() => checkPayment(true), listening && !isExpired && !offline);
+  const busy = isChecking || !!requestDelivery?.sending;
+  const menu = (
+    <PaymentActionsMenu
+      busy={busy}
+      actions={[
+        {
+          id: 'share',
+          title: 'Share invoice',
+          disabled: isExpired,
+          onPress: () => {
+            void RNShare.share({ message: invoice }).catch(() =>
+              toast.showFeedback(interactionCopy.shareFailed),
+            );
+          },
+        },
+        ...(publicReceipt
+          ? [
+              {
+                id: 'receipt-image',
+                title: 'Share receipt image',
+                onPress: () => receiptAction.current?.open(),
+              },
+            ]
+          : []),
+        {
+          id: 'refresh',
+          title: 'Refresh status',
+          disabled: isExpired || offline || !listening,
+          onPress: () => {
+            void checkPayment();
+          },
+        },
+        ...(requestDelivery
+          ? [
+              {
+                id: 'nostr',
+                title: requestDelivery.queued ? 'View request' : 'Send request via Nostr',
+                disabled: isExpired && !requestDelivery.queued,
+                onPress: requestDelivery.queued
+                  ? requestDelivery.onView
+                  : () => {
+                      void requestDelivery.onSend();
+                    },
+              },
+            ]
+          : []),
+        ...(!isExpired && !requestDelivery?.queued
+          ? [{ id: 'cancel', title: 'Cancel invoice', onPress: onCancel }]
+          : []),
+        { id: 'close', title: 'Close', onPress: onClose || onCancel },
+      ]}
+    />
+  );
   const paymentAction = (
     <AppButton
       size="large"
       fullWidth
-      disabled={isChecking || requestDelivery?.sending}
-      loading={requestDelivery?.sending}
       variant="default"
-      emphasis={isExpired ? 'secondary' : 'primary'}
-      onPress={
-        requestDelivery?.queued
-          ? requestDelivery.onView
-          : isExpired
-            ? onCancel
-            : requestDelivery
-              ? () => void requestDelivery.onSend()
-              : handleCopy
-      }
+      emphasis="secondary"
+      disabled={busy || isExpired}
+      onPress={handleCopy}
     >
-      {requestDelivery?.queued
-        ? 'View request'
-        : isExpired
-          ? 'Close invoice'
-          : requestDelivery
-            ? 'Send request'
-            : 'Copy invoice'}
+      Copy
     </AppButton>
   );
 
   return (
     <>
       {renderHeader
-        ? renderHeader(
-            publicReceipt && (
-              <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isChecking} />
-            ),
-          )
+        ? renderHeader(menu)
         : !pos && (
             <PaymentFlowHeader
               title={requestDelivery ? 'Request Lightning' : 'Pay invoice'}
               navigationAction="close"
               onBack={onClose || onCancel}
-              disabled={isChecking || requestDelivery?.sending}
-              headerRight={() =>
-                publicReceipt && (
-                  <ReceiptImageShare iconOnly receipt={publicReceipt} disabled={isChecking} />
-                )
-              }
+              disabled={busy}
+              headerRight={() => menu}
             />
           )}
       <PaymentStageLayout
@@ -224,11 +260,10 @@ export function PaymentStage({
             {requestDelivery.error}
           </Text>
         )}
-        <ListTable compact>
+        <ListTable compact variant="filled">
           <PaymentStatusRow
             status={isExpired ? 'cancelled' : 'pending'}
             value={isExpired ? 'Expired' : 'Awaiting payment'}
-            onRefresh={() => checkPayment()}
             checking={isChecking}
             disabled={isExpired || offline}
           />
@@ -236,10 +271,6 @@ export function PaymentStage({
           <ListTableRow
             label="Invoice"
             value={invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice}
-            isCopyable
-            copyValue={invoice}
-            onCopy={handleCopy}
-            disabled={isChecking || isExpired}
           />
           <ListTableRow
             label="Expires in"
@@ -252,18 +283,15 @@ export function PaymentStage({
             }
           />
         </ListTable>
-        {!isExpired && !requestDelivery?.queued && (
-          <AppButton
-            variant="default"
-            emphasis="text"
-            fullWidth
-            disabled={isChecking || requestDelivery?.sending}
-            onPress={onCancel}
-          >
-            Cancel
-          </AppButton>
-        )}
       </PaymentStageLayout>
+      {publicReceipt && (
+        <ReceiptImageShare
+          receipt={publicReceipt}
+          disabled={busy}
+          hideTrigger
+          actionRef={receiptAction}
+        />
+      )}
     </>
   );
 }

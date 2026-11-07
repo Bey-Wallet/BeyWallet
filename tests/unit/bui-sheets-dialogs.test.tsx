@@ -154,6 +154,10 @@ it('preserves the shared sheet dismissal lock for ref and header actions', async
     });
     await act(async () => ref.current!.present());
     expect(tree!.root.findByType(AppBottomSheet).props.canDismiss).toBe(false);
+    expect(tree!.root.findByType(AppBottomSheet).props.snapPoints).toBeUndefined();
+    const scroll = tree!.root.findByType(require('react-native').ScrollView);
+    expect(scroll.props.showsVerticalScrollIndicator).toBe(false);
+    expect(scroll.props.contentContainerStyle.paddingBottom).toBe(32);
     expect(tree!.root.findByType(BUIHeader).props.onNavigate).toBeUndefined();
     await act(async () => ref.current!.dismiss());
     expect(mockDismiss).not.toHaveBeenCalled();

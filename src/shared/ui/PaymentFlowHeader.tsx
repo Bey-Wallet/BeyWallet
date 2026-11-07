@@ -25,6 +25,7 @@ export function PaymentFlowHeader({
   const router = useRouter();
   const headerOptions = useScreenHeaderOptions();
   const sheet = useReceiptSheet();
+  if (sheet?.hasSheetHeader) return null;
   if (sheet) {
     return (
       <XStack testID="receipt-header" items="stretch" px={sheet.headerInset ?? 0}>

@@ -3,7 +3,7 @@ import { Animated, AppState, Easing, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
-import { useBUIStore } from '~/state/buiStore';
+import { useBUIAppearance } from './useBUITheme';
 import type { BUIRect } from './selectorGeometry';
 
 export function useBUIAnchoredPopup(kind: 'menu' | 'tooltip', enabled = true, iconAnchor = false) {
@@ -13,7 +13,7 @@ export function useBUIAnchoredPopup(kind: 'menu' | 'tooltip', enabled = true, ic
   const active = useRef(false);
   const generation = useRef(0);
   const focused = useIsFocused();
-  const appearance = useBUIStore((state) => state.appearance);
+  const appearance = useBUIAppearance();
   const window = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const tooltip = kind === 'tooltip';

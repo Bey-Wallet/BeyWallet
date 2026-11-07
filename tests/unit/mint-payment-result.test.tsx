@@ -1,4 +1,8 @@
-jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
+  PaymentFlowHeader: ({ headerRight, ...props }: any) =>
+    require('react').createElement('PaymentFlowHeader', props, headerRight?.()),
+}));
+jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
@@ -97,6 +101,12 @@ function button(tree: ReactTestRenderer, label: string) {
   return tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === label)!;
 }
 
+function menuAction(tree: ReactTestRenderer, id: string) {
+  return tree.root
+    .findByType('PaymentMenu' as any)
+    .props.actions.find((action: any) => action.id === id);
+}
+
 it.each(['SATS', 'FIAT'])(
   'keeps %s primary across payment and success screens',
   async (currency) => {
@@ -165,10 +175,10 @@ it('copies the complete invoice and sizes the QR to the available space', async 
   });
   const invoiceRow = tree.root.findByProps({ label: 'Invoice' });
   expect(invoiceRow.props.value).not.toBe(paymentProps.invoice);
-  expect(invoiceRow.props.copyValue).toBe(paymentProps.invoice);
-  expect(invoiceRow.props.isCopyable).toBe(true);
+  expect(invoiceRow.props.copyValue).toBeUndefined();
+  expect(invoiceRow.props.isCopyable).toBeUndefined();
   expect(tree.root.findByProps({ label: 'Mint' }).props.value).toBe('My mint');
-  await act(async () => invoiceRow.props.onCopy());
+  await act(async () => button(tree, 'Copy').props.onPress());
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith(paymentProps.invoice);
   expect(paymentProps.onPaid).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
@@ -178,11 +188,11 @@ it('replaces payment controls and QR when the invoice expires', async () => {
   const expiry = Math.floor(Date.now() / 1000) + 2;
   const tree = await render(<PaymentStage {...paymentProps} expiry={expiry} />);
   await act(async () => jest.advanceTimersByTime(2000));
-  expect(tree.root.findByProps({ label: 'Invoice' }).props.disabled).toBe(true);
+  expect(button(tree, 'Copy').props.disabled).toBe(true);
   expect(tree.root.findByProps({ label: 'Expires in' }).props.value).toBe('Expired');
   expect(button(tree, 'Check payment')).toBeUndefined();
   expect(tree.root.findAllByType('QRCode' as any)).toHaveLength(0);
-  await act(async () => button(tree, 'Close invoice').props.onPress());
+  await act(async () => menuAction(tree, 'close').onPress());
   expect(paymentProps.onCancel).toHaveBeenCalledTimes(1);
   expect(paymentProps.onPaid).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
@@ -193,7 +203,7 @@ it('offers an explicit send action for addressed requests and views the saved ca
   const onView = jest.fn();
   const requestDelivery = { onSend, onView, sending: false, queued: false, error: '' };
   const tree = await render(<PaymentStage {...paymentProps} requestDelivery={requestDelivery} />);
-  await act(async () => button(tree, 'Send request').props.onPress());
+  await act(async () => menuAction(tree, 'nostr').onPress());
   expect(onSend).toHaveBeenCalledTimes(1);
   expect(paymentProps.onPaid).not.toHaveBeenCalled();
   await act(async () =>
@@ -203,7 +213,7 @@ it('offers an explicit send action for addressed requests and views the saved ca
   );
   expect(button(tree, 'Send request')).toBeUndefined();
   expect(button(tree, 'Cancel')).toBeUndefined();
-  await act(async () => button(tree, 'View request').props.onPress());
+  await act(async () => menuAction(tree, 'nostr').onPress());
   expect(onView).toHaveBeenCalledTimes(1);
   expect(paymentProps.onCancel).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
@@ -213,15 +223,15 @@ it('keeps the invoice available after an unsuccessful payment check', async () =
   mockCheckMintQuote.mockResolvedValue({ state: 'PAID' });
   const onPaid = jest.fn().mockRejectedValue(new Error('Not paid'));
   const tree = await render(<PaymentStage {...paymentProps} onPaid={onPaid} />);
-  const refresh = () => tree.root.findByProps({ label: 'Status' }).props.rightContent;
-  await act(async () => refresh().props.onPress());
+  const refresh = () => menuAction(tree, 'refresh');
+  await act(async () => refresh().onPress());
   expect(onPaid).toHaveBeenCalledTimes(1);
   expect(mockToastShow).toHaveBeenCalledWith(
     expect.any(String),
     expect.objectContaining({ kind: 'info', duration: 3000 }),
   );
-  expect(refresh().props.loading).toBe(false);
-  expect(tree.root.findByProps({ label: 'Invoice' }).props.disabled).toBe(false);
+  expect(tree.root.findByType('PaymentMenu' as any).props.busy).toBe(false);
+  expect(button(tree, 'Copy').props.disabled).toBe(false);
   await act(async () => tree.unmount());
 });
 

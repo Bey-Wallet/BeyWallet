@@ -7,10 +7,10 @@ import AppBottomSheet, {
   AppBottomSheetThemeProvider,
   type AppBottomSheetRef,
 } from '~/shared/ui/AppBottomSheet';
-import { useBUIStore } from '~/state/buiStore';
+import type { BUIAppearance } from '~/state/buiStore';
 import { BUIHeader } from './BUIHeader';
 import { BUIInput, type BUIInputProps } from './BUIInput';
-import { useBUITheme } from './useBUITheme';
+import { BUIAppearanceProvider, useBUIAppearance, useBUITheme } from './useBUITheme';
 
 export type BUISheetRef = AppBottomSheetRef;
 
@@ -23,13 +23,31 @@ export const BUISheet = forwardRef<
     onBack?: () => void;
     onClose?: () => void;
     canDismiss?: boolean;
+    appearance?: BUIAppearance;
+    showHeader?: boolean;
+    scrollContent?: boolean;
+    maxDynamicContentSize?: number;
+    actions?: React.ReactNode;
   }
 >(function BUISheet(
-  { title, children, navigation = 'close', onBack, onClose, canDismiss = true },
+  {
+    title,
+    children,
+    navigation = 'close',
+    onBack,
+    onClose,
+    canDismiss = true,
+    appearance: appearanceOverride,
+    showHeader = true,
+    scrollContent = true,
+    maxDynamicContentSize,
+    actions,
+  },
   ref,
 ) {
-  const appearance = useBUIStore((state) => state.appearance);
-  const c = useBUITheme();
+  const inheritedAppearance = useBUIAppearance();
+  const appearance = appearanceOverride ?? inheritedAppearance;
+  const c = useBUITheme(appearance);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const host = useRef<AppBottomSheetRef>(null);
@@ -58,37 +76,52 @@ export const BUISheet = forwardRef<
       host.current?.dismiss();
     }
   };
+  const content = (
+    <>
+      {showHeader && (
+        <BUIHeader
+          title={title}
+          actions={actions}
+          navigation={navigation}
+          onNavigate={canDismiss ? navigate : undefined}
+          navigationDisabled={!canDismiss}
+          divider
+        />
+      )}
+      {scrollContent ? <YStack gap={16}>{children}</YStack> : children}
+    </>
+  );
   return (
-    <Theme name={themeName}>
-      <AppBottomSheetThemeProvider value={themeName}>
-        <AppBottomSheet
-          ref={host}
-          backgroundColor={c.canvas}
-          canDismiss={canDismiss}
-          scrollable
-          maxDynamicContentSize={height * 0.85}
-          onClose={() => {
-            Keyboard.dismiss();
-            onClose?.();
-          }}
-        >
-          <BottomSheetScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: Math.max(16, insets.bottom) }}
+    <BUIAppearanceProvider value={appearance}>
+      <Theme name={themeName}>
+        <AppBottomSheetThemeProvider value={themeName}>
+          <AppBottomSheet
+            ref={host}
+            backgroundColor={c.canvas}
+            canDismiss={canDismiss}
+            scrollable
+            maxDynamicContentSize={maxDynamicContentSize ?? height * 0.85}
+            onClose={() => {
+              Keyboard.dismiss();
+              onClose?.();
+            }}
           >
-            <Theme name={themeName}>
-              <BUIHeader
-                title={title}
-                navigation={navigation}
-                onNavigate={canDismiss ? navigate : undefined}
-                divider
-              />
-              <YStack gap={16}>{children}</YStack>
-            </Theme>
-          </BottomSheetScrollView>
-        </AppBottomSheet>
-      </AppBottomSheetThemeProvider>
-    </Theme>
+            {scrollContent ? (
+              <BottomSheetScrollView
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+              >
+                <Theme name={themeName}>{content}</Theme>
+              </BottomSheetScrollView>
+            ) : (
+              content
+            )}
+          </AppBottomSheet>
+        </AppBottomSheetThemeProvider>
+      </Theme>
+    </BUIAppearanceProvider>
   );
 });
 

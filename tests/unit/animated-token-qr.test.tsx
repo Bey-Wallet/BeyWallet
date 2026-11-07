@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text } from 'tamagui';
 import { AppState, Share } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
@@ -63,9 +62,9 @@ jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButt
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
-jest.mock('~/shared/ui/AppBottomSheet', () => ({
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({
   __esModule: true,
-  default: require('react').forwardRef((props: any, ref: any) => {
+  BUISheet: require('react').forwardRef((props: any, ref: any) => {
     require('react').useImperativeHandle(ref, () => ({
       present: mockPresent,
       dismiss: mockDismiss,
@@ -73,6 +72,9 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
     return require('react').createElement('Sheet', props, props.children);
   }),
 }));
+jest.mock('~/shared/ui/AppBottomSheet', () => ({ __esModule: true, default: 'Sheet' }));
+jest.mock('~/features/payments/send/TokenNostrSheet', () => ({ TokenNostrSheet: () => null }));
+jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'ScrollView' }));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: (select: any) => select({ npub: '' }),
@@ -90,6 +92,7 @@ jest.mock('~/services/wallet', () => ({
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',
@@ -153,20 +156,21 @@ it('shows the complete small token as a static pending QR with no animation time
   expect(jest.getTimerCount()).toBe(0);
 });
 
-it('places the receipt action in the header beside the pending token layout', async () => {
+it('places the receipt action in the shared pending payment menu', async () => {
+  const share = jest.fn();
   await render(
     <PendingTokenLayout
       token="cashuBsynthetic"
       amount={1}
-      customHeaderRight={() => <Text testID="receipt-action">Share receipt image</Text>}
+      menuActions={[{ id: 'receipt-image', title: 'Share receipt image', onPress: share }]}
     />,
   );
-  const send = tree.root
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Send')!;
-  const receiptAction = tree.root.findByProps({ testID: 'receipt-action' });
-  expect(receiptAction.parent?.type).toBe('Header');
-  expect(send.parent).not.toBe(receiptAction.parent);
+  const menu = tree.root.findByType('PaymentMenu' as any);
+  menu.props.actions.find((action: any) => action.id === 'receipt-image').onPress();
+  expect(share).toHaveBeenCalledTimes(1);
+  expect(tree.root.findAllByType('Button' as any).map((node) => node.props.children)).toEqual([
+    'Copy',
+  ]);
 });
 
 it('offers an explicit pending ecash image from a newly created send without marking it paid', async () => {
@@ -187,12 +191,10 @@ it('offers an explicit pending ecash image from a newly created send without mar
     mint: 'https://mint.test',
     sats: 1,
   });
-  const send = tree.root
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Send')!;
-  expect(share.props.iconOnly).toBe(true);
-  expect(share.parent?.type).toBe('Header');
-  expect(send.parent).not.toBe(share.parent);
+  expect(share.props.hideTrigger).toBe(true);
+  expect(
+    tree.root.findByType('PaymentMenu' as any).props.actions.map((action: any) => action.id),
+  ).toContain('receipt-image');
 });
 
 it('switches between static and animated tokens without retaining an old frame or timer', async () => {
@@ -286,7 +288,7 @@ it.each(['setup', 'first frame', 'later frame'])(
   },
 );
 
-it('only offers system share, NFC, and token copy, using the original token', async () => {
+it('shares the original token through the menu and keeps only Copy on screen', async () => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
   await render(
     <PendingTokenLayout
@@ -296,23 +298,17 @@ it('only offers system share, NFC, and token copy, using the original token', as
       mintUrl="https://mint.test"
     />,
   );
-  const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
-  expect(labels).toEqual(expect.arrayContaining(['Share via App', 'NFC Send', 'Copy Token']));
-  expect(labels.join(' ')).not.toMatch(/Web|Publish/);
-  const row = (label: string) =>
-    tree.root
-      .findAllByType('XStack' as any)
-      .find(
-        (node) =>
-          node.findAllByType('Text' as any).some((text) => text.props.children === label) &&
-          node.props.onPress,
-      )!;
-  await act(async () => row('Share via App').props.onPress());
+  const actions = tree.root.findByType('PaymentMenu' as any).props.actions;
+  expect(actions.map((action: any) => action.title)).toEqual(
+    expect.arrayContaining(['Share via app', 'Send via NFC', 'Send via Nostr']),
+  );
+  await act(async () => actions.find((action: any) => action.id === 'share').onPress());
   expect(share).toHaveBeenCalledWith({ message: 'cashu:cashuBsynthetic', title: 'Share Token' });
-  await act(async () => row('Copy Token').props.onPress());
+  const buttons = tree.root.findAllByType('Button' as any);
+  expect(buttons).toHaveLength(1);
+  await act(async () => buttons[0].props.onPress());
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith('cashuBsynthetic');
-  await act(async () => row('NFC Send').props.onPress());
-  await act(async () => tree.root.findByType('Sheet' as any).props.onClose());
+  await act(async () => actions.find((action: any) => action.id === 'nfc').onPress());
   expect(mockNfcSend).toHaveBeenCalledWith(
     expect.objectContaining({ token: 'cashuBsynthetic', operationId: 'op' }),
   );

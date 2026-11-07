@@ -71,6 +71,7 @@ export {
   type BUIListRowProps,
 } from './BUIListRow';
 export { BUIPropertyRow, BUICopyRow, BUIDescriptionRow, BUIContentRow } from './BUIPropertyRow';
+export { BUIList, BUIListItem } from './BUIList';
 export {
   BUIListLoadingRow,
   BUIListErrorRow,

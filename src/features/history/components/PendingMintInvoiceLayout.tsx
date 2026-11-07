@@ -6,14 +6,17 @@ import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
-import React, { useState } from 'react';
-import { Text } from 'tamagui';
+import React, { useState, useRef } from 'react';
+import { Text, YStack, useThemeName } from 'tamagui';
+import { Share as RNShare } from 'react-native';
+import { PaymentActionsMenu, type PaymentMenuAction } from '~/shared/ui/PaymentActionsMenu';
+import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import * as Haptics from 'expo-haptics';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
 
 interface PendingMintInvoiceLayoutProps {
   savedInvoice: string;
@@ -35,8 +38,7 @@ interface PendingMintInvoiceLayoutProps {
   onPaid: () => Promise<void> | void;
   extraDetails?: React.ReactNode;
   offline?: boolean;
-  headerRight?: () => React.ReactNode;
-  headerRightWidth?: number;
+  menuActions?: PaymentMenuAction[];
 }
 
 export function PendingMintInvoiceLayout({
@@ -52,10 +54,11 @@ export function PendingMintInvoiceLayout({
   onPaid,
   extraDetails,
   offline = false,
-  headerRight,
-  headerRightWidth,
+  menuActions = [],
 }: PendingMintInvoiceLayoutProps) {
   const toast = useAppToast();
+  const detailsSheet = useRef<BUISheetRef>(null);
+  const appearance = useThemeName().startsWith('light') ? 'light' : 'dark';
   const [copied, setCopied] = useState(false);
   const paid = entry.state?.trim().toLowerCase() === 'paid';
 
@@ -79,24 +82,67 @@ export function PendingMintInvoiceLayout({
     <>
       <PaymentFlowHeader
         title="Pending top-up"
-        headerRight={headerRight}
-        headerRightWidth={headerRightWidth}
+        disabled={isCheckingPaid}
+        headerRight={() => (
+          <PaymentActionsMenu
+            busy={isCheckingPaid}
+            actions={[
+              {
+                id: 'share',
+                title: 'Share invoice',
+                disabled: paid || timeLeft === 0,
+                onPress: () => {
+                  void RNShare.share({ message: savedInvoice }).catch(() =>
+                    toast.showFeedback(interactionCopy.shareFailed),
+                  );
+                },
+              },
+              {
+                id: 'refresh',
+                title: paid ? 'Collect ecash' : 'Refresh status',
+                disabled: offline,
+                onPress: () => {
+                  void onPaid();
+                },
+              },
+              ...(!paid
+                ? [
+                    {
+                      id: 'cancel',
+                      title: 'Cancel invoice',
+                      onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        void onCancel();
+                      },
+                    },
+                  ]
+                : []),
+              ...(extraDetails
+                ? [
+                    {
+                      id: 'details',
+                      title: 'Payment details',
+                      onPress: () => detailsSheet.current?.present(),
+                    },
+                  ]
+                : []),
+              ...menuActions,
+            ]}
+          />
+        )}
       />
       <PaymentStageLayout
         variant="qr"
         footer={
-          paid ? (
-            <AppButton
-              fullWidth
-              size="large"
-              loading={isCheckingPaid}
-              loadingText={paid ? 'Collecting ecash…' : 'Checking payment…'}
-              disabled={offline || isCheckingPaid}
-              onPress={onPaid}
-            >
-              Collect ecash
-            </AppButton>
-          ) : undefined
+          <AppButton
+            fullWidth
+            size="large"
+            emphasis="secondary"
+            onPress={handleCopy}
+            disabled={isCheckingPaid || !savedInvoice}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </AppButton>
         }
         hero={
           <>
@@ -116,13 +162,12 @@ export function PendingMintInvoiceLayout({
           </>
         }
       >
-        <ListTable compact>
+        <ListTable compact variant="filled">
           <PaymentStatusRow
             status={!paid && timeLeft === 0 ? 'cancelled' : 'pending'}
             value={paid ? 'Awaiting ecash' : timeLeft === 0 ? 'Expired' : 'Awaiting payment'}
             checking={isCheckingPaid}
             disabled={offline}
-            onRefresh={onPaid}
           />
           <ListTableRow
             label="Mint"
@@ -131,26 +176,18 @@ export function PendingMintInvoiceLayout({
           <ListTableRow
             label="Invoice"
             value={savedInvoice.slice(0, 12) + '…' + savedInvoice.slice(-8)}
-            isCopyable
-            copyValue={savedInvoice}
-            onCopy={handleCopy}
           />
           {!paid && <ListTableRow label="Expires in" value={formatTime(timeLeft)} />}
         </ListTable>
-        {extraDetails}
-        {!paid && (
-          <AppButton
-            emphasis="text"
-            disabled={isCheckingPaid}
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              await onCancel();
-            }}
-          >
-            Cancel
-          </AppButton>
-        )}
       </PaymentStageLayout>
+      <BUISheet
+        ref={detailsSheet}
+        title="Payment details"
+        appearance={appearance}
+        canDismiss={!isCheckingPaid}
+      >
+        <YStack px={16}>{extraDetails}</YStack>
+      </BUISheet>
     </>
   );
 }

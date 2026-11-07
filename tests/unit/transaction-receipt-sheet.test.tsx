@@ -9,7 +9,12 @@ let mockCanBack = true;
 let mockAuthenticated = true;
 const mockRouter = { canGoBack: () => mockCanBack, back: mockBack, replace: mockReplace };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
-jest.mock('tamagui', () => ({ YStack: 'YStack', Text: 'Text', ScrollView: 'ScrollView' }));
+jest.mock('tamagui', () => ({
+  YStack: 'YStack',
+  Text: 'Text',
+  ScrollView: 'ScrollView',
+  useThemeName: () => 'dark',
+}));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppTextButton', () => ({ AppTextButton: 'TextButton' }));
 jest.mock('~/state/authStore', () => ({
@@ -25,11 +30,11 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 30, bottom: 20 }),
 }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'SheetScrollView' }));
-jest.mock('~/shared/ui/AppBottomSheet', () => {
+jest.mock('~/shared/ui/BUI/BUISheet', () => {
   const React = require('react');
   return {
     __esModule: true,
-    default: React.forwardRef(({ children, ...props }: any, ref: any) => {
+    BUISheet: React.forwardRef(({ children, ...props }: any, ref: any) => {
       React.useImperativeHandle(ref, () => ({ present: mockPresent, dismiss: jest.fn() }));
       return React.createElement('Sheet', props, children);
     }),
@@ -44,14 +49,15 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree?.unmount());
 });
-it('presents a content-sized sheet and returns to its originating list', async () => {
+it('sizes to default content with safe insets and returns to its originating list', async () => {
   await act(async () => {
     tree = create(<TransactionReceiptSheet>Receipt</TransactionReceiptSheet>);
   });
   expect(mockPresent).toHaveBeenCalledTimes(1);
   const sheet = tree.root.findByType('Sheet' as any);
-  expect(sheet.props).toMatchObject({ scrollable: true, canDismiss: true });
+  expect(sheet.props).toMatchObject({ scrollContent: true, canDismiss: true });
   expect(sheet.props.snapPoints).toBeUndefined();
+  expect(sheet.props.maxDynamicContentSize).toBeGreaterThan(0);
   sheet.props.onClose();
   expect(mockBack).toHaveBeenCalledTimes(1);
 });

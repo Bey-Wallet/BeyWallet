@@ -1,6 +1,5 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { PaymentStatusIcon, paymentReceiptStatus } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { getHistoryToken, getVerifiedTokenState } from '~/features/history/historyToken';
@@ -14,7 +13,8 @@ import { PendingOnchainLayout } from '~/features/history/components/PendingOncha
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
 import { TransactionNoteRows } from './components/TransactionNoteRows';
 import { TransferHistoryReceipt } from './components/TransferHistoryReceipt';
-import { ReceiptImageShare } from './components/ReceiptImageShare';
+import { ReceiptImageShare, type ReceiptImageShareAction } from './components/ReceiptImageShare';
+import { PaymentActionsMenu, type PaymentMenuAction } from '~/shared/ui/PaymentActionsMenu';
 import { buildShareableReceipt } from './shareableReceipt';
 import { checkHistoryStatus } from './checkHistoryStatus';
 import { getTransactionNotes } from './transactionNotes';
@@ -27,7 +27,7 @@ import { networkService } from '~/services/platform/networkService';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
-import { YStack, XStack, Text } from 'tamagui';
+import { YStack, XStack, Text, useThemeName } from 'tamagui';
 import { Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -46,7 +46,7 @@ import {
 import { nip19 } from 'nostr-tools';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import { PendingMintInvoiceLayout } from '~/features/history/components/PendingMintInvoiceLayout';
-import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
@@ -69,7 +69,7 @@ import {
   readLightningReceiptSnapshot,
   removeLightningRecipient,
 } from '~/services/wallet/lightningReceiptContext';
-import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 interface HistoryEntry {
@@ -102,7 +102,9 @@ function TransactionDetailsContent() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = params.id?.toString();
   const { primaryCurrency, secondaryCurrency, npub } = useSettingsStore();
-  const deleteSheetRef = useRef<AppBottomSheetRef>(null);
+  const deleteSheetRef = useRef<BUISheetRef>(null);
+  const receiptAction = useRef<ReceiptImageShareAction>(null);
+  const appearance = useThemeName().startsWith('light') ? 'light' : 'dark';
 
   const handleDeleteTransaction = async () => {
     if (!entry) return;
@@ -681,14 +683,10 @@ function TransactionDetailsContent() {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
     headerRight: () => (
-      <HeaderIconButton
-        accessibilityLabel="Delete transaction"
-        icon={<Trash2 />}
-        disabled={isReclaiming || isClaiming || isCheckingPaid}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          deleteSheetRef.current?.present();
-        }}
+      <PaymentActionsMenu
+        label="Transaction actions"
+        actions={transactionActions}
+        busy={isReclaiming || isClaiming || isCheckingPaid}
       />
     ),
   };
@@ -696,13 +694,15 @@ function TransactionDetailsContent() {
   const makeHeaderOptions = () => headerOptions;
 
   const renderDeleteBottomSheet = () => (
-    <AppBottomSheet ref={deleteSheetRef} snapPoints={['35%']}>
+    <BUISheet
+      ref={deleteSheetRef}
+      title="Delete transaction"
+      appearance={appearance}
+      canDismiss={!isReclaiming && !isClaiming && !isCheckingPaid}
+    >
       <YStack p="$4" gap="$4" flex={1} items="center" justify="center">
         <Trash2 size={40} color="$red10" />
         <YStack items="center" gap="$1">
-          <Text fontSize="$6" fontWeight="800" color="$color" textAlign="center">
-            Delete Transaction?
-          </Text>
           <Text color="$gray10" fontSize="$3" textAlign="center" px="$4">
             This will erase the transaction history and all its details from this device.
           </Text>
@@ -729,7 +729,7 @@ function TransactionDetailsContent() {
           </AppButton>
         </XStack>
       </YStack>
-    </AppBottomSheet>
+    </BUISheet>
   );
 
   const publicReceipt = entry
@@ -743,8 +743,59 @@ function TransactionDetailsContent() {
         expired: isQuoteExpired,
       })
     : null;
-  const renderSheet = (content: React.ReactNode, expanded = false, inlineReceiptShare = false) => (
+  const genericPending =
+    entry &&
+    !onchain &&
+    !showInvoiceLayout &&
+    !(token && (entry.type === 'send' || entry.type === 'receive')) &&
+    paymentReceiptStatus(
+      entry.type === 'mint' && status === 'paid' ? 'pending' : entry.state || 'unknown',
+    ) === 'pending';
+  const transactionActions: PaymentMenuAction[] = [
+    ...(genericPending
+      ? [
+          {
+            id: 'refresh',
+            title: 'Refresh status',
+            disabled: offline || isRefetching,
+            onPress: () => handleCheckReceipt(),
+          },
+          ...(entry.type === 'mint' && status === 'paid' && entry.quoteId
+            ? [
+                {
+                  id: 'collect',
+                  title: 'Collect ecash',
+                  disabled: offline || isRefetching,
+                  onPress: handleCollectMint,
+                },
+              ]
+            : []),
+        ]
+      : []),
+    ...(publicReceipt
+      ? [
+          {
+            id: 'receipt-image',
+            title: 'Share receipt image',
+            onPress: () => receiptAction.current?.open(),
+          },
+        ]
+      : []),
+    {
+      id: 'delete',
+      title: 'Delete transaction',
+      destructive: true,
+      icon: <Trash2 size={20} color="$red10" />,
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        deleteSheetRef.current?.present();
+      },
+    },
+  ];
+  const renderSheet = (content: React.ReactNode, expanded = false, _inlineReceiptShare = false) => (
     <TransactionReceiptSheet
+      title={title || 'Transaction details'}
+      headerActions={headerOptions.headerRight()}
       active={!!entry && needsFullScreenReceipt(entry, transferRecord?.state)}
       ready={
         entry
@@ -755,31 +806,20 @@ function TransactionDetailsContent() {
       busy={isReclaiming || isClaiming || isCheckingPaid}
     >
       {content}
-      {publicReceipt && !inlineReceiptShare && (
-        <SafeAreaView edges={expanded ? ['bottom'] : []}>
-          <ReceiptImageShare
-            receipt={publicReceipt}
-            disabled={isReclaiming || isClaiming || isCheckingPaid}
-          />
-        </SafeAreaView>
-      )}
-    </TransactionReceiptSheet>
-  );
-
-  const pendingHeaderRight = () => (
-    <XStack items="center">
       {publicReceipt && (
         <ReceiptImageShare
-          iconOnly
           receipt={publicReceipt}
+          hideTrigger
+          actionRef={receiptAction}
           ecashToken={entry?.type === 'send' && token ? cleanToken(token) : undefined}
           disabled={isReclaiming || isClaiming || isCheckingPaid}
         />
       )}
-      {headerOptions.headerRight()}
-    </XStack>
+    </TransactionReceiptSheet>
   );
-  const pendingHeaderWidth = publicReceipt ? 96 : 48;
+
+  const pendingHeaderRight = headerOptions.headerRight;
+  const pendingHeaderWidth = 48;
 
   if (!entry) {
     return renderSheet(
@@ -848,7 +888,7 @@ function TransactionDetailsContent() {
   const extraDetails = (
     <YStack gap="$2">
       {(notes.length > 0 || receiptData.description) && (
-        <ListTable variant="outlined">
+        <ListTable variant="filled">
           {receiptData.description && (
             <ListTableRow label="Description" value={receiptData.description} multiline />
           )}
@@ -874,8 +914,7 @@ function TransactionDetailsContent() {
           checking={isRefetching}
           offline={offline}
           onClose={() => router.back()}
-          headerRight={pendingHeaderRight}
-          headerRightWidth={pendingHeaderWidth}
+          menuActions={transactionActions}
           extraDetails={extraDetails}
           transactionDetails={
             <OnchainTransactionRows
@@ -899,8 +938,7 @@ function TransactionDetailsContent() {
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Stack.Screen options={makeHeaderOptions()} />
         <PendingMintInvoiceLayout
-          headerRight={pendingHeaderRight}
-          headerRightWidth={pendingHeaderWidth}
+          menuActions={transactionActions}
           savedInvoice={savedInvoice}
           timeLeft={timeLeft}
           entry={entry as any}
@@ -956,8 +994,7 @@ function TransactionDetailsContent() {
           reclaimAt={metadata?.reclaimAt ? Number(metadata.reclaimAt) : undefined}
           onCheckStatus={handleRefresh}
           isCheckingStatus={isRefetching}
-          customHeaderRight={pendingHeaderRight}
-          headerRightWidth={pendingHeaderWidth}
+          menuActions={transactionActions}
           extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
@@ -1007,11 +1044,10 @@ function TransactionDetailsContent() {
             {latestCheck.message}
           </Text>
         )}
-      <ListTable variant="outlined">
+      <ListTable variant="filled">
         <PaymentStatusRow
           status={receiptStatus}
           value={reclaimOutcome === 'reclaimed' ? 'Reclaimed' : detail.status}
-          onRefresh={receiptStatus === 'pending' ? () => handleCheckReceipt() : undefined}
           checking={isCheckingPaid}
           disabled={offline}
         />
@@ -1097,30 +1133,6 @@ function TransactionDetailsContent() {
         )}
       </ListTable>
       <ReceiptExtraDetails fields={detail.extra} />
-      {token && ['send', 'receive'].includes(entry.type) && receiptStatus === 'success' && (
-        <AppButton
-          emphasis="secondary"
-          onPress={async () => {
-            if (await copyWithFeedback(token, toast))
-              toast.showFeedback(interactionCopy.ecashCopied);
-          }}
-        >
-          Copy original token
-        </AppButton>
-      )}
-      {receiptStatus === 'pending' &&
-        entry.type === 'mint' &&
-        status === 'paid' &&
-        entry.quoteId && (
-          <AppButton
-            emphasis="secondary"
-            loading={isCheckingPaid || isRefetching}
-            disabled={offline || isCheckingPaid || isRefetching}
-            onPress={handleCollectMint}
-          >
-            Collect ecash
-          </AppButton>
-        )}
       {renderDeleteBottomSheet()}
     </YStack>,
     false,

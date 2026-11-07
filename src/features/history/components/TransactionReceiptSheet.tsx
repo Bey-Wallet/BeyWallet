@@ -1,10 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, Text, YStack } from 'tamagui';
-import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
+import { ScrollView, Text, YStack, useThemeName } from 'tamagui';
+import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { ReceiptSheetContext } from '~/shared/ui/ReceiptSheetContext';
 import { ListTableVariantProvider } from '~/shared/ui/ListTable';
 import { useAuthStore } from '~/state/authStore';
@@ -19,14 +18,19 @@ export function TransactionReceiptSheet({
   busy = false,
   active = false,
   ready = true,
+  title = 'Transaction details',
+  headerActions,
 }: {
   children: React.ReactNode;
   expanded?: boolean;
   busy?: boolean;
   active?: boolean;
   ready?: boolean;
+  title?: string;
+  headerActions?: React.ReactNode;
 }) {
-  const sheet = useRef<AppBottomSheetRef>(null);
+  const sheet = useRef<BUISheetRef>(null);
+  const appearance = useThemeName().startsWith('light') ? 'light' : 'dark';
   const [resolvedOnce, setResolvedOnce] = useState(ready);
   useEffect(() => {
     if (ready) setResolvedOnce(true);
@@ -82,7 +86,7 @@ export function TransactionReceiptSheet({
       <Text color="$gray10">Unlock Bey to view this receipt.</Text>
     </YStack>
   );
-  const scrollPadding = { paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 16) };
+  const scrollPadding = { paddingHorizontal: 16, paddingBottom: insets.bottom + 16 };
   const content = resolving ? (
     <YStack
       testID="transaction-loading-overlay"
@@ -121,22 +125,29 @@ export function TransactionReceiptSheet({
       )}
     </YStack>
   ) : (
-    <AppBottomSheet
+    <BUISheet
       ref={sheet}
+      title={title}
+      actions={headerActions}
+      appearance={appearance}
+      showHeader={!expanded}
+      scrollContent={!expanded}
       maxDynamicContentSize={height - Math.max(insets.top, 24)}
-      scrollable
       canDismiss={!busy}
       onClose={onSheetClose}
-      backgroundColor="$background"
     >
       {concealed ? (
         hidden
-      ) : (
-        <BottomSheetScrollView contentContainerStyle={scrollPadding}>
+      ) : expanded ? (
+        <YStack flex={1} pb={insets.bottom}>
           {children}
-        </BottomSheetScrollView>
+        </YStack>
+      ) : (
+        <YStack px={16} pt={12}>
+          {children}
+        </YStack>
       )}
-    </AppBottomSheet>
+    </BUISheet>
   );
   return (
     <ReceiptSheetContext.Provider
@@ -145,9 +156,10 @@ export function TransactionReceiptSheet({
         busy,
         presentation: fullScreen ? 'screen' : 'sheet',
         headerInset: fullScreen && expanded ? 16 : 0,
+        hasSheetHeader: !fullScreen && !expanded,
       }}
     >
-      <ListTableVariantProvider value="outlined">{content}</ListTableVariantProvider>
+      <ListTableVariantProvider value="filled">{content}</ListTableVariantProvider>
     </ReceiptSheetContext.Provider>
   );
 }

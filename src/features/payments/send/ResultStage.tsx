@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
-import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
+import {
+  ReceiptImageShare,
+  type ReceiptImageShareAction,
+} from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { cleanToken } from '~/services/wallet/tokenUtils';
 
@@ -25,6 +28,7 @@ interface ResultStageProps {
 
 export function ResultStage(props: ResultStageProps) {
   const [time] = useState(Date.now);
+  const receiptAction = useRef<ReceiptImageShareAction>(null);
   useResultHaptic(props.status === 'error' ? 'error' : undefined);
   const [reclaiming, setReclaiming] = useState(false);
   const receipt =
@@ -41,42 +45,55 @@ export function ResultStage(props: ResultStageProps) {
       : null;
   if (props.status === 'success' && props.token)
     return (
-      <PendingTokenLayout
-        navigationAction="close"
-        token={props.token}
-        operationId={props.operationId}
-        amount={props.amount}
-        fee={props.fee}
-        mintUrl={props.mintUrl}
-        expiresAt={props.expiresAt}
-        reclaimAt={props.reclaimAt}
-        headerStatus="pending"
-        onCheckStatus={props.onCheckStatus}
-        isCheckingStatus={props.isCheckingStatus}
-        isReclaiming={reclaiming}
-        customHeaderRight={() =>
-          receipt && (
-            <ReceiptImageShare
-              iconOnly
-              receipt={receipt}
-              ecashToken={cleanToken(props.token)}
-              disabled={reclaiming}
-            />
-          )
-        }
-        onReclaim={
-          props.onReclaim
-            ? async () => {
-                setReclaiming(true);
-                try {
-                  await props.onReclaim?.();
-                } finally {
-                  setReclaiming(false);
+      <>
+        <PendingTokenLayout
+          navigationAction="close"
+          token={props.token}
+          operationId={props.operationId}
+          amount={props.amount}
+          fee={props.fee}
+          mintUrl={props.mintUrl}
+          expiresAt={props.expiresAt}
+          reclaimAt={props.reclaimAt}
+          headerStatus="pending"
+          onCheckStatus={props.onCheckStatus}
+          isCheckingStatus={props.isCheckingStatus}
+          isReclaiming={reclaiming}
+          menuActions={
+            receipt
+              ? [
+                  {
+                    id: 'receipt-image',
+                    title: 'Share receipt image',
+                    disabled: reclaiming,
+                    onPress: () => receiptAction.current?.open(),
+                  },
+                ]
+              : []
+          }
+          onReclaim={
+            props.onReclaim
+              ? async () => {
+                  setReclaiming(true);
+                  try {
+                    await props.onReclaim?.();
+                  } finally {
+                    setReclaiming(false);
+                  }
                 }
-              }
-            : undefined
-        }
-      />
+              : undefined
+          }
+        />
+        {receipt && (
+          <ReceiptImageShare
+            receipt={receipt}
+            ecashToken={cleanToken(props.token)}
+            disabled={reclaiming}
+            hideTrigger
+            actionRef={receiptAction}
+          />
+        )}
+      </>
     );
   return (
     <PaymentReceipt
