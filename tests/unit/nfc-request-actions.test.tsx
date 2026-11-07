@@ -276,8 +276,8 @@ it('offers settlement refresh without delivery retry after acknowledged publicat
   const buttons = sheet.root.findAllByType('Button' as any);
   expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual([
     'Refresh status',
+    'Start new payment',
     'View History',
-    'Try new payment',
   ]);
   await act(async () => sheet.unmount());
 });
@@ -323,7 +323,7 @@ it('shows errors in the sheet and offers a new payment with the pending-payment 
   );
   const newPayment = sheet.root
     .findAllByType('Button' as any)
-    .find((button) => button.props.accessibilityLabel === 'Try new payment')!;
+    .find((button) => button.props.accessibilityLabel === 'Start new payment')!;
   await act(async () => newPayment.props.onPress({}));
   expect(nfcFlow.newPayment).toHaveBeenCalledTimes(1);
   expect(
@@ -346,7 +346,8 @@ it('shows a loader while refreshing and keeps new-payment recovery available', a
       .disabled,
   ).toBe(true);
   expect(
-    buttons.find((button) => button.props.accessibilityLabel === 'Try new payment')?.props.disabled,
+    buttons.find((button) => button.props.accessibilityLabel === 'Start new payment')?.props
+      .disabled,
   ).toBe(false);
   await act(async () => sheet.unmount());
 });

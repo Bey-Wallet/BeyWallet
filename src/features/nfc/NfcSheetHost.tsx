@@ -263,6 +263,23 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                   </AppButton>
                 </XStack>
               )}
+              {showNewPayment && (
+                <YStack width="100%" gap="$2">
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="large"
+                    fullWidth
+                    disabled={state.locked}
+                    onPress={nfcFlow.newPayment}
+                  >
+                    Start new payment
+                  </AppButton>
+                  <Text {...appTypography.body3} color="$gray10" textAlign="center">
+                    The previous payment may still complete. Check History before paying it again.
+                  </Text>
+                </YStack>
+              )}
               {(showHistory || showRefresh || showCheckNfc) && (
                 <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
                   {showRefresh && (
@@ -301,22 +318,6 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                     </AppButton>
                   )}
                 </XStack>
-              )}
-              {showNewPayment && (
-                <YStack width="100%" gap="$2">
-                  <AppButton
-                    emphasis="secondary"
-                    size="large"
-                    fullWidth
-                    disabled={state.locked}
-                    onPress={nfcFlow.newPayment}
-                  >
-                    Try new payment
-                  </AppButton>
-                  <Text {...appTypography.body2} color="$gray10" textAlign="center">
-                    The previous payment may still complete. Check History before paying it again.
-                  </Text>
-                </YStack>
               )}
             </YStack>
           </YStack>
