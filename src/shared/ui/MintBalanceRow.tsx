@@ -5,7 +5,7 @@ import { XStack, YStack, Text, Avatar } from 'tamagui';
 import { ChevronDown } from '@tamagui/lucide-icons';
 import { ListTable } from '~/shared/ui/ListTable';
 import { AppPressable } from '~/shared/ui/AppPressable';
-import { appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appDimensions, appIconSizes, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
 import * as Haptics from 'expo-haptics';
@@ -69,44 +69,49 @@ export function MintBalanceRow({
 
   return (
     <ListTable width="100%">
-      <XStack items="center" gap={appSpacing.compact} px={appSpacing.gap}>
+      <XStack items="center" gap={appSpacing.gap} px={appSpacing.page}>
         <AppPressable
           flex={1}
           minWidth={0}
-          minHeight={56}
+          minHeight={appDimensions.touchTarget + 2 * appSpacing.gap}
+          py={appSpacing.gap}
           flexDirection="row"
           items="center"
-          gap={appSpacing.compact}
+          gap={appSpacing.gap}
           accessibilityRole={isSelector && onPress ? 'button' : 'text'}
           accessibilityLabel={`${label || 'Mint'}, ${resolvedDisplayName}${showBalance ? `, available ${currencyService.formatSats(balance)}` : ''}`}
           onPress={isSelector && onPress ? handlePress : undefined}
         >
-          {isLoadingMint ? (
-            <Spinner size="small" color="$color" />
-          ) : (
-            <Avatar rounded="$3" size={22} flexShrink={0}>
-              <MintImage
-                mintUrl={activeMint?.mintUrl}
-                width="100%"
-                height="100%"
-                src={activeMint?.icon}
-              />
-            </Avatar>
-          )}
+          <YStack width={36} height={36} flexShrink={0} items="center" justify="center">
+            {isLoadingMint ? (
+              <Spinner size="small" color="$color" />
+            ) : (
+              <Avatar rounded="$3" size={36}>
+                <MintImage
+                  mintUrl={activeMint?.mintUrl}
+                  width="100%"
+                  height="100%"
+                  src={activeMint?.icon}
+                />
+              </Avatar>
+            )}
+          </YStack>
           <YStack flex={1} minWidth={0}>
             {!!label && (
               <Text {...appTypography.body3} color="$gray10">
                 {label}
               </Text>
             )}
-            <Text {...appTypography.label2} color="$color" numberOfLines={1}>
+            <Text {...appTypography.label1} color="$color" numberOfLines={1}>
               {isLoadingMint ? 'Loading…' : resolvedDisplayName}
             </Text>
           </YStack>
-          {isSelector && onPress && <ChevronDown size={16} color="$gray10" />}
+          {isSelector && onPress && (
+            <ChevronDown size={appIconSizes.navigationCue} color="$gray10" />
+          )}
           {showBalance && (
             <YStack items="flex-end" flexShrink={1} minWidth={0}>
-              <Text {...appTypography.label2} color="$color" textAlign="right">
+              <Text {...appTypography.label1} color="$color" textAlign="right">
                 {currencyService.formatSats(balance)}
               </Text>
             </YStack>

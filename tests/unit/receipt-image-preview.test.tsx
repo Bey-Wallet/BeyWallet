@@ -130,8 +130,8 @@ it.each([false, true])(
     await open(ecashReceipt, token);
     expect(encode).toHaveBeenCalledWith(token, { errorCorrectionLevel: 'M' });
     expect(tree.root.findAllByType('Rect' as any)[0].props).toMatchObject({
-      height: 866,
-      fill: dark ? '#000000' : '#FFFFFF',
+      height: 888,
+      fill: dark ? '#17171A' : 'hsl(0, 0%, 96%)',
     });
     const qr = tree.root.findByProps({ testID: 'receipt-qr' });
     expect(qr.props.transform).toMatch(/^translate\(48 164\)/);
@@ -154,7 +154,7 @@ it.each([false, true])(
 it('keeps regular ecash receipts token-free unless token export is explicitly requested', async () => {
   await open(ecashReceipt);
   expect(tree.root.findAllByProps({ testID: 'receipt-qr' })).toHaveLength(0);
-  expect(texts()).toContain('Payment summary');
+  expect(texts()).toContain('Ecash payment');
   expect(ecashReceipt.qr).toBeUndefined();
 });
 
@@ -164,13 +164,13 @@ it('shares the compact ecash receipt at its full export dimensions', async () =>
     .findAllByType('Button' as any)
     .find((node) => node.props.children === 'Share image')!;
   await act(async () => share.props.onPress());
-  expect(shareReceiptImage).toHaveBeenCalledWith(expect.anything(), { width: 1280, height: 1732 });
+  expect(shareReceiptImage).toHaveBeenCalledWith(expect.anything(), { width: 1280, height: 1776 });
 });
 
 it('does not put an animated token fragment into a static receipt image', async () => {
   await open(ecashReceipt, 'cashuB' + 'x'.repeat(900));
   expect(tree.root.findAllByProps({ testID: 'receipt-qr' })).toHaveLength(0);
-  expect(texts()).toContain('Payment summary');
+  expect(texts()).toContain('Ecash payment');
   expect(
     tree.root
       .findAllByType('Text' as any)
@@ -193,7 +193,7 @@ it('previews both currencies, type and pending label with a real request QR matr
   );
   const qr = tree.root
     .findAllByType('G' as any)
-    .find((node) => node.props.transform?.startsWith('translate(48 200)'))!;
+    .find((node) => node.props.transform?.startsWith('translate(48 184)'))!;
   expect(qr.findByType('Path' as any).props.d).toMatch(/^M/);
   expect(tree.root.findAllByProps({ testID: 'receipt-outcome-icon' })).toHaveLength(0);
 });
@@ -213,14 +213,15 @@ it('does not invent a fiat conversion when price data is unavailable', async () 
 it('uses the active dark theme and keeps the payable QR above amounts and left aligned', async () => {
   mockDark = true;
   await open();
-  expect(tree.root.findAllByType('Rect' as any)[0].props.fill).toBe('#000000');
+  expect(tree.root.findAllByType('Rect' as any)[0].props.fill).toBe('#17171A');
   const amount = tree.root
     .findAllByType('SvgText' as any)
     .find((node) => node.props.children === '₿\u202f1,234')!;
   expect(amount.props.fill).toBe('#FFFFFF');
+  expect(amount.props.x).toBe(48);
   const qr = tree.root
     .findAllByType('G' as any)
-    .find((node) => node.props.transform?.startsWith('translate(48 200)'))!;
+    .find((node) => node.props.transform?.startsWith('translate(48 184)'))!;
   expect(qr).toBeDefined();
   expect(amount.props.y).toBeGreaterThan(590);
   expect(qr.findByType('Rect' as any).props.fill).toBe('#FFFFFF');
@@ -229,29 +230,31 @@ it('uses the active dark theme and keeps the payable QR above amounts and left a
 
 it('uses the existing Bey logo in light receipts and keeps the header minimal', async () => {
   await open();
-  expect(tree.root.findByType(BeyIcon).props).toMatchObject({ size: 42, color: '#000000' });
+  expect(tree.root.findByType(BeyIcon).props).toMatchObject({ size: 32, color: '#000000' });
   expect(texts()).not.toContain('Receipt');
   expect(texts()).not.toContain('bey');
-  expect(texts()).toContain('Payment summary');
+  expect(texts()).toContain('Lightning top-up');
+  expect(texts()).toContain('Bey');
+  expect(texts()).not.toContain('Status');
+  expect(texts()).not.toContain('Mint');
   expect(texts()).not.toContain('PAYMENT RECEIPT');
   expect(texts()).not.toContain('Total amount');
 });
 
 it.each([false, true])(
-  'keeps the footer centered and muted on the receipt background in dark=%s',
+  'keeps the small Bey footer right-aligned and muted on the card surface in dark=%s',
   async (dark) => {
     mockDark = dark;
     await open();
     expect(tree.root.findAllByProps({ testID: 'receipt-promotion-background' })).toHaveLength(0);
     const promotion = tree.root
       .findAllByType('SvgText' as any)
-      .find((node) => node.props.children === 'Download Bey Wallet @ bey.cash')!;
+      .find((node) => node.props.children === 'bey.cash')!;
     expect(promotion.props).toMatchObject({
-      x: 320,
-      textAnchor: 'middle',
-      fontSize: 14,
-      opacity: 0.5,
-      fill: dark ? '#FFFFFF' : '#000000',
+      x: 592,
+      textAnchor: 'end',
+      fontSize: 16,
+      fill: dark ? '#8D8D93' : '#6B6B73',
     });
   },
 );
@@ -263,15 +266,14 @@ it.each([
   ['Expired', 'Clock', '#F5A73B'],
   ['Refunded', 'ArrowDownLeft', '#25B86F'],
 ] as const)(
-  'shows a large %s outcome beside the amount and status in the rows',
+  'shows a compact %s outcome in the header without changing its meaning',
   async (status, icon, color) => {
     await open({ ...receipt, status, qr: undefined });
     const outcome = tree.root.findByProps({ testID: 'receipt-outcome-icon' });
-    expect(outcome.findByType(icon as any).props.size).toBe(40);
-    expect(outcome.findByType('Circle' as any).props.fill).toBe(color);
+    expect(outcome.findByType(icon as any).props).toMatchObject({ size: 32, color });
     const statusText = tree.root
       .findAllByType('SvgText' as any)
       .find((node) => node.props.children === status)!;
-    expect(statusText.props.y).toBe(396);
+    expect(statusText.props).toMatchObject({ y: 72, x: 592, textAnchor: 'end' });
   },
 );

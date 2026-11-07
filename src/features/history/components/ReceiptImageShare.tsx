@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useImperativeHandle } from 'react';
-import Svg, { Rect, Text as SvgText, Line, G, Path, Circle } from 'react-native-svg';
+import Svg, { Rect, Text as SvgText, Line, G, Path } from 'react-native-svg';
 import QRCode from 'qrcode';
 import { useQuery } from '@tanstack/react-query';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -78,10 +78,8 @@ export function ReceiptImageShare({
   const pending = preview?.status === 'Pending';
   const ecashImage = !!preview?.ecashQr;
   const qrValue = preview?.ecashQr || preview?.qr;
-  const detailsOffset = ecashImage ? 264 : preview?.qr ? 400 : 0;
-  const imageHeight = ecashImage ? 866 : 712 + detailsOffset;
-  const rowStep = ecashImage ? 42 : 54;
-  const statusY = 396 + detailsOffset;
+  const detailsOffset = ecashImage ? 340 : preview?.qr ? 400 : 0;
+  const imageHeight = 548 + detailsOffset;
   const statusColor =
     preview?.status === 'Confirmed' || preview?.status === 'Refunded'
       ? colors.positive
@@ -155,144 +153,93 @@ export function ReceiptImageShare({
             <Svg
               ref={svg}
               width="100%"
-              height={qrValue ? 520 : 360}
+              height={qrValue ? 480 : 300}
               viewBox={`0 0 640 ${imageHeight}`}
               fontFamily="InterTextRegular"
               accessibilityLabel={
                 ecashImage ? 'Ecash sharing image preview' : 'Public receipt image preview'
               }
             >
-              <Rect width={640} height={imageHeight} rx={32} fill={colors.canvas} />
+              <Rect width={640} height={imageHeight} rx={32} fill={colors.surface} />
               <G transform="translate(48 46)">
-                <BeyIcon size={42} color={colors.icon} />
+                <BeyIcon size={32} color={colors.icon} />
               </G>
-              <SvgText x={48} y={152} fontSize={20} fill={colors.secondaryText}>
-                {ecashImage ? 'Ecash to share' : 'Payment summary'}
+              <SvgText x={92} y={72} fontSize={24} fontFamily="InterTextMedium" fill={colors.text}>
+                Bey
+              </SvgText>
+              <G
+                testID={pending ? 'receipt-pending-icon' : 'receipt-outcome-icon'}
+                accessibilityLabel={`${preview.status} payment`}
+                transform={`translate(${592 - preview.status.length * 12 - 40} 46)`}
+              >
+                <OutcomeIcon size={32} color={statusColor} strokeWidth={2.5} />
+              </G>
+              <SvgText
+                x={592}
+                y={72}
+                textAnchor="end"
+                fontSize={20}
+                fontFamily="InterTextMedium"
+                fill={colors.text}
+              >
+                {preview.status}
+              </SvgText>
+              <SvgText x={48} y={152} fontSize={22} fill={colors.secondaryText}>
+                {ecashImage ? 'Ecash to share' : preview.type}
               </SvgText>
               {qrValue && qrCount > 0 && (
                 <G
                   testID="receipt-qr"
-                  transform={`translate(48 ${ecashImage ? 164 : 200}) scale(${(ecashImage ? 300 : 360) / (qrCount + 8)})`}
+                  transform={`translate(48 ${ecashImage ? 164 : 184}) scale(${(ecashImage ? 300 : 360) / (qrCount + 8)})`}
                 >
                   <Rect width={qrCount + 8} height={qrCount + 8} fill={appColors.light.canvas} />
                   <Path d={qrPath} fill={appColors.light.text} />
                 </G>
               )}
               <SvgText
+                testID="receipt-primary-amount"
                 x={48}
-                y={254 + detailsOffset}
-                fontSize={preview.amount.length > 16 ? 29 : preview.amount.length > 11 ? 41 : 58}
+                y={244 + detailsOffset}
+                fontSize={preview.amount.length > 16 ? 48 : preview.amount.length > 11 ? 64 : 80}
                 fontFamily="InterDisplaySemiBold"
                 fill={colors.icon}
               >
                 {preview.amount}
               </SvgText>
-              {!pending && (
-                <G testID="receipt-outcome-icon" accessibilityLabel={`${preview.status} payment`}>
-                  <Circle cx={548} cy={230 + detailsOffset} r={42} fill={statusColor} />
-                  <G transform={`translate(528 ${210 + detailsOffset})`}>
-                    <OutcomeIcon size={40} color={colors.onAccent} strokeWidth={3} />
-                  </G>
-                </G>
-              )}
-              <SvgText x={48} y={298 + detailsOffset} fontSize={22} fill={colors.secondaryText}>
+              <SvgText x={48} y={288 + detailsOffset} fontSize={22} fill={colors.secondaryText}>
                 {preview.secondary ||
                   (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
                     ? 'Amount in satoshis'
                     : '')}
               </SvgText>
+              <SvgText x={48} y={348 + detailsOffset} fontSize={22} fill={colors.text}>
+                {ecashImage ? preview.type : preview.direction}
+              </SvgText>
+              <SvgText x={48} y={384 + detailsOffset} fontSize={20} fill={colors.secondaryText}>
+                {preview.mint.length > 48 ? `${preview.mint.slice(0, 47)}…` : preview.mint}
+              </SvgText>
+              <SvgText x={48} y={420 + detailsOffset} fontSize={20} fill={colors.secondaryText}>
+                {preview.date}
+              </SvgText>
               <Line
                 x1={48}
                 x2={592}
-                y1={342 + detailsOffset}
-                y2={342 + detailsOffset}
-                stroke={colors.separator}
+                y1={456 + detailsOffset}
+                y2={456 + detailsOffset}
+                stroke={colors.canvas}
                 strokeWidth={2}
               />
-              <SvgText x={48} y={statusY} fontSize={19} fill={colors.secondaryText}>
-                Status
+              <SvgText x={48} y={imageHeight - 40} fontSize={16} fill={colors.secondaryText}>
+                {ecashImage ? 'Contains ecash' : 'Payment receipt'}
               </SvgText>
               <SvgText
                 x={592}
-                y={statusY}
+                y={imageHeight - 40}
                 textAnchor="end"
-                fontSize={19}
-                fontFamily="InterTextMedium"
-                fill={statusColor}
-              >
-                {preview.status}
-              </SvgText>
-              <SvgText x={48} y={statusY + rowStep} fontSize={19} fill={colors.secondaryText}>
-                Type
-              </SvgText>
-              <SvgText
-                x={592}
-                y={statusY + rowStep}
-                textAnchor="end"
-                fontSize={19}
-                fill={colors.icon}
-              >
-                {preview.type}
-              </SvgText>
-              <SvgText x={48} y={statusY + rowStep * 2} fontSize={19} fill={colors.secondaryText}>
-                Mint
-              </SvgText>
-              <SvgText
-                x={592}
-                y={statusY + rowStep * 2}
-                textAnchor="end"
-                fontSize={17}
-                fill={colors.icon}
-              >
-                {preview.mint.length > 36 ? `${preview.mint.slice(0, 35)}…` : preview.mint}
-              </SvgText>
-              {!ecashImage && (
-                <>
-                  <SvgText
-                    x={48}
-                    y={statusY + rowStep * 3}
-                    fontSize={19}
-                    fill={colors.secondaryText}
-                  >
-                    Direction
-                  </SvgText>
-                  <SvgText
-                    x={592}
-                    y={statusY + rowStep * 3}
-                    textAnchor="end"
-                    fontSize={19}
-                    fill={colors.icon}
-                  >
-                    {preview.direction}
-                  </SvgText>
-                </>
-              )}
-              <SvgText
-                x={48}
-                y={statusY + rowStep * (ecashImage ? 3 : 4)}
-                fontSize={19}
+                fontSize={16}
                 fill={colors.secondaryText}
               >
-                Date
-              </SvgText>
-              <SvgText
-                x={592}
-                y={statusY + rowStep * (ecashImage ? 3 : 4)}
-                textAnchor="end"
-                fontSize={17}
-                fill={colors.icon}
-              >
-                {preview.date}
-              </SvgText>
-              <SvgText
-                x={320}
-                y={imageHeight - 36}
-                textAnchor="middle"
-                fontSize={14}
-                fill={colors.icon}
-                opacity={0.5}
-              >
-                Download Bey Wallet @ bey.cash
+                bey.cash
               </SvgText>
             </Svg>
             {ecashImage && (
