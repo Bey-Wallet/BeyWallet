@@ -3,7 +3,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
-import { settingsCategories, type SettingsCategory } from './settingsCatalog';
+import { settingsCategories, type SettingsCategory, type SettingsItem } from './settingsCatalog';
 import { NostrHealthRow } from './components/NostrHealthRow';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { biometricService } from '~/services/platform/biometricService';
@@ -58,8 +58,7 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
       },
     },
   };
-  const items = settingsCategories[category].items;
-  const row = (item: (typeof items)[number]) =>
+  const row = (item: SettingsItem) =>
     item.path === 'nostr-health' ? (
       <NostrHealthRow key={item.path} />
     ) : toggles[item.path] ? (
@@ -76,18 +75,13 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     <SettingsPage>
       {category === 'advanced' && (
         <SettingsDescription>
-          Inspect ecash proofs and verify mint signatures. These tools are intended for
-          troubleshooting.
+          Optimize wallet proofs, inspect ecash, and verify mint signatures. These tools are
+          intended for maintenance and troubleshooting.
         </SettingsDescription>
       )}
-      <SettingsGroup>
-        {items.filter((item) => item.path !== 'delete-wallet').map(row)}
-      </SettingsGroup>
-      {category === 'security' && (
-        <SettingsGroup>
-          {items.filter((item) => item.path === 'delete-wallet').map(row)}
-        </SettingsGroup>
-      )}
+      {settingsCategories[category].groups.map((group) => (
+        <SettingsGroup key={group[0].path}>{group.map(row)}</SettingsGroup>
+      ))}
     </SettingsPage>
   );
 }

@@ -1,7 +1,6 @@
 import { walletFileService } from '~/services/platform/walletFileService';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-const mockRecordFile = jest.fn();
 let mockPlatform = 'android';
 jest.mock('react-native', () => ({
   Platform: {
@@ -12,9 +11,6 @@ jest.mock('react-native', () => ({
 }));
 jest.mock('bip39', () => ({ validateMnemonic: () => true }));
 jest.mock('expo-document-picker', () => ({}));
-jest.mock('~/state/backupStatusStore', () => ({
-  useBackupStatusStore: { getState: () => ({ recordFile: mockRecordFile }) },
-}));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: {
     getState: () => ({ backupDirectoryUri: 'content://backups', setBackupDirectoryUri: jest.fn() }),
@@ -45,22 +41,25 @@ beforeEach(() => {
   mockPlatform = 'android';
   jest.mocked(FileSystem.writeAsStringAsync).mockResolvedValue(undefined);
 });
-it('records a direct save only after the file write succeeds', async () => {
-  await walletFileService.exportWallet('synthetic-test-material', options);
-  expect(mockRecordFile).toHaveBeenCalledWith('saved');
+it('returns the backup filename after writing directly', async () => {
+  const filename = await walletFileService.exportWallet('synthetic-test-material', options);
+  expect(filename).toEqual(expect.any(String));
+  expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
+    'content://backup-file',
+    expect.any(String),
+    { encoding: 'utf8' },
+  );
 });
-it('leaves the last success untouched after a failed export', async () => {
+it('rejects a failed file write', async () => {
   jest
     .mocked(FileSystem.writeAsStringAsync)
     .mockRejectedValueOnce(new Error('Storage unavailable'));
   await expect(
     walletFileService.exportWallet('synthetic-test-material', options),
   ).rejects.toThrow();
-  expect(mockRecordFile).not.toHaveBeenCalled();
 });
-it('records shared exports as unverified saves', async () => {
+it('uses the share sheet on iOS', async () => {
   mockPlatform = 'ios';
   await walletFileService.exportWallet('synthetic-test-material', options);
   expect(Sharing.shareAsync).toHaveBeenCalled();
-  expect(mockRecordFile).toHaveBeenCalledWith('share-sheet');
 });

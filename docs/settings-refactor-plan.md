@@ -6,14 +6,13 @@ Status: approved and implemented; device verification remains outstanding.
 
 - Use the three Phantom screenshots as references for hierarchy, spacing, rounded
   groups, fine dividers, profile card, and the About screen. Keep Bey's fonts,
-  branding, primary blue, and theme-aware light and dark surfaces.
+  monochrome branding and theme-aware light and dark surfaces.
 - Use Tamagui `rounded="$6"` for grouped list containers, the profile card,
   and Settings content cards, following the app's standard. Child rows inherit
   the group's clipped corners; do not round each row separately. Preserve the
   approved switch's pill shape and existing circular avatar/icon-button shapes.
-- Use `$gray10` for muted text and `$buttonDefaultSecondary` for neutral card
-  backgrounds, matching Home's ActionButtons. Use the corresponding hover/press
-  tokens for interactive rows. Keep warning/error surfaces semantic.
+- Use `$gray10` for muted text, `$gray2` for neutral card backgrounds, and `$gray3`
+  for hover/press feedback. Keep warning/error surfaces semantic.
 - List dividers span the entire card width, including below leading icons, and
   use a thickness of 2 points.
 - Center the Settings title and show a back arrow. Hide the app's bottom tab bar
@@ -25,10 +24,10 @@ Status: approved and implemented; device verification remains outstanding.
 - Main rows navigate; they never toggle a preference, launch authentication, open
   a file picker, or perform a wallet operation directly. Show concise current values
   and chevrons. Use external-link icons only for external destinations.
-- Every individual preference or operation gets a dedicated detail screen, reached
-  through its category. Place switches, selection lists, explanatory text, and
-  action buttons on those screens. Existing profile forms may keep related fields
-  together on their dedicated screen.
+- Bitcoin symbol, hide balance, and biometric app lock use inline category switches,
+  following the approved interaction update. Other preferences and operations use
+  dedicated screens for selection lists, explanatory text, and action buttons.
+  Existing profile forms may keep related fields together on their dedicated screen.
 - Use the approved AppSwitch: neutral/branded variants and primary/secondary
   emphasis. Use branded primary for normal preference toggles.
 - Prefer rows at least 48 points high, scalable text, accessible labels, and
@@ -43,13 +42,14 @@ clear labels; color alone must not communicate meaning.
 
 | Destination         | Leading icon         |
 | ------------------- | -------------------- |
-| Profile & identity  | Existing user avatar |
-| Preferences         | SlidersHorizontal    |
-| Security & privacy  | ShieldCheck          |
+| Profile & addresses | Existing user avatar |
+| Appearance          | SlidersHorizontal    |
+| Notifications       | Bell                 |
+| Privacy & security  | ShieldCheck          |
 | Backup & recovery   | DatabaseBackup       |
-| Wallet & payments   | Wallet               |
-| Nostr & connections | Existing Nostr icon  |
-| Advanced            | Wrench               |
+| Payments & mints    | Wallet               |
+| Network             | Network              |
+| Wallet tools        | Wrench               |
 | Help & support      | CircleHelp           |
 | About Bey Wallet    | Info                 |
 
@@ -70,27 +70,35 @@ and provide pressed/focus feedback with the app's existing interaction component
 
 ## Main list and complete existing-feature mapping
 
-The profile card opens Profile & identity. Four category rows form the first group:
-Preferences, Security & privacy, Backup & recovery, and Wallet & payments.
-Nostr & connections forms a second group. Advanced forms its own group.
-Help & support and About Bey Wallet form the final group.
-Wallet removal is reached through Security & privacy, visually separated there.
+The profile card opens Profile & addresses. Home groups Appearance and Notifications;
+Payments & mints, Privacy & security, and Backup & recovery; Network and Wallet tools;
+then Help & support, Support Bey, and About Bey Wallet. Notifications opens directly.
+Existing category URLs remain valid. Bitcoin symbol is an inline switch in Appearance;
+hide balance and biometric app lock are inline switches in Privacy & security.
+Other actionable category rows navigate. App lock authenticates changes in both directions.
 
-| Destination         | Dedicated screens and content                                                                                                                                    |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Profile & identity  | Existing profile editor; username/NIP-05 claim or management; public Nostr key display/copy                                                                      |
-| Preferences         | Theme (system/light/dark); primary display unit (sats/fiat); secondary fiat currency (including None); Bitcoin symbol; notifications                             |
-| Security & privacy  | Biometric app lock; hide balance (existing persisted preference); blocked people; authenticated Nostr secret-key reveal/copy; separate Delete wallet destination |
-| Backup & recovery   | Recovery phrase and existing backup acknowledgement; export wallet backup; restore wallet backup                                                                 |
-| Wallet & payments   | Connected mints using existing mint management; fallback mint; prepare offline change; optimize wallet                                                           |
-| Nostr & connections | Receiving policy (ask/everyone); relay list and reported status; Nostr health/diagnostics                                                                        |
-| Advanced            | Proof manager; offline DLEQ verification with results on its screen                                                                                              |
-| Help & support      | Support destination and project GitHub; verified documentation/help links where available                                                                        |
-| About Bey Wallet    | Bey logo; actual app version/build; Update Manager; website; GitHub; Terms and Privacy links when approved URLs exist                                            |
+The following hierarchy defines the current mapping. Semicolons separate
+nested list groups; items within each group retain the order shown.
 
-Existing receiving policy, blocked people, keys, relays, and diagnostics currently
-share the Nostr settings page. Split them into the destinations above without
-duplicating their controls. Keep public-key and secret-key destinations distinct.
+| Destination         | Ordered content                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| Profile & addresses | My addresses, Nostr username, public Nostr key                                                           |
+| Appearance          | Theme, fiat currency, Bitcoin symbol                                                                     |
+| Notifications       | Existing notification preferences                                                                        |
+| Payments & mints    | Connected mints, fallback mint, Lightning address, prepare offline change                                |
+| Privacy & security  | Biometric app lock, hide balance; receiving from people, blocked people; Nostr secret key; Delete wallet |
+| Backup & recovery   | Recovery phrase, mint-list backup, export wallet backup; restore wallet backup, recover funds            |
+| Network             | Relays, read-only Nostr health                                                                           |
+| Wallet tools        | Optimize wallet; proof manager, verify proofs offline; development-only BUI                              |
+
+Lightning address retains its receiving-mint and pending-payment screens. Recovery, key handling, backup formats,
+authentication, and wallet operation semantics remain unchanged.
+
+Help & support retains documentation and issue-report links. Support Bey retains
+the existing supporter screen. About retains version/build, App updates, website,
+GitHub, and the combined Terms & privacy policy link.
+
+Keep public-key and secret-key destinations distinct.
 Preserve entry points from outside Settings, including profile, mint management,
 backup warnings, onboarding, and payment flows.
 
@@ -159,7 +167,8 @@ interact with existing authentication and lock handling before migration.
 
 ## Acceptance checks
 
-- Main Settings has no inline mutations or action sheets; every setting has a leaf screen.
+- Main Settings has no inline mutations or action sheets. Category lists expose
+  the three approved inline switches; other actionable rows navigate to leaf screens.
 - Group and card corners use `$6`; icon meanings, alignment, sizes, navigation
   cues, and row hit targets remain consistent across main and nested screens.
 - Header, Android back, swipe-back where supported, tab return behavior, and
@@ -180,7 +189,8 @@ interact with existing authentication and lock handling before migration.
 
 Phases 2–5 were approved and implemented. Optional new behaviors remain outside
 that scope. The new Settings tree uses thin route
-wrappers and a dedicated screen for each setting. Existing public entry points
+wrappers, inline switches for Bitcoin symbol, hide balance, and app lock, and
+dedicated screens for other settings. Existing public entry points
 for recovery and Nostr settings remain available. Terms and Privacy share the
 existing published `https://bey.cash/privacy-policy` page, verified during implementation.
 

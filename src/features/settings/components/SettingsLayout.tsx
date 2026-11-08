@@ -8,10 +8,21 @@ import type { AppButtonIcon } from '~/shared/ui/AppButton';
 import { appBorders, appDimensions, appIconSizes, appSpacing } from '~/shared/theme';
 import { AppText } from '~/shared/ui/AppText';
 
-export function SettingsPage({ children }: { children: React.ReactNode }) {
+export function SettingsPage({
+  children,
+  keyboardShouldPersistTaps,
+}: {
+  children: React.ReactNode;
+  keyboardShouldPersistTaps?: 'handled';
+}) {
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView flex={1} bg="$background" showsVerticalScrollIndicator={false}>
+    <ScrollView
+      flex={1}
+      bg="$background"
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+    >
       <YStack p={appSpacing.page} gap="$5" pb={Math.max(insets.bottom, 16) + 16}>
         {children}
       </YStack>
@@ -65,7 +76,7 @@ export function SettingsRow({
         selected !== undefined ? selectionRole : external ? 'link' : onPress ? 'button' : 'text'
       }
       accessibilityState={selected !== undefined ? { checked: selected } : undefined}
-      accessibilityLabel={[title, value].filter(Boolean).join(', ')}
+      accessibilityLabel={[title, value, description].filter(Boolean).join(', ')}
       minHeight={appDimensions.touchTarget}
       px={appSpacing.page}
       py={appSpacing.compact}
@@ -73,7 +84,7 @@ export function SettingsRow({
       items="center"
       gap={appSpacing.gap}
       opacity={disabled ? 0.5 : 1}
-      pressStyle={onPress ? { bg: '$gray4' } : undefined}
+      pressStyle={onPress ? { bg: '$gray3' } : undefined}
       hoverStyle={onPress ? { bg: '$gray3' } : undefined}
     >
       {Icon && (

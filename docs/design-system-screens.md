@@ -20,7 +20,6 @@ Scope: production routes and development-client-only BUI previews, including ali
 | --------- | -------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Pending   | `src/app/(tabs)/settings/about.tsx`                      | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
 | Pending   | `src/app/(tabs)/settings/advanced.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/backup-status.tsx`              | `~/features/settings/BackupStatusScreen`             | Review neutral groups, typography and shared actions.                         |
 | Pending   | `src/app/(tabs)/settings/backup.tsx`                     | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
 | Preview   | `src/app/(tabs)/settings/new-ui.tsx`                     | `~/features/settings/NewUiScreen`                    | Bey theme/component build catalog; see new-ui.md.                             |
 | Preview   | `src/app/(tabs)/settings/new-ui-buttons.tsx`             | `~/features/settings/BUIButtonsScreen`               | BUI buttons: blue primary, sizes, variants, states and width toggle.          |
