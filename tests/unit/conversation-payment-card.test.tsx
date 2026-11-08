@@ -63,7 +63,7 @@ it('uses a small type/direction header, flat sent amount, note and trailing stat
   expect(amount.props.minHeight).toBeUndefined();
   expect(amount.props.bg).toBeUndefined();
   expect(amount.props.rounded).toBeUndefined();
-  expect(labels[1].props).toMatchObject({ textAlign: 'left', color: '$onAccent' });
+  expect(labels[1].props).toMatchObject({ textAlign: 'left', color: '$color' });
   expect(tree.root.findByType('ArrowUpRight' as any).props).toMatchObject({
     size: 14,
     accessibilityLabel: 'Outgoing payment',
@@ -89,6 +89,53 @@ it('right-aligns received amounts and secondary values with an incoming directio
   expect(tree.root.findByType('ArrowDownLeft' as any).props.accessibilityLabel).toBe(
     'Incoming payment',
   );
+});
+
+it.each([
+  'lnbc-preview-invoice',
+  'cashuBpreview-token',
+  'creqApreview-request',
+  'alice@example.com',
+])('shows an available payment payload %s as a muted four-line caption', async (payload) => {
+  await act(async () => {
+    tree = create(
+      <ConversationPaymentCard
+        item={{ ...base, direction: 'incoming', payloadPreview: payload }}
+        primaryAmount="100 sat"
+        secondaryAmount="$0.10"
+      />,
+    );
+  });
+  const labels = tree.root.findAllByType('Text' as any);
+  const preview = labels.find((node) => node.props.children === payload)!;
+  expect(preview.props).toMatchObject({
+    numberOfLines: 4,
+    ellipsizeMode: 'tail',
+    color: '$gray10',
+  });
+  expect(preview.props.fontSize).toBe(
+    labels.find((node) => node.props.children === '$0.10')!.props.fontSize,
+  );
+});
+
+it('shows only the accompanying message instead of the payload on sent cards', async () => {
+  await act(async () => {
+    tree = create(
+      <ConversationPaymentCard
+        item={{ ...base, note: 'For dinner', payloadPreview: 'cashuBhidden-token' }}
+        primaryAmount="100 sat"
+      />,
+    );
+  });
+  const preview = tree.root
+    .findAllByType('Text' as any)
+    .find((node) => node.props.children === 'For dinner')!;
+  expect(preview.props).toMatchObject({
+    numberOfLines: 4,
+    fontSize: 9,
+    color: '$gray10',
+  });
+  expect(JSON.stringify(tree.toJSON())).not.toContain('cashuBhidden-token');
 });
 
 it.each([
@@ -148,7 +195,7 @@ it.each([
     expect(tree.root.findAllByType('Check' as any)).toHaveLength(0);
 });
 
-it('fits sent cards to their content with a primary fill and full note visible', async () => {
+it('fits sent cards to their content with a neutral fill and full note visible', async () => {
   await act(async () => {
     tree = create(
       <ConversationItemCard item={{ ...base, note: 'Shared dinner' }} primaryAmount="100 sat" />,
@@ -156,9 +203,9 @@ it('fits sent cards to their content with a primary fill and full note visible',
   });
   expect(tree.root.findAllByType('YStack' as any)[0].props).toMatchObject({
     self: 'flex-end',
-    maxWidth: '80%',
+    maxWidth: '70%',
   });
   expect(tree.root.findAllByType('YStack' as any)[0].props.width).toBeUndefined();
-  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$buttonDefaultPrimary');
+  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$gray2');
   expect(JSON.stringify(tree.toJSON())).toContain('Shared dinner');
 });

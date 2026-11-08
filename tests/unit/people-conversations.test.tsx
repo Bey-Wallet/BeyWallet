@@ -22,6 +22,7 @@ jest.mock('~/shared/ui/RemoteImage', () => ({ RemoteImage: 'RemoteImage' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { nip19 } from 'nostr-tools';
+import { getEncodedTokenV3 } from '@cashu/cashu-ts';
 import PeopleScreen from '~/features/people';
 import ConversationScreen from '~/features/people/ConversationScreen';
 import { usePeopleStore } from '~/state/peopleStore';
@@ -186,6 +187,9 @@ jest.mock('~/features/people/hooks/useConversationMessages', () => ({
     fetchNextPage: jest.fn(),
     refetch: jest.fn(),
   }),
+}));
+jest.mock('~/features/people/hooks/useConversationPaymentStatus', () => ({
+  useConversationPaymentStatus: () => ({}),
 }));
 jest.mock('~/features/people/hooks/useNostrProfileSearch', () => ({
   useNostrProfileSearch: () => ({
@@ -732,12 +736,12 @@ describe('People conversations and invitations', () => {
     await act(async () => actions[1].props.onPress());
     expect(mockPush).toHaveBeenLastCalledWith({
       pathname: '/(modals)/send',
-      params: { to: bob, username: 'Bob', mode: 'nostr' },
+      params: { to: bob, username: 'Bob', mode: 'nostr', returnToConversation: '1' },
     });
     await act(async () => actions[0].props.onPress());
     expect(mockPush).toHaveBeenLastCalledWith({
-      pathname: '/(modals)/receive',
-      params: { from: bob, username: 'Bob' },
+      pathname: '/(modals)/mint',
+      params: { requestTo: bob, requestName: 'Bob' },
     });
     expect(tree.root.findAllByType('Input' as any)).toHaveLength(1);
     expect(nostrService.sendChat).not.toHaveBeenCalled();
@@ -758,7 +762,7 @@ describe('People conversations and invitations', () => {
     );
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(modals)/send',
-      params: { to: bob, username: 'Bob', mode: 'nostr' },
+      params: { to: bob, username: 'Bob', mode: 'nostr', returnToConversation: '1' },
     });
   });
 
@@ -954,6 +958,45 @@ describe('People conversations and invitations', () => {
     expect(nostrService.retryChat).not.toHaveBeenCalled();
   });
 
+  it('previews a retained ecash history token and replaces it with the message when present', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    useNostrInboxStore.setState({ items: [] });
+    const token = getEncodedTokenV3({
+      mint: 'https://mint.example',
+      unit: 'sat',
+      proofs: [
+        {
+          id: '00' + 'ab'.repeat(7),
+          amount: 8,
+          secret: 'synthetic-preview-fixture',
+          C: '02' + '11'.repeat(32),
+        },
+      ],
+    });
+    mockHistory = [
+      {
+        id: 'sent-token',
+        type: 'send',
+        mintUrl: 'https://mint.example',
+        token,
+        amount: 8,
+        createdAt: Date.now(),
+        metadata: { nostrPubkey: bob },
+      },
+    ];
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const preview = tree.root
+      .findAllByType('Text' as any)
+      .find((node) => node.props.children === token)!;
+    expect(preview.props).toMatchObject({ numberOfLines: 4, fontSize: 9 });
+    mockHistory = [{ ...mockHistory[0], metadata: { nostrPubkey: bob, note: 'For dinner' } }];
+    await act(async () => tree.update(<ConversationScreen />));
+    expect(JSON.stringify(tree.toJSON())).toContain('For dinner');
+    expect(JSON.stringify(tree.toJSON())).not.toContain(token);
+  });
+
   it('formats payment cards in the selected primary and secondary currencies', async () => {
     useSettingsStore.setState({ primaryCurrency: 'FIAT' });
     useNostrInboxStore.setState((state) => ({
@@ -981,7 +1024,7 @@ describe('People conversations and invitations', () => {
     expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   });
 
-  it('uses primary sent bubbles and neutral received cards with equal corners', async () => {
+  it('uses neutral sent and received bubbles and cards with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [
       {
@@ -1015,13 +1058,13 @@ describe('People conversations and invitations', () => {
     });
     const cards = tree!.root.findAllByType('AppPressable' as any);
     const text = cards.find((node) => node.props.accessibilityLabel?.startsWith('Text bubble.'))!;
-    expect(text.props.bg).toBe('$buttonDefaultPrimary');
+    expect(text.props.bg).toBe('$gray2');
     expect(text.props.rounded).toBe(16);
     expect(text.props.borderBottomRightRadius).toBeUndefined();
     expect(text.props.borderBottomLeftRadius).toBeUndefined();
     expect(
       cards.find((node) => node.props.accessibilityLabel?.startsWith('Ecash,'))?.props.bg,
-    ).toBe('$buttonDefaultPrimary');
+    ).toBe('$gray2');
     expect(
       cards.some(
         (node) =>
@@ -1260,7 +1303,7 @@ describe('People conversations and invitations', () => {
       .findAllByType('AppPressable' as any)
       .find((node) => node.props.accessibilityLabel?.startsWith('Lightning'))!;
     expect(card.props.width).toBeUndefined();
-    expect(JSON.stringify(tree!.toJSON())).not.toContain('lnbc210n1ptestinvoice');
+    expect(JSON.stringify(tree!.toJSON())).toContain('lnbc210n1ptestinvoice');
     expect(card.props.bg).toBe('$gray2');
     await act(async () => card.props.onPress());
     await act(async () =>

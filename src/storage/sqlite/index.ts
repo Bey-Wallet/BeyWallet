@@ -5,8 +5,6 @@ import type {
   KeyRingRepository,
   CounterRepository,
   ProofRepository,
-  MintQuoteRepository,
-  MeltQuoteRepository,
   SendOperationRepository,
   MeltOperationRepository,
   RepositoryTransactionScope,
@@ -41,8 +39,8 @@ export class ExpoSqliteRepositories implements Repositories {
   readonly counterRepository: CounterRepository;
   readonly keysetRepository: KeysetRepository;
   readonly proofRepository: ProofRepository;
-  readonly mintQuoteRepository: MintQuoteRepository;
-  readonly meltQuoteRepository: MeltQuoteRepository;
+  readonly mintQuoteRepository: ExpoMintQuoteRepository;
+  readonly meltQuoteRepository: ExpoMeltQuoteRepository;
   readonly historyRepository: ExpoHistoryRepository;
   readonly sendOperationRepository: SendOperationRepository;
   readonly meltOperationRepository: MeltOperationRepository;

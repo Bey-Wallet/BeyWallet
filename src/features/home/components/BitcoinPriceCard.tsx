@@ -42,7 +42,7 @@ export default function BitcoinPriceCard() {
     const value = satPrice === 0 ? '0.00' : satPrice.toFixed(satPrice < 0.01 ? 5 : 2);
     return secondaryCurrency === 'AED' || secondaryCurrency === 'KWD'
       ? `${value} ${symbol}/SAT`
-      : `${symbol}\u202f${value}/SAT`;
+      : `${symbol}${value}/SAT`;
   };
 
   const [now, setNow] = React.useState(Date.now());

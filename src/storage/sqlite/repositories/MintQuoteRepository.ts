@@ -9,6 +9,15 @@ export class ExpoMintQuoteRepository implements MintQuoteRepository {
     this.db = db;
   }
 
+  /** Only locally saved quotes may be checked on behalf of a chat invoice. */
+  async findByRequest(request: string): Promise<MintQuote | null> {
+    const row = await this.db.get<{ mintUrl: string; quote: string }>(
+      'SELECT mintUrl, quote FROM coco_cashu_mint_quotes WHERE request = ? COLLATE NOCASE LIMIT 1',
+      [request],
+    );
+    return row ? this.getMintQuote(row.mintUrl, row.quote) : null;
+  }
+
   async getMintQuote(mintUrl: string, quoteId: string): Promise<MintQuote | null> {
     const row = await this.db.get<{
       mintUrl: string;

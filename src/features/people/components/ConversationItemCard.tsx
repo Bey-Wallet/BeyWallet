@@ -20,7 +20,7 @@ export interface ConversationItemCardProps {
 export function ConversationTextBubble({ item }: ConversationItemCardProps) {
   return (
     <YStack gap={appSpacing.small}>
-      <Text {...appTypography.body2} color={item.direction === 'outgoing' ? '$onAccent' : '$color'}>
+      <Text {...appTypography.body2} color="$color">
         {item.text}
       </Text>
     </YStack>
@@ -33,8 +33,9 @@ export function ConversationPaymentCard({
   secondaryAmount,
 }: ConversationItemCardProps) {
   const outgoing = item.direction === 'outgoing';
-  const foreground = outgoing ? '$onAccent' : '$color';
-  const supporting = outgoing ? '$onAccent' : '$gray10';
+  const foreground = '$color';
+  const supporting = '$gray10';
+  const preview = item.note?.trim() || item.payloadPreview;
   const alignment = outgoing ? 'left' : 'right';
   const DirectionIcon = outgoing ? ArrowUpRight : ArrowDownLeft;
   const complete = ['Claimed', 'Received', 'Paid'].includes(item.status);
@@ -94,9 +95,16 @@ export function ConversationPaymentCard({
           </Text>
         )}
       </YStack>
-      {!!item.note && (
-        <Text {...appTypography.body3} color={supporting}>
-          {item.note}
+      {!!preview && (
+        <Text
+          {...appTypography.caption}
+          color={supporting}
+          numberOfLines={4}
+          ellipsizeMode="tail"
+          maxWidth="100%"
+          flexShrink={1}
+        >
+          {preview}
         </Text>
       )}
       <XStack gap={appSpacing.small} items="center" justify="flex-end">
@@ -115,7 +123,7 @@ export function ConversationPaymentCard({
         </YStack>
         <Text
           {...appTypography.label3}
-          color={outgoing ? '$onAccent' : attention && !complete ? statusColor : '$color'}
+          color={attention && !complete ? statusColor : '$color'}
           flexShrink={1}
           minWidth={0}
           textAlign="right"
@@ -132,11 +140,10 @@ export function ConversationPaymentCard({
 export function ConversationItemCard(props: ConversationItemCardProps) {
   const { item, primaryAmount, onPress, onLongPress, onPay, payDisabled } = props;
   const payment = item.kind === 'payment';
-  const outgoing = item.direction === 'outgoing';
   return (
     <YStack
       self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
-      maxWidth="80%"
+      maxWidth={payment ? '70%' : '80%'}
       gap={payment ? appSpacing.small : appSpacing.compact}
     >
       <AppPressable
@@ -166,9 +173,9 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
         minHeight={48}
         p={payment ? appSpacing.compact : appSpacing.gap}
         rounded={appRadii.card}
-        bg={outgoing ? '$buttonDefaultPrimary' : '$gray2'}
-        hoverStyle={{ bg: outgoing ? '$buttonDefaultPrimaryHover' : '$gray3' }}
-        pressStyle={{ bg: outgoing ? '$buttonDefaultPrimaryPress' : '$gray3' }}
+        bg="$gray2"
+        hoverStyle={{ bg: '$gray3' }}
+        pressStyle={{ bg: '$gray3' }}
       >
         {payment ? <ConversationPaymentCard {...props} /> : <ConversationTextBubble {...props} />}
       </AppPressable>

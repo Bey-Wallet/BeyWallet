@@ -16,6 +16,24 @@ const base: ChatMessage = {
   transport: 'nip17',
 };
 
+it('exposes available payload previews only for accepted contacts or outgoing messages', () => {
+  const incoming: ChatMessage = {
+    ...base,
+    direction: 'incoming',
+    text: 'lightning:lnbc210n1ptestinvoice',
+  };
+  expect(
+    buildConversationActivity(npub, [incoming], [], [], false)[0].payloadPreview,
+  ).toBeUndefined();
+  expect(buildConversationActivity(npub, [incoming], [], [], true)[0].payloadPreview).toBe(
+    'lnbc210n1ptestinvoice',
+  );
+  expect(
+    buildConversationActivity(npub, [{ ...incoming, direction: 'outgoing' }], [], [], false)[0]
+      .payloadPreview,
+  ).toBe('lnbc210n1ptestinvoice');
+});
+
 it('keeps payment notes on the payment card instead of creating a text message', () => {
   const [item] = buildConversationActivity(
     npub,
@@ -79,7 +97,7 @@ it('renders independent embedded payment cards and keeps the context note withou
     type: 'Lightning · Invoice',
   });
   expect(items[1]).toMatchObject({ kind: 'payment', text: '', type: 'Lightning · Address' });
-  expect(items[1].note).toBeUndefined();
+  expect(items[1].note).toBe('Please use or thanks');
 });
 
 it('classifies persisted text independently from nullable or zero payment amounts', () => {

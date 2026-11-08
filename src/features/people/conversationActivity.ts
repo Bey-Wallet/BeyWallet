@@ -20,6 +20,7 @@ interface ConversationActivityBase {
   direction: 'incoming' | 'outgoing';
   text?: string;
   note?: string;
+  payloadPreview?: string;
   amount?: number;
   type?: string;
   status: string;
@@ -67,7 +68,8 @@ export function buildConversationActivity(
         time: message.createdAt,
         direction: message.direction,
         text: message.paymentId || input ? '' : message.text,
-        note: message.paymentId ? message.text || undefined : index === 0 ? parts.note : undefined,
+        note: message.paymentId ? message.text || undefined : parts.note,
+        payloadPreview: accepted || message.direction === 'outgoing' ? input?.value : undefined,
         paymentInput: input,
         amount: message.paymentAmount ?? input?.amount,
         type: message.paymentId
@@ -103,6 +105,7 @@ export function buildConversationActivity(
       type: payment.type === 'request' ? 'Ecash request' : 'Ecash',
       mintUrl: payment.mintUrl,
       note: payment.note,
+      payloadPreview: accepted ? payment.tokenString : undefined,
       payment,
       status:
         payment.status === 'claimed'
@@ -187,6 +190,8 @@ export function buildConversationActivity(
           status,
           mintUrl: request?.mintUrl,
           note: activity.note || request?.description,
+          payloadPreview:
+            accepted || activity.direction === 'outgoing' ? request?.creqString : undefined,
         };
       }
       if (activity.payment?.type === 'request') {

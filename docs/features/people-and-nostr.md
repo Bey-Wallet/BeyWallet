@@ -62,7 +62,7 @@ offers remain unsupported. Recognition never marks an invoice paid or a token cl
 
 People list previews show ordinary text without a payment icon. Payment details embedded in
 sentences are identified as payment activities; multiple details produce separate cards, with
-surrounding words retained as a note on the first card and encoded values omitted from the note.
+surrounding words retained as the message preview and encoded values omitted from that note.
 Unrecognized embedded payloads remain redacted in text previews. Payment activities retain their
 type/status/amount summaries; empty conversations say No messages yet.
 
@@ -73,14 +73,42 @@ The restored composer grows to four scaled lines and then scrolls internally, wi
 Send message button beside it. It appears only for accepted, unblocked contacts and uses the
 existing encrypted send service. Drafts stay in session memory and survive navigation; closing
 the wallet clears them. The keyboard-aware layout keeps the composer reachable.
-**Request** and **Send** retain their existing direct ecash flows above the composer. Both are
+**Request** creates a mint-issued Lightning invoice; **Send** sends ecash. Both are
 small, auto-width secondary buttons, centered together with Send on the right. The action row
 stays in normal layout flow rather than overlapping the timeline.
-Sent text bubbles and payment cards use the primary brand fill with on-accent text;
-received bubbles/cards use neutral surfaces. Payment amounts have no nested panel: incoming
+
+Conversation Request opens amount entry and selected-mint confirmation. The explicit
+Create & send request action creates the quote through the existing wallet manager, then saves
+and publishes the invoice through encrypted chat. It returns to the conversation once the
+message is persisted; relay publication continues and failed delivery can be retried from that
+same message. A failure before message persistence retains the created invoice for retry without
+creating another quote. Ordinary top-ups retain their invoice/QR screen. Existing Cashu requests
+remain recognizable and payable through their established flows.
+
+Ecash sends started in a conversation return there after successful publication, history tagging,
+and query refresh. Failed sends remain in the result flow. Navigation remains blocked while
+wallet operations are in flight. Creating/publishing a request does not mark it paid; mint quote
+verification and issuance continue through the existing wallet services after leaving the screen.
+Successful invoice requests keep the confirmation view mounted until returning to chat, avoiding
+a transient QR/receipt view during Android modal dismissal. A pre-persistence delivery failure
+opens the saved invoice for retry. Automatic chat returns wait until the navigator's removal
+guard has actually released, including the corresponding ecash-send return.
+While a conversation is focused, foregrounded, and online, payment cards listen for wallet events
+and check pending status every two seconds without overlapping checks. Invoice cards match only
+locally saved mint/melt quotes; unpaid, paid, and issued remain distinct states. Ecash sends reuse
+verified proof-state checks, including sends represented by structured messages. Failed observations
+retain the last verified status. These checks never issue, redeem, or resubmit payments. Both
+transaction-details routes render the existing screen directly, avoiding a modal self-redirect.
+Sent and received text bubbles and payment cards use neutral secondary surfaces, with primary
+text and muted previews. Direction comes from alignment and arrows. Payment amounts have no nested panel: incoming
 amounts/conversions align right and outgoing amounts/conversions align left. A small direction
 arrow appears beside the type label. The bottom status/time footer retains its layout.
-Payment cards fit their amount and footer content, capped at 80% of the conversation width.
+Payment cards fit their amount and footer content, capped at 70% of the conversation width.
+Above the footer, a muted four-line caption shows the accompanying message when present;
+otherwise it shows the available invoice, address, Cashu token, or Cashu request. This uses
+the same type size as the secondary currency amount, with tail truncation. Incoming payload
+previews remain hidden before contact acceptance. History tokens reuse the existing local
+history reader; no original payload is fabricated when it was not retained.
 Outgoing text has no visible publication label below the bubble. Sending, Sent to relay, and Failed
 remain available through message details, with retry for failed sends.
 Sent to relay does not imply delivery or reading. Payment cards lead with the amount, then secondary
@@ -254,12 +282,12 @@ retry. Discovery failure leaves a failed message that can be retried without cre
 The timeline uses explicit text/payment activity kinds. Nullable payment columns are normalized on
 database reads; ordinary text never becomes a zero-amount card. Missing payment amounts display
 “Amount unavailable”, while genuine zero amounts remain zero. Sent text and payment cards use
-the primary fill; incoming cards use neutral surfaces. All corners are equally rounded at 16px. Payment type,
+the same neutral secondary surface as incoming cards. All corners are equally rounded at 16px. Payment type,
 primary currency, secondary currency and status remain visible; timestamps live in the details sheet.
 
 The conversation uses a back arrow and a tappable title/avatar for the contact sheet. A conversation opened
 without incoming activity offers Add contact below the timeline; Accept / Reject and block are
-reserved for incoming invitations. Send and Request use the existing direct ecash flows.
+reserved for incoming invitations. Send uses ecash; Request creates a mint-issued Lightning invoice.
 Payment cards size to their contents.
 
 The initial message query fetches the newest 50 local messages. TanStack Query's infinite query

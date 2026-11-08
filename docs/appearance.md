@@ -47,8 +47,8 @@ horizontal padding, circular 40-point artwork and 56-point minimum rows. Names a
 least 48-point touch targets; enlarged system text can grow the balance and list naturally.
 The visual reference is [Tangem's Android UI source](https://github.com/tangem/tangem-app-android/tree/master/core/ui/src/main/java/com/tangem/core/ui).
 
-Currency prefixes have a narrow, non-breaking gap before the amount across fiat formatting, Bitcoin amounts and
-amount entry (for example `$ 1,234.50`, `₹ 1,234.50` and `₿ 12,500`). Existing suffix placement,
+Currency prefixes touch the amount across fiat formatting, Bitcoin amounts and
+amount entry (for example `$1,234.50`, `₹1,234.50` and `₿12,500`). Existing suffix placement,
 localized decimal/group separators, signs and lower display limits remain intact.
 
 The Point of sale flow is an explicit visual exception. Its local `light_pos` theme uses lime

@@ -62,7 +62,7 @@ it('uses icon-free list rows and does not estimate top-up fees from keyset fees'
   await act(async () => tree.unmount());
 });
 
-async function render(isLoading = false) {
+async function render(isLoading = false, request = false) {
   let tree!: ReactTestRenderer;
   const onConfirm = jest.fn();
   await act(async () => {
@@ -71,6 +71,7 @@ async function render(isLoading = false) {
         amount="10000"
         mintUrl="https://mint.example/"
         isLoading={isLoading}
+        request={request}
         onConfirm={onConfirm}
         onBack={jest.fn()}
       />,
@@ -114,6 +115,16 @@ it('creates an invoice through the existing confirmation callback', async () => 
   const { tree, onConfirm } = await render();
   const button = tree.root.findByType('AppButton' as any);
   expect(button.props.children).toBe('Create invoice');
+  await act(async () => button.props.onPress());
+  expect(onConfirm).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('clearly confirms invoice creation and sharing for a conversation request', async () => {
+  const { tree, onConfirm } = await render(false, true);
+  expect(tree.root.findByType('PaymentFlowHeader' as any).props.title).toBe('Confirm request');
+  const button = tree.root.findByType('AppButton' as any);
+  expect(button.props.children).toBe('Create & send request');
   await act(async () => button.props.onPress());
   expect(onConfirm).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());

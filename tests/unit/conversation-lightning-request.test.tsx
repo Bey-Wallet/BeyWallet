@@ -2,16 +2,49 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { nip19 } from 'nostr-tools';
 import MintScreen from '~/features/payments/mint';
+import {
+  NavigationContext,
+  NavigationRouteContext,
+  NavigationHelpersContext,
+  PreventRemoveProvider,
+  usePreventRemoveContext,
+} from '@react-navigation/native';
 
 const mockNpub = nip19.npubEncode('02'.repeat(32));
 let mockRouteParams: Record<string, string> = {};
 const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
 const mockQuote = jest.fn();
 const mockSend = jest.fn();
 const mockRefresh = jest.fn();
 const mockBusy = jest.fn();
+let mockRealGuard = false;
+let mockPrevented = false;
+const mockNavigation = {
+  getState: () => ({ routes: [{ key: 'mint' }] }),
+  addListener: () => () => {},
+};
+const mockRoute = { key: 'mint', name: 'mint' };
+function GuardState() {
+  mockPrevented = !!usePreventRemoveContext().preventedRoutes.mint?.preventRemove;
+  return null;
+}
+function Screen() {
+  return (
+    <NavigationHelpersContext.Provider value={mockNavigation as any}>
+      <NavigationContext.Provider value={mockNavigation as any}>
+        <NavigationRouteContext.Provider value={mockRoute}>
+          <PreventRemoveProvider>
+            <GuardState />
+            <MintScreen />
+          </PreventRemoveProvider>
+        </NavigationRouteContext.Provider>
+      </NavigationContext.Provider>
+    </NavigationHelpersContext.Provider>
+  );
+}
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, dismissTo: mockDismissTo }),
   useLocalSearchParams: () => mockRouteParams,
   Stack: { Screen: 'Screen' },
 }));
@@ -24,7 +57,18 @@ jest.mock('~/state/walletStore', () => ({
 }));
 jest.mock('~/shared/hooks/useFeedbackOwner', () => ({ useFeedbackOwner: jest.fn() }));
 jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({
-  useSettingsBusy: (busy: boolean) => mockBusy(busy),
+  useSettingsBusy: (busy: boolean) => {
+    mockBusy(busy);
+    if (mockRealGuard)
+      jest.requireActual('~/features/settings/hooks/useSettingsBusy').useSettingsBusy(busy);
+  },
+  useSettingsCanLeave: (busy: boolean) => {
+    if (mockRealGuard)
+      return jest
+        .requireActual('~/features/settings/hooks/useSettingsBusy')
+        .useSettingsCanLeave(busy);
+    return !busy;
+  },
 }));
 jest.mock('~/services/wallet', () => ({
   quotesService: { createMintQuote: (...args: unknown[]) => mockQuote(...args) },
@@ -47,6 +91,8 @@ jest.mock('~/features/payments/mint/OnchainMintFlow', () => ({ OnchainMintFlow: 
 let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDismissTo.mockReset();
+  mockRealGuard = false;
   mockRouteParams = { requestTo: mockNpub, requestName: 'Bob' };
   mockQuote.mockResolvedValue({
     quote: 'quote-1',
@@ -62,7 +108,7 @@ afterEach(async () => {
 });
 async function createInvoice() {
   await act(async () => {
-    tree = create(<MintScreen />);
+    tree = create(<Screen />);
   });
   expect(mockQuote).not.toHaveBeenCalled();
   await act(async () => tree.root.findByType('Amount' as any).props.setAmount('100'));
@@ -72,18 +118,35 @@ async function createInvoice() {
 }
 const delivery = () => tree.root.findByType('Payment' as any).props.requestDelivery;
 
-it('requires quote confirmation and a separate Send request action, then exposes the saved card', async () => {
+it('creates and sends the invoice on confirmation, then returns to its saved conversation card', async () => {
   await createInvoice();
   expect(mockQuote).toHaveBeenCalledWith('https://mint.example', 100);
-  expect(mockSend).not.toHaveBeenCalled();
-  await act(async () => delivery().onSend());
   expect(mockSend).toHaveBeenCalledWith(mockNpub, 'lnbc-invoice', expect.any(Function));
-  expect(delivery().queued).toBe(true);
-  await act(async () => delivery().onSend());
+  expect(tree.root.findAllByType('Payment' as any)).toHaveLength(0);
+  expect(tree.root.findByType('Confirm' as any).props.isLoading).toBe(true);
   expect(mockSend).toHaveBeenCalledTimes(1);
   expect(mockRefresh).not.toHaveBeenCalled();
-  await act(async () => delivery().onView());
-  expect(mockBack).toHaveBeenCalledTimes(1);
+  expect(mockDismissTo).toHaveBeenCalledWith({
+    pathname: '/(modals)/conversation',
+    params: { npub: mockNpub },
+  });
+  expect(mockDismissTo).toHaveBeenCalledTimes(1);
+});
+
+it('releases the real navigation guard before returning to chat', async () => {
+  mockRealGuard = true;
+  let queue!: () => void;
+  mockSend.mockImplementation((_npub, invoice, onQueued) => {
+    queue = () => onQueued({ id: 'saved', text: invoice });
+    return new Promise(() => {});
+  });
+  await createInvoice();
+  expect(mockPrevented).toBe(true);
+  const preventedAtReturn: boolean[] = [];
+  mockDismissTo.mockImplementation(() => preventedAtReturn.push(mockPrevented));
+  await act(async () => queue());
+  expect(preventedAtReturn).toEqual([false]);
+  mockDismissTo.mockReset();
 });
 
 it('retains one persisted request after publication failure and directs retry to its conversation card', async () => {
@@ -92,21 +155,49 @@ it('retains one persisted request after publication failure and directs retry to
     throw new Error('Relay unavailable');
   });
   await createInvoice();
-  await act(async () => delivery().onSend());
-  expect(delivery().error).toContain('conversation to retry');
-  expect(delivery().queued).toBe(true);
-  await act(async () => delivery().onSend());
+  expect(tree.root.findAllByType('Payment' as any)).toHaveLength(0);
+  expect(mockDismissTo).toHaveBeenCalledTimes(1);
   expect(mockSend).toHaveBeenCalledTimes(1);
 });
 
 it('permits retry after failure before persistence, without creating another quote', async () => {
   mockSend.mockRejectedValueOnce(new Error('Storage unavailable'));
   await createInvoice();
-  await act(async () => delivery().onSend());
   expect(delivery().queued).toBe(false);
+  expect(mockDismissTo).not.toHaveBeenCalled();
   await act(async () => delivery().onSend());
   expect(delivery().queued).toBe(true);
   expect(mockQuote).toHaveBeenCalledTimes(1);
+  expect(mockDismissTo).toHaveBeenCalledTimes(1);
+});
+
+it('returns as soon as the message is persisted without waiting for relay publication', async () => {
+  let queued!: () => void;
+  let finish!: () => void;
+  mockSend.mockImplementation((_npub, invoice, onQueued) => {
+    queued = () => onQueued({ id: 'saved', text: invoice });
+    return new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await createInvoice();
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  expect(tree.root.findAllByType('Payment' as any)).toHaveLength(0);
+  expect(tree.root.findByType('Confirm' as any).props.isLoading).toBe(true);
+  await act(async () => queued());
+  expect(mockDismissTo).toHaveBeenCalledTimes(1);
+  expect(tree.root.findAllByType('Payment' as any)).toHaveLength(0);
+  expect(tree.root.findByType('Confirm' as any).props.isLoading).toBe(true);
+  await act(async () => tree.unmount());
+  await act(async () => finish());
+});
+
+it('does not send or redirect for a normal wallet top-up', async () => {
+  mockRouteParams = {};
+  await createInvoice();
+  expect(mockSend).not.toHaveBeenCalled();
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  expect(delivery()).toBeUndefined();
 });
 
 it('refuses an expired invoice and an invalid addressed recipient', async () => {

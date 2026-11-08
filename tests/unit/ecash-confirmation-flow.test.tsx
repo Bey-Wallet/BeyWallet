@@ -1,5 +1,8 @@
 import React from 'react';
-jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({ useSettingsBusy: jest.fn() }));
+jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({
+  useSettingsBusy: jest.fn(),
+  useSettingsCanLeave: (busy: boolean) => !busy,
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SendModalScreen } from '~/features/payments/send';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
@@ -16,7 +19,11 @@ const mockWallet = {
   ],
   refreshBalance: jest.fn(),
 };
-const mockParams: { mode?: string } = {};
+const mockParams: Record<string, string> = {};
+const mockDismissTo = jest.fn();
+const mockNostrSend = jest.fn();
+const mockTagHistory = jest.fn(async (..._args: unknown[]) => {});
+const mockInvalidate = jest.fn(async (..._args: unknown[]) => {});
 let mockOffline = false;
 const mockNetworkListeners = new Set<(state: any) => void>();
 const mockNetworkListener = (state: any) =>
@@ -33,15 +40,23 @@ jest.mock('~/services/wallet/ecashPayment', () => ({ prepareEcash: jest.fn() }))
 jest.mock('~/services/wallet', () => ({
   walletService: { prepareP2PK: jest.fn(), sendOffline: jest.fn() },
   mintManager: { getMintInfo: async () => ({ nuts: { 11: { supported: true } } }) },
-  nostrService: {},
-  historyService: { tagHistoryVia: async () => {} },
+  nostrService: { sendViaNostr: (...args: unknown[]) => mockNostrSend(...args) },
+  historyService: { tagHistoryVia: (...args: unknown[]) => mockTagHistory(...args) },
   initService: {
     getRepo: () => ({ proofRepository: { getAvailableProofs: mockAvailableProofs } }),
   },
   eventService: { on: () => () => {} },
   proofService: { checkProofStates: async () => [] },
 }));
-jest.mock('~/services/platform/seedService', () => ({ seedService: {} }));
+jest.mock('~/services/platform/seedService', () => ({
+  seedService: {
+    getMnemonic: async () => 'synthetic-test-material',
+    getNostrKeys: async () => ({ privkey: 'synthetic-key' }),
+  },
+}));
+jest.mock('~/state/peopleStore', () => ({
+  usePeopleStore: { getState: () => ({ savePerson: jest.fn() }) },
+}));
 jest.mock('~/services/wallet/paymentRequestModel', () => ({ parsePaymentRequest: jest.fn() }));
 jest.mock('~/shared/utils/paymentInputParser', () => ({ parsePaymentInput: jest.fn() }));
 jest.mock('~/features/payments/send/AmountStage', () => ({ AmountStage: 'AmountStage' }));
@@ -65,7 +80,7 @@ jest.mock('~/shared/ui/SendMethodSelector', () => 'SendMethodSelector');
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', H4: 'H4' }));
 jest.mock('@tamagui/lucide-icons', () => ({ Cloud: 'Cloud', CloudOff: 'CloudOff' }));
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, dismissTo: mockDismissTo }),
   useLocalSearchParams: () => mockParams,
   Stack: { Screen: 'Screen' },
 }));
@@ -82,7 +97,7 @@ jest.mock('expo-network', () => ({
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: undefined }),
-  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+  useQueryClient: () => ({ invalidateQueries: (...args: unknown[]) => mockInvalidate(...args) }),
 }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('nostr-tools', () => ({ nip19: {} }));
@@ -107,7 +122,10 @@ async function open() {
 const confirm = (tree: ReactTestRenderer) => tree.root.findByType('ConfirmStage' as any).props;
 beforeEach(() => {
   jest.clearAllMocks();
-  delete mockParams.mode;
+  for (const key of Object.keys(mockParams)) delete mockParams[key];
+  mockNostrSend.mockReset().mockResolvedValue(true);
+  mockTagHistory.mockReset().mockResolvedValue(undefined);
+  mockInvalidate.mockReset().mockResolvedValue(undefined);
   mockOffline = false;
   mockAvailableProofs.mockResolvedValue([
     { amount: 20, secret: 'fixture', C: 'signature', id: 'keyset' },
@@ -120,6 +138,83 @@ it('falls back to standard ecash for the removed link send mode', async () => {
   const tree = await open();
   expect(confirm(tree).sendMode).toBe('standard');
   expect(confirm(tree).ready).toBe(true);
+  await act(async () => tree.unmount());
+});
+
+async function openConversationSend(returnToConversation = true) {
+  mockParams.mode = 'nostr';
+  mockParams.to = 'conversation-recipient';
+  if (returnToConversation) mockParams.returnToConversation = '1';
+  jest.mocked(walletService.prepareP2PK).mockResolvedValue(review() as any);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<SendModalScreen />);
+  });
+  await act(async () => tree.root.findByType('NostrSendStage' as any).props.setAmount('20'));
+  await act(async () => tree.root.findByType('NostrSendStage' as any).props.onContinue());
+  return tree;
+}
+
+it('returns a conversation ecash send only after publication, history tagging, and query refresh', async () => {
+  let finish!: () => void;
+  mockNostrSend.mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finish = () => resolve(true);
+      }),
+  );
+  const tree = await openConversationSend();
+  await act(async () => {
+    void confirm(tree).onConfirm();
+  });
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(mockTagHistory).toHaveBeenCalledWith(
+    'mint-a',
+    'send',
+    'nostr',
+    expect.objectContaining({ nostrPubkey: 'conversation-recipient' }),
+    'op',
+  );
+  expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['history'] });
+  expect(mockDismissTo).toHaveBeenCalledWith({
+    pathname: '/(modals)/conversation',
+    params: { npub: 'conversation-recipient' },
+  });
+  expect(mockTagHistory.mock.invocationCallOrder[0]).toBeLessThan(
+    mockInvalidate.mock.invocationCallOrder.at(-1)!,
+  );
+  expect(mockInvalidate.mock.invocationCallOrder.at(-1)!).toBeLessThan(
+    mockDismissTo.mock.invocationCallOrder[0],
+  );
+  await act(async () => tree.unmount());
+});
+
+it('keeps failed publication in the send flow and never redirects or creates another payment', async () => {
+  mockNostrSend.mockResolvedValueOnce(false);
+  const tree = await openConversationSend();
+  await act(async () => confirm(tree).onConfirm());
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  expect(tree.root.findByType('ResultStage' as any).props.status).toBe('error');
+  expect(mockNostrSend).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('does not redirect a Nostr send started outside a conversation', async () => {
+  const tree = await openConversationSend(false);
+  await act(async () => confirm(tree).onConfirm());
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  expect(tree.root.findByType('ResultStage' as any).props.status).toBe('success');
+  await act(async () => tree.unmount());
+});
+
+it('does not report an acknowledged send as failed if refreshing history fails', async () => {
+  mockInvalidate.mockRejectedValueOnce(new Error('History refresh unavailable'));
+  const tree = await openConversationSend();
+  await act(async () => confirm(tree).onConfirm());
+  expect(tree.root.findByType('ResultStage' as any).props.status).toBe('success');
+  expect(mockDismissTo).toHaveBeenCalledTimes(1);
+  expect(mockNostrSend).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());
 });
 

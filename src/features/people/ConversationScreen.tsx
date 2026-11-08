@@ -29,7 +29,11 @@ import { initService } from '~/services/wallet/initService';
 import { historyService } from '~/services/wallet/historyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, type CurrencyCode } from '~/services/wallet/currencyService';
-import { filterPersonHistory, type PersonHistoryEntry } from './personHistory';
+import {
+  conversationPaymentSettled,
+  filterPersonHistory,
+  type PersonHistoryEntry,
+} from './personHistory';
 import type { ChatMessage } from '~/storage/sqlite/repositories/MessageRepository';
 import { buildConversationActivity, type ConversationActivity } from './conversationActivity';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
@@ -43,7 +47,10 @@ import { conversationItemLayout } from './conversationGrouping';
 import { useWalletStore } from '~/state/walletStore';
 import { hydrateSavedPerson, needsNostrProfileRefresh } from './peopleProfileCache';
 import { ConversationPaymentActions } from './components/ConversationPaymentActions';
+import { getHistoryToken } from '~/features/history/historyToken';
+import { conversationPaymentInput } from './conversationPaymentInput';
 import { useConversationMessages } from './hooks/useConversationMessages';
+import { useConversationPaymentStatus } from './hooks/useConversationPaymentStatus';
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ npub: string; displayName?: string; username?: string }>();
@@ -172,7 +179,7 @@ export default function ConversationScreen() {
 
   const requests = useNostrRequestStore((state) => state.requests);
   const requestPayments = useNostrRequestStore((state) => state.payments);
-  const activity = useMemo(() => {
+  const baseActivity = useMemo(() => {
     const byId = new Map([...queued, ...messages].map((message) => [message.id, message]));
     for (const message of recent) if (byId.has(message.id)) byId.set(message.id, message);
     return buildConversationActivity(
@@ -182,8 +189,33 @@ export default function ConversationScreen() {
       history as PersonHistoryEntry[],
       accepted,
       { requests, payments: requestPayments },
-    );
+    ).map((item) => {
+      if (!item.history || item.note?.trim() || (!accepted && item.direction !== 'outgoing'))
+        return item;
+      const entry = item.history;
+      const payload = entry.paymentRequest
+        ? conversationPaymentInput(entry.paymentRequest)?.value
+        : entry.mintUrl && (entry.type === 'send' || entry.type === 'receive')
+          ? getHistoryToken({ ...entry, mintUrl: entry.mintUrl })
+          : undefined;
+      return payload ? { ...item, payloadPreview: payload } : item;
+    });
   }, [npub, queued, messages, recent, inbox, history, accepted, requests, requestPayments]);
+  const paymentStatuses = useConversationPaymentStatus(
+    npub,
+    session,
+    baseActivity.slice(-limit),
+    history,
+  );
+  const activity = useMemo(
+    () =>
+      baseActivity.map((item) =>
+        paymentStatuses[item.id] && !conversationPaymentSettled(item.status)
+          ? { ...item, status: paymentStatuses[item.id], requiresAction: false }
+          : item,
+      ),
+    [baseActivity, paymentStatuses],
+  );
   const visibleActivity = activity.slice(-limit);
   const moreActivity = messageQuery.hasNextPage || activity.length > limit;
   const incomingInvitation =
@@ -618,14 +650,14 @@ export default function ConversationScreen() {
                 if (!accepted || blocked) return;
                 router.push({
                   pathname: '/(modals)/send',
-                  params: { to: npub, username: label, mode: 'nostr' },
+                  params: { to: npub, username: label, mode: 'nostr', returnToConversation: '1' },
                 });
               }}
               onRequest={() => {
                 if (!accepted || blocked) return;
                 router.push({
-                  pathname: '/(modals)/receive',
-                  params: { from: npub, username: label },
+                  pathname: '/(modals)/mint',
+                  params: { requestTo: npub, requestName: label },
                 });
               }}
             />

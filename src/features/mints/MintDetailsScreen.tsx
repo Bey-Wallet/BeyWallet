@@ -352,7 +352,7 @@ function MintDetailsContent() {
                             secondaryCurrency as CurrencyCode,
                           )
                         : showBitcoinSymbol
-                          ? `₿\u202f${balance.toLocaleString()}`
+                          ? `₿${balance.toLocaleString()}`
                           : `${balance.toLocaleString()} sat`}
                     </Text>
                   )}
@@ -436,7 +436,7 @@ function MintDetailsContent() {
                         You currently have a balance of{' '}
                         <Text kind="label2">
                           {showBitcoinSymbol
-                            ? `₿\u202f${balance.toLocaleString()}`
+                            ? `₿${balance.toLocaleString()}`
                             : `${balance.toLocaleString()} sat`}
                         </Text>{' '}
                         in this mint. Transfer or withdraw this balance before removing it. Removing

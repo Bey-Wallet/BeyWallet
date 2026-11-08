@@ -111,8 +111,8 @@ it.each(['SATS', 'FIAT'])(
   'keeps %s primary across payment and success screens',
   async (currency) => {
     mockPrimaryCurrency = currency;
-    const primary = currency === 'SATS' ? '10,000 sat' : '$\u202f10.00';
-    const secondary = currency === 'SATS' ? '≈ $\u202f10.00' : '≈ 10,000 sat';
+    const primary = currency === 'SATS' ? '10,000 sat' : '$10.00';
+    const secondary = currency === 'SATS' ? '≈ $10.00' : '≈ 10,000 sat';
     const payment = await render(<PaymentStage {...paymentProps} />);
     const result = await render(
       <ResultStage

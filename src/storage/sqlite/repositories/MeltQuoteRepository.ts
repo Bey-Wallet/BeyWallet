@@ -9,6 +9,14 @@ export class ExpoMeltQuoteRepository implements MeltQuoteRepository {
     this.db = db;
   }
 
+  async findByRequest(request: string): Promise<MeltQuote | null> {
+    const row = await this.db.get<{ mintUrl: string; quote: string }>(
+      'SELECT mintUrl, quote FROM coco_cashu_melt_quotes WHERE request = ? COLLATE NOCASE ORDER BY rowid DESC LIMIT 1',
+      [request],
+    );
+    return row ? this.getMeltQuote(row.mintUrl, row.quote) : null;
+  }
+
   async getMeltQuote(mintUrl: string, quoteId: string): Promise<MeltQuote | null> {
     const row = await this.db.get<{
       mintUrl: string;

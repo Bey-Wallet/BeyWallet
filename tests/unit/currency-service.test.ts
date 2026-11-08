@@ -3,28 +3,34 @@ import {
   SUPPORTED_CURRENCIES,
   SELECTABLE_CURRENCIES,
 } from '~/services/wallet/currencyService';
-import { spaceCurrencyPrefix } from '~/shared/utils/currencyDisplay';
+import { compactCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: { getState: jest.fn() } }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 
 describe('fiat display', () => {
   it.each([
-    ['$12.50', '$\u202f12.50'],
-    ['-$12.50', '-$\u202f12.50'],
-    ['-<$0.01', '-<$\u202f0.01'],
-    ['₿-10,000', '₿\u202f-10,000'],
-    ['CA$ 12.50', 'CA$\u202f12.50'],
-    ['CA$\u00a012.50', 'CA$\u202f12.50'],
-    ['CA$\u202f12.50', 'CA$\u202f12.50'],
+    ['$12.50', '$12.50'],
+    ['-$12.50', '-$12.50'],
+    ['-<$0.01', '-<$0.01'],
+    ['₿-10,000', '₿-10,000'],
+    ['CA$ 12.50', 'CA$12.50'],
+    ['CA$\u00a012.50', 'CA$12.50'],
+    ['CA$\u202f12.50', 'CA$12.50'],
+    ['$ 12.50', '$12.50'],
+    ['₿\u202f10,000', '₿10,000'],
+    ['1\u202f234,50 €', '1\u202f234,50 €'],
     ['1.234,50 €', '1.234,50 €'],
     ['12.50 AED', '12.50 AED'],
     ['-12.50', '-12.50'],
     ['<0.01', '<0.01'],
-  ])('spaces the currency prefix without changing signs or suffixes: %s', (input, expected) => {
-    expect(spaceCurrencyPrefix(input)).toBe(expected);
-    expect(spaceCurrencyPrefix(spaceCurrencyPrefix(input))).toBe(expected);
-  });
+  ])(
+    'compacts the currency prefix without changing signs, grouping or suffixes: %s',
+    (input, expected) => {
+      expect(compactCurrencyPrefix(input)).toBe(expected);
+      expect(compactCurrencyPrefix(compactCurrencyPrefix(input))).toBe(expected);
+    },
+  );
   it('retires only the four requested picker options, keeping NGN, THB and saved-value formatting', () => {
     expect(SELECTABLE_CURRENCIES).toHaveLength(25);
     const retired = ['VND', 'PHP', 'IDR', 'ARS'];
@@ -42,7 +48,7 @@ describe('fiat display', () => {
     ['PLN', 'zł'],
     ['CZK', 'Kč'],
   ] as const)('formats %s with its local symbol and decimal separator', (code, symbol) => {
-    expect(currencyService.formatValue(1234.5, code).replace(/[\s\u00a0\u202f]/g, ' ')).toMatch(
+    expect(currencyService.formatValue(1234.5, code).replace(/[\s\u00a0]/g, ' ')).toMatch(
       new RegExp(`^1 ?234,50 ${symbol}$`),
     );
     expect(currencyService.getSymbol(code)).toBe(symbol);
@@ -56,7 +62,7 @@ describe('fiat display', () => {
   });
 
   it('preserves USD formatting', () => {
-    expect(currencyService.formatValue(1234.5, 'USD')).toBe('$\u202f1,234.50');
+    expect(currencyService.formatValue(1234.5, 'USD')).toBe('$1,234.50');
   });
 
   it.each([
@@ -71,17 +77,17 @@ describe('fiat display', () => {
   });
 
   it('distinguishes Argentine pesos and formats Indonesian rupiah', () => {
-    expect(currencyService.formatValue(12.5, 'ARS')).toBe('AR$\u202f12,50');
+    expect(currencyService.formatValue(12.5, 'ARS')).toBe('AR$12,50');
     expect(currencyService.getSymbol('ARS')).toBe('AR$');
     expect(currencyService.formatValue(12.5, 'IDR')).toMatch(/^Rp\s?12,50$/);
     expect(currencyService.getSymbol('IDR')).toBe('Rp');
   });
 
   it('distinguishes Mexican pesos from US dollars in displays and amount entry labels', () => {
-    expect(currencyService.formatValue(12.5, 'MXN')).toBe('MX$\u202f12.50');
-    expect(currencyService.formatValue(0.001, 'MXN')).toBe('<MX$\u202f0.01');
+    expect(currencyService.formatValue(12.5, 'MXN')).toBe('MX$12.50');
+    expect(currencyService.formatValue(0.001, 'MXN')).toBe('<MX$0.01');
     expect(currencyService.getSymbol('MXN')).toBe('MX$');
-    expect(currencyService.formatValue(12.5, 'USD')).toBe('$\u202f12.50');
+    expect(currencyService.formatValue(12.5, 'USD')).toBe('$12.50');
   });
 
   it.each(SUPPORTED_CURRENCIES.map(({ code }) => code))(
@@ -98,14 +104,14 @@ describe('fiat display', () => {
   );
 
   it('keeps symbols, decimal separators and debit signs in small-value labels', () => {
-    expect(currencyService.formatValue(0.001, 'USD')).toBe('<$\u202f0.01');
+    expect(currencyService.formatValue(0.001, 'USD')).toBe('<$0.01');
     expect(currencyService.formatValue(0.001, 'EUR')).toMatch(/^<0,01\s€$/);
-    expect(currencyService.formatValue(0.001, 'INR')).toBe('<₹\u202f0.01');
-    expect(currencyService.formatValue(0.001, 'JPY')).toMatch(/^<[¥￥]\u202f0\.01$/);
+    expect(currencyService.formatValue(0.001, 'INR')).toBe('<₹0.01');
+    expect(currencyService.formatValue(0.001, 'JPY')).toMatch(/^<[¥￥]0\.01$/);
     expect(currencyService.formatValue(0.001, 'AED')).toBe('<0.01 AED');
     expect(currencyService.formatValue(0.001, 'KWD')).toBe('<0.01 KWD');
-    expect(currencyService.formatValue(-0.001, 'USD')).toBe('-<$\u202f0.01');
-    expect(currencyService.formatValue(0, 'USD')).toBe('$\u202f0.00');
+    expect(currencyService.formatValue(-0.001, 'USD')).toBe('-<$0.01');
+    expect(currencyService.formatValue(0, 'USD')).toBe('$0.00');
   });
 
   it('keeps currency codes after values when platform number formatting is unavailable', () => {
@@ -117,16 +123,16 @@ describe('fiat display', () => {
         const { currencyService: fallback } = require('~/services/wallet/currencyService');
         expect(fallback.formatValue(12.5, 'AED')).toBe('12.50 AED');
         expect(fallback.formatValue(12.5, 'KWD')).toBe('12.50 KWD');
-        expect(fallback.formatValue(0.001, 'USD')).toBe('<$\u202f0.01');
+        expect(fallback.formatValue(0.001, 'USD')).toBe('<$0.01');
         expect(fallback.formatValue(0.001, 'AED')).toBe('<0.01 AED');
         expect(fallback.formatValue(0.001, 'KWD')).toBe('<0.01 KWD');
-        expect(fallback.formatValue(12.5, 'THB')).toBe('฿\u202f12.50');
-        expect(fallback.formatValue(12.5, 'PHP')).toBe('₱\u202f12.50');
+        expect(fallback.formatValue(12.5, 'THB')).toBe('฿12.50');
+        expect(fallback.formatValue(12.5, 'PHP')).toBe('₱12.50');
         expect(fallback.formatValue(12.5, 'VND')).toBe('12.50 ₫');
-        expect(fallback.formatValue(12.5, 'NGN')).toBe('₦\u202f12.50');
-        expect(fallback.formatValue(12.5, 'IDR')).toBe('Rp\u202f12.50');
-        expect(fallback.formatValue(12.5, 'ARS')).toBe('AR$\u202f12.50');
-        expect(fallback.formatValue(12.5, 'MXN')).toBe('MX$\u202f12.50');
+        expect(fallback.formatValue(12.5, 'NGN')).toBe('₦12.50');
+        expect(fallback.formatValue(12.5, 'IDR')).toBe('Rp12.50');
+        expect(fallback.formatValue(12.5, 'ARS')).toBe('AR$12.50');
+        expect(fallback.formatValue(12.5, 'MXN')).toBe('MX$12.50');
         expect(fallback.formatValue(12.5, 'PLN')).toBe('12.50 zł');
         expect(fallback.formatValue(12.5, 'CZK')).toBe('12.50 Kč');
       });
