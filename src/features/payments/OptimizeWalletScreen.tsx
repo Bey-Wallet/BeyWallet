@@ -27,7 +27,8 @@ import {
   Sparkles,
   Sprout,
 } from '@tamagui/lucide-icons';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -156,7 +157,12 @@ export default function OptimizeWalletScreen() {
 
   return (
     <YStack flex={1} bg="$background" justify="space-between">
-      <Stack.Screen options={{ title: 'Optimize Wallet' }} />
+      <PaymentInfoHeader
+        infoTopic="optimize"
+        title="Optimize Wallet"
+        navigationAction="close"
+        disabled={isOptimizing}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 120 }}

@@ -2,6 +2,9 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { nip19 } from 'nostr-tools';
 import MintScreen from '~/features/payments/mint';
+jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
+  PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
+}));
 import {
   NavigationContext,
   NavigationRouteContext,

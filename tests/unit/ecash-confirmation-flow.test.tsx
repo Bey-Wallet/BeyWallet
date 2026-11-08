@@ -1,4 +1,7 @@
 import React from 'react';
+jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
+  PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
+}));
 jest.mock('~/features/settings/hooks/useSettingsBusy', () => ({
   useSettingsBusy: jest.fn(),
   useSettingsCanLeave: (busy: boolean) => !busy,

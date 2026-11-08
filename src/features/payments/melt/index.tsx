@@ -1,5 +1,5 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
@@ -516,7 +516,12 @@ export default function MeltScreen() {
       {/* Step 1: Input Invoice and Amount Stage */}
       {step === 'invoice' && (
         <YStack flex={1} px="$4">
-          <PaymentFlowHeader title="Pay Lightning" navigationAction="close" onBack={handleClose} />
+          <PaymentInfoHeader
+            infoTopic="lightning-pay"
+            title="Pay Lightning"
+            navigationAction="close"
+            onBack={handleClose}
+          />
           <InvoiceStage
             mintUrl={activeMintUrl}
             onMintChange={setMintUrl}
@@ -536,7 +541,8 @@ export default function MeltScreen() {
       {/* Step 2: Confirm */}
       {step === 'confirm' && (
         <>
-          <PaymentFlowHeader
+          <PaymentInfoHeader
+            infoTopic="lightning-pay"
             title="Confirm payment"
             disabled={isPaying || isAuthenticating}
             onBack={async () => {

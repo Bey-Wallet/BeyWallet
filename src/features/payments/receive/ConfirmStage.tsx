@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
@@ -197,7 +197,8 @@ export function ConfirmStage({
 
   return (
     <>
-      <PaymentFlowHeader
+      <PaymentInfoHeader
+        infoTopic="ecash-receive"
         title="Confirm receive"
         navigationAction={navigationAction}
         onBack={onBack}

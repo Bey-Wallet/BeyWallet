@@ -3,6 +3,7 @@ import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPollin
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
@@ -590,7 +591,11 @@ export function OnchainMeltFlow() {
 
     return (
       <>
-        <PaymentFlowHeader title="Confirm payment" onBack={() => setStep('input')} />
+        <PaymentInfoHeader
+          infoTopic="onchain-pay"
+          title="Confirm payment"
+          onBack={() => setStep('input')}
+        />
         <PaymentStageLayout
           inset={false}
           hero={<PaymentAmount amount={meltQuote.amount} size="prominent" label="You're paying" />}
@@ -679,7 +684,7 @@ export function OnchainMeltFlow() {
   // Render input form state (AmountStage look-alike with address field)
   return (
     <YStack flex={1} gap="$2" bg="$background">
-      <PaymentFlowHeader title="Pay on-chain" navigationAction="close" />
+      <PaymentInfoHeader infoTopic="onchain-pay" title="Pay on-chain" navigationAction="close" />
       <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector & Balance Row */}
         <MintBalanceRow

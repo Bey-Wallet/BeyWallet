@@ -1,6 +1,9 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MeltScreen from '~/features/payments/melt';
+jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
+  PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
+}));
 import { nip19 } from 'nostr-tools';
 
 const mockWallet = {

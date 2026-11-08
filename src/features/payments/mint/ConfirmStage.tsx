@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
@@ -37,7 +37,8 @@ export function ConfirmStage({
     (mintUrl ? mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Selected Mint');
   return (
     <>
-      <PaymentFlowHeader
+      <PaymentInfoHeader
+        infoTopic={request ? 'lightning-request' : 'lightning-top-up'}
         title={request ? 'Confirm request' : 'Confirm top-up'}
         onBack={onBack}
         disabled={isLoading}

@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { Text, YStack } from 'tamagui';
@@ -255,7 +255,8 @@ export default function MintScreen() {
     <YStack flex={1} bg="$background" px="$4">
       <Stack.Screen />
       {step === 'amount' && (
-        <PaymentFlowHeader
+        <PaymentInfoHeader
+          infoTopic={requestRecipient ? 'lightning-request' : 'lightning-top-up'}
           title={requestRecipient ? 'Request Lightning' : 'Mint Ecash'}
           navigationAction="close"
           onBack={handleClose}

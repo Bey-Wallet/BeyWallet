@@ -26,6 +26,7 @@ export const BUISheet = forwardRef<
     canDismiss?: boolean;
     appearance?: BUIAppearance;
     showHeader?: boolean;
+    headerVariant?: 'centered' | 'simple' | 'modal';
     scrollContent?: boolean;
     maxDynamicContentSize?: number;
     actions?: React.ReactNode;
@@ -40,6 +41,7 @@ export const BUISheet = forwardRef<
     canDismiss = true,
     appearance: appearanceOverride,
     showHeader = true,
+    headerVariant,
     scrollContent = true,
     maxDynamicContentSize,
     actions,
@@ -82,6 +84,7 @@ export const BUISheet = forwardRef<
       {showHeader && (
         <YStack pl={insets.left} pr={insets.right}>
           <BUIHeader
+            variant={headerVariant}
             title={title}
             actions={actions}
             navigation={navigation}

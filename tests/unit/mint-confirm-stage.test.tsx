@@ -1,4 +1,7 @@
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'PaymentFlowHeader' }));
+jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
+  PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
+}));
 jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'PaymentMintRow' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';

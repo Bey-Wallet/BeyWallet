@@ -5,6 +5,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
@@ -221,7 +222,11 @@ export function OnchainMintFlow() {
   if (step === 'confirm')
     return (
       <>
-        <PaymentFlowHeader title="Confirm top-up" navigationAction="close" />
+        <PaymentInfoHeader
+          infoTopic="onchain-top-up"
+          title="Confirm top-up"
+          navigationAction="close"
+        />
         <PaymentStageLayout
           inset={false}
           hero={

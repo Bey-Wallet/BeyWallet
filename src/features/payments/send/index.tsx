@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useSettingsBusy, useSettingsCanLeave } from '~/features/settings/hooks/useSettingsBusy';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
@@ -775,7 +775,8 @@ export function SendModalScreen() {
         }}
       />
       {step === 'amount' && (
-        <PaymentFlowHeader
+        <PaymentInfoHeader
+          infoTopic={sendMode === 'nostr' ? 'nostr-send' : 'ecash-send'}
           title={headerTitle}
           navigationAction="close"
           onBack={handleClose}
