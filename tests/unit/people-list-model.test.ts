@@ -74,7 +74,7 @@ it('uses the same latest activity for ordering and preview, including newer wall
   expect(model.conversations.map((row) => row.npub)).toEqual([alice, bob]);
   expect(model.conversations[0]).toMatchObject({
     updatedAt: time + 10000,
-    preview: 'Awaiting claim · 50 SATS',
+    preview: 'Ecash token · Awaiting claim · 50 SATS',
   });
 });
 
@@ -89,7 +89,7 @@ it('sorts accepted contacts with no activity alphabetically after active convers
   });
   expect(model.conversations.map((row) => row.name)).toEqual(['Zed', 'Amy', 'Middle']);
   expect(model.conversations[1]).toMatchObject({
-    preview: 'No payments yet',
+    preview: 'No messages yet',
     updatedAt: undefined,
   });
 });
@@ -104,7 +104,7 @@ it('groups unknown invitations once per normalized identity and excludes blocked
   expect(model.requestCount).toBe(1);
   expect(model.invitations[0]).toMatchObject({
     npub: alice,
-    preview: 'Pending contact acceptance · 25 SATS',
+    preview: 'Ecash token · Pending contact acceptance · 25 SATS',
     unread: true,
   });
 });
@@ -179,6 +179,43 @@ it.each([
   const model = build({ messages: [message(alice, text)] });
   expect(model.conversations[0].preview).not.toContain(text);
   expect(model.conversations[0].preview).not.toContain('secret');
+});
+
+it('shows normal incoming/outgoing text without payment labels or icons', () => {
+  const model = build({
+    messages: [
+      message(alice, 'Hello there'),
+      { ...message(bob, 'See you soon'), direction: 'outgoing' },
+    ],
+  });
+  expect(model.conversations.find((row) => row.npub === alice)).toMatchObject({
+    preview: 'Hello there',
+  });
+  expect(model.conversations.find((row) => row.npub === bob)).toMatchObject({
+    preview: 'You: See you soon',
+  });
+  expect(model.conversations.every((row) => row.icon === undefined)).toBe(true);
+});
+
+it.each([
+  ['lnbc210n1ptestinvoice', 'Lightning invoice'],
+  ['alice@example.com', 'Lightning address'],
+  ['lnurlp://example.com/Pay', 'LNURL payment'],
+  ['lno1offer', 'BOLT12 offer'],
+  ['cashuBsecret', 'Ecash token'],
+  ['creqAbroken', 'Ecash request'],
+  ['bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', 'Bitcoin payment'],
+])('labels payment preview %s as %s without displaying the encoded input', (text, label) => {
+  const preview = build({ messages: [message(alice, text)] }).conversations[0].preview;
+  expect(preview.startsWith(label)).toBe(true);
+  expect(preview).not.toContain(text);
+});
+
+it('identifies an embedded payment in the preview without exposing the payload', () => {
+  const model = build({ messages: [message(alice, 'Here is cashuBsecret for lunch, thank you')] });
+  expect(model.conversations[0].preview).toBe('Ecash token · Review ecash token');
+  expect(model.conversations[0].preview).not.toContain('secret');
+  expect(model.conversations[0].icon).toBe('ecash');
 });
 
 it('marks unread activity without leaking unread markers into previews and respects currency formatting', () => {

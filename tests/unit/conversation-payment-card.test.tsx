@@ -11,10 +11,9 @@ jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('@tamagui/lucide-icons', () =>
   Object.fromEntries(
-    ['AlertCircle', 'Check', 'ChevronRight', 'Clock3', 'X', 'ArrowDownLeft'].map((name) => [
-      name,
-      name,
-    ]),
+    ['AlertCircle', 'Check', 'ChevronRight', 'Clock3', 'X', 'ArrowDownLeft', 'ArrowUpRight'].map(
+      (name) => [name, name],
+    ),
   ),
 );
 
@@ -33,7 +32,7 @@ afterEach(async () => {
   await act(async () => tree?.unmount());
 });
 
-it('uses a small payment type label, left-aligned amount panel, note and trailing status', async () => {
+it('uses a small type/direction header, flat sent amount, note and trailing status', async () => {
   await act(async () => {
     tree = create(
       <ConversationPaymentCard
@@ -46,7 +45,7 @@ it('uses a small payment type label, left-aligned amount panel, note and trailin
   });
   const labels = tree.root.findAllByType('Text' as any);
   expect(labels[0].props).toMatchObject({
-    children: 'Ecash',
+    children: 'Ecash token',
     fontSize: 13,
     fontWeight: '400',
   });
@@ -59,16 +58,47 @@ it('uses a small payment type label, left-aligned amount panel, note and trailin
   expect(labels[3].props.children).toBe('Lunch');
   expect(labels[4].props.children).toContain('Paid');
   expect(labels[4].props.fontSize).toBe(11);
-  expect(
-    tree.root.findAllByType('YStack' as any).find((node) => node.props.minHeight === 80)?.props,
-  ).toMatchObject({ items: 'flex-start', justify: 'center' });
+  const amount = labels[1].parent!;
+  expect(amount.props).toMatchObject({ items: 'flex-start', justify: 'center', gap: 2 });
+  expect(amount.props.minHeight).toBeUndefined();
+  expect(amount.props.bg).toBeUndefined();
+  expect(amount.props.rounded).toBeUndefined();
+  expect(labels[1].props).toMatchObject({ textAlign: 'left', color: '$onAccent' });
+  expect(tree.root.findByType('ArrowUpRight' as any).props).toMatchObject({
+    size: 14,
+    accessibilityLabel: 'Outgoing payment',
+  });
+});
+
+it('right-aligns received amounts and secondary values with an incoming direction icon', async () => {
+  await act(async () => {
+    tree = create(
+      <ConversationPaymentCard
+        item={{ ...base, direction: 'incoming' }}
+        primaryAmount="100 sat"
+        secondaryAmount="$0.10"
+      />,
+    );
+  });
+  const labels = tree.root.findAllByType('Text' as any);
+  expect(labels[1].props).toMatchObject({ textAlign: 'right', color: '$color' });
+  expect(labels[2].props).toMatchObject({ textAlign: 'right', color: '$gray10' });
+  const amount = labels[1].parent!;
+  expect(amount.props.items).toBe('flex-end');
+  expect(amount.props.bg).toBeUndefined();
+  expect(tree.root.findByType('ArrowDownLeft' as any).props.accessibilityLabel).toBe(
+    'Incoming payment',
+  );
 });
 
 it.each([
-  ['Ecash request', 'Ecash'],
-  ['Lightning · Invoice', 'LN'],
-  ['Lightning · LNURL', 'LN'],
-  ['Bitcoin · On-chain', 'Bitcoin'],
+  ['Ecash request', 'Ecash request'],
+  ['Ecash', 'Ecash token'],
+  ['Lightning · Invoice', 'Lightning invoice'],
+  ['Lightning · LNURL', 'LNURL payment'],
+  ['Lightning · Address', 'Lightning address'],
+  ['Lightning · BOLT12', 'BOLT12 offer'],
+  ['Bitcoin · On-chain', 'Bitcoin payment'],
 ])('labels %s as %s', async (type, label) => {
   await act(async () => {
     tree = create(<ConversationPaymentCard item={{ ...base, type }} primaryAmount="100 sat" />);
@@ -90,7 +120,7 @@ it('keeps unknown amounts readable and requests distinct from completed payments
     tree = create(<ConversationPaymentCard item={item} />);
   });
   const labels = tree.root.findAllByType('Text' as any);
-  expect(labels[0].props.children).toBe('Ecash');
+  expect(labels[0].props.children).toBe('Ecash request');
   expect(labels[1].props).toMatchObject({ children: 'Review payment', fontSize: 13 });
 });
 
@@ -118,7 +148,7 @@ it.each([
     expect(tree.root.findAllByType('Check' as any)).toHaveLength(0);
 });
 
-it('keeps sent cards neutral and right aligned, with the full note visible', async () => {
+it('fits sent cards to their content with a primary fill and full note visible', async () => {
   await act(async () => {
     tree = create(
       <ConversationItemCard item={{ ...base, note: 'Shared dinner' }} primaryAmount="100 sat" />,
@@ -126,8 +156,9 @@ it('keeps sent cards neutral and right aligned, with the full note visible', asy
   });
   expect(tree.root.findAllByType('YStack' as any)[0].props).toMatchObject({
     self: 'flex-end',
-    width: 236,
+    maxWidth: '80%',
   });
-  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$gray2');
+  expect(tree.root.findAllByType('YStack' as any)[0].props.width).toBeUndefined();
+  expect(tree.root.findByType('Pressable' as any).props.bg).toBe('$buttonDefaultPrimary');
   expect(JSON.stringify(tree.toJSON())).toContain('Shared dinner');
 });

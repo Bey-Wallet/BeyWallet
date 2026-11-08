@@ -176,6 +176,17 @@ jest.mock('@tanstack/react-query', () => ({
     refetch: mockRefetch,
   }),
 }));
+jest.mock('~/features/people/hooks/useConversationMessages', () => ({
+  useConversationMessages: () => ({
+    messages: mockSavedMessages,
+    isFetching: false,
+    isPending: false,
+    isError: false,
+    hasNextPage: false,
+    fetchNextPage: jest.fn(),
+    refetch: jest.fn(),
+  }),
+}));
 jest.mock('~/features/people/hooks/useNostrProfileSearch', () => ({
   useNostrProfileSearch: () => ({
     results: mockRemoteResults,
@@ -233,6 +244,9 @@ describe('People conversations and invitations', () => {
     return lists[requestsSelected ? 1 : 0];
   };
   beforeEach(() => {
+    mockParams.npub = bob;
+    jest.mocked(nostrService.sendChat).mockReset();
+    jest.mocked(nostrService.retryChat).mockReset();
     useSettingsStore.setState({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' });
     mockSavedMessages = [];
     mockHistory = [];
@@ -502,10 +516,197 @@ describe('People conversations and invitations', () => {
       await accept.props.onPress();
     });
     expect(usePeopleStore.getState().people[bob].contactStatus).toBe('accepted');
-    expect(tree!.root.findAllByType('Input' as any)).toHaveLength(0);
+    expect(tree!.root.findAllByType('Input' as any)).toHaveLength(1);
   });
 
-  it('places accent Pay on the right and opens ecash flows directly even with a Lightning address', async () => {
+  it('queues text once, clears the draft only after persistence, and shows publication status', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    let onQueued!: (message: ChatMessage) => void;
+    let finish!: () => void;
+    jest.mocked(nostrService.sendChat).mockImplementation((_npub, _text, callback) => {
+      onQueued = callback!;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const input = () => tree.root.findByType('Input' as any);
+    const send = () =>
+      tree.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Send message')!;
+    expect(send().props.disabled).toBe(true);
+    await act(async () => input().props.onChangeText('  Hello Bob  '));
+    const press = send().props.onPress;
+    await act(async () => {
+      press();
+      press();
+    });
+    expect(nostrService.sendChat).toHaveBeenCalledTimes(1);
+    expect(nostrService.sendChat).toHaveBeenCalledWith(bob, 'Hello Bob', expect.any(Function));
+    expect(input().props.value).toBe('  Hello Bob  ');
+    expect(input().props.editable).toBe(false);
+    const message: ChatMessage = {
+      id: 'queued',
+      conversation: bob,
+      direction: 'outgoing',
+      createdAt: Date.now(),
+      receivedAt: Date.now(),
+      text: 'Hello Bob',
+      read: true,
+      publication: 'sending',
+      transport: 'nip17',
+    };
+    await act(async () => onQueued(message));
+    expect(input().props.value).toBe('');
+    expect(input().props.editable).toBe(true);
+    expect(JSON.stringify(tree.toJSON())).toContain('Hello Bob');
+    expect(
+      tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Sending'),
+    ).toBe(false);
+    expect(
+      tree.root
+        .findAllByType('AppPressable' as any)
+        .some((node) => node.props.accessibilityLabel?.startsWith('Hello Bob. Sending')),
+    ).toBe(true);
+    await act(async () => {
+      mockSavedMessages = [{ ...message, publication: 'sent' }];
+      useMessageStore.setState({ revision: 1, recent: mockSavedMessages });
+      finish();
+    });
+    expect(
+      tree.root
+        .findAllByType('Text' as any)
+        .some((node) => node.props.children === 'Sent to relay'),
+    ).toBe(false);
+    expect(
+      tree.root
+        .findAllByType('AppPressable' as any)
+        .some((node) => node.props.accessibilityLabel?.startsWith('Hello Bob. Sent to relay')),
+    ).toBe(true);
+  });
+
+  it('preserves a draft after preparation failure and across navigation, without exposing raw errors', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    jest.mocked(nostrService.sendChat).mockRejectedValue(new Error('sensitive-internal-error'));
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Keep my draft'));
+    await act(async () =>
+      tree.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Send message')!
+        .props.onPress(),
+    );
+    expect(useMessageStore.getState().drafts[bob]).toBe('Keep my draft');
+    expect(JSON.stringify(tree.toJSON())).not.toContain('sensitive-internal-error');
+    await act(async () => tree.unmount());
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    expect(tree.root.findByType('Input' as any).props.value).toBe('Keep my draft');
+  });
+
+  it('keeps a late send from clearing another conversation draft or unlocking its send', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    let queued!: (message: ChatMessage) => void;
+    let finish!: () => void;
+    jest
+      .mocked(nostrService.sendChat)
+      .mockImplementationOnce((_npub, _text, callback) => {
+        queued = callback!;
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      })
+      .mockImplementationOnce(() => new Promise(() => {}));
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const input = () => tree.root.findByType('Input' as any);
+    const send = () =>
+      tree.root
+        .findAllByType('AppIconButton' as any)
+        .find((node) => node.props.accessibilityLabel === 'Send message')!;
+    await act(async () => input().props.onChangeText('For Bob'));
+    await act(async () => send().props.onPress());
+    await act(async () => {
+      mockParams.npub = alice;
+      tree.update(<ConversationScreen />);
+    });
+    await act(async () => input().props.onChangeText('For Alice'));
+    await act(async () => send().props.onPress());
+    await act(async () => {
+      queued({
+        id: 'late',
+        conversation: bob,
+        text: 'For Bob',
+        direction: 'outgoing',
+        publication: 'sending',
+        transport: 'nip17',
+        read: true,
+        createdAt: Date.now(),
+        receivedAt: Date.now(),
+      });
+      finish();
+    });
+    expect(useMessageStore.getState().drafts[bob]).toBeUndefined();
+    expect(input().props.value).toBe('For Alice');
+    expect(send().props.loading).toBe(true);
+    expect(JSON.stringify(tree.toJSON())).not.toContain('For Bob');
+  });
+
+  it('clears drafts on session shutdown and ignores stale blocked-contact send handlers', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Unsent text'));
+    const press = tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Send message')!.props.onPress;
+    await act(async () => useMessageStore.getState().clear());
+    expect(tree.root.findByType('Input' as any).props.value).toBe('');
+    await act(async () => usePeopleStore.getState().setContactStatus(bob, 'blocked'));
+    await act(async () => press());
+    expect(nostrService.sendChat).not.toHaveBeenCalled();
+    expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
+  });
+
+  it('retries a persisted failed text message from message actions without creating another send', async () => {
+    usePeopleStore.getState().setContactStatus(bob, 'accepted');
+    const message: ChatMessage = {
+      id: 'failed-text',
+      conversation: bob,
+      text: 'Try again',
+      direction: 'outgoing',
+      publication: 'failed',
+      transport: 'nip17',
+      read: true,
+      createdAt: 1000,
+      receivedAt: 1000,
+    };
+    mockSavedMessages = [message];
+    jest.mocked(nostrService.retryChat).mockResolvedValue(undefined);
+    await act(async () => {
+      tree = create(<ConversationScreen />);
+    });
+    const bubble = tree.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith('Try again.'))!;
+    await act(async () => bubble.props.onLongPress());
+    const retry = tree.root
+      .findAllByType(ListTableRow)
+      .find((row) => row.props.label === 'Retry message')!;
+    await act(async () => retry.props.onPress());
+    expect(nostrService.retryChat).toHaveBeenCalledWith(message);
+    expect(nostrService.sendChat).not.toHaveBeenCalled();
+  });
+
+  it('centers small auto-width secondary Request and Send buttons and opens ecash flows directly', async () => {
     usePeopleStore.getState().savePerson({
       npub: bob,
       contactStatus: 'accepted',
@@ -516,13 +717,18 @@ describe('People conversations and invitations', () => {
     });
     const actions = tree.root
       .findAllByType('AppButton' as any)
-      .filter((node) => ['Pay', 'Request'].includes(node.props.accessibilityLabel));
-    expect(actions.map((node) => node.props.children)).toEqual(['Request', 'Pay']);
-    expect(actions[1].props).toMatchObject({
-      variant: 'accent',
-      emphasis: 'primary',
-      size: 'large',
-    });
+      .filter((node) => ['Send', 'Request'].includes(node.props.accessibilityLabel));
+    expect(actions.map((node) => node.props.children)).toEqual(['Request', 'Send']);
+    for (const action of actions) {
+      expect(action.props).toMatchObject({
+        variant: 'default',
+        emphasis: 'secondary',
+        size: 'small',
+        fullWidth: false,
+      });
+      expect(action.props.flex).toBeUndefined();
+    }
+    expect(actions[0].parent!.props.justify).toBe('center');
     await act(async () => actions[1].props.onPress());
     expect(mockPush).toHaveBeenLastCalledWith({
       pathname: '/(modals)/send',
@@ -533,7 +739,7 @@ describe('People conversations and invitations', () => {
       pathname: '/(modals)/receive',
       params: { from: bob, username: 'Bob' },
     });
-    expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
+    expect(tree.root.findAllByType('Input' as any)).toHaveLength(1);
     expect(nostrService.sendChat).not.toHaveBeenCalled();
   });
 
@@ -547,7 +753,7 @@ describe('People conversations and invitations', () => {
     await act(async () =>
       tree!.root
         .findAllByType('AppButton' as any)
-        .find((node) => node.props.accessibilityLabel === 'Pay')!
+        .find((node) => node.props.accessibilityLabel === 'Send')!
         .props.onPress(),
     );
     expect(mockPush).toHaveBeenCalledWith({
@@ -564,7 +770,7 @@ describe('People conversations and invitations', () => {
     expect(tree!.root.findAllByType('Input' as any)).toHaveLength(0);
     const sendMoney = tree!.root
       .findAllByType('AppButton' as any)
-      .find((node) => node.props.accessibilityLabel === 'Pay')!;
+      .find((node) => node.props.accessibilityLabel === 'Send')!;
     expect(sendMoney.props.disabled).toBe(true);
   });
 
@@ -654,7 +860,7 @@ describe('People conversations and invitations', () => {
       alert.mock.calls[0][2]!.find((button) => button.text === 'Use legacy NIP-04')!.onPress!(),
     );
     expect(row().props.value).toBe('Legacy (NIP-04)');
-    expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
+    expect(tree.root.findAllByType('Input' as any)).toHaveLength(1);
     expect(nostrService.sendChat).not.toHaveBeenCalled();
     await act(async () => row().props.onPress());
     await act(async () =>
@@ -672,7 +878,7 @@ describe('People conversations and invitations', () => {
     const payment = tree!.root
       .findAllByType('AppPressable' as any)
       .find((node) => node.props.accessibilityLabel?.includes('Show payment details'))!;
-    expect(payment.props.bg).toBe('$buttonDefaultSecondary');
+    expect(payment.props.bg).toBe('$gray2');
     expect(payment.findAllByType('Text' as any).map((node) => node.props.children)).not.toContain(
       'Pending contact acceptance',
     );
@@ -686,7 +892,7 @@ describe('People conversations and invitations', () => {
     expect(JSON.stringify(tree!.toJSON())).not.toContain('cashuBsynthetic-secret');
   });
 
-  it('keeps received messages readable and copyable without a reply composer or retry action', async () => {
+  it('keeps received messages readable and copyable alongside the restored composer', async () => {
     const copy = jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true);
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     const message: ChatMessage = {
@@ -709,7 +915,7 @@ describe('People conversations and invitations', () => {
       tree.root
         .findAllByType('AppPressable' as any)
         .find((node) => node.props.accessibilityLabel?.startsWith('Keep this text.'))!;
-    expect(tree.root.findAllByType('Input' as any)).toHaveLength(0);
+    expect(tree.root.findAllByType('Input' as any)).toHaveLength(1);
     const row = (label: string) =>
       tree.root.findAllByType(ListTableRow).find((node) => node.props.label === label)!;
     await act(async () => bubble().props.onLongPress());
@@ -775,7 +981,7 @@ describe('People conversations and invitations', () => {
     expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   });
 
-  it('uses neutral cards for payments and read-only messages with equal corners', async () => {
+  it('uses primary sent bubbles and neutral received cards with equal corners', async () => {
     usePeopleStore.getState().setContactStatus(bob, 'accepted');
     mockSavedMessages = [
       {
@@ -809,18 +1015,18 @@ describe('People conversations and invitations', () => {
     });
     const cards = tree!.root.findAllByType('AppPressable' as any);
     const text = cards.find((node) => node.props.accessibilityLabel?.startsWith('Text bubble.'))!;
-    expect(text.props.bg).toBe('$buttonDefaultSecondary');
+    expect(text.props.bg).toBe('$buttonDefaultPrimary');
     expect(text.props.rounded).toBe(16);
     expect(text.props.borderBottomRightRadius).toBeUndefined();
     expect(text.props.borderBottomLeftRadius).toBeUndefined();
     expect(
       cards.find((node) => node.props.accessibilityLabel?.startsWith('Ecash,'))?.props.bg,
-    ).toBe('$buttonDefaultSecondary');
+    ).toBe('$buttonDefaultPrimary');
     expect(
       cards.some(
         (node) =>
           node.props.accessibilityLabel?.includes('Show payment details') &&
-          node.props.bg === '$buttonDefaultSecondary',
+          node.props.bg === '$gray2',
       ),
     ).toBe(true);
   });
@@ -859,12 +1065,12 @@ describe('People conversations and invitations', () => {
         .props.onPress(),
     );
     expect(usePeopleStore.getState().people[bob].contactStatus).toBe('accepted');
-    expect(tree!.root.findAllByType('Input' as any)).toHaveLength(0);
+    expect(tree!.root.findAllByType('Input' as any)).toHaveLength(1);
     const send = tree!.root
       .findAllByType('AppButton' as any)
-      .find((node) => node.props.accessibilityLabel === 'Pay')!;
+      .find((node) => node.props.accessibilityLabel === 'Send')!;
     expect(send.props.disabled).toBe(false);
-    expect(send.props).toMatchObject({ size: 'large', variant: 'accent' });
+    expect(send.props).toMatchObject({ size: 'small', variant: 'default', emphasis: 'secondary' });
   });
 
   it('anchors the latest activity on keyboard resize without pulling readers away from older messages', async () => {
@@ -874,7 +1080,7 @@ describe('People conversations and invitations', () => {
         createNodeMock: (element) => (element.type === 'ScrollView' ? { scrollToEnd } : null),
       });
     });
-    expect(tree.root.findAllByType('ControlledKeyboardAvoidingView' as any)).toHaveLength(0);
+    expect(tree.root.findAllByType('ControlledKeyboardAvoidingView' as any)).toHaveLength(1);
     const scroll = tree!.root.findByType('ScrollView' as any);
     expect(scroll.props.initialScrollAtEnd).toBe(true);
     await act(async () => scroll.props.onLayout());
@@ -1055,7 +1261,7 @@ describe('People conversations and invitations', () => {
       .find((node) => node.props.accessibilityLabel?.startsWith('Lightning'))!;
     expect(card.props.width).toBeUndefined();
     expect(JSON.stringify(tree!.toJSON())).not.toContain('lnbc210n1ptestinvoice');
-    expect(card.props.bg).toBe('$buttonDefaultSecondary');
+    expect(card.props.bg).toBe('$gray2');
     await act(async () => card.props.onPress());
     await act(async () =>
       tree!.root
@@ -1105,9 +1311,8 @@ describe('People conversations and invitations', () => {
     await act(async () => {
       tree = create(<ConversationScreen />);
     });
-    expect(
-      tree.root.findAllByType('Text' as any).filter((node) => node.props.children === 'Ecash'),
-    ).toHaveLength(2);
+    const paymentLabels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
+    expect(paymentLabels).toEqual(expect.arrayContaining(['Ecash token', 'Ecash request']));
     const pay = tree!.root
       .findAllByType('AppButton' as any)
       .find((node) => node.props.accessibilityLabel === 'Pay Ecash request')!;

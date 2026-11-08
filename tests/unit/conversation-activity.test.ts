@@ -27,6 +27,61 @@ it('keeps payment notes on the payment card instead of creating a text message',
   expect(item).toMatchObject({ kind: 'payment', text: '', note: 'Lunch', amount: 8 });
 });
 
+it('distinguishes a received ecash token from an invoice/request without claiming it is paid', () => {
+  const [token] = buildConversationActivity(
+    npub,
+    [{ ...base, direction: 'incoming', text: 'cashuBencoded' }],
+    [],
+    [],
+    true,
+  );
+  expect(token).toMatchObject({
+    kind: 'payment',
+    type: 'Ecash',
+    status: 'Review ecash token',
+    text: '',
+  });
+  const [invoice] = buildConversationActivity(
+    npub,
+    [{ ...base, direction: 'incoming', text: 'lnbc210n1ptestinvoice' }],
+    [],
+    [],
+    true,
+  );
+  expect(invoice).toMatchObject({
+    kind: 'payment',
+    type: 'Lightning · Invoice',
+    status: 'Payment requested',
+    text: '',
+  });
+});
+
+it('renders independent embedded payment cards and keeps the context note without raw payloads', () => {
+  const items = buildConversationActivity(
+    npub,
+    [
+      {
+        ...base,
+        direction: 'incoming',
+        text: 'Please use lnbc210n1ptestinvoice or alice@example.com thanks',
+      },
+    ],
+    [],
+    [],
+    true,
+  );
+  expect(items).toHaveLength(2);
+  expect(new Set(items.map((item) => item.id)).size).toBe(2);
+  expect(items[0]).toMatchObject({
+    kind: 'payment',
+    note: 'Please use or thanks',
+    text: '',
+    type: 'Lightning · Invoice',
+  });
+  expect(items[1]).toMatchObject({ kind: 'payment', text: '', type: 'Lightning · Address' });
+  expect(items[1].note).toBeUndefined();
+});
+
 it('classifies persisted text independently from nullable or zero payment amounts', () => {
   const text = {
     ...base,
