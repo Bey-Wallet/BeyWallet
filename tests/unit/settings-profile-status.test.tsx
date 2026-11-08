@@ -15,8 +15,19 @@ jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
 }));
 jest.mock('~/shared/hooks/useNip05Lookup', () => ({ useNip05Lookup: () => mockLookup }));
+const mockSettings = {
+  npub: 'public-key-fixture',
+  theme: 'system',
+  secondaryCurrency: 'USD',
+  seedBackedUp: false,
+  biometricEnabled: true,
+  notificationsEnabled: true,
+};
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: (select: any) => select({ npub: 'public-key-fixture' }),
+  useSettingsStore: (select: any) => select(mockSettings),
+}));
+jest.mock('~/state/walletStore', () => ({
+  useWalletStore: (select: any) => select({ mints: [{}, {}] }),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock(
@@ -49,6 +60,48 @@ it('shows a badge only after verification and offers Claim when the registry has
     tree = create(<SettingsScreen />);
   });
   expect(tree.root.findAllByType('VerifiedBadge' as any)).toHaveLength(1);
+  const descriptions = () =>
+    tree.root.findAllByType('Row' as any).map((row) => row.props.description);
+  expect(descriptions().slice(0, 5)).toEqual([
+    'System · USD',
+    'Enabled in Bey',
+    '2 connected mints',
+    'App lock on',
+    'Recovery phrase not confirmed',
+  ]);
+  mockSettings.secondaryCurrency = 'NONE';
+  mockSettings.seedBackedUp = true;
+  await act(async () => tree.update(<SettingsScreen />));
+  expect(descriptions()[0]).toBe('System · Sats only');
+  expect(descriptions()[4]).toBe('Recovery phrase confirmed');
+  const groups = tree.root.findAllByType('Group' as any);
+  expect(
+    groups.map((group) => group.findAllByType('Row' as any).map((row) => row.props.title)),
+  ).toEqual([
+    ['Appearance', 'Notifications'],
+    ['Payments & mints', 'Privacy & security', 'Backup & recovery'],
+    ['Network', 'Wallet tools'],
+    ['Help & support', 'Support Bey', 'About Bey Wallet'],
+  ]);
+  const paths = [
+    'preferences',
+    'notifications',
+    'wallet',
+    'security',
+    'backup',
+    'nostr',
+    'advanced',
+    'help',
+    'supporter',
+    'about',
+  ];
+  tree.root.findAllByType('Row' as any).forEach((row, index) => {
+    row.props.onPress();
+    expect(mockPush).toHaveBeenLastCalledWith(`/(tabs)/settings/${paths[index]}`);
+  });
+  const profile = tree.root.findByProps({ accessibilityLabel: 'Profile & addresses' });
+  profile.props.onPress();
+  expect(mockPush).toHaveBeenLastCalledWith('/(tabs)/settings/identity');
   mockLookup = { ...mockLookup, status: 'error' };
   await act(async () => tree.update(<SettingsScreen />));
   expect(tree.root.findAllByType('VerifiedBadge' as any)).toHaveLength(0);

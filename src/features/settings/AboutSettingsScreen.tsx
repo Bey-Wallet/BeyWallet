@@ -68,6 +68,7 @@ export function AboutSettingsScreen() {
 }
 
 export function HelpSettingsScreen() {
+  const router = useRouter();
   const [error, setError] = useState(false);
   const link = (url: string) => {
     setError(false);
@@ -80,6 +81,11 @@ export function HelpSettingsScreen() {
         recovery phrases, private keys, backups, or ecash proofs in a support request.
       </SettingsDescription>
       <SettingsGroup>
+        <SettingsRow
+          title="Diagnostic report"
+          icon={FileText}
+          onPress={() => router.push('/(tabs)/settings/diagnostics')}
+        />
         <SettingsRow
           title="Help & documentation"
           icon={settingsLinkIcons.documentation}

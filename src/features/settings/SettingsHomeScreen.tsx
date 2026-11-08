@@ -2,12 +2,13 @@ import React from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Text, XStack, YStack } from 'tamagui';
-import { ChevronRight, HeartHandshake } from '@tamagui/lucide-icons';
+import { Bell, ChevronRight, HeartHandshake } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useSettingsStore } from '~/state/settingsStore';
+import { useWalletStore } from '~/state/walletStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
 import { settingsCategories, CircleHelp, Info, type SettingsCategory } from './settingsCatalog';
 import { settingsReturnPath } from './settingsNavigation';
@@ -16,6 +17,18 @@ import { SettingsGroup, SettingsPage, SettingsRow } from './components/SettingsL
 export function SettingsScreen() {
   const router = useRouter();
   const npub = useSettingsStore((state) => state.npub);
+  const theme = useSettingsStore((state) => state.theme);
+  const currency = useSettingsStore((state) => state.secondaryCurrency);
+  const confirmed = useSettingsStore((state) => state.seedBackedUp);
+  const locked = useSettingsStore((state) => state.biometricEnabled);
+  const notifications = useSettingsStore((state) => state.notificationsEnabled);
+  const mintCount = useWalletStore((state) => state.mints.length);
+  const summaries: Partial<Record<SettingsCategory, string>> = {
+    preferences: `${theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'} · ${currency === 'NONE' ? 'Sats only' : currency}`,
+    wallet: `${mintCount} connected ${mintCount === 1 ? 'mint' : 'mints'}`,
+    security: locked ? 'App lock on' : 'App lock off',
+    backup: confirmed ? 'Recovery phrase confirmed' : 'Recovery phrase not confirmed',
+  };
   const { nip05, username, status, refresh } = useNip05Lookup();
   const navigate = (path: string) => router.push(`/(tabs)/settings/${path}` as Href);
   useFocusEffect(
@@ -33,6 +46,7 @@ export function SettingsScreen() {
       key={key}
       title={settingsCategories[key].title}
       icon={settingsCategories[key].icon}
+      description={summaries[key]}
       onPress={() => navigate(key)}
     />
   );
@@ -46,9 +60,9 @@ export function SettingsScreen() {
         flexDirection="row"
         items="center"
         gap="$3"
-        accessibilityLabel="My addresses and identity"
+        accessibilityLabel="Profile & addresses"
         hoverStyle={{ bg: '$gray3' }}
-        pressStyle={{ bg: '$gray4' }}
+        pressStyle={{ bg: '$gray3' }}
         onPress={() => navigate('identity')}
       >
         <Blockies seed={npub || 'bey-wallet'} size={10} scale={4} style={{ borderRadius: 20 }} />
@@ -60,7 +74,7 @@ export function SettingsScreen() {
             {status === 'verified' && !!nip05 && <Nip05VerifiedBadge size={18} />}
           </XStack>
           <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-            {nip05 || (npub ? `${npub.slice(0, 12)}…${npub.slice(-6)}` : 'Profile & identity')}
+            {nip05 || (npub ? `${npub.slice(0, 12)}…${npub.slice(-6)}` : 'Profile & addresses')}
           </Text>
         </YStack>
         <ChevronRight size={20} color="$gray10" />
@@ -76,17 +90,23 @@ export function SettingsScreen() {
         </AppButton>
       )}
       <SettingsGroup>
-        {(['preferences', 'security', 'backup', 'wallet'] as const).map(category)}
+        {category('preferences')}
+        <SettingsRow
+          title="Notifications"
+          icon={Bell}
+          description={notifications ? 'Enabled in Bey' : 'Disabled in Bey'}
+          onPress={() => navigate('notifications')}
+        />
       </SettingsGroup>
-      <SettingsGroup>{category('nostr')}</SettingsGroup>
-      <SettingsGroup>{category('advanced')}</SettingsGroup>
+      <SettingsGroup>{(['wallet', 'security', 'backup'] as const).map(category)}</SettingsGroup>
+      <SettingsGroup>{(['nostr', 'advanced'] as const).map(category)}</SettingsGroup>
       <SettingsGroup>
+        <SettingsRow title="Help & support" icon={CircleHelp} onPress={() => navigate('help')} />
         <SettingsRow
           title="Support Bey"
           icon={HeartHandshake}
           onPress={() => navigate('supporter')}
         />
-        <SettingsRow title="Help & support" icon={CircleHelp} onPress={() => navigate('help')} />
         <SettingsRow title="About Bey Wallet" icon={Info} onPress={() => navigate('about')} />
       </SettingsGroup>
     </SettingsPage>

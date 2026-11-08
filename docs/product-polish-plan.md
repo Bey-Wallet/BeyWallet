@@ -313,29 +313,11 @@ The explicit ecash export is additionally checked for complete payload encoding,
 gates, large-token fallback, compact dimensions, both themes and shared-footer placement. Device
 testing still needs to verify PNG scan/claim in compatible wallets and action spacing on phones.
 
-## 11. Backup status in Settings
+## 11. Backup settings
 
-Settings → Backup & recovery → Backup status shows three compact, read-only rows: recovery
-phrase confirmation, wallet-file export, and the last successful mint-list publication. Existing
-protected phrase/export screens and mint-backup management stay one tap away. Home is unchanged.
-
-Record phrase confirmation time after the existing settings write succeeds, and file-export
-time after a successful direct write or completed share sheet. Android direct writes display
-Saved. Share-sheet exports display Save not verified because the destination save/cancellation
-cannot be confirmed. Failed writes do not advance the last-success time. Legacy confirmations
-without a timestamp say Date not recorded; missing exports/publications say Not recorded.
-
-Explain what each backup contains: wallet files hold the phrase, ecash, mints and wallet history
-at export time; published mint-list backups contain mint URLs only. Store only timestamps and
-the save-method enum, with validation when rehydrating. Clear these wallet-scoped records and
-the old phrase-confirmation flag when destroying/replacing a wallet. Existing authentication,
-backup contents, restore confirmation, seed derivation and wallet recovery operations retain
-their existing behavior.
-
-Combined validation for receipts and backup status: all 88 tests passed across 12 focused suites.
-Type checking, the route structure check (77 routes), button check, scoped formatting and diff
-whitespace checks passed. Native image rendering/QR scanning, file permissions, share/save
-destinations, and Settings appearance still require device review.
+The separate backup status screen and its timestamp bookkeeping were removed.
+Backup & recovery retains direct entries for the recovery phrase, mint-list backup,
+wallet export, restore, and fund recovery.
 
 ## 12. Import QR images in the scanner
 

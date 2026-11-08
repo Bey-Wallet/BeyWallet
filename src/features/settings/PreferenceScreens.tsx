@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { AppInput } from '~/shared/ui/AppInput';
 import { useSettingsStore, type ThemePreference } from '~/state/settingsStore';
 import { SELECTABLE_CURRENCIES } from '~/services/wallet/currencyService';
 import {
@@ -31,30 +32,51 @@ export function ThemeSettingsScreen() {
 }
 
 export function CurrencySettingsScreen() {
+  const [search, setSearch] = useState('');
   const currency = useSettingsStore((state) => state.secondaryCurrency);
   const setCurrency = useSettingsStore((state) => state.setSecondaryCurrency);
+  const query = search.trim().toLowerCase();
+  const options = [
+    { code: 'NONE', name: 'None', description: 'Show sats only' },
+    ...SELECTABLE_CURRENCIES.map(({ code, name }) => ({
+      code: String(code),
+      name,
+      description: undefined as string | undefined,
+    })),
+  ]
+    .filter((item) =>
+      `${item.code} ${item.name} ${item.description ?? ''}`.toLowerCase().includes(query),
+    )
+    .sort((a, b) => Number(b.code === currency) - Number(a.code === currency));
   return (
-    <SettingsPage>
+    <SettingsPage keyboardShouldPersistTaps="handled">
       <SettingsDescription>
         Choose the currency used for fiat conversions, or hide the conversion.
       </SettingsDescription>
-      <SettingsGroup>
-        <SettingsRow
-          title="None"
-          description="Show sats only"
-          selected={currency === 'NONE'}
-          onPress={() => void setCurrency('NONE')}
-        />
-        {SELECTABLE_CURRENCIES.map((item) => (
-          <SettingsRow
-            key={item.code}
-            title={item.name}
-            value={item.code}
-            selected={currency === item.code}
-            onPress={() => void setCurrency(item.code)}
-          />
-        ))}
-      </SettingsGroup>
+      <AppInput
+        accessibilityLabel="Search currencies"
+        placeholder="Search name or code"
+        value={search}
+        onChangeText={setSearch}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      {options.length ? (
+        <SettingsGroup>
+          {options.map((item) => (
+            <SettingsRow
+              key={item.code}
+              title={item.name}
+              value={item.code === 'NONE' ? undefined : item.code}
+              description={item.description}
+              selected={currency === item.code}
+              onPress={() => void setCurrency(item.code)}
+            />
+          ))}
+        </SettingsGroup>
+      ) : (
+        <SettingsDescription>No currencies found. Try another name or code.</SettingsDescription>
+      )}
     </SettingsPage>
   );
 }

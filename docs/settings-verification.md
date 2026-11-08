@@ -2,16 +2,28 @@
 
 ## Implemented
 
+- Settings home summarizes appearance, configured mints, app lock, phrase confirmation,
+  and the in-app notification preference. These are live preferences, not system permission
+  or mint connectivity claims.
+- Backup & recovery links directly to phrase, mint-list backup, export, restore, and recovery.
+  The separate status screen and its timestamp tracking were removed.
+- Fiat currency search matches names/codes without case sensitivity, puts the selected
+  matching option first, and preserves the None option and existing selectable currencies.
+- Help & support opens a diagnostic report preview. Copy uses exactly the displayed
+  snapshot; Refresh updates relay counts. The report allowlists version/build, platform,
+  and configured-relay connection counts. It excludes URLs, wallet data, identities,
+  raw errors, and raw diagnostics; nothing is sent automatically.
+
 - Settings is a nested stack with a centered header, back navigation, and no bottom
-  tab bar. Toggle-only preferences (display unit, Bitcoin symbol, notifications,
-  hide balance, and biometric app lock) use switches directly in category lists.
-  Other rows navigate to dedicated screens. App lock still authenticates each change.
-- Ordinary inline toggles respond immediately and serialize rapid changes while saving.
+  tab bar. Bitcoin symbol is an inline switch in Appearance; hide balance and biometric
+  app lock are inline switches in Privacy & security. Other actionable category rows
+  navigate to dedicated screens. App lock authenticates each change in either direction.
+- Ordinary toggles respond immediately and serialize rapid changes while saving.
   The shared switch uses compact iOS-style proportions and respects reduced motion;
   onboarding and send confirmation use the same control. ListTable rows center their contents.
-- Profile, preferences, security/privacy, backup/recovery, wallet tools, Nostr,
-  advanced tools, support, and About have explicit destinations.
-- Neutral cards use `$buttonDefaultSecondary`, muted text uses `$gray10`, and
+- Profile & addresses, Appearance, Notifications, Payments & mints, Privacy & security,
+  Backup & recovery, Network, Wallet tools, support, and About have explicit destinations.
+- Neutral cards use `$gray2`, pressed/hover fills use `$gray3`, muted text uses `$gray10`, and
   group/card corners use `$6`. Group dividers span the full width at 2 points.
 - Authentication gates sensitive screens. Recovery material and secret keys are
   hidden on background/blur, and late authentication results are discarded.
@@ -44,6 +56,17 @@
 
 ## Automated validation
 
+Hierarchy regression coverage is in `settings-inline-toggles.test.tsx` (including the
+shared switch's queue/error behavior) and `settings-profile-status.test.tsx`.
+Category URLs remain unchanged. The three toggle-only detail routes were removed
+in favor of inline switches, following the approved interaction update.
+
+The hierarchy rebuild passed 9 focused Settings suites (29 tests), TypeScript,
+the structure check, the button check, and Prettier checks for changed
+files. The suites cover hierarchy/group ordering, row destinations, inline
+preference persistence, biometric approval/rejection, switch save errors/queuing,
+and existing protected-value, backup, relay, proof, and update behavior.
+
 Run the relevant checks from the repository root:
 
 ```sh
@@ -61,6 +84,13 @@ restore ordering, duplicate action taps, offline change review/cleanup, and exis
 backup/receiving behavior. The Android development bundle was compiled through Metro.
 
 ## Device review still required
+
+- Check home summaries after returning from preference screens; review long currency
+  names in both themes and with large text.
+- Search currencies with the keyboard open and select a result with one tap. Verify
+  clearing the query restores the list and None still hides fiat conversions.
+- Open Help & support → Diagnostic report, compare copied clipboard text with the
+  preview, and refresh after changing relay connections. Review clipboard failure feedback.
 
 Use a disposable test wallet for operations that spend, restore, or delete wallet data.
 
