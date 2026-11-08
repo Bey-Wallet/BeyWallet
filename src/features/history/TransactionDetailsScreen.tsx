@@ -29,7 +29,7 @@ import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPollin
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, XStack, Text, useThemeName } from 'tamagui';
 import { Trash2 } from '@tamagui/lucide-icons';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { formatPaymentDateTime } from '~/shared/utils/time';
@@ -691,8 +691,6 @@ function TransactionDetailsContent() {
     ),
   };
 
-  const makeHeaderOptions = () => headerOptions;
-
   const renderDeleteBottomSheet = () => (
     <BUISheet
       ref={deleteSheetRef}
@@ -936,7 +934,6 @@ function TransactionDetailsContent() {
   if (showInvoiceLayout && savedInvoice) {
     return renderSheet(
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
-        <Stack.Screen options={makeHeaderOptions()} />
         <PendingMintInvoiceLayout
           menuActions={transactionActions}
           savedInvoice={savedInvoice}
@@ -977,7 +974,6 @@ function TransactionDetailsContent() {
   if (token && typeof token === 'string' && (status === 'pending' || status === 'unclaimed')) {
     return renderSheet(
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
-        <Stack.Screen options={makeHeaderOptions()} />
         <PendingTokenLayout
           token={token}
           operationId={entry.type === 'send' ? entry.operationId : undefined}

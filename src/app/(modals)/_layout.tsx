@@ -129,6 +129,7 @@ export default function ModalLayout() {
         name="txn-details"
         options={{
           presentation: 'fullScreenModal',
+          headerShown: false,
           title: 'Transaction Details',
         }}
       />
