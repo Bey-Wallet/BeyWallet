@@ -72,6 +72,16 @@ Scope: production routes and development-client-only BUI previews, including ali
 
 ## Modals and compatibility entries
 
+Mint preview and connected details share `MintDetailsView`. Connected mints keep
+right-side artwork and a 40-point balance that fits long amounts. Both views use a
+top connection pill, a three-line About preview with inline See more, and collapsed
+advertised features with a numeric badge. Connected details ends with a secondary
+Remove mint button using the existing confirmation. Device review remains pending.
+Preview, mint-list quick add and Home suggestions share `MintTrustSheet`. Quick-add
+buttons open the trust review directly and stay on the current screen after adding.
+The review keeps the original mint image/name header, shared risk list, and a small
+centered Do not show again checkbox; remembered consent and connection locks apply.
+
 | Review  | Route file                               | Owner                                               | Scope / exception                                                  |
 | ------- | ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------ |
 | Pending | `src/app/(modals)/+not-found.tsx`        | `Inline route UI`                                   | Review neutral groups, typography and shared actions.              |

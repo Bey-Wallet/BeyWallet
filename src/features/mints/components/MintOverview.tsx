@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { YStack } from 'tamagui';
 import { MintCard, MintRows, MintSection, MintDetailRow, MintText as Text } from './MintUI';
-import { Activity, RefreshCw, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { Activity, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { MintAboutRows } from './MintAboutRows';
 import { appSpacing } from '~/shared/theme/appearance';
+import { MintDescription } from './MintDescription';
 
 export function MintOverview({
   url,
@@ -57,7 +57,7 @@ export function MintOverview({
       {description && (
         <MintSection title="About">
           <MintCard>
-            <Text kind="body2">{description}</Text>
+            <MintDescription key={`${url}:${description}`} description={description} />
           </MintCard>
         </MintSection>
       )}
@@ -66,32 +66,8 @@ export function MintOverview({
           <MintAboutRows url={url} info={info} showDescription={false} />
         </MintRows>
       </MintSection>
-      <MintSection title="Connection and reliability">
+      <MintSection title="Reliability">
         <MintRows>
-          <MintDetailRow
-            label="Connection"
-            value={
-              connection === 'checking'
-                ? 'Checking…'
-                : connection === 'offline'
-                  ? 'Unreachable'
-                  : 'Reachable'
-            }
-            valueColor={connection === 'online' ? '$green11' : '$gray10'}
-            rightContent={
-              <AppIconButton
-                emphasis="ghost"
-                size="xxsmall"
-                icon={RefreshCw}
-                accessibilityLabel="Recheck mint connection"
-                loadingText="Checking mint connection…"
-                loading={connection === 'checking'}
-                disabled={connection === 'checking'}
-                onPress={onRecheck}
-              />
-            }
-          />
-
           <MintDetailRow
             label="Reliability"
             icon={Activity}

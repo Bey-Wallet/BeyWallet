@@ -183,7 +183,13 @@ it('shows only a sats balance for None with FIAT saved and restores fiat when se
   useWalletStore.setState({ balances: { [url]: 10000 } });
   await render();
   const fiatLabels = () =>
-    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '0 USD');
+    tree.root
+      .findAllByType('Text' as any)
+      .filter(
+        (node) =>
+          node.props.children === '0 USD' ||
+          (Array.isArray(node.props.children) && node.props.children.includes('0 USD')),
+      );
   expect(fiatLabels()).toHaveLength(0);
   expect(
     tree.root
@@ -321,8 +327,16 @@ it('keeps the balance, replaces payment actions with QR and Restore, and shows m
   expect(keys).not.toContain('auditor-mint');
   const balance = tree.root
     .findAllByType('Text' as any)
-    .find((node) => node.props.fontSize === 28)!;
+    .find((node) => node.props.fontSize === 40)!;
   expect(balance.props.children).toContain('0');
+  const picture = tree.root.findAllByType('MintImage' as any)[0];
+  expect(picture.parent!.children.at(-1)).toBe(picture);
+  const removeButton = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Remove mint')!;
+  expect(removeButton.props.emphasis).toBe('secondary');
+  await act(async () => removeButton.props.onPress());
+  expect(mockSheetPresent).toHaveBeenCalledTimes(2);
   await act(async () => quickAction('Restore funds').props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/recover-funds',

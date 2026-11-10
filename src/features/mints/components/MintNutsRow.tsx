@@ -1,8 +1,8 @@
 import { MintDetailRow } from './MintUI';
-import { BUIListHeader } from '~/shared/ui/BUI/BUIListRow';
-import React from 'react';
-import { Check } from '@tamagui/lucide-icons';
-import { YStack } from 'tamagui';
+import { BUICounter } from '~/shared/ui/BUI/BUIBadge';
+import React, { useState } from 'react';
+import { Check, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { XStack, YStack } from 'tamagui';
 
 // Names follow https://github.com/cashubtc/nuts; only advertised entries are rendered.
 const nutNames: Record<number, string> = {
@@ -55,21 +55,38 @@ function advertisedNuts(nuts: unknown) {
 }
 
 export function MintNutsRow({ nuts }: { nuts: unknown }) {
+  const [expanded, setExpanded] = useState(false);
   const entries = advertisedNuts(nuts);
   if (!entries.length) return null;
   return (
     <YStack>
-      <BUIListHeader title="Advertised features" />
-      {entries.map(([id, name]) => (
-        <MintDetailRow
-          key={id}
-          label={name}
-          value={`NUT-${String(id).padStart(2, '0')}`}
-          icon={Check}
-          iconColor="$green11"
-          accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
-        />
-      ))}
+      <MintDetailRow
+        label="Advertised features"
+        expanded={expanded}
+        accessibilityLabel={`Advertised features, ${entries.length} NUTs supported`}
+        onPress={() => setExpanded((value) => !value)}
+        rightContent={
+          <XStack items="center" gap="$2">
+            <BUICounter count={entries.length} tone="neutral" />
+            {expanded ? (
+              <ChevronUp size={20} color="$gray10" />
+            ) : (
+              <ChevronDown size={20} color="$gray10" />
+            )}
+          </XStack>
+        }
+      />
+      {expanded &&
+        entries.map(([id, name]) => (
+          <MintDetailRow
+            key={id}
+            label={name}
+            value={`NUT-${String(id).padStart(2, '0')}`}
+            icon={Check}
+            iconColor="$green11"
+            accessibilityLabel={`NUT-${String(id).padStart(2, '0')} · ${name}`}
+          />
+        ))}
     </YStack>
   );
 }

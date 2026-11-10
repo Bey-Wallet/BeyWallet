@@ -1,11 +1,12 @@
 import React, { forwardRef, useRef, useState } from 'react';
-import { XStack, YStack, Separator } from 'tamagui';
+import { YStack, Separator } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';
 import { Spinner } from '~/shared/ui/Spinner';
-import { BUICheckboxVisual, BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';
+import { BUICheckboxVisual } from '~/shared/ui/BUI/BUISelectionControl';
+import { MintTrustContent } from '~/features/mints/components/MintTrustContent';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { useMintDiscovery } from '~/features/mints/hooks/useMintDiscovery';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
@@ -133,44 +134,11 @@ export const MintDiscoverySheet = forwardRef<
             </YStack>
           </>
         ) : (
-          <>
-            <XStack flexWrap="wrap" gap="$2">
-              {selection.map((mint) => (
-                <XStack key={mint.url} bg="$gray2" rounded="$10" px="$3" py="$2" maxWidth="100%">
-                  <AppText variant="label2">{mint.name || mint.url}</AppText>
-                </XStack>
-              ))}
-            </XStack>
-            <YStack bg="$gray2" rounded="$6" overflow="hidden">
-              {[
-                'These mints hold the bitcoin backing your ecash.',
-                'You rely on each operator to redeem your ecash. If a mint shuts down or refuses redemption, you could lose your funds.',
-                'Only connect to mints you trust. Discovery is not an endorsement.',
-                'Bey Wallet does not operate these mints and is not responsible for losses they cause.',
-              ].map((risk, index) => (
-                <React.Fragment key={risk}>
-                  {index > 0 && <Separator borderWidth={0} height={2} bg="$background" />}
-                  <AppText p="$3">{risk}</AppText>
-                </React.Fragment>
-              ))}
-            </YStack>
-            <BUISelectionRow
-              kind="checkbox"
-              label="I understand the risks and trust all selected mints."
-              checked={acknowledged}
-              onCheckedChange={setAcknowledged}
-            />
-            <AppButton
-              size="large"
-              emphasis="primary"
-              disabled={!acknowledged}
-              onPress={() => {
-                if (acknowledged && selection.length) onConfirm(selection);
-              }}
-            >
-              Confirm add
-            </AppButton>
-          </>
+          <MintTrustContent
+            mints={selection}
+            acknowledgment={{ checked: acknowledged, onCheckedChange: setAcknowledged }}
+            onConfirm={() => onConfirm(selection)}
+          />
         )}
       </YStack>
     </AppBottomSheet>

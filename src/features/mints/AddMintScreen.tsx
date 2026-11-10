@@ -46,8 +46,7 @@ import { useMintDiscovery } from './hooks/useMintDiscovery';
 import { MintIcon } from '~/features/explore/components/MintIcon';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
-import { usePreventRemove } from '@react-navigation/native';
-import { connectMint } from './connectMint';
+import { useQuickMintConnection } from './hooks/useQuickMintConnection';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
 interface MintSkeletonRowProps {
@@ -461,12 +460,12 @@ export default function AddMintScreen() {
     searchInput.current?.focus();
   };
   const [refreshing, setRefreshing] = useState(false);
-  const [connectingUrl, setConnectingUrl] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<{ url: string; message: string } | null>(
-    null,
-  );
-  const connectionLock = useRef(false);
-  usePreventRemove(!!connectingUrl, () => {});
+  const {
+    requestConnection,
+    connectingUrl,
+    connectionError,
+    sheet: connectionSheet,
+  } = useQuickMintConnection();
 
   const {
     mints: walletMints,
@@ -480,13 +479,7 @@ export default function AddMintScreen() {
     isInitializing,
   } = useWalletStore();
 
-  const {
-    primaryCurrency,
-    secondaryCurrency,
-    hideBalance,
-    showBitcoinSymbol,
-    hideMintConnectionDisclaimer,
-  } = useSettingsStore();
+  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
@@ -658,34 +651,11 @@ export default function AddMintScreen() {
 
   const handleAddMintAction = useCallback(
     async (url: string) => {
-      if (connectionLock.current) return;
       Keyboard.dismiss();
-      if (!hideMintConnectionDisclaimer) {
-        router.push({ pathname: '/(modals)/mint-profile', params: { url } });
-        return;
-      }
-      if (
-        useWalletStore
-          .getState()
-          .mints.some((mint) => mintUrlKey(mint.mintUrl) === mintUrlKey(url) && mint.trusted)
-      )
-        return;
-      connectionLock.current = true;
-      setConnectingUrl(mintUrlKey(url));
-      setConnectionError(null);
-      try {
-        await connectMint(url);
-      } catch (error) {
-        setConnectionError({
-          url: mintUrlKey(url),
-          message: error instanceof Error ? error.message : 'Could not connect to this mint.',
-        });
-      } finally {
-        connectionLock.current = false;
-        setConnectingUrl(null);
-      }
+      const mint = allDiscoveredMints.find((mint) => mintUrlKey(mint.url) === mintUrlKey(url));
+      await requestConnection({ url, name: mint?.name, icon: mint?.icon });
     },
-    [router, hideMintConnectionDisclaimer],
+    [allDiscoveredMints, requestConnection],
   );
 
   const safeGoBack = useCallback(() => {
@@ -1022,6 +992,7 @@ export default function AddMintScreen() {
           )}
         </YStack>
       </ScrollView>
+      {connectionSheet}
     </YStack>
   );
 }

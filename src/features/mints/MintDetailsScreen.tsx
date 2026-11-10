@@ -1,6 +1,5 @@
 import { BUILabel } from '~/shared/ui/BUI/BUIBadge';
 import { MintAppearance, MintCard, MintText as Text } from './components/MintUI';
-import { MintQuickActions } from './components/MintQuickActions';
 import { BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
 import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
 import { buiTypography } from '~/shared/ui/BUI/typography';
@@ -11,7 +10,7 @@ import { appSpacing } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { YStack, XStack, ScrollView, View } from 'tamagui';
+import { YStack, XStack, View } from 'tamagui';
 import { ArrowLeft, Share2, Pencil, Check, AlertTriangle, Trash2 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -20,7 +19,6 @@ import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 import { Share as RNShare, Keyboard } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -28,7 +26,8 @@ import { bitcoinService } from '~/services/api/bitcoinService';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { SafeFlex } from '~/shared/ui/Flex';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
-import { MintOverview } from './components/MintOverview';
+import { MintDetailsView } from './components/MintDetailsView';
+import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
 
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -44,7 +43,6 @@ export default function MintDetailsModal() {
 function MintDetailsContent() {
   const router = useRouter();
   const toast = useAppToast();
-  const insets = useSafeAreaInsets();
   const { mintUrl, editName } = useLocalSearchParams<{ mintUrl: string; editName?: string }>();
   const {
     mints,
@@ -316,86 +314,61 @@ function MintDetailsContent() {
         }}
       />
       <SafeFlex fill>
-        <ScrollView
-          flex={1}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-        >
-          <YStack px={appSpacing.page} pt={appSpacing.group} gap={appSpacing.group}>
-            <YStack gap={appSpacing.page}>
-              <XStack justify="space-between" items="center" gap={16}>
-                <YStack gap={8} flex={1} minWidth={0}>
-                  <Text kind="body2" color="$gray10">
-                    Mint balance
-                  </Text>
-                  <XStack items="baseline" gap="$1">
-                    {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
-                      <Text kind="num2" color="$color">
-                        {showBitcoinSymbol ? '₿' : ''}
-                        {balance.toLocaleString()}
-                        {!showBitcoinSymbol && <Text kind="label2">{' sat'}</Text>}
-                      </Text>
-                    ) : (
-                      <Text kind="num2" color="$color">
-                        {currencyService.formatValue(
-                          fiatBalance,
-                          secondaryCurrency as CurrencyCode,
-                        )}
-                      </Text>
-                    )}
-                  </XStack>
-                  {secondaryCurrency !== 'NONE' && (
-                    <Text kind="label2" color="$gray10">
-                      {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
-                        ? currencyService.formatValue(
-                            fiatBalance,
-                            secondaryCurrency as CurrencyCode,
-                          )
-                        : showBitcoinSymbol
-                          ? `₿${balance.toLocaleString()}`
-                          : `${balance.toLocaleString()} sat`}
-                    </Text>
-                  )}
-
-                  <XStack mt={8} gap={8} items="center" flexWrap="wrap">
-                    <BUILabel tone={isTrusted ? 'success' : 'error'}>
-                      {isTrusted ? 'Trusted by you' : 'Untrusted'}
-                    </BUILabel>
-                    {isActive && <BUILabel tone="primary">Active</BUILabel>}
-                  </XStack>
-                </YStack>
-
-                <YStack items="center" gap="$2">
-                  <MintImage
-                    mintUrl={mintUrl}
-                    source={{ uri: iconToUse }}
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 16,
-                    }}
-                  />
-                </YStack>
-              </XStack>
-            </YStack>
-            <MintQuickActions
-              onQr={() => setShowQr(true)}
-              onRestore={handleRestoreProofs}
-              restoring={isRestoring && restoringMintUrl === mintUrl}
-              restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
-            />
-
-            <MintOverview
-              url={mintUrl}
-              info={info || {}}
-              connection={connection}
-              connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
-              onRecheck={() => {
-                void recheckConnection({ cancelRefetch: false });
-              }}
-            />
-          </YStack>
-        </ScrollView>
+        <MintDetailsView
+          url={mintUrl}
+          name={name}
+          icon={iconToUse}
+          info={info || {}}
+          connection={connection}
+          connectionCheckedAt={Math.max(connectionCheckedAt, connectionErrorAt)}
+          onRecheck={() => {
+            void recheckConnection({ cancelRefetch: false });
+          }}
+          onCopyUrl={() => {
+            void copyWithFeedback(mintUrl, toast);
+          }}
+          balance={{
+            amount:
+              primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
+                ? `${showBitcoinSymbol ? '₿' : ''}${balance.toLocaleString()}`
+                : currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode),
+            unit:
+              (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE') && !showBitcoinSymbol
+                ? 'sat'
+                : undefined,
+            secondary:
+              secondaryCurrency === 'NONE'
+                ? undefined
+                : primaryCurrency === 'SATS'
+                  ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)
+                  : showBitcoinSymbol
+                    ? `₿${balance.toLocaleString()}`
+                    : `${balance.toLocaleString()} sat`,
+          }}
+          badges={
+            <>
+              <BUILabel tone={isTrusted ? 'success' : 'error'}>
+                {isTrusted ? 'Trusted by you' : 'Untrusted'}
+              </BUILabel>
+              {isActive && <BUILabel tone="primary">Active</BUILabel>}
+            </>
+          }
+          onQr={() => setShowQr(true)}
+          onRestore={handleRestoreProofs}
+          restoring={isRestoring && restoringMintUrl === mintUrl}
+          restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
+          bottomAction={
+            <AppButton
+              emphasis="secondary"
+              size="large"
+              icon={Trash2}
+              disabled={isRemoving || isRestoring}
+              onPress={() => removeMintSheetRef.current?.present()}
+            >
+              Remove mint
+            </AppButton>
+          }
+        />
 
         <AppBottomSheet title="Remove mint" ref={removeMintSheetRef} canDismiss={!isRemoving}>
           <YStack gap={16}>
