@@ -145,6 +145,7 @@ export function BUISwitch(props: BUISelectionProps) {
   return <SelectionControl {...props} kind="switch" />;
 }
 export { SwitchVisual as BUISwitchVisual };
+export { CheckboxVisual as BUICheckboxVisual };
 export function BUICheckbox(props: BUISelectionProps) {
   return <SelectionControl {...props} kind="checkbox" />;
 }

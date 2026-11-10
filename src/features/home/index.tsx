@@ -6,7 +6,6 @@ import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import WalletCard from '~/features/home/components/WalletCard';
 import ActionButtons from '~/features/home/components/ActionButtons';
-import RecoveryStatusRow from '~/features/home/components/RecoveryStatusRow';
 import { useWalletStore } from '~/state/walletStore';
 import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
@@ -160,7 +159,6 @@ export function HomeTabScreen() {
           <ActionButtons />
         </YStack>
         <ConnectedMintsCard />
-        <RecoveryStatusRow />
         {pendingLightning > 0 && (
           <AppPressable
             width="100%"

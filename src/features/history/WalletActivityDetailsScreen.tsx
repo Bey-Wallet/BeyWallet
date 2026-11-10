@@ -51,7 +51,7 @@ function ActivityContent({
   const navigate = async () => {
     // Replace this receipt so navigating back never reopens a stale sheet.
     if (activity.kind === 'get-change') router.replace('/(tabs)/settings/get-change');
-    else if (activity.kind === 'recovery') router.replace('/(tabs)/settings/recover-funds');
+    else if (activity.kind === 'recovery') router.replace('/recover-funds');
     else {
       try {
         const id = await getOptimizationReceiptId(activity);

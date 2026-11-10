@@ -77,7 +77,7 @@ export function useAppFeedback() {
         }
         router.push('/(modals)/nostr-activity');
       } else if (target.type === 'recovery') {
-        router.push('/(tabs)/settings/recover-funds');
+        router.push('/recover-funds');
         return;
       } else {
         router.push('/(tabs)/history');

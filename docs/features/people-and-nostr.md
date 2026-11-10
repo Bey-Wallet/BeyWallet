@@ -355,3 +355,24 @@ recovery state.
 - `src/services/wallet/nostrService.ts` owns relay and messaging coordination.
 - `src/services/wallet/nostrClaimService.ts` owns claim trust, serialization, retry, and completion.
 - `src/services/wallet/nostrDiagnosticsService.ts` owns health checks and repair operations.
+
+## Nostr history after seed restore
+
+Seed restore records an identity-bound timestamp before starting listeners. Messages and
+payment offers with authenticated message timestamps older than that cutoff are not imported,
+stored, or passed to claiming. The policy persists across reconnects and app restarts.
+Mint-list discovery and seed-based mint recovery do not use this history filter.
+
+Settings → Network → Nostr history provides **Load older activity**. Enabling it opts into
+the previous seven-day catch-up window, subject to relay retention and the existing receiving,
+contact, and mint-approval policies. Disabling it does not delete loaded local records.
+Existing wallets retain their previous catch-up behavior until a seed restore or explicit opt-out.
+Account destruction resets the policy; changing identities does not reuse another wallet's cutoff.
+
+NIP-59 wrapper timestamps can be randomized up to two days into the past. The subscription
+allows this envelope window, then filters using the authenticated inner message time before
+any contact, message, or payment side effects. Dropped old events are not marked processed,
+so a later explicit history opt-in can import them. Legacy messages are rejected earlier when
+their outer timestamp is older than the allowed window.
+
+See [the recovery quick check](../testing/recovery-quick-check.md) for device verification.

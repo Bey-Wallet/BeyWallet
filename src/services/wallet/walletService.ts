@@ -1,4 +1,3 @@
-import { yieldWalletWork } from './recoveryCoordinator';
 import { reclaimOptions, supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { seedService } from '~/services/platform/seedService';
 import { normalizeP2PKRecipient } from '~/services/wallet/p2pkRecipient';
@@ -8,7 +7,8 @@ import { createOfflineEcash } from '~/services/wallet/offlineEcash';
  *
  * Uses Manager APIs:
  * - manager.send (SendApi) — two-step: prepareSend → executePreparedSend + rollback
- * - manager.wallet (WalletApi) — receive, getBalances, restore
+ * - manager.wallet (WalletApi) — receive and getBalances
+ * - seedRecovery — public Cashu APIs for deterministic fund recovery
  *
  * The two-step send flow prevents stuck/reserved proofs by allowing
  * rollback if the operation fails after preparation.
@@ -18,7 +18,7 @@ import { initService } from '~/services/wallet/initService';
 import { purgeCorruptedKeysets } from '~/services/wallet/initService';
 import { cleanToken, encodeToken, decodeToken } from '~/services/wallet/tokenUtils';
 import type { SwapPreview, Token } from '@cashu/cashu-ts';
-import { getDecodedToken, Mint } from '@cashu/cashu-ts';
+import { getDecodedToken } from '@cashu/cashu-ts';
 import type { CoreProof } from 'coco-cashu-core';
 import {
   isDuplicateOutputsError,
@@ -672,172 +672,12 @@ export const walletService = {
 
   // ─── Restore ──────────────────────────────────────────────
 
-  /**
-   * Restore all deterministic proofs for a mint from the BIP-39 seed.
-   *
-   * Uses the Coco SDK's built-in WalletApi.restore() — the same approach Sovran uses.
-   *
-   * Pre-condition fix: the SDK throws "Keyset has no keys loaded" for old inactive
-   * keysets that are stored by ID only (no keypairs in the local DB). We fix this by:
-   *  1. Fetching all keysets for the mint (including old/inactive ones)
-   *  2. For any keyset missing keypairs, fetching keys from the mint network
-   *  3. Storing the keys in the SDK's own keysetRepository so getKeyset() works
-   *  4. Then calling the SDK restore which now has all keys it needs
-   */
+  /** Recovery uses public Cashu APIs, preserving all historical SAT keysets. */
   restore: async (mintUrl: string): Promise<{ partial: boolean }> => {
-    const start = Date.now();
-    let partial = false;
-    const m = mgr();
-    const unsafeManager = m as any;
-    console.log(`[WalletService] 🔄 Starting SDK restore for: ${mintUrl}`);
-
-    if (unsafeManager.walletRestoreService) {
-      // Preserve the existing 200-counter gap and 200-output batch. A nonempty
-      // batch resets the gap: recovery must continue beyond the first batch.
-      unsafeManager.walletRestoreService.restoreBatchSize = 200; // gapLimit
-      unsafeManager.walletRestoreService.restoreGapLimit = 200; // batchSize
-    }
-
-    // Dynamically override m.wallet.restore if not already overridden to filter by sat-only units.
-    // BeyWallet is a SAT-only wallet; scanning USD or EUR keysets wastes database, network and CPU resources.
-    if (m.wallet && !(m.wallet as any)._restoreOverridden) {
-      (m.wallet as any)._restoreOverridden = true;
-      m.wallet.restore = async function (this: any, targetMintUrl: string) {
-        this.logger?.info(`[WalletService] Starting optimized restore for ${targetMintUrl}`);
-        const mint = await this.mintService.addMintByUrl(targetMintUrl, { trusted: true });
-
-        // Filter keysets to ONLY include BTC / satoshi units
-        const satKeysets = mint.keysets.filter((ks: any) => {
-          const unit = (ks.unit || '').toLowerCase();
-          return unit === 'sat' || unit === 'sats' || unit === '';
-        });
-
-        this.logger?.debug(
-          `[WalletService] Filtered keysets for ${targetMintUrl}: ${satKeysets.length} of ${mint.keysets.length} are sat/BTC`,
-        );
-
-        const { wallet } = await this.walletService.getWalletWithActiveKeysetId(targetMintUrl);
-        const failedKeysetIds: Record<string, any> = {};
-
-        let current = 0;
-        for (const keyset of satKeysets) {
-          await yieldWalletWork();
-          current++;
-          try {
-            const { useWalletStore } = require('~/state/walletStore');
-            useWalletStore.setState({
-              restoringMintKeysetProgress: {
-                current,
-                total: satKeysets.length,
-                keysetId: keyset.id,
-                statusText: `Keyset: ${keyset.id.substring(0, 12)}… (${current}/${satKeysets.length})`,
-              },
-            });
-          } catch (e) {
-            console.warn('[WalletService] Failed to set keyset progress:', e);
-          }
-
-          try {
-            await this.walletRestoreService.restoreKeyset(targetMintUrl, wallet, keyset.id);
-          } catch (error) {
-            this.logger?.error('Keyset restore failed', {
-              targetMintUrl,
-              keysetId: keyset.id,
-              error,
-            });
-            failedKeysetIds[keyset.id] = error;
-          }
-        }
-
-        // Clear the progress state after complete
-        try {
-          const { useWalletStore } = require('~/state/walletStore');
-          useWalletStore.setState({ restoringMintKeysetProgress: null });
-        } catch (e) {}
-
-        if (Object.keys(failedKeysetIds).length > 0) {
-          this.logger?.error('Restore completed with failures', {
-            targetMintUrl,
-            failedKeysetIds: Object.keys(failedKeysetIds),
-          });
-          throw new Error('Failed to restore some keysets');
-        }
-        this.logger?.info('Restore completed successfully', { targetMintUrl });
-      };
-    }
-
-    try {
-      // Step 1: Pre-warm all keyset keys so SDK's internal WalletRestoreService
-      // doesn't throw "Keyset has no keys loaded" for old inactive keysets.
-      //
-      // Strategy: fetch keysets list from DB, then for any keyset with no keys,
-      // hit the mint network and write the keys into the SDK's keysetRepository.
-      try {
-        const keysetRepo = unsafeManager.keysetRepository;
-        if (keysetRepo?.getKeysets) {
-          const keysets: any[] = await keysetRepo.getKeysets([mintUrl]);
-
-          for (const ks of keysets) {
-            const unit = (ks.unit || '').toLowerCase();
-            if (unit !== 'sat' && unit !== 'sats' && unit !== '') continue;
-            await yieldWalletWork();
-            const hasKeys = ks.keypairs && Object.keys(ks.keypairs).length > 0;
-            if (!hasKeys) {
-              console.log(`[WalletService] Fetching missing keys for keyset: ${ks.id}`);
-              try {
-                const mint = new Mint(mintUrl);
-                const keys = await mint.getKeys(ks.id);
-                // Write keys back into the keyset row
-                if (keysetRepo.updateKeysetKeys) {
-                  await keysetRepo.updateKeysetKeys(ks.id, keys);
-                } else if (keysetRepo.saveKeyset) {
-                  await keysetRepo.saveKeyset({ ...ks, keypairs: keys });
-                }
-                console.log(`[WalletService] ✅ Keys fetched for keyset: ${ks.id}`);
-              } catch (keyErr) {
-                console.warn(`[WalletService] Could not fetch keys for ${ks.id}:`, keyErr);
-              }
-            }
-          }
-        }
-      } catch (preWarmErr) {
-        // Non-fatal — SDK will throw its own error if keys are missing
-        console.warn(
-          `[WalletService] Pre-warm step failed (SDK restore may still work):`,
-          preWarmErr,
-        );
-      }
-
-      // Step 2: Use Coco SDK's native restore — same as Sovran uses.
-      // manager.wallet.restore() handles keyset iteration, gap detection,
-      // proof saving and counter updates internally.
-      await m.wallet.restore(mintUrl);
-      console.log(`[WalletService] ✅ SDK restore complete for: ${mintUrl}`);
-    } catch (err: any) {
-      // "Failed to restore some keysets" is a partial success — the SDK already
-      // saved whatever proofs it found before hitting the problematic keyset.
-      // Treat as a warning (not fatal) so the balance reflects restored proofs.
-      if (
-        err?.message?.includes('restore some keysets') ||
-        err?.message?.includes('Keyset has no keys')
-      ) {
-        partial = true;
-        console.warn(
-          `[WalletService] ⚠️ Partial restore for ${mintUrl} (some old keysets missing keys, saved proofs are intact):`,
-          err?.message,
-        );
-      } else {
-        console.error(`[WalletService] SDK restore failed for ${mintUrl}:`, err?.message || err);
-        throw err;
-      }
-    }
-
-    // Rescue any proofs stuck in 'inflight' state from partial restore failures
-    await walletService.restoreInflightProofs(mintUrl);
-
-    const duration = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`[WalletService] ✅ Restore done for ${mintUrl} in ${duration}s`);
-    return { partial };
+    const { restoreMintFromSeed } = require('./seedRecovery') as typeof import('./seedRecovery');
+    const { useWalletStore } =
+      require('~/state/walletStore') as typeof import('~/state/walletStore');
+    return restoreMintFromSeed(mintUrl, () => useWalletStore.getState().refreshBalance());
   },
 
   /**

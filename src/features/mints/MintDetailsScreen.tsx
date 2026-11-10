@@ -95,7 +95,7 @@ function MintDetailsContent() {
   const handleRestoreProofs = () => {
     if (!mintUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/(tabs)/settings/recover-funds', params: { mintUrl } });
+    router.push({ pathname: '/recover-funds', params: { mintUrl } });
   };
 
   const { data: btcData } = useQuery({

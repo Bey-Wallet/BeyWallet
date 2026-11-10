@@ -16,60 +16,60 @@ Scope: production routes and development-client-only BUI previews, including ali
 
 ## Every Settings destination and category
 
-| Review    | Route file                                               | Owner                                                | Scope / exception                                                             |
-| --------- | -------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Pending   | `src/app/(tabs)/settings/about.tsx`                      | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/advanced.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/backup.tsx`                     | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Preview   | `src/app/(tabs)/settings/new-ui.tsx`                     | `~/features/settings/NewUiScreen`                    | Bey theme/component build catalog; see new-ui.md.                             |
-| Preview   | `src/app/(tabs)/settings/new-ui-buttons.tsx`             | `~/features/settings/BUIButtonsScreen`               | BUI buttons: blue primary, sizes, variants, states and width toggle.          |
-| Preview   | `src/app/(tabs)/settings/bui-layout.tsx`                 | `~/features/settings/BUILayoutScreen`                | BUI layout tokens, corners, row alignment and inset frame.                    |
-| Preview   | `src/app/(tabs)/settings/bui-typography.tsx`             | `~/features/settings/BUITypographyScreen`            | BUIText roles, reading, wrapping, numerals and scale samples.                 |
-| Preview   | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Lucide icons, avatar states, badges and overlapping images.                   |
-| Preview   | `src/app/(tabs)/settings/bui-badges.tsx`                 | `~/features/settings/BUIBadgesScreen`                | Labels, counters, verification, badge buttons and placement/cutouts.          |
-| Preview   | `src/app/(tabs)/settings/bui-forms.tsx`                  | `~/features/settings/BUIFormsScreen`                 | Floating fields, multiline/search/password compositions and local validation. |
-| Preview   | `src/app/(tabs)/settings/bui-selections.tsx`             | `~/features/settings/BUISelectionsScreen`            | Switches, checkboxes, radio groups and accessible whole-row selections.       |
-| Preview   | `src/app/(tabs)/settings/bui-tabs-chips.tsx`             | `~/features/settings/BUITabsChipsScreen`             | Content tabs, filter/outline chips, tags and anchored selectors.              |
-| Preview   | `src/app/(tabs)/settings/bui-lists.tsx`                  | `~/features/settings/BUIListsScreen`                 | Grouped text/selection/property rows, wallet compositions and list states.    |
-| Preview   | `src/app/(tabs)/settings/bui-cards.tsx`                  | `~/features/settings/BUICardsScreen`                 | Card surfaces, wallet/asset cards, setup, shelves and dismissible banners.    |
-| Preview   | `src/app/(tabs)/settings/bui-navigation.tsx`             | `~/features/settings/BUINavigationScreen`            | Header variants, collapse, bottom tabs/action bars and local navigation.      |
-| Preview   | `src/app/(tabs)/settings/bui-sheets.tsx`                 | `~/features/settings/BUISheetsScreen`                | Live sheets, draft forms/selection, local steps and alert/dialog variants.    |
-| Preview   | `src/app/(tabs)/settings/bui-menus.tsx`                  | `~/features/settings/BUIMenusScreen`                 | Anchored action/selection/custom menus, overflow and measured tooltips.       |
-| Preview   | `src/app/(tabs)/settings/new-ui-colors.tsx`              | `~/features/settings/NewUiColorsScreen`              | White/light and black/dark theme, relative surfaces and semantic swatches.    |
-| Pending   | `src/app/(tabs)/settings/blocked-people.tsx`             | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/currency.tsx`                   | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/delete-wallet.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/export-backup.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/fallback-mint.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/get-change.tsx`                 | `~/features/settings/GetChangeSettingsScreen`        | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/help.tsx`                       | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/identity.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/index.tsx`                      | `~/features/settings`                                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/lightning-address-mint.tsx`     | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/lightning-address-payments.tsx` | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/lightning-address.tsx`          | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/mint-backup.tsx`                | `~/features/settings/MintBackupSettingsScreen`       | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/mints.tsx`                      | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/nostr.tsx`                      | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/notifications.tsx`              | `~/features/settings/NotificationSettingsScreen`     | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/optimize-wallet.tsx`            | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/preferences.tsx`                | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/profile.tsx`                    | `~/features/nostr/NostrProfileScreen`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/proofs.tsx`                     | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/public-key.tsx`                 | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/receiving-policy.tsx`           | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/recover-funds.tsx`              | `~/features/settings/RecoverFundsScreen`             | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/recovery-phrase.tsx`            | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/relays.tsx`                     | `~/features/settings/RelaySettingsScreen`            | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/restore-backup.tsx`             | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/secret-key.tsx`                 | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/security.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/supporter.tsx`                  | `~/features/supporter/SupporterSettingsScreen`       | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/theme.tsx`                      | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/updates.tsx`                    | `~/features/settings/OtaUpdateScreen`                | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/username.tsx`                   | `~/features/nostr`                                   | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/verify-proofs.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
-| Pending   | `src/app/(tabs)/settings/wallet.tsx`                     | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Review  | Route file                                               | Owner                                                | Scope / exception                                                             |
+| ------- | -------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Pending | `src/app/(tabs)/settings/about.tsx`                      | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/advanced.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/backup.tsx`                     | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Preview | `src/app/(tabs)/settings/new-ui.tsx`                     | `~/features/settings/NewUiScreen`                    | Bey theme/component build catalog; see new-ui.md.                             |
+| Preview | `src/app/(tabs)/settings/new-ui-buttons.tsx`             | `~/features/settings/BUIButtonsScreen`               | BUI buttons: blue primary, sizes, variants, states and width toggle.          |
+| Preview | `src/app/(tabs)/settings/bui-layout.tsx`                 | `~/features/settings/BUILayoutScreen`                | BUI layout tokens, corners, row alignment and inset frame.                    |
+| Preview | `src/app/(tabs)/settings/bui-typography.tsx`             | `~/features/settings/BUITypographyScreen`            | BUIText roles, reading, wrapping, numerals and scale samples.                 |
+| Preview | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Lucide icons, avatar states, badges and overlapping images.                   |
+| Preview | `src/app/(tabs)/settings/bui-badges.tsx`                 | `~/features/settings/BUIBadgesScreen`                | Labels, counters, verification, badge buttons and placement/cutouts.          |
+| Preview | `src/app/(tabs)/settings/bui-forms.tsx`                  | `~/features/settings/BUIFormsScreen`                 | Floating fields, multiline/search/password compositions and local validation. |
+| Preview | `src/app/(tabs)/settings/bui-selections.tsx`             | `~/features/settings/BUISelectionsScreen`            | Switches, checkboxes, radio groups and accessible whole-row selections.       |
+| Preview | `src/app/(tabs)/settings/bui-tabs-chips.tsx`             | `~/features/settings/BUITabsChipsScreen`             | Content tabs, filter/outline chips, tags and anchored selectors.              |
+| Preview | `src/app/(tabs)/settings/bui-lists.tsx`                  | `~/features/settings/BUIListsScreen`                 | Grouped text/selection/property rows, wallet compositions and list states.    |
+| Preview | `src/app/(tabs)/settings/bui-cards.tsx`                  | `~/features/settings/BUICardsScreen`                 | Card surfaces, wallet/asset cards, setup, shelves and dismissible banners.    |
+| Preview | `src/app/(tabs)/settings/bui-navigation.tsx`             | `~/features/settings/BUINavigationScreen`            | Header variants, collapse, bottom tabs/action bars and local navigation.      |
+| Preview | `src/app/(tabs)/settings/bui-sheets.tsx`                 | `~/features/settings/BUISheetsScreen`                | Live sheets, draft forms/selection, local steps and alert/dialog variants.    |
+| Preview | `src/app/(tabs)/settings/bui-menus.tsx`                  | `~/features/settings/BUIMenusScreen`                 | Anchored action/selection/custom menus, overflow and measured tooltips.       |
+| Preview | `src/app/(tabs)/settings/new-ui-colors.tsx`              | `~/features/settings/NewUiColorsScreen`              | White/light and black/dark theme, relative surfaces and semantic swatches.    |
+| Pending | `src/app/(tabs)/settings/blocked-people.tsx`             | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/currency.tsx`                   | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/delete-wallet.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/export-backup.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/fallback-mint.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/get-change.tsx`                 | `~/features/settings/GetChangeSettingsScreen`        | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/help.tsx`                       | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/identity.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/index.tsx`                      | `~/features/settings`                                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/lightning-address-mint.tsx`     | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/lightning-address-payments.tsx` | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/lightning-address.tsx`          | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/mint-backup.tsx`                | `~/features/settings/MintBackupSettingsScreen`       | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/mints.tsx`                      | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/nostr.tsx`                      | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/notifications.tsx`              | `~/features/settings/NotificationSettingsScreen`     | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/optimize-wallet.tsx`            | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/preferences.tsx`                | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/profile.tsx`                    | `~/features/nostr/NostrProfileScreen`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/proofs.tsx`                     | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/public-key.tsx`                 | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/receiving-policy.tsx`           | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/recover-funds.tsx`              | `~/features/settings/RecoverFundsScreen`             | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/recovery-phrase.tsx`            | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/relays.tsx`                     | `~/features/settings/RelaySettingsScreen`            | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/restore-backup.tsx`             | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/secret-key.tsx`                 | `~/features/settings/IdentityScreens`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/security.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/supporter.tsx`                  | `~/features/supporter/SupporterSettingsScreen`       | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/theme.tsx`                      | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/updates.tsx`                    | `~/features/settings/OtaUpdateScreen`                | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/username.tsx`                   | `~/features/nostr`                                   | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/verify-proofs.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/wallet.tsx`                     | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
 
 ## Modals and compatibility entries
 
@@ -180,7 +180,7 @@ These targets do not all have their own route entries. Review their neutral surf
 | Area                         | Targets                                                                                                                                                                                  |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | NFC                          | src/features/nfc/NfcSheetHost.tsx — reader, payment/receive, pending, result and error states; preserve native behavior.                                                                 |
-| Home                         | src/features/home/components/: balance/actions, RecoveryStatusRow, NostrActivity, SupportView. ConnectedMintsCard remains an explicit exception.                                         |
+| Home                         | src/features/home/components/: balance/actions, NostrActivity, SupportView. Recovery/review cards are removed. ConnectedMintsCard remains an explicit exception.                         |
 | History and receipts         | src/features/history/components/: transaction/transfer receipts, pending mint/on-chain layouts, notes/details and skeletons. Exported receipts need a separate contrast/geometry review. |
 | People and conversations     | src/features/people/components/: profile/people rows, conversation items and payment actions, contact/message sheets. Preserve artwork, unread and message semantics.                    |
 | Mints                        | src/features/mints/components/: preview methods/health, overview/details, contacts, terms and QR overlay. Preserve mint artwork and code contrast.                                       |

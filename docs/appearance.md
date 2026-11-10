@@ -152,7 +152,8 @@ the main balance toggles privacy with a light haptic. Refresh feedback shares th
 above the balance: successful updates briefly show `Updated just now`, then fade away
 (without animation when reduced motion is enabled). Offline and restore status take priority.
 Recommendations appear only when no mint is connected, with an explicit suggested-mints label.
-Recovery progress and incoming payments follow the mints list. Home does not show backup,
+Incoming payments follow the mints list. Recovery status and review live in the recovery flow;
+Home does not show recovery, backup,
 username, or supporter prompt cards; their dedicated destinations remain available.
 Satoshi amounts default to the Bitcoin symbol (`₿`) rather than the `sat` suffix. An explicitly
 saved symbol preference is respected; this changes presentation only, not amount units.

@@ -49,6 +49,7 @@ export default function SettingsStack() {
   return (
     <>
       <Stack
+        initialRouteName="index"
         screenListeners={{ blur: () => infoSheet.current?.dismiss() }}
         screenOptions={({ route, navigation }) => ({
           title: settingsTitles[route.name] ?? 'Settings',
@@ -72,6 +73,7 @@ export default function SettingsStack() {
           headerLeft: () => (
             <HeaderIconButton
               accessibilityLabel="Back"
+              disabled={busy}
               icon={ArrowLeft}
               onPress={() => {
                 if (route.name === 'index') router.navigate(settingsReturnPath());
@@ -82,6 +84,7 @@ export default function SettingsStack() {
           ),
         })}
       >
+        <Stack.Screen name="index" />
         <Stack.Protected guard={isDevelopmentClient()}>
           {buiRouteNames.map((name) => (
             <Stack.Screen key={name} name={name} />

@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Landmark, ScanSearch } from '@tamagui/lucide-icons';
-import { Text, XStack, YStack } from 'tamagui';
+import { ScanSearch } from '@tamagui/lucide-icons';
+import { XStack } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import {
   acknowledgeRecovery,
@@ -13,18 +14,17 @@ import {
 import { seedService } from '~/services/platform/seedService';
 import { retryRecoveryDiscovery } from '~/services/wallet/recoveryDiscovery';
 import { biometricService } from '~/services/platform/biometricService';
+import { useSettingsStore } from '~/state/settingsStore';
+import { useAuthStore } from '~/state/authStore';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Spinner } from '~/shared/ui/Spinner';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
+import { AppText } from '~/shared/ui/AppText';
+import { RecoveryMintRow, type RecoveryMintStatus } from './components/RecoveryMintRow';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
-import {
-  SettingsDescription,
-  SettingsGroup,
-  SettingsMessage,
-  SettingsPage,
-  SettingsRow,
-} from './components/SettingsLayout';
+import { SettingsGroup, SettingsMessage, SettingsPage } from './components/SettingsLayout';
 
 export function RecoverFundsScreen() {
   const router = useRouter();
@@ -34,7 +34,6 @@ export function RecoverFundsScreen() {
   const mints = useWalletStore((s) => s.mints);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const entries = useWalletStore((s) => s.mintRestoreStatuses);
-  const progress = useWalletStore((s) => s.restoringMintKeysetProgress);
   const current = useWalletStore((s) => s.restoringMintUrl);
   const balances = useWalletStore((s) => s.balances);
   const [busy, setBusy] = useState(false);
@@ -90,7 +89,7 @@ export function RecoverFundsScreen() {
     return mint?.nickname || mint?.name || url.replace(/^https?:\/\//, '');
   };
   const select = (selected: string[]) => {
-    if (!busy && !running) updateRecoverySession({ selected });
+    if (!busy && !running && !discovering) updateRecoverySession({ selected, phase: 'review' });
   };
   const recover = async (urls = session?.selected ?? []) => {
     if (locked.current || running || offline || !urls.length) return;
@@ -98,9 +97,15 @@ export function RecoverFundsScreen() {
     setBusy(true);
     setMessage(undefined);
     try {
-      if (!(await biometricService.authenticateAsync('Authorize fund recovery'))) {
-        setMessage('Recovery cancelled.');
-        return;
+      if (
+        useSettingsStore.getState().biometricEnabled &&
+        !useAuthStore.getState().isAuthenticated
+      ) {
+        if (!(await biometricService.authenticateAsync('Unlock wallet for recovery'))) {
+          setMessage('Recovery cancelled.');
+          return;
+        }
+        useAuthStore.getState().setAuthenticated(true);
       }
       if (useRecoverySessionStore.getState().session !== session)
         throw new Error('Recovery changed. Review your selected mints again.');
@@ -119,52 +124,107 @@ export function RecoverFundsScreen() {
       setBusy(false);
     }
   };
-  const leave = () => {
-    if (busy || running) return;
+  const leave = useCallback(() => {
+    if (locked.current || busy || running) return;
     acknowledgeRecovery();
-    router.replace('/(tabs)');
-  };
+    router.dismissTo('/(tabs)');
+  }, [busy, running, router]);
+  useFocusEffect(
+    useCallback(() => {
+      const back = BackHandler.addEventListener('hardwareBackPress', () => {
+        leave();
+        return true;
+      });
+      return () => back.remove();
+    }, [leave]),
+  );
+  const header = (
+    <PaymentInfoHeader
+      title="Recover funds"
+      infoTopic="recover-funds"
+      navigationAction="close"
+      onBack={leave}
+      disabled={busy || running}
+    />
+  );
   const review = session?.phase === 'review';
   const incomplete =
-    session?.results.filter((r) => r.status !== 'done').map((r) => r.mintUrl) ?? [];
+    session?.selected.filter(
+      (url) => session.results.find((r) => r.mintUrl === url)?.status !== 'done',
+    ) ?? [];
+  const completed =
+    session?.results.filter((r) => session.selected.includes(r.mintUrl) && r.status === 'done')
+      .length ?? 0;
+  const complete =
+    session?.phase === 'results' &&
+    !!session.selected.length &&
+    completed === session.selected.length;
+  const activeEntry = entries.find((entry) => entry.mintUrl === current);
+  const finishing =
+    running && !!activeEntry && ['done', 'partial', 'error'].includes(activeEntry.status);
   if (!session) {
     return (
-      <SettingsPage>
-        {message ? <SettingsMessage error>{message}</SettingsMessage> : <Spinner size={20} />}
-      </SettingsPage>
+      <>
+        {header}
+        <SettingsPage>
+          {message ? <SettingsMessage error>{message}</SettingsMessage> : <Spinner size={20} />}
+        </SettingsPage>
+      </>
     );
   }
   return (
-    <SettingsPage>
-      {review && <SettingsDescription>Choose mints to recover funds from.</SettingsDescription>}
-      {review && session.discoveryMessage && (
-        <SettingsMessage>{session.discoveryMessage}</SettingsMessage>
-      )}
-      {session.origin === 'import' && review && session.discoveryMessage && (
-        <AppButton
-          variant="default"
-          emphasis="text"
-          disabled={busy || discovering || offline}
-          onPress={async () => {
-            setDiscovering(true);
-            try {
-              await retryRecoveryDiscovery();
-            } finally {
-              setDiscovering(false);
-            }
-          }}
-        >
-          Check again
-        </AppButton>
-      )}
-      {review && (
-        <XStack items="center" justify="space-between">
-          <SettingsDescription>{session.selected.length} selected</SettingsDescription>
+    <>
+      {header}
+      <SettingsPage>
+        {running ? (
+          <XStack items="center" gap="$3" accessibilityLiveRegion="polite">
+            <Spinner size={20} accessibilityLabel="Recovery in progress" />
+            <AppText variant="body2" tone="secondary" flex={1}>
+              {finishing ? 'Finishing recovery…' : 'Recovering funds… Keep Bey open.'}
+            </AppText>
+          </XStack>
+        ) : (
+          <AppText
+            variant="body2"
+            tone={review ? 'secondary' : complete ? 'success' : 'warning'}
+            accessibilityLiveRegion="polite"
+          >
+            {review
+              ? 'Select mints to recover from.'
+              : complete
+                ? 'Recovery complete.'
+                : session.phase === 'interrupted'
+                  ? 'Recovery interrupted. Retry to continue.'
+                  : 'Some mints need another try.'}
+          </AppText>
+        )}
+        {review && session.discoveryMessage && (
+          <SettingsMessage>{session.discoveryMessage}</SettingsMessage>
+        )}
+        {session.origin === 'import' && review && session.discoveryMessage && (
+          <AppButton
+            variant="default"
+            emphasis="text"
+            disabled={busy || discovering || offline}
+            onPress={async () => {
+              setDiscovering(true);
+              try {
+                await retryRecoveryDiscovery();
+              } finally {
+                setDiscovering(false);
+              }
+            }}
+          >
+            Check again
+          </AppButton>
+        )}
+        <XStack items="center" justify="space-between" gap="$3" flexWrap="wrap">
+          <AppText variant="label1">Mints · {session.selected.length} selected</AppText>
           {session.candidates.length > 1 && (
             <AppButton
               variant="default"
               emphasis="text"
-              disabled={busy || discovering}
+              disabled={busy || running || discovering}
               onPress={() =>
                 select(
                   session.selected.length === session.candidates.length
@@ -179,21 +239,28 @@ export function RecoverFundsScreen() {
             </AppButton>
           )}
         </XStack>
-      )}
-      {review && (
         <SettingsGroup>
-          {session?.candidates
-            .filter((c) => review || session.selected.includes(c.mintUrl))
-            .map((candidate) => (
-              <SettingsRow
+          {session.candidates.map((candidate) => {
+            const result = !review
+              ? session.results.find((r) => r.mintUrl === candidate.mintUrl)
+              : undefined;
+            const entry = running
+              ? entries.find((e) => e.mintUrl === candidate.mintUrl)
+              : undefined;
+            const status: RecoveryMintStatus =
+              entry?.status === 'pending'
+                ? 'queued'
+                : (entry?.status ?? result?.status ?? (running ? 'queued' : 'ready'));
+            return (
+              <RecoveryMintRow
                 key={candidate.mintUrl}
-                title={name(candidate.mintUrl)}
-                description={`${candidate.mintUrl}\n${candidate.sources.join(' · ')}`}
-                icon={Landmark}
+                name={name(candidate.mintUrl)}
+                url={candidate.mintUrl}
                 selected={session.selected.includes(candidate.mintUrl)}
-                selectionRole="checkbox"
-                disabled={!review || busy || discovering}
-                onPress={() =>
+                disabled={running || busy || discovering}
+                status={status}
+                balance={balances[candidate.mintUrl] ?? result?.balance ?? 0}
+                onToggle={() =>
                   select(
                     session.selected.includes(candidate.mintUrl)
                       ? session.selected.filter((url) => url !== candidate.mintUrl)
@@ -201,108 +268,42 @@ export function RecoverFundsScreen() {
                   )
                 }
               />
-            ))}
+            );
+          })}
         </SettingsGroup>
-      )}
-      {session?.candidates.length === 0 && (
-        <SettingsMessage>Connect a trusted mint to get started.</SettingsMessage>
-      )}
-      {running && (
-        <>
-          <Spinner size={20} />
-          <SettingsMessage>
-            {current ? `Scanning ${name(current)}…` : 'Preparing…'}
-            {progress && ` Keyset ${progress.current} of ${progress.total}.`}
-            {entries.some((e) => e.mintUrl === current && e.slow) &&
-              ' Taking a little longer. Still scanning.'}
-          </SettingsMessage>
-          {entries.some((e) => e.status === 'pending') && (
-            <SettingsDescription>
-              {entries
-                .filter((e) => e.status === 'pending')
-                .map((e) => name(e.mintUrl))
-                .join(', ')}{' '}
-              queued
-            </SettingsDescription>
-          )}
-        </>
-      )}
-      {session?.phase === 'interrupted' && (
-        <SettingsMessage>Recovery interrupted. Retry to continue.</SettingsMessage>
-      )}
-      {!review && session.results.length > 0 && (
-        <SettingsGroup>
-          {session.results.map((result) => (
-            <YStack key={result.mintUrl} p="$3" gap="$1" minHeight={48}>
-              <XStack items="center" justify="space-between" gap="$3">
-                <Text fontSize={13} color="$color" flex={1}>
-                  {name(result.mintUrl)}
-                </Text>
-                <Text
-                  fontSize={11}
-                  color={
-                    result.status === 'error'
-                      ? '$red10'
-                      : result.status === 'partial'
-                        ? '$orange10'
-                        : '$gray10'
-                  }
-                >
-                  {result.status === 'done'
-                    ? 'Completed'
-                    : result.status === 'partial'
-                      ? 'Partial'
-                      : result.status === 'interrupted'
-                        ? 'Interrupted'
-                        : 'Failed'}
-                </Text>
-              </XStack>
-              <Text fontSize={11} color="$gray10">
-                Current balance: {(balances[result.mintUrl] ?? result.balance).toLocaleString()} sat
-              </Text>
-            </YStack>
-          ))}
-        </SettingsGroup>
-      )}
-      {message && <SettingsMessage error>{message}</SettingsMessage>}
-      {offline && !running && (
-        <SettingsMessage>Connect to the internet to recover funds.</SettingsMessage>
-      )}
-      {review && (
-        <AppButton
-          icon={ScanSearch}
-          disabled={offline || !session.selected.length || busy || running || discovering}
-          loading={busy}
-          onPress={() => void recover()}
-        >
-          Recover selected mints
-        </AppButton>
-      )}
-      {!running && !review && incomplete.length > 0 && (
-        <AppButton disabled={busy || offline} onPress={() => void recover(incomplete)}>
-          Retry incomplete mints
-        </AppButton>
-      )}
-      {!running && !review && (
-        <AppButton
-          variant="default"
-          emphasis="text"
-          disabled={busy}
-          onPress={() => updateRecoverySession({ phase: 'review' })}
-        >
-          Change selection
-        </AppButton>
-      )}
-      {!running && session?.origin === 'import' && (
-        <AppButton
-          variant="default"
-          emphasis={review ? 'text' : 'secondary'}
-          disabled={busy || discovering}
-          onPress={leave}
-        >
-          {review ? 'Skip for now' : 'Go to Wallet'}
-        </AppButton>
-      )}
-    </SettingsPage>
+        {session?.candidates.length === 0 && (
+          <SettingsMessage>Connect a trusted mint to get started.</SettingsMessage>
+        )}
+        {message && <SettingsMessage error>{message}</SettingsMessage>}
+        {offline && !running && (
+          <SettingsMessage>Connect to the internet to recover funds.</SettingsMessage>
+        )}
+        {review && (
+          <AppButton
+            icon={ScanSearch}
+            disabled={offline || !session.selected.length || busy || running || discovering}
+            loading={busy}
+            onPress={() => void recover()}
+          >
+            Recover selected mints
+          </AppButton>
+        )}
+        {!running && !review && incomplete.length > 0 && (
+          <AppButton disabled={busy || offline} onPress={() => void recover(incomplete)}>
+            Retry incomplete mints
+          </AppButton>
+        )}
+        {!running && (!review || session.origin === 'import') && (
+          <AppButton
+            variant="default"
+            emphasis={complete ? 'primary' : review ? 'text' : 'secondary'}
+            disabled={busy || discovering}
+            onPress={leave}
+          >
+            {review ? 'Skip for now' : session.origin === 'import' ? 'Go to Wallet' : 'Done'}
+          </AppButton>
+        )}
+      </SettingsPage>
+    </>
   );
 }

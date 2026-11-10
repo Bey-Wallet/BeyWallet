@@ -116,7 +116,7 @@ it('allocates every setting into the approved nested groups', () => {
       ['restore-backup', 'recover-funds'],
     ],
     wallet: [['mints', 'fallback-mint', 'lightning-address', 'get-change']],
-    nostr: [['relays', 'nostr-health']],
+    nostr: [['relays', 'nostr-history', 'nostr-health']],
     advanced: [['optimize-wallet'], ['proofs', 'verify-proofs']],
     identity: [['profile', 'username', 'public-key']],
   };
@@ -158,7 +158,11 @@ it.each(Object.keys(settingsCategories) as SettingsCategory[])(
     expect(groups).toHaveLength(settingsCategories[category].groups.length);
     for (const row of tree.root.findAllByType('Row' as any)) {
       row.props.onPress();
-      expect(mockPush).toHaveBeenLastCalledWith(`/(tabs)/settings/${row.props.path}`);
+      expect(mockPush).toHaveBeenLastCalledWith(
+        row.props.path === 'recover-funds'
+          ? '/recover-funds'
+          : `/(tabs)/settings/${row.props.path}`,
+      );
     }
     if (category === 'nostr') {
       expect(tree.root.findByType('Health' as any).props.onPress).toBeUndefined();

@@ -9,6 +9,7 @@ export function useRecoveryHandoff() {
   const pathname = usePathname();
   const router = useRouter();
   const opened = useRef(false);
+  const requested = useRef(false);
   const atRecovery = pathname.endsWith('/recover-funds');
   useEffect(() => {
     if (!needsReview || opened.current || !state?.key) return;
@@ -16,7 +17,9 @@ export function useRecoveryHandoff() {
       opened.current = true;
       return;
     }
-    router.replace('/(tabs)/settings/recover-funds');
+    if (requested.current) return;
+    requested.current = true;
+    router.push('/recover-funds');
   }, [needsReview, state?.key, atRecovery, router]);
   return needsReview && !opened.current && !atRecovery;
 }

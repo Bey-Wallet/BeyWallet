@@ -33,7 +33,6 @@ export interface MintRestoreEntry {
   mintUrl: string;
   status: MintRestoreStatus;
   restoredBalance: number;
-  slow?: boolean;
   error?: string;
 }
 
@@ -52,12 +51,6 @@ interface WalletState {
   isRefreshing: boolean;
   isCheckingPendingOnchain: boolean;
   mintRestoreStatuses: MintRestoreEntry[];
-  restoringMintKeysetProgress: {
-    current: number;
-    total: number;
-    keysetId: string;
-    statusText: string;
-  } | null;
 
   // Actions
   initialize: () => Promise<void>;
@@ -94,7 +87,6 @@ export const useWalletStore = create<WalletState>()(
       isRefreshing: false,
       isCheckingPendingOnchain: false,
       mintRestoreStatuses: [],
-      restoringMintKeysetProgress: null,
 
       initialize: async () => {
         set({ isInitializing: true, error: null });
@@ -642,21 +634,20 @@ function queueMintRecovery(mintUrl: string): Promise<void> {
         entry.mintUrl === mintUrl ? { ...entry, ...change } : entry,
       ),
     }));
-  const finish = () =>
+  const finish = () => {
     store.setState((state) => {
       const restoreQueue = state.restoreQueue.filter((url) => url !== mintUrl);
       return {
         restoreQueue,
         isRestoring: restoreQueue.length > 0,
         restoringMintUrl: null,
-        restoringMintKeysetProgress: null,
       };
     });
+  };
   return recoveryCoordinator
     .enqueue(mintUrl, async () => {
-      store.setState({ restoringMintUrl: mintUrl, restoringMintKeysetProgress: null });
-      updateEntry({ status: 'scanning', slow: false, error: undefined });
-      const slow = setTimeout(() => updateEntry({ slow: true }), 12_000);
+      store.setState({ restoringMintUrl: mintUrl });
+      updateEntry({ status: 'scanning', error: undefined });
       try {
         await new Promise<void>((resolve) => InteractionManager.runAfterInteractions(resolve));
         await mintManager.addMint(mintUrl, { trusted: true });
@@ -664,21 +655,21 @@ function queueMintRecovery(mintUrl: string): Promise<void> {
         const report = await walletService.restore(mintUrl);
         updateEntry({
           status: report.partial ? 'partial' : 'done',
-          error: report.partial ? 'Some keysets could not be scanned. Retry recovery.' : undefined,
+          error: report.partial
+            ? 'Recovery is incomplete. Retry when the mint is available.'
+            : undefined,
         });
       } catch {
         updateEntry({
           status: 'error',
           error: 'Recovery could not finish. Retry when the mint is available.',
         });
-        // Retain the existing failure recovery path, after the scan has actually settled.
-        await walletService.restoreInflightProofs(mintUrl).catch(() => undefined);
+        // A failed scan must not free proofs reserved by another operation.
       } finally {
-        clearTimeout(slow);
         try {
           await store.getState().refreshBalance();
           const balances = await walletService.getBalances();
-          updateEntry({ restoredBalance: balances[mintUrl] ?? 0, slow: false });
+          updateEntry({ restoredBalance: balances[mintUrl] ?? 0 });
           await store.getState().refreshMintList();
         } finally {
           finish();
