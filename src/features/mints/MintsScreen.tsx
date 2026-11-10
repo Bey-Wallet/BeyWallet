@@ -159,7 +159,7 @@ export default function MintsScreen() {
                     {index > 0 && <Separator height={2} borderWidth={0} bg="$background" />}
                     <MintRow
                       mint={mint}
-                      amount={hideBalance ? '****' : (values.primary ?? 'Unavailable')}
+                      amount={hideBalance ? '****' : (values.primary ?? values.secondary ?? '')}
                       onPress={() =>
                         router.push({
                           pathname: '/(modals)/mint-details',

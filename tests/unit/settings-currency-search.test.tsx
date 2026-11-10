@@ -3,9 +3,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { CurrencySettingsScreen } from '~/features/settings/PreferenceScreens';
 
 const mockSave = jest.fn();
+const mockSettings = { secondaryCurrency: 'EUR', setSecondaryCurrency: mockSave };
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: (select: any) =>
-    select({ secondaryCurrency: 'EUR', setSecondaryCurrency: mockSave }),
+  useSettingsStore: (select: any) => select(mockSettings),
 }));
 jest.mock('~/services/wallet/currencyService', () => ({
   SELECTABLE_CURRENCIES: [
@@ -21,7 +21,7 @@ jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsDescription: 'Description',
 }));
 
-it('sorts selected first, filters by name/code, handles empty results and preserves None', async () => {
+it('keeps currency order stable after selection, filters by name/code and preserves None', async () => {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(<CurrencySettingsScreen />);
@@ -30,7 +30,17 @@ it('sorts selected first, filters by name/code, handles empty results and preser
   const search = async (query: string) => {
     await act(async () => tree.root.findByType('Input' as any).props.onChangeText(query));
   };
-  expect(rows().map((row) => row.props.title)).toEqual(['Euro', 'None', 'US Dollar']);
+  const order = ['None', 'US Dollar', 'Euro'];
+  expect(rows().map((row) => row.props.title)).toEqual(order);
+  expect(rows()[2].props.selected).toBe(true);
+  await act(async () => {
+    rows()[1].props.onPress();
+    mockSettings.secondaryCurrency = 'USD';
+    tree.update(<CurrencySettingsScreen />);
+  });
+  expect(rows().map((row) => row.props.title)).toEqual(order);
+  expect(rows()[1].props.selected).toBe(true);
+  expect(rows()[2].props.selected).toBe(false);
   await search('  uSd  ');
   expect(rows().map((row) => row.props.title)).toEqual(['US Dollar']);
   rows()[0].props.onPress();

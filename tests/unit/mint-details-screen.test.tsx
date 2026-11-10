@@ -2,6 +2,7 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MintDetailsScreen from '~/features/mints/MintDetailsScreen';
+import { MintDetailsView } from '~/features/mints/components/MintDetailsView';
 import { useWalletStore } from '~/state/walletStore';
 import { useQuery } from '@tanstack/react-query';
 
@@ -10,6 +11,7 @@ const mockPush = jest.fn();
 const mockSheetPresent = jest.fn();
 const mockRecheckConnection = jest.fn();
 let mockEditName: string | undefined;
+let mockPrice: number | undefined = 100000;
 const mockToast = { show: jest.fn() };
 const mockSettings = {
   primaryCurrency: 'SATS',
@@ -69,7 +71,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(({ queryKey }: any) => ({
     data:
       queryKey[0] === 'bitcoinPrice'
-        ? { price: 100000 }
+        ? { price: mockPrice }
         : {
             name: 'Original mint',
             description: 'Community mint',
@@ -160,6 +162,7 @@ beforeEach(() => {
     showBitcoinSymbol: false,
   });
   mockEditName = undefined;
+  mockPrice = 100000;
   useWalletStore.setState({
     mints: [{ mintUrl: url, nickname: 'My mint', name: 'Original mint', trusted: true }],
     balances: { [url]: 0 },
@@ -176,6 +179,19 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
+});
+
+it('keeps native sats visible without a rate and restores the saved fiat display when it arrives', async () => {
+  mockSettings.primaryCurrency = 'FIAT';
+  mockPrice = undefined;
+  useWalletStore.setState({ balances: { [url]: 10000 } });
+  await render();
+  const balance = () => tree.root.findByType(MintDetailsView).props.balance;
+  expect(balance()).toEqual({ amount: '10,000', unit: 'sat', secondary: undefined });
+  mockPrice = 100000;
+  await act(async () => tree.update(<MintDetailsScreen />));
+  expect(balance()).toEqual({ amount: '0 USD', unit: undefined, secondary: '10,000 sat' });
+  expect(mockSettings.primaryCurrency).toBe('FIAT');
 });
 
 it('shows only a sats balance for None with FIAT saved and restores fiat when selected again', async () => {

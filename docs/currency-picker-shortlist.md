@@ -4,6 +4,7 @@
 
 Show all 25 current currencies by default, plus None for sats-only display. There is
 no shortlist, hidden group or More currencies step.
+The list keeps its configured order when selecting a currency; only the checkmark moves.
 
 Removed from the picker at the user's request:
 

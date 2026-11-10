@@ -42,7 +42,6 @@ interface MintRowItemProps {
   btcPrice: number | undefined;
   secondaryCurrency: string;
   refreshCounter: number;
-  loading: boolean;
   unavailable: boolean;
   checking: boolean;
   onRecheck: () => void;
@@ -55,17 +54,18 @@ const MintRowItem = React.memo(
     balance,
     active,
     hideBalance,
-    displayAsSats,
+    displayAsSats: prefersSats,
     showBitcoinSymbol,
     btcPrice,
     secondaryCurrency,
     refreshCounter,
-    loading,
     unavailable,
     checking,
     onRecheck,
     onPress,
   }: MintRowItemProps) => {
+    const displayAsSats =
+      prefersSats || (balance !== 0 && (!btcPrice || !Number.isFinite(btcPrice) || btcPrice <= 0));
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -87,12 +87,11 @@ const MintRowItem = React.memo(
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
       if (!displayAsSats) {
-        if (!btcPrice && balance !== 0) return loading ? 'Loading…' : 'Unavailable';
         const fiat = balance === 0 ? 0 : currencyService.convertSatsToCurrency(balance, btcPrice!);
         return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
       }
       return balance;
-    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency, loading]);
+    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
 
     const prefix = useMemo(() => {
       if (hideBalance || !displayAsSats) return '';
@@ -315,7 +314,7 @@ export const ConnectedMintsCard = () => {
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
-  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
+  const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () =>
       isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
@@ -431,7 +430,6 @@ export const ConnectedMintsCard = () => {
                 btcPrice={btcData?.price}
                 secondaryCurrency={secondaryCurrency}
                 refreshCounter={refreshCounter}
-                loading={!displayAsSats && isFetchingPrice}
                 unavailable={!deviceOffline && !!mintConnections[index].error}
                 checking={mintConnections[index].isFetching}
                 onRecheck={() => {

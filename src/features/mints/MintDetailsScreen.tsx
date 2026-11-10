@@ -132,11 +132,12 @@ function MintDetailsContent() {
   }, [balances, mintUrl]);
 
   const fiatBalance = useMemo(() => {
-    if (secondaryCurrency === 'NONE') return 0;
-
-    if (!btcData?.price) return 0;
+    if (secondaryCurrency === 'NONE') return null;
+    if (balance === 0) return 0;
+    if (!btcData?.price || !Number.isFinite(btcData.price) || btcData.price <= 0) return null;
     return currencyService.convertSatsToCurrency(balance, btcData.price);
   }, [balance, btcData?.price, secondaryCurrency]);
+  const displayAsSats = primaryCurrency === 'SATS' || fiatBalance === null;
 
   const name =
     walletMint?.nickname ||
@@ -336,16 +337,12 @@ function MintDetailsContent() {
             void copyWithFeedback(mintUrl, toast);
           }}
           balance={{
-            amount:
-              primaryCurrency === 'SATS' || secondaryCurrency === 'NONE'
-                ? `${showBitcoinSymbol ? '₿' : ''}${balance.toLocaleString()}`
-                : currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode),
-            unit:
-              (primaryCurrency === 'SATS' || secondaryCurrency === 'NONE') && !showBitcoinSymbol
-                ? 'sat'
-                : undefined,
+            amount: displayAsSats
+              ? `${showBitcoinSymbol ? '₿' : ''}${balance.toLocaleString()}`
+              : currencyService.formatValue(fiatBalance ?? 0, secondaryCurrency as CurrencyCode),
+            unit: displayAsSats && !showBitcoinSymbol ? 'sat' : undefined,
             secondary:
-              secondaryCurrency === 'NONE'
+              fiatBalance === null
                 ? undefined
                 : primaryCurrency === 'SATS'
                   ? currencyService.formatValue(fiatBalance, secondaryCurrency as CurrencyCode)

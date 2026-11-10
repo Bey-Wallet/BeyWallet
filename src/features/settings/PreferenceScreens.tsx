@@ -43,11 +43,9 @@ export function CurrencySettingsScreen() {
       name,
       description: undefined as string | undefined,
     })),
-  ]
-    .filter((item) =>
-      `${item.code} ${item.name} ${item.description ?? ''}`.toLowerCase().includes(query),
-    )
-    .sort((a, b) => Number(b.code === currency) - Number(a.code === currency));
+  ].filter((item) =>
+    `${item.code} ${item.name} ${item.description ?? ''}`.toLowerCase().includes(query),
+  );
   return (
     <SettingsPage keyboardShouldPersistTaps="handled">
       <SettingsDescription>

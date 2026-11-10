@@ -45,7 +45,7 @@ export function PaymentAmount({
   testID?: string;
 }) {
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
-  const { data, isFetching } = useQuery({
+  const { data } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
@@ -60,6 +60,8 @@ export function PaymentAmount({
   );
   const amountStyle = size === 'prominent' ? appTypography.display : appTypography.amount;
   const conversionStyle = size === 'prominent' ? appTypography.body1 : appTypography.body2;
+  const primaryAmount = values.primary ?? values.secondary ?? '';
+  const secondaryAmount = values.primary === null ? null : values.secondary;
   return (
     <YStack
       gap={compact ? '$2' : '$3'}
@@ -82,10 +84,7 @@ export function PaymentAmount({
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {amountLabel(
-          values.primary ?? (isFetching ? 'Loading…' : 'Conversion unavailable'),
-          amountStyle.fontSize,
-        )}
+        {amountLabel(primaryAmount, amountStyle.fontSize)}
       </Text>
       {secondaryCurrency !== 'NONE' && (
         <Text
@@ -93,15 +92,9 @@ export function PaymentAmount({
           {...conversionStyle}
           color="$gray10"
           textAlign="center"
+          minHeight={conversionStyle.lineHeight}
         >
-          {amountLabel(
-            values.secondary
-              ? `≈ ${values.secondary}`
-              : isFetching
-                ? 'Loading…'
-                : 'Conversion unavailable',
-            conversionStyle.fontSize,
-          )}
+          {secondaryAmount ? amountLabel(`≈ ${secondaryAmount}`, conversionStyle.fontSize) : null}
         </Text>
       )}
     </YStack>

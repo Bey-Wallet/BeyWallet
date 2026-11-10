@@ -8,6 +8,7 @@ jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: (select: (state: unknown) => unknown) => select(mockSettings),
 }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
+jest.mock('~/shared/ui/AppInput', () => ({ AppInput: 'Input' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',
   SettingsDescription: 'Description',

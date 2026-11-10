@@ -66,7 +66,7 @@ export default function Balance() {
     const current = useSettingsStore.getState();
     void current.setHideBalance(!current.hideBalance);
   }, []);
-  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
+  const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
@@ -79,18 +79,15 @@ export default function Balance() {
 
   const secondaryBalance = React.useMemo(() => {
     if (currentBalance === 0) return 0;
-    if (!btcData?.price) return null;
+    if (!btcData?.price || !Number.isFinite(btcData.price) || btcData.price <= 0) return null;
     return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
   }, [currentBalance, btcData?.price]);
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
-  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
-  const fiatText = !isFiatEnabled
-    ? ''
-    : secondaryBalance === null
-      ? isFetchingPrice
-        ? 'Loading…'
-        : 'Unavailable'
+  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled || secondaryBalance === null;
+  const fiatText =
+    !isFiatEnabled || secondaryBalance === null
+      ? ''
       : currencyService.formatValue(secondaryBalance, secondaryCurrency as CurrencyCode);
 
   return (
@@ -193,60 +190,63 @@ export default function Balance() {
       </AppPressable>
 
       {/* Secondary Balance */}
-      {isFiatEnabled && (
-        <AppPressable
-          testID="home-balance-currency-toggle"
-          mt={appSpacing.compact}
-          accessibilityLabel={
-            hideBalance
-              ? 'Show balance to switch currency'
-              : `Display balance in ${displayAsSats ? secondaryCurrency : 'sats'}`
-          }
-          accessibilityHint="Swaps the primary and secondary balance amounts"
-          disabled={hideBalance}
-          onPress={handlePrimaryCurrencyToggle}
-          minHeight={36}
-          minWidth={64}
-          hitSlop={{ top: 0, bottom: 12, left: 0, right: 0 }}
-          px={appSpacing.compact}
-          py={appSpacing.tiny}
-          rounded={appRadii.pill}
-          bg="$gray2"
-          hoverStyle={{ bg: '$gray3' }}
-          pressStyle={{ bg: '$gray4' }}
-          items="center"
-          justify="center"
-          opacity={hideBalance ? 0.5 : 1}
-        >
-          <RollingNumber
-            value={
+      {isFiatEnabled &&
+        (secondaryBalance !== null ? (
+          <AppPressable
+            testID="home-balance-currency-toggle"
+            mt={appSpacing.compact}
+            accessibilityLabel={
               hideBalance
-                ? '****'
-                : displayAsSats
-                  ? (secondaryBalance ?? undefined)
-                  : currentBalance
+                ? 'Show balance to switch currency'
+                : `Display balance in ${displayAsSats ? secondaryCurrency : 'sats'}`
             }
-            prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
-            suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
-            trigger={
-              (hideBalance
-                ? '_hidden'
-                : displayAsSats
-                  ? '_visible_fiat_sub'
-                  : '_visible_sats_sub') + `_${showBitcoinSymbol}`
-            }
-            fontSize={appTypography.body1.fontSize}
-            fontWeight={500}
-            color="$gray10"
-            letterSpacing={appTypography.body1.letterSpacing}
-
-            decimalOpacity={0.4}
-            showDecimals={displayAsSats}
+            accessibilityHint="Swaps the primary and secondary balance amounts"
+            disabled={hideBalance}
+            onPress={handlePrimaryCurrencyToggle}
+            minHeight={36}
+            minWidth={64}
+            hitSlop={{ top: 0, bottom: 12, left: 0, right: 0 }}
+            px={appSpacing.compact}
+            py={appSpacing.tiny}
+            rounded={appRadii.pill}
+            bg="$gray2"
+            hoverStyle={{ bg: '$gray3' }}
+            pressStyle={{ bg: '$gray4' }}
+            items="center"
+            justify="center"
+            opacity={hideBalance ? 0.5 : 1}
           >
-            {!hideBalance && displayAsSats ? fiatText : undefined}
-          </RollingNumber>
-        </AppPressable>
-      )}
+            <RollingNumber
+              value={
+                hideBalance
+                  ? '****'
+                  : displayAsSats
+                    ? (secondaryBalance ?? undefined)
+                    : currentBalance
+              }
+              prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
+              suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
+              trigger={
+                (hideBalance
+                  ? '_hidden'
+                  : displayAsSats
+                    ? '_visible_fiat_sub'
+                    : '_visible_sats_sub') + `_${showBitcoinSymbol}`
+              }
+              fontSize={appTypography.body1.fontSize}
+              fontWeight={500}
+              color="$gray10"
+              letterSpacing={appTypography.body1.letterSpacing}
+
+              decimalOpacity={0.4}
+              showDecimals={displayAsSats}
+            >
+              {!hideBalance && displayAsSats ? fiatText : undefined}
+            </RollingNumber>
+          </AppPressable>
+        ) : (
+          <YStack mt={appSpacing.compact} minHeight={36} />
+        ))}
     </YStack>
   );
 }

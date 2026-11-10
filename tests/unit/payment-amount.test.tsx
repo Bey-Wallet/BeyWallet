@@ -8,6 +8,8 @@ const mockSettings = {
   showBitcoinSymbol: false,
 };
 const mockQuery = jest.fn();
+let mockPrice: number | undefined = 100000;
+let mockFetching = false;
 
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: () => mockSettings }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
@@ -15,13 +17,18 @@ jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: (options: unknown) => {
     mockQuery(options);
-    return { data: { price: 100000 } };
+    return {
+      data: mockPrice === undefined ? undefined : { price: mockPrice },
+      isFetching: mockFetching,
+    };
   },
 }));
 beforeEach(() => {
   mockSettings.primaryCurrency = 'SATS';
   mockSettings.secondaryCurrency = 'USD';
   mockSettings.showBitcoinSymbol = false;
+  mockPrice = 100000;
+  mockFetching = false;
   jest.clearAllMocks();
 });
 
@@ -99,6 +106,35 @@ it.each([undefined, 0, NaN, Infinity, -1])(
   (price) => {
     expect(paymentAmounts(100, 'SATS', 'USD', false, price).secondary).toBeNull();
     expect(paymentAmounts(100, 'FIAT', 'USD', false, price).primary).toBeNull();
+  },
+);
+
+it.each(['SATS', 'FIAT'] as const)(
+  'shows sats until a rate arrives with saved %s primary, retaining cached values during refresh',
+  async (primary) => {
+    mockSettings.primaryCurrency = primary;
+    mockPrice = undefined;
+    mockFetching = true;
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(<PaymentAmount amount={10000} testID="amount" />);
+    });
+    const secondary = () => tree.root.findByProps({ testID: 'amount-secondary-amount' });
+    expect(secondary().props.children).toBeNull();
+    expect(JSON.stringify(tree.toJSON())).not.toMatch(/Loading|unavailable|—/);
+    expect(JSON.stringify(tree.toJSON())).toContain('10,000');
+    mockPrice = 100000;
+    await act(async () => tree.update(<PaymentAmount amount={10000} testID="amount" />));
+    expect(secondary().props.children).not.toBeNull();
+    expect(paymentAmounts(10000, primary, 'USD', false, mockPrice).primary).toBe(
+      primary === 'FIAT' ? '$10.00' : '10,000 sat',
+    );
+    expect(mockSettings.primaryCurrency).toBe(primary);
+    mockPrice = undefined;
+    mockFetching = false;
+    await act(async () => tree.update(<PaymentAmount amount={10000} testID="amount" />));
+    expect(secondary().props.children).toBeNull();
+    await act(async () => tree.unmount());
   },
 );
 
