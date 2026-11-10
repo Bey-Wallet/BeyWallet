@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { initService } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
-import { DEFAULT_MINT } from '~/state/constants';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export const notificationDefaults = {
@@ -16,7 +15,6 @@ interface SettingsState {
   theme: ThemePreference;
   secondaryCurrency: string;
   primaryCurrency: 'SATS' | 'FIAT';
-  defaultMintUrl: string;
   initialized: boolean;
   npub: string | null;
   nsec: string | null;
@@ -32,7 +30,6 @@ interface SettingsState {
   setTheme: (theme: ThemePreference) => Promise<void>;
   setSecondaryCurrency: (currency: string) => Promise<void>;
   setPrimaryCurrency: (val: 'SATS' | 'FIAT') => Promise<void>;
-  setDefaultMintUrl: (url: string) => Promise<void>;
   notificationsEnabled: boolean;
   notificationPreferences: NotificationPreferences;
   setNotificationPreference: (
@@ -56,7 +53,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   theme: 'system',
   secondaryCurrency: 'USD',
   primaryCurrency: 'SATS',
-  defaultMintUrl: '',
   notificationsEnabled: true,
   notificationPreferences: { ...notificationDefaults },
   biometricEnabled: false,
@@ -104,7 +100,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const [
         storedTheme,
         storedCurrency,
-        storedMintUrl,
         storedNotifications,
         storedBiometric,
         storedNpub,
@@ -121,7 +116,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       ] = await Promise.all([
         repo.settingsRepository.getSetting('theme'),
         repo.settingsRepository.getSetting('secondaryCurrency'),
-        repo.settingsRepository.getSetting('defaultMintUrl'),
         repo.settingsRepository.getSetting('notificationsEnabled'),
         repo.settingsRepository.getSetting('biometricEnabled'),
         repo.settingsRepository.getSetting('npub'),
@@ -141,7 +135,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
       if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
-      if (storedMintUrl) set({ defaultMintUrl: storedMintUrl });
       if (storedNotifications !== undefined && storedNotifications !== null) {
         set({ notificationsEnabled: storedNotifications === 'true' });
       }
@@ -246,20 +239,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch (error) {
       console.error('[SettingsStore] Failed to set primary currency:', error);
       set({ primaryCurrency: val });
-    }
-  },
-
-  setDefaultMintUrl: async (url: string) => {
-    try {
-      const exists = await initService.walletExists();
-      if (exists) {
-        const repo = initService.getRepo();
-        await repo.settingsRepository.setSetting('defaultMintUrl', url);
-      }
-      set({ defaultMintUrl: url });
-    } catch (error) {
-      console.error('[SettingsStore] Failed to set default mint:', error);
-      set({ defaultMintUrl: url });
     }
   },
 

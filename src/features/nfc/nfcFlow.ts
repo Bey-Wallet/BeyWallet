@@ -601,8 +601,8 @@ export class NfcFlow {
         }
         if (request.delivery === 'nip17') await this.stopSession();
         const store = useWalletStore.getState();
-        const candidates = store.mints.filter((mint) =>
-          isPaymentMintAllowed(request, mint.mintUrl),
+        const candidates = store.mints.filter(
+          (mint) => mint.trusted && isPaymentMintAllowed(request, mint.mintUrl),
         );
         candidates.sort(
           (a, b) =>

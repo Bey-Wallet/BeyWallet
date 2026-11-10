@@ -115,7 +115,7 @@ it('allocates every setting into the approved nested groups', () => {
       ['recovery-phrase', 'mint-backup', 'export-backup'],
       ['restore-backup', 'recover-funds'],
     ],
-    wallet: [['mints', 'fallback-mint', 'lightning-address', 'get-change']],
+    wallet: [['mints', 'lightning-address', 'get-change']],
     nostr: [['relays', 'nostr-history', 'nostr-health']],
     advanced: [['optimize-wallet'], ['proofs', 'verify-proofs']],
     identity: [['profile', 'username', 'public-key']],

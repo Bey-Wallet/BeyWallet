@@ -18,12 +18,10 @@ const mockDestroy = jest.fn(async () => {});
 const mockRestore = jest.fn(async (..._args: unknown[]) => {});
 const mockReinit = jest.fn(async () => {});
 const mockSettings = {
-  defaultMintUrl: 'https://mint.example',
   secondaryCurrency: 'USD',
   theme: 'dark',
   setSecondaryCurrency: jest.fn(async () => {}),
   setTheme: jest.fn(async () => {}),
-  setDefaultMintUrl: jest.fn(async () => {}),
 };
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('expo-router', () => ({
@@ -157,7 +155,8 @@ it('requires confirmation and a successfully parsed backup before destroying the
     expect.objectContaining({ changeOperations: payload.changeOperations }),
   );
   expect(mockReinit).toHaveBeenCalledTimes(1);
-  expect(mockSettings.setDefaultMintUrl).toHaveBeenCalledWith(payload.defaultMintUrl);
+  expect(mockSettings.setSecondaryCurrency).toHaveBeenCalledWith(payload.secondaryCurrency);
+  expect(mockSettings.setTheme).toHaveBeenCalledWith(payload.theme);
   await act(async () => tree.unmount());
   alert.mockRestore();
 });

@@ -35,13 +35,14 @@ export default function SwapScreen() {
   const [amount, setAmount] = useState('0');
   const [sourceMintUrl, setSourceMintUrl] = useState(
     () =>
-      mints.find((m) => m.mintUrl === activeMintUrl && (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
-      mints.find((m) => (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
+      mints.find((m) => m.trusted && m.mintUrl === activeMintUrl && (balances[m.mintUrl] || 0) > 0)
+        ?.mintUrl ||
+      mints.find((m) => m.trusted && (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
       activeMintUrl ||
       '',
   );
   const [targetMintUrl, setTargetMintUrl] = useState(
-    () => mints.find((m) => m.mintUrl !== sourceMintUrl)?.mintUrl || '',
+    () => mints.find((m) => m.trusted && m.mintUrl !== sourceMintUrl)?.mintUrl || '',
   );
   const [record, setRecord] = useState<MintTransferRecord>();
   useFeedbackOwner(record?.id);

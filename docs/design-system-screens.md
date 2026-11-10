@@ -40,7 +40,6 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Pending | `src/app/(tabs)/settings/currency.tsx`                   | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/delete-wallet.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/export-backup.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending | `src/app/(tabs)/settings/fallback-mint.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/get-change.tsx`                 | `~/features/settings/GetChangeSettingsScreen`        | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/help.tsx`                       | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/identity.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |

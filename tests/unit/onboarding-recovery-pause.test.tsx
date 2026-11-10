@@ -7,6 +7,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { initService } from '~/services/wallet';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
+import { connectMint } from '~/features/mints/connectMint';
 import {
   useRecoverySessionStore,
   acknowledgeRecovery,
@@ -16,8 +17,9 @@ jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: () => null, setItem: jest.fn() },
 }));
 jest.mock('~/services/wallet/recoveryDiscovery', () => ({
-  importRecoveryCandidates: () => [{ mintUrl: 'https://synthetic.test', sources: ['Default'] }],
+  importRecoveryCandidates: () => [{ mintUrl: 'https://synthetic.test', sources: ['Featured'] }],
 }));
+jest.mock('~/features/mints/connectMint', () => ({ connectMint: jest.fn() }));
 
 jest.mock('~/features/onboarding/WelcomeStep', () => ({ WelcomeStep: 'Welcome' }));
 jest.mock('~/features/onboarding/ImportSeedStep', () => ({ ImportSeedStep: 'Import' }));
@@ -66,7 +68,6 @@ jest.mock('~/state/settingsStore', () => ({
     getState: () => ({
       setBiometricEnabled: jest.fn(),
       initialize: jest.fn(),
-      setDefaultMintUrl: jest.fn(),
       setNip05: jest.fn(),
     }),
   },
@@ -89,11 +90,59 @@ beforeEach(() => {
     completeOnboarding: jest.fn(),
   });
   useWalletStore.setState({
+    mints: [],
     initialize: jest.fn(),
     recoverSelectedMints: jest.fn(),
     mintRestoreStatuses: [],
     isRestoring: false,
   });
+});
+
+it('connects only confirmed selections and completes after every mint connects', async () => {
+  await importSeed();
+  const complete = useOnboardingStore.getState().completeOnboarding;
+  jest.mocked(connectMint).mockImplementation(async () => {
+    expect(complete).not.toHaveBeenCalled();
+  });
+  await act(async () =>
+    tree.root
+      .findByType('Permissions' as any)
+      .props.onComplete('', false, true, [
+        'https://one.test',
+        'https://two.test',
+        'https://one.test/',
+      ]),
+  );
+  expect(jest.mocked(connectMint).mock.calls).toEqual([
+    ['https://one.test/'],
+    ['https://two.test'],
+  ]);
+  expect(complete).toHaveBeenCalledTimes(1);
+});
+
+it('retries a failed mint without recreating the wallet or reconnecting successful mints', async () => {
+  await importSeed();
+  jest.mocked(connectMint).mockImplementation(async (url) => {
+    if (url === 'https://two.test') throw new Error('Synthetic connection failure');
+    useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] as any });
+  });
+  const finish = () =>
+    tree.root
+      .findByType('Permissions' as any)
+      .props.onComplete('', false, true, ['https://one.test', 'https://two.test']);
+  await act(async () => finish());
+  expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+  expect(recoveryCoordinator.paused).toBe(false);
+  jest.mocked(connectMint).mockResolvedValue(undefined);
+  await act(async () => finish());
+  expect(initService.restoreWallet).toHaveBeenCalledTimes(1);
+  expect(jest.mocked(connectMint).mock.calls).toEqual([
+    ['https://one.test'],
+    ['https://two.test'],
+    ['https://two.test'],
+  ]);
+  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+  expect(recoveryCoordinator.paused).toBe(true);
 });
 afterEach(async () => {
   releaseRecoveryPause();

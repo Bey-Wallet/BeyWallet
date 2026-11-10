@@ -82,13 +82,6 @@ export const infoSheetContent = {
       'It requires a connection to the mint and may involve fees. Review the operation before confirming and let an in-flight operation finish.',
     ],
   },
-  'fallback-mint': {
-    title: 'Fallback mint',
-    paragraphs: [
-      'The fallback mint is a saved wallet preference for flows that need a default mint. It is separate from the mint currently selected on Home.',
-      'Choosing a fallback does not move your balance or change the mint’s trust status. Review the mint selected in each payment flow.',
-    ],
-  },
   'lightning-address': {
     title: 'Lightning address',
     paragraphs: [

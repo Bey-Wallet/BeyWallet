@@ -17,6 +17,8 @@ import {
   BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
 import { Theme, YStack, useTheme, type ThemeName } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,6 +51,8 @@ interface AppBottomSheetProps {
   navigationLabel?: string;
   onNavigate?: () => void;
   titleLiveRegion?: 'none' | 'polite' | 'assertive';
+  /** Fixed action area below scrolling content, including safe-area padding. */
+  footer?: React.ReactNode;
 }
 
 export interface AppBottomSheetRef {
@@ -76,6 +80,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       navigationLabel,
       onNavigate,
       titleLiveRegion,
+      footer,
     },
     ref,
   ) => {
@@ -166,6 +171,22 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
     }, [isOpen, dismissSheet]);
 
     const enableDynamicSizing = !snapPoints;
+    const renderFooter = useCallback(
+      (props: BottomSheetFooterProps) => (
+        <BottomSheetFooter {...props}>
+          <YStack
+            bg={backgroundColor ?? '$background'}
+            pl={insets.left + appSpacing.page}
+            pr={insets.right + appSpacing.page}
+            pt={appSpacing.gap}
+            pb={insets.bottom + appSpacing.page}
+          >
+            {footer}
+          </YStack>
+        </BottomSheetFooter>
+      ),
+      [footer, backgroundColor, insets.left, insets.right, insets.bottom],
+    );
 
     return (
       <BottomSheetModal
@@ -176,6 +197,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         snapPoints={snapPoints}
         bottomInset={bottomInset}
         containerComponent={themedContainer}
+        footerComponent={footer ? renderFooter : undefined}
         backdropComponent={renderBackdrop}
         stackBehavior="push"
         // Keyboard: sheet expands to fill space above keyboard (works with dynamic sizing)
@@ -206,7 +228,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
             showsVerticalScrollIndicator={false}
             bounces={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: insets.bottom + appSpacing.page }}
+            enableFooterMarginAdjustment={!!footer}
+            contentContainerStyle={{
+              paddingBottom: footer ? appSpacing.gap : insets.bottom + appSpacing.page,
+            }}
           >
             <YStack pl={insets.left} pr={insets.right}>
               <BUIHeader

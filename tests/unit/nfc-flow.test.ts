@@ -1,4 +1,5 @@
 import { PaymentRequest } from '@cashu/cashu-ts';
+let mockMintTrusted = true;
 jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
   nfcReceiveCoordinator: {
     getSnapshot: () => ({ status: 'idle' }),
@@ -56,7 +57,7 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: {
     getState: () => ({
       activeMintUrl: 'mint',
-      mints: [{ mintUrl: 'mint' }],
+      mints: [{ mintUrl: 'mint', trusted: mockMintTrusted }],
       refreshBalance: jest.fn(),
     }),
   },
@@ -112,6 +113,7 @@ it('keeps reader and send sessions closed while a saved request payment is proce
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMintTrusted = true;
   jest
     .mocked(parsePaymentRequest)
     .mockReturnValue({ raw: 'request', amount: 4, delivery: 'nfc' } as any);
@@ -205,6 +207,15 @@ it('retries the same token when Android disconnects before delivery was observed
     'token',
   ]);
   expect(PaymentRequestPayment).not.toHaveBeenCalled();
+});
+
+it('does not automatically select an untrusted mint for an NFC payment', async () => {
+  mockMintTrusted = false;
+  flow.openReader();
+  await flush();
+  expect(deliver).not.toHaveBeenCalled();
+  expect(PaymentRequestPayment).not.toHaveBeenCalled();
+  expect(flow.getSnapshot().status).toBe('error');
 });
 
 it('automatically pays once and keeps same-session Numo write-back open', async () => {

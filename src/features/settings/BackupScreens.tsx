@@ -116,7 +116,7 @@ export function ExportBackupSettingsScreen() {
             const { backupService } =
               require('~/services/wallet/backupService') as typeof import('~/services/wallet/backupService');
             const state = await backupService.exportState();
-            const { defaultMintUrl, secondaryCurrency, theme } = useSettingsStore.getState();
+            const { secondaryCurrency, theme } = useSettingsStore.getState();
             const filename = await walletFileService.exportWallet(mnemonic, {
               mints: state.mints,
               keysets: state.keysets,
@@ -125,7 +125,6 @@ export function ExportBackupSettingsScreen() {
               history: state.history,
               mintQuotes: state.mintQuotes,
               changeOperations: state.changeOperations,
-              defaultMintUrl,
               secondaryCurrency,
               theme,
             });
@@ -204,7 +203,6 @@ export function RestoreBackupSettingsScreen() {
             if (backup.secondaryCurrency)
               await settings.setSecondaryCurrency(backup.secondaryCurrency);
             if (backup.theme) await settings.setTheme(backup.theme);
-            if (backup.defaultMintUrl) await settings.setDefaultMintUrl(backup.defaultMintUrl);
             Alert.alert(
               'Restore completed',
               'Your wallet has been restored successfully. Please restart the app.',

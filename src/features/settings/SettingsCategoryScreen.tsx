@@ -23,9 +23,6 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     theme: settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light',
     currency: settings.secondaryCurrency === 'NONE' ? 'None' : settings.secondaryCurrency,
     mints: String(mints.length),
-    'fallback-mint': settings.defaultMintUrl
-      ? settings.defaultMintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      : 'None',
     'receiving-policy': policy === 'ask' ? 'Ask first' : 'Everyone',
     'recovery-phrase': settings.seedBackedUp ? 'Backed up' : 'Not confirmed',
   };

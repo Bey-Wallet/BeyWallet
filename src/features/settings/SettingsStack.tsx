@@ -19,7 +19,6 @@ import { feedbackNavigationGuard } from '~/services/feedback/navigationGuard';
 export const settingsInfoTopics: Readonly<Record<string, InfoTopic>> = {
   'get-change': 'offline-change',
   'optimize-wallet': 'optimize',
-  'fallback-mint': 'fallback-mint',
   'lightning-address': 'lightning-address',
   'lightning-address-mint': 'receiving-mint',
   'receiving-policy': 'receiving-policy',

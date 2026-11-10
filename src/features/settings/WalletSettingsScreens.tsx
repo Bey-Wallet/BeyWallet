@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Coins, Plus, Landmark, Search, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
-import { useSettingsStore } from '~/state/settingsStore';
 import { proofService } from '~/services/wallet/proofService';
 import { consolidationService } from '~/services/wallet/consolidationService';
 import { biometricService } from '~/services/platform/biometricService';
@@ -63,36 +62,6 @@ export function MintsSettingsScreen() {
           onPress={() => router.push('/(modals)/discover-mints')}
         />
       </SettingsGroup>
-    </SettingsPage>
-  );
-}
-
-export function FallbackMintSettingsScreen() {
-  const mints = useWalletStore((state) => state.mints);
-  const selected = useSettingsStore((state) => state.defaultMintUrl);
-  const setSelected = useSettingsStore((state) => state.setDefaultMintUrl);
-  return (
-    <SettingsPage>
-      <SettingsDescription>
-        Choose the fallback mint used by the wallet. Selecting a fallback does not change a mint’s
-        trust status.
-      </SettingsDescription>
-      {mints.length > 0 ? (
-        <SettingsGroup>
-          {mints.map((mint) => (
-            <SettingsRow
-              key={mint.mintUrl}
-              title={mint.nickname || mint.name || mint.mintUrl}
-              description={mint.mintUrl}
-              icon={Landmark}
-              selected={selected === mint.mintUrl}
-              onPress={() => void setSelected(mint.mintUrl)}
-            />
-          ))}
-        </SettingsGroup>
-      ) : (
-        <SettingsMessage>Connect a mint before choosing a fallback.</SettingsMessage>
-      )}
     </SettingsPage>
   );
 }

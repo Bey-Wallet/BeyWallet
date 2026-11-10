@@ -11,7 +11,6 @@
  *   counters: [...],
  *   history: [...],
  *   mintQuotes: [...],
- *   defaultMintUrl: "...",
  *   secondaryCurrency: "USD",
  *   theme: "system" | "light" | "dark",
  *   exportedAt: "ISO date"
@@ -54,7 +53,6 @@ export interface WalletBackup {
   history?: any[];
   mintQuotes?: any[];
   changeOperations?: any[];
-  defaultMintUrl: string;
   secondaryCurrency: string;
   theme: 'system' | 'light' | 'dark';
   exportedAt: string;
@@ -87,7 +85,6 @@ export const walletFileService = {
       history: any[];
       mintQuotes: any[];
       changeOperations?: any[];
-      defaultMintUrl: string;
       secondaryCurrency: string;
       theme: 'system' | 'light' | 'dark';
     },
@@ -108,7 +105,6 @@ export const walletFileService = {
       history: opts.history,
       mintQuotes: opts.mintQuotes,
       changeOperations: opts.changeOperations,
-      defaultMintUrl: opts.defaultMintUrl,
       secondaryCurrency: opts.secondaryCurrency,
       theme: opts.theme,
       exportedAt: new Date().toISOString(),
@@ -236,12 +232,6 @@ export const walletFileService = {
       }
     }
 
-    // Extract defaultMintUrl from cashu.me
-    let defaultMintUrl = backup.defaultMintUrl ?? '';
-    if (!defaultMintUrl && (backup as any)['cashu.activeMintUrl']) {
-      defaultMintUrl = (backup as any)['cashu.activeMintUrl'];
-    }
-
     // Extract secondaryCurrency from cashu.me
     let secondaryCurrency = backup.secondaryCurrency ?? 'USD';
     if (secondaryCurrency === 'USD' && (backup as any)['cashu.settings.bitcoinPriceCurrency']) {
@@ -261,7 +251,6 @@ export const walletFileService = {
       history: backup.history ?? [],
       mintQuotes: backup.mintQuotes ?? [],
       changeOperations: backup.changeOperations ?? [],
-      defaultMintUrl,
       secondaryCurrency,
       theme: backup.theme ?? 'system',
       exportedAt: backup.exportedAt ?? '',

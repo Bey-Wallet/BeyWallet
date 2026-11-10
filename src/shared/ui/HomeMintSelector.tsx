@@ -138,7 +138,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       activeMintUrl: propActiveMintUrl,
       showAllOption,
       changeGlobalActiveMint = true,
-      trustedOnly = false,
+      trustedOnly = true,
       allowedMintUrls,
       method,
     },

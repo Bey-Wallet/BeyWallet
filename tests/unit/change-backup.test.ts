@@ -56,11 +56,11 @@ it('round-trips maintenance journals through the database snapshot and wallet ba
   expect(state.changeOperations).toEqual([record]);
   await walletFileService.exportWallet(mnemonic, {
     ...state,
-    defaultMintUrl: '',
     secondaryCurrency: 'USD',
     theme: 'system',
   });
   const backup = await walletFileService.importWalletFromFile();
+  expect(JSON.parse(mockContents)).not.toHaveProperty('defaultMintUrl');
   expect(backup.changeOperations).toEqual([record]);
   await backupService.importState({ ...state, changeOperations: backup.changeOperations });
   expect(mockDb.run).toHaveBeenCalledWith(
@@ -73,6 +73,18 @@ it('round-trips maintenance journals through the database snapshot and wallet ba
 it('accepts older backups without a maintenance journal', async () => {
   mockContents = JSON.stringify({ mnemonic });
   expect((await walletFileService.importWalletFromFile()).changeOperations).toEqual([]);
+});
+
+it('ignores retired mint preferences in old Bey and Cashu.me backups', async () => {
+  mockContents = JSON.stringify({
+    mnemonic,
+    mints: [{ mintUrl: 'https://mint.test', trusted: false }],
+    defaultMintUrl: 'https://removed.test',
+    'cashu.activeMintUrl': 'https://untrusted.test',
+  });
+  const backup = await walletFileService.importWalletFromFile();
+  expect(backup.mints).toEqual([{ mintUrl: 'https://mint.test', trusted: false }]);
+  expect(backup).not.toHaveProperty('defaultMintUrl');
 });
 
 it('rejects inconsistent journal amounts and mismatched operation identities', () => {

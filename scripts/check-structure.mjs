@@ -49,7 +49,6 @@ const expectedRoutes = [
   '(tabs)/settings/delete-wallet.tsx',
   '(tabs)/settings/diagnostics.tsx',
   '(tabs)/settings/export-backup.tsx',
-  '(tabs)/settings/fallback-mint.tsx',
   '(tabs)/settings/get-change.tsx',
   '(tabs)/settings/help.tsx',
   '(tabs)/settings/identity.tsx',

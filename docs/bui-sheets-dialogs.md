@@ -52,6 +52,10 @@ Production sheets use the same BUI header and geometry through the `title` API o
 `headerActions`, `navigation` and `onNavigate` for header actions or intermediate
 steps, and retain the owning flow's `canDismiss` guard. Do not add another heading,
 outer padding, scroll view, bottomInset or fixed percentage snap point at call sites.
+For actions that must stay visible while content scrolls, pass `footer` to
+`AppBottomSheet`. The host uses Gorhom's measured footer, reserves its height in
+the scroll content and applies bottom and side safe-area padding. Onboarding mint
+discovery uses this for its Add button.
 The mint selector keeps a virtualized Gorhom list with its header inside the measured
 list content. Active transaction layouts keep their own scrolling and footer.
 
