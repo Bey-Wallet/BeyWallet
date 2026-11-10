@@ -250,6 +250,25 @@ export function PaymentStage({
             <YStack rounded={999} overflow="hidden">
               {paymentAction}
             </YStack>
+          ) : requestDelivery ? (
+            <YStack gap="$2">
+              <AppButton
+                loading={requestDelivery.sending}
+                loadingText="Saving request…"
+                disabled={isExpired && !requestDelivery.queued}
+                onPress={() => {
+                  if (requestDelivery.queued) requestDelivery.onView();
+                  else void requestDelivery.onSend();
+                }}
+              >
+                {requestDelivery.queued
+                  ? 'View conversation'
+                  : requestDelivery.error
+                    ? 'Retry sending request'
+                    : 'Send request'}
+              </AppButton>
+              {paymentAction}
+            </YStack>
           ) : (
             paymentAction
           )

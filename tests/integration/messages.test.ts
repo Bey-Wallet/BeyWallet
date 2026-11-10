@@ -12,6 +12,51 @@ import { unlinkSync } from 'node:fs';
 const { DatabaseSync } = require('node:sqlite');
 
 describe('persistent message repository', () => {
+  it('loads newest first and keeps equal-timestamp cursor pages stable after new arrivals', async () => {
+    const raw = new DatabaseSync(':memory:');
+    const db = {
+      run: async (sql: string, params: unknown[] = []) => raw.prepare(sql).run(...params),
+      all: async (sql: string, params: unknown[] = []) => raw.prepare(sql).all(...params),
+    };
+    try {
+      for (const id of ['016_messages', '015_nostr_receive_requests', '017_request_lifecycle'])
+        raw.exec(MIGRATIONS.find((migration) => migration.id === id)!.sql);
+      const repo = new MessageRepository(db as any);
+      const base: ChatMessage = {
+        id: '',
+        conversation: 'alice',
+        direction: 'incoming',
+        createdAt: 10,
+        receivedAt: 1,
+        text: 'Text',
+        publication: 'sent',
+        transport: 'nip17',
+        read: false,
+      };
+      for (let i = 1; i <= 75; i++)
+        await repo.insert({
+          ...base,
+          id: String(i).padStart(3, '0'),
+          receivedAt: Math.floor(i / 3),
+        });
+      await repo.insert({ ...base, id: 'other-person', conversation: 'bob' });
+      const first = await repo.pageBefore('alice', null);
+      expect(first).toHaveLength(50);
+      expect(first[0].id).toBe('075');
+      expect(first.at(-1)!.id).toBe('026');
+      await repo.insert({ ...base, id: 'new-arrival', createdAt: 11 });
+      const older = await repo.pageBefore('alice', first.at(-1)!);
+      expect(older).toHaveLength(25);
+      expect(older[0].id).toBe('025');
+      expect(older.at(-1)!.id).toBe('001');
+      expect(new Set([...first, ...older].map((message) => message.id)).size).toBe(75);
+      expect(await repo.pageBefore('alice', older.at(-1)!)).toEqual([]);
+      expect((await repo.pageBefore('alice', null))[0].id).toBe('new-arrival');
+    } finally {
+      raw.close();
+    }
+  });
+
   it('preserves legacy data, deduplicates, paginates and recovers interrupted publication after restart', async () => {
     const path = join(tmpdir(), `bey-chat-test-${randomUUID()}.db`);
     let raw = new DatabaseSync(path);

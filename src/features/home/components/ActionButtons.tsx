@@ -11,8 +11,8 @@ function HomeAction({
   label,
   accessibilityLabel = label,
   icon: Icon,
-  iconSize = 22,
-  iconStrokeWidth,
+  iconSize = 24,
+  iconStrokeWidth = 3,
   onPress,
 }: {
   label: string;
@@ -25,15 +25,12 @@ function HomeAction({
   return (
     <BUIActionButton
       flex={1}
+      plain
       title={label}
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
     >
-      <Icon
-        size={iconSize}
-        color="$buttonDefaultSecondaryText"
-        {...(iconStrokeWidth !== undefined ? { strokeWidth: iconStrokeWidth } : {})}
-      />
+      <Icon size={iconSize} color="$accent1" strokeWidth={iconStrokeWidth} />
     </BUIActionButton>
   );
 }
@@ -71,8 +68,8 @@ export default React.memo(function ActionButtons() {
           label="Scan"
           accessibilityLabel="Scan QR code"
           icon={Scan}
-          iconSize={20}
-          iconStrokeWidth={3}
+          iconSize={22}
+          iconStrokeWidth={3.5}
           onPress={handleScan}
         />
         <HomeAction label="Transfer" icon={ArrowRightLeft} onPress={handleTransfer} />

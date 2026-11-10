@@ -275,7 +275,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
         }
         return showBitcoinSymbol
-          ? `₿\u202f${balance.toLocaleString()}`
+          ? `₿${balance.toLocaleString()}`
           : `${balance.toLocaleString()} sat`;
       },
       [hideBalance, displayAsSats, btcData?.price, secondaryCurrency, showBitcoinSymbol],

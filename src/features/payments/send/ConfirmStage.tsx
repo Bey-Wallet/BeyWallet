@@ -1,5 +1,5 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import React from 'react';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
@@ -56,7 +56,12 @@ export function ConfirmStage(props: ConfirmStageProps) {
         : undefined;
   return (
     <>
-      <PaymentFlowHeader title="Confirm send" onBack={onBack} disabled={isLoading} />
+      <PaymentInfoHeader
+        infoTopic="ecash-send"
+        title="Confirm send"
+        onBack={onBack}
+        disabled={isLoading}
+      />
       <PaymentStageLayout
         disabled={isLoading}
         hero={<PaymentAmount amount={Number(amount)} size="prominent" label="You're sending" />}

@@ -7,6 +7,15 @@ export interface PersonHistoryEntry {
   state?: string;
   createdAt: number;
   metadata?: Record<string, unknown> | string | null;
+  mintUrl?: string;
+  token?: unknown;
+  paymentRequest?: string;
+  quoteId?: string;
+  unit?: string;
+}
+
+export function conversationPaymentSettled(status?: string) {
+  return !!status && ['Received', 'Paid', 'Claimed', 'Refunded', 'Expired'].includes(status);
 }
 
 export function parsePersonHistoryMetadata(

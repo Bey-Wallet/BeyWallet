@@ -89,8 +89,17 @@ export class RecoveryCoordinator {
     if (this.lifecycleLocks)
       return Promise.reject(new Error('Wallet is changing. Try recovery again.'));
     const resume = this.pause();
+    const queuedAt = Date.now();
     const result = this.tail.then(async () => {
+      const drainStarted = Date.now();
       await this.drainBackground();
+      console.info(
+        '[Recovery queue timing]',
+        JSON.stringify({
+          queueWaitMs: drainStarted - queuedAt,
+          backgroundWaitMs: Date.now() - drainStarted,
+        }),
+      );
       return task();
     });
     const finished = result.finally(() => {

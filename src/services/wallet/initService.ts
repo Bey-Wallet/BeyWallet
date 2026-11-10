@@ -271,7 +271,7 @@ const customLogger = {
  */
 async function initializeWithMnemonic(
   mnemonic: string,
-  options: { quiet?: boolean } = {},
+  options: { quiet?: boolean; nostrRestoredAt?: number } = {},
 ): Promise<Manager> {
   const seed = await seedService.deriveSeed(mnemonic);
 
@@ -284,6 +284,11 @@ async function initializeWithMnemonic(
 
   // Reuse the existing seed-derived Nostr identity for both receiving protocols.
   const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+  if (options.nostrRestoredAt !== undefined) {
+    const { useNostrHistoryStore } =
+      require('~/state/nostrHistoryStore') as typeof import('~/state/nostrHistoryStore');
+    useNostrHistoryStore.getState().beginRestore(pubkey, options.nostrRestoredAt);
+  }
   const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
   await prepareRecoverySession(pubkey);
   const { FeedbackRepository } = await import('~/storage/sqlite/repositories/FeedbackRepository');
@@ -601,7 +606,10 @@ export const initService = {
     await seedService.saveMnemonic(mnemonic);
 
     // Just initialize normally — deep recovery happens asynchronously in the background queue
-    const m = await initializeWithMnemonic(mnemonic, options);
+    const m = await initializeWithMnemonic(mnemonic, {
+      ...options,
+      nostrRestoredAt: Math.floor(Date.now() / 1000),
+    });
 
     console.log(`[InitService] ✅ Wallet initialized (quiet=${options.quiet})`);
     return m;
@@ -646,6 +654,9 @@ export const initService = {
       usePeopleStore.setState({ people: {} });
       useNostrInboxStore.setState({ items: [], activeClaimId: null });
       useNostrReceiveSettingsStore.setState({ policy: 'ask' });
+      const { useNostrHistoryStore } =
+        require('~/state/nostrHistoryStore') as typeof import('~/state/nostrHistoryStore');
+      useNostrHistoryStore.setState({ walletId: null, restoredAt: null, includeOlder: false });
       const { useRecoverySessionStore, releaseRecoveryPause } =
         await import('~/state/recoverySessionStore');
       useRecoverySessionStore.setState({ session: null });
@@ -658,7 +669,6 @@ export const initService = {
         restoreQueue: [],
         mintRestoreStatuses: [],
         restoringMintUrl: null,
-        restoringMintKeysetProgress: null,
       });
 
       // 1. Cleanup watchers and manager after account-scoped store writes.

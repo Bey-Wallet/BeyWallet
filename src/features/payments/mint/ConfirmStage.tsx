@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
@@ -15,6 +15,7 @@ interface ConfirmStageProps {
   isLoading?: boolean;
   onConfirm: () => void;
   onBack: () => void;
+  request?: boolean;
 }
 
 export function ConfirmStage({
@@ -24,6 +25,7 @@ export function ConfirmStage({
   onConfirm,
   onMintChange,
   onBack,
+  request = false,
 }: ConfirmStageProps) {
   const { mints } = useWalletStore();
   const activeMint = mints.find(
@@ -35,14 +37,19 @@ export function ConfirmStage({
     (mintUrl ? mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Selected Mint');
   return (
     <>
-      <PaymentFlowHeader title="Confirm top-up" onBack={onBack} disabled={isLoading} />
+      <PaymentInfoHeader
+        infoTopic={request ? 'lightning-request' : 'lightning-top-up'}
+        title={request ? 'Confirm request' : 'Confirm top-up'}
+        onBack={onBack}
+        disabled={isLoading}
+      />
       <PaymentStageLayout
         inset={false}
         disabled={isLoading}
         hero={
           <PaymentAmount
             amount={parseInt(amount, 10) || 0}
-            label="You're adding"
+            label={request ? "You're requesting" : "You're adding"}
             size="prominent"
             testID="mint-confirm"
           />
@@ -61,7 +68,7 @@ export function ConfirmStage({
               onConfirm();
             }}
           >
-            Create invoice
+            {request ? 'Create & send request' : 'Create invoice'}
           </AppButton>
         }
       >

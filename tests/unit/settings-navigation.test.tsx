@@ -1,5 +1,6 @@
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
+jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import SettingsStack from '~/features/settings/SettingsStack';
@@ -12,12 +13,24 @@ import {
 const mockNavigate = jest.fn();
 const mockReplace = jest.fn();
 const mockGoBack = jest.fn();
+const mockPresentInfo = jest.fn();
+let mockStackProps: any;
+let mockDevClient = true;
+jest.mock('~/shared/utils/developmentClient', () => ({ isDevelopmentClient: () => mockDevClient }));
+jest.mock('~/shared/components/info-sheets/InfoSheet', () => ({
+  InfoSheet: require('react').forwardRef((props: any, ref: any) => {
+    require('react').useImperativeHandle(ref, () => ({ present: mockPresentInfo }));
+    return require('react').createElement('InformationSheet', props);
+  }),
+}));
 let mockRoute = 'index';
 let mockCanGoBack = false;
 jest.mock('expo-router', () => ({
   useRouter: () => ({ navigate: mockNavigate, replace: mockReplace }),
   Stack: Object.assign(
-    ({ screenOptions, children }: any) => {
+    (props: any) => {
+      mockStackProps = props;
+      const { screenOptions } = props;
       const React = require('react');
       const options = screenOptions({
         route: { name: mockRoute },
@@ -85,4 +98,43 @@ it('hides the custom tab bar only in Settings and ignores invalid return destina
   expect(settingsReturnPath()).toBe('/(tabs)/history');
   rememberSettingsOrigin('index');
   expect(settingsReturnPath()).toBe('/(tabs)');
+});
+
+it.each([true, false])(
+  'pins Settings home before protected BUI routes (development: %s)',
+  async (development) => {
+    mockDevClient = development;
+    mockRoute = 'index';
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(<SettingsStack />);
+    });
+    expect(mockStackProps.initialRouteName).toBe('index');
+    const children = React.Children.toArray(mockStackProps.children) as React.ReactElement<any>[];
+    expect(children[0].props.name).toBe('index');
+    expect(children[1].props.guard).toBe(development);
+    await act(async () => tree.unmount());
+  },
+);
+
+it('adds Info only to the selected technical settings and opens the matching sheet', async () => {
+  mockRoute = 'get-change';
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<SettingsStack />);
+  });
+  const info = tree.root
+    .findAllByType('AppIconButton' as any)
+    .find((button) => button.props.accessibilityLabel === 'Offline change information');
+  expect(info).toBeDefined();
+  await act(async () => info!.props.onPress());
+  expect(mockPresentInfo).toHaveBeenCalledTimes(1);
+  expect(tree.root.findByType('InformationSheet' as any).props.topic).toBe('offline-change');
+  await act(async () => tree.root.findByType('InformationSheet' as any).props.onClose());
+  for (const route of ['index', 'theme', 'recovery-phrase', 'secret-key', 'delete-wallet']) {
+    mockRoute = route;
+    await act(async () => tree.update(<SettingsStack />));
+    expect(tree.root.findAllByType('AppIconButton' as any)).toHaveLength(1);
+  }
+  await act(async () => tree.unmount());
 });

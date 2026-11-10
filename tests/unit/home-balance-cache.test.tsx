@@ -66,7 +66,7 @@ it('swaps sats and fiat from the secondary pill and blocks switching while hidde
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('SATS');
   expect(displayed()[0].value).toBe(10_000);
-  expect(displayed()[1].children).toBe('$\u202f10.00');
+  expect(displayed()[1].children).toBe('$10.00');
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   await act(async () => useSettingsStore.setState({ hideBalance: true }));
@@ -128,17 +128,17 @@ it('keeps the existing balance and fiat amount visible while refreshing and upda
   await act(async () => {
     tree = create(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$\u202f10.00');
+  expect(displayed()[0].children).toBe('$10.00');
   expect(displayed()[1].value).toBe(10_000);
   mockQuote = { price: 120_000 };
   await act(async () => {
     tree.update(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$\u202f12.00');
+  expect(displayed()[0].children).toBe('$12.00');
   await act(async () => {
     useWalletStore.setState({ balances: { mint: 20_000 } });
   });
-  expect(displayed()[0].children).toBe('$\u202f24.00');
+  expect(displayed()[0].children).toBe('$24.00');
   expect(displayed()[1].value).toBe(20_000);
 });
 
@@ -148,7 +148,7 @@ it('shows a real zero without requiring an exchange rate', async () => {
   await act(async () => {
     tree = create(<Balance />);
   });
-  expect(displayed()[0].children).toBe('$\u202f0.00');
+  expect(displayed()[0].children).toBe('$0.00');
 });
 
 it('collapses to one sats balance for None and restores the saved fiat presentation', async () => {
@@ -171,7 +171,7 @@ it('collapses to one sats balance for None and restores the saved fiat presentat
     useSettingsStore.setState({ secondaryCurrency: 'USD', hideBalance: false }),
   );
   expect(displayed()).toHaveLength(2);
-  expect(displayed()[0].children).toBe('$\u202f10.00');
+  expect(displayed()[0].children).toBe('$10.00');
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   expect(hasMinimumHeight(160)).toBe(true);
 });
@@ -223,7 +223,7 @@ it.each(['SATS', 'FIAT'] as const)(
     const sats = displayed()[currency === 'SATS' ? 0 : 1];
     const fiat = displayed()[currency === 'SATS' ? 1 : 0];
     expect(sats.value).toBe(20_000);
-    expect(fiat.children).toBe('$\u202f20.00');
+    expect(fiat.children).toBe('$20.00');
   },
 );
 

@@ -4,7 +4,7 @@ import type { NostrReceiveRequest, RequestPayment } from '~/state/nostrRequestSt
 import { findRequestPayment } from '~/state/nostrRequestStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import {
-  conversationPaymentInput,
+  conversationPaymentParts,
   type ConversationPaymentInput,
 } from './conversationPaymentInput';
 import {
@@ -20,6 +20,7 @@ interface ConversationActivityBase {
   direction: 'incoming' | 'outgoing';
   text?: string;
   note?: string;
+  payloadPreview?: string;
   amount?: number;
   type?: string;
   status: string;
@@ -56,15 +57,19 @@ export function buildConversationActivity(
     return typeof id !== 'string' || !paymentIds.has(id);
   });
   return [
-    ...messages.map((message): ConversationActivity => {
-      const input = message.paymentId ? undefined : conversationPaymentInput(message.text);
-      return {
-        id: `m-${message.id}`,
+    ...messages.flatMap((message): ConversationActivity[] => {
+      const parts: ReturnType<typeof conversationPaymentParts> = message.paymentId
+        ? { inputs: [] }
+        : conversationPaymentParts(message.text);
+      const inputs = parts.inputs.length ? parts.inputs : [undefined];
+      return inputs.map((input, index): ConversationActivity => ({
+        id: index === 0 ? `m-${message.id}` : `m-${message.id}-payment-${index}`,
         kind: message.paymentId || input ? 'payment' : 'text',
         time: message.createdAt,
         direction: message.direction,
         text: message.paymentId || input ? '' : message.text,
-        note: message.paymentId ? message.text || undefined : undefined,
+        note: message.paymentId ? message.text || undefined : parts.note,
+        payloadPreview: accepted || message.direction === 'outgoing' ? input?.value : undefined,
         paymentInput: input,
         amount: message.paymentAmount ?? input?.amount,
         type: message.paymentId
@@ -83,11 +88,13 @@ export function buildConversationActivity(
             : input
               ? !accepted
                 ? 'Pending contact acceptance'
-                : 'Payment requested'
+                : input.route === 'cashu_token'
+                  ? 'Review ecash token'
+                  : 'Payment requested'
               : 'Received',
         requiresAction: message.direction === 'incoming' && (!accepted || !!input?.route),
         message,
-      };
+      }));
     }),
     ...payments.map((payment): ConversationActivity => ({
       id: `p-${payment.id}`,
@@ -98,6 +105,7 @@ export function buildConversationActivity(
       type: payment.type === 'request' ? 'Ecash request' : 'Ecash',
       mintUrl: payment.mintUrl,
       note: payment.note,
+      payloadPreview: accepted ? payment.tokenString : undefined,
       payment,
       status:
         payment.status === 'claimed'
@@ -182,6 +190,8 @@ export function buildConversationActivity(
           status,
           mintUrl: request?.mintUrl,
           note: activity.note || request?.description,
+          payloadPreview:
+            accepted || activity.direction === 'outgoing' ? request?.creqString : undefined,
         };
       }
       if (activity.payment?.type === 'request') {

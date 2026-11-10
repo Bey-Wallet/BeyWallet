@@ -235,6 +235,15 @@ export function RootLayoutNav() {
           }}
         >
           <Stack.Screen
+            name="recover-funds"
+            options={{
+              title: 'Recover funds',
+              presentation: 'fullScreenModal',
+              animation: 'slide_from_bottom',
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
             name="wallet-activity"
             options={{
               presentation: 'transparentModal',

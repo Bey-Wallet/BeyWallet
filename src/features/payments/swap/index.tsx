@@ -7,6 +7,10 @@ import { YStack, Text } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
+import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
+import { TransferInfoSheet } from '~/shared/components/info-sheets/TransferInfoSheet';
+import { Info } from '@tamagui/lucide-icons';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
@@ -45,6 +49,7 @@ export default function SwapScreen() {
   const [quoting, setQuoting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const submitting = useRef(false);
+  const infoSheet = useRef<BUISheetRef>(null);
   usePreventRemove(isProcessing, () => {});
 
   useEffect(() => {
@@ -114,6 +119,19 @@ export default function SwapScreen() {
   };
 
   const close = () => router.back();
+  const infoAction = () => (
+    <AppIconButton
+      variant="default"
+      emphasis="ghost"
+      size="medium"
+      shape="circular"
+      iconSize={22}
+      icon={Info}
+      accessibilityLabel="About mint-to-mint transfers"
+      disabled={isProcessing}
+      onPress={() => infoSheet.current?.present()}
+    />
+  );
   if (step === 'result') {
     const completed = displayed?.state === 'completed';
     return (
@@ -144,7 +162,12 @@ export default function SwapScreen() {
     <YStack flex={1} bg="$background">
       {step === 'amount' ? (
         <YStack flex={1} px="$4">
-          <PaymentFlowHeader title="Transfer" navigationAction="close" onBack={close} />
+          <PaymentFlowHeader
+            title="Transfer"
+            navigationAction="close"
+            onBack={close}
+            headerRight={infoAction}
+          />
           <AmountStage
             amount={amount}
             setAmount={setAmount}
@@ -162,6 +185,7 @@ export default function SwapScreen() {
             title="Confirm transfer"
             onBack={() => setStep('amount')}
             disabled={isProcessing}
+            headerRight={infoAction}
           />
           <PaymentStageLayout
             disabled={isProcessing}
@@ -229,6 +253,7 @@ export default function SwapScreen() {
           </PaymentStageLayout>
         </>
       )}
+      <TransferInfoSheet ref={infoSheet} busy={isProcessing} />
     </YStack>
   );
 }

@@ -53,8 +53,8 @@ export function CustomTabBar({
             if (!isFocused && !event.defaultPrevented) {
               if (settingsTabIsActive(route.name)) {
                 rememberSettingsOrigin(state.routes[state.index].name);
-              }
-              navigation.navigate(route.name);
+                navigation.navigate(route.name, { screen: 'index' });
+              } else navigation.navigate(route.name);
             }
 
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {

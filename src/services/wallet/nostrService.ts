@@ -8,6 +8,11 @@ import {
 import { applyIncomingContactPolicy, contactPolicyReady } from './contactPolicy';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { useMessageStore } from '~/state/messageStore';
+import {
+  useNostrHistoryStore,
+  nostrMessageSince,
+  GIFT_WRAP_TIMESTAMP_SECONDS,
+} from '~/state/nostrHistoryStore';
 import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
 
 const feedbackStartedAt = Date.now();
@@ -36,8 +41,6 @@ import { getNostrRelays, getNostrInboxRelays, useNostrRelayStore } from '~/state
 //
 const LISTENED_KINDS = [4, 1059];
 
-// How many seconds back to fetch on first connection
-const SINCE_SECONDS = 7 * 24 * 60 * 60; // Recover messages after several days offline
 const MAX_NOSTR_PAYMENT_MESSAGE_LENGTH = 64 * 1024;
 
 export async function hasSuccessfulRelayPublish(
@@ -468,6 +471,7 @@ class NostrService {
     if (this.isRunning) this._teardown();
     this.privkeyHex = privkeyHex;
     this.pubkeyHex = pubkeyHex;
+    useNostrHistoryStore.getState().bindWallet(pubkeyHex);
     this.privkeyBytes = hexToBytes(privkeyHex);
     this.isRunning = true;
     this.inboxPublicationNeeded = true;
@@ -478,6 +482,14 @@ class NostrService {
     const { useSettingsStore } =
       require('~/state/settingsStore') as typeof import('~/state/settingsStore');
     this.unsubscribeEligibility = [
+      useNostrHistoryStore.subscribe((state, previous) => {
+        if (
+          state.includeOlder !== previous.includeOlder ||
+          state.walletId !== previous.walletId ||
+          state.restoredAt !== previous.restoredAt
+        )
+          this.refresh();
+      }),
       useAuthStore.subscribe?.(() => this.syncReceiving()),
       useSettingsStore.subscribe?.((state, previous) => {
         if (
@@ -648,12 +660,17 @@ class NostrService {
     const filter: Filter = {
       kinds: LISTENED_KINDS,
       '#p': [this.pubkeyHex],
-      since: Math.floor(Date.now() / 1000) - SINCE_SECONDS,
+      // NIP-59 deliberately backdates wrappers. Admission uses the authenticated
+      // inner timestamp below, so new messages are not lost with a fresh cutoff.
+      since:
+        nostrMessageSince(this.pubkeyHex) -
+        (useNostrHistoryStore.getState().restoredAt === null ? 0 : GIFT_WRAP_TIMESTAMP_SECONDS),
     };
 
     const generation = this.generation;
     this.subscription = this.pool.subscribeMany(this.connectedRelays, filter, {
       onevent: (event: Event) => {
+        if (event.kind === 4 && event.created_at < nostrMessageSince(this.pubkeyHex!)) return;
         if (generation === this.generation) this.enqueueEvent(event);
       },
       oneose: () => {
@@ -716,6 +733,16 @@ class NostrService {
         return;
       }
       if (!this.privkeyHex || !this.pubkeyHex || generation !== this.generation) return;
+
+      const history = useNostrHistoryStore.getState();
+      if (
+        history.walletId === this.pubkeyHex &&
+        history.restoredAt !== null &&
+        decrypted.createdAt < nostrMessageSince(this.pubkeyHex)
+      ) {
+        // Do not mark as processed: an explicit history opt-in may request it later.
+        return;
+      }
 
       const outgoing =
         decrypted.senderPubkey === this.pubkeyHex && decrypted.recipients[0] !== this.pubkeyHex;

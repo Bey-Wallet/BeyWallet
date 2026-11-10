@@ -32,7 +32,7 @@ it('exports an explicit public field allowlist and keeps unclaimed ecash pending
     'type',
   ]);
   expect(summary).toMatchObject({
-    amount: '₿\u202f1,234',
+    amount: '₿1,234',
     direction: 'Sending',
     method: 'Ecash',
     status: 'Pending',

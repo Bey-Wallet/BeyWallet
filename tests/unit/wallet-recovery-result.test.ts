@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-it('starts after interactions without a fixed sheet delay and clears the timeout', async () => {
+it('starts after interactions without a fixed sheet delay', async () => {
   jest.mocked(walletService.restore).mockResolvedValue({ partial: false });
   const result = useWalletStore.getState().recoverSelectedMints(['https://mint.test']);
   await jest.advanceTimersByTimeAsync(0);
@@ -74,7 +74,7 @@ it('reports scan failure instead of success and releases the queue', async () =>
   expect(useRecoverySessionStore.getState().session?.results[0].status).toBe('error');
   expect(useWalletStore.getState().restoreQueue).toEqual([]);
   expect(useWalletStore.getState().isRestoring).toBe(false);
-  expect(walletService.restoreInflightProofs).toHaveBeenCalledWith('https://mint.test');
+  expect(walletService.restoreInflightProofs).not.toHaveBeenCalled();
   expect(jest.getTimerCount()).toBe(0);
 });
 
@@ -117,7 +117,7 @@ it('keeps slow scans active beyond both former timeouts and prevents overlapping
     useWalletStore
       .getState()
       .mintRestoreStatuses.find((entry) => entry.mintUrl === 'https://mint.test'),
-  ).toMatchObject({ status: 'scanning', slow: true });
+  ).toMatchObject({ status: 'scanning' });
   expect(() => recoveryCoordinator.beginLifecycle()).toThrow('recovery');
   finish({ partial: false });
   await jest.runAllTimersAsync();

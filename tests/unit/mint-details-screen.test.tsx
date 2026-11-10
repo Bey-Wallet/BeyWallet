@@ -325,7 +325,7 @@ it('keeps the balance, replaces payment actions with QR and Restore, and shows m
   expect(balance.props.children).toContain('0');
   await act(async () => quickAction('Restore funds').props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(tabs)/settings/recover-funds',
+    pathname: '/recover-funds',
     params: { mintUrl: url },
   });
 });

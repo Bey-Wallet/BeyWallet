@@ -1,1 +1,1 @@
-export { RecoverFundsScreen as default } from '~/features/settings/RecoverFundsScreen';
+export { RecoverFundsLegacyRoute as default } from '~/features/settings/RecoverFundsLegacyRoute';

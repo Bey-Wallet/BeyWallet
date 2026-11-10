@@ -92,7 +92,7 @@ export function BUIActionButton({
         {children}
       </YStack>
       <Text
-        mt={plain ? 4 : 8}
+        mt={8}
         fontFamily="$body"
         fontWeight="500"
         fontSize={12}

@@ -68,7 +68,13 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
         key={item.path}
         {...item}
         value={summaries[item.path]}
-        onPress={() => router.push(`/(tabs)/settings/${item.path}` as Href)}
+        onPress={() =>
+          router.push(
+            item.path === 'recover-funds'
+              ? '/recover-funds'
+              : (`/(tabs)/settings/${item.path}` as Href),
+          )
+        }
       />
     );
   return (

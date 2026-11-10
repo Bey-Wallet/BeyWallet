@@ -1,6 +1,6 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
-import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
+import { useSettingsBusy, useSettingsCanLeave } from '~/features/settings/hooks/useSettingsBusy';
 import { prepareEcash, type EcashReview } from '~/services/wallet/ecashPayment';
 import { supportsReclaim } from '~/services/wallet/reclaimPolicy';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -103,8 +103,11 @@ export function SendModalScreen() {
   const [nostrRecipientUsername, setNostrRecipientUsername] = useState('');
   const [useP2PK, setUseP2PK] = useState(true); // Default ON for Nostr sends
   const [nostrSending, setNostrSending] = useState(false);
+  const [conversationReturn, setConversationReturn] = useState<string | null>(null);
+  const returnedToConversation = React.useRef(false);
   useFeedbackOwner(operationId);
   useSettingsBusy(isProcessing || nostrSending);
+  const canReturnToConversation = useSettingsCanLeave(isProcessing || nostrSending);
   const [expiryHours, setExpiryHours] = useState(0);
   const [capability, setCapability] = useState<{ mint: string; supported: boolean } | null>(null);
   const reviewRef = React.useRef<EcashReview | null>(null);
@@ -127,7 +130,21 @@ export function SendModalScreen() {
     username?: string;
     mode?: string;
     inboxItemId?: string;
+    returnToConversation?: string;
   }>();
+
+  React.useEffect(() => {
+    if (
+      !conversationReturn ||
+      !canReturnToConversation ||
+      isProcessing ||
+      nostrSending ||
+      returnedToConversation.current
+    )
+      return;
+    returnedToConversation.current = true;
+    router.dismissTo({ pathname: '/(modals)/conversation', params: { npub: conversationReturn } });
+  }, [conversationReturn, canReturnToConversation, isProcessing, nostrSending, router]);
 
   // Auto-select Nostr mode + pre-fill recipient when coming from person-details
   React.useEffect(() => {
@@ -413,7 +430,7 @@ export function SendModalScreen() {
     const cur = SUPPORTED_CURRENCIES.find((c) => c.code === secondaryCurrency);
     const symbol = cur?.symbol || '$';
     const val = currencyService.convertSatsToCurrency(sats, btcData.price);
-    return `${symbol}\u202f${val.toFixed(2)}`;
+    return `${symbol}${val.toFixed(2)}`;
   }, [amount, btcData?.price, secondaryCurrency]);
 
   const handleSend = useCallback(async () => {
@@ -574,7 +591,9 @@ export function SendModalScreen() {
 
       // A successful payment is the point where a searched identity becomes saved.
       if (nostrRecipientNpub) {
-        import('~/state/peopleStore').then(({ usePeopleStore }) => {
+        try {
+          const { usePeopleStore } =
+            require('~/state/peopleStore') as typeof import('~/state/peopleStore');
           const recipientLabel = nostrRecipientUsername?.trim() || '';
           const recipientNip05 = recipientLabel.includes('@') ? recipientLabel : null;
           usePeopleStore.getState().savePerson({
@@ -585,20 +604,21 @@ export function SendModalScreen() {
             displayName: recipientNip05 ? null : recipientLabel || null,
             nip05: recipientNip05,
           });
-        });
+        } catch {
+          // Optional profile metadata must not turn a published payment into a failed send.
+          console.warn('[SendModal] Could not update contact metadata.');
+        }
       }
 
       setEncodedToken(result.encoded);
       setOperationId(result.id);
       setStatus('success');
       refreshBalance();
-      queryClient.invalidateQueries({ queryKey: ['history'] });
-
       const computedExpiry = submittedReviewRef.current?.reclaimAt;
       setExpiresAt(computedExpiry);
 
       // Tag as Nostr send with recipient username
-      historyService
+      await historyService
         .tagHistoryVia(
           activeMintUrl,
           'send',
@@ -621,6 +641,12 @@ export function SendModalScreen() {
         )
         .catch(() => {});
 
+      // Publish the tagged operation to conversation queries before returning to chat.
+      await Promise.resolve(queryClient.invalidateQueries({ queryKey: ['history'] })).catch(
+        () => {},
+      );
+      if (params.returnToConversation === '1') setConversationReturn(nostrRecipientNpub);
+
       setStep('result');
     } catch (err: any) {
       console.error('[SendModal] Nostr send failed:', err);
@@ -640,6 +666,7 @@ export function SendModalScreen() {
     expiryHours,
     nostrRecipientUsername,
     note,
+    params.returnToConversation,
   ]);
 
   const handleExecuteSend = async () => {
@@ -748,7 +775,8 @@ export function SendModalScreen() {
         }}
       />
       {step === 'amount' && (
-        <PaymentFlowHeader
+        <PaymentInfoHeader
+          infoTopic={sendMode === 'nostr' ? 'nostr-send' : 'ecash-send'}
           title={headerTitle}
           navigationAction="close"
           onBack={handleClose}

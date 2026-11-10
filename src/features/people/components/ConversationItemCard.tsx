@@ -1,9 +1,10 @@
 import React from 'react';
-import { AlertCircle, Check, Clock3, X, ArrowDownLeft } from '@tamagui/lucide-icons';
+import { AlertCircle, Check, Clock3, X, ArrowDownLeft, ArrowUpRight } from '@tamagui/lucide-icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import type { ConversationActivity } from '../conversationActivity';
+import { conversationPaymentLabel } from '../conversationPaymentLabel';
 import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 export interface ConversationItemCardProps {
@@ -16,20 +17,9 @@ export interface ConversationItemCardProps {
   payDisabled?: boolean;
 }
 
-function paymentTitle(item: ConversationActivity) {
-  if (item.type?.startsWith('Lightning') || item.paymentInput?.route === 'lightning') return 'LN';
-  if (item.type?.startsWith('Bitcoin') || item.paymentInput?.route === 'onchain') return 'Bitcoin';
-  if (item.type?.startsWith('Ecash') || item.paymentInput?.route?.startsWith('cashu_'))
-    return 'Ecash';
-  return 'Payment';
-}
-
 export function ConversationTextBubble({ item }: ConversationItemCardProps) {
   return (
     <YStack gap={appSpacing.small}>
-      <Text {...appTypography.body3} color="$gray10">
-        Message
-      </Text>
       <Text {...appTypography.body2} color="$color">
         {item.text}
       </Text>
@@ -42,6 +32,12 @@ export function ConversationPaymentCard({
   primaryAmount,
   secondaryAmount,
 }: ConversationItemCardProps) {
+  const outgoing = item.direction === 'outgoing';
+  const foreground = '$color';
+  const supporting = '$gray10';
+  const preview = item.note?.trim() || item.payloadPreview;
+  const alignment = outgoing ? 'left' : 'right';
+  const DirectionIcon = outgoing ? ArrowUpRight : ArrowDownLeft;
   const complete = ['Claimed', 'Received', 'Paid'].includes(item.status);
   const returned = ['Refunded', 'Reclaimed'].includes(item.status);
   const ended = ['Cancelled', 'Expired', 'Dismissed'].includes(item.status);
@@ -71,36 +67,44 @@ export function ConversationPaymentCard({
         });
   return (
     <YStack gap={appSpacing.compact} minWidth={0}>
-      <Text {...appTypography.body2} color="$gray10">
-        {paymentTitle(item)}
-      </Text>
+      <XStack items="center" justify="space-between" gap={appSpacing.small}>
+        <Text {...appTypography.body2} color={supporting} flexShrink={1}>
+          {conversationPaymentLabel(item)}
+        </Text>
+        <DirectionIcon
+          size={14}
+          color={supporting}
+          accessibilityRole="image"
+          accessibilityLabel={outgoing ? 'Outgoing payment' : 'Incoming payment'}
+        />
+      </XStack>
       {/* Layout adapted from Radar Android's AGPL-3.0 PaymentMessageView:
           https://github.com/radar-labs/radar-android/blob/b6c4fff179e47368f24444281a9b5a0ba4b70bc4/app/src/main/res/layout/payment_message_view.xml */}
-      <YStack
-        minHeight={80}
-        rounded="$6"
-        bg="$gray3"
-        items="flex-start"
-        justify="center"
-        gap={appSpacing.small}
-        p={appSpacing.compact}
-      >
+      <YStack items={outgoing ? 'flex-start' : 'flex-end'} justify="center" gap={appSpacing.tiny}>
         <Text
           {...(primaryAmount ? appTypography.amount : appTypography.body2)}
-          color="$color"
-          textAlign="left"
+          color={foreground}
+          textAlign={alignment}
+          maxWidth="100%"
         >
           {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
         </Text>
         {!!secondaryAmount && (
-          <Text {...appTypography.caption} color="$gray10" textAlign="left">
+          <Text {...appTypography.caption} color={supporting} textAlign={alignment} maxWidth="100%">
             {secondaryAmount}
           </Text>
         )}
       </YStack>
-      {!!item.note && (
-        <Text {...appTypography.body3} color="$gray10">
-          {item.note}
+      {!!preview && (
+        <Text
+          {...appTypography.caption}
+          color={supporting}
+          numberOfLines={4}
+          ellipsizeMode="tail"
+          maxWidth="100%"
+          flexShrink={1}
+        >
+          {preview}
         </Text>
       )}
       <XStack gap={appSpacing.small} items="center" justify="flex-end">
@@ -139,9 +143,8 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
   return (
     <YStack
       self={item.direction === 'outgoing' ? 'flex-end' : 'flex-start'}
-      width={payment ? 236 : undefined}
-      maxWidth={payment ? '100%' : '80%'}
-      gap={appSpacing.compact}
+      maxWidth={payment ? '70%' : '80%'}
+      gap={payment ? appSpacing.small : appSpacing.compact}
     >
       <AppPressable
         accessibilityRole={onPress ? 'button' : 'text'}

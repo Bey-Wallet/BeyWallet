@@ -1,6 +1,9 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ConfirmStage } from '~/features/payments/receive/ConfirmStage';
+jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
+  PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
+}));
 
 const mockCheck = jest.fn();
 const mockFee = jest.fn(async () => 0);

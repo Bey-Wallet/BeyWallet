@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
 import { findTokenReceiveReceipt } from '~/services/wallet/nostrReceiptService';
@@ -526,7 +526,12 @@ export function ReceiveModalScreen() {
 
       {/* ── Receive: existing paste/scan flow ─────────────────────── */}
       {receiveMode === 'receive' && step === 'input' && (
-        <PaymentFlowHeader title={headerTitle} navigationAction="close" onBack={handleClose} />
+        <PaymentInfoHeader
+          infoTopic="ecash-receive"
+          title={headerTitle}
+          navigationAction="close"
+          onBack={handleClose}
+        />
       )}
       {receiveMode === 'receive' && step === 'input' && (
         <InputStage

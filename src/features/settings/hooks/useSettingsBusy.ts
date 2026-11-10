@@ -1,4 +1,4 @@
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove, usePreventRemoveContext, useRoute } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { feedbackNavigationGuard } from '~/services/feedback/navigationGuard';
 
@@ -8,4 +8,11 @@ export function useSettingsBusy(busy: boolean) {
   useEffect(() => {
     if (busy) return feedbackNavigationGuard.acquire();
   }, [busy]);
+}
+
+/** Wait for the navigator to process a guard release before automatic navigation. */
+export function useSettingsCanLeave(busy: boolean) {
+  const { preventedRoutes } = usePreventRemoveContext();
+  const route = useRoute();
+  return !busy && !preventedRoutes[route.key]?.preventRemove;
 }

@@ -2,6 +2,11 @@
 
 Status: approved and implemented; device verification remains outstanding.
 
+Settings explicitly registers `index` before the protected development-only BUI screens,
+and its tab entry targets that index. Recovery opens the root `/recover-funds` modal with
+a vertical slide transition and dismisses to Home when idle. Its former Settings URL
+remains a compatibility redirect, including the selected mint. Operation guards remain active.
+
 ## Experience
 
 - Use the three Phantom screenshots as references for hierarchy, spacing, rounded
@@ -88,7 +93,7 @@ nested list groups; items within each group retain the order shown.
 | Payments & mints    | Connected mints, fallback mint, Lightning address, prepare offline change                                |
 | Privacy & security  | Biometric app lock, hide balance; receiving from people, blocked people; Nostr secret key; Delete wallet |
 | Backup & recovery   | Recovery phrase, mint-list backup, export wallet backup; restore wallet backup, recover funds            |
-| Network             | Relays, read-only Nostr health                                                                           |
+| Network             | Relays, Nostr history, read-only Nostr health                                                            |
 | Wallet tools        | Optimize wallet; proof manager, verify proofs offline; development-only BUI                              |
 
 Lightning address retains its receiving-mint and pending-payment screens. Recovery, key handling, backup formats,

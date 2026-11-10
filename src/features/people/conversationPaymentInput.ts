@@ -11,20 +11,18 @@ export interface ConversationPaymentInput {
 }
 
 /** Presentation only. The destination flow still validates and confirms every payment. */
-export function conversationPaymentInput(text: string): ConversationPaymentInput | undefined {
+function parseConversationPaymentInput(text: string): ConversationPaymentInput | undefined {
   const raw = text.trim();
   const lightning = raw.replace(/^lightning:/i, '').trim();
-  if (
-    /^(lnurl1|lnurlp:\/\/)/i.test(lightning) ||
-    detectLightningInputType(lightning) === 'address'
-  ) {
+  const lightningAddress = detectLightningInputType(lightning) === 'address';
+  if (/^(lnurl1|lnurlp:\/\/)/i.test(lightning) || lightningAddress) {
     try {
       const value = normalizeLightningInput(lightning);
       if (!['address', 'lnurlp'].includes(detectLightningInputType(value)))
         throw new Error('Invalid Lightning payment');
       return {
         value,
-        type: 'Lightning · LNURL',
+        type: lightningAddress ? 'Lightning · Address' : 'Lightning · LNURL',
         route: 'lightning',
       };
     } catch {
@@ -33,7 +31,17 @@ export function conversationPaymentInput(text: string): ConversationPaymentInput
   }
   const parsed = parsePaymentInput(raw);
   if (!parsed.matched) return undefined;
-  if (!parsed.ok) return { value: raw, type: 'Payment', error: parsed.reason };
+  if (!parsed.ok) {
+    const unwrapped = raw.replace(/^(?:web\+cashu:\/\/|web\+cashu:|cashu:|lightning:)/i, '').trim();
+    const type = /^creq[ab]/i.test(unwrapped)
+      ? 'Ecash request'
+      : /^cashu[ab]/i.test(unwrapped)
+        ? 'Ecash'
+        : /^bitcoin:/i.test(raw)
+          ? 'Bitcoin · On-chain'
+          : 'Payment';
+    return { value: raw, type, error: parsed.reason };
+  }
   const { type, value } = parsed.value.primary;
   switch (type) {
     case 'lightning_invoice':
@@ -52,6 +60,42 @@ export function conversationPaymentInput(text: string): ConversationPaymentInput
     case 'bolt12_offer':
       return { value, type: 'Lightning · BOLT12', error: 'BOLT12 offers are not supported yet' };
   }
+}
+
+/** Extract standalone or sentence-embedded payment details without executing them. */
+export function conversationPaymentParts(text: string): {
+  inputs: ConversationPaymentInput[];
+  note?: string;
+} {
+  const inputs: ConversationPaymentInput[] = [];
+  const context: string[] = [];
+  let end = 0;
+  // Keep URI query strings intact; trim surrounding prose punctuation only.
+  const pieces = [...text.matchAll(/\S+/g)];
+  for (let index = 0; index < pieces.length; index++) {
+    const piece = pieces[index];
+    let token = piece[0];
+    let tokenEnd = piece.index! + token.length;
+    if (/^(?:lightning|cashu|web\+cashu|bitcoin):(?:\/\/)?$/i.test(token) && pieces[index + 1]) {
+      const next = pieces[++index];
+      token += next[0];
+      tokenEnd = next.index! + next[0].length;
+    }
+    const candidate = token.replace(/^[([{<"'`]+/, '').replace(/[)\]}>"'`.,;!]+$/, '');
+    const input = parseConversationPaymentInput(candidate);
+    if (!input) continue;
+    inputs.push(input);
+    context.push(text.slice(end, piece.index));
+    end = tokenEnd;
+  }
+  if (!inputs.length) return { inputs };
+  context.push(text.slice(end));
+  const note = context.join(' ').replace(/\s+/g, ' ').trim();
+  return { inputs, note: note || undefined };
+}
+
+export function conversationPaymentInput(text: string): ConversationPaymentInput | undefined {
+  return conversationPaymentParts(text).inputs[0];
 }
 
 // Display only. Payment validation and confirmation remain in the Lightning flow.

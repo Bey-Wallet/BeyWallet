@@ -95,7 +95,7 @@ function MintDetailsContent() {
   const handleRestoreProofs = () => {
     if (!mintUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/(tabs)/settings/recover-funds', params: { mintUrl } });
+    router.push({ pathname: '/recover-funds', params: { mintUrl } });
   };
 
   const { data: btcData } = useQuery({
@@ -352,7 +352,7 @@ function MintDetailsContent() {
                             secondaryCurrency as CurrencyCode,
                           )
                         : showBitcoinSymbol
-                          ? `₿\u202f${balance.toLocaleString()}`
+                          ? `₿${balance.toLocaleString()}`
                           : `${balance.toLocaleString()} sat`}
                     </Text>
                   )}
@@ -436,7 +436,7 @@ function MintDetailsContent() {
                         You currently have a balance of{' '}
                         <Text kind="label2">
                           {showBitcoinSymbol
-                            ? `₿\u202f${balance.toLocaleString()}`
+                            ? `₿${balance.toLocaleString()}`
                             : `${balance.toLocaleString()} sat`}
                         </Text>{' '}
                         in this mint. Transfer or withdraw this balance before removing it. Removing

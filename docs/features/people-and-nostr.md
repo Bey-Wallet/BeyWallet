@@ -54,25 +54,71 @@ person-details links open the same conversation. The public key and contact acti
 rows, with an inline copy icon for the full npub and disabled rows while syncing or when an action
 does not apply.
 
+Payment cards and People previews distinguish Lightning invoice (including LNBC/test-network
+forms), LNURL payment, Lightning address, Ecash token (Cashu A/B), Ecash request (CREQ A/B),
+Bitcoin payment, and BOLT12 offer. Existing URI wrappers and unified Bitcoin-URI precedence
+remain supported. Malformed requests have an error rather than a payment action; BOLT12
+offers remain unsupported. Recognition never marks an invoice paid or a token claimed.
+
+People list previews show ordinary text without a payment icon. Payment details embedded in
+sentences are identified as payment activities; multiple details produce separate cards, with
+surrounding words retained as the message preview and encoded values omitted from that note.
+Unrecognized embedded payloads remain redacted in text previews. Payment activities retain their
+type/status/amount summaries; empty conversations say No messages yet.
+
 The timeline retains its existing bottom alignment and older-message pagination anchors.
 Message and contact detail sheets both use the app's `$background` canvas.
 
-The composer grows to four scaled lines and then scrolls internally, with a secondary icon-only
-Send button beside it. **Request** and **Send** are full-rounded, 48-point secondary pills with
-16-point text, matching Home's secondary currency toggle palette. Tapping Send replaces the pills
-with Ecash/Lightning choices when the contact publishes a valid `lud16` Lightning address;
-otherwise it opens Ecash directly. Request offers both methods. An inline back control restores
-Send/Request. The action row is in normal layout flow rather than overlapping the timeline.
-Sent text uses branded primary; received text
-uses the secondary surface. Sent payment cards use branded secondary, received cards secondary,
-and actionable incoming cards warning colors. Payment cards lead with the amount, then secondary
-currency and any note, with a compact type/status footer. Lightning subtypes use the short Lightning
-label on the card; the full type is retained in details. Unknown-amount fallback text uses body-sized
+The restored composer grows to four scaled lines and then scrolls internally, with an icon-only
+Send message button beside it. It appears only for accepted, unblocked contacts and uses the
+existing encrypted send service. Drafts stay in session memory and survive navigation; closing
+the wallet clears them. The keyboard-aware layout keeps the composer reachable.
+**Request** creates a mint-issued Lightning invoice; **Send** sends ecash. Both are
+small, auto-width secondary buttons, centered together with Send on the right. The action row
+stays in normal layout flow rather than overlapping the timeline.
+
+Conversation Request opens amount entry and selected-mint confirmation. The explicit
+Create & send request action creates the quote through the existing wallet manager, then saves
+and publishes the invoice through encrypted chat. It returns to the conversation once the
+message is persisted; relay publication continues and failed delivery can be retried from that
+same message. A failure before message persistence retains the created invoice for retry without
+creating another quote. Ordinary top-ups retain their invoice/QR screen. Existing Cashu requests
+remain recognizable and payable through their established flows.
+
+Ecash sends started in a conversation return there after successful publication, history tagging,
+and query refresh. Failed sends remain in the result flow. Navigation remains blocked while
+wallet operations are in flight. Creating/publishing a request does not mark it paid; mint quote
+verification and issuance continue through the existing wallet services after leaving the screen.
+Successful invoice requests keep the confirmation view mounted until returning to chat, avoiding
+a transient QR/receipt view during Android modal dismissal. A pre-persistence delivery failure
+opens the saved invoice for retry. Automatic chat returns wait until the navigator's removal
+guard has actually released, including the corresponding ecash-send return.
+While a conversation is focused, foregrounded, and online, payment cards listen for wallet events
+and check pending status every two seconds without overlapping checks. Invoice cards match only
+locally saved mint/melt quotes; unpaid, paid, and issued remain distinct states. Ecash sends reuse
+verified proof-state checks, including sends represented by structured messages. Failed observations
+retain the last verified status. These checks never issue, redeem, or resubmit payments. Both
+transaction-details routes render the existing screen directly, avoiding a modal self-redirect.
+Sent and received text bubbles and payment cards use neutral secondary surfaces, with primary
+text and muted previews. Direction comes from alignment and arrows. Payment amounts have no nested panel: incoming
+amounts/conversions align right and outgoing amounts/conversions align left. A small direction
+arrow appears beside the type label. The bottom status/time footer retains its layout.
+Payment cards fit their amount and footer content, capped at 70% of the conversation width.
+Above the footer, a muted four-line caption shows the accompanying message when present;
+otherwise it shows the available invoice, address, Cashu token, or Cashu request. This uses
+the same type size as the secondary currency amount, with tail truncation. Incoming payload
+previews remain hidden before contact acceptance. History tokens reuse the existing local
+history reader; no original payload is fabricated when it was not retained.
+Outgoing text has no visible publication label below the bubble. Sending, Sent to relay, and Failed
+remain available through message details, with retry for failed sends.
+Sent to relay does not imply delivery or reading. Payment cards lead with the amount, then secondary
+currency and any note, with a compact status/time footer. Payment formats have distinct labels
+on the card and in the People preview. Unknown-amount fallback text uses body-sized
 type rather than an oversized heading. A small status icon sits beside the type:
 check for confirmed claimed/received/paid, clock for pending/publication-only, alert for review or
-failure, X for cancelled/expired and a return arrow for reclaimed/refunded. Status text stays in
-the details sheet, where Status is the first row. Relay publication never gets a completion check.
-Detailed dates/times appear only in that sheet, which
+failure, X for cancelled/expired and a return arrow for reclaimed/refunded. The details sheet
+keeps Status as its first row. Relay publication never gets a completion check.
+The footer shows compact time, while the details sheet shows the full timestamp and
 also offers safe copy and relevant retry, acceptance or payment review actions. Tokens/proofs are
 never copied as message text. New conversations initiated by the user offer **Add contact**;
 incoming invitations show **Accept** and **Reject and block** in place of an enabled composer.
@@ -224,27 +270,35 @@ for manual retry. Subscriptions stop and message memory clears on wallet shutdow
 removes the message database. Chat is encrypted in transit; local text uses existing database
 protection. Chat backup/export and push integration are outside this version.
 
-Sending immediately displays a temporary Sending bubble and clears the composer, before encryption
-or local storage completes. Local persistence replaces that temporary bubble with the saved message
-and enables the next send while discovery/publication runs in the background. A failure before
-persistence removes the temporary bubble and restores its draft, preserving newly typed text.
+Sending locks duplicate presses while preparing and saving the message. The draft clears only
+after the service reports successful local persistence, and the saved Sending bubble appears
+before relay discovery/publication finishes. A failure before persistence retains the draft;
+a failure after persistence leaves a Failed message with manual retry. The next message can be
+composed while an earlier one publishes. Late callbacks do not replace another conversation's
+draft or UI, and callbacks from a closed message session are ignored.
 Discovered relay destinations are saved with the same encrypted envelopes for
 retry. Discovery failure leaves a failed message that can be retried without creating a new rumor.
 
 The timeline uses explicit text/payment activity kinds. Nullable payment columns are normalized on
 database reads; ordinary text never becomes a zero-amount card. Missing payment amounts display
-“Amount unavailable”, while genuine zero amounts remain zero. Sent text uses branded primary;
-received text uses secondary. Compact payment cards use neutral secondary surfaces, with warning
-secondary for actionable incoming items. All corners are equally rounded at 16px. Payment type,
+“Amount unavailable”, while genuine zero amounts remain zero. Sent text and payment cards use
+the same neutral secondary surface as incoming cards. All corners are equally rounded at 16px. Payment type,
 primary currency, secondary currency and status remain visible; timestamps live in the details sheet.
 
-The conversation uses a back arrow and an Info button for the contact sheet. A conversation opened
+The conversation uses a back arrow and a tappable title/avatar for the contact sheet. A conversation opened
 without incoming activity offers Add contact below the timeline; Accept / Reject and block are
-reserved for incoming invitations. Send and Request use the pill/method chooser described above.
+reserved for incoming invitations. Send uses ecash; Request creates a mint-issued Lightning invoice.
 Payment cards size to their contents.
 
-The latest 50 mixed activities load at the bottom. Scrolling upward loads older local messages and
-payments while preserving the visible position. Centered calendar-date pills separate days.
+The initial message query fetches the newest 50 local messages. TanStack Query's infinite query
+loads older batches only when scrolling upward or choosing Older activity, using a stable
+created-at/received-at/ID cursor rather than rereading offsets from the beginning. New arrivals
+and publication changes refresh loaded query pages; duplicates are merged by message ID.
+Queries are scoped to the person and message session, with no retained inactive message cache.
+Failed older-page loads keep visible messages and can be retried. The timeline still displays
+the latest 50 mixed activities initially, with newest activity at the bottom, and expands older
+activity without forcing readers back to the bottom. Text bubbles have no redundant Message label.
+Centered calendar-date pills separate days.
 Standalone Lightning invoices, LNURL, Lightning addresses, Bitcoin URIs and Cashu requests are
 recognized as payment content. Recognition does not fetch or redeem anything; an explicit review
 action opens the existing payment flow for validation and confirmation. Unsupported BOLT12 offers
@@ -301,3 +355,24 @@ recovery state.
 - `src/services/wallet/nostrService.ts` owns relay and messaging coordination.
 - `src/services/wallet/nostrClaimService.ts` owns claim trust, serialization, retry, and completion.
 - `src/services/wallet/nostrDiagnosticsService.ts` owns health checks and repair operations.
+
+## Nostr history after seed restore
+
+Seed restore records an identity-bound timestamp before starting listeners. Messages and
+payment offers with authenticated message timestamps older than that cutoff are not imported,
+stored, or passed to claiming. The policy persists across reconnects and app restarts.
+Mint-list discovery and seed-based mint recovery do not use this history filter.
+
+Settings → Network → Nostr history provides **Load older activity**. Enabling it opts into
+the previous seven-day catch-up window, subject to relay retention and the existing receiving,
+contact, and mint-approval policies. Disabling it does not delete loaded local records.
+Existing wallets retain their previous catch-up behavior until a seed restore or explicit opt-out.
+Account destruction resets the policy; changing identities does not reuse another wallet's cutoff.
+
+NIP-59 wrapper timestamps can be randomized up to two days into the past. The subscription
+allows this envelope window, then filters using the authenticated inner message time before
+any contact, message, or payment side effects. Dropped old events are not marked processed,
+so a later explicit history opt-in can import them. Legacy messages are rejected earlier when
+their outer timestamp is older than the allowed window.
+
+See [the recovery quick check](../testing/recovery-quick-check.md) for device verification.

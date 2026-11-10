@@ -13,13 +13,12 @@ export function ConversationPaymentActions({
   onRequest: () => void;
 }) {
   return (
-    <XStack gap={appSpacing.compact} items="center" width="100%">
+    <XStack gap={appSpacing.compact} items="center" justify="center" width="100%" flexWrap="wrap">
       <AppButton
-        flex={1}
         fullWidth={false}
         variant="default"
         emphasis="secondary"
-        size="large"
+        size="small"
         accessibilityLabel="Request"
         disabled={disabled}
         onPress={() => {
@@ -29,18 +28,17 @@ export function ConversationPaymentActions({
         Request
       </AppButton>
       <AppButton
-        flex={1}
         fullWidth={false}
-        variant="accent"
-        emphasis="primary"
-        size="large"
-        accessibilityLabel="Pay"
+        variant="default"
+        emphasis="secondary"
+        size="small"
+        accessibilityLabel="Send"
         disabled={disabled}
         onPress={() => {
           if (!disabled) onPay();
         }}
       >
-        Pay
+        Send
       </AppButton>
     </XStack>
   );

@@ -7,6 +7,7 @@ import { normalizeNpub } from '~/shared/utils/nostr';
 import { buildConversationActivity, type ConversationActivity } from './conversationActivity';
 import { hasVerifiedNip05 } from './nip05';
 import { parsePersonHistoryMetadata, type PersonHistoryEntry } from './personHistory';
+import { conversationPaymentLabel } from './conversationPaymentLabel';
 
 export interface PeopleListItem {
   id: string;
@@ -51,15 +52,18 @@ const compare = (a: PeopleListItem, b: PeopleListItem) =>
 
 function safeText(text: string): string {
   // Quoted or embedded payment payloads must not leak through a text preview either.
-  if (/(?:cashu[ab]|creq[ab]|lnbc|lntb|lnurl1|lno1)/i.test(text)) return 'Payment message';
-  return text.replace(/\s+/g, ' ').trim().slice(0, 160);
+  return text
+    .replace(/(?:cashu[ab]|creq[ab]|lnbc|lntb|lnurl1|lno1)[^\s<>"']*/gi, '[Payment]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
 }
 
 function summarize(
   activity: ConversationActivity | undefined,
   formatAmount: (amount: number) => string,
 ) {
-  if (!activity) return { preview: 'No payments yet' };
+  if (!activity) return { preview: 'No messages yet' };
   if (activity.kind === 'text') {
     const prefix = activity.direction === 'outgoing' ? 'You: ' : '';
     const state = ['Sending', 'Failed'].includes(activity.status) ? `${activity.status} · ` : '';
@@ -74,7 +78,12 @@ function summarize(
     : activity.type === 'Ecash request'
       ? 'request'
       : 'ecash';
-  return { icon, preview: [safeText(activity.status), amount].filter(Boolean).join(' · ') };
+  return {
+    icon,
+    preview: [conversationPaymentLabel(activity), safeText(activity.status), amount]
+      .filter(Boolean)
+      .join(' · '),
+  };
 }
 
 export function buildPeopleListModel({

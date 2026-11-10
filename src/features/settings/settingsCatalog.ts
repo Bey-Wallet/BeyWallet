@@ -19,6 +19,7 @@ import {
   Landmark,
   Network,
   HeartPulse,
+  History,
   Pin,
   ShieldCheck,
   SlidersHorizontal,
@@ -101,6 +102,7 @@ export const settingsCategories = {
     groups: [
       [
         { path: 'relays', title: 'Relays', icon: Network },
+        { path: 'nostr-history', title: 'Nostr history', icon: History },
         { path: 'nostr-health', title: 'Nostr health', icon: HeartPulse },
       ],
     ],

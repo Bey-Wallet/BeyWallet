@@ -1,4 +1,4 @@
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { Text, YStack } from 'tamagui';
@@ -16,7 +16,7 @@ import { networkService } from '~/services/platform/networkService';
 import { nostrService } from '~/services/wallet/nostrService';
 import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
 import { normalizeNpub } from '~/shared/utils/nostr';
-import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
+import { useSettingsBusy, useSettingsCanLeave } from '~/features/settings/hooks/useSettingsBusy';
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -63,37 +63,73 @@ export default function MintScreen() {
   const [requestError, setRequestError] = useState('');
   const requestLock = useRef(false);
   const queuedInvoice = useRef<string | null>(null);
-  useSettingsBusy(requestSending);
+  const mounted = useRef(true);
+  const returnedToConversation = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useSettingsBusy(isCreatingQuote || requestSending);
+  const canReturnToConversation = useSettingsCanLeave(isCreatingQuote || requestSending);
 
-  const sendInvoiceRequest = async () => {
+  // Wait until the navigator has processed the guard release before returning.
+  useEffect(() => {
     if (
       !requestRecipient ||
-      !quoteData ||
-      requestLock.current ||
-      queuedInvoice.current === quoteData.invoice
+      !requestQueued ||
+      !canReturnToConversation ||
+      isCreatingQuote ||
+      requestSending ||
+      returnedToConversation.current
     )
       return;
-    if (quoteData.expiry && quoteData.expiry <= Date.now() / 1000) {
+    returnedToConversation.current = true;
+    router.dismissTo({ pathname: '/(modals)/conversation', params: { npub: requestRecipient } });
+  }, [
+    requestRecipient,
+    requestQueued,
+    canReturnToConversation,
+    isCreatingQuote,
+    requestSending,
+    router,
+  ]);
+
+  const sendInvoiceRequest = async (quote = quoteData) => {
+    if (
+      !requestRecipient ||
+      !quote ||
+      requestLock.current ||
+      queuedInvoice.current === quote.invoice
+    )
+      return;
+    if (quote.expiry && quote.expiry <= Date.now() / 1000) {
       setRequestError('Invoice expired. Create a new request.');
+      setStep('payment');
       return;
     }
     requestLock.current = true;
     setRequestSending(true);
     setRequestError('');
     try {
-      await nostrService.sendChat(requestRecipient, quoteData.invoice, () => {
-        queuedInvoice.current = quoteData.invoice;
+      await nostrService.sendChat(requestRecipient, quote.invoice, () => {
+        queuedInvoice.current = quote.invoice;
+        if (!mounted.current) return;
         setRequestQueued(true);
+        setRequestSending(false);
       });
     } catch {
+      if (!mounted.current) return;
+      if (queuedInvoice.current !== quote.invoice) setStep('payment');
       setRequestError(
-        queuedInvoice.current === quoteData.invoice
+        queuedInvoice.current === quote.invoice
           ? 'Request saved but delivery failed. Open the request in the conversation to retry.'
           : 'Could not send the request. Try again when online.',
       );
     } finally {
       requestLock.current = false;
-      setRequestSending(false);
+      if (mounted.current) setRequestSending(false);
     }
   };
 
@@ -138,12 +174,16 @@ export default function MintScreen() {
 
       const quote = await quotesService.createMintQuote(activeMintUrl, amountSats);
 
-      setQuoteData({
+      const created = {
         quoteId: quote.quote,
         invoice: quote.request,
         expiry: quote.expiry,
-      });
-      setStep('payment');
+      };
+      setQuoteData(created);
+      // Requests return after persistence. Keep the confirmation mounted to avoid
+      // inserting QR/receipt native views just before dismissing the modal.
+      if (requestRecipient) void sendInvoiceRequest(created);
+      else setStep('payment');
     } catch (err: any) {
       console.error('[MintScreen] Failed to create mint quote:', err);
       setError(err.message || 'Failed to create invoice');
@@ -215,7 +255,8 @@ export default function MintScreen() {
     <YStack flex={1} bg="$background" px="$4">
       <Stack.Screen />
       {step === 'amount' && (
-        <PaymentFlowHeader
+        <PaymentInfoHeader
+          infoTopic={requestRecipient ? 'lightning-request' : 'lightning-top-up'}
           title={requestRecipient ? 'Request Lightning' : 'Mint Ecash'}
           navigationAction="close"
           onBack={handleClose}
@@ -243,7 +284,8 @@ export default function MintScreen() {
           onMintChange={setMintUrl}
           amount={amount}
           mintUrl={activeMintUrl || ''}
-          isLoading={isCreatingQuote}
+          isLoading={isCreatingQuote || requestSending || requestQueued}
+          request={!!requestRecipient}
           onConfirm={handleNext}
           onBack={handleBack}
         />
@@ -262,7 +304,7 @@ export default function MintScreen() {
           requestDelivery={
             requestRecipient
               ? {
-                  onSend: sendInvoiceRequest,
+                  onSend: () => sendInvoiceRequest(),
                   onView: handleClose,
                   sending: requestSending,
                   queued: requestQueued,

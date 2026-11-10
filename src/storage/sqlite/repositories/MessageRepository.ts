@@ -24,6 +24,8 @@ export interface ChatMessage {
   requestId?: string;
 }
 
+export type MessageCursor = Pick<ChatMessage, 'createdAt' | 'receivedAt' | 'id'>;
+
 type MessageRow = Omit<
   ChatMessage,
   'read' | 'envelopes' | 'paymentId' | 'paymentAmount' | 'paymentType' | 'requestId'
@@ -77,6 +79,17 @@ export class MessageRepository {
     const rows = await this.db.all<MessageRow>(
       'SELECT * FROM bey_messages WHERE conversation = ? ORDER BY createdAt DESC, receivedAt DESC, id DESC LIMIT 50 OFFSET ?',
       [conversation, offset],
+    );
+    return rows.map(decode);
+  }
+
+  /** Stable newest-first pagination, even when new messages arrive between pages. */
+  async pageBefore(conversation: string, before: MessageCursor | null): Promise<ChatMessage[]> {
+    const rows = await this.db.all<MessageRow>(
+      `SELECT * FROM bey_messages WHERE conversation = ?
+       ${before ? 'AND (createdAt, receivedAt, id) < (?, ?, ?)' : ''}
+       ORDER BY createdAt DESC, receivedAt DESC, id DESC LIMIT 50`,
+      before ? [conversation, before.createdAt, before.receivedAt, before.id] : [conversation],
     );
     return rows.map(decode);
   }
