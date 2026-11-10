@@ -16,7 +16,6 @@ import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
-import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
 import { useQuickMintConnection } from '~/features/mints/hooks/useQuickMintConnection';
 import {
   getMintPlaceholders,
@@ -342,8 +341,7 @@ export const ConnectedMintsCard = () => {
 
   const handleManageMints = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    rememberSettingsOrigin('index');
-    router.push('/(tabs)/settings/mints');
+    router.push('/(modals)/mints');
   }, [router]);
 
   const handleAddRecommendedMint = useCallback(
@@ -376,7 +374,7 @@ export const ConnectedMintsCard = () => {
           bg="transparent"
           hoverStyle={{ opacity: 0.85 }}
           pressStyle={{ opacity: 0.6 }}
-          accessibilityLabel="Manage connected mints"
+          accessibilityLabel="Manage mints"
           onPress={handleManageMints}
         >
           <Text color="$color" fontSize="$4" fontWeight="600" accessibilityRole="header">

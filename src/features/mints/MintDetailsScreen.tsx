@@ -11,7 +11,15 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, View } from 'tamagui';
-import { ArrowLeft, Share2, Pencil, Check, AlertTriangle, Trash2 } from '@tamagui/lucide-icons';
+import {
+  ArrowLeft,
+  ArrowRightLeft,
+  Share2,
+  Pencil,
+  Check,
+  AlertTriangle,
+  Trash2,
+} from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -357,6 +365,24 @@ function MintDetailsContent() {
           onRestore={handleRestoreProofs}
           restoring={isRestoring && restoringMintUrl === mintUrl}
           restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
+          primaryAction={
+            isTrusted && balance > 0 ? (
+              <AppButton
+                size="large"
+                emphasis="primary"
+                icon={ArrowRightLeft}
+                disabled={isRestoring || isRemoving}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(modals)/swap',
+                    params: { sourceMintUrl: walletMint.mintUrl },
+                  })
+                }
+              >
+                Transfer funds
+              </AppButton>
+            ) : undefined
+          }
           bottomAction={
             <AppButton
               emphasis="secondary"

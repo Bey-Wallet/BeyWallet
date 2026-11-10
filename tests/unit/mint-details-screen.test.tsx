@@ -355,3 +355,17 @@ it('wires the connected mint connection row to a fresh metadata check', async ()
     }),
   );
 });
+
+it('opens Transfer with this mint preselected without changing the global selection', async () => {
+  useWalletStore.setState({ balances: { [url]: 4200 } });
+  await render();
+  const transfer = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Transfer funds')!;
+  await act(async () => transfer.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/swap',
+    params: { sourceMintUrl: url },
+  });
+  expect(useWalletStore.getState().setActiveMint).not.toHaveBeenCalled();
+});

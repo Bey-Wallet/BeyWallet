@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { selectTransferSource } from './mintSelection';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { YStack, Text } from 'tamagui';
@@ -26,6 +27,7 @@ import { ResultStage } from './ResultStage';
 
 export default function SwapScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ sourceMintUrl?: string }>();
   const queryClient = useQueryClient();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
@@ -33,13 +35,8 @@ export default function SwapScreen() {
   const service = useMemo(() => getMintTransferService(), []);
   const [step, setStep] = useState<'amount' | 'confirm' | 'result'>('amount');
   const [amount, setAmount] = useState('0');
-  const [sourceMintUrl, setSourceMintUrl] = useState(
-    () =>
-      mints.find((m) => m.trusted && m.mintUrl === activeMintUrl && (balances[m.mintUrl] || 0) > 0)
-        ?.mintUrl ||
-      mints.find((m) => m.trusted && (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
-      activeMintUrl ||
-      '',
+  const [sourceMintUrl, setSourceMintUrl] = useState(() =>
+    selectTransferSource(mints, balances, activeMintUrl, params.sourceMintUrl),
   );
   const [targetMintUrl, setTargetMintUrl] = useState(
     () => mints.find((m) => m.trusted && m.mintUrl !== sourceMintUrl)?.mintUrl || '',

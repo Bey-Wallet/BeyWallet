@@ -200,9 +200,7 @@ export function LightningAddressMintScreen() {
         </AppButton>
       )}
       {!mints.length && (
-        <SettingsDescription>
-          Connect and trust a compatible mint in Connected mints first.
-        </SettingsDescription>
+        <SettingsDescription>Add and trust a compatible mint in Mints first.</SettingsDescription>
       )}
       {message && <SettingsMessage error>{message}</SettingsMessage>}
     </SettingsPage>

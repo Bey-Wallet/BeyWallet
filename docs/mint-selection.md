@@ -1,5 +1,19 @@
 # Trusted mint selection
 
+Mint management has one implementation in `src/features/mints/MintsScreen.tsx`.
+Home and Settings open `/(modals)/mints`; each row opens that mint's details. The
+manager shows balances and connection status for every connected mint, including
+untrusted mints that still hold funds, and respects hidden-balance preferences.
+Its single Add mint action opens the discovery, URL-entry and scan flow. Adding
+uses the shared trust sheet and stays in the add flow with an Added marker. A scan
+opens trust review directly. Tapping a directory row still permits inspection.
+
+The old Settings mints route uses the same manager implementation, and the old
+discover route uses the same Add mint implementation; neither has a separate UI.
+Funded trusted mint details provide Transfer funds, which passes that mint as the
+source to the existing Transfer flow without changing the wallet's active selection.
+Recovery remains a secondary action and technical features stay collapsed.
+
 The wallet has a set of connected mints with independent trust decisions. There is
 no separate default or fallback mint preference. Only trusted mints are offered by
 the payment mint selector unless a caller explicitly requests otherwise.

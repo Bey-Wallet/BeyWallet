@@ -88,7 +88,7 @@ export const settingsCategories = {
     icon: Wallet,
     groups: [
       [
-        { path: 'mints', title: 'Connected mints', icon: Landmark },
+        { path: 'mints', title: 'Mints', icon: Landmark },
         { path: 'lightning-address', title: 'Lightning address', icon: AtSign },
         { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
       ],

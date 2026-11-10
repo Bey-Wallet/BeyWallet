@@ -90,7 +90,7 @@ nested list groups; items within each group retain the order shown.
 | Profile & addresses | My addresses, Nostr username, public Nostr key                                                           |
 | Appearance          | Theme, fiat currency, Bitcoin symbol                                                                     |
 | Notifications       | Existing notification preferences                                                                        |
-| Payments & mints    | Connected mints, Lightning address, prepare offline change                                               |
+| Payments & mints    | Mints, Lightning address, prepare offline change                                                         |
 | Privacy & security  | Biometric app lock, hide balance; receiving from people, blocked people; Nostr secret key; Delete wallet |
 | Backup & recovery   | Recovery phrase, mint-list backup, export wallet backup; restore wallet backup, recover funds            |
 | Network             | Relays, Nostr history, read-only Nostr health                                                            |

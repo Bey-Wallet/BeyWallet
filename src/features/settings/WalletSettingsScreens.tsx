@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Coins, Plus, Landmark, Search, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
+import { Coins, Landmark, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
 import { useWalletStore } from '~/state/walletStore';
 import { proofService } from '~/services/wallet/proofService';
 import { consolidationService } from '~/services/wallet/consolidationService';
@@ -20,51 +20,6 @@ import {
   SettingsPage,
   SettingsRow,
 } from './components/SettingsLayout';
-
-export function MintsSettingsScreen() {
-  const router = useRouter();
-  const mints = useWalletStore((state) => state.mints);
-  return (
-    <SettingsPage>
-      <SettingsDescription>
-        Manage your connected Cashu mints. Each mint holds a separate balance and trust
-        relationship.
-      </SettingsDescription>
-      {mints.length > 0 ? (
-        <SettingsGroup>
-          {mints.map((mint) => (
-            <SettingsRow
-              key={mint.mintUrl}
-              title={mint.nickname || mint.name || mint.mintUrl}
-              icon={Landmark}
-              value={mint.trusted ? 'Trusted' : 'Not trusted'}
-              onPress={() =>
-                router.push({
-                  pathname: '/(modals)/mint-details',
-                  params: { mintUrl: mint.mintUrl },
-                })
-              }
-            />
-          ))}
-        </SettingsGroup>
-      ) : (
-        <SettingsMessage>No connected mints yet.</SettingsMessage>
-      )}
-      <SettingsGroup>
-        <SettingsRow
-          title="Add mint"
-          icon={Plus}
-          onPress={() => router.push('/(modals)/add-mint')}
-        />
-        <SettingsRow
-          title="Discover mints"
-          icon={Search}
-          onPress={() => router.push('/(modals)/discover-mints')}
-        />
-      </SettingsGroup>
-    </SettingsPage>
-  );
-}
 
 /** Shared selection UI stays on the operation page instead of opening a sheet. */
 function OperationMintList({

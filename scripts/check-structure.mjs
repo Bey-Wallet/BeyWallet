@@ -19,6 +19,7 @@ const expectedRoutes = [
   '(modals)/melt.tsx',
   '(modals)/mint-details.tsx',
   '(modals)/mint-profile.tsx',
+  '(modals)/mints.tsx',
   '(modals)/mint.tsx',
   '(modals)/nostr-activity.tsx',
   '(modals)/nostr-diagnostics.tsx',

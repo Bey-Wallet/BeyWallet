@@ -29,6 +29,7 @@ export function MintDetailsView({
   restoring,
   restoreDisabled,
   bottomAction,
+  primaryAction,
 }: {
   url: string;
   name: string;
@@ -45,6 +46,7 @@ export function MintDetailsView({
   restoring?: boolean;
   restoreDisabled?: boolean;
   bottomAction?: React.ReactNode;
+  primaryAction?: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const connectionControl = (
@@ -153,6 +155,7 @@ export function MintDetailsView({
             )}
           </XStack>
         </YStack>
+        {primaryAction}
         {balance && (
           <MintQuickActions
             onQr={onQr}

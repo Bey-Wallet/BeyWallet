@@ -69,7 +69,9 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
           router.push(
             item.path === 'recover-funds'
               ? '/recover-funds'
-              : (`/(tabs)/settings/${item.path}` as Href),
+              : item.path === 'mints'
+                ? '/(modals)/mints'
+                : (`/(tabs)/settings/${item.path}` as Href),
           )
         }
       />

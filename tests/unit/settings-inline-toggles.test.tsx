@@ -161,7 +161,9 @@ it.each(Object.keys(settingsCategories) as SettingsCategory[])(
       expect(mockPush).toHaveBeenLastCalledWith(
         row.props.path === 'recover-funds'
           ? '/recover-funds'
-          : `/(tabs)/settings/${row.props.path}`,
+          : row.props.path === 'mints'
+            ? '/(modals)/mints'
+            : `/(tabs)/settings/${row.props.path}`,
       );
     }
     if (category === 'nostr') {

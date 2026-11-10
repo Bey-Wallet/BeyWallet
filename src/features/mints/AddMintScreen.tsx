@@ -15,7 +15,6 @@ import {
   Sprout,
   Zap,
   Bitcoin,
-  Globe,
   RefreshCw,
   ChevronDown,
   Landmark,
@@ -33,18 +32,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
 import { useWalletStore } from '~/state/walletStore';
-import { useSettingsStore } from '~/state/settingsStore';
-import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
-import { bitcoinService } from '~/services/api/bitcoinService';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
 import { mintMetadataFromInfo } from '~/features/explore/components/mintMeta';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { appTypography } from '~/shared/theme/appearance';
 import { useMintDiscovery } from './hooks/useMintDiscovery';
 import { MintIcon } from '~/features/explore/components/MintIcon';
-import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { useQuickMintConnection } from './hooks/useQuickMintConnection';
 
@@ -193,139 +187,6 @@ const MintBadges = React.memo(({ supportsNut30 }: BadgesProps) => {
 
 MintBadges.displayName = 'MintBadges';
 
-// ─── Connected Mint Row Component (UI matching HistoryItem) ─────────────────
-interface ConnectedMintRowProps {
-  mint: any;
-  balance: number;
-  isActive: boolean;
-  hideBalance: boolean;
-  displayAsSats: boolean;
-  showBitcoinSymbol: boolean;
-  btcPrice?: number;
-  secondaryCurrency: string;
-  refreshCounter: number;
-  onPress: (mintUrl: string) => void;
-  showTopSeparator?: boolean;
-}
-
-const ConnectedMintRow = React.memo(
-  ({
-    mint,
-    balance,
-    isActive,
-    hideBalance,
-    displayAsSats,
-    showBitcoinSymbol,
-    btcPrice,
-    secondaryCurrency,
-    refreshCounter,
-    onPress,
-    showTopSeparator,
-  }: ConnectedMintRowProps) => {
-    const { data: info } = useMintInfo(mint.mintUrl);
-    const meta = mintMetadataFromInfo(info, mint.mintUrl);
-
-    const displayName =
-      mint.nickname ||
-      meta?.name ||
-      mint.name ||
-      (() => {
-        try {
-          return new URL(mint.mintUrl).hostname;
-        } catch {
-          return mint.mintUrl;
-        }
-      })();
-
-    const hostname = useMemo(() => {
-      try {
-        return new URL(mint.mintUrl).hostname;
-      } catch {
-        return mint.mintUrl;
-      }
-    }, [mint.mintUrl]);
-
-    const displayValue = useMemo(() => {
-      if (hideBalance) return '****';
-      if (!displayAsSats) {
-        if (!btcPrice) return '...';
-        const fiat = currencyService.convertSatsToCurrency(balance, btcPrice);
-        return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
-      }
-      return balance;
-    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
-
-    const prefix = useMemo(() => {
-      if (hideBalance || !displayAsSats) return '';
-      return showBitcoinSymbol ? '₿' : '';
-    }, [hideBalance, displayAsSats, showBitcoinSymbol]);
-
-    const suffix = useMemo(() => {
-      if (hideBalance || !displayAsSats) return '';
-      return showBitcoinSymbol ? '' : ' sat';
-    }, [hideBalance, displayAsSats, showBitcoinSymbol]);
-
-    const currentTrigger = `${refreshCounter}_${mint.mintUrl}_${hideBalance ? 'hidden' : 'visible'}_${displayAsSats ? 'SATS' : 'FIAT'}_${showBitcoinSymbol}`;
-
-    return (
-      <YStack>
-        {showTopSeparator && <Separator borderColor="$borderColor" opacity={0.3} />}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => onPress(mint.mintUrl)}
-          style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}
-        >
-          {/* Left: 48px Circular icon */}
-          <View mr="$3">
-            <MintIcon url={mint.mintUrl} hintIcon={mint.icon} size={48} />
-          </View>
-
-          {/* Middle: title + badges + URL */}
-          <YStack flex={1} mr="$2" justify="center" gap={3}>
-            <XStack items="center" gap="$2" flexWrap="nowrap">
-              <Text
-                {...appTypography.label1}
-                fontWeight="600"
-                color="$color"
-                numberOfLines={1}
-                style={{ maxWidth: '70%' }}
-              >
-                {displayName}
-              </Text>
-              <MintBadges supportsNut30={meta?.supportsNut30} />
-            </XStack>
-
-            <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
-              {hostname}
-            </Text>
-          </YStack>
-
-          {/* Right: Balance */}
-          <YStack items="flex-end" justify="center">
-            <RollingNumber
-              fontSize={appTypography.label1.fontSize}
-              lineHeight={appTypography.label1.lineHeight}
-              fontWeight="600"
-              color="$color"
-              decimalOpacity={0.4}
-              showDecimals={!displayAsSats}
-              prefix={prefix}
-              suffix={suffix}
-              trigger={currentTrigger}
-            >
-              {displayValue}
-            </RollingNumber>
-          </YStack>
-        </TouchableOpacity>
-        <Separator borderColor="$borderColor" opacity={0.3} />
-      </YStack>
-    );
-  },
-);
-
-ConnectedMintRow.displayName = 'ConnectedMintRow';
-
-// ─── Discovered Mint Row Component (UI matching HistoryItem) ─────────────────
 interface DiscoveredMintRowProps {
   mint: MintRecommendation;
   isAdded: boolean;
@@ -372,12 +233,18 @@ const DiscoveredMintRow = React.memo(
 
     return (
       <YStack>
-        {showTopSeparator && <Separator borderColor="$borderColor" opacity={0.3} />}
+        {showTopSeparator && (
+          <Separator height={2} borderWidth={0} bg="$borderColor" opacity={0.3} />
+        )}
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => onPress(mint.url)}
           disabled={disabled}
-          style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}
+          style={{
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
         >
           {/* Left: 48px Circular icon */}
           <View mr="$3">
@@ -408,8 +275,8 @@ const DiscoveredMintRow = React.memo(
           <View>
             {isAdded ? (
               <XStack rounded="$10" items="center" gap="$1" px="$2">
-                <Check size={12} color="$accent4" strokeWidth={3} />
-                <Text {...appTypography.body3} fontWeight="600" color="$accent4">
+                <Check size={12} color="$color" strokeWidth={3} />
+                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
                   Added
                 </Text>
               </XStack>
@@ -438,7 +305,6 @@ const DiscoveredMintRow = React.memo(
             {error}
           </Text>
         )}
-        <Separator borderColor="$borderColor" opacity={0.3} />
       </YStack>
     );
   },
@@ -467,31 +333,7 @@ export default function AddMintScreen() {
     sheet: connectionSheet,
   } = useQuickMintConnection();
 
-  const {
-    mints: walletMints,
-    balances,
-    activeMintUrl,
-    refreshCounter,
-    refreshMintList,
-    refreshBalance,
-    scannerResult,
-    setScannerResult,
-    isInitializing,
-  } = useWalletStore();
-
-  const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
-
-  const isFiatEnabled = secondaryCurrency !== 'NONE';
-  const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
-
-  // Fiat price query
-  const { data: btcData } = useQuery({
-    queryKey: ['bitcoinPrice', secondaryCurrency],
-    queryFn: () =>
-      isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
-    staleTime: 30000,
-    enabled: isFiatEnabled,
-  });
+  const { mints: walletMints, scannerResult, setScannerResult } = useWalletStore();
 
   // MintRadar's directory plus NIP-87 relay discovery (cached).
   const {
@@ -506,11 +348,11 @@ export default function AddMintScreen() {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await Promise.all([refetchDiscover(), refreshMintList(), refreshBalance()]);
+      await refetchDiscover();
     } finally {
       setRefreshing(false);
     }
-  }, [refetchDiscover, refreshMintList, refreshBalance]);
+  }, [refetchDiscover]);
 
   // ─── Smart URL Detection & Processing ──────────────────────────────────────
   const cleanQuery = searchQuery.trim();
@@ -558,10 +400,11 @@ export default function AddMintScreen() {
           url = 'https://' + url;
         }
         url = url.replace(/\/$/, '');
-        router.push({ pathname: '/(modals)/mint-profile', params: { url } });
+        setSearchQuery(url);
+        void requestConnection({ url });
       }
     }
-  }, [scannerResult, setScannerResult, router]);
+  }, [scannerResult, setScannerResult, requestConnection]);
 
   // ─── Filtered Lists & Lazy Pagination ──────────────────────────────────────
   const PAGE_SIZE = 12;
@@ -571,17 +414,6 @@ export default function AddMintScreen() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [cleanQuery]);
-
-  const filteredConnectedMints = useMemo(() => {
-    if (!cleanQuery) return walletMints;
-    const q = cleanQuery.toLowerCase();
-    return walletMints.filter((m) => {
-      const name = m.name?.toLowerCase() || '';
-      const nickname = m.nickname?.toLowerCase() || '';
-      const url = m.mintUrl.toLowerCase();
-      return name.includes(q) || nickname.includes(q) || url.includes(q);
-    });
-  }, [walletMints, cleanQuery]);
 
   const filteredDiscoveredMints = useMemo(() => {
     if (!cleanQuery) return allDiscoveredMints;
@@ -627,17 +459,6 @@ export default function AddMintScreen() {
   }, [walletMints]);
 
   // ─── Navigation Handlers ───────────────────────────────────────────────────
-  const handleConnectedMintPress = useCallback(
-    (mintUrl: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push({
-        pathname: '/(modals)/mint-details',
-        params: { mintUrl },
-      });
-    },
-    [router],
-  );
-
   const handleDiscoveredMintPress = useCallback(
     (url: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -671,7 +492,7 @@ export default function AddMintScreen() {
       {/* ─── Screen Header with Top-Right Scan Icon ─────────────────────────── */}
       <Stack.Screen
         options={{
-          title: 'Mints',
+          title: 'Add mint',
           gestureEnabled: !connectingUrl,
           headerLeft: () => (
             <HeaderIconButton
@@ -788,7 +609,7 @@ export default function AddMintScreen() {
                   </View>
                   <YStack flex={1}>
                     <Text {...appTypography.body2} fontWeight="600" color="$color">
-                      Custom Mint URL Detected
+                      Add by URL
                     </Text>
                     <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
                       {formattedDetectedUrl}
@@ -800,7 +621,7 @@ export default function AddMintScreen() {
                   <XStack bg="$green3" px="$2.5" py="$1.5" rounded="$10" items="center" gap="$1">
                     <Check size={12} color="$green10" />
                     <Text {...appTypography.body3} fontWeight="600" color="$green10">
-                      Connected
+                      Added
                     </Text>
                   </XStack>
                 ) : (
@@ -830,74 +651,12 @@ export default function AddMintScreen() {
             </Text>
           )}
 
-        {/* ─── Section 1: Connected Mints ────────────────────────────────────── */}
-        <YStack gap="$2" mb="$5">
-          <XStack justify="space-between" items="center" mb="$1" px="$1">
-            <XStack items="center" gap="$2">
-              <Text {...appTypography.label2} fontWeight="600" color="$gray10">
-                Connected Mints
-              </Text>
-              <View bg="$gray4" px="$2" py="$0.5" rounded="$10">
-                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
-                  {filteredConnectedMints.length}
-                </Text>
-              </View>
-            </XStack>
-          </XStack>
-
-          {isInitializing ? (
-            <MintSkeletonList count={2} />
-          ) : filteredConnectedMints.length === 0 ? (
-            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
-              <Globe size={24} color="$gray10" />
-              <Text {...appTypography.body2} fontWeight="600" color="$color">
-                {cleanQuery ? 'No matching connected mints' : 'No mints connected yet'}
-              </Text>
-              <Text {...appTypography.body3} color="$gray10" textAlign="center" px="$4">
-                {cleanQuery
-                  ? 'Try searching discovered mints below or connect via URL.'
-                  : 'Add a Cashu mint to start sending and receiving ecash.'}
-              </Text>
-              <AppButton
-                emphasis="text"
-                onPress={cleanQuery ? () => setSearchQuery('') : enterMintUrl}
-              >
-                {cleanQuery ? 'Clear search' : 'Enter mint URL'}
-              </AppButton>
-            </YStack>
-          ) : (
-            <YStack>
-              {filteredConnectedMints.map((mint, index) => {
-                const balance = balances[mint.mintUrl] || 0;
-                const isActive = normalizeUrl(mint.mintUrl) === normalizeUrl(activeMintUrl || '');
-
-                return (
-                  <ConnectedMintRow
-                    key={mint.mintUrl}
-                    mint={mint}
-                    balance={balance}
-                    isActive={isActive}
-                    hideBalance={hideBalance}
-                    displayAsSats={displayAsSats}
-                    showBitcoinSymbol={showBitcoinSymbol}
-                    btcPrice={btcData?.price}
-                    secondaryCurrency={secondaryCurrency}
-                    refreshCounter={refreshCounter}
-                    onPress={handleConnectedMintPress}
-                    showTopSeparator={index === 0}
-                  />
-                );
-              })}
-            </YStack>
-          )}
-        </YStack>
-
         {/* Discover mints from MintRadar and NIP-87. */}
         <YStack gap="$2">
           <XStack justify="space-between" items="center" mb="$1" px="$1">
             <XStack items="center" gap="$2">
               <Text {...appTypography.label2} fontWeight="600" color="$gray10">
-                Discover Mints
+                Discover mints
               </Text>
               <View bg="$gray4" px="$2" py="$0.5" rounded="$10">
                 <Text {...appTypography.body3} fontWeight="600" color="$gray10">
@@ -920,7 +679,7 @@ export default function AddMintScreen() {
           {isDiscoverLoading ? (
             <MintSkeletonList count={6} />
           ) : isDiscoverError ? (
-            <YStack py="$5" items="center" justify="center" gap="$2" bg="$color2" rounded="$5">
+            <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Text color="$red10" {...appTypography.body2} fontWeight="600">
                 Failed to discover mints
               </Text>
@@ -969,7 +728,7 @@ export default function AddMintScreen() {
                     }
                     onPress={handleDiscoveredMintPress}
                     onAdd={handleAddMintAction}
-                    showTopSeparator={index === 0}
+                    showTopSeparator={index > 0}
                   />
                 );
               })}

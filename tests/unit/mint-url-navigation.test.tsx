@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AddMintScreen from '~/features/mints/AddMintScreen';
+import MintsScreen from '~/features/mints/MintsScreen';
 import { useWalletStore } from '~/state/walletStore';
 import { ConnectedMintsCard } from '~/features/home/components/ConnectedMintsCard';
 import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
@@ -13,6 +14,7 @@ let mockDeviceOffline = false;
 let mockHideBalance = false;
 let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
+const mockInvalidateQueries = jest.fn();
 let mockCheckingMints: string[] = [];
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
@@ -45,7 +47,7 @@ jest.mock('@tanstack/react-query', () => ({
     isLoading: false,
     error: queryKey[0] === 'mint-metadata' ? mockMintErrors[queryKey[1]] : undefined,
   }),
-  useQueryClient: () => ({}),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('~/state/settingsStore', () => ({
@@ -124,6 +126,9 @@ beforeEach(() => {
       useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
     }),
     error: null,
+    refreshMintList: jest.fn(),
+    refreshBalance: jest.fn(),
+    isRefreshing: false,
   });
 });
 afterEach(async () => {
@@ -416,15 +421,106 @@ it('keeps validation failures visible and allows retry from the mint list', asyn
   expect(mockPush).not.toHaveBeenCalled();
 });
 
-it('opens a scanned mint URL once and consumes the scanner result', async () => {
+it('opens trust directly for a scanned mint URL and consumes the scanner result', async () => {
   useWalletStore.setState({ scannerResult: 'cashu:https://mint.example/Bitcoin' });
   await render();
-  expect(mockPush).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-profile',
-    params: { url: 'https://mint.example/Bitcoin' },
-  });
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(
+    tree.root.findByType('TrustSheet' as any).findByType('MintImage' as any).props.mintUrl,
+  ).toBe('https://mint.example/Bitcoin');
+  expect(tree.root.findByType('Input' as any).props.value).toBe('https://mint.example/Bitcoin');
   expect(useWalletStore.getState().scannerResult).toBeNull();
+});
+
+it('opens the canonical Mints manager from Home', async () => {
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Manage mints' }).props.onPress(),
+  );
+  expect(mockPush).toHaveBeenCalledWith('/(modals)/mints');
+});
+
+it('manages all mint balances, including untrusted mints, separately from discovery', async () => {
+  const mintUrl = 'https://untrusted.example';
+  useWalletStore.setState({
+    mints: [{ mintUrl, name: 'Old mint', trusted: false }],
+    balances: { [mintUrl]: 42 },
+  });
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  const row = tree.root.findByProps({ accessibilityLabel: 'Manage Old mint, 42 sat, not trusted' });
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).toContain(
+    '42 sat',
+  );
+  await act(async () => row.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl },
+  });
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Add mint')!
+      .props.onPress(),
+  );
+  expect(mockPush).toHaveBeenLastCalledWith('/(modals)/add-mint');
+  expect(tree.root.findAllByProps({ children: 'Discover mints' })).toHaveLength(0);
+});
+
+it('keeps balances hidden in the Mints manager', async () => {
+  mockHideBalance = true;
+  useWalletStore.setState({
+    mints: [{ mintUrl: 'https://private.example', trusted: true }],
+    balances: { 'https://private.example': 42 },
+  });
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).toContain(
+    '****',
+  );
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).not.toContain(
+    '42 sat',
+  );
+});
+
+it('refreshes both wallet data and connection status from the manager', async () => {
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  await act(async () =>
+    tree.root.findByType('ScrollView' as any).props.refreshControl.props.onRefresh(),
+  );
+  expect(useWalletStore.getState().refreshMintList).toHaveBeenCalledTimes(1);
+  expect(useWalletStore.getState().refreshBalance).toHaveBeenCalledTimes(1);
+  expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['mint-metadata'] });
+});
+
+it('keeps malformed display metadata from hiding a registered mint', async () => {
+  const mintUrl = 'https://metadata.example';
+  useWalletStore.setState({ mints: [{ mintUrl, trusted: true }], balances: { [mintUrl]: 42 } });
+  mockMintMetadata[mintUrl] = { name: { invalid: true }, icon_url: 123 };
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Manage metadata.example, 42 sat' }),
+  ).toBeDefined();
+});
+
+it('keeps Add mint focused on discovery and marks connected directory entries Added', async () => {
+  const url = 'https://already.example';
+  mockDiscoveredMints = [{ url, name: 'Already added' }];
+  useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+  await render();
+  expect(tree.root.findByType('Screen' as any).props.options.title).toBe('Add mint');
+  const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
+  expect(labels).toContain('Added');
+  expect(labels).not.toContain('Connected Mints');
+  expect(tree.root.findAllByType('MintIcon' as any)).toHaveLength(1);
 });
 
 it('keeps connected mints in order without recommendation filler or payment badges', async () => {

@@ -1,1 +1,1 @@
-export { MintsSettingsScreen as default } from '~/features/settings/WalletSettingsScreens';
+export { default } from '~/features/mints/MintsScreen';
