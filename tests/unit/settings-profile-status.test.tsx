@@ -52,9 +52,10 @@ jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',
   SettingsGroup: 'Group',
   SettingsRow: 'Row',
+  SettingsSection: 'Section',
 }));
 
-it('shows a badge only after verification and offers Claim when the registry has no username', async () => {
+it('groups Settings without extra category hops and keeps verified profile status', async () => {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(<SettingsScreen />);
@@ -62,44 +63,40 @@ it('shows a badge only after verification and offers Claim when the registry has
   expect(tree.root.findAllByType('VerifiedBadge' as any)).toHaveLength(1);
   const descriptions = () =>
     tree.root.findAllByType('Row' as any).map((row) => row.props.description);
-  expect(descriptions().slice(0, 5)).toEqual([
-    'System · USD',
-    'Enabled in Bey',
-    '2 connected mints',
-    'App lock on',
-    'Recovery phrase not confirmed',
-  ]);
+  expect(descriptions().every((description) => description === undefined)).toBe(true);
   mockSettings.secondaryCurrency = 'NONE';
   mockSettings.seedBackedUp = true;
   await act(async () => tree.update(<SettingsScreen />));
-  expect(descriptions()[0]).toBe('System · Sats only');
-  expect(descriptions()[4]).toBe('Recovery phrase confirmed');
+  expect(descriptions().every((description) => description === undefined)).toBe(true);
   const groups = tree.root.findAllByType('Group' as any);
   expect(
     groups.map((group) => group.findAllByType('Row' as any).map((row) => row.props.title)),
   ).toEqual([
     ['Appearance', 'Notifications'],
-    ['Payments & mints', 'Privacy & security', 'Backup & recovery'],
-    ['Network', 'Wallet tools'],
-    ['Help & support', 'Support Bey', 'About Bey Wallet'],
+    ['Mints', 'Lightning', 'Backup & recovery', 'Privacy & security'],
+    ['Advanced', 'Help & support', 'About Bey'],
   ]);
   const paths = [
-    'preferences',
-    'notifications',
-    'wallet',
-    'security',
-    'backup',
-    'nostr',
-    'advanced',
-    'help',
-    'supporter',
-    'about',
+    '/(tabs)/settings/preferences',
+    '/(tabs)/settings/notifications',
+    '/(modals)/mints',
+    '/(tabs)/settings/lightning-address',
+    '/(tabs)/settings/backup',
+    '/(tabs)/settings/security',
+    '/(tabs)/settings/advanced',
+    '/(tabs)/settings/help',
+    '/(tabs)/settings/about',
   ];
   tree.root.findAllByType('Row' as any).forEach((row, index) => {
     row.props.onPress();
-    expect(mockPush).toHaveBeenLastCalledWith(`/(tabs)/settings/${paths[index]}`);
+    expect(mockPush).toHaveBeenLastCalledWith(paths[index]);
   });
-  const profile = tree.root.findByProps({ accessibilityLabel: 'Profile & addresses' });
+  expect(tree.root.findAllByType('Section' as any).map((node) => node.props.title)).toEqual([
+    'PREFERENCES',
+    'WALLET',
+    'MORE',
+  ]);
+  const profile = tree.root.findByProps({ accessibilityLabel: 'Profile' });
   profile.props.onPress();
   expect(mockPush).toHaveBeenLastCalledWith('/(tabs)/settings/identity');
   mockLookup = { ...mockLookup, status: 'error' };
@@ -108,12 +105,9 @@ it('shows a badge only after verification and offers Claim when the registry has
   expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
   mockLookup = { ...mockLookup, nip05: null, username: null, status: 'not_found' };
   await act(async () => tree.update(<SettingsScreen />));
-  const claim = tree.root.findByType('Button' as any);
-  expect(claim.props.children).toBe('Claim your username');
-  claim.props.onPress();
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(tabs)/settings/username',
-    params: { claim: '1' },
-  });
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Profile'),
+  ).toBe(true);
   await act(async () => tree.unmount());
 });

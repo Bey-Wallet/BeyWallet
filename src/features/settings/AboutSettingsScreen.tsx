@@ -3,7 +3,7 @@ import { Text, YStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
-import { RefreshCw, FileText } from '@tamagui/lucide-icons';
+import { RefreshCw, FileText, HeartHandshake } from '@tamagui/lucide-icons';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { settingsLinks, settingsLinkIcons } from './settingsCatalog';
 import {
@@ -45,7 +45,7 @@ export function AboutSettingsScreen() {
           onPress={() => link(settingsLinks.legal)}
         />
         <SettingsRow
-          title="App updates"
+          title="Check for updates"
           icon={RefreshCw}
           onPress={() => router.push('/(tabs)/settings/updates')}
         />
@@ -82,11 +82,6 @@ export function HelpSettingsScreen() {
       </SettingsDescription>
       <SettingsGroup>
         <SettingsRow
-          title="Diagnostic report"
-          icon={FileText}
-          onPress={() => router.push('/(tabs)/settings/diagnostics')}
-        />
-        <SettingsRow
           title="Help & documentation"
           icon={settingsLinkIcons.documentation}
           external
@@ -97,6 +92,16 @@ export function HelpSettingsScreen() {
           icon={settingsLinkIcons.support}
           external
           onPress={() => link(settingsLinks.support)}
+        />
+        <SettingsRow
+          title="Diagnostics"
+          icon={FileText}
+          onPress={() => router.push('/(tabs)/settings/diagnostics')}
+        />
+        <SettingsRow
+          title="Support Bey"
+          icon={HeartHandshake}
+          onPress={() => router.push('/(tabs)/settings/supporter')}
         />
       </SettingsGroup>
       {error && <SettingsMessage error>Could not open the link. Please try again.</SettingsMessage>}

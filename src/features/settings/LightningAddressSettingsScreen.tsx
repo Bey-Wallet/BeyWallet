@@ -1,7 +1,8 @@
 import React from 'react';
+import { Share } from 'react-native';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { Text, YStack } from 'tamagui';
-import { AtSign, Download, Zap } from '@tamagui/lucide-icons';
+import { AtSign, ChevronDown, ChevronUp, Download, Zap } from '@tamagui/lucide-icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
@@ -53,6 +54,7 @@ export default function LightningAddressSettingsScreen() {
   const npub = useSettingsStore((s) => s.npub);
   const router = useRouter();
   const { busy, message, run } = useOperation();
+  const [showPreviousAddresses, setShowPreviousAddresses] = React.useState(false);
   return (
     <SettingsPage>
       <SettingsDescription>
@@ -98,6 +100,14 @@ export default function LightningAddressSettingsScreen() {
           >
             Copy address
           </AppButton>
+          <AppButton
+            size="small"
+            emphasis="secondary"
+            disabled={busy}
+            onPress={() => run(() => Share.share({ message: lightningAddress(npub) }))}
+          >
+            Share address
+          </AppButton>
         </YStack>
       )}
       <SettingsDescription>
@@ -132,16 +142,29 @@ export default function LightningAddressSettingsScreen() {
       )}
       <AppButton
         size="small"
-        emphasis="ghost"
-        disabled={busy}
-        onPress={() => run(() => getLightningAddressService().sync(LEGACY_NPUB_CASH))}
+        emphasis="secondary"
+        icon={showPreviousAddresses ? ChevronUp : ChevronDown}
+        accessibilityState={{ expanded: showPreviousAddresses }}
+        onPress={() => setShowPreviousAddresses((visible) => !visible)}
       >
-        Check previous npubx.cash address
+        Previous addresses
       </AppButton>
-      <SettingsDescription>
-        Checks the previous provider separately. Its account settings remain unchanged. Enable
-        collection to collect recovered payments.
-      </SettingsDescription>
+      {showPreviousAddresses && (
+        <YStack gap="$2">
+          <AppButton
+            size="small"
+            emphasis="ghost"
+            disabled={busy}
+            onPress={() => run(() => getLightningAddressService().sync(LEGACY_NPUB_CASH))}
+          >
+            Check previous npubx.cash address
+          </AppButton>
+          <SettingsDescription>
+            Checks the previous provider separately. Its account settings remain unchanged. Enable
+            collection to collect recovered payments.
+          </SettingsDescription>
+        </YStack>
+      )}
       {message && <SettingsMessage error>{message}</SettingsMessage>}
     </SettingsPage>
   );

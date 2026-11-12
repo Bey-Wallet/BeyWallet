@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ResultStage } from '~/features/payments/swap/ResultStage';
 
+jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
+
 jest.mock('tamagui', () => ({ Text: 'Text' }));
 jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTableRow: 'Row' }));
@@ -55,4 +57,16 @@ it('distinguishes delayed issuance from a failed transfer and retains its timest
   expect(receipt.props.statusLabel).toBe('Waiting for destination ecash');
   expect(receipt.props.time).toBe(123);
   expect(tree.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('3');
+});
+
+it('shows conflicting mint evidence as needing review rather than a failed payment', async () => {
+  const record = { stage: 'settlement', createdAt: 123, feePaid: null, feeReserve: 3 } as any;
+  await act(async () => {
+    tree = create(<ResultStage {...props} status="pending" record={record} />);
+  });
+  const receipt = tree.root.findByType('Receipt' as any);
+  expect(receipt.props.status).toBe('pending');
+  expect(receipt.props.title).toBe('Transfer needs review');
+  expect(receipt.props.statusLabel).toBe('Checking transfer outcome');
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
 });

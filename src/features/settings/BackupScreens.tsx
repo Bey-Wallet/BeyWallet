@@ -1,9 +1,7 @@
 import React, { useCallback } from 'react';
 import { Alert, DevSettings } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
-import * as SecureStore from 'expo-secure-store';
-import * as Haptics from 'expo-haptics';
-import { Copy, EyeOff, FileDown, FileUp, ShieldCheck, Trash2 } from '@tamagui/lucide-icons';
+import { Copy, EyeOff, FileDown, FileUp, Trash2 } from '@tamagui/lucide-icons';
 import { seedService } from '~/services/platform/seedService';
 import { biometricService } from '~/services/platform/biometricService';
 import { walletFileService } from '~/services/platform/walletFileService';
@@ -16,7 +14,6 @@ import { useProtectedValue } from './hooks/useProtectedValue';
 import { useSettingsOperation } from './hooks/useSettingsOperation';
 
 export function RecoveryPhraseSettingsScreen() {
-  const backedUp = useSettingsStore((state) => state.seedBackedUp);
   const secret = useProtectedValue(
     'Authorize to view your secret backup phrase',
     useCallback(async () => {
@@ -38,42 +35,41 @@ export function RecoveryPhraseSettingsScreen() {
           <YStack rounded="$6" bg="$gray2" p="$4" gap="$3">
             <XStack flexWrap="wrap" gap="$3">
               {secret.value.split(' ').map((word, index) => (
-                <XStack key={index} width="45%" gap="$2" py="$1">
-                  <Text color="$gray10" width={24}>
-                    {index + 1}.
+                <XStack key={index} width="45%" gap="$2" py="$1" items="baseline">
+                  <Text color="$gray10" minWidth={32} flexShrink={0} numberOfLines={1}>
+                    {`${index + 1}.`}
                   </Text>
-                  <Text color="$color" fontWeight="600">
+                  <Text color="$color" fontWeight="600" flex={1} minWidth={0}>
                     {word}
                   </Text>
                 </XStack>
               ))}
             </XStack>
           </YStack>
-          <AppButton
-            variant="default"
-            emphasis="secondary"
-            icon={Copy}
-            onPress={() => (secret.value ? void operation.copy(secret.value) : undefined)}
-          >
-            Copy recovery phrase
-          </AppButton>
-          <AppButton variant="default" emphasis="secondary" icon={EyeOff} onPress={secret.hide}>
-            Hide phrase
-          </AppButton>
-          <AppButton
-            icon={ShieldCheck}
-            loading={operation.busy}
-            onPress={() =>
-              void operation.run(async () => {
-                await SecureStore.setItemAsync('wallet_backed_up', 'true');
-                await useSettingsStore.getState().setSeedBackedUp(true);
-                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                return 'Recovery phrase backup confirmed.';
-              })
-            }
-          >
-            {backedUp ? 'Backup confirmed' : 'I saved my recovery phrase'}
-          </AppButton>
+          <XStack gap="$3" width="100%">
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              icon={Copy}
+              flex={1}
+              fullWidth={false}
+              accessibilityLabel="Copy recovery phrase"
+              onPress={() => (secret.value ? void operation.copy(secret.value) : undefined)}
+            >
+              Copy
+            </AppButton>
+            <AppButton
+              variant="default"
+              emphasis="secondary"
+              icon={EyeOff}
+              flex={1}
+              fullWidth={false}
+              accessibilityLabel="Hide recovery phrase"
+              onPress={secret.hide}
+            >
+              Hide
+            </AppButton>
+          </XStack>
         </>
       ) : (
         <AppButton loading={secret.busy} onPress={secret.reveal}>
@@ -249,9 +245,13 @@ export function DeleteWalletSettingsScreen() {
             </Text>
             <XStack flexWrap="wrap" gap="$3">
               {secret.value.map((word, index) => (
-                <XStack key={index} width="45%" gap="$2">
-                  <Text color="$gray10">{index + 1}.</Text>
-                  <Text color="$color">{word}</Text>
+                <XStack key={index} width="45%" gap="$2" items="baseline">
+                  <Text color="$gray10" minWidth={32} flexShrink={0} numberOfLines={1}>
+                    {`${index + 1}.`}
+                  </Text>
+                  <Text color="$color" flex={1} minWidth={0}>
+                    {word}
+                  </Text>
                 </XStack>
               ))}
             </XStack>

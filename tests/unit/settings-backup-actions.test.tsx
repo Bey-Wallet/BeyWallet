@@ -3,8 +3,10 @@ jest.mock('@tamagui/toast', () => ({
 }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
+import { seedService } from '~/services/platform/seedService';
 import {
+  RecoveryPhraseSettingsScreen,
   ExportBackupSettingsScreen,
   RestoreBackupSettingsScreen,
 } from '~/features/settings/BackupScreens';
@@ -17,11 +19,15 @@ const mockImportState = jest.fn();
 const mockDestroy = jest.fn(async () => {});
 const mockRestore = jest.fn(async (..._args: unknown[]) => {});
 const mockReinit = jest.fn(async () => {});
+const mockCopy = jest.fn(async () => {});
+jest.mock('~/shared/hooks/useAppToast', () => ({ useAppToast: () => ({ copy: mockCopy }) }));
 const mockSettings = {
   secondaryCurrency: 'USD',
   theme: 'dark',
   setSecondaryCurrency: jest.fn(async () => {}),
   setTheme: jest.fn(async () => {}),
+  setBackupDismissedAt: jest.fn(async () => {}),
+  setSeedBackedUp: jest.fn(async () => {}),
 };
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('expo-router', () => ({
@@ -77,6 +83,39 @@ jest.mock('~/state/onboardingStore', () => ({
 }));
 
 beforeEach(() => jest.clearAllMocks());
+
+it('authenticates phrase access and offers only side-by-side Copy and Hide actions', async () => {
+  const phrase = Array.from({ length: 12 }, (_, index) => `fixture${index + 1}`).join(' ');
+  jest.mocked(seedService.getMnemonic).mockResolvedValueOnce(phrase);
+  mockAuthenticate.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<RecoveryPhraseSettingsScreen />);
+  });
+  try {
+    const buttons = () => tree.root.findAllByType('AppButton' as any);
+    await act(async () => buttons()[0].props.onPress());
+    expect(buttons().map((button) => button.props.children)).toEqual(['Reveal recovery phrase']);
+    await act(async () => buttons()[0].props.onPress());
+    expect(buttons().map((button) => button.props.children)).toEqual(['Copy', 'Hide']);
+    expect(buttons()[0].parent).toBe(buttons()[1].parent);
+    const row = buttons()[0].parent!.props;
+    expect(row.flexDirection ?? StyleSheet.flatten(row.style)?.flexDirection).toBe('row');
+    for (const label of ['11.', '12.']) {
+      const number = tree.root.findByProps({ children: label }).props;
+      expect(number.numberOfLines).toBe(1);
+      expect(number.flexShrink ?? StyleSheet.flatten(number.style)?.flexShrink).toBe(0);
+    }
+    await act(async () => buttons()[0].props.onPress());
+    expect(mockCopy).toHaveBeenCalledWith(phrase);
+    expect(mockSettings.setSeedBackedUp).not.toHaveBeenCalled();
+    await act(async () => buttons()[1].props.onPress());
+    expect(buttons().map((button) => button.props.children)).toEqual(['Reveal recovery phrase']);
+    expect(tree.root.findAllByProps({ children: 'fixture12' })).toHaveLength(0);
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
 
 it('does not export when authentication is rejected and blocks duplicate export taps', async () => {
   let tree!: ReactTestRenderer;

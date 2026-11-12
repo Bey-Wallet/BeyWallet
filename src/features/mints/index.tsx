@@ -18,7 +18,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import type { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
-import { usePreventRemove } from '@react-navigation/native';
+import { useIsFocused, usePreventRemove } from '@react-navigation/native';
 import { Share as RNShare } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MintDetailsView } from './components/MintDetailsView';
@@ -41,6 +41,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [showQr, setShowQr] = useState(false);
   const router = useRouter();
+  const isFocused = useIsFocused();
   const toast = useAppToast();
   const { mints } = useWalletStore();
   const hideDisclaimer = useSettingsStore((state) => state.hideMintConnectionDisclaimer);
@@ -54,14 +55,14 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
   const walletMint = mints.find((m) => normalizeUrl(m.mintUrl) === normalizeUrl(url));
   const isAlreadyAdded = !!walletMint;
   useEffect(() => {
-    if (isAlreadyAdded && !isConnecting && !connectionError) {
+    if (isFocused && isAlreadyAdded && !isConnecting && !connectionError) {
       connectionSheetRef.current?.dismiss();
       router.replace({
         pathname: '/(modals)/mint-details',
         params: { mintUrl: walletMint?.mintUrl || url },
       });
     }
-  }, [isAlreadyAdded, isConnecting, connectionError, router, url, walletMint?.mintUrl]);
+  }, [isFocused, isAlreadyAdded, isConnecting, connectionError, router, url, walletMint?.mintUrl]);
   const validUrl = useMemo(() => {
     try {
       mintHealthUrl(url);

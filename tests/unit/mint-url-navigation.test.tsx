@@ -608,6 +608,8 @@ it('opens trust directly from a discovered mint quick-add button', async () => {
       .props.onPress(),
   );
   expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(mockRouter.back).not.toHaveBeenCalled();
 });
 
 it('shows Home quick-add progress and prevents duplicates when consent is remembered', async () => {

@@ -13,7 +13,7 @@ export interface MintTransferRecord {
   feePaid: number | null;
   expiresAt: number | null;
   state: 'draft' | 'prepared' | 'committed' | 'completed' | 'failed' | 'discarded';
-  stage: 'payment' | 'issuance';
+  stage: 'payment' | 'issuance' | 'settlement';
   createdAt: number;
 }
 
@@ -50,7 +50,15 @@ export class MintTransferRepository {
 
   async unfinished(): Promise<MintTransferRecord[]> {
     return this.db.all<MintTransferRecord>(
-      "SELECT * FROM bey_mint_transfers WHERE state IN ('draft', 'prepared', 'committed')",
+      `SELECT t.* FROM bey_mint_transfers t
+       WHERE t.state IN ('draft', 'prepared', 'committed')
+       OR (t.state = 'failed' AND (
+         EXISTS (SELECT 1 FROM coco_cashu_history h WHERE h.type = 'melt'
+           AND h.mintUrl = t.sourceMintUrl AND h.quoteId = t.meltQuoteId AND h.state = 'PAID')
+         OR EXISTS (SELECT 1 FROM coco_cashu_history h WHERE h.type = 'mint'
+           AND h.mintUrl = t.targetMintUrl AND h.quoteId = t.mintQuoteId
+           AND h.state IN ('PAID', 'ISSUED'))
+       ))`,
     );
   }
 
@@ -110,18 +118,25 @@ export class MintTransferRepository {
       [entry.mintUrl, entry.quoteId],
     );
     if (!record) return entry;
+    // A credited receipt for the exact destination invoice wins over stale failures.
+    const issued =
+      record.state === 'completed' ||
+      !!(await this.db.get(
+        `SELECT 1 FROM coco_cashu_history WHERE type = 'mint' AND mintUrl = ? AND quoteId = ?
+       AND state = 'ISSUED' AND amount = ? AND unit = 'sat' LIMIT 1`,
+        [record.targetMintUrl, record.mintQuoteId, record.amount],
+      ));
     return {
       ...entry,
       amount: record.amount,
-      state:
-        record.state === 'completed' ? 'PAID' : record.state === 'failed' ? 'failed' : 'PENDING',
+      state: issued ? 'PAID' : record.state === 'failed' ? 'failed' : 'PENDING',
       metadata: {
         ...entry.metadata,
         via: 'swap',
         transferId: record.id,
         sourceMintUrl: record.sourceMintUrl,
         targetMintUrl: record.targetMintUrl,
-        transferStage: record.stage,
+        transferStage: issued ? 'issuance' : record.stage,
         fee: String(record.feePaid ?? record.feeReserve),
       },
     } as HistoryEntry;

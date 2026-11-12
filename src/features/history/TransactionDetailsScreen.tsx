@@ -874,9 +874,10 @@ function TransactionDetailsContent() {
 
   const isOutgoing = entry.type === 'send' || entry.type === 'melt';
   const receiptStatus = paymentReceiptStatus(
-    entry.type === 'mint' && status === 'paid'
-      ? 'pending'
-      : entry.state || (entry.type === 'receive' ? 'completed' : 'unknown'),
+    transferRecord?.state ??
+      (entry.type === 'mint' && status === 'paid'
+        ? 'pending'
+        : entry.state || (entry.type === 'receive' ? 'completed' : 'unknown')),
   );
   const paymentLayout = historyPaymentLayout(entry);
   const receiptData = buildReceiptDetails(entry, {

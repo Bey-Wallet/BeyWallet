@@ -44,6 +44,25 @@ export function SettingsGroup({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function SettingsSection({
+  title,
+  children,
+}: {
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <YStack gap="$2">
+      {title && (
+        <AppText variant="label3" tone="secondary" accessibilityRole="header" px="$2">
+          {title}
+        </AppText>
+      )}
+      {children}
+    </YStack>
+  );
+}
+
 export function SettingsRow({
   title,
   value,

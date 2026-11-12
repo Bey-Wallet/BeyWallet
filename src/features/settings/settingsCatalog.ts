@@ -47,7 +47,7 @@ export const settingsCategories = {
     groups: [
       [
         { path: 'theme', title: 'Theme', icon: Palette },
-        { path: 'currency', title: 'Fiat currency', icon: Banknote },
+        { path: 'currency', title: 'Display currency', icon: Banknote },
         { path: 'bitcoin-symbol', title: 'Bitcoin symbol', icon: Bitcoin },
       ],
     ],
@@ -61,7 +61,7 @@ export const settingsCategories = {
         { path: 'hide-balance', title: 'Hide balance', icon: EyeOff },
       ],
       [
-        { path: 'receiving-policy', title: 'Receiving from people', icon: UserRound },
+        { path: 'receiving-policy', title: 'Who can send', icon: UserRound },
         { path: 'blocked-people', title: 'Blocked people', icon: UserRoundX },
       ],
       [{ path: 'secret-key', title: 'Nostr secret key', icon: KeyRound }],
@@ -74,12 +74,12 @@ export const settingsCategories = {
     groups: [
       [
         { path: 'recovery-phrase', title: 'Recovery phrase', icon: ShieldCheck },
-        { path: 'mint-backup', title: 'Mint-list backup', icon: CloudUpload },
-        { path: 'export-backup', title: 'Export wallet backup', icon: FileUp },
+        { path: 'recover-funds', title: 'Recover funds', icon: ScanSearch },
       ],
       [
+        { path: 'export-backup', title: 'Export wallet backup', icon: FileUp },
         { path: 'restore-backup', title: 'Restore wallet backup', icon: FileDown },
-        { path: 'recover-funds', title: 'Recover funds', icon: ScanSearch },
+        { path: 'mint-backup', title: 'Mint-list backup', icon: CloudUpload },
       ],
     ],
   },
@@ -89,8 +89,7 @@ export const settingsCategories = {
     groups: [
       [
         { path: 'mints', title: 'Mints', icon: Landmark },
-        { path: 'lightning-address', title: 'Lightning address', icon: AtSign },
-        { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
+        { path: 'lightning-address', title: 'Lightning', icon: AtSign },
       ],
     ],
   },
@@ -99,31 +98,37 @@ export const settingsCategories = {
     icon: Network,
     groups: [
       [
-        { path: 'relays', title: 'Relays', icon: Network },
-        { path: 'nostr-history', title: 'Nostr history', icon: History },
+        { path: 'relays', title: 'Nostr relays', icon: Network },
+        { path: 'nostr-history', title: 'Message history', icon: History },
         { path: 'nostr-health', title: 'Nostr health', icon: HeartPulse },
       ],
     ],
   },
   advanced: {
-    title: 'Wallet tools',
+    title: 'Advanced',
     icon: Wrench,
     groups: [
-      [{ path: 'optimize-wallet', title: 'Optimize wallet', icon: Sparkles }],
       [
+        { path: 'relays', title: 'Nostr relays', icon: Network },
+        { path: 'nostr-history', title: 'Message history', icon: History },
+        { path: 'nostr-health', title: 'Nostr health', icon: HeartPulse },
+      ],
+      [
+        { path: 'optimize-wallet', title: 'Optimize wallet', icon: Sparkles },
         { path: 'proofs', title: 'Proof manager', icon: Coins },
         { path: 'verify-proofs', title: 'Verify proofs offline', icon: ShieldCheck },
+        { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
       ],
       ...(isDevelopmentClient() ? [[{ path: 'new-ui', title: 'BUI', icon: Sparkles }]] : []),
     ],
   },
   identity: {
-    title: 'Profile & addresses',
+    title: 'Profile',
     icon: UserRound,
     groups: [
       [
-        { path: 'profile', title: 'My addresses', icon: UserRound },
         { path: 'username', title: 'Nostr username', icon: AtSign },
+        { path: 'profile', title: 'My addresses', icon: UserRound },
         { path: 'public-key', title: 'Public Nostr key', icon: KeyRound },
       ],
     ],
@@ -131,14 +136,20 @@ export const settingsCategories = {
 } satisfies Record<string, { title: string; icon: AppButtonIcon; groups: SettingsItem[][] }>;
 
 export type SettingsCategory = keyof typeof settingsCategories;
+export const settingsCategorySections: Partial<Record<SettingsCategory, readonly string[]>> = {
+  backup: ['Recovery', 'Backups'],
+  security: ['App security', 'Incoming payments', 'Sensitive information', 'Danger zone'],
+  advanced: ['Network', 'Wallet maintenance', 'Developer tools'],
+};
 export const settingsTitles: Record<string, string> = {
   index: 'Settings',
   help: 'Help & support',
   diagnostics: 'Diagnostic report',
-  about: 'About Bey Wallet',
+  about: 'About Bey',
   supporter: 'Support Bey',
   updates: 'App updates',
   notifications: 'Notifications',
+  'lightning-address': 'Lightning',
   'new-ui-buttons': 'BUI · Buttons',
   'new-ui-colors': 'BUI · Theme & colors',
   'bui-layout': 'BUI · Layout & spacing',

@@ -50,7 +50,9 @@ export function ResultStage({
         status === 'success'
           ? 'Transfer completed'
           : status === 'pending'
-            ? 'Transfer pending'
+            ? record?.stage === 'settlement'
+              ? 'Transfer needs review'
+              : 'Transfer pending'
             : status === 'cancelled'
               ? 'Transfer cancelled'
               : 'Transfer not completed'
@@ -59,7 +61,11 @@ export function ResultStage({
       time={record?.createdAt ?? time}
       completed={status === 'success'}
       statusLabel={
-        record?.stage === 'issuance' ? 'Waiting for destination ecash' : 'Payment in progress'
+        record?.stage === 'settlement'
+          ? 'Checking transfer outcome'
+          : record?.stage === 'issuance'
+            ? 'Waiting for destination ecash'
+            : 'Payment in progress'
       }
       onCheckStatus={onCheckStatus}
       isCheckingStatus={checking}
@@ -76,7 +82,9 @@ export function ResultStage({
       )}
       {status === 'pending' && (
         <Text color="$gray10" fontSize={11} px="$4" py="$3">
-          The transfer will continue checking automatically. You can close this screen.
+          {record?.stage === 'settlement'
+            ? 'The mints returned conflicting results. Keep checking this transfer before making another payment.'
+            : 'The transfer will continue checking automatically. You can close this screen.'}
         </Text>
       )}
       {onRetry && (

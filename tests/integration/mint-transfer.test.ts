@@ -2,6 +2,11 @@ import { MintTransferService, TRANSFER_WAIT_MS } from '~/services/wallet/mintTra
 import { ExpoHistoryRepository } from '~/storage/sqlite/repositories/HistoryRepository';
 import { MIGRATIONS } from '~/storage/sqlite/schema';
 import { filterHistory, defaultHistoryFilters } from '~/features/history/historyList';
+import { publishWalletFeedback } from '~/services/feedback/feedbackCoordinator';
+
+jest.mock('~/services/feedback/feedbackCoordinator', () => ({
+  publishWalletFeedback: jest.fn(async () => {}),
+}));
 
 const { DatabaseSync } = require('node:sqlite');
 const source = 'https://source.example';
@@ -19,9 +24,11 @@ let repositories: any;
 let service: MintTransferService;
 let operation: any;
 let quoteState: string;
+let destinationReceiptSaved: boolean;
 let history: ExpoHistoryRepository;
 
 beforeEach(() => {
+  jest.clearAllMocks();
   jest.useFakeTimers();
   raw = new DatabaseSync(':memory:');
   raw.exec(MIGRATIONS.find((m) => m.id === '003_history')!.sql);
@@ -47,11 +54,28 @@ beforeEach(() => {
     methodData: { invoice: 'lnbc-fixture' },
   };
   quoteState = 'UNPAID';
+  destinationReceiptSaved = true;
   repositories = {
     db,
+    historyRepository: history,
     proofRepository: { getAvailableProofs: jest.fn(async () => [{ amount: 200 }]) },
     mintQuoteRepository: {
-      getMintQuote: jest.fn(async () => ({ state: quoteState, request: 'lnbc-fixture' })),
+      getMintQuote: jest.fn(async () => {
+        if (quoteState === 'ISSUED' && destinationReceiptSaved) {
+          await db.run(
+            "UPDATE coco_cashu_history SET state = 'ISSUED' WHERE mintUrl = ? AND quoteId = ?",
+            [target, 'mint-quote'],
+          );
+        }
+        return {
+          state: quoteState,
+          request: 'lnbc-fixture',
+          quote: 'mint-quote',
+          mintUrl: target,
+          amount: 100,
+          unit: 'sat',
+        };
+      }),
     },
     meltQuoteRepository: {
       getMeltQuote: jest.fn(async () => ({
@@ -226,6 +250,211 @@ it('shows confirmed failures and requires a fresh plan for another attempt', asy
   });
   expect((await service.execute(review.id)).state).toBe('failed');
   expect((await service.execute(review.id)).state).toBe('failed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+});
+
+it('repairs a saved failure once the original source payment and destination issuance complete', async () => {
+  const review = await service.prepare(source, target, 100);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+    throw new Error('Initial failure');
+  });
+  expect((await service.execute(review.id)).state).toBe('failed');
+  const original = (await history.getPaginatedHistoryEntries(10, 0))[0];
+  expect(original).toMatchObject({ state: 'failed' });
+  operation.state = 'finalized';
+  quoteState = 'ISSUED';
+  expect((await service.refresh(review.id)).state).toBe('completed');
+  const repaired = await history.getHistoryEntryById(original.id);
+  expect(repaired).toMatchObject({ state: 'PAID' });
+  expect(repaired?.id).toBe(original.id);
+  await service.refresh(review.id);
+  expect(publishWalletFeedback).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.rollbackMelt).not.toHaveBeenCalled();
+});
+
+it.each(['PAID', 'ISSUED'])(
+  'shows the destination %s outcome despite stale source rollback without submitting again',
+  async (destinationState) => {
+    const review = await service.prepare(source, target, 100);
+    quoteState = destinationState;
+    manager.quotes.executeMelt.mockImplementation(async () => {
+      operation.state = 'rolled_back';
+      throw new Error('Conflicting source result');
+    });
+    const expected = destinationState === 'ISSUED' ? 'completed' : 'committed';
+    expect((await service.execute(review.id)).state).toBe(expected);
+    expect((await service.refresh(review.id)).state).toBe(expected);
+    expect((await history.getPaginatedHistoryEntries(10, 0))[0]).toMatchObject({
+      state: destinationState === 'ISSUED' ? 'PAID' : 'PENDING',
+    });
+    await service.execute(review.id);
+    expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+    expect(manager.quotes.rollbackMelt).not.toHaveBeenCalled();
+    if (destinationState === 'PAID') {
+      expect(manager.quotes.requeuePaidMintQuotes).toHaveBeenCalledWith(target);
+    }
+  },
+);
+
+it('keeps missing destination evidence pending rather than declaring failure', async () => {
+  const review = await service.prepare(source, target, 100);
+  repositories.mintQuoteRepository.getMintQuote.mockResolvedValue(null);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+    throw new Error('Source rollback');
+  });
+  expect((await service.execute(review.id)).state).toBe('committed');
+});
+
+it('does not let a conflicting unpaid source check roll back a pending payment after destination issuance', async () => {
+  const review = await service.prepare(source, target, 100);
+  quoteState = 'ISSUED';
+  manager.walletService = {
+    getWallet: async () => ({ checkMeltQuoteBolt11: async () => ({ state: 'UNPAID' }) }),
+  };
+  manager.quotes.checkPendingMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+  });
+  expect((await service.execute(review.id)).state).toBe('completed');
+  expect(operation.state).toBe('pending');
+  expect(manager.quotes.checkPendingMelt).not.toHaveBeenCalled();
+  expect(manager.quotes.rollbackMelt).not.toHaveBeenCalled();
+});
+
+it('lets Coco finalize a pending source while the paid destination awaits issuance', async () => {
+  const review = await service.prepare(source, target, 100);
+  quoteState = 'PAID';
+  manager.walletService = {
+    getWallet: async () => ({ checkMeltQuoteBolt11: async () => ({ state: 'PAID' }) }),
+  };
+  manager.quotes.checkPendingMelt.mockImplementation(async () => {
+    operation.state = 'finalized';
+  });
+  expect((await service.execute(review.id)).state).toBe('committed');
+  expect(manager.quotes.checkPendingMelt).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.rollbackMelt).not.toHaveBeenCalled();
+});
+
+it('does not complete an issued quote before its issuance receipt is saved', async () => {
+  const review = await service.prepare(source, target, 100);
+  quoteState = 'ISSUED';
+  destinationReceiptSaved = false;
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'finalized';
+    return operation;
+  });
+  expect((await service.execute(review.id)).state).toBe('committed');
+  expect((await history.getPaginatedHistoryEntries(10, 0))[0]).toMatchObject({ state: 'PENDING' });
+});
+
+it.each([
+  ['amount', 101],
+  ['unit', 'usd'],
+  ['quoteId', 'another-quote'],
+  ['mintUrl', source],
+])('does not complete from an issuance receipt with mismatched %s', async (field, value) => {
+  const review = await service.prepare(source, target, 100);
+  quoteState = 'ISSUED';
+  jest.spyOn(history, 'getMintHistoryEntry').mockResolvedValue({
+    type: 'mint',
+    mintUrl: target,
+    quoteId: review.mintQuoteId,
+    state: 'ISSUED',
+    amount: 100,
+    unit: 'sat',
+    [field]: value,
+  } as any);
+  expect((await service.execute(review.id)).state).toBe('committed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+});
+
+it('completes a saved destination issuance even when the source journal cannot be read', async () => {
+  const review = await service.prepare(source, target, 100);
+  quoteState = 'ISSUED';
+  manager.quotes.getMeltOperation.mockRejectedValue(new Error('Source journal unavailable'));
+  expect((await service.execute(review.id)).state).toBe('completed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.checkPendingMelt).not.toHaveBeenCalled();
+});
+
+it('projects the exact issued destination receipt over a stale failed transfer journal', async () => {
+  const review = await service.prepare(source, target, 100);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+    throw new Error('Stale failure');
+  });
+  expect((await service.execute(review.id)).state).toBe('failed');
+  const original = (await history.getPaginatedHistoryEntries(10, 0))[0];
+  await db.run("UPDATE coco_cashu_history SET state = 'ISSUED' WHERE mintUrl = ? AND quoteId = ?", [
+    target,
+    review.mintQuoteId,
+  ]);
+  expect(await history.getPaginatedHistoryEntries(10, 0)).toEqual([
+    expect.objectContaining({ id: original.id, state: 'PAID' }),
+  ]);
+  expect((await service.journal.get(review.id))?.state).toBe('failed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+});
+
+it('does not reopen a confirmed failure because a different destination invoice was paid', async () => {
+  const review = await service.prepare(source, target, 100);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+    throw new Error('No route');
+  });
+  expect((await service.execute(review.id)).state).toBe('failed');
+  await history.addHistoryEntry({
+    type: 'mint',
+    mintUrl: target,
+    amount: 100,
+    unit: 'sat',
+    quoteId: 'unrelated',
+    paymentRequest: 'another-invoice',
+    state: 'ISSUED' as any,
+    createdAt: Date.now(),
+  });
+  expect(await service.journal.unfinished()).toEqual([]);
+  expect((await service.refresh(review.id)).state).toBe('failed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+});
+
+it('repairs an old failed history row on restart when later settlement evidence was saved', async () => {
+  const review = await service.prepare(source, target, 100);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'rolled_back';
+    throw new Error('Initial failure');
+  });
+  expect((await service.execute(review.id)).state).toBe('failed');
+  quoteState = 'ISSUED';
+  await db.run("UPDATE coco_cashu_history SET state = 'ISSUED' WHERE mintUrl = ? AND quoteId = ?", [
+    target,
+    review.mintQuoteId,
+  ]);
+  service.stop();
+  service = new MintTransferService(manager, repositories, () => {});
+  service.start();
+  await jest.advanceTimersByTimeAsync(0);
+  expect((await service.journal.get(review.id))?.state).toBe('completed');
+  expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(manager.quotes.rollbackMelt).not.toHaveBeenCalled();
+});
+
+it('keeps a finalized source awaiting issuance pending and never downgrades completion', async () => {
+  const review = await service.prepare(source, target, 100);
+  manager.quotes.executeMelt.mockImplementation(async () => {
+    operation.state = 'finalized';
+    return operation;
+  });
+  quoteState = 'PAID';
+  expect((await service.execute(review.id)).state).toBe('committed');
+  quoteState = 'ISSUED';
+  expect((await service.refresh(review.id)).state).toBe('completed');
+  operation.state = 'rolled_back';
+  quoteState = 'UNPAID';
+  expect((await service.refresh(review.id)).state).toBe('completed');
   expect(manager.quotes.executeMelt).toHaveBeenCalledTimes(1);
 });
 

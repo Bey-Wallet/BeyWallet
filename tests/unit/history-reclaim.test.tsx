@@ -23,6 +23,7 @@ const mockRedeemQuote = jest.fn();
 let mockEntry: any;
 let mockMintQuote: any = null;
 let mockSnapshotPending = false;
+let mockTransferRecord: any = null;
 const mockExpireUpdate = jest.fn();
 const mockSetQuery = jest.fn((_key: unknown, update: (entry: any) => any) => {
   mockEntry = update(mockEntry);
@@ -74,9 +75,11 @@ jest.mock('@tanstack/react-query', () => ({
         ? mockEntry
         : queryKey[0] === 'receiptSnapshot'
           ? {}
-          : queryKey[0] === 'mintQuote'
-            ? mockMintQuote
-            : null,
+          : queryKey[0] === 'mintTransfer'
+            ? mockTransferRecord
+            : queryKey[0] === 'mintQuote'
+              ? mockMintQuote
+              : null,
     refetch: mockRefetch,
     isPending: queryKey[0] === 'receiptSnapshot' ? mockSnapshotPending : undefined,
     isRefetching: false,
@@ -134,7 +137,9 @@ jest.mock('~/features/history/components/TransactionNoteRows', () => ({
 jest.mock('~/features/history/components/PendingMintInvoiceLayout', () => ({
   PendingMintInvoiceLayout: 'Invoice',
 }));
-jest.mock('~/storage/sqlite/sqliteStorage', () => ({ sqliteStorage: {} }));
+jest.mock('~/storage/sqlite/sqliteStorage', () => ({
+  sqliteStorage: { getItem: jest.fn(() => null) },
+}));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: { formatSats: () => '1 sat', formatValue: () => '$0.01' },
 }));
@@ -162,6 +167,7 @@ beforeEach(() => {
   AppState.currentState = 'active';
   mockMintQuote = null;
   mockSnapshotPending = false;
+  mockTransferRecord = null;
   jest.useFakeTimers({ doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
   jest.clearAllMocks();
   mockEntry = {
@@ -197,6 +203,26 @@ async function render() {
   await act(async () => jest.advanceTimersByTime(3000));
 }
 const pending = () => tree.root.findByType('PendingToken' as any);
+
+it.each([
+  ['completed', 'failed', 'success', 'Confirmed'],
+  ['failed', 'PAID', 'error', 'Failed'],
+])(
+  'uses the authoritative transfer %s outcome over a stale %s history snapshot',
+  async (state, stale, status, label) => {
+    mockEntry = {
+      ...mockEntry,
+      type: 'melt',
+      state: stale,
+      quoteId: 'source-quote',
+      metadata: { transferId: 'transfer', targetMintUrl: 'https://target.test' },
+    };
+    mockTransferRecord = { id: 'transfer', state, feePaid: 0, stage: 'issuance' };
+    await render();
+    expect(tree.root.findByType('StatusRow' as any).props).toMatchObject({ status, value: label });
+    expect(tree.root.findByType('ReceiptSheet' as any).props.active).toBe(false);
+  },
+);
 
 const menuAction = (id: string) =>
   tree.root

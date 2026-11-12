@@ -8,6 +8,7 @@ import {
   SettingsGroup,
   SettingsPage,
   SettingsRow,
+  SettingsSection,
 } from './components/SettingsLayout';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 
@@ -31,10 +32,10 @@ export function NotificationSettingsScreen() {
     };
   }, []);
   const preferences: { key: keyof NotificationPreferences; title: string; icon: typeof Bell }[] = [
-    { key: 'details', title: 'Show notification details', icon: Eye },
-    { key: 'payments', title: 'Payments', icon: CreditCard },
-    { key: 'messages', title: 'Messages', icon: MessageCircle },
-    { key: 'review', title: 'Review needed', icon: AlertCircle },
+    { key: 'details', title: 'Notification details', icon: Eye },
+    { key: 'payments', title: 'Payment alerts', icon: CreditCard },
+    { key: 'messages', title: 'Message alerts', icon: MessageCircle },
+    { key: 'review', title: 'Action required alerts', icon: AlertCircle },
   ];
   return (
     <SettingsPage>
@@ -70,25 +71,27 @@ export function NotificationSettingsScreen() {
           />
         ))}
       </SettingsGroup>
-      <SettingsGroup>
-        <SettingsRow title="System permission" value={permission} />
-        {permission !== 'granted' && (
+      <SettingsSection title="Device permissions">
+        <SettingsGroup>
+          <SettingsRow title="System permission" value={permission} />
+          {permission !== 'granted' && (
+            <SettingsRow
+              title="Allow notifications"
+              onPress={async () => {
+                await notificationService.requestPermissions();
+                setPermission(await notificationService.permissionStatus());
+              }}
+            />
+          )}
           <SettingsRow
-            title="Allow notifications"
-            onPress={async () => {
-              await notificationService.requestPermissions();
-              setPermission(await notificationService.permissionStatus());
+            title="Open system settings"
+            onPress={() => {
+              setSettingsError(false);
+              void Linking.openSettings().catch(() => setSettingsError(true));
             }}
           />
-        )}
-        <SettingsRow
-          title="Open system settings"
-          onPress={() => {
-            setSettingsError(false);
-            void Linking.openSettings().catch(() => setSettingsError(true));
-          }}
-        />
-      </SettingsGroup>
+        </SettingsGroup>
+      </SettingsSection>
       {settingsError && (
         <SettingsDescription>
           Could not open system settings. Open your device settings and choose Bey.
