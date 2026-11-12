@@ -1,7 +1,7 @@
-import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, H1, View, ScrollView, Separator } from 'tamagui';
+import { YStack, XStack, Text, View, ScrollView, Separator } from 'tamagui';
 import {
   Lock,
   Key,
@@ -9,7 +9,6 @@ import {
   FileText,
   ChevronRight,
   Check,
-  ArrowLeft,
   Landmark,
   Sprout,
 } from '@tamagui/lucide-icons';
@@ -20,15 +19,16 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 interface ConsentStepProps {
   onComplete: () => void;
   onBack: () => void;
+  isBusy?: boolean;
 }
 
-export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
+export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepProps) {
   const toast = useAppToast();
   const insets = useSafeAreaInsets();
   const [checked, setChecked] = useState(false);
 
   const handleContinue = () => {
-    if (!checked) return;
+    if (!checked || isBusy) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onComplete();
   };
@@ -39,42 +39,26 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
   };
 
   return (
-    <YStack
-      flex={1}
-      bg="$background"
-      px="$4"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
-      {/* Top Back Button */}
-      <XStack justify="flex-start" py="$2">
-        <HeaderIconButton
-          accessibilityLabel="Go back"
-          icon={<ArrowLeft color="$color" />}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onBack();
-          }}
-        />
-      </XStack>
+    <YStack flex={1} bg="$background" style={{ paddingBottom: insets.bottom }}>
+      <BUIHeader
+        title="Risk Acknowledgment"
+        navigation="back"
+        topInset={insets.top}
+        navigationDisabled={isBusy}
+        onNavigate={() => {
+          if (isBusy) return;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onBack();
+        }}
+      />
 
       <ScrollView
+        flex={1}
+        px="$4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingBottom: 20 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}
       >
-        <YStack gap="$6" flex={1}>
-          {/* Header */}
-          <YStack gap="$2" mt="$2">
-            <H1
-              fontSize="$8"
-              textAlign="center"
-              letterSpacing={-0.5}
-              fontWeight="800"
-              color="$color"
-            >
-              Risk Acknowledgment
-            </H1>
-          </YStack>
-
+        <YStack gap="$6" flexShrink={0}>
           {/* Single unified list card container */}
           <YStack
             bg="$gray2"
@@ -200,13 +184,19 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
       </ScrollView>
 
       {/* Footer with Checkbox & CTA */}
-      <YStack gap="$4" py="$3" bg="$background">
+      <YStack gap="$4" py="$3" px="$4" bg="$background">
         {/* Checkbox row */}
         <XStack
           gap="$3"
           p="$3.5"
           items="flex-start"
+          minHeight={48}
+          accessibilityRole="checkbox"
+          accessibilityLabel="I understand the risks and agree to the Terms"
+          accessibilityState={{ checked, disabled: isBusy }}
+          disabled={isBusy}
           onPress={() => {
+            if (isBusy) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setChecked(!checked);
           }}
@@ -247,7 +237,9 @@ export function ConsentStep({ onComplete, onBack }: ConsentStepProps) {
           size="large"
           width="100%"
           onPress={handleContinue}
-          disabled={!checked}
+          disabled={!checked || isBusy}
+          loading={isBusy}
+          loadingText="Importing wallet…"
         >
           Agree & Continue
         </AppButton>

@@ -1,4 +1,13 @@
 export const infoSheetContent = {
+  'import-seed': {
+    title: 'Import a recovery phrase',
+    paragraphs: [
+      'Enter the original 12 words in their exact order, separated by spaces. Keep your phrase private: anyone with it can access the wallet it protects.',
+      'Continue opens Risk Acknowledgment. Import processing starts only after you agree on that screen.',
+      'Bey checks for a backed-up mint list. Review the mints during recovery and add any missing mint URLs. Recovery depends on mint availability and supported recovery data; a phrase alone does not guarantee recovery of every token or transaction history.',
+      'A recovery phrase differs from a full wallet backup, which also contains saved wallet data. Keep both securely.',
+    ],
+  },
   transfer: {
     title: 'About transfers',
     paragraphs: [
