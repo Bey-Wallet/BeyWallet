@@ -11,7 +11,7 @@ import AppBottomSheet, {
 import type { BUIAppearance } from '~/state/buiStore';
 import { BUIHeader } from './BUIHeader';
 import { BUIInput, type BUIInputProps } from './BUIInput';
-import { BUIAppearanceProvider, useBUIAppearance, useBUITheme } from './useBUITheme';
+import { BUIAppearanceProvider, useBUIOverlayAppearance, useBUITheme } from './useBUITheme';
 
 export type BUISheetRef = AppBottomSheetRef;
 
@@ -48,7 +48,7 @@ export const BUISheet = forwardRef<
   },
   ref,
 ) {
-  const inheritedAppearance = useBUIAppearance();
+  const inheritedAppearance = useBUIOverlayAppearance();
   const appearance = appearanceOverride ?? inheritedAppearance;
   const c = useBUITheme(appearance);
   const insets = useSafeAreaInsets();

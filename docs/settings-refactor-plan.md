@@ -45,18 +45,18 @@ Choose icons by purpose, with consistent 20–22 point sizing and stroke weight
 for list rows. Keep leading icons aligned in a fixed-width slot. Pair icons with
 clear labels; color alone must not communicate meaning.
 
-| Destination         | Leading icon         |
-| ------------------- | -------------------- |
-| Profile & addresses | Existing user avatar |
-| Appearance          | SlidersHorizontal    |
-| Notifications       | Bell                 |
-| Privacy & security  | ShieldCheck          |
-| Backup & recovery   | DatabaseBackup       |
-| Payments & mints    | Wallet               |
-| Network             | Network              |
-| Wallet tools        | Wrench               |
-| Help & support      | CircleHelp           |
-| About Bey Wallet    | Info                 |
+| Destination        | Leading icon         |
+| ------------------ | -------------------- |
+| Profile            | Existing user avatar |
+| Appearance         | SlidersHorizontal    |
+| Notifications      | Bell                 |
+| Privacy & security | ShieldCheck          |
+| Backup & recovery  | DatabaseBackup       |
+| Mints              | Landmark             |
+| Lightning          | Zap                  |
+| Advanced           | Wrench               |
+| Help & support     | CircleHelp           |
+| About Bey          | Info                 |
 
 Verify each named icon export against the installed package during implementation;
 use its closest semantic equivalent if needed without adding a dependency.
@@ -75,9 +75,11 @@ and provide pressed/focus feedback with the app's existing interaction component
 
 ## Main list and complete existing-feature mapping
 
-The profile card opens Profile & addresses. Home groups Appearance and Notifications;
-Payments & mints, Privacy & security, and Backup & recovery; Network and Wallet tools;
-then Help & support, Support Bey, and About Bey Wallet. Notifications opens directly.
+The profile card opens Profile. The root uses section headings, not intermediate screens:
+PREFERENCES contains Appearance and Notifications; WALLET contains Mints, Lightning,
+Backup & recovery, and Privacy & security; MORE contains Advanced, Help & support,
+and About Bey. Root navigation rows have no description subtext. Mints opens the shared
+manager directly. Username claiming lives under Profile rather than a separate root prompt.
 Existing category URLs remain valid. Bitcoin symbol is an inline switch in Appearance;
 hide balance and biometric app lock are inline switches in Privacy & security.
 Other actionable category rows navigate. App lock authenticates changes in both directions.
@@ -85,22 +87,24 @@ Other actionable category rows navigate. App lock authenticates changes in both 
 The following hierarchy defines the current mapping. Semicolons separate
 nested list groups; items within each group retain the order shown.
 
-| Destination         | Ordered content                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------- |
-| Profile & addresses | My addresses, Nostr username, public Nostr key                                                           |
-| Appearance          | Theme, fiat currency, Bitcoin symbol                                                                     |
-| Notifications       | Existing notification preferences                                                                        |
-| Payments & mints    | Mints, Lightning address, prepare offline change                                                         |
-| Privacy & security  | Biometric app lock, hide balance; receiving from people, blocked people; Nostr secret key; Delete wallet |
-| Backup & recovery   | Recovery phrase, mint-list backup, export wallet backup; restore wallet backup, recover funds            |
-| Network             | Relays, Nostr history, read-only Nostr health                                                            |
-| Wallet tools        | Optimize wallet; proof manager, verify proofs offline; development-only BUI                              |
+| Destination        | Ordered content                                                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profile            | Nostr username, My addresses, public Nostr key                                                                                                                          |
+| Appearance         | Theme, display currency, Bitcoin symbol                                                                                                                                 |
+| Notifications      | Notification switches; Device permissions group                                                                                                                         |
+| Lightning          | Enable address, receiving mint, auto-collection, copy/share, payment checks, pending payments; collapsed Previous addresses                                             |
+| Privacy & security | App security: app lock, hide balance; Incoming payments: who can send, blocked people; Sensitive information: secret key; Danger zone: delete wallet                    |
+| Backup & recovery  | Recovery: recovery phrase, recover funds; Backups: export, restore, mint-list backup                                                                                    |
+| Advanced           | Network: Nostr relays, message history, read-only Nostr health; Wallet maintenance: optimize, proof manager, offline verification, offline change; development-only BUI |
+
+Named subsections are headings on their owning page, never additional navigation screens.
+The former Payments & mints and Network category URLs remain usable for direct entry.
 
 Lightning address retains its receiving-mint and pending-payment screens. Recovery, key handling, backup formats,
 authentication, and wallet operation semantics remain unchanged.
 
-Help & support retains documentation and issue-report links. Support Bey retains
-the existing supporter screen. About retains version/build, App updates, website,
+Help & support contains documentation, issue reporting, Diagnostics and Support Bey.
+Support Bey retains the existing supporter screen. About retains version/build, Check for updates, website,
 GitHub, and the combined Terms & privacy policy link.
 
 Keep public-key and secret-key destinations distinct.

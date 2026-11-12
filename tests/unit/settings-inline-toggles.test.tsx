@@ -42,6 +42,7 @@ jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsGroup: 'Group',
   SettingsRow: 'Row',
   SettingsDescription: 'Description',
+  SettingsSection: 'Section',
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
@@ -67,7 +68,7 @@ it('shows the Bitcoin symbol switch inline and keeps other appearance rows navig
   expect(mockSettings.setNotificationsEnabled).not.toHaveBeenCalled();
   expect(mockPush).not.toHaveBeenCalled();
   const navigation = tree.root.findAllByType('Row' as any);
-  expect(navigation.map((row) => row.props.title)).toEqual(['Theme', 'Fiat currency']);
+  expect(navigation.map((row) => row.props.title)).toEqual(['Theme', 'Display currency']);
   navigation[0].props.onPress();
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/theme');
   await rows[0].props.save(true);
@@ -112,13 +113,16 @@ it('allocates every setting into the approved nested groups', () => {
       ['delete-wallet'],
     ],
     backup: [
-      ['recovery-phrase', 'mint-backup', 'export-backup'],
-      ['restore-backup', 'recover-funds'],
+      ['recovery-phrase', 'recover-funds'],
+      ['export-backup', 'restore-backup', 'mint-backup'],
     ],
-    wallet: [['mints', 'lightning-address', 'get-change']],
+    wallet: [['mints', 'lightning-address']],
     nostr: [['relays', 'nostr-history', 'nostr-health']],
-    advanced: [['optimize-wallet'], ['proofs', 'verify-proofs']],
-    identity: [['profile', 'username', 'public-key']],
+    advanced: [
+      ['relays', 'nostr-history', 'nostr-health'],
+      ['optimize-wallet', 'proofs', 'verify-proofs', 'get-change'],
+    ],
+    identity: [['username', 'profile', 'public-key']],
   };
   for (const [key, groups] of Object.entries(expected)) {
     expect(
@@ -136,8 +140,8 @@ it('allocates every setting into the approved nested groups', () => {
     'Payments & mints',
     'Privacy & security',
     'Network',
-    'Wallet tools',
-    'Profile & addresses',
+    'Advanced',
+    'Profile',
   ]);
 });
 
@@ -166,7 +170,7 @@ it.each(Object.keys(settingsCategories) as SettingsCategory[])(
             : `/(tabs)/settings/${row.props.path}`,
       );
     }
-    if (category === 'nostr') {
+    if (category === 'nostr' || category === 'advanced') {
       expect(tree.root.findByType('Health' as any).props.onPress).toBeUndefined();
     }
   },

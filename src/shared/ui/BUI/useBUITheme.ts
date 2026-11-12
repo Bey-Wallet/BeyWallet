@@ -7,11 +7,6 @@ const BUIAppearanceContext = createContext<BUIAppearance | undefined>(undefined)
 /** Scope production BUI content without changing the catalog preference. */
 export const BUIAppearanceProvider = BUIAppearanceContext.Provider;
 
-export function useBUIAppearance() {
-  const catalog = useBUIStore((state) => state.appearance);
-  return useContext(BUIAppearanceContext) ?? catalog;
-}
-
 /** Portals follow their source screen, including explicit sheet/catalog scopes. */
 export function useBUIOverlayAppearance(): BUIAppearance {
   const scopedAppearance = useContext(BUIAppearanceContext);

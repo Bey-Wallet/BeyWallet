@@ -3,7 +3,12 @@ import { useRouter, type Href } from 'expo-router';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
-import { settingsCategories, type SettingsCategory, type SettingsItem } from './settingsCatalog';
+import {
+  settingsCategories,
+  settingsCategorySections,
+  type SettingsCategory,
+  type SettingsItem,
+} from './settingsCatalog';
 import { NostrHealthRow } from './components/NostrHealthRow';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { biometricService } from '~/services/platform/biometricService';
@@ -12,6 +17,7 @@ import {
   SettingsGroup,
   SettingsPage,
   SettingsRow,
+  SettingsSection,
 } from './components/SettingsLayout';
 
 export function SettingsCategoryScreen({ category }: { category: SettingsCategory }) {
@@ -80,12 +86,14 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     <SettingsPage>
       {category === 'advanced' && (
         <SettingsDescription>
-          Optimize wallet proofs, inspect ecash, and verify mint signatures. These tools are
-          intended for maintenance and troubleshooting.
+          Manage network connections and message history. Wallet maintenance tools are intended for
+          troubleshooting and advanced use.
         </SettingsDescription>
       )}
-      {settingsCategories[category].groups.map((group) => (
-        <SettingsGroup key={group[0].path}>{group.map(row)}</SettingsGroup>
+      {settingsCategories[category].groups.map((group, index) => (
+        <SettingsSection key={group[0].path} title={settingsCategorySections[category]?.[index]}>
+          <SettingsGroup>{group.map(row)}</SettingsGroup>
+        </SettingsSection>
       ))}
     </SettingsPage>
   );

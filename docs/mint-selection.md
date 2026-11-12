@@ -34,6 +34,22 @@ The historical featured mint remains a seed-recovery suggestion when no mint-lis
 backup is available. It must pass through recovery review and is never implicitly
 trusted by discovery. Key derivation and recovery scanning are unchanged.
 
+Transfer reconciliation checks the original source operation and destination quote together.
+Completion requires the original destination quote and its saved issuance receipt to be issued,
+matching mint URL, quote ID, amount and unit. A stale source operation cannot override this
+destination credit. This follows [Cashu.me Android's transfer service](https://github.com/cashubtc/wallet/blob/main/android/app/src/main/java/com/cashu/me/Core/Wallet/WalletMintTransferService.kt)
+and [History projection](https://github.com/cashubtc/wallet/blob/main/android/app/src/main/java/com/cashu/me/Core/MintTransferProjection.kt).
+Earlier failed journals can be repaired, and History projects a matching issued receipt as
+successful while keeping the original row ID. A paid invoice without saved issuance stays
+pending; conflicting evidence never offers another payment. A paid/issued destination also
+prevents a pending source from being rolled back on a contradictory unpaid response. Coco
+retains ownership of proof handling and destination issuance; checks never submit a replacement
+melt.
+
+Device checks: repeat a transfer between Testnut and Sortug with a delayed response, reopen its
+History receipt, and verify one debit, one credit and one aggregate outcome. This source-level fix
+has not been reproduced against an attached device or the user's original quote records.
+
 Device checks: create a wallet with several mints, change the current selection,
 restart, remove or untrust the selection, and repeat with no trusted mints. Check
 Lightning/ecash receive and send, Transfer and NFC selection, including cancellation

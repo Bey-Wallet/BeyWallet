@@ -21,6 +21,7 @@ const url = 'https://mint.example/Bitcoin';
 const mockRefetch = jest.fn();
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
+let mockIsFocused = true;
 let mockSection = 'reliability';
 const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace, push: mockPush };
 let mockScore: number | null = 98;
@@ -138,7 +139,10 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ mintUrl: url, section: mockSection }),
   Stack: { Screen: 'Screen' },
 }));
-jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
+jest.mock('@react-navigation/native', () => ({
+  usePreventRemove: jest.fn(),
+  useIsFocused: () => mockIsFocused,
+}));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetScrollView: 'BottomSheetScrollView' }));
 jest.mock('tamagui', () => ({
   useTheme: () => ({}),
@@ -239,6 +243,7 @@ const button = (label: string) =>
 const score = () => row('Reliability score');
 beforeEach(() => {
   jest.clearAllMocks();
+  mockIsFocused = true;
   mockScore = 98;
   mockSection = 'reliability';
   mockMetadataError = null;
@@ -922,6 +927,16 @@ it('keeps cached metadata visible when the direct connection fails', async () =>
   await render();
   expect(row('Connection').props).toMatchObject({ value: 'Offline', valueColor: '$red11' });
   expect(score()?.props.value).toBe('98%');
+});
+
+it('does not open details from a background preview when quick-add connects the mint', async () => {
+  mockIsFocused = false;
+  await render('preview');
+  await act(async () => {
+    useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true } as any] });
+  });
+  expect(mockReplace).not.toHaveBeenCalled();
+  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('opens the updated details screen when the profile URL is already connected', async () => {

@@ -1,7 +1,9 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Modal, TextInput } from 'react-native';
-import { TamaguiProvider } from 'tamagui';
+import { TamaguiProvider, Theme } from 'tamagui';
+import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { config } from '~/tamagui.config';
 import Screen from '~/app/(tabs)/settings/bui-sheets';
 import AppBottomSheet from '~/shared/ui/AppBottomSheet';
@@ -70,6 +72,41 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 afterEach(() => useBUIStore.setState({ appearance: 'dark' }));
+
+it.each(['light', 'dark'] as const)(
+  'keeps information sheets in the active %s theme despite the opposite catalog setting',
+  async (appearance) => {
+    useBUIStore.setState({ appearance: appearance === 'light' ? 'dark' : 'light' });
+    const ref = React.createRef<BUISheetRef>();
+    const render = (name: 'light' | 'dark') =>
+      wrap(
+        <Theme name={name}>
+          <InfoSheet ref={ref} topic="ecash-send" />
+        </Theme>,
+      );
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(render(appearance));
+    });
+    try {
+      await act(async () => ref.current!.present());
+      const sheet = () => tree.root.findByType(BUISheet);
+      expect(sheet().findByType(AppBottomSheet).props.backgroundColor).toBe(
+        getBUITheme(appearance).canvas,
+      );
+      expect(sheet().findAllByType(Theme)[0].props.name).toBe(`${appearance}_bui`);
+      expect(sheet().findByType(BUIHeader).props.title).toBe('Send ecash');
+      const next = appearance === 'light' ? 'dark' : 'light';
+      await act(async () => tree.update(render(next)));
+      expect(sheet().findByType(AppBottomSheet).props.backgroundColor).toBe(
+        getBUITheme(next).canvas,
+      );
+      expect(sheet().findAllByType(Theme)[0].props.name).toBe(`${next}_bui`);
+    } finally {
+      await act(async () => tree.unmount());
+    }
+  },
+);
 
 it('orders dialog action before dismissal, suppresses repeated taps, and resets on reopen', async () => {
   const events: string[] = [];

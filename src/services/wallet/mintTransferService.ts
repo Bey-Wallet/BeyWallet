@@ -221,41 +221,101 @@ export class MintTransferService {
 
   private async reconcile(id: string): Promise<MintTransferRecord> {
     const record = await this.requireRecord(id);
-    if (record.state !== 'committed' || !record.operationId) return record;
+    if (!['committed', 'failed'].includes(record.state) || !record.operationId) return record;
+    const previousState = record.state;
     const previousStage = record.stage;
     try {
-      let operation = await this.manager.quotes.getMeltOperation(record.operationId);
-      if (operation?.state === 'pending') {
-        await this.manager.quotes.checkPendingMelt(record.operationId);
-        operation = await this.manager.quotes.getMeltOperation(record.operationId);
-      }
-      // Only an operation that never started may be rolled back here.
-      if (operation?.state === 'prepared') {
-        await this.manager.quotes.rollbackMelt(operation.id);
-        operation = await this.manager.quotes.getMeltOperation(operation.id);
-      }
-      if (operation?.state === 'failed' || operation?.state === 'rolled_back') {
-        record.state = 'failed';
-      } else if (operation?.state === 'finalized') {
+      // Check both original legs before treating a source rollback as a failed transfer.
+      // Late settlement must remain observable even after an earlier failure was saved.
+      const quote = await this.repositories.mintQuoteRepository.getMintQuote(
+        record.targetMintUrl,
+        record.mintQuoteId,
+      );
+      const receipt =
+        quote?.state === 'ISSUED'
+          ? await this.repositories.historyRepository.getMintHistoryEntry(
+              record.targetMintUrl,
+              record.mintQuoteId,
+            )
+          : null;
+      const destinationIssued =
+        quote?.state === 'ISSUED' &&
+        quote.quote === record.mintQuoteId &&
+        quote.mintUrl === record.targetMintUrl &&
+        quote.amount === record.amount &&
+        quote.unit === 'sat' &&
+        receipt?.state === 'ISSUED' &&
+        receipt.quoteId === record.mintQuoteId &&
+        receipt.mintUrl === record.targetMintUrl &&
+        receipt.amount === record.amount &&
+        receipt.unit === 'sat';
+      let operation = await this.manager.quotes
+        .getMeltOperation(record.operationId)
+        .catch(() => undefined);
+      // A saved issuance receipt for this transfer's invoice completes the aggregate,
+      // even if the source saga's cached status is behind (Cashu.me Android parity).
+      if (destinationIssued) {
+        record.state = 'completed';
         record.stage = 'issuance';
-        if (record.feePaid === null && !this.feeChecks.has(id)) {
-          this.feeChecks.add(id);
-          void this.recordPaidFee(record, operation)
-            .catch(() => {})
-            .finally(() => this.feeChecks.delete(id));
+      } else {
+        const destinationPaid = quote?.state === 'PAID' || quote?.state === 'ISSUED';
+        let canCheckPending = !destinationPaid;
+        if (destinationPaid) {
+          record.state = 'committed';
+          record.stage = 'settlement';
+          if (operation?.state === 'pending') {
+            // Coco may roll pending operations back on UNPAID. A destination receipt
+            // contradicts that result: only let Coco finalize after a paid source check.
+            try {
+              const sourceQuote = await (
+                await this.wallet(record.sourceMintUrl)
+              ).checkMeltQuoteBolt11(operation.quoteId);
+              canCheckPending = sourceQuote.state === 'PAID';
+            } catch {
+              // Keep checking the original transfer; never release its proofs on ambiguity.
+            }
+          }
         }
-        const quote = await this.repositories.mintQuoteRepository.getMintQuote(
-          record.targetMintUrl,
-          record.mintQuoteId,
-        );
-        if (quote?.state === 'ISSUED') {
-          record.state = 'completed';
-        } else if (quote?.state === 'PAID') {
-          // The existing processor owns issuance; do not redeem in a competing loop.
-          await this.manager.quotes.requeuePaidMintQuotes(record.targetMintUrl);
+        if (operation?.state === 'pending' && canCheckPending) {
+          await this.manager.quotes.checkPendingMelt(record.operationId);
+          operation = await this.manager.quotes.getMeltOperation(record.operationId);
+        }
+        // Only an operation that never started may be rolled back here.
+        if (operation?.state === 'prepared' && quote?.state === 'UNPAID') {
+          await this.manager.quotes.rollbackMelt(operation.id);
+          operation = await this.manager.quotes.getMeltOperation(operation.id);
+        }
+        if (operation?.state === 'failed' || operation?.state === 'rolled_back') {
+          if (quote?.state === 'PAID' || quote?.state === 'ISSUED') {
+            // Payment evidence conflicts: never invite another payment or mutate proofs here.
+            record.state = 'committed';
+            record.stage = 'settlement';
+          } else {
+            record.state = quote?.state === 'UNPAID' ? 'failed' : 'committed';
+          }
+        } else if (operation?.state === 'finalized') {
+          record.state = 'committed';
+          record.stage = 'issuance';
         }
       }
-      if (record.state !== 'committed' || record.stage !== previousStage) {
+      if (quote?.state === 'PAID') {
+        // Issuance belongs to Coco's existing processor, even if the source journal lags.
+        // Resume the paid original invoice without submitting another payment.
+        await this.manager.quotes.requeuePaidMintQuotes(record.targetMintUrl).catch(() => {});
+      }
+      if (
+        (destinationIssued || operation?.state === 'finalized') &&
+        operation &&
+        'inputAmount' in operation &&
+        record.feePaid === null &&
+        !this.feeChecks.has(id)
+      ) {
+        this.feeChecks.add(id);
+        void this.recordPaidFee(record, operation)
+          .catch(() => {})
+          .finally(() => this.feeChecks.delete(id));
+      }
+      if (record.state !== previousState || record.stage !== previousStage) {
         await this.journal.save(record);
         changed();
         if (record.state === 'completed')

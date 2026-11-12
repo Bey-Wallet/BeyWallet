@@ -81,8 +81,7 @@ export default function SwapScreen() {
   const result = useQuery({
     queryKey: ['mintTransfer', record?.id],
     queryFn: () => service.refresh(record!.id),
-    enabled:
-      step === 'result' && !!record && !['failed', 'completed', 'discarded'].includes(record.state),
+    enabled: step === 'result' && !!record && !['completed', 'discarded'].includes(record.state),
     refetchInterval: (query) =>
       query.state.data && !['failed', 'completed', 'discarded'].includes(query.state.data.state)
         ? 10_000
@@ -140,7 +139,7 @@ export default function SwapScreen() {
         onCheckStatus={() => result.refetch().then(() => {})}
         checking={result.isFetching}
         onRetry={
-          !pending && !completed
+          displayed?.state === 'failed' && !result.isFetching && !result.isError
             ? () => {
                 setError(null);
                 setStep('amount');
