@@ -13,7 +13,6 @@ import type { SendMode } from '~/shared/ui/SendMethodSelector';
 import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
 import { PaymentNote } from '~/shared/ui/PaymentNote';
-import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import { OFFLINE_CHANGE_REQUIRED, type OfflineAmounts } from '~/shared/utils/offlineSendUtils';
 
 interface ConfirmStageProps {
@@ -78,7 +77,6 @@ export function ConfirmStage(props: ConfirmStageProps) {
           </AppButton>
         }
       >
-        {props.isOffline && <FirstUseGuidance topic="offlineTokens" />}
         {props.isOffline && props.offlineAmounts && (
           <YStack gap="$2">
             <Text fontFamily="$body" fontSize={13} color="$gray10">

@@ -1,6 +1,5 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppButton } from '~/shared/ui/AppButton';
-import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useRef } from 'react';
 import { YStack, XStack, Text, H2, ScrollView, View } from 'tamagui';
 import {
@@ -174,8 +173,6 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
               If you’re using a seed phrase to import the wallet, separate each word with a space.
             </Text>
           </YStack>
-
-          <FirstUseGuidance topic="recovery" spaceBelow />
 
           {/* Word Tag Container (Variable Width Flow) */}
           <XStack flexWrap="wrap" gap="$2" mb="$4">

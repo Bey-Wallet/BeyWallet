@@ -25,7 +25,6 @@ jest.mock('~/shared/ui/PaymentMintRow', () => ({ PaymentMintRow: 'Mint' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/ReclaimSelector', () => ({ ReclaimSelector: 'Reclaim' }));
 jest.mock('~/shared/ui/PaymentNote', () => ({ PaymentNote: 'Note' }));
-jest.mock('~/shared/ui/FirstUseGuidance', () => ({ FirstUseGuidance: 'Guidance' }));
 jest.mock('~/features/payments/send/P2PKLockCard', () => ({ P2PKLockCard: 'Lock' }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: { formatSats: (amount: number) => `₿${amount}` },
