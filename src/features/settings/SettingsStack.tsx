@@ -1,8 +1,7 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft, Info } from '@tamagui/lucide-icons';
+import { ArrowLeft, CircleHelp } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 import { settingsTitles } from './settingsCatalog';
@@ -56,13 +55,8 @@ export default function SettingsStack() {
           contentStyle: { backgroundColor: theme.background.val },
           headerRight: settingsInfoTopics[route.name]
             ? () => (
-                <AppIconButton
-                  variant="default"
-                  emphasis="ghost"
-                  size="medium"
-                  shape="circular"
-                  iconSize={22}
-                  icon={Info}
+                <HeaderIconButton
+                  icon={CircleHelp}
                   accessibilityLabel={`${infoSheetContent[settingsInfoTopics[route.name]].title} information`}
                   disabled={busy}
                   onPress={() => setInfoTopic(settingsInfoTopics[route.name])}

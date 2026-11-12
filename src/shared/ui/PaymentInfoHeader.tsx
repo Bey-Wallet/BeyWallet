@@ -1,8 +1,8 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { Info } from '@tamagui/lucide-icons';
+import { CircleHelp } from '@tamagui/lucide-icons';
 import { PaymentFlowHeader } from './PaymentFlowHeader';
-import { AppIconButton } from './AppIconButton';
+import { HeaderIconButton } from './HeaderIconButton';
 import type { BUISheetRef } from './BUI/BUISheet';
 import { useReceiptSheet } from './ReceiptSheetContext';
 import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
@@ -29,13 +29,8 @@ export function PaymentInfoHeader({
       <PaymentFlowHeader
         {...props}
         headerRight={() => (
-          <AppIconButton
-            variant="default"
-            emphasis="ghost"
-            size="medium"
-            shape="circular"
-            iconSize={22}
-            icon={Info}
+          <HeaderIconButton
+            icon={CircleHelp}
             accessibilityLabel={`${infoSheetContent[infoTopic].title} information`}
             disabled={props.disabled}
             onPress={() => sheet.current?.present()}

@@ -80,7 +80,7 @@ function ActivityContent({
             : 'The final outcome needs checking. Review the saved operation before starting another one.'}
         </Text>
       )}
-      <ListTable variant="outlined">
+      <ListTable variant="filled">
         <ListTableRow label="Status" value={walletActivityStatus(activity.state)} />
         <ListTableRow label="Date" value={new Date(activity.createdAt).toLocaleString()} />
         {activity.mintUrls.map((url) => (

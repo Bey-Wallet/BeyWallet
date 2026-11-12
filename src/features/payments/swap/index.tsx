@@ -8,10 +8,10 @@ import { YStack, Text } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { TransferInfoSheet } from '~/shared/components/info-sheets/TransferInfoSheet';
-import { Info } from '@tamagui/lucide-icons';
+import { CircleHelp } from '@tamagui/lucide-icons';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
@@ -118,13 +118,8 @@ export default function SwapScreen() {
 
   const close = () => router.back();
   const infoAction = () => (
-    <AppIconButton
-      variant="default"
-      emphasis="ghost"
-      size="medium"
-      shape="circular"
-      iconSize={22}
-      icon={Info}
+    <HeaderIconButton
+      icon={CircleHelp}
       accessibilityLabel="About mint-to-mint transfers"
       disabled={isProcessing}
       onPress={() => infoSheet.current?.present()}
