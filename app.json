@@ -139,8 +139,6 @@
       "expo-asset",
       "expo-file-system",
       "expo-document-picker",
-      "expo-av",
-      "expo-audio",
       [
         "expo-notifications",
         {
