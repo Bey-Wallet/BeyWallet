@@ -32,9 +32,6 @@ import { useAppShortcuts } from '~/shared/hooks/useAppShortcuts';
 const LazyOtaUpdateChecker = React.lazy(() =>
   import('~/shared/ui/OtaUpdateChecker').then((m) => ({ default: m.OtaUpdateChecker })),
 );
-const LazyUsernamePromptChecker = React.lazy(() =>
-  import('~/shared/ui/UsernamePromptChecker').then((m) => ({ default: m.UsernamePromptChecker })),
-);
 
 export function RootLayoutNav() {
   const { resolvedTheme } = useAppTheme();
@@ -295,7 +292,6 @@ export function RootLayoutNav() {
         {/* Global checkers — lazy-loaded after main UI is painted */}
         <React.Suspense fallback={null}>
           <LazyOtaUpdateChecker />
-          <LazyUsernamePromptChecker />
         </React.Suspense>
       </YStack>
     </NavThemeProvider>
