@@ -23,9 +23,6 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
     theme: settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light',
     currency: settings.secondaryCurrency === 'NONE' ? 'None' : settings.secondaryCurrency,
     mints: String(mints.length),
-    'fallback-mint': settings.defaultMintUrl
-      ? settings.defaultMintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      : 'None',
     'receiving-policy': policy === 'ask' ? 'Ask first' : 'Everyone',
     'recovery-phrase': settings.seedBackedUp ? 'Backed up' : 'Not confirmed',
   };
@@ -72,7 +69,9 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
           router.push(
             item.path === 'recover-funds'
               ? '/recover-funds'
-              : (`/(tabs)/settings/${item.path}` as Href),
+              : item.path === 'mints'
+                ? '/(modals)/mints'
+                : (`/(tabs)/settings/${item.path}` as Href),
           )
         }
       />

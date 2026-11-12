@@ -1,7 +1,8 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Animated, AppState, Modal, Text as NativeText } from 'react-native';
-import { TamaguiProvider } from 'tamagui';
+import { TamaguiProvider, Theme } from 'tamagui';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { config } from '~/tamagui.config';
 import Screen from '~/app/(tabs)/settings/bui-menus';
 import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
@@ -48,6 +49,51 @@ afterEach(() => {
   jest.restoreAllMocks();
   useBUIStore.setState({ appearance: 'dark' });
 });
+
+it.each(['light', 'dark'] as const)(
+  'uses the active %s wallet theme for menus and tooltips regardless of the catalog preference',
+  async (appearance) => {
+    useBUIStore.setState({ appearance: appearance === 'light' ? 'dark' : 'light' });
+    const render = (name: 'light' | 'dark') =>
+      wrap(
+        <Theme name={name}>
+          <BUIActionMenu label="Wallet menu" items={[{ id: 'one', title: 'Wallet action' }]} />
+          <BUITooltip label="Wallet help" text="Wallet explanation" />
+        </Theme>,
+      );
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(render(appearance));
+    });
+    try {
+      const trigger = (label: string) =>
+        tree.root
+          .findAllByType(AppPressable)
+          .find((node) => node.props.accessibilityLabel === label)!;
+      await act(async () => trigger('Wallet menu').props.onPress());
+      const menu = tree.root.findByType(BUIActionMenu);
+      expect(menu.findByType(Modal).props.visible).toBe(true);
+      expect(menu.findByType(Theme).props.name).toBe(`${appearance}_bui`);
+      expect(
+        menu
+          .findAllByType(Animated.View)
+          .some((node) => node.props.style?.backgroundColor === getBUITheme(appearance).raised),
+      ).toBe(true);
+      await act(async () => trigger('Dismiss menu').props.onPress());
+      await act(async () => trigger('Wallet help').props.onPress());
+      expect(tree.root.findByType(BUITooltip).findByType(Theme).props.name).toBe(
+        `${appearance}_bui`,
+      );
+      const next = appearance === 'light' ? 'dark' : 'light';
+      await act(async () => tree.update(render(next)));
+      expect(tree.root.findAllByType(Modal).every((node) => !node.props.visible)).toBe(true);
+      await act(async () => trigger('Wallet menu').props.onPress());
+      expect(menu.findByType(Theme).props.name).toBe(`${next}_bui`);
+    } finally {
+      await act(async () => tree.unmount());
+    }
+  },
+);
 
 it('fits tooltip width, flips above, keeps source tail geometry and clamps small viewports', () => {
   const window = { width: 360, height: 640 };

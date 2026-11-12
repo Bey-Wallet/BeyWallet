@@ -5,7 +5,7 @@ import { ScrollView, Theme, XStack, YStack } from 'tamagui';
 import Svg, { Polygon } from 'react-native-svg';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIText } from './BUIText';
-import { useBUITheme } from './useBUITheme';
+import { BUIAppearanceProvider, useBUITheme } from './useBUITheme';
 import { useBUIAnchoredPopup } from './useBUIAnchoredPopup';
 import { buiTooltipLayout } from './popupGeometry';
 
@@ -28,8 +28,8 @@ export function BUITooltip({
   maxWidth?: number;
   onContentPress?: () => void;
 }) {
-  const c = useBUITheme();
   const popup = useBUIAnchoredPopup('tooltip', !!text.trim(), iconTrigger);
+  const c = useBUITheme(popup.appearance);
   const [contentHeight, setContentHeight] = useState(40);
   const [textSize, setTextSize] = useState({ text: '', width: 0 });
   const [badgeSize, setBadgeSize] = useState({ text: '', width: 0 });
@@ -77,7 +77,7 @@ export function BUITooltip({
     </XStack>
   );
   return (
-    <>
+    <BUIAppearanceProvider value={popup.appearance}>
       <YStack
         position="absolute"
         opacity={0}
@@ -209,6 +209,6 @@ export function BUITooltip({
           </YStack>
         </Theme>
       </Modal>
-    </>
+    </BUIAppearanceProvider>
   );
 }

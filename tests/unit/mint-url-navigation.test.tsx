@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AddMintScreen from '~/features/mints/AddMintScreen';
+import MintsScreen from '~/features/mints/MintsScreen';
 import { useWalletStore } from '~/state/walletStore';
 import { ConnectedMintsCard } from '~/features/home/components/ConnectedMintsCard';
 import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
@@ -13,11 +14,13 @@ let mockDeviceOffline = false;
 let mockHideBalance = false;
 let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
+const mockInvalidateQueries = jest.fn();
 let mockCheckingMints: string[] = [];
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('tamagui', () => ({
+  useThemeName: () => 'dark',
   ...Object.fromEntries(
     ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator', 'H6'].map(
       (name) => [name, name],
@@ -44,15 +47,39 @@ jest.mock('@tanstack/react-query', () => ({
     isLoading: false,
     error: queryKey[0] === 'mint-metadata' ? mockMintErrors[queryKey[1]] : undefined,
   }),
-  useQueryClient: () => ({}),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: () => ({
-    primaryCurrency: 'SATS',
-    secondaryCurrency: 'NONE',
-    hideBalance: mockHideBalance,
-    hideMintConnectionDisclaimer: mockSkipDisclaimer,
+  useSettingsStore: Object.assign(
+    () => ({
+      primaryCurrency: 'SATS',
+      secondaryCurrency: 'NONE',
+      hideBalance: mockHideBalance,
+      hideMintConnectionDisclaimer: mockSkipDisclaimer,
+    }),
+    {
+      getState: () => ({
+        hideMintConnectionDisclaimer: mockSkipDisclaimer,
+        setHideMintConnectionDisclaimer: async (hide: boolean) => {
+          mockSkipDisclaimer = hide;
+        },
+      }),
+    },
+  ),
+}));
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
+jest.mock('~/shared/ui/AppBottomSheet', () => ({
+  __esModule: true,
+  default: require('react').forwardRef(({ children, ...props }: any, ref: any) => {
+    const [open, setOpen] = require('react').useState(false);
+    require('react').useImperativeHandle(ref, () => ({
+      present: () => setOpen(true),
+      dismiss: () => {
+        if (props.canDismiss) setOpen(false);
+      },
+    }));
+    return open ? require('react').createElement('TrustSheet', props, children) : null;
   }),
 }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockDeviceOffline }));
@@ -99,6 +126,9 @@ beforeEach(() => {
       useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
     }),
     error: null,
+    refreshMintList: jest.fn(),
+    refreshBalance: jest.fn(),
+    isRefreshing: false,
   });
 });
 afterEach(async () => {
@@ -277,19 +307,21 @@ it('clears an unmatched mint search without changing connected mints', async () 
   expect(mockPush).not.toHaveBeenCalled();
 });
 
-it('opens the full profile when submitting an entered URL, preserving its path', async () => {
+it('opens the trust sheet when submitting an entered URL, preserving its path', async () => {
   await render();
   await act(async () =>
     tree.root.findByType('Input' as any).props.onChangeText('mint.example/Bitcoin/'),
   );
   await act(async () => tree.root.findByType('Input' as any).props.onSubmitEditing());
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-profile',
-    params: { url: 'https://mint.example/Bitcoin' },
-  });
+  expect(tree.root.findByType('TrustSheet' as any).props.title).toBe('Trust this mint?');
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  expect(
+    tree.root.findByType('TrustSheet' as any).findByType('MintImage' as any).props.mintUrl,
+  ).toBe('https://mint.example/Bitcoin');
 });
 
-it('opens the profile from the detected URL Add button', async () => {
+it('opens trust directly from the detected URL Add button and adds only after confirmation', async () => {
   await render();
   await act(async () =>
     tree.root.findByType('Input' as any).props.onChangeText('https://mint.example'),
@@ -298,10 +330,18 @@ it('opens the profile from the detected URL Add button', async () => {
     .findAllByType('AppIconButton' as any)
     .find((node) => node.props.accessibilityLabel === 'Add mint')!;
   await act(async () => add.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-profile',
-    params: { url: 'https://mint.example' },
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Confirm add')!
+      .props.onPress(),
+  );
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith('https://mint.example', {
+    trusted: true,
   });
+  expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
 });
 
 it('connects an entered mint directly from Add after remembered consent', async () => {
@@ -374,22 +414,113 @@ it('keeps validation failures visible and allows retry from the mint list', asyn
       .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel?.startsWith('Add '))!;
   await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
-  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
-    'Mint validation failed',
-  );
+  expect(
+    tree.root.findAllByProps({ accessibilityRole: 'alert' }).map((node) => node.props.children),
+  ).toContain('Mint validation failed');
   expect(add().props).toMatchObject({ loading: false, disabled: false });
   expect(mockPush).not.toHaveBeenCalled();
 });
 
-it('opens a scanned mint URL once and consumes the scanner result', async () => {
+it('opens trust directly for a scanned mint URL and consumes the scanner result', async () => {
   useWalletStore.setState({ scannerResult: 'cashu:https://mint.example/Bitcoin' });
   await render();
-  expect(mockPush).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-profile',
-    params: { url: 'https://mint.example/Bitcoin' },
-  });
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(
+    tree.root.findByType('TrustSheet' as any).findByType('MintImage' as any).props.mintUrl,
+  ).toBe('https://mint.example/Bitcoin');
+  expect(tree.root.findByType('Input' as any).props.value).toBe('https://mint.example/Bitcoin');
   expect(useWalletStore.getState().scannerResult).toBeNull();
+});
+
+it('opens the canonical Mints manager from Home', async () => {
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Manage mints' }).props.onPress(),
+  );
+  expect(mockPush).toHaveBeenCalledWith('/(modals)/mints');
+});
+
+it('manages all mint balances, including untrusted mints, separately from discovery', async () => {
+  const mintUrl = 'https://untrusted.example';
+  useWalletStore.setState({
+    mints: [{ mintUrl, name: 'Old mint', trusted: false }],
+    balances: { [mintUrl]: 42 },
+  });
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  const row = tree.root.findByProps({ accessibilityLabel: 'Manage Old mint, 42 sat, not trusted' });
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).toContain(
+    '42 sat',
+  );
+  await act(async () => row.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-details',
+    params: { mintUrl },
+  });
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Add mint')!
+      .props.onPress(),
+  );
+  expect(mockPush).toHaveBeenLastCalledWith('/(modals)/add-mint');
+  expect(tree.root.findAllByProps({ children: 'Discover mints' })).toHaveLength(0);
+});
+
+it('keeps balances hidden in the Mints manager', async () => {
+  mockHideBalance = true;
+  useWalletStore.setState({
+    mints: [{ mintUrl: 'https://private.example', trusted: true }],
+    balances: { 'https://private.example': 42 },
+  });
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).toContain(
+    '****',
+  );
+  expect(tree.root.findAllByType('Text' as any).map((node) => node.props.children)).not.toContain(
+    '42 sat',
+  );
+});
+
+it('refreshes both wallet data and connection status from the manager', async () => {
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  await act(async () =>
+    tree.root.findByType('ScrollView' as any).props.refreshControl.props.onRefresh(),
+  );
+  expect(useWalletStore.getState().refreshMintList).toHaveBeenCalledTimes(1);
+  expect(useWalletStore.getState().refreshBalance).toHaveBeenCalledTimes(1);
+  expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['mint-metadata'] });
+});
+
+it('keeps malformed display metadata from hiding a registered mint', async () => {
+  const mintUrl = 'https://metadata.example';
+  useWalletStore.setState({ mints: [{ mintUrl, trusted: true }], balances: { [mintUrl]: 42 } });
+  mockMintMetadata[mintUrl] = { name: { invalid: true }, icon_url: 123 };
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Manage metadata.example, 42 sat' }),
+  ).toBeDefined();
+});
+
+it('keeps Add mint focused on discovery and marks connected directory entries Added', async () => {
+  const url = 'https://already.example';
+  mockDiscoveredMints = [{ url, name: 'Already added' }];
+  useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
+  await render();
+  expect(tree.root.findByType('Screen' as any).props.options.title).toBe('Add mint');
+  const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
+  expect(labels).toContain('Added');
+  expect(labels).not.toContain('Connected Mints');
+  expect(tree.root.findAllByType('MintIcon' as any)).toHaveLength(1);
 });
 
 it('keeps connected mints in order without recommendation filler or payment badges', async () => {
@@ -433,7 +564,7 @@ it('keeps connected mints in order without recommendation filler or payment badg
   }
 });
 
-it('sends Home recommendations through the same profile and consent flow', async () => {
+it('opens the shared trust sheet for Home suggestions without navigating to preview', async () => {
   await act(async () => {
     tree = create(<ConnectedMintsCard />);
   });
@@ -441,10 +572,74 @@ it('sends Home recommendations through the same profile and consent flow', async
     .findAllByType('AppIconButton' as any)
     .find((node) => node.props.accessibilityLabel === `Add ${RECOMMENDED_MINTS[0].name}`)!;
   await act(async () => add.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-profile',
-    params: { url: RECOMMENDED_MINTS[0].mintUrl },
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(tree.root.findByType('TrustSheet' as any).props.title).toBe('Trust this mint?');
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Do not show again' }).props.onPress(),
+  );
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Confirm add')!
+      .props.onPress(),
+  );
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(RECOMMENDED_MINTS[0].mintUrl, {
+    trusted: true,
   });
+  expect(mockSkipDisclaimer).toBe(true);
+  expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
+it('opens trust directly from a discovered mint quick-add button', async () => {
+  const url = 'https://discovered.example';
+  mockDiscoveredMints = [{ url, name: 'Discovered mint' }];
+  await render();
+  const add = tree.root.findByProps({ accessibilityLabel: 'Add Discovered mint' });
+  await act(async () => add.props.onPress({ stopPropagation: jest.fn() }));
+  expect(tree.root.findByType('TrustSheet' as any)).toBeDefined();
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Confirm add')!
+      .props.onPress(),
+  );
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+});
+
+it('shows Home quick-add progress and prevents duplicates when consent is remembered', async () => {
+  mockSkipDisclaimer = true;
+  let finish!: () => void;
+  const mintUrl = RECOMMENDED_MINTS[0].mintUrl;
+  useWalletStore.setState({
+    addMint: jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            useWalletStore.setState({ mints: [{ mintUrl, trusted: true }] });
+            resolve();
+          };
+        }),
+    ),
+  });
+  await act(async () => {
+    tree = create(<ConnectedMintsCard />);
+  });
+  const add = () =>
+    tree.root.findByProps({ accessibilityLabel: `Add ${RECOMMENDED_MINTS[0].name}` });
+  const press = add().props.onPress;
+  await act(async () => {
+    press();
+    press();
+  });
+  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
+  expect(add().props).toMatchObject({ loading: true, disabled: true });
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
 });
 
 it('makes all discovered mints reachable through Load More', async () => {

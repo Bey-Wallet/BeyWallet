@@ -23,9 +23,8 @@ it('prefers backed-up mints and only falls back when none exist', () => {
     { mintUrl: 'https://a.test', sources: ['File backup', 'Nostr backup'] },
     { mintUrl: 'https://b.test', sources: ['Nostr backup'] },
   ]);
-  expect(importRecoveryCandidates([], []).flatMap((c) => c.sources)).toEqual([
-    'Default',
-    'Featured',
+  expect(importRecoveryCandidates([], [])).toEqual([
+    { mintUrl: 'https://mint.minibits.cash/Bitcoin', sources: ['Featured'] },
   ]);
 });
 it('retries discovery without losing deselection, adds new backed-up mints, and reports failures inline', async () => {

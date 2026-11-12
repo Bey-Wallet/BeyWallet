@@ -5,7 +5,7 @@ import { ScrollView, Theme, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIText } from './BUIText';
 import { BUIHeaderAction } from './BUIHeader';
-import { useBUITheme } from './useBUITheme';
+import { BUIAppearanceProvider, useBUITheme } from './useBUITheme';
 import { useBUIAnchoredPopup } from './useBUIAnchoredPopup';
 import { buiSelectorPosition } from './selectorGeometry';
 
@@ -36,8 +36,8 @@ export function BUIActionMenu({
   headerTrigger?: boolean;
   renderContent?: (dismiss: () => boolean) => React.ReactNode;
 }) {
-  const c = useBUITheme();
   const popup = useBUIAnchoredPopup('menu', !!items.length || !!renderContent);
+  const c = useBUITheme(popup.appearance);
   const [customHeight, setCustomHeight] = useState(96);
   const width = Math.max(0, Math.min(240, popup.window.width - 16));
   const height = Math.min(
@@ -52,7 +52,7 @@ export function BUIActionMenu({
     I18nManager.isRTL,
   );
   return (
-    <>
+    <BUIAppearanceProvider value={popup.appearance}>
       {headerTrigger ? (
         <BUIHeaderAction
           ref={popup.trigger}
@@ -61,7 +61,7 @@ export function BUIActionMenu({
           onPress={popup.open}
           onLongPress={popup.open}
         >
-          <MoreHorizontal size={22} color={popup.expanded ? '$onAccent' : c.text} />
+          <MoreHorizontal size={22} color={popup.expanded ? c.primaryForeground : c.text} />
         </BUIHeaderAction>
       ) : (
         <AppPressable
@@ -149,6 +149,8 @@ export function BUIActionMenu({
                             flexDirection="row"
                             items="center"
                             opacity={item.disabled ? 0.48 : 1}
+                            hoverStyle={{ bg: c.pressed }}
+                            pressStyle={{ bg: c.pressed }}
                             onPress={() => {
                               if (!item.disabled && popup.close()) onAction?.(item.id);
                             }}
@@ -178,6 +180,6 @@ export function BUIActionMenu({
           </YStack>
         </Theme>
       </Modal>
-    </>
+    </BUIAppearanceProvider>
   );
 }

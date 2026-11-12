@@ -13,7 +13,7 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
     require('react').createElement('PaymentHeader', props, props.headerRight?.()),
 }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'InfoButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Info: 'InfoIcon' }));
+jest.mock('@tamagui/lucide-icons', () => ({ CircleHelp: 'HelpIcon' }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
 jest.mock('~/shared/ui/BUI/BUISheet', () => ({
   BUISheet: require('react').forwardRef((props: any, ref: any) => {
@@ -35,9 +35,10 @@ it('opens read-only information through an empty header slot without invoking na
   });
   expect(mockPresent).not.toHaveBeenCalled();
   expect(tree.root.findByType('InfoButton' as any).props).toMatchObject({
-    emphasis: 'ghost',
-    size: 'medium',
+    emphasis: 'secondary',
+    size: 'xxsmall',
     iconSize: 22,
+    icon: 'HelpIcon',
   });
   tree.root.findByType('InfoButton' as any).props.onPress();
   expect(mockPresent).toHaveBeenCalledTimes(1);

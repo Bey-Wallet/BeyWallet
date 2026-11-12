@@ -163,7 +163,7 @@ it('collapses to one sats balance for None and restores the saved fiat presentat
       (node) =>
         (node.props.minHeight ?? StyleSheet.flatten(node.props.style)?.minHeight) === height,
     ).length > 0;
-  expect(hasMinimumHeight(160)).toBe(true);
+  expect(hasMinimumHeight(192)).toBe(true);
   await act(async () => useSettingsStore.setState({ showBitcoinSymbol: true, hideBalance: true }));
   expect(displayed()[0].value).toBe('****');
   expect(displayed()).toHaveLength(1);
@@ -173,7 +173,7 @@ it('collapses to one sats balance for None and restores the saved fiat presentat
   expect(displayed()).toHaveLength(2);
   expect(displayed()[0].children).toBe('$10.00');
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
-  expect(hasMinimumHeight(160)).toBe(true);
+  expect(hasMinimumHeight(192)).toBe(true);
 });
 
 it('shows Offline in the sync status area and restores the correct status on reconnection', async () => {
@@ -227,17 +227,24 @@ it.each(['SATS', 'FIAT'] as const)(
   },
 );
 
-it('does not invent a zero conversion when no quote has ever been cached', async () => {
+it('shows sats until a conversion is available without changing the fiat preference', async () => {
   mockQuote = undefined;
   await act(async () => {
     tree = create(<Balance />);
   });
-  expect(displayed()[0].children).toBe('Loading…');
+  expect(displayed()[0].value).toBe(10_000);
+  expect(displayed()).toHaveLength(1);
+  expect(tree.root.findAllByProps({ testID: 'home-balance-currency-toggle' })).toHaveLength(0);
   mockFetching = false;
   await act(async () => {
     tree.update(<Balance />);
   });
-  expect(displayed()[0].children).toBe('Unavailable');
+  expect(displayed()[0].value).toBe(10_000);
+  expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  mockQuote = { price: 100_000 };
+  await act(async () => tree.update(<Balance />));
+  expect(displayed()[0].children).toBe('$10.00');
+  expect(displayed()).toHaveLength(2);
 });
 
 it('keeps cached balances private when hidden and separates quotes when changing currency', async () => {
@@ -248,7 +255,7 @@ it('keeps cached balances private when hidden and separates quotes when changing
   await act(async () => {
     useSettingsStore.setState({ secondaryCurrency: 'AED' });
   });
-  expect(displayed()[0].children).toBe('Loading…');
+  expect(displayed()[0].value).toBe(10_000);
   await act(async () => {
     useSettingsStore.setState({ hideBalance: true });
   });

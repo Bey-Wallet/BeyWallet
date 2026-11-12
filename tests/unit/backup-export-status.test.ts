@@ -32,7 +32,6 @@ const options = {
   counters: [],
   history: [],
   mintQuotes: [],
-  defaultMintUrl: '',
   secondaryCurrency: 'USD',
   theme: 'dark' as const,
 };

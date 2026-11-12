@@ -40,7 +40,6 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Pending | `src/app/(tabs)/settings/currency.tsx`                   | `~/features/settings/PreferenceScreens`              | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/delete-wallet.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/export-backup.tsx`              | `~/features/settings/BackupScreens`                  | Review neutral groups, typography and shared actions.                         |
-| Pending | `src/app/(tabs)/settings/fallback-mint.tsx`              | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/get-change.tsx`                 | `~/features/settings/GetChangeSettingsScreen`        | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/help.tsx`                       | `~/features/settings/AboutSettingsScreen`            | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/identity.tsx`                   | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
@@ -49,7 +48,7 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Pending | `src/app/(tabs)/settings/lightning-address-payments.tsx` | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/lightning-address.tsx`          | `~/features/settings/LightningAddressSettingsScreen` | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/mint-backup.tsx`                | `~/features/settings/MintBackupSettingsScreen`       | Review neutral groups, typography and shared actions.                         |
-| Pending | `src/app/(tabs)/settings/mints.tsx`                      | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
+| Pending | `src/app/(tabs)/settings/mints.tsx`                      | `~/features/mints/MintsScreen`                       | Compatibility entry to the shared Mints manager.                              |
 | Pending | `src/app/(tabs)/settings/nostr.tsx`                      | `~/features/settings/SettingsCategoryScreen`         | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/notifications.tsx`              | `~/features/settings/NotificationSettingsScreen`     | Review neutral groups, typography and shared actions.                         |
 | Pending | `src/app/(tabs)/settings/optimize-wallet.tsx`            | `~/features/settings/WalletSettingsScreens`          | Review neutral groups, typography and shared actions.                         |
@@ -73,6 +72,22 @@ Scope: production routes and development-client-only BUI previews, including ali
 
 ## Modals and compatibility entries
 
+The canonical Mints manager is `src/app/(modals)/mints.tsx`, owned by
+`~/features/mints/MintsScreen`. Home and Settings use this destination. The old
+Settings mints route shares its implementation. Add mint owns discovery, URL entry
+and scanning, without a duplicate connected-mint list. Mint details can open the
+existing Transfer flow with its source preselected; all payment checks remain.
+
+Mint preview and connected details share `MintDetailsView`. Connected mints keep
+right-side artwork and a 40-point balance that fits long amounts. Both views use a
+top connection pill, a three-line About preview with inline See more, and collapsed
+advertised features with a numeric badge. Connected details ends with a secondary
+Remove mint button using the existing confirmation. Device review remains pending.
+Preview, mint-list quick add and Home suggestions share `MintTrustSheet`. Quick-add
+buttons open the trust review directly and stay on the current screen after adding.
+The review keeps the original mint image/name header, shared risk list, and a small
+centered Do not show again checkbox; remembered consent and connection locks apply.
+
 | Review  | Route file                               | Owner                                               | Scope / exception                                                  |
 | ------- | ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------ |
 | Pending | `src/app/(modals)/+not-found.tsx`        | `Inline route UI`                                   | Review neutral groups, typography and shared actions.              |
@@ -83,6 +98,7 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Pending | `src/app/(modals)/melt.tsx`              | `~/features/payments/melt`                          | Review neutral groups, typography and shared actions.              |
 | Pending | `src/app/(modals)/mint-details.tsx`      | `~/features/mints/MintDetailsScreen`                | Review neutral groups, typography and shared actions.              |
 | Pending | `src/app/(modals)/mint-profile.tsx`      | `~/features/mints`                                  | Review neutral groups, typography and shared actions.              |
+| Pending | `src/app/(modals)/mints.tsx`             | `~/features/mints/MintsScreen`                      | Canonical mint management; balances, status and Add mint.          |
 | Pending | `src/app/(modals)/mint.tsx`              | `~/features/payments/mint`                          | Review neutral groups, typography and shared actions.              |
 | Pending | `src/app/(modals)/nostr-activity.tsx`    | `~/features/nostr/NostrActivityScreen`              | Review neutral groups, typography and shared actions.              |
 | Pending | `src/app/(modals)/nostr-diagnostics.tsx` | `~/features/nostr/NostrSettingsScreen`              | Alias/shared destination; migrate the owning implementation once.  |

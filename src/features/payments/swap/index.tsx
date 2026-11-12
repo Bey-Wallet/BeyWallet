@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { selectTransferSource } from './mintSelection';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { YStack, Text } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { TransferInfoSheet } from '~/shared/components/info-sheets/TransferInfoSheet';
-import { Info } from '@tamagui/lucide-icons';
+import { CircleHelp } from '@tamagui/lucide-icons';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
@@ -26,6 +27,7 @@ import { ResultStage } from './ResultStage';
 
 export default function SwapScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ sourceMintUrl?: string }>();
   const queryClient = useQueryClient();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
@@ -33,15 +35,11 @@ export default function SwapScreen() {
   const service = useMemo(() => getMintTransferService(), []);
   const [step, setStep] = useState<'amount' | 'confirm' | 'result'>('amount');
   const [amount, setAmount] = useState('0');
-  const [sourceMintUrl, setSourceMintUrl] = useState(
-    () =>
-      mints.find((m) => m.mintUrl === activeMintUrl && (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
-      mints.find((m) => (balances[m.mintUrl] || 0) > 0)?.mintUrl ||
-      activeMintUrl ||
-      '',
+  const [sourceMintUrl, setSourceMintUrl] = useState(() =>
+    selectTransferSource(mints, balances, activeMintUrl, params.sourceMintUrl),
   );
   const [targetMintUrl, setTargetMintUrl] = useState(
-    () => mints.find((m) => m.mintUrl !== sourceMintUrl)?.mintUrl || '',
+    () => mints.find((m) => m.trusted && m.mintUrl !== sourceMintUrl)?.mintUrl || '',
   );
   const [record, setRecord] = useState<MintTransferRecord>();
   useFeedbackOwner(record?.id);
@@ -120,13 +118,8 @@ export default function SwapScreen() {
 
   const close = () => router.back();
   const infoAction = () => (
-    <AppIconButton
-      variant="default"
-      emphasis="ghost"
-      size="medium"
-      shape="circular"
-      iconSize={22}
-      icon={Info}
+    <HeaderIconButton
+      icon={CircleHelp}
       accessibilityLabel="About mint-to-mint transfers"
       disabled={isProcessing}
       onPress={() => infoSheet.current?.present()}

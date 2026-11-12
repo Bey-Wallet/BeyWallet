@@ -16,7 +16,7 @@ import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
-import { rememberSettingsOrigin } from '~/features/settings/settingsNavigation';
+import { useQuickMintConnection } from '~/features/mints/hooks/useQuickMintConnection';
 import {
   getMintPlaceholders,
   type RecommendedMint,
@@ -42,7 +42,6 @@ interface MintRowItemProps {
   btcPrice: number | undefined;
   secondaryCurrency: string;
   refreshCounter: number;
-  loading: boolean;
   unavailable: boolean;
   checking: boolean;
   onRecheck: () => void;
@@ -55,17 +54,18 @@ const MintRowItem = React.memo(
     balance,
     active,
     hideBalance,
-    displayAsSats,
+    displayAsSats: prefersSats,
     showBitcoinSymbol,
     btcPrice,
     secondaryCurrency,
     refreshCounter,
-    loading,
     unavailable,
     checking,
     onRecheck,
     onPress,
   }: MintRowItemProps) => {
+    const displayAsSats =
+      prefersSats || (balance !== 0 && (!btcPrice || !Number.isFinite(btcPrice) || btcPrice <= 0));
     const displayName =
       mint.nickname ||
       mint.name ||
@@ -87,12 +87,11 @@ const MintRowItem = React.memo(
     const displayValue = useMemo(() => {
       if (hideBalance) return '****';
       if (!displayAsSats) {
-        if (!btcPrice && balance !== 0) return loading ? 'Loading…' : 'Unavailable';
         const fiat = balance === 0 ? 0 : currencyService.convertSatsToCurrency(balance, btcPrice!);
         return currencyService.formatValue(fiat, secondaryCurrency as CurrencyCode);
       }
       return balance;
-    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency, loading]);
+    }, [hideBalance, displayAsSats, balance, btcPrice, secondaryCurrency]);
 
     const prefix = useMemo(() => {
       if (hideBalance || !displayAsSats) return '';
@@ -208,81 +207,89 @@ const MintRowItem = React.memo(
 interface MintPlaceholderItemProps {
   mint: RecommendedMint;
   onAdd: (mintUrl: string) => void;
+  connecting: boolean;
+  disabled: boolean;
 }
 
-const MintPlaceholderItem = React.memo(({ mint, onAdd }: MintPlaceholderItemProps) => {
-  const hostname = useMemo(() => new URL(mint.mintUrl).hostname, [mint.mintUrl]);
-  const [iconFailed, setIconFailed] = useState(false);
-  const { data: metadata } = useMintInfo(mint.mintUrl);
-  const iconUrl =
-    metadata?.icon_url ||
-    metadata?.picture ||
-    metadata?.icon ||
-    `${new URL(mint.mintUrl).origin}/favicon.ico`;
+const MintPlaceholderItem = React.memo(
+  ({ mint, onAdd, connecting, disabled }: MintPlaceholderItemProps) => {
+    const hostname = useMemo(() => new URL(mint.mintUrl).hostname, [mint.mintUrl]);
+    const [iconFailed, setIconFailed] = useState(false);
+    const { data: metadata } = useMintInfo(mint.mintUrl);
+    const iconUrl =
+      metadata?.icon_url ||
+      metadata?.picture ||
+      metadata?.icon ||
+      `${new URL(mint.mintUrl).origin}/favicon.ico`;
 
-  useEffect(() => setIconFailed(false), [mint.mintUrl, iconUrl]);
+    useEffect(() => setIconFailed(false), [mint.mintUrl, iconUrl]);
 
-  return (
-    <RowContainer>
-      <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2">
-        <View
-          width={40}
-          height={40}
-          justify="center"
-          bg="$gray3"
-          rounded={appRadii.control}
-          items="center"
-          overflow="hidden"
-        >
-          {iconUrl && !iconFailed ? (
-            <MintImage
-              mintUrl={mint.mintUrl}
-              src={iconUrl}
-              width={40}
-              height={40}
-              borderRadius={appRadii.control}
-              alt={`${mint.name} icon`}
-              onError={() => setIconFailed(true)}
-            />
-          ) : (
-            <Landmark size={22} color="$iconSecondary" />
-          )}
-        </View>
-        <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
-          <XStack items="center" gap="$1.5">
-            <Text
-              {...appTypography.label1}
-              fontWeight="500"
-              color="$color"
-              numberOfLines={1}
-              flexShrink={1}
-            >
-              {mint.name}
+    return (
+      <RowContainer>
+        <XStack items="center" gap="$2" flex={1} minWidth={0} mr="$2">
+          <View
+            width={40}
+            height={40}
+            justify="center"
+            bg="$gray3"
+            rounded={appRadii.control}
+            items="center"
+            overflow="hidden"
+          >
+            {iconUrl && !iconFailed ? (
+              <MintImage
+                mintUrl={mint.mintUrl}
+                src={iconUrl}
+                width={40}
+                height={40}
+                borderRadius={appRadii.control}
+                alt={`${mint.name} icon`}
+                onError={() => setIconFailed(true)}
+              />
+            ) : (
+              <Landmark size={22} color="$iconSecondary" />
+            )}
+          </View>
+          <YStack gap="$0.5" flex={1} style={{ minWidth: 0 }}>
+            <XStack items="center" gap="$1.5">
+              <Text
+                {...appTypography.label1}
+                fontWeight="500"
+                color="$color"
+                numberOfLines={1}
+                flexShrink={1}
+              >
+                {mint.name}
+              </Text>
+            </XStack>
+            <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
+              {hostname}
             </Text>
-          </XStack>
-          <Text {...appTypography.body3} color="$gray10" numberOfLines={1}>
-            {hostname}
-          </Text>
-        </YStack>
-      </XStack>
+          </YStack>
+        </XStack>
 
-      <AppIconButton
-        variant="default"
-        emphasis="secondary"
-        shape="circular"
-        size="xsmall"
-        icon={Plus}
-        accessibilityLabel={`Add ${mint.name}`}
-        onPress={() => onAdd(mint.mintUrl)}
-      />
-    </RowContainer>
-  );
-});
+        <AppIconButton
+          variant="default"
+          emphasis="secondary"
+          shape="circular"
+          size="xsmall"
+          icon={Plus}
+          accessibilityLabel={`Add ${mint.name}`}
+          loading={connecting}
+          loadingText="Connecting to mint…"
+          disabled={disabled}
+          onPress={() => onAdd(mint.mintUrl)}
+        />
+      </RowContainer>
+    );
+  },
+);
 
 MintPlaceholderItem.displayName = 'MintPlaceholderItem';
 
 export const ConnectedMintsCard = () => {
   const router = useRouter();
+  const { requestConnection, connectingUrl, sheet: connectionSheet } = useQuickMintConnection();
   const mints = useWalletStore((s) => s.mints);
   const balances = useWalletStore((s) => s.balances);
   const activeMintUrl = useWalletStore((s) => s.activeMintUrl);
@@ -307,7 +314,7 @@ export const ConnectedMintsCard = () => {
   const isFiatEnabled = secondaryCurrency !== 'NONE';
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled;
 
-  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
+  const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () =>
       isFiatEnabled ? bitcoinService.fetchPrice(secondaryCurrency) : Promise.resolve({ price: 0 }),
@@ -333,16 +340,16 @@ export const ConnectedMintsCard = () => {
 
   const handleManageMints = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    rememberSettingsOrigin('index');
-    router.push('/(tabs)/settings/mints');
+    router.push('/(modals)/mints');
   }, [router]);
 
   const handleAddRecommendedMint = useCallback(
     (mintUrl: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push({ pathname: '/(modals)/mint-profile', params: { url: mintUrl } });
+      const mint = getMintPlaceholders([]).find((mint) => mint.mintUrl === mintUrl);
+      void requestConnection({ url: mintUrl, name: mint?.name });
     },
-    [router],
+    [requestConnection],
   );
 
   const placeholders = useMemo(() => getMintPlaceholders(mints), [mints]);
@@ -366,7 +373,7 @@ export const ConnectedMintsCard = () => {
           bg="transparent"
           hoverStyle={{ opacity: 0.85 }}
           pressStyle={{ opacity: 0.6 }}
-          accessibilityLabel="Manage connected mints"
+          accessibilityLabel="Manage mints"
           onPress={handleManageMints}
         >
           <Text color="$color" fontSize="$4" fontWeight="600" accessibilityRole="header">
@@ -423,7 +430,6 @@ export const ConnectedMintsCard = () => {
                 btcPrice={btcData?.price}
                 secondaryCurrency={secondaryCurrency}
                 refreshCounter={refreshCounter}
-                loading={!displayAsSats && isFetchingPrice}
                 unavailable={!deviceOffline && !!mintConnections[index].error}
                 checking={mintConnections[index].isFetching}
                 onRecheck={() => {
@@ -434,10 +440,17 @@ export const ConnectedMintsCard = () => {
             );
           }),
           ...placeholders.map((mint) => (
-            <MintPlaceholderItem key={mint.mintUrl} mint={mint} onAdd={handleAddRecommendedMint} />
+            <MintPlaceholderItem
+              key={mint.mintUrl}
+              mint={mint}
+              onAdd={handleAddRecommendedMint}
+              connecting={connectingUrl === mintUrlKey(mint.mintUrl)}
+              disabled={!!connectingUrl}
+            />
           )),
         ]}
       </YStack>
+      {connectionSheet}
     </YStack>
   );
 };

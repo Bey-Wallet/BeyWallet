@@ -176,10 +176,11 @@ export default function ModalLayout() {
       <Stack.Screen
         name="add-mint"
         options={{
-          title: 'Add Mint',
+          title: 'Add mint',
           presentation: 'fullScreenModal',
         }}
       />
+      <Stack.Screen name="mints" options={{ title: 'Mints', presentation: 'fullScreenModal' }} />
       <Stack.Screen
         name="people-search"
         options={{
@@ -198,7 +199,7 @@ export default function ModalLayout() {
       <Stack.Screen
         name="discover-mints"
         options={{
-          title: 'Discover Mints',
+          title: 'Add mint',
           presentation: 'fullScreenModal',
         }}
       />

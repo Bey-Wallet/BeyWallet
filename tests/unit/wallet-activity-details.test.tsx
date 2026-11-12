@@ -76,7 +76,7 @@ it('uses a compact settled receipt with explicit unavailable fees and no extra p
   expect(
     tree.root.findAllByType('Row' as any).find((row) => row.props.label === 'Fee')?.props.value,
   ).toBe('Unavailable');
-  expect(tree.root.findAllByType('Table' as any)[0].props.variant).toBe('outlined');
+  expect(tree.root.findAllByType('Table' as any)[0].props.variant).toBe('filled');
 });
 it('routes review to the saved history row, never the operation ID or a financial action', async () => {
   mockActivity.state = 'review';

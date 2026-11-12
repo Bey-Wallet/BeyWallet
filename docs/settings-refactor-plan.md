@@ -62,7 +62,7 @@ Verify each named icon export against the installed package during implementatio
 use its closest semantic equivalent if needed without adding a dependency.
 Leaf screens use specific icons: Palette for theme, Coins for display units,
 Banknote for fiat currency, Bell for notifications, Fingerprint for biometric lock,
-EyeOff for hidden balance, Landmark for mints, Pin for the fallback mint,
+EyeOff for hidden balance, Landmark for mints,
 Network for relays, HeartPulse for health, and ShieldCheck for proof verification.
 Use FileUp for backup export and FileDown for backup restore, always paired with
 explicit action labels. Reserve Trash2 and destructive red for wallet deletion.
@@ -90,7 +90,7 @@ nested list groups; items within each group retain the order shown.
 | Profile & addresses | My addresses, Nostr username, public Nostr key                                                           |
 | Appearance          | Theme, fiat currency, Bitcoin symbol                                                                     |
 | Notifications       | Existing notification preferences                                                                        |
-| Payments & mints    | Connected mints, fallback mint, Lightning address, prepare offline change                                |
+| Payments & mints    | Mints, Lightning address, prepare offline change                                                         |
 | Privacy & security  | Biometric app lock, hide balance; receiving from people, blocked people; Nostr secret key; Delete wallet |
 | Backup & recovery   | Recovery phrase, mint-list backup, export wallet backup; restore wallet backup, recover funds            |
 | Network             | Relays, Nostr history, read-only Nostr health                                                            |

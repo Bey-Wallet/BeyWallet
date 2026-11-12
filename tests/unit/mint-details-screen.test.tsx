@@ -2,6 +2,7 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import MintDetailsScreen from '~/features/mints/MintDetailsScreen';
+import { MintDetailsView } from '~/features/mints/components/MintDetailsView';
 import { useWalletStore } from '~/state/walletStore';
 import { useQuery } from '@tanstack/react-query';
 
@@ -10,6 +11,7 @@ const mockPush = jest.fn();
 const mockSheetPresent = jest.fn();
 const mockRecheckConnection = jest.fn();
 let mockEditName: string | undefined;
+let mockPrice: number | undefined = 100000;
 const mockToast = { show: jest.fn() };
 const mockSettings = {
   primaryCurrency: 'SATS',
@@ -69,7 +71,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(({ queryKey }: any) => ({
     data:
       queryKey[0] === 'bitcoinPrice'
-        ? { price: 100000 }
+        ? { price: mockPrice }
         : {
             name: 'Original mint',
             description: 'Community mint',
@@ -160,6 +162,7 @@ beforeEach(() => {
     showBitcoinSymbol: false,
   });
   mockEditName = undefined;
+  mockPrice = 100000;
   useWalletStore.setState({
     mints: [{ mintUrl: url, nickname: 'My mint', name: 'Original mint', trusted: true }],
     balances: { [url]: 0 },
@@ -178,12 +181,31 @@ afterEach(async () => {
   await act(async () => tree.unmount());
 });
 
+it('keeps native sats visible without a rate and restores the saved fiat display when it arrives', async () => {
+  mockSettings.primaryCurrency = 'FIAT';
+  mockPrice = undefined;
+  useWalletStore.setState({ balances: { [url]: 10000 } });
+  await render();
+  const balance = () => tree.root.findByType(MintDetailsView).props.balance;
+  expect(balance()).toEqual({ amount: '10,000', unit: 'sat', secondary: undefined });
+  mockPrice = 100000;
+  await act(async () => tree.update(<MintDetailsScreen />));
+  expect(balance()).toEqual({ amount: '0 USD', unit: undefined, secondary: '10,000 sat' });
+  expect(mockSettings.primaryCurrency).toBe('FIAT');
+});
+
 it('shows only a sats balance for None with FIAT saved and restores fiat when selected again', async () => {
   Object.assign(mockSettings, { primaryCurrency: 'FIAT', secondaryCurrency: 'NONE' });
   useWalletStore.setState({ balances: { [url]: 10000 } });
   await render();
   const fiatLabels = () =>
-    tree.root.findAllByType('Text' as any).filter((node) => node.props.children === '0 USD');
+    tree.root
+      .findAllByType('Text' as any)
+      .filter(
+        (node) =>
+          node.props.children === '0 USD' ||
+          (Array.isArray(node.props.children) && node.props.children.includes('0 USD')),
+      );
   expect(fiatLabels()).toHaveLength(0);
   expect(
     tree.root
@@ -321,8 +343,16 @@ it('keeps the balance, replaces payment actions with QR and Restore, and shows m
   expect(keys).not.toContain('auditor-mint');
   const balance = tree.root
     .findAllByType('Text' as any)
-    .find((node) => node.props.fontSize === 28)!;
+    .find((node) => node.props.fontSize === 40)!;
   expect(balance.props.children).toContain('0');
+  const picture = tree.root.findAllByType('MintImage' as any)[0];
+  expect(picture.parent!.children.at(-1)).toBe(picture);
+  const removeButton = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Remove mint')!;
+  expect(removeButton.props.emphasis).toBe('secondary');
+  await act(async () => removeButton.props.onPress());
+  expect(mockSheetPresent).toHaveBeenCalledTimes(2);
   await act(async () => quickAction('Restore funds').props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/recover-funds',
@@ -340,4 +370,18 @@ it('wires the connected mint connection row to a fresh metadata check', async ()
       networkMode: 'always',
     }),
   );
+});
+
+it('opens Transfer with this mint preselected without changing the global selection', async () => {
+  useWalletStore.setState({ balances: { [url]: 4200 } });
+  await render();
+  const transfer = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Transfer funds')!;
+  await act(async () => transfer.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/swap',
+    params: { sourceMintUrl: url },
+  });
+  expect(useWalletStore.getState().setActiveMint).not.toHaveBeenCalled();
 });

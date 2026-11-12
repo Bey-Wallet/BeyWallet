@@ -47,6 +47,9 @@ isolated from production wallet screens.
   standalone modal, scanner, root sheet or finished flow. Keep centered Settings titles,
   hidden Settings tabs, and return-to-origin behavior.
 - Retain AppBottomSheet for the existing Send/Receive, mint-selection and NFC presentations.
+- Explanatory sheet entry points use a question-mark icon through HeaderIconButton, retaining
+  its neutral circle, 22-point glyph and expanded touch area. Menus and tooltips follow the
+  active source screen's appearance, including when rendered through a portal.
 - All sheets share the BUI header, content-based height and safe-area spacing. Use16-point
   side padding plus safe insets,12 points below the header and16 points plus the bottom
   inset. Measure the header and content together, cap height below the top safe area,

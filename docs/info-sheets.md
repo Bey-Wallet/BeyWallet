@@ -17,7 +17,7 @@ Topics cover ecash sending/receiving, Nostr delivery, Lightning payments/top-ups
 on-chain payments/deposits, and optimization. Transfer retains its existing information action.
 
 Settings uses the explicit `settingsInfoTopics` allowlist in `SettingsStack`: offline change,
-optimization, fallback mint, Lightning address and receiving mint, receiving policy, proofs,
+optimization, Lightning address and receiving mint, receiving policy, proofs,
 offline proof verification, mint-list backup, backup export/restore, recovery, and relays.
 Screen-specific header options take precedence over the navigator default. The sheet closes
 when its Settings destination loses focus.

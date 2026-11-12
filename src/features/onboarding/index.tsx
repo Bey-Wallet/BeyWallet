@@ -8,7 +8,7 @@ import {
 import { importRecoveryCandidates } from '~/services/wallet/recoveryDiscovery';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { WelcomeStep } from '~/features/onboarding/WelcomeStep';
 import { WalletCreationTask } from '~/features/onboarding/WalletCreationTask';
 import { networkService } from '~/services/platform/networkService';
@@ -18,13 +18,14 @@ import { PermissionsStep } from '~/features/onboarding/PermissionsStep';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { seedService } from '~/services/platform/seedService';
-import { initService, mintManager, nostrService } from '~/services/wallet';
+import { initService, nostrService } from '~/services/wallet';
+import { connectMint } from '~/features/mints/connectMint';
+import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { Alert } from 'react-native';
 import { Text, YStack } from 'tamagui';
-import { DEFAULT_MINT } from '~/state/constants';
 import { generateDeterministicUsername } from '~/shared/utils/username';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 import { Flex } from '~/shared/ui/Flex';
@@ -57,6 +58,8 @@ export function OnboardingScreen() {
 
   const [isImporting, setIsImporting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const finishLock = useRef(false);
+  const setupPrepared = useRef(false);
   const [setupError, setSetupError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState('');
   const [tempUsername, setTempUsername] = useState('anon');
@@ -203,95 +206,94 @@ export function OnboardingScreen() {
     username: string,
     isBiometricEnabled: boolean,
     skipUsername: boolean = false,
+    mintUrls: string[] = [],
   ) => {
+    if (finishLock.current) return;
     if (!generatedMnemonic) {
       setStep('welcome');
       return;
     }
 
+    finishLock.current = true;
     const resumeRecoveryWork = isImportingFlow ? recoveryCoordinator.pause() : undefined;
     setIsFinishing(true);
+    setSetupError(null);
     try {
       const keys = await seedService.getNostrKeys(generatedMnemonic);
       const pubkeyHex = keys.pubkey;
       const privkeyHex = keys.privkey;
       const offline = await networkService.isOffline();
-
-      if (isImportingFlow) {
-        const candidates = importRecoveryCandidates(extraRestoreMints, nostrRestoreMints);
-        setFinishingStatus('Initializing wallet…');
-        await initService.restoreWallet(generatedMnemonic, { quiet: !!tempBackupState });
-
-        await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
-        await useSettingsStore.getState().initialize(true);
-
-        if (tempBackupState) {
-          setFinishingStatus('Restoring balance and history…');
-          const { backupService } = require('~/services/wallet/backupService');
-          await backupService.importState(tempBackupState);
-
-          console.log('[Onboarding] Refreshing wallet state after import...');
-          await initService.reinitFast();
-        }
-
-        await initialize();
-
-        holdRecoveryPause();
-        useRecoverySessionStore.setState({
-          session: {
-            walletId: pubkeyHex,
-            origin: 'import',
-            candidates,
-            selected: candidates.map((c) => c.mintUrl),
-            phase: 'review',
-            results: [],
-            needsReview: true,
-            discoveryMessage,
-          },
-        });
-
-        await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
-
-        // Only add default mint if online
-        if (!offline) {
-          await mintManager.addMint(DEFAULT_MINT, { trusted: true });
-          await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT);
-        } else {
-          console.log('[Onboarding] Offline — skipping default mint, wallet starts with 0 mints');
-          await useSettingsStore.getState().setDefaultMintUrl('');
-        }
-
-        setFinishingStatus('Finalizing setup…');
-        await completeOnboarding();
-        useAuthStore.getState().setAuthenticated(true);
-      } else {
-        setFinishingStatus('Creating secure keypair…');
-        await initService.createWallet(generatedMnemonic);
-        await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
-        await useSettingsStore.getState().initialize(true);
-        await initialize();
-
-        await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
-
-        // Only add default mint if online
-        if (!offline) {
-          await mintManager.addMint(DEFAULT_MINT, { trusted: true });
-          await useSettingsStore.getState().setDefaultMintUrl(DEFAULT_MINT);
-        } else {
-          console.log('[Onboarding] Offline — skipping default mint, wallet starts with 0 mints');
-          await useSettingsStore.getState().setDefaultMintUrl('');
-        }
-
-        setFinishingStatus('Finalizing setup…');
-        await completeOnboarding();
-        useAuthStore.getState().setAuthenticated(true);
+      if (offline && mintUrls.length) {
+        throw new Error('Reconnect before adding the selected mints.');
       }
+
+      if (!setupPrepared.current) {
+        if (isImportingFlow) {
+          const candidates = importRecoveryCandidates(extraRestoreMints, nostrRestoreMints);
+          setFinishingStatus('Initializing wallet…');
+          await initService.restoreWallet(generatedMnemonic, { quiet: !!tempBackupState });
+
+          await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
+          await useSettingsStore.getState().initialize(true);
+
+          if (tempBackupState) {
+            setFinishingStatus('Restoring balance and history…');
+            const { backupService } = require('~/services/wallet/backupService');
+            await backupService.importState(tempBackupState);
+
+            console.log('[Onboarding] Refreshing wallet state after import...');
+            await initService.reinitFast();
+          }
+
+          await initialize();
+
+          holdRecoveryPause();
+          useRecoverySessionStore.setState({
+            session: {
+              walletId: pubkeyHex,
+              origin: 'import',
+              candidates,
+              selected: candidates.map((c) => c.mintUrl),
+              phase: 'review',
+              results: [],
+              needsReview: true,
+              discoveryMessage,
+            },
+          });
+
+          await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
+        } else {
+          setFinishingStatus('Creating secure keypair…');
+          await initService.createWallet(generatedMnemonic);
+          await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
+          await useSettingsStore.getState().initialize(true);
+          await initialize();
+
+          await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
+        }
+        setupPrepared.current = true;
+      }
+
+      // Keep successful connections on retry; never recreate a prepared wallet.
+      const selectedUrls = [...new Map(mintUrls.map((url) => [mintUrlKey(url), url])).values()];
+      for (const [index, url] of selectedUrls.entries()) {
+        setFinishingStatus(`Connecting mint ${index + 1} of ${selectedUrls.length}…`);
+        const connected = useWalletStore
+          .getState()
+          .mints.some((mint) => mintUrlKey(mint.mintUrl) === mintUrlKey(url) && mint.trusted);
+        if (!connected) await connectMint(url);
+      }
+      if (isImportingFlow) holdRecoveryPause();
+      setFinishingStatus('Finalizing setup…');
+      await completeOnboarding();
+      useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
       releaseRecoveryPause();
       console.error('[Onboarding] Onboarding completion failed:', err);
       setSetupError('Setup could not finish. Check your connection and try again.');
     } finally {
       resumeRecoveryWork?.();
+      finishLock.current = false;
       setIsFinishing(false);
     }
   };
@@ -420,7 +422,6 @@ export function OnboardingScreen() {
       if (backup.secondaryCurrency)
         await settingsStore.setSecondaryCurrency(backup.secondaryCurrency);
       if (backup.theme) await settingsStore.setTheme(backup.theme);
-      if (backup.defaultMintUrl) await settingsStore.setDefaultMintUrl(backup.defaultMintUrl);
     } catch (err: any) {
       const message = err?.message ?? 'Failed to import wallet from file.';
       if (message !== 'File selection was cancelled.') {

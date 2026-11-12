@@ -6,18 +6,28 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { initService, walletService, mintManager, quotesService } from '~/services/wallet';
 import type { MintInfo } from '~/services/wallet';
-import { useSettingsStore } from '~/state/settingsStore';
 import {
   useRecoverySessionStore,
   updateRecoverySession,
   holdRecoveryPause,
   releaseRecoveryPause,
 } from './recoverySessionStore';
-import { normalizeMintUrl } from '~/shared/utils/mintUrl';
+import { mintUrlKey, normalizeMintUrl } from '~/shared/utils/mintUrl';
 import { InteractionManager } from 'react-native';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'partial' | 'error';
+
+/** Selection is a convenience within the trusted set, never a source of trust. */
+function selectTrustedMint(mints: MintInfo[], selected: string | null) {
+  return (
+    mints.find(
+      (mint) => mint.trusted && selected && mintUrlKey(mint.mintUrl) === mintUrlKey(selected),
+    )?.mintUrl ??
+    mints.find((mint) => mint.trusted)?.mintUrl ??
+    null
+  );
+}
 
 async function saveRecoveryActivity(session: import('./recoverySessionStore').RecoverySession) {
   try {
@@ -101,49 +111,12 @@ export const useWalletStore = create<WalletState>()(
 
           const manager = await initService.init();
 
-          // Ensure the user's default mint exists and is trusted
-          // BUT only if defaultMintUrl is explicitly set (not empty — offline wallets start with '')
-          const userDefaultMint = useSettingsStore.getState().defaultMintUrl;
-          const existingMints = await manager.mint.getAllMints();
-
-          if (userDefaultMint && userDefaultMint.length > 0) {
-            const hasDefault = existingMints.some((m) => m.mintUrl === userDefaultMint);
-
-            if (!hasDefault) {
-              try {
-                await mintManager.addMint(userDefaultMint, { trusted: true });
-              } catch (e) {
-                console.warn('[WalletStore] Failed to add default mint (possibly offline):', e);
-              }
-            } else {
-              const isTrusted = await manager.mint.isTrustedMint(userDefaultMint);
-              if (!isTrusted) {
-                await mintManager.trustMint(userDefaultMint);
-              }
-            }
-          }
-
-          // Set active mint if not set
-          // If no mints exist at all, activeMintUrl stays null
-          if (!get().activeMintUrl) {
-            const freshMints = await manager.mint.getAllMints();
-            if (freshMints.length > 0) {
-              const defaultUrl =
-                userDefaultMint && userDefaultMint.length > 0
-                  ? userDefaultMint
-                  : freshMints[0].mintUrl;
-              set({ activeMintUrl: defaultUrl });
-            } else {
-              // Zero-mint wallet — activeMintUrl stays null
-              set({ activeMintUrl: null });
-            }
-          }
-
-          // Parallelize balance refresh + mint info fetch for speed
-          const [, mintInfos] = await Promise.all([
-            get().refreshBalance(),
-            mintManager.getMintInfoList(),
-          ]);
+          const mintInfos = await mintManager.getMintInfoList();
+          set({
+            mints: mintInfos,
+            activeMintUrl: selectTrustedMint(mintInfos, get().activeMintUrl),
+          });
+          await get().refreshBalance();
 
           const allMints = await manager.mint.getAllMints();
 
@@ -185,7 +158,11 @@ export const useWalletStore = create<WalletState>()(
       },
 
       setActiveMint: (url: string) => {
-        set({ activeMintUrl: url });
+        const mint = get().mints.find(
+          (mint) => mint.trusted && mintUrlKey(mint.mintUrl) === mintUrlKey(url),
+        );
+        if (!mint) return;
+        set({ activeMintUrl: mint.mintUrl });
         get().refreshBalance();
       },
 
@@ -197,7 +174,10 @@ export const useWalletStore = create<WalletState>()(
           const mintInfos = await mintManager.getMintInfoList();
 
           set({
-            activeMintUrl: url,
+            activeMintUrl: selectTrustedMint(
+              mintInfos,
+              options?.trusted ? url : get().activeMintUrl,
+            ),
             mints: mintInfos,
           });
 
@@ -224,7 +204,11 @@ export const useWalletStore = create<WalletState>()(
         try {
           await mintManager.trustMint(url);
           const mintInfos = await mintManager.getMintInfoList();
-          set({ mints: mintInfos });
+          set({
+            mints: mintInfos,
+            activeMintUrl: selectTrustedMint(mintInfos, get().activeMintUrl),
+          });
+          await get().refreshBalance();
           InteractionManager.runAfterInteractions(() => {
             get().syncMintsToNostr();
           });
@@ -243,14 +227,9 @@ export const useWalletStore = create<WalletState>()(
           }
 
           const activeUrl = get().activeMintUrl;
-          if (!activeUrl) {
-            set({ balance: 0, isRefreshing: false });
-            return;
-          }
-
           // Single DB call — derive active mint balance from the map
           const balances = await walletService.getBalances();
-          const balance = balances[activeUrl] ?? 0;
+          const balance = activeUrl ? (balances[activeUrl] ?? 0) : 0;
 
           set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
 
@@ -290,16 +269,6 @@ export const useWalletStore = create<WalletState>()(
         try {
           await mintManager.removeMint(url);
           await get().refreshMintList();
-          if (get().activeMintUrl === url) {
-            const userDefaultMint = useSettingsStore.getState().defaultMintUrl;
-            // If defaultMintUrl is set and isn't the removed one, use it
-            if (userDefaultMint && userDefaultMint.length > 0 && url !== userDefaultMint) {
-              set({ activeMintUrl: userDefaultMint });
-            } else {
-              const nextActive = get().mints.find((m) => m.mintUrl !== url)?.mintUrl;
-              set({ activeMintUrl: nextActive || null });
-            }
-          }
           await get().refreshBalance();
           InteractionManager.runAfterInteractions(() => {
             get().syncMintsToNostr();
@@ -324,7 +293,13 @@ export const useWalletStore = create<WalletState>()(
         try {
           set({ isRefreshing: true });
           const mintInfos = await mintManager.getMintInfoList();
-          set({ mints: mintInfos, isRefreshing: false });
+          const activeMintUrl = selectTrustedMint(mintInfos, get().activeMintUrl);
+          set({
+            mints: mintInfos,
+            activeMintUrl,
+            balance: activeMintUrl ? (get().balances[activeMintUrl] ?? 0) : 0,
+            isRefreshing: false,
+          });
         } catch (err: any) {
           console.error('[WalletStore] Failed to refresh mint list:', err);
           set({ isRefreshing: false });

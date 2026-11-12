@@ -1,6 +1,5 @@
 import { nostrService } from './nostrService';
 import { seedService } from '~/services/platform/seedService';
-import { DEFAULT_MINT } from '~/state/constants';
 import {
   recoveryCandidates,
   useRecoverySessionStore,
@@ -15,7 +14,8 @@ export function importRecoveryCandidates(file: string[], nostr: string[]) {
   return backedUp.length
     ? backedUp
     : recoveryCandidates([
-        { urls: [DEFAULT_MINT], source: 'Default' },
+        // Historical seed-only wallets may have used this mint without a mint-list backup.
+        // Keep it discoverable for recovery review; this does not connect or trust it.
         { urls: ['https://mint.minibits.cash/Bitcoin'], source: 'Featured' },
       ]);
 }

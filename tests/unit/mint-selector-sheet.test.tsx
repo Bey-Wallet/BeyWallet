@@ -226,7 +226,8 @@ it('opens cached mints offline without refreshing the list or waiting for networ
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
   expect(mockFetchPrice).not.toHaveBeenCalled();
-  expect(list().props.data).toHaveLength(4);
+  expect(list().props.data).toHaveLength(3);
+  expect(row(c)).toBeUndefined();
   expect(row(a).props.accessibilityLabel).toBe('Alpha, 10,000 sat');
   expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
 });
@@ -243,7 +244,7 @@ it('uses a simple bottom-sheet mint list without search controls', async () => {
   ).toBe(false);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Search mints' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
-  expect(list().props.data).toHaveLength(4);
+  expect(list().props.data).toHaveLength(3);
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
 });
@@ -410,9 +411,9 @@ it('uses sats for None with a saved FIAT preference without fetching quotes whil
   expect(mockFetchPrice).not.toHaveBeenCalled();
 });
 
-it('selects all mints as a filter without changing the active mint', async () => {
+it('can explicitly include untrusted mints for a filter without changing the active mint', async () => {
   const onSelect = jest.fn();
-  await render({ showAllOption: true, onSelect });
+  await render({ showAllOption: true, trustedOnly: false, onSelect });
   const all = tree.root.findByProps({ accessibilityLabel: 'All mints, 10,530 sat' });
   await act(async () => {
     void all.props.onPress();

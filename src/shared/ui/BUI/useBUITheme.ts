@@ -12,6 +12,13 @@ export function useBUIAppearance() {
   return useContext(BUIAppearanceContext) ?? catalog;
 }
 
+/** Portals follow their source screen, including explicit sheet/catalog scopes. */
+export function useBUIOverlayAppearance(): BUIAppearance {
+  const scopedAppearance = useContext(BUIAppearanceContext);
+  const name = useThemeName();
+  return scopedAppearance ?? (name.startsWith('light') ? 'light' : 'dark');
+}
+
 export function useBUITheme(appearanceOverride?: BUIAppearance) {
   const appearance = useBUIStore((state) => state.appearance);
   const scopedAppearance = useContext(BUIAppearanceContext);

@@ -20,7 +20,6 @@ import {
   Network,
   HeartPulse,
   History,
-  Pin,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -89,8 +88,7 @@ export const settingsCategories = {
     icon: Wallet,
     groups: [
       [
-        { path: 'mints', title: 'Connected mints', icon: Landmark },
-        { path: 'fallback-mint', title: 'Fallback mint', icon: Pin },
+        { path: 'mints', title: 'Mints', icon: Landmark },
         { path: 'lightning-address', title: 'Lightning address', icon: AtSign },
         { path: 'get-change', title: 'Prepare offline change', icon: RefreshCw },
       ],

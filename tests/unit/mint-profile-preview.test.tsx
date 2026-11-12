@@ -1,7 +1,8 @@
 import { MintDetailRow, MintRows } from '~/features/mints/components/MintUI';
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Linking, Share } from 'react-native';
+import { Linking, Share, Text as NativeText } from 'react-native';
+import { MintDescription } from '~/features/mints/components/MintDescription';
 import * as Clipboard from 'expo-clipboard';
 import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
 import { MintInfoRow } from '~/features/mints/components/MintInfoRow';
@@ -301,7 +302,9 @@ const render = async (section = 'reliability') => {
 
 it('shows compact mint facts on preview and keeps reliability in its own card', async () => {
   await render('preview');
-  expect(row('Connection').props.value).toBe('Reachable');
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Online'),
+  ).toBe(true);
   expect(row('Deposit').props.value).toBe('Lightning');
   expect(row('Withdraw').props.value).toBe('Lightning');
   expect(row('Deposit limits').props.value).toBe('0 sat – 1,000 sat');
@@ -322,7 +325,7 @@ it('shows compact mint facts on preview and keeps reliability in its own card', 
   expect(tree.root.findAllByType(MintRows)).toHaveLength(2);
   expect(
     tree.root.findAllByType(MintDetailRow).filter((node) => node.props.label === 'Connection'),
-  ).toHaveLength(1);
+  ).toHaveLength(0);
   expect(mockPush).not.toHaveBeenCalled();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
@@ -332,6 +335,63 @@ it('keeps the test-mint warning visible before adding even when only cashu.info 
   await render('preview');
   expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
     'Test mint · Not real bitcoin',
+  );
+});
+
+it('fits a long About preview into three native lines with inline See more and See less', async () => {
+  const lines = ['First line. ', 'Second line. ', 'Third line. ', 'Fourth line.'];
+  const description = lines.join('');
+  await act(async () => {
+    tree = create(<MintDescription description={description} />);
+  });
+  const measurement = () =>
+    tree.root.findAllByType(NativeText).find((node) => node.props.accessible === false)!;
+  const paragraph = () =>
+    tree.root
+      .findAllByType(NativeText)
+      .find((node) => node.props.onTextLayout && node.props.accessible !== false)!;
+  expect(paragraph().props.numberOfLines).toBe(3);
+  await act(async () =>
+    measurement().props.onTextLayout({ nativeEvent: { lines: lines.map((text) => ({ text })) } }),
+  );
+  expect(paragraph().props.children[0]).toBe('First line. Second line. Third line.… ');
+  await act(async () =>
+    paragraph().props.onTextLayout({
+      nativeEvent: { lines: [...lines.slice(0, 3).map((text) => ({ text })), { text: 'more' }] },
+    }),
+  );
+  expect(paragraph().props.children[0].length).toBeLessThan(
+    'First line. Second line. Third line.… '.length,
+  );
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Expand mint description' }).props.onPress(),
+  );
+  expect(paragraph().props.children[0]).toBe(description);
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Collapse mint description' }).props
+      .accessibilityState.expanded,
+  ).toBe(true);
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Collapse mint description' }).props.onPress(),
+  );
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Expand mint description' }).props
+      .accessibilityState.expanded,
+  ).toBe(false);
+});
+
+it('does not show See more when About fits within three lines', async () => {
+  await act(async () => {
+    tree = create(<MintDescription description="A community mint." />);
+  });
+  await act(async () =>
+    tree.root
+      .findAllByType(NativeText)
+      .find((node) => node.props.accessible === false)!
+      .props.onTextLayout({ nativeEvent: { lines: [{ text: 'A community mint.' }] } }),
+  );
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Expand mint description' })).toHaveLength(
+    0,
   );
 });
 
@@ -350,6 +410,8 @@ it('keeps payment limits expandable inline and technical details directly inside
   });
   expect(row('Version').props.value).toBe('cdk/0.17');
   expect(row('URL').props.copyValue).toBe(url);
+  expect(advertisedFeatures()).toHaveLength(0);
+  await act(async () => row('Advertised features').props.onPress());
   expect(advertisedFeatures()).toHaveLength(3);
   expect(mockPush).not.toHaveBeenCalled();
 });
@@ -454,6 +516,9 @@ it('retains the new-mint cap explanation with historical scores', async () => {
 
 it('shows advertised features as BUI list rows with their NUT numbers accessible', async () => {
   await render('technical');
+  expect(row('Advertised features').props.expanded).toBe(false);
+  expect(row('Advertised features').props.rightContent.props.children[0].props.count).toBe(3);
+  await act(async () => row('Advertised features').props.onPress());
   const entries = advertisedFeatures();
   expect(entries.map((node) => node.props.accessibilityLabel)).toEqual([
     'NUT-04 · Minting tokens',
@@ -461,6 +526,8 @@ it('shows advertised features as BUI list rows with their NUT numbers accessible
     'NUT-14 · HTLC locking',
   ]);
   expect(tree.root.findAllByType('Check' as any)).toHaveLength(3);
+  await act(async () => row('Advertised features').props.onPress());
+  expect(advertisedFeatures()).toHaveLength(0);
 });
 
 it('does not tick explicitly unsupported, disabled, or malformed NUT entries', async () => {
@@ -481,6 +548,7 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
       />,
     );
   });
+  await act(async () => row('Advertised features').props.onPress());
   expect(advertisedFeatures().map((node) => node.props.accessibilityLabel)).toEqual([
     'NUT-04 · Minting tokens',
     'NUT-14 · HTLC locking',
@@ -589,7 +657,7 @@ it('shares the exact URL and opens and dismisses the QR overlay without connecti
   expect(tree.root.findAllByType('QRCode' as any)).toHaveLength(0);
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
   await act(async () => button('Connect').props.onPress());
-  expect(button('Confirm')).toBeDefined();
+  expect(button('Confirm add')).toBeDefined();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
 
@@ -607,7 +675,10 @@ it('shows full country names without Intl.DisplayNames on Android', async () => 
 
 it('rechecks the connection on request and shows loading before the live result', async () => {
   await render('preview');
-  const recheck = () => row('Connection').props.rightContent.props;
+  const recheck = () =>
+    tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Recheck mint connection')!.props;
   expect(recheck()).toMatchObject({
     accessibilityLabel: 'Recheck mint connection',
     loading: false,
@@ -617,11 +688,16 @@ it('rechecks the connection on request and shows loading before the live result'
   mockCheckingConnection = true;
   await act(async () => tree.update(<MintProfileScreen url={url} />));
   expect(recheck()).toMatchObject({ loading: true, disabled: true });
-  expect(row('Connection').props.value).toBe('Checking…');
+  expect(
+    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Checking…'),
+  ).toBe(true);
   mockCheckingConnection = false;
   mockMetadataError = new Error('Mint unreachable');
   await act(async () => tree.update(<MintProfileScreen url={url} />));
-  expect(row('Connection').props).toMatchObject({ value: 'Unreachable', valueColor: '$gray10' });
+  expect(
+    tree.root.findAllByType('Text' as any).find((node) => node.props.children === 'Offline')!.props
+      .color,
+  ).toBe('$red11');
   expect(recheck()).toMatchObject({ loading: false, disabled: false });
 });
 
@@ -634,12 +710,20 @@ it('shows mint identity and disclaimer, then connects only after confirmation', 
     .map((node) => node.props.children)
     .flat()
     .join(' ');
-  expect(copy).toContain('Bey Wallet does not operate this mint');
+  expect(copy).toContain('Bey Wallet does not operate these mints');
   expect(sheet.findByType('MintImage' as any).props.mintUrl).toBe(url);
   expect(sheet.findAllByType('Text' as any).map((node) => node.props.children)).toEqual(
     expect.arrayContaining(['Example mint', url]),
   );
-  await act(async () => button('Confirm').props.onPress());
+  const checkboxes = sheet.findAllByProps({ accessibilityRole: 'checkbox' });
+  expect(checkboxes).toHaveLength(1);
+  expect(checkboxes[0].props).toMatchObject({
+    accessibilityLabel: 'Do not show again',
+    self: 'center',
+  });
+  expect(button('Confirm add').props.disabled).toBe(false);
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  await act(async () => button('Confirm add').props.onPress());
   expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
   expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
   expect(mockReplace).toHaveBeenCalledWith({
@@ -656,12 +740,12 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
   });
   await render('preview');
   await act(async () => button('Connect').props.onPress());
-  await act(async () => button('Confirm').props.onPress());
+  await act(async () => button('Confirm add').props.onPress());
   expect(tree.root.findByType('AppBottomSheet' as any)).toBeDefined();
   expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
     'Mint validation failed',
   );
-  expect(button('Confirm').props.disabled).toBe(false);
+  expect(button('Confirm add').props.disabled).toBe(false);
   expect(mockReplace).not.toHaveBeenCalled();
   expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
 });
@@ -670,23 +754,24 @@ it('shows the full warning list and remembers the checkbox only after a successf
   await render('preview');
   await act(async () => button('Connect').props.onPress());
   const warnings = [
-    'This mint holds the bitcoin backing your ecash.',
-    'You rely on its operator to redeem your ecash. Only connect if you trust them.',
-    'Bey Wallet does not operate this mint and is not responsible for losses it causes.',
+    'These mints hold the bitcoin backing your ecash.',
+    'You rely on each operator to redeem your ecash. If a mint shuts down or refuses redemption, you could lose your funds.',
+    'Only connect to mints you trust. Discovery is not an endorsement.',
+    'Bey Wallet does not operate these mints and is not responsible for losses they cause.',
   ];
   expect(
     tree.root
-      .findAllByType(MintDetailRow)
-      .filter((node) => warnings.includes(node.props.label))
-      .map((node) => node.props.label),
+      .findAllByType('Text' as any)
+      .map((node) => node.props.children)
+      .filter((text) => warnings.includes(text)),
   ).toEqual(warnings);
-  const checkbox = () => tree.root.findByProps({ accessibilityRole: 'checkbox' });
+  const checkbox = () => tree.root.findByProps({ accessibilityLabel: 'Do not show again' });
   expect(checkbox().props.accessibilityState.checked).toBe(false);
   await act(async () => checkbox().props.onPress());
   expect(checkbox().props.accessibilityState.checked).toBe(true);
   expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
-  await act(async () => button('Confirm').props.onPress());
+  await act(async () => button('Confirm add').props.onPress());
   expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).toHaveBeenCalledWith(true);
   expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
 });
@@ -769,14 +854,14 @@ it('blocks duplicate confirmation and dismissal while connecting', async () => {
   });
   await render('preview');
   await act(async () => button('Connect').props.onPress());
-  const confirm = button('Confirm').props.onPress;
+  const confirm = button('Confirm add').props.onPress;
   let pending!: Promise<void>;
   await act(async () => {
     pending = confirm();
     void confirm();
   });
   expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
-  expect(button('Confirm').props).toMatchObject({
+  expect(button('Confirm add').props).toMatchObject({
     disabled: true,
     loading: true,
     loadingText: 'Connecting to mint…',
