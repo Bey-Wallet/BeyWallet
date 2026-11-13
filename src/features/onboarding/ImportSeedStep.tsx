@@ -18,39 +18,53 @@ import { BUIHeader, BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
 import { ConsentStep } from './ConsentStep';
+import { walletFileService } from '~/services/platform/walletFileService';
 
 interface ImportSeedStepProps {
   isImporting?: boolean;
   onImport: (mnemonic: string) => void;
+  onImportFromFile: (uri: string) => void | Promise<void>;
   onBack: () => void;
 }
 
-export function ImportSeedStep({ onImport, onBack, isImporting = false }: ImportSeedStepProps) {
+export function ImportSeedStep({
+  onImport,
+  onImportFromFile,
+  onBack,
+  isImporting = false,
+}: ImportSeedStepProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
+  const [isPickingFile, setIsPickingFile] = useState(false);
+  const pickingFile = useRef(false);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<any>(null);
   const infoSheet = useRef<BUISheetRef>(null);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isImporting) return true;
+      if (isImporting || isPickingFile) return true;
       Keyboard.dismiss();
-      if (showConsent) setShowConsent(false);
-      else onBack();
+      if (showConsent) {
+        setShowConsent(false);
+        setSelectedBackup(null);
+      } else onBack();
       return true;
     });
     return () => subscription.remove();
-  }, [isImporting, showConsent, onBack]);
+  }, [isImporting, isPickingFile, showConsent, onBack]);
 
   const handleBack = () => {
-    if (isImporting) return;
+    if (isImporting || isPickingFile) return;
     Keyboard.dismiss();
-    if (showConsent) setShowConsent(false);
-    else onBack();
+    if (showConsent) {
+      setShowConsent(false);
+      setSelectedBackup(null);
+    } else onBack();
   };
 
   const validateMnemonic = (wordArray: string[]) => {
@@ -169,10 +183,34 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
 
   const handleImport = () => {
     if (isImporting) return;
+    if (selectedBackup) {
+      void onImportFromFile(selectedBackup);
+      return;
+    }
     const mnemonic = words.map((w) => w.trim().toLowerCase()).join(' ');
     if (bip39.validateMnemonic(mnemonic)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       onImport(mnemonic);
+    }
+  };
+
+  const handleSelectBackup = async () => {
+    if (isImporting || pickingFile.current) return;
+    pickingFile.current = true;
+    setIsPickingFile(true);
+    setError(null);
+    Keyboard.dismiss();
+    try {
+      const uri = await walletFileService.selectWalletBackupFile();
+      setSelectedBackup(uri);
+      setShowConsent(true);
+    } catch (error) {
+      if (!(error instanceof Error && error.message === 'File selection was cancelled.')) {
+        setError('Could not select a backup file. Please try again.');
+      }
+    } finally {
+      pickingFile.current = false;
+      setIsPickingFile(false);
     }
   };
 
@@ -191,11 +229,11 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
           navigation="back"
           topInset={insets.top}
           onNavigate={handleBack}
-          navigationDisabled={isImporting}
+          navigationDisabled={isImporting || isPickingFile}
           actions={
             <BUIHeaderAction
               label="Seed import information"
-              disabled={isImporting}
+              disabled={isImporting || isPickingFile}
               onPress={() => infoSheet.current?.present()}
             >
               <CircleHelp size={22} color="$color" />
@@ -334,15 +372,26 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
               size="large"
               width="100%"
               onPress={() => {
-                if (isImporting || !isValid) return;
+                if (isImporting || isPickingFile || !isValid) return;
                 Keyboard.dismiss();
                 setShowConsent(true);
               }}
               loading={isImporting}
               loadingText="Importing wallet…"
-              disabled={isImporting || !isValid}
+              disabled={isImporting || isPickingFile || !isValid}
             >
               Continue
+            </AppButton>
+            <AppButton
+              emphasis="text"
+              size="small"
+              minHeight={48}
+              disabled={isImporting || isPickingFile}
+              loading={isPickingFile}
+              loadingText="Selecting backup…"
+              onPress={handleSelectBackup}
+            >
+              Import backup file
             </AppButton>
           </YStack>
         </YStack>

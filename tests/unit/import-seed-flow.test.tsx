@@ -3,6 +3,11 @@ import { BackHandler } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { ImportSeedStep } from '~/features/onboarding/ImportSeedStep';
+import { walletFileService } from '~/services/platform/walletFileService';
+
+jest.mock('~/services/platform/walletFileService', () => ({
+  walletFileService: { selectWalletBackupFile: jest.fn() },
+}));
 
 const mockPresent = jest.fn();
 jest.mock('~/shared/components/info-sheets/InfoSheet', () => ({
@@ -58,12 +63,14 @@ jest.mock('expo-haptics', () => ({
 // Public BIP39 test vector; never use this phrase for funds.
 const phrase = `${'abandon '.repeat(11)}about`;
 const onImport = jest.fn();
+const onImportFromFile = jest.fn();
 const onBack = jest.fn();
 let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(BackHandler, 'addEventListener');
   jest.mocked(Clipboard.getStringAsync).mockResolvedValue(phrase);
+  jest.mocked(walletFileService.selectWalletBackupFile).mockResolvedValue('file:///backup.json');
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -72,7 +79,9 @@ afterEach(async () => {
 
 async function render() {
   await act(async () => {
-    tree = create(<ImportSeedStep onImport={onImport} onBack={onBack} />);
+    tree = create(
+      <ImportSeedStep onImport={onImport} onImportFromFile={onImportFromFile} onBack={onBack} />,
+    );
   });
 }
 const button = (label: string) =>
@@ -155,7 +164,14 @@ it('routes Android back to seed entry and blocks navigation and resubmission whi
   await act(async () => acknowledgment().props.onPress());
   await act(async () => button('Agree & Continue').props.onPress());
   await act(async () =>
-    tree.update(<ImportSeedStep onImport={onImport} onBack={onBack} isImporting />),
+    tree.update(
+      <ImportSeedStep
+        onImport={onImport}
+        onImportFromFile={onImportFromFile}
+        onBack={onBack}
+        isImporting
+      />,
+    ),
   );
   expect(header().props.navigationDisabled).toBe(true);
   expect(button('Agree & Continue').props).toMatchObject({ disabled: true, loading: true });
@@ -167,4 +183,46 @@ it('routes Android back to seed entry and blocks navigation and resubmission whi
   expect(onImport).toHaveBeenCalledTimes(1);
   expect(onBack).not.toHaveBeenCalled();
   expect(header().props.title).toBe('Risk Acknowledgment');
+});
+
+it('selects a backup without processing it until risk acceptance', async () => {
+  await render();
+  expect(button('Import backup file').props).toMatchObject({ size: 'small', emphasis: 'text' });
+  await act(async () => button('Import backup file').props.onPress());
+  expect(walletFileService.selectWalletBackupFile).toHaveBeenCalledTimes(1);
+  expect(header().props.title).toBe('Risk Acknowledgment');
+  expect(onImportFromFile).not.toHaveBeenCalled();
+  await act(async () => button('Agree & Continue').props.onPress());
+  expect(onImportFromFile).not.toHaveBeenCalled();
+  await act(async () => acknowledgment().props.onPress());
+  await act(async () => button('Agree & Continue').props.onPress());
+  expect(onImportFromFile).toHaveBeenCalledWith('file:///backup.json');
+  expect(onImport).not.toHaveBeenCalled();
+});
+
+it('discards a selected file on back and preserves seed entry', async () => {
+  await render();
+  await act(async () => button('Paste').props.onPress());
+  await act(async () => button('Import backup file').props.onPress());
+  await act(async () => header().props.onNavigate());
+  expect(button('Continue').props.disabled).toBe(false);
+  expect(onImportFromFile).not.toHaveBeenCalled();
+  await act(async () => button('Continue').props.onPress());
+  await act(async () => acknowledgment().props.onPress());
+  await act(async () => button('Agree & Continue').props.onPress());
+  expect(onImport).toHaveBeenCalledWith(phrase);
+  expect(onImportFromFile).not.toHaveBeenCalled();
+});
+
+it('stays on seed entry when file selection is cancelled', async () => {
+  jest
+    .mocked(walletFileService.selectWalletBackupFile)
+    .mockRejectedValueOnce(new Error('File selection was cancelled.'));
+  await render();
+  await act(async () => button('Import backup file').props.onPress());
+  expect(header().props.title).toBe('Enter seed phrase');
+  expect(onImportFromFile).not.toHaveBeenCalled();
+  expect(
+    tree.root.findAllByProps({ children: 'Could not select a backup file. Please try again.' }),
+  ).toHaveLength(0);
 });

@@ -389,39 +389,37 @@ export function OnboardingScreen() {
 
   // ── File import (restore from .bey backup file) ─────────────
 
-  const handleImportFromFile = async () => {
-    if (busy) return;
+  const handleImportFromFile = async (uri: string) => {
+    if (busy || finishLock.current) return;
+    finishLock.current = true;
+    setIsImporting(true);
+    setSetupError(null);
+    setImportStatus('Reading backup…');
+    const resumeRecoveryWork = recoveryCoordinator.pause();
     try {
-      const backup = await walletFileService.importWalletFromFile();
+      // The entry screen invokes this only after file selection and risk acceptance.
+      const backup = await walletFileService.readWalletBackupFile(uri);
+      setImportStatus('Initializing wallet…');
+      await initService.restoreWallet(backup.mnemonic, { quiet: true });
+      await useSettingsStore.getState().initialize(true);
 
-      // Collect extra mints for the restore screen (v1/v2 compatibility)
-      // In v3, backup.mints is already the full database records.
-      const extraMints = (backup.mints ?? [])
-        .map((m: any) => (typeof m === 'string' ? m : m.url || m.mintUrl))
-        .filter((url: string) => url);
+      setImportStatus('Restoring balance and history…');
+      const { backupService } = require('~/services/wallet/backupService');
+      await backupService.importState(backup);
+      await initService.reinitFast();
 
-      // Import file records before offering an optional additional scan.
-      const backupState = {
-        mints: backup.mints,
-        keysets: backup.keysets,
-        proofs: backup.proofs,
-        counters: backup.counters,
-        history: backup.history,
-        mintQuotes: backup.mintQuotes,
-        changeOperations: backup.changeOperations,
-      };
-
-      // File data is imported before the shared mint-review handoff.
-      await handleImportSeed(backup.mnemonic, {
-        additionalMints: extraMints,
-        backupState,
-      });
-
-      // Restore settings from backup
       const settingsStore = useSettingsStore.getState();
       if (backup.secondaryCurrency)
         await settingsStore.setSecondaryCurrency(backup.secondaryCurrency);
       if (backup.theme) await settingsStore.setTheme(backup.theme);
+      await initialize();
+
+      // A file restores its saved records directly. Additional scans remain in Settings.
+      useRecoverySessionStore.setState({ session: null });
+      releaseRecoveryPause();
+      setImportStatus('Opening wallet…');
+      await completeOnboarding();
+      useAuthStore.getState().setAuthenticated(true);
     } catch (err: any) {
       const message = err?.message ?? 'Failed to import wallet from file.';
       if (message !== 'File selection was cancelled.') {
@@ -429,6 +427,10 @@ export function OnboardingScreen() {
           'Could not import this backup. Choose a valid Bey backup file and try again.',
         );
       }
+    } finally {
+      resumeRecoveryWork();
+      finishLock.current = false;
+      setIsImporting(false);
     }
   };
 
@@ -448,7 +450,6 @@ export function OnboardingScreen() {
               isDeleting={isFinishing && savedWalletAction === 'delete'}
               onCreateWallet={handleCreateWallet}
               onImportWallet={handleImportWallet}
-              onImportFromFile={handleImportFromFile}
               hasSavedWallet={hasSavedWallet}
               onOpenSavedWallet={handleResumeRestore}
               onDeleteSavedWallet={handleDeleteSavedWallet}
@@ -483,6 +484,7 @@ export function OnboardingScreen() {
           <ImportSeedStep
             isImporting={isImporting}
             onImport={(mnemonic) => handleImportSeed(mnemonic, {})}
+            onImportFromFile={handleImportFromFile}
             onBack={() => setStep('welcome')}
           />
         );
