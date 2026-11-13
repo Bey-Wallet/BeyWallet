@@ -32,6 +32,15 @@ export const infoSheetContent = {
       'Check the payment status in the conversation or History before sending again.',
     ],
   },
+  'ecash-request': {
+    title: 'Request ecash',
+    paragraphs: [
+      'Set an amount, choose a mint, and share the QR code with the person paying you. You can add a note to the request.',
+      'Changing the amount, mint, or note updates the request. Share the current QR code so the payer has the latest details.',
+      'Creating or sharing a request does not mean you have been paid. Incoming payments may need your review; check the payment status before treating the payment as complete.',
+      'When Tap to pay is shown, a compatible wallet can also pay over NFC.',
+    ],
+  },
   'ecash-receive': {
     title: 'Receive ecash',
     paragraphs: [

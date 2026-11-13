@@ -9,14 +9,27 @@ import React, {
 
 import { type Href, useRouter } from 'expo-router';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Banknote, Bitcoin, Zap, Nfc, AtSign, Store } from '@tamagui/lucide-icons';
+import {
+  EcashActionIcon as Banknote,
+  BitcoinActionIcon as Bitcoin,
+  LightningActionIcon as Zap,
+  AddressActionIcon as AtSign,
+  StoreActionIcon as Store,
+  type FilledActionIconProps,
+} from '~/shared/icons/FilledActionIcons';
+import { Nfc } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UniversalInputCard, type UniversalInputCardRef } from '~/shared/ui/UniversalInputCard';
-import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
+import {
+  appActionIconColors,
+  appDimensions,
+  appSpacing,
+  appTypography,
+} from '~/shared/theme/appearance';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
@@ -28,12 +41,17 @@ export interface ActionSelectorSheetRef {
 }
 
 interface OptionConfig {
-  icon: typeof Banknote;
+  icon: React.ComponentType<FilledActionIconProps>;
+  iconColor: keyof typeof appActionIconColors;
   label: string;
   description: string;
   path?: Href;
   stage?: ActionSheetStage;
   action?: () => void;
+}
+
+function NfcActionIcon(props: FilledActionIconProps) {
+  return <Nfc {...props} strokeWidth={2.5} />;
 }
 
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
@@ -94,24 +112,28 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
             {
               label: 'Top up via Lightning',
               icon: Zap,
+              iconColor: 'lightning',
               description: 'Create a Lightning invoice',
               path: '/(modals)/mint',
             },
             {
               label: 'Top up on-chain',
               icon: Bitcoin,
+              iconColor: 'bitcoin',
               description: 'Create a Bitcoin deposit address',
               path: '/(modals)/mint?mode=onchain',
             },
             {
               label: 'Pay with Lightning',
               icon: Zap,
+              iconColor: 'lightningPay',
               description: 'Pay an invoice or Lightning address',
               path: '/(modals)/melt',
             },
             {
               label: 'Pay on-chain',
               icon: Bitcoin,
+              iconColor: 'onchainPay',
               description: 'Send to a Bitcoin address',
               path: '/(modals)/melt?mode=onchain',
             },
@@ -121,6 +143,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               {
                 label: type === 'send' ? 'Share ecash' : 'Request ecash',
                 icon: Banknote,
+                iconColor: 'ecash',
                 description:
                   type === 'send' ? 'Create a token to share' : 'Create a request to share',
                 path:
@@ -131,13 +154,15 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               type === 'send'
                 ? {
                     label: 'Tap to pay',
-                    icon: Nfc,
+                    icon: NfcActionIcon,
+                    iconColor: 'nfc',
                     description: 'Pay with NFC',
                     action: nfcFlow.openReader,
                   }
                 : {
                     label: 'Bitcoin',
                     icon: Bitcoin,
+                    iconColor: 'bitcoin',
                     description: 'Lightning or on-chain',
                     stage: 'bitcoin',
                   },
@@ -146,12 +171,14 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                     {
                       label: 'Point of sale',
                       icon: Store,
+                      iconColor: 'pos' as const,
                       description: 'Accept ecash or Lightning',
                       path: '/(modals)/point-of-sale' as Href,
                     },
                     {
                       label: 'My addresses',
                       icon: AtSign,
+                      iconColor: 'addresses' as const,
                       description: 'Share your ecash or Lightning address',
                       path: '/(modals)/nostr-profile' as Href,
                     },
@@ -162,6 +189,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               {
                 label: type === 'send' ? 'Lightning' : 'Create invoice',
                 icon: Zap,
+                iconColor: type === 'send' ? 'lightningPay' : 'invoice',
                 description:
                   type === 'send' ? 'Pay an invoice or Lightning address' : 'Create an invoice',
                 path: type === 'send' ? '/(modals)/melt' : '/(modals)/mint',
@@ -171,6 +199,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                     {
                       label: 'Lightning address',
                       icon: Zap,
+                      iconColor: 'lightningAddress' as const,
                       description: 'Receive with your permanent address',
                       path: '/(modals)/nostr-profile?tab=lightning' as Href,
                     },
@@ -179,6 +208,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               {
                 label: 'On-chain',
                 icon: Bitcoin,
+                iconColor: type === 'send' ? 'onchainPay' : 'bitcoin',
                 description:
                   type === 'send' ? 'Send to a Bitcoin address' : 'Create a deposit address',
                 path:
@@ -235,11 +265,20 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                   onPress={() => handleOption(option)}
                 >
                   <View
+                    width={44}
+                    height={44}
+                    rounded={100}
+                    bg={appActionIconColors[option.iconColor].background}
+                    items="center"
+                    justify="center"
                     aria-hidden
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
                   >
-                    <option.icon size={28} color="$buttonDefaultSecondaryText" />
+                    <option.icon
+                      size={22}
+                      color={appActionIconColors[option.iconColor].foreground}
+                    />
                   </View>
                   <Text
                     fontFamily="$body"
@@ -282,14 +321,14 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
                 width={44}
                 height={44}
                 rounded={100}
-                bg="$gray3"
+                bg={appActionIconColors[option.iconColor].background}
                 items="center"
                 justify="center"
                 aria-hidden
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               >
-                <option.icon size={22} strokeWidth={2.5} color="$gray10" />
+                <option.icon size={22} color={appActionIconColors[option.iconColor].foreground} />
               </View>
               <YStack flex={1} minWidth={0}>
                 <Text fontFamily="$body" {...appTypography.label1} color="$color">
