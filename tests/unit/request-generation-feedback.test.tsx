@@ -646,8 +646,10 @@ it('falls back to sat when the preferred fiat price is unavailable', async () =>
 it('starts NFC for the created request and stops it when New request clears the screen', async () => {
   const tree = await createRequestScreen();
   expect(mockPresentRequest).toHaveBeenCalledWith('nfc-creq-complete-request');
-  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 sat');
-  expect(tree.root.findByProps({ label: 'Amount' }).props.rightContent.type).toBe('Pencil');
+  expect(tree.root.findByType(RequestAmountEditor).props.amount).toBe(10);
+  expect(tree.root.findByProps({ accessibilityLabel: 'Edit request amount' }).props.disabled).toBe(
+    false,
+  );
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Tap to pay' })).toHaveLength(1);
   expect(
     tree.root
@@ -662,7 +664,9 @@ it('starts NFC for the created request and stops it when New request clears the 
       .props.onPress(),
   );
   expect(mockStopBroadcast).toHaveBeenCalled();
-  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('Set amount');
+  expect(tree.root.findByProps({ accessibilityLabel: 'Set request amount' }).props.disabled).toBe(
+    false,
+  );
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Tap to pay' })).toHaveLength(0);
   await act(async () => tree.unmount());
 });
@@ -678,7 +682,7 @@ it('shows a loader and blocks New request throughout NFC receiving, then release
   expect(newRequest().props.loading).toBe(true);
   expect(newRequest().props.disabled).toBe(true);
   await act(async () => newRequest().props.onPress());
-  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 sat');
+  expect(tree.root.findByType(RequestAmountEditor).props.amount).toBe(10);
   expect(tree.root.findByProps({ label: 'Request' }).props.value).toBe(
     `${request.creqString.slice(0, 14)}…${request.creqString.slice(-6)}`,
   );
@@ -694,14 +698,14 @@ it('allows a new QR request while preserving review of the original NFC payment'
   const originalRequest = useNostrRequestStore.getState().requests[0];
   mockNfcIncoming = { status: 'review', requestId: originalRequest.id, message: 'Payment saved.' };
   await act(async () => tree.update(<RequestEcashStage />));
-  expect(tree.root.findByProps({ label: 'Amount' }).props.disabled).toBe(true);
+  expect(tree.root.findByType(RequestAmountEditor).props.disabled).toBe(true);
   await act(async () =>
     tree.root
       .findByProps({ testID: 'payment-stage-footer' })
       .findByType('AppButton' as any)
       .props.onPress(),
   );
-  expect(tree.root.findByProps({ label: 'Amount' }).props.disabled).toBe(false);
+  expect(tree.root.findByType(RequestAmountEditor).props.disabled).toBe(false);
   expect(useNostrRequestStore.getState().requests).toContainEqual(originalRequest);
   expect(mockNfcIncoming.status).toBe('review');
   expect(
@@ -723,7 +727,7 @@ it('keeps New request loading while an incoming payment is being claimed', async
   expect(button.props.loading).toBe(true);
   expect(button.props.disabled).toBe(true);
   await act(async () => button.props.onPress());
-  expect(tree.root.findByProps({ label: 'Amount' }).props.value).toBe('10 sat');
+  expect(tree.root.findByType(RequestAmountEditor).props.amount).toBe(10);
   await act(async () => {
     useNostrInboxStore.setState({ items: [response('approval_required')] });
   });

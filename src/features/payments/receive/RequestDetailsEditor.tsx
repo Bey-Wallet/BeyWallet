@@ -7,7 +7,7 @@ import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomShe
 import { InputSheet, type InputSheetRef } from '~/shared/ui/InputSheet';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
-import { paymentAmounts } from '~/shared/ui/PaymentAmount';
+import { PaymentAmount, paymentAmounts } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
@@ -23,10 +23,12 @@ export function RequestAmountEditor({
   amount,
   disabled,
   onChange,
+  presentation = 'row',
 }: {
   amount: number;
   disabled?: boolean;
   onChange: (amount: number) => void;
+  presentation?: 'row' | 'hero';
 }) {
   const sheet = useRef<AppBottomSheetRef>(null);
   const { primaryCurrency, secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
@@ -83,13 +85,42 @@ export function RequestAmountEditor({
   };
   return (
     <>
-      <ListTableRow
-        label="Amount"
-        value={amount > 0 ? (displayAmount ?? '—') : 'Set amount'}
-        disabled={disabled}
-        onPress={open}
-        rightContent={!disabled ? <Pencil size={16} color="$gray10" /> : undefined}
-      />
+      {presentation === 'hero' ? (
+        <AppPressable
+          accessibilityRole="button"
+          accessibilityLabel={amount > 0 ? 'Edit request amount' : 'Set request amount'}
+          disabled={disabled}
+          onPress={open}
+          width="100%"
+          minHeight={48}
+          items="center"
+          gap="$2"
+        >
+          {amount > 0 ? (
+            <PaymentAmount amount={amount} compact />
+          ) : (
+            <Text fontFamily="$heading" fontSize={22} fontWeight="600" color="$color">
+              Set amount
+            </Text>
+          )}
+          {!disabled && (
+            <XStack gap="$2" items="center">
+              <Text fontSize={13} color="$gray10">
+                Edit amount
+              </Text>
+              <Pencil size={16} color="$gray10" />
+            </XStack>
+          )}
+        </AppPressable>
+      ) : (
+        <ListTableRow
+          label="Amount"
+          value={amount > 0 ? (displayAmount ?? '—') : 'Set amount'}
+          disabled={disabled}
+          onPress={open}
+          rightContent={!disabled ? <Pencil size={16} color="$gray10" /> : undefined}
+        />
+      )}
       <AppBottomSheet title="Request amount" ref={sheet}>
         <YStack gap="$3">
           <Text

@@ -561,6 +561,18 @@ export function RequestEcashStage({
                 </Text>
               </YStack>
             )}
+            {!merchant && (
+              <RequestAmountEditor
+                presentation="hero"
+                amount={amtNum}
+                disabled={editDisabled}
+                onChange={(value) => {
+                  if (editDisabled || value === amtNum) return;
+                  if (activeMintUrl && npub) void handleGenerate({ amount: value });
+                  else setAmount(String(value));
+                }}
+              />
+            )}
             <PaymentQRFrame accessibilityLabel="Payment request QR code" placeholder={!creqString}>
               {(size) =>
                 creqString ? (
@@ -624,17 +636,6 @@ export function RequestEcashStage({
               }
               onRefresh={handleCheckStatus}
               checking={isChecking}
-            />
-          )}
-          {!merchant && (
-            <RequestAmountEditor
-              amount={amtNum}
-              disabled={editDisabled}
-              onChange={(value) => {
-                if (editDisabled || value === amtNum) return;
-                if (activeMintUrl && npub) void handleGenerate({ amount: value });
-                else setAmount(String(value));
-              }}
             />
           )}
           {!merchant && (

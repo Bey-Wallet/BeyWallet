@@ -230,6 +230,7 @@ export function PaymentStage({
                 )}
               </YStack>
             )}
+            {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
             {isExpired && (
               <Text fontSize={13} fontWeight="500" color="$gray10">
                 Invoice expired
@@ -242,7 +243,6 @@ export function PaymentStage({
                 )}
               </PaymentQRFrame>
             )}
-            {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
           </>
         }
         footer={
