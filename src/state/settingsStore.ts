@@ -20,6 +20,8 @@ interface SettingsState {
   nsec: string | null;
   nip05: string | null; // e.g. "zaheer@nostrcheck.me"
   hideBalance: boolean;
+  homeExpanded: boolean;
+  setHomeExpanded: (expanded: boolean) => Promise<void>;
   hideMintConnectionDisclaimer: boolean;
   setHideMintConnectionDisclaimer: (hide: boolean) => Promise<void>;
   seedBackedUp: boolean;
@@ -59,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nsec: null,
   nip05: null,
   hideBalance: false,
+  homeExpanded: false,
   hideMintConnectionDisclaimer: false,
   seedBackedUp: false,
   backupDismissedAt: 0,
@@ -103,6 +106,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         storedNsec,
         storedNip05,
         storedHideBalance,
+        storedHomeExpanded,
         storedPrimary,
         storedSeedBackedUp,
         storedBackupDismissedAt,
@@ -118,6 +122,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('nsec'),
         repo.settingsRepository.getSetting('nip05'),
         repo.settingsRepository.getSetting('hideBalance'),
+        repo.settingsRepository.getSetting('homeExpanded'),
         repo.settingsRepository.getSetting('primaryCurrency'),
         repo.settingsRepository.getSetting('seedBackedUp'),
         repo.settingsRepository.getSetting('backupDismissedAt'),
@@ -127,6 +132,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       ]);
 
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
+      set({ homeExpanded: storedHomeExpanded === 'true' });
       set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
       if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
@@ -353,6 +359,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
+  setHomeExpanded: async (expanded: boolean) => {
+    set({ homeExpanded: expanded });
+    try {
+      if (await initService.walletExists()) {
+        await initService.getRepo().settingsRepository.setSetting('homeExpanded', String(expanded));
+      }
+    } catch {
+      console.warn('[SettingsStore] Could not save expanded Home preference');
+    }
+  },
   setHideMintConnectionDisclaimer: async (hide: boolean) => {
     try {
       if (!(await initService.walletExists())) return;

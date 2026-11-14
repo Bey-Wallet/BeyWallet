@@ -4,9 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
-import WalletCard from '~/features/home/components/WalletCard';
-import ActionButtons from '~/features/home/components/ActionButtons';
+import { ExpandableWallet } from './components/ExpandableWallet';
+import { useHomePageScroll } from './hooks/useHomePageScroll';
 import { useWalletStore } from '~/state/walletStore';
+import { useSettingsStore } from '~/state/settingsStore';
 import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
 import BeyIcon from '~/shared/icons/BeyIcon';
@@ -72,6 +73,13 @@ export function HomeTabScreen() {
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const error = useWalletStore((s) => s.error);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [viewportHeight, setViewportHeight] = React.useState(0);
+  const walletExpanded = useSettingsStore((state) => state.homeExpanded);
+  const expandedHeight = Math.max(
+    0,
+    viewportHeight - appDimensions.bar - insets.bottom - appSpacing.page,
+  );
+  const homePaging = useHomePageScroll(walletExpanded);
   const [showStatus, setShowStatus] = React.useState<StatusType>(null);
   const toast = useAppToast();
   const { lock } = useAuthStore();
@@ -133,6 +141,11 @@ export function HomeTabScreen() {
 
   return (
     <ScrollView
+      {...homePaging.scrollProps}
+      onLayout={(event) => {
+        const nextHeight = event.nativeEvent.layout.height;
+        if (nextHeight > 0) setViewportHeight(nextHeight);
+      }}
       bg="$background"
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -146,7 +159,9 @@ export function HomeTabScreen() {
       }
     >
       <YStack
+        testID="home-content"
         flex={1}
+        opacity={walletExpanded && viewportHeight <= 0 ? 0 : 1}
         items="center"
         gap={appSpacing.group}
         px={appSpacing.page}
@@ -154,11 +169,15 @@ export function HomeTabScreen() {
         pb={appDimensions.bar + insets.bottom + appSpacing.group}
       >
         {/* Above-the-fold: renders immediately */}
-        <YStack width="100%" gap={appSpacing.page} pb={appSpacing.compact}>
-          <WalletCard />
-          <ActionButtons />
-        </YStack>
-        <ConnectedMintsCard />
+        <ExpandableWallet availableHeight={expandedHeight} />
+        <View
+          testID="home-mint-page"
+          width="100%"
+          minHeight={walletExpanded ? expandedHeight : undefined}
+          onLayout={homePaging.onMintLayout}
+        >
+          <ConnectedMintsCard />
+        </View>
         {pendingLightning > 0 && (
           <AppPressable
             width="100%"

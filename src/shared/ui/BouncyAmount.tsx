@@ -1,6 +1,5 @@
 import React from 'react';
 import { H1, Text, View } from 'tamagui';
-import { compactCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 import { appTypography } from '~/shared/theme/appearance';
 import Animated, {
   useSharedValue,
@@ -88,7 +87,7 @@ export function BouncyAmount({
       adjustsFontSizeToFit
       style={[{ maxWidth: '100%', overflow: 'hidden' }, animatedAmountStyle]}
     >
-      {compactCurrencyPrefix(prefix + value)}
+      {prefix + value}
       {suffix.trim() === 'sat' ? (
         <Text fontSize={Math.max(11, Math.round(fontSize * 0.55))} letterSpacing={0} color={color}>
           {suffix}
