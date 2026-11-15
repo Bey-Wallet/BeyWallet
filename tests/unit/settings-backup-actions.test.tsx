@@ -14,6 +14,10 @@ import {
 const mockAuthenticate = jest.fn();
 const mockExport = jest.fn();
 const mockImport = jest.fn();
+const mockPrepare = jest.fn();
+jest.mock('~/services/wallet/fileRestoreService', () => ({
+  fileRestoreService: { prepare: (...args: unknown[]) => mockPrepare(...args) },
+}));
 const mockExportState = jest.fn();
 const mockImportState = jest.fn();
 const mockDestroy = jest.fn(async () => {});
@@ -154,11 +158,11 @@ it('does not export when authentication is rejected and blocks duplicate export 
   await act(async () => tree.unmount());
 });
 
-it('requires confirmation and a successfully parsed backup before destroying the wallet', async () => {
+it('requires authentication, confirmation and a parsed backup before preparing a restore without deleting the wallet', async () => {
   let confirm!: () => void;
   const alert = jest.spyOn(Alert, 'alert').mockImplementation((title, _message, buttons) => {
-    if (title === 'Confirm restore')
-      confirm = buttons!.find((button) => button.text === 'Restore')!.onPress as () => void;
+    if (title === 'Prepare backup restore')
+      confirm = buttons!.find((button) => button.text === 'Continue')!.onPress as () => void;
   });
   mockAuthenticate.mockResolvedValue(true);
   mockImport.mockRejectedValueOnce(new Error('File selection was cancelled.'));
@@ -188,14 +192,11 @@ it('requires confirmation and a successfully parsed backup before destroying the
   mockImport.mockResolvedValueOnce(payload);
   await act(async () => press());
   await act(async () => confirm());
-  expect(mockDestroy).toHaveBeenCalledTimes(1);
-  expect(mockRestore).toHaveBeenCalledWith(payload.mnemonic, { quiet: true });
-  expect(mockImportState).toHaveBeenCalledWith(
-    expect.objectContaining({ changeOperations: payload.changeOperations }),
-  );
-  expect(mockReinit).toHaveBeenCalledTimes(1);
-  expect(mockSettings.setSecondaryCurrency).toHaveBeenCalledWith(payload.secondaryCurrency);
-  expect(mockSettings.setTheme).toHaveBeenCalledWith(payload.theme);
+  expect(mockPrepare).toHaveBeenCalledWith(payload);
+  expect(mockDestroy).not.toHaveBeenCalled();
+  expect(mockRestore).not.toHaveBeenCalled();
+  expect(mockImportState).not.toHaveBeenCalled();
+  expect(mockReinit).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
   alert.mockRestore();
 });

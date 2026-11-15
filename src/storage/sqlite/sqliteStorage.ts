@@ -44,12 +44,13 @@ export function getDb(): SQLite.SQLiteDatabase {
 /**
  * Safely closes the shared SQLite database connection.
  */
-export function closeDb(): void {
+export function closeDb(strict = false): void {
   invalidateWalletSnapshot();
   if (dbInstance) {
     try {
       dbInstance.closeSync();
     } catch (error) {
+      if (strict) throw new Error('Wallet database could not be closed safely.');
       console.warn('[SqliteStorage] Failed to close database connection:', error);
     }
     dbInstance = null;

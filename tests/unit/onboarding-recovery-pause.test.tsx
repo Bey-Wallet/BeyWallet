@@ -38,6 +38,10 @@ jest.mock('~/services/platform/walletFileService', () => ({
   walletFileService: { readWalletBackupFile: jest.fn() },
 }));
 const mockImportState = jest.fn();
+const mockPrepareFileRestore = jest.fn();
+jest.mock('~/services/wallet/fileRestoreService', () => ({
+  fileRestoreService: { prepare: (...args: unknown[]) => mockPrepareFileRestore(...args) },
+}));
 jest.mock('~/services/wallet/backupService', () => ({
   backupService: { importState: (...args: any[]) => mockImportState(...args) },
 }));
@@ -225,7 +229,7 @@ it('restores file records and opens the wallet without an additional scan or set
   });
   await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
   expect(walletFileService.readWalletBackupFile).not.toHaveBeenCalled();
-  mockImportState.mockImplementationOnce(async (data: any) => {
+  mockPrepareFileRestore.mockImplementationOnce(async (data: any) => {
     expect(recoveryCoordinator.paused).toBe(true);
     expect(data.proofs).toBe(proofs);
     expect(useRecoverySessionStore.getState().session).toBeNull();
@@ -233,10 +237,11 @@ it('restores file records and opens the wallet without an additional scan or set
   await act(async () =>
     tree.root.findByType('Import' as any).props.onImportFromFile('file:///backup.json'),
   );
-  expect(mockImportState).toHaveBeenCalledTimes(1);
-  expect(initService.reinitFast).toHaveBeenCalledTimes(1);
+  expect(mockPrepareFileRestore).toHaveBeenCalledTimes(1);
+  expect(mockImportState).not.toHaveBeenCalled();
+  expect(initService.reinitFast).not.toHaveBeenCalled();
   expect(useRecoverySessionStore.getState().session).toBeNull();
-  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+  expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
   expect(recoveryCoordinator.paused).toBe(false);
   expect(tree.root.findAllByType('Permissions' as any)).toHaveLength(0);
   expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();

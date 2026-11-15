@@ -4,9 +4,11 @@ import { walletService } from '~/services/wallet/walletService';
 import { cleanToken, decodeToken, encodeToken } from '~/services/wallet/tokenUtils';
 import { AppState } from 'react-native';
 import { seedService } from '~/services/platform/seedService';
+import { recoveryCoordinator } from './recoveryCoordinator';
 
 let sweepInterval: any = null;
 let sweeping = false;
+let sweepGeneration = 0;
 
 function canReclaim() {
   // Settings initialization imports wallet services; defer this lifecycle edge.
@@ -193,11 +195,17 @@ export const expiryService = {
    */
   startSweeper: (intervalMs = 60000): void => {
     if (sweepInterval) clearTimeout(sweepInterval);
+    const generation = ++sweepGeneration;
+    const sweep = () =>
+      recoveryCoordinator.maintenance('expiry:sweep', () =>
+        expiryService.checkAndSweepExpiredTokens(),
+      );
 
     const scheduleNext = () => {
+      if (generation !== sweepGeneration) return;
       sweepInterval = setTimeout(async () => {
         try {
-          await expiryService.checkAndSweepExpiredTokens();
+          await sweep();
         } catch (e) {
           console.error('[ExpiryService] Sweep error (scheduling next):', e);
         }
@@ -206,9 +214,7 @@ export const expiryService = {
     };
 
     // Initial run — fire immediately, then schedule periodic checks
-    expiryService
-      .checkAndSweepExpiredTokens()
-      .catch((e) => console.error('[ExpiryService] Initial sweep error:', e));
+    sweep().catch((e) => console.error('[ExpiryService] Initial sweep error:', e));
     scheduleNext();
     console.log(`[ExpiryService] Expiry sweeper started with interval ${intervalMs}ms`);
   },
@@ -217,6 +223,7 @@ export const expiryService = {
    * Stop the periodic background sweeper.
    */
   stopSweeper: (): void => {
+    sweepGeneration++;
     if (sweepInterval) {
       clearTimeout(sweepInterval);
       sweepInterval = null;

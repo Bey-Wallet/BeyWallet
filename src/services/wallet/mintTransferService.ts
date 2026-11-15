@@ -7,6 +7,7 @@ import {
   type MintTransferRecord,
 } from '~/storage/sqlite/repositories/MintTransferRepository';
 import { supportsPaymentMethod } from './paymentMintPolicy';
+import { recoveryCoordinator } from './recoveryCoordinator';
 
 export type { MintTransferRecord } from '~/storage/sqlite/repositories/MintTransferRepository';
 export const TRANSFER_WAIT_MS = 20_000;
@@ -404,7 +405,9 @@ export class MintTransferService {
   start(): void {
     this.stop();
     const recover = (repairExecuting = false) => {
-      void this.recover(repairExecuting).catch(() => {});
+      void recoveryCoordinator
+        .maintenance('mint-transfer:recovery', () => this.recover(repairExecuting))
+        .catch(() => {});
     };
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') recover(true);

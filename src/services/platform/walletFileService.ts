@@ -1,33 +1,4 @@
-/**
- * Wallet File Service — Export & Import wallet backup as a .bey file.
- *
- * Backup JSON shape (v2):
- * {
- *   version: 3,
- *   mnemonic: "...",
- *   mints: [...], // Full coco_cashu_mints records
- *   keysets: [...], // Full coco_cashu_keysets records
- *   proofs: [...],
- *   counters: [...],
- *   history: [...],
- *   mintQuotes: [...],
- *   secondaryCurrency: "USD",
- *   theme: "system" | "light" | "dark",
- *   exportedAt: "ISO date"
- * }
- * }
- * }
- *
- * Export flow:
- *   1. Reads mnemonic, trusted mints, and settings from the live stores/repos
- *   2. Serialises to JSON and writes to cache dir
- *   3. Opens OS share sheet via expo-sharing
- *
- * Import flow:
- *   1. Opens document picker
- *   2. Reads + parses JSON, validates mnemonic
- *   3. Returns the full backup payload for the caller to handle
- */
+/** Versioned JSON file transport. Validation and identity-aware activation live in wallet services. */
 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -35,27 +6,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as bip39 from 'bip39';
 import { Platform } from 'react-native';
 import { useSettingsStore } from '~/state/settingsStore';
+import { parseWalletBackup, type WalletBackup } from '~/services/wallet/walletBackup';
+export type { WalletBackup } from '~/services/wallet/walletBackup';
 
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;
 
 export interface MintEntry {
   url: string;
   nickname: string | null;
-}
-
-export interface WalletBackup {
-  version: number;
-  mnemonic: string;
-  mints: any[]; // Changed from MintEntry[] to any[] for full records in v3
-  keysets?: any[];
-  proofs?: any[];
-  counters?: any[];
-  history?: any[];
-  mintQuotes?: any[];
-  changeOperations?: any[];
-  secondaryCurrency: string;
-  theme: 'system' | 'light' | 'dark';
-  exportedAt: string;
 }
 
 function getFormattedDate(): string {
@@ -85,6 +43,10 @@ export const walletFileService = {
       history: any[];
       mintQuotes: any[];
       changeOperations?: any[];
+      sendOperations?: any[];
+      meltOperations?: any[];
+      meltQuotes?: any[];
+      keypairs?: any[];
       secondaryCurrency: string;
       theme: 'system' | 'light' | 'dark';
     },
@@ -96,7 +58,7 @@ export const walletFileService = {
     }
 
     const backup: WalletBackup = {
-      version: 3,
+      version: BACKUP_VERSION,
       mnemonic,
       mints: opts.mints,
       keysets: opts.keysets,
@@ -105,6 +67,10 @@ export const walletFileService = {
       history: opts.history,
       mintQuotes: opts.mintQuotes,
       changeOperations: opts.changeOperations,
+      sendOperations: opts.sendOperations ?? [],
+      meltOperations: opts.meltOperations ?? [],
+      meltQuotes: opts.meltQuotes ?? [],
+      keypairs: opts.keypairs ?? [],
       secondaryCurrency: opts.secondaryCurrency,
       theme: opts.theme,
       exportedAt: new Date().toISOString(),
@@ -202,59 +168,14 @@ export const walletFileService = {
       encoding: 'utf8',
     });
 
-    let backup: Partial<WalletBackup>;
+    let backup: unknown;
     try {
       backup = JSON.parse(contents);
     } catch {
       throw new Error('The selected file is not a valid Bey wallet backup.');
     }
 
-    let mnemonic = backup.mnemonic;
-    if (!mnemonic && (backup as any)['cashu.mnemonic']) {
-      mnemonic = (backup as any)['cashu.mnemonic'];
-    }
-
-    if (!mnemonic || typeof mnemonic !== 'string') {
-      throw new Error('The backup file does not contain a mnemonic.');
-    }
-
-    if (!bip39.validateMnemonic(mnemonic.trim())) {
-      throw new Error('The mnemonic in the backup file is invalid. It may be corrupted.');
-    }
-
-    // Extract proofs from cashu.me if double-serialized
-    let proofs = backup.proofs ?? [];
-    if (proofs.length === 0 && (backup as any)['cashu.dexie.db.proofs']) {
-      try {
-        proofs = JSON.parse((backup as any)['cashu.dexie.db.proofs']);
-      } catch (e) {
-        console.warn('[WalletFileService] Failed to parse cashu.me dexie proofs:', e);
-      }
-    }
-
-    // Extract secondaryCurrency from cashu.me
-    let secondaryCurrency = backup.secondaryCurrency ?? 'USD';
-    if (secondaryCurrency === 'USD' && (backup as any)['cashu.settings.bitcoinPriceCurrency']) {
-      secondaryCurrency = (backup as any)['cashu.settings.bitcoinPriceCurrency'];
-    }
-
-    console.log('[WalletFileService] ✅ Valid wallet backup parsed successfully.');
-
-    // Return with safe defaults for fields that may be missing in older v1/v2 backups
-    return {
-      version: backup.version ?? 1,
-      mnemonic: mnemonic.trim(),
-      mints: backup.mints ?? [],
-      keysets: backup.keysets ?? [],
-      proofs,
-      counters: backup.counters ?? [],
-      history: backup.history ?? [],
-      mintQuotes: backup.mintQuotes ?? [],
-      changeOperations: backup.changeOperations ?? [],
-      secondaryCurrency,
-      theme: backup.theme ?? 'system',
-      exportedAt: backup.exportedAt ?? '',
-    };
+    return parseWalletBackup(backup);
   },
 
   /** Select and parse a backup for callers that already obtained confirmation. */

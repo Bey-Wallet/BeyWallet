@@ -16,6 +16,9 @@ import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
 import { hydrateBitcoinPriceCache } from '~/shared/utils/bitcoinPriceQueryCache';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Text, YStack } from 'tamagui';
+import { useFileRestoreStore } from '~/state/fileRestoreStore';
+import { fileRestoreService } from '~/services/wallet/fileRestoreService';
+import { FileRestoreGate } from '~/features/settings/FileRestoreGate';
 
 const queryClient = new QueryClient();
 hydrateBitcoinPriceCache(queryClient);
@@ -24,6 +27,7 @@ hydrateBitcoinPriceCache(queryClient);
 SplashScreen.preventAutoHideAsync();
 
 export function RootLayout() {
+  const restorePhase = useFileRestoreStore((state) => state.phase);
   const initialize = useWalletStore((state) => state.initialize);
   const isInitializing = useWalletStore((state) => state.isInitializing);
   const { isOnboarded, isCheckingOnboarding, checkOnboardingStatus } = useOnboardingStore();
@@ -34,7 +38,9 @@ export function RootLayout() {
   const settingsReady = useSettingsStore((state) => state.initialized);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupAttempt, setStartupAttempt] = useState(0);
-  useAutomaticMintBackup(!!manager && !isInitializing && isOnboarded && walletExists === true);
+  useAutomaticMintBackup(
+    restorePhase === 'idle' && !!manager && !isInitializing && isOnboarded && walletExists === true,
+  );
 
   const [loaded, error] = useFonts({
     InterTextRegular: require('~/assets/fonts/InterText-Regular.ttf'),
@@ -48,6 +54,7 @@ export function RootLayout() {
   // Check onboarding status and wallet existence on mount
   useEffect(() => {
     const checkStatus = async () => {
+      await fileRestoreService.recoverOnStartup();
       const onboarded = await checkOnboardingStatus();
       const exists = await initService.walletExists();
       setWalletExists(exists);
@@ -69,7 +76,7 @@ export function RootLayout() {
 
   // Initialize wallet only if onboarded and wallet exists
   useEffect(() => {
-    if (isOnboarded && walletExists) {
+    if (restorePhase === 'idle' && isOnboarded && walletExists) {
       let active = true;
       setStartupFinished(false);
       console.log('[RootLayout] ✅ Mnemonic found, initializing Coco...');
@@ -88,7 +95,7 @@ export function RootLayout() {
         active = false;
       };
     }
-  }, [isOnboarded, walletExists, initialize, startupAttempt]);
+  }, [isOnboarded, walletExists, initialize, startupAttempt, restorePhase]);
 
   // The local manager/settings are ready before network watchers finish.
   useEffect(() => {
@@ -99,10 +106,14 @@ export function RootLayout() {
         setManager(null);
       }
     }
-  }, [settingsReady, isInitializing, isOnboarded, walletExists]);
+  }, [settingsReady, isInitializing, isOnboarded, walletExists, restorePhase]);
 
   // Hide splash when ready
   useEffect(() => {
+    if ((loaded || error) && restorePhase !== 'idle') {
+      SplashScreen.hideAsync();
+      return;
+    }
     const isReady = (loaded || error) && !isCheckingOnboarding && walletExists !== null;
     const isAppReady =
       !isOnboarded || !walletExists || (!!manager && settingsReady) || startupFinished;
@@ -119,11 +130,20 @@ export function RootLayout() {
     manager,
     settingsReady,
     startupFinished,
+    restorePhase,
   ]);
 
   // Still loading fonts or checking onboarding
   if (!loaded && !error) {
     return null;
+  }
+
+  if (restorePhase !== 'idle') {
+    return (
+      <Providers cocoManager={null}>
+        <FileRestoreGate />
+      </Providers>
+    );
   }
 
   if (isCheckingOnboarding || walletExists === null) {
