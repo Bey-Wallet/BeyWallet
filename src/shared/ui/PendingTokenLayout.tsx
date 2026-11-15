@@ -321,14 +321,14 @@ export function PendingTokenLayout({
             {headerStatus !== 'pending' && (
               <PaymentStatusIcon status={headerStatus === 'success' ? 'success' : 'error'} />
             )}
-            <PaymentQRFrame accessibilityLabel="Ecash QR code">
-              {(size) => <EcashTokenQRCode token={cleanToken(currentToken)} size={size} />}
-            </PaymentQRFrame>
             <PaymentAmount
               amount={Number(amount)}
               size={headerStatus === 'pending' ? 'standard' : 'prominent'}
               compact
             />
+            <PaymentQRFrame accessibilityLabel="Ecash QR code">
+              {(size) => <EcashTokenQRCode token={cleanToken(currentToken)} size={size} />}
+            </PaymentQRFrame>
           </>
         }
         footer={

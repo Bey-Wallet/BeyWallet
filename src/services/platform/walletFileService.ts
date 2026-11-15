@@ -179,11 +179,8 @@ export const walletFileService = {
     }
   },
 
-  /**
-   * Open the document picker and parse a backup file (.json or .bey).
-   * Returns the full WalletBackup payload so the caller can restore everything.
-   */
-  importWalletFromFile: async (): Promise<WalletBackup> => {
+  /** Select a backup without reading its contents or changing wallet state. */
+  selectWalletBackupFile: async (): Promise<string> => {
     console.log('[WalletFileService] Opening document picker...');
 
     const result = await DocumentPicker.getDocumentAsync({
@@ -196,9 +193,12 @@ export const walletFileService = {
     }
 
     const asset = result.assets[0];
-    console.log('[WalletFileService] File selected:', asset.name);
+    return asset.uri;
+  },
 
-    const contents = await FileSystem.readAsStringAsync(asset.uri, {
+  /** Read and validate a previously selected backup using the existing parser. */
+  readWalletBackupFile: async (uri: string): Promise<WalletBackup> => {
+    const contents = await FileSystem.readAsStringAsync(uri, {
       encoding: 'utf8',
     });
 
@@ -255,6 +255,12 @@ export const walletFileService = {
       theme: backup.theme ?? 'system',
       exportedAt: backup.exportedAt ?? '',
     };
+  },
+
+  /** Select and parse a backup for callers that already obtained confirmation. */
+  importWalletFromFile: async (): Promise<WalletBackup> => {
+    const uri = await walletFileService.selectWalletBackupFile();
+    return walletFileService.readWalletBackupFile(uri);
   },
 
   /**

@@ -1,36 +1,71 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppButton } from '~/shared/ui/AppButton';
-import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
-import React, { useState, useRef } from 'react';
-import { YStack, XStack, Text, H2, ScrollView, View } from 'tamagui';
+import React, { useState, useRef, useEffect } from 'react';
+import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import {
-  KeyRound,
+  CircleHelp,
   ClipboardPaste,
   CheckCircle2,
   AlertCircle,
   Trash2,
-  Check,
 } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import * as bip39 from 'bip39';
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import { BackHandler, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BUIHeader, BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
+import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
+import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
+import { ConsentStep } from './ConsentStep';
+import { walletFileService } from '~/services/platform/walletFileService';
 
 interface ImportSeedStepProps {
   isImporting?: boolean;
   onImport: (mnemonic: string) => void;
+  onImportFromFile: (uri: string) => void | Promise<void>;
   onBack: () => void;
 }
 
-export function ImportSeedStep({ onImport, onBack, isImporting = false }: ImportSeedStepProps) {
+export function ImportSeedStep({
+  onImport,
+  onImportFromFile,
+  onBack,
+  isImporting = false,
+}: ImportSeedStepProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
-  const [checkedConsent, setCheckedConsent] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
+  const [isPickingFile, setIsPickingFile] = useState(false);
+  const pickingFile = useRef(false);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<any>(null);
+  const infoSheet = useRef<BUISheetRef>(null);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isImporting || isPickingFile) return true;
+      Keyboard.dismiss();
+      if (showConsent) {
+        setShowConsent(false);
+        setSelectedBackup(null);
+      } else onBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isImporting, isPickingFile, showConsent, onBack]);
+
+  const handleBack = () => {
+    if (isImporting || isPickingFile) return;
+    Keyboard.dismiss();
+    if (showConsent) {
+      setShowConsent(false);
+      setSelectedBackup(null);
+    } else onBack();
+  };
 
   const validateMnemonic = (wordArray: string[]) => {
     if (wordArray.length < 12) {
@@ -147,6 +182,11 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
   };
 
   const handleImport = () => {
+    if (isImporting) return;
+    if (selectedBackup) {
+      void onImportFromFile(selectedBackup);
+      return;
+    }
     const mnemonic = words.map((w) => w.trim().toLowerCase()).join(' ');
     if (bip39.validateMnemonic(mnemonic)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -154,206 +194,208 @@ export function ImportSeedStep({ onImport, onBack, isImporting = false }: Import
     }
   };
 
+  const handleSelectBackup = async () => {
+    if (isImporting || pickingFile.current) return;
+    pickingFile.current = true;
+    setIsPickingFile(true);
+    setError(null);
+    Keyboard.dismiss();
+    try {
+      const uri = await walletFileService.selectWalletBackupFile();
+      setSelectedBackup(uri);
+      setShowConsent(true);
+    } catch (error) {
+      if (!(error instanceof Error && error.message === 'File selection was cancelled.')) {
+        setError('Could not select a backup file. Please try again.');
+      }
+    } finally {
+      pickingFile.current = false;
+      setIsPickingFile(false);
+    }
+  };
+
+  if (showConsent) {
+    return <ConsentStep onComplete={handleImport} onBack={handleBack} isBusy={isImporting} />;
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <YStack flex={1} bg="$background" px="$4" pt={insets.top + 8} pb={insets.bottom + 8}>
-        <ScrollView
-          pointerEvents={isImporting ? 'none' : 'auto'}
-          flex={1}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <YStack gap="$2" mb="$3" mt="$2">
-            <H2 fontSize="$8" fontWeight="800" letterSpacing={-0.5} color="$color">
-              Enter seed phrase
-            </H2>
-            <Text color="$gray10" fontSize="$3" lineHeight={18}>
-              If you’re using a seed phrase to import the wallet, separate each word with a space.
-            </Text>
-          </YStack>
+      <YStack flex={1} bg="$background" pb={insets.bottom + 8}>
+        <BUIHeader
+          title="Enter seed phrase"
+          navigation="back"
+          topInset={insets.top}
+          onNavigate={handleBack}
+          navigationDisabled={isImporting || isPickingFile}
+          actions={
+            <BUIHeaderAction
+              label="Seed import information"
+              disabled={isImporting || isPickingFile}
+              onPress={() => infoSheet.current?.present()}
+            >
+              <CircleHelp size={22} color="$color" />
+            </BUIHeaderAction>
+          }
+        />
+        <YStack flex={1} px="$4">
+          <ScrollView
+            pointerEvents={isImporting ? 'none' : 'auto'}
+            flex={1}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <YStack gap="$2" mb="$3" mt="$2">
+              <Text color="$gray10" fontSize="$3" lineHeight={18}>
+                If you’re using a seed phrase to import the wallet, separate each word with a space.
+              </Text>
+            </YStack>
 
-          <FirstUseGuidance topic="recovery" spaceBelow />
-
-          {/* Word Tag Container (Variable Width Flow) */}
-          <XStack flexWrap="wrap" gap="$2" mb="$4">
-            {words.map((word, index) => (
-              <XStack
-                key={index}
-                bg="$gray4"
-                px="$3"
-                py="$2"
-                rounded="$3"
-                alignItems="center"
-                gap="$1.5"
-                borderWidth={0}
-                onPress={() => handlePillPress(index)}
-              >
-                <Text fontSize="$2" color="$gray8" fontWeight="600">
-                  {String(index + 1).padStart(2, '0')}
-                </Text>
-                <Text fontSize="$4" color="$color" fontWeight="600">
-                  {word}
-                </Text>
-              </XStack>
-            ))}
-
-            {/* Active Input Pill */}
-            {words.length < 12 && (
-              <XStack
-                bg="$background"
-                px="$3"
-                py="$1"
-                rounded="$3"
-                borderWidth={1.5}
-                borderColor="$accent10"
-                items="center"
-                gap="$1.5"
-                minWidth={100}
-              >
-                <Text fontSize="$2" color="$accent10" fontWeight="600">
-                  {String(words.length + 1).padStart(2, '0')}
-                </Text>
-                <Input
-                  ref={inputRef}
-                  flex={1}
-                  color="$color"
-                  value={currentInput}
-                  onChangeText={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder={words.length === 0 ? 'word' : ''}
-                  placeholderTextColor="$gray8"
-                  autoFocus
-                  autoCapitalize="none"
-                  autoCorrect={false}
+            {/* Word Tag Container (Variable Width Flow) */}
+            <XStack flexWrap="wrap" gap="$2" mb="$4">
+              {words.map((word, index) => (
+                <XStack
+                  key={index}
+                  bg="$gray4"
+                  px="$3"
+                  py="$2"
+                  rounded="$3"
+                  alignItems="center"
+                  gap="$1.5"
                   borderWidth={0}
-                  bg="transparent"
-                  px="$0"
-                  py="$0"
-                  height={30}
-                  fontSize="$4"
-                  fontWeight="600"
-                  onSubmitEditing={handleInputSubmit}
-                  blurOnSubmit={false}
-                  unstyled
-                  fontFamily="$body"
-                />
-              </XStack>
-            )}
-          </XStack>
-          <XStack justify="center" mb="$4">
-            {words.length > 0 ? (
-              <AppButton
-                disabled={isImporting}
-                variant="default"
-                emphasis="secondary"
-                size="xsmall"
-                icon={<Trash2 size={16} color="$gray10" />}
-                onPress={handleClear}
-              >
-                Clear
-              </AppButton>
-            ) : (
-              <AppButton
-                disabled={isImporting}
-                variant="default"
-                emphasis="secondary"
-                size="xsmall"
-                icon={<ClipboardPaste size={16} color="$color" />}
-                onPress={handlePaste}
-              >
-                Paste
-              </AppButton>
-            )}
-          </XStack>
-        </ScrollView>
-        {/* Status Messages */}
-        {error && (
-          <XStack items="center" justify="center" gap="$2" mb="$2" px="$2">
-            <AlertCircle size={16} color="$red10" />
-            <Text color="$red10" fontSize="$3">
-              {error}
-            </Text>
-          </XStack>
-        )}
-        {isValid && (
-          <XStack items="center" justify="center" gap="$2" mb="$2" px="$2">
-            <CheckCircle2 size={16} color="$green10" />
-            <Text color="$green10" fontSize="$3" fontWeight="600">
-              Valid recovery phrase ✓
-            </Text>
-          </XStack>
-        )}
+                  onPress={() => handlePillPress(index)}
+                >
+                  <Text fontSize="$2" color="$gray8" fontWeight="600">
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                  <Text fontSize="$4" color="$color" fontWeight="600">
+                    {word}
+                  </Text>
+                </XStack>
+              ))}
 
-        {/* Inline Consent Checkbox */}
-        <XStack
-          gap="$2.5"
-          p="$2.5"
-          mb="$2"
+              {/* Active Input Pill */}
+              {words.length < 12 && (
+                <XStack
+                  bg="$background"
+                  px="$3"
+                  py="$1"
+                  rounded="$3"
+                  borderWidth={1.5}
+                  borderColor="$accent10"
+                  items="center"
+                  gap="$1.5"
+                  minWidth={100}
+                >
+                  <Text fontSize="$2" color="$accent10" fontWeight="600">
+                    {String(words.length + 1).padStart(2, '0')}
+                  </Text>
+                  <Input
+                    ref={inputRef}
+                    flex={1}
+                    color="$color"
+                    value={currentInput}
+                    onChangeText={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder={words.length === 0 ? 'word' : ''}
+                    placeholderTextColor="$gray8"
+                    autoFocus
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    borderWidth={0}
+                    bg="transparent"
+                    px="$0"
+                    py="$0"
+                    height={30}
+                    fontSize="$4"
+                    fontWeight="600"
+                    onSubmitEditing={handleInputSubmit}
+                    blurOnSubmit={false}
+                    unstyled
+                    fontFamily="$body"
+                  />
+                </XStack>
+              )}
+            </XStack>
+            <XStack justify="center" mb="$4">
+              {words.length > 0 ? (
+                <AppButton
+                  disabled={isImporting}
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  icon={<Trash2 size={16} color="$gray10" />}
+                  onPress={handleClear}
+                >
+                  Clear
+                </AppButton>
+              ) : (
+                <AppButton
+                  disabled={isImporting}
+                  variant="default"
+                  emphasis="secondary"
+                  size="xsmall"
+                  icon={<ClipboardPaste size={16} color="$color" />}
+                  onPress={handlePaste}
+                >
+                  Paste
+                </AppButton>
+              )}
+            </XStack>
+          </ScrollView>
+          {/* Status Messages */}
+          {error && (
+            <XStack items="center" justify="center" gap="$2" mb="$2" px="$2">
+              <AlertCircle size={16} color="$red10" />
+              <Text color="$red10" fontSize="$3">
+                {error}
+              </Text>
+            </XStack>
+          )}
+          {isValid && (
+            <XStack items="center" justify="center" gap="$2" mb="$2" px="$2">
+              <CheckCircle2 size={16} color="$green10" />
+              <Text color="$green10" fontSize="$3" fontWeight="600">
+                Valid recovery phrase ✓
+              </Text>
+            </XStack>
+          )}
 
-          bg="$gray2"
-          rounded="$4"
-          borderWidth={1.5}
-          borderColor={checkedConsent ? '$accent10' : 'rgba(128,128,128,0.1)'}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setCheckedConsent(!checkedConsent);
-          }}
-          pressStyle={{ opacity: 0.95 }}
-          alignItems="center"
-        >
-          <View
-            width={18}
-            height={18}
-            rounded="$1"
-            borderWidth={2}
-            borderColor={checkedConsent ? '$accent10' : '$gray8'}
-            bg={checkedConsent ? '$accent10' : 'transparent'}
-            alignItems="center"
-            justifyContent="center"
-          >
-            {checkedConsent && <Check size={11} color="$onAccent" strokeWidth={4} />}
-          </View>
-          <YStack flex={1}>
-            <Text fontSize="$2" color="$gray10" lineHeight={14}>
-              I understand that my ecash is stored locally, mints hold the backing Bitcoin, and
-              BeyWallet is not liable for lost funds.
-            </Text>
+          {/* Bottom Buttons block */}
+          <YStack gap="$2" mt="$4">
+            {/* Confirm Button */}
+            <AppButton
+              variant="default"
+              emphasis="primary"
+              size="large"
+              width="100%"
+              onPress={() => {
+                if (isImporting || isPickingFile || !isValid) return;
+                Keyboard.dismiss();
+                setShowConsent(true);
+              }}
+              loading={isImporting}
+              loadingText="Importing wallet…"
+              disabled={isImporting || isPickingFile || !isValid}
+            >
+              Continue
+            </AppButton>
+            <AppButton
+              emphasis="text"
+              size="small"
+              minHeight={48}
+              disabled={isImporting || isPickingFile}
+              loading={isPickingFile}
+              loadingText="Selecting backup…"
+              onPress={handleSelectBackup}
+            >
+              Import backup file
+            </AppButton>
           </YStack>
-        </XStack>
-
-        {/* Bottom Buttons block */}
-        <YStack gap="$2" mt="$4">
-          {/* Confirm Button */}
-          <AppButton
-            variant="default"
-            emphasis="primary"
-            size="large"
-            width="100%"
-            onPress={handleImport}
-            loading={isImporting}
-            loadingText="Importing wallet…"
-            disabled={isImporting || !isValid || !checkedConsent}
-          >
-            Confirm
-          </AppButton>
-
-          {/* Back Button */}
-          <AppButton
-            disabled={isImporting}
-            variant="default"
-            emphasis="secondary"
-            size="large"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-              onBack();
-            }}
-          >
-            Back
-          </AppButton>
         </YStack>
+        <InfoSheet ref={infoSheet} topic="import-seed" busy={isImporting} />
       </YStack>
     </KeyboardAvoidingView>
   );

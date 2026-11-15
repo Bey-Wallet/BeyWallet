@@ -20,6 +20,8 @@ interface SettingsState {
   nsec: string | null;
   nip05: string | null; // e.g. "zaheer@nostrcheck.me"
   hideBalance: boolean;
+  homeExpanded: boolean;
+  setHomeExpanded: (expanded: boolean) => Promise<void>;
   hideMintConnectionDisclaimer: boolean;
   setHideMintConnectionDisclaimer: (hide: boolean) => Promise<void>;
   seedBackedUp: boolean;
@@ -45,8 +47,6 @@ interface SettingsState {
   setShowBitcoinSymbol: (val: boolean) => Promise<void>;
   backupDirectoryUri: string | null;
   setBackupDirectoryUri: (uri: string | null) => Promise<void>;
-  usernameClaimDismissedAt: number;
-  setUsernameClaimDismissedAt: (val: number) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -61,12 +61,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nsec: null,
   nip05: null,
   hideBalance: false,
+  homeExpanded: false,
   hideMintConnectionDisclaimer: false,
   seedBackedUp: false,
   backupDismissedAt: 0,
   showBitcoinSymbol: true,
   backupDirectoryUri: null,
-  usernameClaimDismissedAt: 0,
 
   initialize: async (force = false) => {
     if (get().initialized && !force) return;
@@ -106,12 +106,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         storedNsec,
         storedNip05,
         storedHideBalance,
+        storedHomeExpanded,
         storedPrimary,
         storedSeedBackedUp,
         storedBackupDismissedAt,
         storedShowBitcoinSymbol,
         storedBackupDirectoryUri,
-        storedUsernameClaimDismissedAt,
         storedHideMintConnectionDisclaimer,
       ] = await Promise.all([
         repo.settingsRepository.getSetting('theme'),
@@ -122,16 +122,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('nsec'),
         repo.settingsRepository.getSetting('nip05'),
         repo.settingsRepository.getSetting('hideBalance'),
+        repo.settingsRepository.getSetting('homeExpanded'),
         repo.settingsRepository.getSetting('primaryCurrency'),
         repo.settingsRepository.getSetting('seedBackedUp'),
         repo.settingsRepository.getSetting('backupDismissedAt'),
         repo.settingsRepository.getSetting('showBitcoinSymbol'),
         repo.settingsRepository.getSetting('backupDirectoryUri'),
-        repo.settingsRepository.getSetting('usernameClaimDismissedAt'),
         repo.settingsRepository.getSetting('hideMintConnectionDisclaimer'),
       ]);
 
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
+      set({ homeExpanded: storedHomeExpanded === 'true' });
       set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
       if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
@@ -150,10 +151,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
       if (storedBackupDirectoryUri) {
         set({ backupDirectoryUri: storedBackupDirectoryUri });
-      }
-
-      if (storedUsernameClaimDismissedAt !== undefined && storedUsernameClaimDismissedAt !== null) {
-        set({ usernameClaimDismissedAt: parseInt(storedUsernameClaimDismissedAt, 10) || 0 });
       }
 
       // For existing users, if biometric setting isn't explicitly false, default to true to maintain security
@@ -362,17 +359,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  setUsernameClaimDismissedAt: async (val: number) => {
+  setHomeExpanded: async (expanded: boolean) => {
+    set({ homeExpanded: expanded });
     try {
-      const exists = await initService.walletExists();
-      if (exists) {
-        const repo = initService.getRepo();
-        await repo.settingsRepository.setSetting('usernameClaimDismissedAt', val.toString());
+      if (await initService.walletExists()) {
+        await initService.getRepo().settingsRepository.setSetting('homeExpanded', String(expanded));
       }
-      set({ usernameClaimDismissedAt: val });
-    } catch (error) {
-      console.error('[SettingsStore] Failed to set usernameClaimDismissedAt:', error);
-      set({ usernameClaimDismissedAt: val });
+    } catch {
+      console.warn('[SettingsStore] Could not save expanded Home preference');
     }
   },
   setHideMintConnectionDisclaimer: async (hide: boolean) => {

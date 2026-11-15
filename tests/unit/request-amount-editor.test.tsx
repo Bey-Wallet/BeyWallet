@@ -87,6 +87,23 @@ it('accepts a new fiat amount from zero using the real keypad and saves integer 
   expect(mockChange).toHaveBeenCalledWith(12_500);
 });
 
+it('edits the request amount row and respects the busy lock', async () => {
+  await act(async () => {
+    tree = create(<RequestAmountEditor amount={1000} onChange={mockChange} />);
+  });
+  expect(tree.root.findAllByType('ListTableRow' as any)).toHaveLength(1);
+  await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
+  expect(value()).toBe('1');
+  await type('2');
+  await act(async () => done().props.onPress());
+  expect(mockChange).toHaveBeenCalledWith(12000);
+  await act(async () =>
+    tree.update(<RequestAmountEditor amount={12000} disabled onChange={mockChange} />),
+  );
+  await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
+  expect(tree.root.findAllByType(NumericKeypad)).toHaveLength(0);
+});
+
 it('allows fiat cents after switching a zero sat amount to fiat', async () => {
   useSettingsStore.setState({ primaryCurrency: 'SATS' });
   await open();

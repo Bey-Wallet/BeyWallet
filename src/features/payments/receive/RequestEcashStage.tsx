@@ -5,6 +5,10 @@ import { RequestAmountEditor, RequestDetailsEditor } from './RequestDetailsEdito
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
+import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
+import { CircleHelp } from '@tamagui/lucide-icons';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
@@ -98,6 +102,7 @@ export function RequestEcashStage({
   const toast = useAppToast();
   const router = useRouter();
   const openedNfcReceipt = useRef<string | undefined>(undefined);
+  const infoSheet = useRef<BUISheetRef>(null);
 
   const { mintUrl: activeMintUrl, setMintUrl: setActiveMint } = useFlowMint();
   const { npub } = useSettingsStore();
@@ -521,7 +526,18 @@ export function RequestEcashStage({
       title={step === 'success' ? 'Payment received' : 'Request ecash'}
       onBack={onClose}
       disabled={isGenerating || isSending}
-      headerRight={() => shareAction}
+      headerRight={() =>
+        creqString || step === 'success' ? (
+          shareAction
+        ) : (
+          <HeaderIconButton
+            icon={CircleHelp}
+            accessibilityLabel="Request ecash information"
+            disabled={isRequestBusy}
+            onPress={() => infoSheet.current?.present()}
+          />
+        )
+      }
     />
   );
   if (step === 'success') {
@@ -708,6 +724,9 @@ export function RequestEcashStage({
           </AppButton>
         )}
       </PaymentStageLayout>
+      {!merchant && !creqString && (
+        <InfoSheet ref={infoSheet} topic="ecash-request" busy={isRequestBusy} />
+      )}
     </>
   );
 }

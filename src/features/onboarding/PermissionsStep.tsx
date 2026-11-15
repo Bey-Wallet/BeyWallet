@@ -48,7 +48,6 @@ export function PermissionsStep({
   const mintSheetRef = useRef<AppBottomSheetRef>(null);
   const [selectedMints, setSelectedMints] = useState<OnboardingMint[]>([]);
   const selectedMintsRef = useRef<OnboardingMint[]>([]);
-  const finishAfterSelection = useRef(false);
   const mintUrls = () => (isOffline ? [] : selectedMintsRef.current.map((mint) => mint.url));
 
   // Check network status on mount
@@ -91,11 +90,6 @@ export function PermissionsStep({
 
   const handleFinish = () => {
     if (isFinishing || isRequestingBio) return;
-    if (!isOffline && selectedMintsRef.current.length === 0) {
-      finishAfterSelection.current = true;
-      mintSheetRef.current?.present();
-      return;
-    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!biometricEnabled) {
@@ -259,7 +253,6 @@ export function PermissionsStep({
             accessibilityLabel="Discover mints"
             disabled={isOffline || isFinishing}
             onPress={() => {
-              finishAfterSelection.current = false;
               mintSheetRef.current?.present();
             }}
           >
@@ -282,12 +275,12 @@ export function PermissionsStep({
                   <Text fontWeight="700" fontSize="$5">
                     {selectedMints.length
                       ? `${selectedMints.length} ${selectedMints.length === 1 ? 'mint' : 'mints'} selected`
-                      : 'Connect mints'}
+                      : 'Connect mints (optional)'}
                   </Text>
                   <Text fontSize="$2" color="$gray10">
                     {selectedMints.length
                       ? selectedMints.map((mint) => mint.name || mint.url).join(', ')
-                      : 'Discover and choose mints you trust'}
+                      : 'Choose mints you trust now, or add them later from Home'}
                   </Text>
                 </YStack>
                 <ChevronRight size={20} color="$gray10" />
@@ -330,7 +323,6 @@ export function PermissionsStep({
           selectedMintsRef.current = mints;
           setSelectedMints(mints);
           mintSheetRef.current?.dismiss();
-          if (finishAfterSelection.current) handleFinish();
         }}
       />
 

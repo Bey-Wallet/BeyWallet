@@ -35,7 +35,7 @@ jest.mock('~/services/platform/networkService', () => ({
   networkService: { isOffline: async () => false },
 }));
 jest.mock('~/services/platform/walletFileService', () => ({
-  walletFileService: { importWalletFromFile: jest.fn() },
+  walletFileService: { readWalletBackupFile: jest.fn() },
 }));
 const mockImportState = jest.fn();
 jest.mock('~/services/wallet/backupService', () => ({
@@ -210,11 +210,11 @@ it('releases the import pause if wallet initialization fails', async () => {
   expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
 });
 
-it('imports file proofs before handing off to review and never starts a scan', async () => {
+it('restores file records and opens the wallet without an additional scan or setup step', async () => {
   const proofs = [
     { mintUrl: 'https://synthetic.test', secret: 'synthetic-proof-fixture', amount: 42 },
   ];
-  jest.mocked(walletFileService.importWalletFromFile).mockResolvedValueOnce({
+  jest.mocked(walletFileService.readWalletBackupFile).mockResolvedValueOnce({
     mnemonic: 'synthetic-seed-fixture',
     mints: [{ mintUrl: 'https://synthetic.test' }],
     proofs,
@@ -223,20 +223,58 @@ it('imports file proofs before handing off to review and never starts a scan', a
   await act(async () => {
     tree = create(<OnboardingScreen />);
   });
-  await act(async () => tree.root.findByType('Welcome' as any).props.onImportFromFile());
+  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  expect(walletFileService.readWalletBackupFile).not.toHaveBeenCalled();
   mockImportState.mockImplementationOnce(async (data: any) => {
     expect(recoveryCoordinator.paused).toBe(true);
     expect(data.proofs).toBe(proofs);
     expect(useRecoverySessionStore.getState().session).toBeNull();
   });
   await act(async () =>
-    tree.root.findByType('Permissions' as any).props.onComplete('', false, true),
+    tree.root.findByType('Import' as any).props.onImportFromFile('file:///backup.json'),
   );
   expect(mockImportState).toHaveBeenCalledTimes(1);
   expect(initService.reinitFast).toHaveBeenCalledTimes(1);
-  expect(useRecoverySessionStore.getState().session?.phase).toBe('review');
+  expect(useRecoverySessionStore.getState().session).toBeNull();
+  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+  expect(recoveryCoordinator.paused).toBe(false);
+  expect(tree.root.findAllByType('Permissions' as any)).toHaveLength(0);
   expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
   acknowledgeRecovery();
   expect(proofs).toHaveLength(1);
   expect(proofs[0].amount).toBe(42);
+});
+
+it('does not initialize or complete onboarding when the selected backup is invalid', async () => {
+  jest
+    .mocked(walletFileService.readWalletBackupFile)
+    .mockRejectedValueOnce(new Error('Invalid backup'));
+  await act(async () => {
+    tree = create(<OnboardingScreen />);
+  });
+  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await act(async () =>
+    tree.root.findByType('Import' as any).props.onImportFromFile('file:///invalid.json'),
+  );
+  expect(initService.restoreWallet).not.toHaveBeenCalled();
+  expect(mockImportState).not.toHaveBeenCalled();
+  expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+  expect(recoveryCoordinator.paused).toBe(false);
+});
+
+it('keeps onboarding open and releases its pause if restoring file records fails', async () => {
+  jest
+    .mocked(walletFileService.readWalletBackupFile)
+    .mockResolvedValueOnce({ mnemonic: 'synthetic-seed-fixture', mints: [] } as any);
+  mockImportState.mockRejectedValueOnce(new Error('Synthetic restore failure'));
+  await act(async () => {
+    tree = create(<OnboardingScreen />);
+  });
+  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await act(async () =>
+    tree.root.findByType('Import' as any).props.onImportFromFile('file:///backup.json'),
+  );
+  expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+  expect(recoveryCoordinator.paused).toBe(false);
+  expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
 });

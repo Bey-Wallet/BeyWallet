@@ -1,13 +1,26 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { WalletCreationTask } from '~/features/onboarding/WalletCreationTask';
+import * as Haptics from 'expo-haptics';
 
-beforeEach(() => jest.useFakeTimers());
+jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn(async () => {}),
+  NotificationFeedbackType: { Success: 'success' },
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.useFakeTimers();
+});
 afterEach(() => jest.useRealTimers());
 
-it('runs the existing sequence once across rerenders and awaits its completion callback', async () => {
+it('starts immediately, runs once across rerenders, and awaits real completion', async () => {
   const generateMnemonic = jest.fn(() => 'test-only-generated-phrase');
-  const onComplete = jest.fn(async () => {});
+  let finish!: () => void;
+  const completion = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const onComplete = jest.fn(() => completion);
   const onError = jest.fn();
   let tree!: ReactTestRenderer;
   const render = () => (
@@ -23,11 +36,11 @@ it('runs the existing sequence once across rerenders and awaits its completion c
   });
   expect(tree.toJSON()).toBeNull();
   await act(async () => tree.update(render()));
-  for (const delay of [800, 600, 700, 500]) await act(async () => jest.advanceTimersByTime(delay));
   expect(generateMnemonic).toHaveBeenCalledTimes(1);
-  expect(onComplete).not.toHaveBeenCalled();
-  await act(async () => jest.advanceTimersByTime(400));
   expect(onComplete).toHaveBeenCalledWith('test-only-generated-phrase');
+  expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(Haptics.notificationAsync).toHaveBeenCalledWith(Haptics.NotificationFeedbackType.Success);
   expect(onError).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });
@@ -49,9 +62,28 @@ it('reports a creation failure without pretending setup completed', async () => 
       />,
     );
   });
-  await act(async () => jest.advanceTimersByTime(800));
-  await act(async () => jest.advanceTimersByTime(600));
   expect(onError).toHaveBeenCalledWith(failure);
   expect(onComplete).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('reports completion failures without success feedback', async () => {
+  const failure = new Error('Setup failed');
+  const onError = jest.fn();
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <WalletCreationTask
+        open
+        generateMnemonic={() => 'test-only-generated-phrase'}
+        onComplete={async () => {
+          throw failure;
+        }}
+        onError={onError}
+      />,
+    );
+  });
+  expect(onError).toHaveBeenCalledWith(failure);
+  expect(Haptics.notificationAsync).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });

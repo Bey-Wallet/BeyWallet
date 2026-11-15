@@ -146,6 +146,7 @@ export function PendingMintInvoiceLayout({
         }
         hero={
           <>
+            <PaymentAmount amount={entry.amount} compact />
             {(paid || timeLeft === 0) && (
               <Text fontSize={13} fontWeight="500" color="$gray10">
                 {paid ? 'Payment received' : 'Invoice expired'}
@@ -158,7 +159,6 @@ export function PendingMintInvoiceLayout({
                 )}
               </PaymentQRFrame>
             )}
-            <PaymentAmount amount={entry.amount} compact />
           </>
         }
       >

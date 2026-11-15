@@ -132,9 +132,12 @@ export function PendingOnchainLayout({
         hero={
           <>
             {!deposit && <PaymentStatusIcon status="pending" />}
-            <Text fontSize={13} fontWeight="500" color="$gray10">
-              {deposit ? 'Pay with Bitcoin' : 'Payment pending'}
-            </Text>
+            {!deposit && (
+              <Text fontSize={13} fontWeight="500" color="$gray10">
+                Payment pending
+              </Text>
+            )}
+            {(!deposit || amount > 0) && <PaymentAmount amount={amount} compact />}
             {deposit && !!address && (
               <PaymentQRFrame accessibilityLabel="Bitcoin deposit QR code">
                 {(size) => (
@@ -142,7 +145,6 @@ export function PendingOnchainLayout({
                 )}
               </PaymentQRFrame>
             )}
-            {(!deposit || amount > 0) && <PaymentAmount amount={amount} compact />}
           </>
         }
         footer={

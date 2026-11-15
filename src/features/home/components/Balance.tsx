@@ -120,8 +120,14 @@ export default function Balance() {
 
       {/* Main Balance */}
       <AppPressable
-        onPress={handleHideBalanceToggle}
-        onLongPress={handleHideBalanceToggle}
+        onPress={(event) => {
+          event?.stopPropagation();
+          handleHideBalanceToggle();
+        }}
+        onLongPress={(event) => {
+          event?.stopPropagation();
+          handleHideBalanceToggle();
+        }}
         accessibilityLabel={hideBalance ? 'Show balance' : 'Hide balance'}
         accessibilityHint="Tap or hold to toggle balance privacy"
         minHeight={48}
@@ -202,7 +208,10 @@ export default function Balance() {
             }
             accessibilityHint="Swaps the primary and secondary balance amounts"
             disabled={hideBalance}
-            onPress={handlePrimaryCurrencyToggle}
+            onPress={(event) => {
+              event?.stopPropagation();
+              handlePrimaryCurrencyToggle();
+            }}
             minHeight={36}
             minWidth={64}
             hitSlop={{ top: 0, bottom: 12, left: 0, right: 0 }}

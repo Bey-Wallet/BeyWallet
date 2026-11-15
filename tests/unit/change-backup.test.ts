@@ -1,6 +1,7 @@
 import { backupService } from '~/services/wallet/backupService';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { parseChangeOperation } from '~/storage/sqlite/repositories/ChangeOperationRepository';
+import * as FileSystem from 'expo-file-system/legacy';
 
 let mockContents = '';
 const mockDb: any = {
@@ -49,6 +50,13 @@ const record = {
 };
 const mnemonic =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+it('does not read backup contents during selection', async () => {
+  jest.mocked(FileSystem.readAsStringAsync).mockClear();
+  const uri = await walletFileService.selectWalletBackupFile();
+  expect(uri).toBe('/backup');
+  expect(FileSystem.readAsStringAsync).not.toHaveBeenCalled();
+});
 
 it('round-trips maintenance journals through the database snapshot and wallet backup file', async () => {
   const state = await backupService.exportState();

@@ -104,6 +104,20 @@ export const appSpacing = {
 } as const;
 export const appDimensions = { action: 32, row: 56, bar: 64, touchTarget: 48 } as const;
 export const appBorders = { outline: 1, separator: 2, focus: 2, focusOffset: 2 } as const;
+/** Solid action badges intentionally keep their contrast pairs in both themes. */
+export const appActionIconColors = {
+  ecash: { background: '#22C55E', foreground: '#000000' },
+  bitcoin: { background: '#F7931A', foreground: '#000000' },
+  lightning: { background: '#FACC15', foreground: '#000000' },
+  invoice: { background: '#2563EB', foreground: '#FFFFFF' },
+  lightningPay: { background: '#2563EB', foreground: '#FFFFFF' },
+  onchainPay: { background: '#4338CA', foreground: '#FFFFFF' },
+  nfc: { background: '#7C3AED', foreground: '#FFFFFF' },
+  pos: { background: '#DB2777', foreground: '#FFFFFF' },
+  addresses: { background: '#06B6D4', foreground: '#000000' },
+  lightningAddress: { background: '#0F766E', foreground: '#FFFFFF' },
+} as const;
+
 export const appIconSizes = { header: 22, navigation: 24, list: 20, navigationCue: 18 } as const;
 
 /** Existing control geometry, shared by components and the in-app catalog. */

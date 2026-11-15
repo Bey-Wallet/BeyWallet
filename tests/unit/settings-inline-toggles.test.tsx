@@ -68,7 +68,11 @@ it('shows the Bitcoin symbol switch inline and keeps other appearance rows navig
   expect(mockSettings.setNotificationsEnabled).not.toHaveBeenCalled();
   expect(mockPush).not.toHaveBeenCalled();
   const navigation = tree.root.findAllByType('Row' as any);
-  expect(navigation.map((row) => row.props.title)).toEqual(['Theme', 'Display currency']);
+  expect(navigation.map((row) => row.props.title)).toEqual([
+    'Theme',
+    'Display currency',
+    'Expanded Home',
+  ]);
   navigation[0].props.onPress();
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/theme');
   await rows[0].props.save(true);
@@ -105,7 +109,7 @@ it('persists the inline hide-balance preference', async () => {
 
 it('allocates every setting into the approved nested groups', () => {
   const expected = {
-    preferences: [['theme', 'currency', 'bitcoin-symbol']],
+    preferences: [['theme', 'currency', 'bitcoin-symbol', 'balance-area']],
     security: [
       ['app-lock', 'hide-balance'],
       ['receiving-policy', 'blocked-people'],

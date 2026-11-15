@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 
-/** Runs the existing creation sequence independently of progress presentation. */
+/** Completes creation as soon as generation and the completion callback finish. */
 export function WalletCreationTask({
   open,
   onComplete,
@@ -24,22 +24,12 @@ export function WalletCreationTask({
     if (started.current) return;
     started.current = true;
     void (async () => {
-      await delay(800);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await delay(600);
       const mnemonic = callbacks.current.generateMnemonic();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await delay(700);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await delay(500);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await delay(400);
-      if (mnemonic) await callbacks.current.onComplete(mnemonic);
+      if (mnemonic) {
+        await callbacks.current.onComplete(mnemonic);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
     })().catch((error: unknown) => callbacks.current.onError(error));
   }, [open]);
   return null;
-}
-
-function delay(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

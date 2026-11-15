@@ -1,4 +1,13 @@
 export const infoSheetContent = {
+  'import-seed': {
+    title: 'Import a recovery phrase',
+    paragraphs: [
+      'Enter the original 12 words in their exact order, separated by spaces. Keep your phrase private: anyone with it can access the wallet it protects.',
+      'Continue opens Risk Acknowledgment. Import processing starts only after you agree on that screen.',
+      'Bey checks for a backed-up mint list. Review the mints during recovery and add any missing mint URLs. Recovery depends on mint availability and supported recovery data; a phrase alone does not guarantee recovery of every token or transaction history.',
+      'A recovery phrase differs from a full wallet backup, which also contains saved wallet data. Keep both securely.',
+    ],
+  },
   transfer: {
     title: 'About transfers',
     paragraphs: [
@@ -21,6 +30,15 @@ export const infoSheetContent = {
       'Send ecash to a person using their Nostr identity. The token is delivered through encrypted messaging.',
       'Sent to relay means the message was published. It does not confirm that the recipient has read it or claimed the payment.',
       'Check the payment status in the conversation or History before sending again.',
+    ],
+  },
+  'ecash-request': {
+    title: 'Request ecash',
+    paragraphs: [
+      'Set an amount, choose a mint, and share the QR code with the person paying you. You can add a note to the request.',
+      'Changing the amount, mint, or note updates the request. Share the current QR code so the payer has the latest details.',
+      'Creating or sharing a request does not mean you have been paid. Incoming payments may need your review; check the payment status before treating the payment as complete.',
+      'When Tap to pay is shown, a compatible wallet can also pay over NFC.',
     ],
   },
   'ecash-receive': {

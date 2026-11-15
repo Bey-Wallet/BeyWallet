@@ -3,32 +3,24 @@ import {
   SUPPORTED_CURRENCIES,
   SELECTABLE_CURRENCIES,
 } from '~/services/wallet/currencyService';
-import { compactCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: { getState: jest.fn() } }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 
 describe('fiat display', () => {
-  it.each([
-    ['$12.50', '$12.50'],
-    ['-$12.50', '-$12.50'],
-    ['-<$0.01', '-<$0.01'],
-    ['₿-10,000', '₿-10,000'],
-    ['CA$ 12.50', 'CA$12.50'],
-    ['CA$\u00a012.50', 'CA$12.50'],
-    ['CA$\u202f12.50', 'CA$12.50'],
-    ['$ 12.50', '$12.50'],
-    ['₿\u202f10,000', '₿10,000'],
-    ['1\u202f234,50 €', '1\u202f234,50 €'],
-    ['1.234,50 €', '1.234,50 €'],
-    ['12.50 AED', '12.50 AED'],
-    ['-12.50', '-12.50'],
-    ['<0.01', '<0.01'],
-  ])(
-    'compacts the currency prefix without changing signs, grouping or suffixes: %s',
-    (input, expected) => {
-      expect(compactCurrencyPrefix(input)).toBe(expected);
-      expect(compactCurrencyPrefix(compactCurrencyPrefix(input))).toBe(expected);
+  it.each(['CHF', 'BRL', 'ZAR', 'EUR', 'INR', 'USD'] as const)(
+    'preserves the exact locale currency spacing for %s',
+    (code) => {
+      const currency = SUPPORTED_CURRENCIES.find((item) => item.code === code)!;
+      const formatter = new Intl.NumberFormat(currency.locale, {
+        style: 'currency',
+        currency: code,
+        maximumFractionDigits: 2,
+      });
+      for (const value of [1234.5, -1234.5, 0]) {
+        expect(currencyService.formatValue(value, code)).toBe(formatter.format(value));
+      }
+      expect(currencyService.formatValue(0.001, code)).toBe(`<${formatter.format(0.01)}`);
     },
   );
   it('retires only the four requested picker options, keeping NGN, THB and saved-value formatting', () => {

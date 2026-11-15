@@ -1,6 +1,5 @@
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import { compactCurrencyPrefix } from '~/shared/utils/currencyDisplay';
 
 export type CurrencyCode =
   | 'USD'
@@ -96,7 +95,7 @@ export const currencyService = {
       sign = '+';
     }
     if (showBitcoinSymbol) {
-      return compactCurrencyPrefix(`${sign}₿${formatted}`);
+      return `${sign}₿${formatted}`;
     }
     return `${sign}${formatted} sat`;
   },
@@ -125,18 +124,17 @@ export const currencyService = {
 
       // React Native / Hermes has a bug on some platforms where Intl.NumberFormat
       // falls back to USD formatting, printing '$' or 'USD' instead of the requested currency symbol.
-      // If the requested currency code is NOT USD, but the formatted output contains '$', 'USD', or 'US$',
-      // or if the requested currency symbol is different from '$' but '$' was used, we trigger our fallback.
+      // Preserve valid local dollar symbols (such as R$), including their locale spacing.
+      // Trigger the fallback for USD labels or an unexpected dollar symbol.
       if (
         currencyCode !== 'USD' &&
-        (formatted.includes('$') ||
-          formatted.includes('USD') ||
+        (formatted.includes('USD') ||
           formatted.includes('US$') ||
-          (currency.symbol !== '$' && formatted.includes('$')))
+          (formatted.includes('$') && !formatted.includes(currency.symbol)))
       ) {
         throw new Error('Platform Intl fallback detected');
       }
-      return useCodeSuffix ? `${formatted} ${currency.code}` : compactCurrencyPrefix(formatted);
+      return useCodeSuffix ? `${formatted} ${currency.code}` : formatted;
     } catch (error) {
       // Fallback formatting: format the number as a decimal under the requested locale,
       // then manually prepend/append the correct currency symbol.
@@ -184,7 +182,7 @@ export const currencyService = {
       if (useCodeSuffix || suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {
-        return compactCurrencyPrefix(`${currency.symbol}${decimalPart}`);
+        return `${currency.symbol}${decimalPart}`;
       }
     }
   },

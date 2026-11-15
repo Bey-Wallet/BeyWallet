@@ -2,7 +2,6 @@ import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { FirstUseGuidance } from '~/shared/ui/FirstUseGuidance';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
 import {
@@ -541,7 +540,6 @@ export default function AddMintScreen() {
         }
       >
         {/* ─── Search Bar (Finding & Adding by URL) ───────────────────────────── */}
-        <FirstUseGuidance topic="mintTrust" spaceBelow />
         <YStack gap="$3" mb="$4">
           <XStack
             bg="$gray2"

@@ -16,7 +16,6 @@ interface WelcomeStepProps {
   isDeleting?: boolean;
   onCreateWallet: () => void;
   onImportWallet: () => void;
-  onImportFromFile: () => void;
   hasSavedWallet?: boolean;
   onOpenSavedWallet?: () => void;
   onDeleteSavedWallet?: () => void;
@@ -28,7 +27,6 @@ export function WelcomeStep({
   isDeleting = false,
   onCreateWallet,
   onImportWallet,
-  onImportFromFile,
   hasSavedWallet = false,
   onOpenSavedWallet,
   onDeleteSavedWallet,
@@ -43,11 +41,6 @@ export function WelcomeStep({
   const handleImport = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onImportWallet();
-  };
-
-  const handleImportFromFile = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onImportFromFile();
   };
 
   return (
