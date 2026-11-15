@@ -12,6 +12,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { SettingsDescription, SettingsMessage, SettingsPage } from './components/SettingsLayout';
 import { useProtectedValue } from './hooks/useProtectedValue';
 import { useSettingsOperation } from './hooks/useSettingsOperation';
+import { fileRestoreService } from '~/services/wallet/fileRestoreService';
 
 export function RecoveryPhraseSettingsScreen() {
   const secret = useProtectedValue(
@@ -121,6 +122,10 @@ export function ExportBackupSettingsScreen() {
               history: state.history,
               mintQuotes: state.mintQuotes,
               changeOperations: state.changeOperations,
+              sendOperations: state.sendOperations,
+              meltOperations: state.meltOperations,
+              meltQuotes: state.meltQuotes,
+              keypairs: state.keypairs,
               secondaryCurrency,
               theme,
             });
@@ -138,11 +143,11 @@ export function ExportBackupSettingsScreen() {
 function confirmRestore() {
   return new Promise<boolean>((resolve) =>
     Alert.alert(
-      'Confirm restore',
-      'This will replace your current wallet data with the backup. This cannot be undone. Are you sure you want to proceed?',
+      'Prepare backup restore',
+      'We will check the backup first. The same recovery phrase merges missing records. A different phrase replaces your wallet only after you finish and confirm. Keep an export of your current wallet to retain access to its separate funds.',
       [
         { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Restore', style: 'destructive', onPress: () => resolve(true) },
+        { text: 'Continue', onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     ),
@@ -153,9 +158,9 @@ export function RestoreBackupSettingsScreen() {
   const task = useSettingsOperation();
   return (
     <SettingsPage>
-      <SettingsMessage error>
-        Restoring replaces the wallet on this device, including its proofs, mints, and history.
-        Export your current wallet before continuing.
+      <SettingsMessage>
+        The same recovery phrase merges missing records. A different recovery phrase replaces the
+        wallet after confirmation. Balances are not combined when replacing a wallet.
       </SettingsMessage>
       <SettingsDescription>
         Choose a previously exported Bey Wallet backup. Authentication and confirmation are required
@@ -179,39 +184,8 @@ export function RestoreBackupSettingsScreen() {
                 return 'Restore cancelled.';
               throw error;
             }
-            await initService.destroyWallet();
-            await initService.restoreWallet(backup.mnemonic, { quiet: true });
-            const { backupService } =
-              require('~/services/wallet/backupService') as typeof import('~/services/wallet/backupService');
-            await backupService.importState({
-              mints: backup.mints,
-              keysets: backup.keysets,
-              proofs: backup.proofs,
-              counters: backup.counters,
-              history: backup.history,
-              mintQuotes: backup.mintQuotes,
-              changeOperations: backup.changeOperations,
-              sendOperations: [],
-              meltOperations: [],
-            });
-            await initService.reinitFast();
-            const settings = useSettingsStore.getState();
-            if (backup.secondaryCurrency)
-              await settings.setSecondaryCurrency(backup.secondaryCurrency);
-            if (backup.theme) await settings.setTheme(backup.theme);
-            Alert.alert(
-              'Restore completed',
-              'Your wallet has been restored successfully. Please restart the app.',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    if (__DEV__ && DevSettings?.reload) DevSettings.reload();
-                  },
-                },
-              ],
-            );
-            return 'Wallet restored. Restart the app to continue.';
+            await fileRestoreService.prepare(backup);
+            return 'Backup prepared. Review the restore before finishing.';
           })
         }
       >

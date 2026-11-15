@@ -5,6 +5,13 @@ import { RootLayout } from '~/shared/layout/RootLayout';
 import { useSettingsStore } from '~/state/settingsStore';
 
 const mockInitialize = jest.fn();
+jest.mock('~/services/wallet/fileRestoreService', () => ({
+  fileRestoreService: { recoverOnStartup: async () => {} },
+}));
+jest.mock('~/state/fileRestoreStore', () => ({
+  useFileRestoreStore: (select: any) => select({ phase: 'idle' }),
+}));
+jest.mock('~/features/settings/FileRestoreGate', () => ({ FileRestoreGate: () => null }));
 let mockManager: object | null = null;
 jest.mock('expo-font', () => ({ useFonts: () => [true, null] }));
 jest.mock('expo-router', () => ({

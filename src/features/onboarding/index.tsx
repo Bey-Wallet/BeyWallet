@@ -24,6 +24,7 @@ import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
+import { fileRestoreService } from '~/services/wallet/fileRestoreService';
 import { Alert } from 'react-native';
 import { Text, YStack } from 'tamagui';
 import { generateDeterministicUsername } from '~/shared/utils/username';
@@ -399,27 +400,7 @@ export function OnboardingScreen() {
     try {
       // The entry screen invokes this only after file selection and risk acceptance.
       const backup = await walletFileService.readWalletBackupFile(uri);
-      setImportStatus('Initializing wallet…');
-      await initService.restoreWallet(backup.mnemonic, { quiet: true });
-      await useSettingsStore.getState().initialize(true);
-
-      setImportStatus('Restoring balance and history…');
-      const { backupService } = require('~/services/wallet/backupService');
-      await backupService.importState(backup);
-      await initService.reinitFast();
-
-      const settingsStore = useSettingsStore.getState();
-      if (backup.secondaryCurrency)
-        await settingsStore.setSecondaryCurrency(backup.secondaryCurrency);
-      if (backup.theme) await settingsStore.setTheme(backup.theme);
-      await initialize();
-
-      // A file restores its saved records directly. Additional scans remain in Settings.
-      useRecoverySessionStore.setState({ session: null });
-      releaseRecoveryPause();
-      setImportStatus('Opening wallet…');
-      await completeOnboarding();
-      useAuthStore.getState().setAuthenticated(true);
+      await fileRestoreService.prepare(backup);
     } catch (err: any) {
       const message = err?.message ?? 'Failed to import wallet from file.';
       if (message !== 'File selection was cancelled.') {

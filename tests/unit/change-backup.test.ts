@@ -6,10 +6,18 @@ import * as FileSystem from 'expo-file-system/legacy';
 let mockContents = '';
 const mockDb: any = {
   transaction: jest.fn(async (fn) => fn(mockDb)),
-  all: jest.fn(async (sql) => (sql.includes('bey_change_operations') ? [record] : [])),
+  all: jest.fn(async (sql) =>
+    sql.startsWith('PRAGMA')
+      ? Object.keys(record).map((name) => ({ name }))
+      : sql.includes('bey_change_operations')
+        ? [record]
+        : [],
+  ),
   run: jest.fn(),
 };
-jest.mock('~/services/wallet', () => ({ initService: { getRepo: () => ({ db: mockDb }) } }));
+jest.mock('~/services/wallet/initService', () => ({
+  initService: { getRepo: () => ({ db: mockDb }) },
+}));
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 jest.mock('~/state/settingsStore', () => ({ useSettingsStore: {} }));
 jest.mock('expo-file-system/legacy', () => ({
@@ -81,6 +89,52 @@ it('round-trips maintenance journals through the database snapshot and wallet ba
 it('accepts older backups without a maintenance journal', async () => {
   mockContents = JSON.stringify({ mnemonic });
   expect((await walletFileService.importWalletFromFile()).changeOperations).toEqual([]);
+});
+
+it('round-trips pending sends and Lightning operations through the exported file', async () => {
+  const send = {
+    id: 'send-fixture',
+    mintUrl: 'https://mint.test',
+    amount: 4,
+    state: 'pending',
+    createdAt: 1,
+    updatedAt: 2,
+    inputProofSecretsJson: '["synthetic-input"]',
+    inputAmount: 4,
+    needsSwap: 0,
+    outputDataJson: '{"keep":[],"send":[]}',
+  };
+  const melt = {
+    id: 'melt-fixture',
+    mintUrl: 'https://mint.test',
+    state: 'pending',
+    createdAt: 1,
+    updatedAt: 2,
+    method: 'bolt11',
+    methodDataJson: '{}',
+    inputAmount: 4,
+    needsSwap: 0,
+    inputProofSecretsJson: '["synthetic-input"]',
+    quoteId: 'quote-fixture',
+  };
+  await walletFileService.exportWallet(mnemonic, {
+    mints: [],
+    keysets: [],
+    proofs: [],
+    counters: [],
+    history: [],
+    mintQuotes: [],
+    sendOperations: [send],
+    meltOperations: [melt],
+    meltQuotes: [],
+    keypairs: [],
+    secondaryCurrency: 'USD',
+    theme: 'system',
+  });
+  const imported = await walletFileService.importWalletFromFile();
+  expect(imported.version).toBe(4);
+  expect(imported.sendOperations).toEqual([send]);
+  expect(imported.meltOperations).toEqual([melt]);
 });
 
 it('ignores retired mint preferences in old Bey and Cashu.me backups', async () => {

@@ -6,6 +6,7 @@ import { normalizeNpub } from '~/shared/utils/nostr';
 import { matchReceiveRequest } from './requestReceiptMatching';
 export { matchReceiveRequest } from './requestReceiptMatching';
 import { contactPolicyReady } from './contactPolicy';
+import { recoveryCoordinator } from './recoveryCoordinator';
 
 export async function retryRequestPayment(id: string): Promise<void> {
   if (!contactPolicyReady()) throw new Error('Contacts are still loading. Try again.');
@@ -61,7 +62,9 @@ class RequestLifecycleService {
     this.stop();
     this.manager = manager;
     const reconcile = () => {
-      void this.reconcile().catch(() => undefined);
+      void recoveryCoordinator
+        .maintenance('request:reconcile', () => this.reconcile())
+        .catch(() => undefined);
     };
     this.stops = [
       manager.on('send:pending', reconcile),

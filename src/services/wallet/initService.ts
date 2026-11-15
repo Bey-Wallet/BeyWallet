@@ -271,7 +271,7 @@ const customLogger = {
  */
 async function initializeWithMnemonic(
   mnemonic: string,
-  options: { quiet?: boolean; nostrRestoredAt?: number } = {},
+  options: { quiet?: boolean; nostrRestoredAt?: number; localOnly?: boolean } = {},
 ): Promise<Manager> {
   const seed = await seedService.deriveSeed(mnemonic);
 
@@ -305,7 +305,9 @@ async function initializeWithMnemonic(
     async () => new Uint8Array(seed),
     customLogger as any,
     undefined,
-    [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
+    options.localOnly
+      ? []
+      : [OfflineChangePlugin, LocalSendEventsPlugin, ChangePreparationPlugin, HistoryWatcherPlugin],
   );
 
   repo = repositories;
@@ -313,7 +315,7 @@ async function initializeWithMnemonic(
   // network watchers. A slow/offline mint must not gate the first Home paint.
   const { useSettingsStore } = await import('~/state/settingsStore');
   await useSettingsStore.getState().initialize(true);
-  setupAppStateListener();
+  if (!options.localOnly) setupAppStateListener();
 
   if (!options.quiet) {
     // Enable watchers with staggered delays to prevent DB contention on start
@@ -328,8 +330,8 @@ async function initializeWithMnemonic(
     const { requestLifecycleService } = await import('./requestLifecycleService');
     requestLifecycleService.start(manager);
     const { getChangePreparation } = await import('./changePreparationService');
-    void getChangePreparation()
-      .recoverPending()
+    void recoveryCoordinator
+      .maintenance('change:recovery', () => getChangePreparation().recoverPending())
       .catch(() => {});
 
     // Start pending tokens sweeper
@@ -348,6 +350,13 @@ async function initializeWithMnemonic(
 }
 
 // ─── Public API ───────────────────────────────────────────────
+
+async function requireNoFileRestore(): Promise<void> {
+  const { fileRestoreJournal } =
+    require('~/storage/sqlite/fileRestoreStorage') as typeof import('~/storage/sqlite/fileRestoreStorage');
+  if (await fileRestoreJournal.io.read())
+    throw new Error('Finish or cancel the pending backup restore before changing your wallet.');
+}
 
 export const initService = {
   /**
@@ -379,11 +388,63 @@ export const initService = {
 
     isInitializing = true;
     try {
+      const { fileRestoreJournal, validateInstalledFileRestore } =
+        await import('~/storage/sqlite/fileRestoreStorage');
+      const pendingFileRestore = await fileRestoreJournal.io.read();
+      if (pendingFileRestore && pendingFileRestore.phase !== 'installed')
+        throw new Error('Finish wallet backup recovery before opening your wallet.');
       const mnemonic = await seedService.getMnemonic();
       if (!mnemonic) {
         throw new Error('No wallet exists. Use createWallet() first.');
       }
 
+      if (pendingFileRestore?.phase === 'installed') {
+        const { useFileRestoreStore } = await import('~/state/fileRestoreStore');
+        useFileRestoreStore.setState({ phase: 'installing' });
+        try {
+          await validateInstalledFileRestore(pendingFileRestore, getDb());
+          // No mint/network work until the new database and seed open together.
+          await initializeWithMnemonic(mnemonic, { quiet: true, localOnly: true });
+          const { useSettingsStore } = await import('~/state/settingsStore');
+          if (!useSettingsStore.getState().initialized)
+            throw new Error('Restored wallet settings unavailable.');
+          const { notificationService } = await import('~/services/platform/notificationService');
+          await notificationService.clear();
+          await fileRestoreJournal.commit();
+        } catch {
+          try {
+            await initService.cleanup({ strict: true });
+            const record = await fileRestoreJournal.io.read();
+            if (record?.phase !== 'committed') await fileRestoreJournal.rollback();
+            useFileRestoreStore.setState({
+              phase: 'restart',
+              error: 'Wallet startup could not finish. Restart to recover safely.',
+            });
+          } catch {
+            useFileRestoreStore.setState({
+              phase: 'error',
+              error: 'Wallet recovery needs another attempt. Restart before using your wallet.',
+            });
+          }
+          throw new Error('Wallet restore startup failed.');
+        }
+        try {
+          const restoredManager = await initService.reinitFast();
+          useFileRestoreStore.setState({
+            phase: 'success',
+            mode: pendingFileRestore.mode,
+            error: null,
+          });
+          return restoredManager;
+        } catch {
+          // Commit is final: network/runtime startup must never roll funds back.
+          useFileRestoreStore.setState({
+            phase: 'restart',
+            error: 'Your restored wallet is saved. Restart to finish opening it.',
+          });
+          throw new Error('Restored wallet runtime unavailable.');
+        }
+      }
       const m = await initializeWithMnemonic(mnemonic);
 
       return m;
@@ -461,8 +522,8 @@ export const initService = {
       const { requestLifecycleService } = await import('./requestLifecycleService');
       requestLifecycleService.start(manager);
       const { getChangePreparation } = await import('./changePreparationService');
-      void getChangePreparation()
-        .recoverPending()
+      void recoveryCoordinator
+        .maintenance('change:recovery', () => getChangePreparation().recoverPending())
         .catch(() => {});
 
       // Start pending tokens sweeper
@@ -478,6 +539,7 @@ export const initService = {
   },
 
   createWallet: async (mnemonic: string): Promise<Manager> => {
+    await requireNoFileRestore();
     console.log('[InitService] Creating new wallet, destroying existing wallet first...');
     await initService.destroyWallet();
 
@@ -521,11 +583,18 @@ export const initService = {
   /**
    * Properly cleanup watchers and reset state.
    */
-  cleanup: async (): Promise<void> => {
+  cleanup: async (options: { strict?: boolean } = {}): Promise<void> => {
     const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
     invalidateWalletSnapshot();
     try {
       await recoveryCoordinator.drainBackground();
+      // First-run file import has no wallet runtime to tear down. Persisted stores
+      // may still have opened SQLite; close it without loading network services.
+      if (!manager && !dbInstance && !appStateSubscription) {
+        closeDb(options.strict);
+        isInitializing = false;
+        return;
+      }
       const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
       feedbackCoordinator.clear();
       const { stopLightningAddress } = await import('./lightningAddressLifecycle');
@@ -543,12 +612,13 @@ export const initService = {
       expiryService.stopSweeper();
       if (manager) {
         await disableWatchers(manager);
+        await manager.dispose?.();
       }
       if (appStateSubscription) {
         appStateSubscription.remove();
         appStateSubscription = null;
       }
-      closeDb();
+      closeDb(options.strict);
       dbInstance = null;
       manager = null;
       repo = null;
@@ -600,6 +670,7 @@ export const initService = {
   },
 
   restoreWallet: async (mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> => {
+    await requireNoFileRestore();
     console.log('[InitService] Restoring wallet, destroying existing wallet first...');
     await initService.destroyWallet();
 
@@ -620,6 +691,7 @@ export const initService = {
    * Used for "Delete Wallet" in settings.
    */
   destroyWallet: async (): Promise<void> => {
+    await requireNoFileRestore();
     const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
     invalidateWalletSnapshot();
     try {
