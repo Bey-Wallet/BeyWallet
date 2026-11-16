@@ -3,6 +3,11 @@
 Settings and onboarding use the same validated file restore service. Seed-phrase
 scanning is a separate flow; this change does not alter seed/key derivation.
 
+On native SQLCipher builds, active, staged and original databases are encrypted
+through the shared wallet storage boundary. Existing plaintext recovery snapshots
+are converted before recovery runs. See [wallet storage encryption](wallet-storage-encryption.md).
+The exported backup-file format remains unchanged.
+
 Version 4 exports preserve send/melt operation journals, melt quotes, keypairs,
 proof reservations, counters and maintenance journals alongside the existing mint,
 proof and history records. Older supported Bey record layouts default absent

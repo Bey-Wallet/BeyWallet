@@ -1,5 +1,10 @@
 import * as SQLite from 'expo-sqlite';
 import type { StateStorage } from 'zustand/middleware';
+import {
+  openEncryptedDatabase,
+  prepareRecoveryDatabaseEncryption,
+  walletDatabaseNames,
+} from './encryptedDatabase';
 
 type SynchronousStateStorage = Omit<StateStorage, 'getItem' | 'setItem' | 'removeItem'> & {
   getItem: (name: string) => string | null;
@@ -20,23 +25,30 @@ export function invalidateWalletSnapshot(): void {
  */
 export function getDb(): SQLite.SQLiteDatabase {
   if (!dbInstance) {
-    dbInstance = SQLite.openDatabaseSync('coco_wallet.db');
+    const database = openEncryptedDatabase(walletDatabaseNames.active);
+    try {
+      prepareRecoveryDatabaseEncryption();
 
-    // WAL mode permits concurrent reads and writes, avoiding database locks.
-    dbInstance.execSync('PRAGMA journal_mode = WAL;');
-    dbInstance.execSync('PRAGMA synchronous = NORMAL;');
-    // 8 MB page cache in memory
-    dbInstance.execSync('PRAGMA cache_size = -8000;');
-    // Wait up to 3s before raising SQLITE_BUSY to prevent write contention
-    dbInstance.execSync('PRAGMA busy_timeout = 3000;');
-    dbInstance.execSync('PRAGMA temp_store = MEMORY;');
+      // WAL mode permits concurrent reads and writes, avoiding database locks.
+      database.execSync('PRAGMA journal_mode = WAL;');
+      database.execSync('PRAGMA synchronous = NORMAL;');
+      // 8 MB page cache in memory
+      database.execSync('PRAGMA cache_size = -8000;');
+      // Wait up to 3s before raising SQLITE_BUSY to prevent write contention
+      database.execSync('PRAGMA busy_timeout = 3000;');
+      database.execSync('PRAGMA temp_store = MEMORY;');
 
-    dbInstance.execSync(`
+      database.execSync(`
           CREATE TABLE IF NOT EXISTS coco_cashu_settings (
             key   TEXT PRIMARY KEY NOT NULL,
             value TEXT NOT NULL
           );
         `);
+      dbInstance = database;
+    } catch (error) {
+      database.closeSync();
+      throw error;
+    }
   }
   return dbInstance;
 }

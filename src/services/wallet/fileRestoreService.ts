@@ -1,4 +1,4 @@
-import * as SQLite from 'expo-sqlite';
+import { openEncryptedDatabase } from '~/storage/sqlite/encryptedDatabase';
 import * as SecureStore from 'expo-secure-store';
 import { randomUUID } from 'expo-crypto';
 import { Wallet, hashToCurve } from '@cashu/cashu-ts';
@@ -92,16 +92,16 @@ export async function verifyBackupProofs(
 }
 
 export const fileRestoreService = {
-  async recoverOnStartup() {
+  async recoverOnStartup(): Promise<boolean> {
     try {
       if (await fileRestoreJournal.recover()) {
         useFileRestoreStore.setState({ phase: 'restart', error: null });
-        return;
+        return false;
       }
       const record = await fileRestoreJournal.io.read();
       let preview: FileRestorePreview | null = null;
       if (record?.phase === 'ready' || record?.phase === 'installed') {
-        const raw = await SQLite.openDatabaseAsync(fileRestoreDatabaseNames.staged);
+        const raw = openEncryptedDatabase(fileRestoreDatabaseNames.staged);
         try {
           preview = await readFileRestorePreview(new ExpoSqliteRepositories({ database: raw }).db);
         } finally {
@@ -112,11 +112,14 @@ export const fileRestoreService = {
         releaseLifecycle ??= recoveryCoordinator.beginLifecycle();
         useFileRestoreStore.setState({ phase: 'ready', mode: record.mode, error: null, preview });
       } else useFileRestoreStore.setState({ phase: 'idle', mode: null, error: null, preview });
+      // Installed-wallet initialization owns validation/rollback if its database cannot open.
+      return record?.phase === 'installed';
     } catch {
       useFileRestoreStore.setState({
         phase: 'error',
         error: 'Wallet recovery could not be opened. Retry recovery before using your wallet.',
       });
+      return false;
     }
   },
 
@@ -163,7 +166,7 @@ export const fileRestoreService = {
         onboarded: await SecureStore.getItemAsync('bey_wallet_onboarded'),
       });
       stage = 'open';
-      const raw = await SQLite.openDatabaseAsync(fileRestoreDatabaseNames.staged);
+      const raw = openEncryptedDatabase(fileRestoreDatabaseNames.staged);
       let preview: FileRestorePreview | null = null;
       try {
         const repo = new ExpoSqliteRepositories({ database: raw });
@@ -229,7 +232,7 @@ export const fileRestoreService = {
         return;
       }
       // A staged restore can survive for days. Recheck before activation, including on resume.
-      const raw = await SQLite.openDatabaseAsync(fileRestoreDatabaseNames.staged);
+      const raw = openEncryptedDatabase(fileRestoreDatabaseNames.staged);
       try {
         const repo = new ExpoSqliteRepositories({ database: raw });
         const state = await backupService.exportState(repo.db);

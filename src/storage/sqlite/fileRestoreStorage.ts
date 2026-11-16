@@ -1,22 +1,19 @@
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
-import * as FileSystem from 'expo-file-system/legacy';
 import { seedService } from '~/services/platform/seedService';
 import { closeDb } from './sqliteStorage';
 import { FileRestoreJournal, type FileRestoreRecord } from './fileRestoreJournal';
+import {
+  openEncryptedDatabase,
+  verifyEncryptedDatabase,
+  removeWalletDatabase,
+  walletDatabaseExists,
+  walletDatabaseNames,
+} from './encryptedDatabase';
 
 const JOURNAL_KEY = 'bey_file_restore_v1';
 const ONBOARDING_KEY = 'bey_wallet_onboarded';
-export const fileRestoreDatabaseNames = {
-  active: 'coco_wallet.db',
-  original: 'bey_file_restore_original.db',
-  staged: 'bey_file_restore_staged.db',
-};
-
-function databaseUri(database: keyof typeof fileRestoreDatabaseNames) {
-  const path = `${SQLite.defaultDatabaseDirectory}/${fileRestoreDatabaseNames[database]}`;
-  return path.startsWith('file://') ? path : `file://${path}`;
-}
+export const fileRestoreDatabaseNames = walletDatabaseNames;
 
 export async function validateInstalledFileRestore(
   record: FileRestoreRecord,
@@ -58,13 +55,17 @@ export const fileRestoreJournal = new FileRestoreJournal({
   write: (record) => SecureStore.setItemAsync(JOURNAL_KEY, JSON.stringify(record)),
   removeJournal: () => SecureStore.deleteItemAsync(JOURNAL_KEY),
   async copy(source, target) {
+    if (source === target) throw new Error('A restore cannot replace its own source.');
     closeDb(true);
-    const path = databaseUri(source);
-    if (!(await FileSystem.getInfoAsync(path)).exists)
+    if (!walletDatabaseExists(fileRestoreDatabaseNames[source]))
       throw new Error('A wallet recovery database is missing.');
-    const from = await SQLite.openDatabaseAsync(fileRestoreDatabaseNames[source]);
+    const from = openEncryptedDatabase(fileRestoreDatabaseNames[source]);
     try {
-      const to = await SQLite.openDatabaseAsync(fileRestoreDatabaseNames[target]);
+      await verifyEncryptedDatabase(from);
+      // The source is validated first. Recreate the destination so an interrupted,
+      // unreadable install cannot prevent rollback from the preserved original.
+      removeWalletDatabase(fileRestoreDatabaseNames[target]);
+      const to = openEncryptedDatabase(fileRestoreDatabaseNames[target]);
       try {
         await SQLite.backupDatabaseAsync({ sourceDatabase: from, destDatabase: to });
       } finally {
@@ -76,9 +77,7 @@ export const fileRestoreJournal = new FileRestoreJournal({
   },
   async remove(database) {
     if (database === 'active') closeDb(true);
-    const path = databaseUri(database);
-    if ((await FileSystem.getInfoAsync(path)).exists)
-      await SQLite.deleteDatabaseAsync(fileRestoreDatabaseNames[database]);
+    removeWalletDatabase(fileRestoreDatabaseNames[database]);
   },
   saveMnemonic: (mnemonic) =>
     mnemonic === null ? seedService.clearWallet() : seedService.saveMnemonic(mnemonic),

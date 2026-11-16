@@ -24,6 +24,7 @@ const mockSettings = {
   setBiometricEnabled: jest.fn(),
 };
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('~/storage/sqlite/encryptedDatabase', () => ({ walletStorageIsEncrypted: () => true }));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: (select?: any) => (select ? select(mockSettings) : mockSettings),
 }));
@@ -165,6 +166,11 @@ it.each(Object.keys(settingsCategories) as SettingsCategory[])(
     const groups = tree.root.findAllByType('Group' as any);
     expect(groups).toHaveLength(settingsCategories[category].groups.length);
     for (const row of tree.root.findAllByType('Row' as any)) {
+      if (row.props.title === 'Wallet storage') {
+        expect(row.props.value).toBe('Encrypted');
+        expect(row.props.onPress).toBeUndefined();
+        continue;
+      }
       row.props.onPress();
       expect(mockPush).toHaveBeenLastCalledWith(
         row.props.path === 'recover-funds'
