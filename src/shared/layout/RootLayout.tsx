@@ -19,6 +19,12 @@ import { Text, YStack } from 'tamagui';
 import { useFileRestoreStore } from '~/state/fileRestoreStore';
 import { fileRestoreService } from '~/services/wallet/fileRestoreService';
 import { FileRestoreGate } from '~/features/settings/FileRestoreGate';
+import { getDb } from '~/storage/sqlite/sqliteStorage';
+import {
+  assertEncryptedStorageAvailable,
+  DatabaseEncryptionUnavailableError,
+  WalletDeletionPendingError,
+} from '~/storage/sqlite/encryptedDatabase';
 
 const queryClient = new QueryClient();
 hydrateBitcoinPriceCache(queryClient);
@@ -38,8 +44,14 @@ export function RootLayout() {
   const settingsReady = useSettingsStore((state) => state.initialized);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupAttempt, setStartupAttempt] = useState(0);
+  const [storageError, setStorageError] = useState<string | null>(null);
   useAutomaticMintBackup(
-    restorePhase === 'idle' && !!manager && !isInitializing && isOnboarded && walletExists === true,
+    !storageError &&
+      restorePhase === 'idle' &&
+      !!manager &&
+      !isInitializing &&
+      isOnboarded &&
+      walletExists === true,
   );
 
   const [loaded, error] = useFonts({
@@ -54,7 +66,23 @@ export function RootLayout() {
   // Check onboarding status and wallet existence on mount
   useEffect(() => {
     const checkStatus = async () => {
-      await fileRestoreService.recoverOnStartup();
+      setStorageError(null);
+      try {
+        await initService.resumePendingWalletDeletion();
+        // Repair interrupted installation before opening a possibly damaged active database.
+        assertEncryptedStorageAvailable();
+        const installedRestore = await fileRestoreService.recoverOnStartup();
+        if (!installedRestore && useFileRestoreStore.getState().phase === 'idle') getDb();
+      } catch (error) {
+        setStorageError(
+          error instanceof DatabaseEncryptionUnavailableError
+            ? 'Install the updated app build to open encrypted wallet storage.'
+            : error instanceof WalletDeletionPendingError
+              ? 'Wallet deletion could not finish. Retry to finish deleting this wallet.'
+              : 'Wallet storage could not be opened. Your wallet has not been reset. Retry opening it.',
+        );
+        return;
+      }
       const onboarded = await checkOnboardingStatus();
       const exists = await initService.walletExists();
       setWalletExists(exists);
@@ -66,7 +94,7 @@ export function RootLayout() {
       }
     };
     checkStatus();
-  }, [checkOnboardingStatus]);
+  }, [checkOnboardingStatus, startupAttempt]);
 
   // A wallet can be created while onboarding is open, after the startup check has completed.
   useEffect(() => {
@@ -76,7 +104,7 @@ export function RootLayout() {
 
   // Initialize wallet only if onboarded and wallet exists
   useEffect(() => {
-    if (restorePhase === 'idle' && isOnboarded && walletExists) {
+    if (!storageError && restorePhase === 'idle' && isOnboarded && walletExists) {
       let active = true;
       setStartupFinished(false);
       console.log('[RootLayout] ✅ Mnemonic found, initializing Coco...');
@@ -95,7 +123,7 @@ export function RootLayout() {
         active = false;
       };
     }
-  }, [isOnboarded, walletExists, initialize, startupAttempt, restorePhase]);
+  }, [isOnboarded, walletExists, initialize, startupAttempt, restorePhase, storageError]);
 
   // The local manager/settings are ready before network watchers finish.
   useEffect(() => {
@@ -110,7 +138,7 @@ export function RootLayout() {
 
   // Hide splash when ready
   useEffect(() => {
-    if ((loaded || error) && restorePhase !== 'idle') {
+    if ((loaded || error) && (restorePhase !== 'idle' || storageError)) {
       SplashScreen.hideAsync();
       return;
     }
@@ -131,12 +159,27 @@ export function RootLayout() {
     settingsReady,
     startupFinished,
     restorePhase,
+    storageError,
   ]);
 
   // Still loading fonts or checking onboarding
   if (!loaded && !error) {
     return null;
   }
+
+  if (storageError)
+    return (
+      <Providers cocoManager={null}>
+        <YStack flex={1} bg="$background" justify="center" p="$4" gap="$4">
+          <Text color="$color" accessibilityRole="alert">
+            {storageError}
+          </Text>
+          <AppButton onPress={() => setStartupAttempt((attempt) => attempt + 1)}>
+            Retry opening wallet
+          </AppButton>
+        </YStack>
+      </Providers>
+    );
 
   if (restorePhase !== 'idle') {
     return (

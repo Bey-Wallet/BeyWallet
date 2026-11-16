@@ -19,6 +19,13 @@ import { Manager } from 'coco-cashu-core';
 import { ExpoSqliteRepositories } from '~/storage/sqlite';
 import * as SQLite from 'expo-sqlite';
 import { getDb, closeDb } from '~/storage/sqlite/sqliteStorage';
+import {
+  destroyEncryptedWalletStorage,
+  finishWalletStorageDeletion,
+  walletStorageDeletionPending,
+  WalletDeletionPendingError,
+} from '~/storage/sqlite/encryptedDatabase';
+import * as SecureStore from 'expo-secure-store';
 import { seedService } from '~/services/platform/seedService';
 import { AppState, type AppStateStatus } from 'react-native';
 import { HistoryWatcherPlugin } from '~/services/wallet/plugins/HistoryWatcherPlugin';
@@ -318,6 +325,19 @@ async function requireNoFileRestore(): Promise<void> {
 }
 
 export const initService = {
+  /** Resume only a previously authorized deletion, before opening any wallet on startup. */
+  resumePendingWalletDeletion: async (): Promise<void> => {
+    if (!walletStorageDeletionPending()) return;
+    try {
+      closeDb(true);
+      await destroyEncryptedWalletStorage();
+      await seedService.clearWallet();
+      await SecureStore.deleteItemAsync('bey_wallet_onboarded');
+      await finishWalletStorageDeletion();
+    } catch {
+      throw new WalletDeletionPendingError();
+    }
+  },
   /**
    * Check if a wallet exists (mnemonic saved in secure storage).
    */
@@ -709,21 +729,14 @@ export const initService = {
       const { useNostrRelayStore } =
         require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
       useNostrRelayStore.getState().resetRelays();
-      try {
-        await SQLite.deleteDatabaseAsync('coco_wallet.db');
-        console.log('[InitService] Main database deleted');
-      } catch (e) {
-        console.warn('[InitService] DB delete error (may not exist):');
-      }
-      try {
-        await SQLite.deleteDatabaseAsync('cashu_wallet_restore.db');
-        console.log('[InitService] Restore database deleted');
-      } catch (e) {
-        console.warn('[InitService] Restore DB delete error (may not exist):');
-      }
+      // Resetting a persisted store above may reopen the shared handle. Close it
+      // before deleting every encrypted/legacy copy, and retain keys on failure.
+      closeDb(true);
+      await destroyEncryptedWalletStorage();
 
       // 3. Clear the seed from secure storage
       await seedService.clearWallet();
+      await finishWalletStorageDeletion();
       console.log('[InitService] Seed cleared');
 
       console.log('[InitService] Wallet destroyed');

@@ -12,6 +12,7 @@ import {
 import { NostrHealthRow } from './components/NostrHealthRow';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { biometricService } from '~/services/platform/biometricService';
+import { walletStorageIsEncrypted } from '~/storage/sqlite/encryptedDatabase';
 import {
   SettingsDescription,
   SettingsGroup,
@@ -92,7 +93,15 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
       )}
       {settingsCategories[category].groups.map((group, index) => (
         <SettingsSection key={group[0].path} title={settingsCategorySections[category]?.[index]}>
-          <SettingsGroup>{group.map(row)}</SettingsGroup>
+          <SettingsGroup>
+            {group.map(row)}
+            {category === 'security' && index === 0 && (
+              <SettingsRow
+                title="Wallet storage"
+                value={walletStorageIsEncrypted() ? 'Encrypted' : 'Unavailable'}
+              />
+            )}
+          </SettingsGroup>
         </SettingsSection>
       ))}
     </SettingsPage>

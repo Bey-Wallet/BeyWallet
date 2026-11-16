@@ -27,6 +27,7 @@ const mockDb: any = {
   transaction: async (fn: any) => fn(mockDb),
 };
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: async () => mockRaw }));
+jest.mock('~/storage/sqlite/encryptedDatabase', () => ({ openEncryptedDatabase: () => mockRaw }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: async () => 'true' }));
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({ getDb: jest.fn() }));
 jest.mock('~/services/platform/seedService', () => ({

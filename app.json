@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.thehussein01.Bey"
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/icons/adaptive-icon.png",
         "backgroundColor": "#000000",
@@ -87,7 +88,7 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true,
+          "configureAndroidBackup": false,
           "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
         }
       ],
@@ -98,13 +99,14 @@
           "useSQLCipher": true,
           "android": {
             "enableFTS": false,
-            "useSQLCipher": false
+            "useSQLCipher": true
           },
           "ios": {
             "customBuildFlags": ["-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_SNAPSHOT=1"]
           }
         }
       ],
+      "./plugins/withWalletStorageBackupRules.js",
       [
         "expo-font",
         {
