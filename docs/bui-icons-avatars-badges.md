@@ -22,7 +22,7 @@ Reusable components live in `src/shared/ui/BUI/`:
 - `BUIAvatarStack`:4-point overlap and2-point cutouts, with selectable stacking order.
 - `BUILabel`: H20/R4, horizontal5/top4/bottom5, uppercase10 Medium/tracking0.1.
   Neutral uses contentTint; other tones use a16% tint of BUI's corresponding color.
-  An11-point Inter line box fits the fixed-height sample.
+  An11-point Allo line box fits the fixed-height sample.
 - `BUICounter`: body14/line14 or compact10/SemiBold, bottom1, width based on text
   width plus one quarter of measured height with a circular minimum. Null/empty
   values are omitted; zero remains visible;99+ is explicit text rather than an
@@ -43,7 +43,7 @@ or source-icon license file is retained. Existing Bitcoin artwork is a local sam
 real mint/person artwork is accepted without recoloring. No external image requests
 are needed by the playground. BUI colors intentionally replace source accent tints.
 
-Inter replaces source fonts, and the inline label uses a React Native row rather
+Allo replaces source fonts, and the inline label uses a React Native row rather
 than an Android ReplacementSpan. Glyphs, font baselines, natural line heights and
 inline-span behavior therefore differ even where component dimensions match.
 Tests cover route rendering, both themes, overlay placement/density, mask IDs,

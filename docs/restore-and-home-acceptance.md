@@ -110,8 +110,8 @@ not remove font resources from an already installed native binary.
 
 ## 5. Fonts and interaction
 
-- Body/UI copy: Inter Text Regular 400; labels/buttons: Medium 500; headings/balances:
-  SemiBold 600. Large values use Inter Display. Only six Inter faces are bundled.
+- Body/UI copy: Allo Text Regular 400; labels/buttons: Medium 500; headings/balances:
+  SemiBold 600. Large values use Allo Display. Only six Allo faces are bundled.
 - Inspect `0123469`, `Il1O0`, `$`, `€`, `₹`, `₿` and other selected currency symbols.
   Check equal-width digits, normal unslashed zero, open digits and disambiguation in both families.
 - Review dark/light modes, larger system text, Settings rows, navigation titles, text

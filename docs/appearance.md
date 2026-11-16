@@ -84,15 +84,16 @@ in idle, hover, and pressed states without an underline. `AppTextButton` is a co
 around that same Text implementation and accepts a custom foreground color. Sizes, icon placement,
 loading, disabled state, and native link semantics remain supported. Switch variants retain their API.
 
-Inter Text and Inter Display 400/500/600 are active, with tabular numbers, normal zero,
-open digits (`ss01`) and disambiguation without slashed zero (`ss04`) enabled by default. Common text sizes
+Allo Text and Allo Display 400/500/600 are active at `ROND=0`, with tabular numbers
+(`tnum`), footed 1 (`cv01`), tailed l (`cv03`), serifed I (`cv04`) and a normal zero.
+Tracking is tuned by role as documented in [fonts](fonts.md). Common text sizes
 use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
 points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
 headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
 use 40 points. Standard payment amounts use 29-point primary text and 13-point secondary conversions;
 prominent amounts use 40-point primary text and 14-point secondary conversions.
 Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
-reduction. Inter families, tracking, font weights, icons, padding, control heights and system
+reduction. Allo families, tracking, font weights, icons, padding, control heights and system
 accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,
 not repeated scaling. See the [current typography inventory](typography-10-percent.md).
 Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
@@ -123,7 +124,7 @@ points high, with 24-point icons and the standard top padding, plus the device's
 Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Inter Text is used for UI copy; Inter Display is used for large text, balances and primary amounts.
+Allo Text is used for UI copy; Allo Display is used for large text, balances and primary amounts.
 Home balances use the 40-point display role; editable amounts use responsive 40/29/25/22/18-point
 steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
 every route, feature component, shared surface and the remaining device checks.

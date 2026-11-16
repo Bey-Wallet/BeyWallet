@@ -166,7 +166,7 @@ function HeaderTitle({
             position: 'absolute',
             width: 100000,
             opacity: 0,
-            fontFamily: 'InterTextSemiBold',
+            fontFamily: 'AlloTextSemiBold',
             fontSize: size,
             letterSpacing: 0,
             includeFontPadding: false,

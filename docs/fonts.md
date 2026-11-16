@@ -1,106 +1,111 @@
 # App fonts
 
-The app uses **Inter 4.1** throughout, with two optical designs:
+The app uses **Allo 1.0**, approved after an Android device trial, with two optical designs:
 
-| Role                                          | Tamagui family      | Optical size        | Registered faces                                                    |
-| --------------------------------------------- | ------------------- | ------------------- | ------------------------------------------------------------------- |
-| Body, UI copy, inputs, buttons and navigation | `$body`, `$heading` | Text (`opsz=14`)    | `InterTextRegular`, `InterTextMedium`, `InterTextSemiBold`          |
-| Large text, amounts and balances              | `$display`          | Display (`opsz=32`) | `InterDisplayRegular`, `InterDisplayMedium`, `InterDisplaySemiBold` |
+| Role                                          | Tamagui family      | Optical size        | Registered faces                                                 |
+| --------------------------------------------- | ------------------- | ------------------- | ---------------------------------------------------------------- |
+| Body, UI copy, inputs, buttons and navigation | `$body`, `$heading` | Text (`opsz=14`)    | `AlloTextRegular`, `AlloTextMedium`, `AlloTextSemiBold`          |
+| Large text, amounts and balances              | `$display`          | Display (`opsz=32`) | `AlloDisplayRegular`, `AlloDisplayMedium`, `AlloDisplaySemiBold` |
 
-Regular/Medium/SemiBold use weights 400/500/600. Body text uses 400, labels and buttons
-use 500, and headings/amounts/balances use 600. Requests below 400 map to Regular;
-requests above 600 map to SemiBold. Existing
-sizes, spacing, line heights, scaling and amount animations remain unchanged.
+Regular/Medium/SemiBold use weights 400/500/600. Lighter requests map to 400 and
+heavier requests map to 600. Only these six static faces are loaded and embedded.
+`$mono` is a compatibility alias to Allo Text, not a separately bundled font.
+Roundness is fixed at **`ROND=0`**. The upstream static OTFs use roundness 50 and
+are not the app's source; prepare the faces from `AlloVariable.ttf` instead.
 
 ## Number and character features
 
-Both families enable the same upstream OpenType features by default:
+Both optical families enable these upstream features by default:
 
-- `tnum`: tabular numbers.
-- `ss01`: open/alternate digits.
-- `ss04`: disambiguation of similar characters, retaining a normal unslashed zero.
+- `tnum`: equal-width tabular figures.
+- `cv01`: footed 1.
+- `cv03`: tailed lowercase l.
+- `cv04`: serifed uppercase I.
 
-These are font defaults, including on native inputs and navigation titles. `zero` and
-`ss02` are disabled by default: `ss04` supplies the same disambiguation as `ss02` without
-its slashed zero. Relying only on component props would miss some native surfaces.
-The prepared fonts include the three upstream feature lookup lists in default-on `ccmp`. The preparation
-script verifies with HarfBuzz that default shaping matches upstream shaping with all
-three features enabled, and that explicitly enabling them again is idempotent. No
-letter or digit outlines are redrawn. This is an intentional app-wide feature policy.
+Zero remains normal and unslashed. `zero`, `ss02`, `cv02` and `cv05` are not
+enabled by default. The original Allo outlines are retained; no glyphs are redrawn.
+These defaults also apply to native inputs and navigation titles. Existing
+`fontVariant={['tabular-nums']}` props remain in place.
 
-The existing tabular-number props are retained. `$mono` is a compatibility alias to
-Inter Text; no separate Mono or Funnel font is registered or loaded by the app.
+The preparation script adds the upstream feature lookups to default-on `ccmp` and
+checks with HarfBuzz that default shaping matches the source with the features
+explicitly enabled. Applying the same features again is verified to be idempotent.
+All six faces have equal digit advances, a footed 1 and a normal zero.
+
+All 29 configured currency labels and Bitcoin are covered. Full-width yen U+FFE5
+maps to Allo's existing U+00A5 yen glyph. No other currency outlines are modified.
+
+## Spacing and sizes
+
+Keep the existing rounded 10% size baseline, line heights, weights, control geometry,
+accessible text scaling and amount animations. Approved letter spacing is:
+
+| Area                                                 | Letter spacing                           |
+| ---------------------------------------------------- | ---------------------------------------- |
+| 40-point main balances and prominent payment amounts | -0.25                                    |
+| Amount entry                                         | -0.25 scaled proportionally to font size |
+| Bitcoin price                                        | -0.1                                     |
+| Nostr detail amounts                                 | -0.15                                    |
+| Onboarding headings                                  | -0.1                                     |
+| Risk Disclosure heading                              | -0.05                                    |
+| Small activity amounts                               | 0                                        |
+
+Existing small positive label/button tracking is retained. Rolling-number cells
+allow mild negative spacing capped at the balance tracking scaled to their size.
+Do not restore the old -1/-1.5 margins or apply a blanket zero-spacing override.
+Digit-pair and currency-sample ink bounds were checked across all six faces at
+the rolling-number limit. Native text rendering still needs device checks after
+future font or layout changes.
 
 ## Integration
 
-- Runtime assets: `src/shared/layout/RootLayout.tsx`.
-- Native embedding: the six Inter TTF files in the Expo Font plugin in `app.json`.
-- Global defaults and weight mappings: `src/tamagui.config.ts`.
-- Large styles: `appTypography.display`, `.amount`, `.title1`, and H1/H2/H3 defaults.
-- Shared payment/amount components, large mint/Nostr amounts, and rolling balances
-  explicitly use Display. Smaller secondary values and labels use Text.
-- Native bottom-sheet and public-key inputs explicitly use Inter Text Regular.
+- Runtime loading: `src/shared/layout/RootLayout.tsx`.
+- Native embedding: the six Allo TTF files in the Expo Font plugin in `app.json`.
+- Tamagui defaults and weight mappings: `src/tamagui.config.ts`.
+- Navigation: `src/shared/layout/RootLayoutNav.tsx`.
+- Shared typography: `src/shared/theme/appearance.ts`.
+- Shared inputs, BUI controls, amount displays and receipt exports use Allo.
 
-Runtime loading supports a reload in an existing compatible Expo development client.
-A subsequent native build includes the updated embedding configuration. OS-owned
-permission dialogs, keyboards and share sheets continue to use platform fonts.
+Existing compatible Expo development clients load the fonts at runtime after a
+full reload. The next native build embeds Allo and removes old embedded resources;
+an installed client can retain its older resources until rebuilt. OS-owned dialogs,
+keyboards and share sheets continue to use platform fonts.
 
 ## Source, reproducibility and license
 
-Source: [official Inter 4.1](https://github.com/rsms/inter/tree/v4.1), by the Inter Project
-Authors. See the [upstream feature descriptions](https://rsms.me/inter/#features).
-The variable source is pinned by SHA-256 in `scripts/prepare-inter-fonts.py`.
+Source: [Allo by Josh Puckett](https://github.com/joshpuckett/allo), supplied from
+the Allo 1.0 download. `scripts/prepare-allo-fonts.py` pins the variable source hash:
 
-```sh
-uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-inter-fonts.py
+```text
+bc26a56fd707fb463f99a51fba67bfb57ab66c341c710efb7419919de9b85330
 ```
 
-This downloads the pinned source into `.tmp/inter-fonts/`, instantiates static Text
-and Display faces, sets the feature defaults, and validates their shaping before
-writing the six assets and `inter-manifest.json`. The manifest records hashes, optical
-sizes, weights, default lookup indexes, tabular advances and the normal-zero glyph.
+Reproduce with the downloaded variable TTF and its OFL file:
+
+```sh
+uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt>
+```
+
+The script instantiates Text and Display faces, fixes roundness, sets feature
+defaults, checks shaping and writes the six fonts plus `allo-manifest.json`.
+The manifest records output hashes, axes, weights, lookup defaults and digit glyphs.
 These are isolated build tools; no app dependency is added.
 
-The prepared derivatives use internal names `Bey Inter Text` / `Bey Inter Display` and
-the runtime names above. Original copyright and license metadata are retained.
-`src/assets/fonts/Inter-OFL.txt` contains the upstream SIL OFL 1.1 license, separate
-from the application's AGPL-3.0-only license.
+Prepared derivatives use internal names `Bey Allo Text` / `Bey Allo Display` and
+the runtime names above. Original font copyright/license metadata is retained.
+`src/assets/fonts/Allo-OFL.txt` includes Josh Puckett's copyright, the Inter Project
+Authors attribution and the SIL Open Font License 1.1. The fonts remain separately
+licensed from the app's AGPL-3.0-only license. Superseded Inter assets, their manifest
+and preparation script are removed; Git history retains the previous setup.
 
-Inter's own currency glyphs cover the supported currencies. U+FFE5 (full-width yen)
-is mapped to Inter's existing yen glyph because Inter lacks a separate full-width
-yen. All other glyph coverage and outlines come from Inter. The former modified
-Funnel currency shapes, including the custom rupee, are superseded by Inter.
-The obsolete Funnel/Mono binaries, Funnel license, currency-glyph generator and its
-fixture have been removed. Only the six active Inter font binaries are bundled.
-Stale Basel, TT Firs and Mono copies in the ignored local Android source assets were
-also removed and replaced with the six Inter faces. New EAS native projects obtain
-the same fonts from `app.json`; existing installed APKs require a rebuild to remove
-their old embedded resources.
+## Validation
 
-## Validation and device checks
+Asset tests check all six faces, hashes, weights, currency coverage, default feature
+lookups, normal zero, footed 1, roundness and native/runtime registration. Rendered
+tests check Text/Display weight selection, inputs, buttons and named text variants.
 
-Asset tests check all six fonts, weights, currency coverage, default feature lookups,
-hashes, native embedding and runtime registration. Rendered typography tests check
-Text/Display weight selection, inputs, buttons, text variants and amount styles.
-
-Check Home, payment entry/results, Settings, onboarding, chat, navigation, native
-inputs, both themes and larger system text on Android and iOS. Review `0123469`,
-`Il1O0`, tabular alignment, currency symbols and clipping at row and balance sizes.
-Browser/specimen checks and unit tests do not establish native device rendering.
-
-Local checks: font shaping/currency/registration tests and rendered Text/Display weight
-tests pass. The browser specimen loaded the prepared faces at 728- and 360-pixel widths,
-and measured identical default advances for all ten digits. Typecheck, button and
-structure checks pass. Native Android/iOS rendering and accessibility checks remain
-pending.
-
-Full regression run after the Home pill and final weight selection: 148 suites / 1,247 tests passed. Three previously reproduced
-baseline failures remain: `mint-details-screen` expects a 14-point icon instead of 22;
-`mint-url-navigation` lacks the Tamagui pressable mock; `header-navigation` lacks the
-native NFC emitter mock. All font, typography, amount and appearance tests pass.
-
-After obsolete-font removal and the seed-import pause correction, the final focused
-run passed 98 tests across 15 suites. Typecheck, scoped formatting and structure checks
-also passed. The newly added onboarding tests cover pause handoff and failure release.
-
-See [restore and Home acceptance checks](restore-and-home-acceptance.md) for device steps.
+The user approved Allo and the tuned spacing after the Android trial. This is not
+a claim that every screen, theme, device size or accessibility scale was tested.
+For future changes, check Home, payments, Settings, onboarding, chat, navigation,
+native inputs and exported receipts. Review `0123469`, `Il1O0`, currency symbols,
+clipping and wrapping in both themes and with larger system text on Android/iOS.

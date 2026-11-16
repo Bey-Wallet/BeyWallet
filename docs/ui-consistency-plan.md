@@ -6,8 +6,8 @@ each completed stage. Inspect each screen before editing; update only the incons
 
 ## Shared rules
 
-- Use the semantic theme, neutral surfaces, and prepared Inter families in `appearance.ts`.
-- Use Inter Display for balances and prominent amounts; keep existing amount units and formatting.
+- Use the semantic theme, neutral surfaces, and prepared Allo families in `appearance.ts`.
+- Use Allo Display for balances and prominent amounts; keep existing amount units and formatting.
 - Default to the Bitcoin symbol for satoshi presentation while respecting saved preferences.
 - Keep lists compact: 14-point labels, 12-point descriptions, and at least 48-point touch targets.
 - Use `$6` grouped corners, clipped rows, and full-width 2-point separators.

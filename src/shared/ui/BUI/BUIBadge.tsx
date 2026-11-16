@@ -86,7 +86,7 @@ export function BUICounter({
       <NativeText
         allowFontScaling
         style={{
-          fontFamily: compact ? 'InterTextSemiBold' : 'InterTextRegular',
+          fontFamily: compact ? 'AlloTextSemiBold' : 'AlloTextRegular',
           fontSize: compact ? 10 : 14,
           letterSpacing: compact ? 0.1 : 0.07,
           lineHeight: compact ? undefined : 14,

@@ -55,12 +55,12 @@ export function RootLayout() {
   );
 
   const [loaded, error] = useFonts({
-    InterTextRegular: require('~/assets/fonts/InterText-Regular.ttf'),
-    InterTextMedium: require('~/assets/fonts/InterText-Medium.ttf'),
-    InterTextSemiBold: require('~/assets/fonts/InterText-SemiBold.ttf'),
-    InterDisplayRegular: require('~/assets/fonts/InterDisplay-Regular.ttf'),
-    InterDisplayMedium: require('~/assets/fonts/InterDisplay-Medium.ttf'),
-    InterDisplaySemiBold: require('~/assets/fonts/InterDisplay-SemiBold.ttf'),
+    AlloTextRegular: require('~/assets/fonts/AlloText-Regular.ttf'),
+    AlloTextMedium: require('~/assets/fonts/AlloText-Medium.ttf'),
+    AlloTextSemiBold: require('~/assets/fonts/AlloText-SemiBold.ttf'),
+    AlloDisplayRegular: require('~/assets/fonts/AlloDisplay-Regular.ttf'),
+    AlloDisplayMedium: require('~/assets/fonts/AlloDisplay-Medium.ttf'),
+    AlloDisplaySemiBold: require('~/assets/fonts/AlloDisplay-SemiBold.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

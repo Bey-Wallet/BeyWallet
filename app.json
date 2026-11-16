@@ -111,12 +111,12 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/InterText-Regular.ttf",
-            "./src/assets/fonts/InterText-Medium.ttf",
-            "./src/assets/fonts/InterText-SemiBold.ttf",
-            "./src/assets/fonts/InterDisplay-Regular.ttf",
-            "./src/assets/fonts/InterDisplay-Medium.ttf",
-            "./src/assets/fonts/InterDisplay-SemiBold.ttf"
+            "./src/assets/fonts/AlloText-Regular.ttf",
+            "./src/assets/fonts/AlloText-Medium.ttf",
+            "./src/assets/fonts/AlloText-SemiBold.ttf",
+            "./src/assets/fonts/AlloDisplay-Regular.ttf",
+            "./src/assets/fonts/AlloDisplay-Medium.ttf",
+            "./src/assets/fonts/AlloDisplay-SemiBold.ttf"
           ]
         }
       ],

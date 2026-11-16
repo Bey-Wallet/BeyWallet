@@ -1,4 +1,4 @@
-// BUI study measurements. Inter keeps the app's six registered static faces.
+// BUI study measurements. Allo uses the app's six registered static faces.
 // Heading requests at 700 map to the available 600 face.
 export const buiTypography = {
   num1: { fontFamily: '$display', fontSize: 32, fontWeight: '500', letterSpacing: 0 },

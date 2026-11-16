@@ -50,7 +50,7 @@ export function BUITypographyScreen() {
   return (
     <BUIPage
       title="BUI / Typography"
-      status={`Preview scale ${scale}, in addition to system text scaling. Inter Text/Display retain the registered fonts and numeric features. Heading weight700 maps to600; the mono role uses tabular Inter rather than a new font.`}
+      status={`Preview scale ${scale}, in addition to system text scaling. Allo Text/Display retain the registered fonts and numeric features. Heading weight700 maps to600; the mono role uses tabular Allo rather than a new font.`}
       controls={
         <YStack gap={12}>
           <BUIChoices

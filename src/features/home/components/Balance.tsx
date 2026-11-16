@@ -145,7 +145,7 @@ export default function Balance() {
 
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
-            letterSpacing={-1.5}
+            letterSpacing={appTypography.display.letterSpacing}
             color="$accent1"
 
             decimalOpacity={1}
@@ -171,7 +171,7 @@ export default function Balance() {
 
             fontSize={appTypography.display.fontSize}
             fontWeight={600}
-            letterSpacing={-1.5}
+            letterSpacing={appTypography.display.letterSpacing}
             color="$accent1"
 
             decimalOpacity={1}

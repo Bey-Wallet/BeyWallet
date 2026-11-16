@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import manifest from '../../src/assets/fonts/inter-manifest.json';
+import manifest from '../../src/assets/fonts/allo-manifest.json';
 
 function tableOffset(font: Buffer, tag: string) {
   for (let i = 0; i < font.readUInt16BE(4); i++) {
@@ -53,7 +53,7 @@ function glyphIndex(font: Buffer, codePoint: number) {
 }
 
 it.each(Object.entries(manifest.fonts))(
-  'bundles %s with currency coverage, normal zero and default tnum/ss01/ss04 lookups',
+  'bundles %s with currency coverage, normal zero and approved feature defaults',
   (filename, expected) => {
     const font = readFileSync(path.join(process.cwd(), 'src/assets/fonts', filename));
     expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
@@ -78,19 +78,21 @@ it.each(Object.entries(manifest.fonts))(
     }
     const defaults = features.get('ccmp');
     expect(defaults).toEqual(expected.defaultLookups);
-    for (const feature of ['tnum', 'ss01', 'ss04']) {
+    for (const feature of manifest.features) {
       expect(features.get(feature)?.length).toBeGreaterThan(0);
       expect(defaults).toEqual(expect.arrayContaining(features.get(feature)!));
     }
     expect(expected.zeroGlyph).toBe('zero.tf');
-    for (const feature of ['zero', 'ss02']) {
+    expect(expected.oneGlyph).toBe('one.foot.tf');
+    expect(expected.roundness).toBe(0);
+    for (const feature of ['zero', 'ss02', 'cv02', 'cv05']) {
       expect(defaults?.some((index) => features.get(feature)?.includes(index))).toBe(false);
     }
     expect(createHash('sha256').update(font).digest('hex')).toBe(expected.sha256);
   },
 );
 
-it('registers exactly the six Inter faces for native embedding and runtime loading', () => {
+it('bundles and registers exactly the six approved Allo faces', () => {
   expect(
     readdirSync('src/assets/fonts')
       .filter((name) => /\.(ttf|otf)$/.test(name))
@@ -103,5 +105,5 @@ it('registers exactly the six Inter faces for native embedding and runtime loadi
   );
   const runtime = readFileSync('src/shared/layout/RootLayout.tsx', 'utf8');
   for (const name of Object.keys(manifest.fonts)) expect(runtime).toContain(name);
-  expect(runtime).not.toMatch(/BeyFunnel|Mono\.otf/);
+  expect(runtime).not.toMatch(/InterText|InterDisplay|BeyFunnel|Mono\.otf/);
 });

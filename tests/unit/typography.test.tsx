@@ -27,7 +27,7 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
 it.each(['light', 'dark'] as const)(
-  'renders named AppText roles with the existing Inter faces in %s',
+  'renders named AppText roles with the approved Allo faces in %s',
   async (appearance) => {
     let tree!: ReactTestRenderer;
     try {
@@ -51,7 +51,7 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-body')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterTextRegular',
+            fontFamily: 'AlloTextRegular',
             fontSize: 13,
             lineHeight: 18,
             color: appColors[appearance].text,
@@ -61,7 +61,7 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-label')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterTextMedium',
+            fontFamily: 'AlloTextMedium',
             fontSize: 13,
             color: appColors[appearance].secondaryText,
           }),
@@ -70,10 +70,10 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-display')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterDisplaySemiBold',
+            fontFamily: 'AlloDisplaySemiBold',
             fontSize: 40,
             lineHeight: 50,
-            letterSpacing: -1.5,
+            letterSpacing: -0.25,
           }),
         ]),
       );
@@ -88,10 +88,10 @@ it.each(['light', 'dark'] as const)(
 );
 
 it.each([
-  ['400', 'InterTextRegular'],
-  ['500', 'InterTextMedium'],
-  ['600', 'InterTextSemiBold'],
-  ['700', 'InterTextSemiBold'],
+  ['400', 'AlloTextRegular'],
+  ['500', 'AlloTextMedium'],
+  ['600', 'AlloTextSemiBold'],
+  ['700', 'AlloTextSemiBold'],
 ] as const)('renders body and heading weight %s with %s', async (weight, family) => {
   let tree!: ReactTestRenderer;
   await act(async () => {
@@ -118,7 +118,7 @@ it.each([
   const displayFamilies = tree.root
     .findAll((node) => node.props.testID === 'display-font')
     .map((node) => StyleSheet.flatten(node.props.style)?.fontFamily);
-  expect(displayFamilies).toContain(family.replace('InterText', 'InterDisplay'));
+  expect(displayFamilies).toContain(family.replace('AlloText', 'AlloDisplay'));
   await act(async () => tree.unmount());
 });
 
@@ -171,8 +171,8 @@ it('applies tabular numerals to rendered text variants, inputs, toast titles, an
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
     expect({
       id,
-      usesInter: renderedStyles.some((style) => style?.fontFamily?.startsWith('Inter')),
-    }).toEqual({ id, usesInter: true });
+      usesAllo: renderedStyles.some((style) => style?.fontFamily?.startsWith('Allo')),
+    }).toEqual({ id, usesAllo: true });
   }
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(
