@@ -310,7 +310,7 @@ export default function MeltScreen() {
           console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sat`);
           await resolveAndGetQuote(cleaned, amountSats);
         } catch (err: any) {
-          console.error('[MeltScreen] LN address resolution failed:', err);
+          console.error('[MeltScreen] LN address resolution failed:');
           setError(err.message || 'Failed to resolve Lightning address');
         } finally {
           setIsResolvingAddress(false);
@@ -340,7 +340,7 @@ export default function MeltScreen() {
         console.log('[MeltScreen] Lightning address resolved');
         await getQuoteForInvoice(bolt11);
       } catch (err: any) {
-        console.error('[MeltScreen] Resolution failed:', err);
+        console.error('[MeltScreen] Resolution failed:');
         setError(err.message || 'Failed to get invoice from Lightning address');
         setIsGettingQuote(false);
       }
@@ -402,7 +402,7 @@ export default function MeltScreen() {
         setStep('confirm');
       } catch (err: any) {
         if (generation !== quoteGeneration.current) return;
-        console.error('[MeltScreen] Quote failed:', err);
+        console.error('[MeltScreen] Quote failed:');
         setError(err.message || 'Failed to get melt quote');
       } finally {
         if (generation === quoteGeneration.current) setIsGettingQuote(false);
@@ -498,7 +498,7 @@ export default function MeltScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (err: any) {
-      console.error('[MeltScreen] Auth error:', err);
+      console.error('[MeltScreen] Auth error:');
       setError(err.message || 'Authentication failed');
     } finally {
       authLock.current = false;

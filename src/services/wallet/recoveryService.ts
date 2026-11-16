@@ -220,7 +220,7 @@ export const recoveryService = {
       console.log(`[RecoveryService] ✅ Restored ${secrets.length} inflight proofs on ${mintUrl}`);
       return secrets.length;
     } catch (err) {
-      console.warn('[RecoveryService] Failed to restore inflight proofs:', err);
+      console.warn('[RecoveryService] Failed to restore inflight proofs:');
       return 0;
     }
   },

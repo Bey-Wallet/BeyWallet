@@ -1101,10 +1101,7 @@ class NostrService {
       console.log('[NostrService] Published NIP-17 inbox relay preference.');
       return true;
     } catch (err: any) {
-      console.warn(
-        '[NostrService] Could not publish NIP-17 inbox relay preference:',
-        err?.message || err,
-      );
+      console.warn('[NostrService] Could not publish NIP-17 inbox relay preference:');
       return false;
     }
   }
@@ -1187,7 +1184,7 @@ class NostrService {
       console.log('[NostrService] Published Nostr kind-0 profile.');
       return true;
     } catch (err: any) {
-      console.warn('[NostrService] Could not publish Nostr profile:', err?.message || err);
+      console.warn('[NostrService] Could not publish Nostr profile:');
       return false;
     } finally {
       if (ownsPool) pool.close(relays);
@@ -1204,7 +1201,7 @@ class NostrService {
       const profileEvent = await this.createProfileEvent(nip05, privkeyHex, pubkeyHex);
       return this.publishProfileEvent(profileEvent);
     } catch (err: any) {
-      console.warn('[NostrService] Could not create Nostr profile:', err?.message || err);
+      console.warn('[NostrService] Could not create Nostr profile:');
       return false;
     }
   }
@@ -1253,7 +1250,7 @@ class NostrService {
         return contact.username;
       }
     } catch (e) {
-      console.warn('[NostrService] Failed local contact username lookup:', e);
+      console.warn('[NostrService] Failed local contact username lookup:');
     }
     return this.resolveUsername(pubkeyHex);
   }
@@ -1313,7 +1310,7 @@ class NostrService {
     try {
       recipient = resolveNostrRecipient(recipientPubkeyHexOrNpub);
     } catch (e: any) {
-      throw new Error(`Invalid Nostr identifier: ${e.message}`);
+      throw new Error('Invalid Nostr identifier.');
     }
     const recipientPubkeyHex = recipient.pubkey;
     const publishRelays = [...new Set([...recipient.relayHints, ...getNostrRelays()])];
@@ -1337,7 +1334,7 @@ class NostrService {
     try {
       nip17Event = createNip17GiftWrap(tokenString, recipientPubkeyHex, senderPrivkeyHex);
     } catch (e) {
-      console.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e);
+      console.warn('[NostrService] Failed to construct NIP-17 gift wrap:');
     }
 
     const ownsPool = this.pool === null;
@@ -1384,7 +1381,7 @@ class NostrService {
 
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed to publish token to any relay:', err?.message || err);
+      console.error('[NostrService] Failed to publish token to any relay:');
       return false;
     } finally {
       if (ownsPool) {
@@ -1440,7 +1437,7 @@ class NostrService {
       console.log(`[NostrService] ✅ Mints backed up. Event: ${signedEvent.id}`);
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed to backup mints to Nostr:', err?.message || err);
+      console.error('[NostrService] Failed to backup mints to Nostr:');
       return false;
     } finally {
       if (timeout) clearTimeout(timeout);
@@ -1485,7 +1482,7 @@ class NostrService {
       console.log(`[NostrService] ✅ Recovered ${mintUrls.length} mints from Nostr backup.`);
       return mintUrls;
     } catch (err: any) {
-      console.error('[NostrService] Failed to fetch mints from Nostr:', err?.message || err);
+      console.error('[NostrService] Failed to fetch mints from Nostr:');
       if (options.throwOnFailure) throw new Error('Backup discovery failed.');
       return [];
     } finally {
@@ -1527,7 +1524,7 @@ class NostrService {
       console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed NIP-60 wallet state backup:', err?.message || err);
+      console.error('[NostrService] Failed NIP-60 wallet state backup:');
       return false;
     }
   }
@@ -1568,7 +1565,7 @@ class NostrService {
       console.log('[NostrService] ✅ Successfully recovered and decrypted NIP-60 wallet state.');
       return walletData;
     } catch (err: any) {
-      console.error('[NostrService] Failed NIP-60 wallet state recovery:', err?.message || err);
+      console.error('[NostrService] Failed NIP-60 wallet state recovery:');
       return null;
     } finally {
       pool.close(relays);

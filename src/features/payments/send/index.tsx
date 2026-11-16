@@ -353,7 +353,7 @@ export function SendModalScreen() {
             return;
           }
         } catch (err) {
-          console.error('[SendModalScreen] Verification check failed:', err);
+          console.error('[SendModalScreen] Verification check failed:');
           return;
         }
       }
@@ -390,7 +390,7 @@ export function SendModalScreen() {
           handleSuccess('polling');
         }
       } catch (err) {
-        console.warn('[SendModalScreen] Polling check failed:', err);
+        console.warn('[SendModalScreen] Polling check failed:');
       }
       if (!stopped && !isDetected) timer = setTimeout(pollOnce, PENDING_PAYMENT_CHECK_MS);
     };
@@ -480,7 +480,7 @@ export function SendModalScreen() {
               throw new Error('Unsupported bech32 prefix');
             }
           } catch (e: any) {
-            throw new Error('Failed to decode Nostr identifier: ' + e.message);
+            throw new Error('Failed to decode Nostr identifier.');
           }
         }
 
@@ -529,7 +529,7 @@ export function SendModalScreen() {
 
       setStep('result');
     } catch (err: any) {
-      console.error('[SendModal] Failed to send:', err);
+      console.error('[SendModal] Failed to send:');
       setError(err.message || 'Failed to create token');
       setStatus('error');
       setStep('result');
@@ -649,7 +649,7 @@ export function SendModalScreen() {
 
       setStep('result');
     } catch (err: any) {
-      console.error('[SendModal] Nostr send failed:', err);
+      console.error('[SendModal] Nostr send failed:');
       setError(err.message || 'Failed to send via Nostr');
       setStatus('error');
       setStep('result');
@@ -687,7 +687,7 @@ export function SendModalScreen() {
         await handleSend();
       }
     } catch (error: any) {
-      console.error('[SendModal] Execution error:', error);
+      console.error('[SendModal] Execution error:');
       setError(error.message || 'Send failed');
       setStatus('error');
       setStep('result');

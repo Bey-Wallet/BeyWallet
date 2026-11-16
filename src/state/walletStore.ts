@@ -146,13 +146,13 @@ export const useWalletStore = create<WalletState>()(
                   set({ mints: freshMintInfos });
                 }
               } catch (e) {
-                console.warn('[WalletStore] Background keyset repair error:', e);
+                console.warn('[WalletStore] Background keyset repair error:');
               }
             });
           }
           console.log('[WalletStore] Initialization complete');
         } catch (err: any) {
-          console.error('[WalletStore] Initialization failed:', err);
+          console.error('[WalletStore] Initialization failed:');
           set({ error: err.message, isInitializing: false });
         }
       },
@@ -195,7 +195,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to add mint:', err);
+          console.error('[WalletStore] Failed to add mint:');
           set({ error: err.message });
         }
       },
@@ -213,7 +213,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to trust mint:', err);
+          console.error('[WalletStore] Failed to trust mint:');
           set({ error: err.message });
         }
       },
@@ -238,16 +238,16 @@ export const useWalletStore = create<WalletState>()(
             get()
               .autoCheckPendingOnchainQuotes()
               .catch((err) => {
-                console.warn('[WalletStore] Background pending on-chain quote check failed:', err);
+                console.warn('[WalletStore] Background pending on-chain quote check failed:');
               });
             get()
               .cleanSpentProofs()
               .catch((err) => {
-                console.warn('[WalletStore] Background spent proofs clean failed:', err);
+                console.warn('[WalletStore] Background spent proofs clean failed:');
               });
           });
         } catch (err: any) {
-          console.error('[WalletStore] Error refreshing balance:', err);
+          console.error('[WalletStore] Error refreshing balance:');
           set({ error: err.message, isRefreshing: false });
         }
       },
@@ -260,7 +260,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to untrust mint:', err);
+          console.error('[WalletStore] Failed to untrust mint:');
           set({ error: err.message });
         }
       },
@@ -274,7 +274,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to remove mint:', err);
+          console.error('[WalletStore] Failed to remove mint:');
           set({ error: err.message });
           throw err;
         }
@@ -284,7 +284,7 @@ export const useWalletStore = create<WalletState>()(
         try {
           return await mintManager.getMintInfo(url);
         } catch (err: any) {
-          console.error('[WalletStore] Failed to fetch mint info:', err);
+          console.error('[WalletStore] Failed to fetch mint info:');
           throw err;
         }
       },
@@ -301,7 +301,7 @@ export const useWalletStore = create<WalletState>()(
             isRefreshing: false,
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to refresh mint list:', err);
+          console.error('[WalletStore] Failed to refresh mint list:');
           set({ isRefreshing: false });
         }
       },
@@ -311,7 +311,7 @@ export const useWalletStore = create<WalletState>()(
           await mintManager.setMintNickname(url, nickname);
           await get().refreshMintList();
         } catch (err: any) {
-          console.error('[WalletStore] Failed to set mint nickname:', err);
+          console.error('[WalletStore] Failed to set mint nickname:');
           set({ error: err.message });
         }
       },
@@ -422,7 +422,7 @@ export const useWalletStore = create<WalletState>()(
                 get().refreshBalance();
               }
             } catch (err) {
-              console.warn(`[WalletStore] Failed checking pending quote ${entry.quoteId}:`, err);
+              console.warn(`[WalletStore] Failed checking pending quote ${entry.quoteId}:`);
             }
           }
 
@@ -524,14 +524,11 @@ export const useWalletStore = create<WalletState>()(
                 get().refreshBalance();
               }
             } catch (err) {
-              console.warn(
-                `[WalletStore] Failed checking pending melt quote ${entry.quoteId}:`,
-                err,
-              );
+              console.warn(`[WalletStore] Failed checking pending melt quote ${entry.quoteId}:`);
             }
           }
         } catch (e) {
-          console.warn('[WalletStore] Failed to auto-check pending on-chain quotes:', e);
+          console.warn('[WalletStore] Failed to auto-check pending on-chain quotes:');
         } finally {
           set({ isCheckingPendingOnchain: false });
         }
@@ -573,7 +570,7 @@ export const useWalletStore = create<WalletState>()(
               console.log('[WalletStore] All local proofs are fresh and unspent!');
             }
           } catch (e) {
-            console.warn('[WalletStore] Failed to clean spent proofs:', e);
+            console.warn('[WalletStore] Failed to clean spent proofs:');
           }
         });
       },

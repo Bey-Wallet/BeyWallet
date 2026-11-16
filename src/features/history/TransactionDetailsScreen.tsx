@@ -126,7 +126,7 @@ function TransactionDetailsContent() {
             await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
           }
         } catch (e) {
-          console.warn('[TransactionDetails] Failed to delete proofs during delete txn:', e);
+          console.warn('[TransactionDetails] Failed to delete proofs during delete txn:');
         }
       }
 
@@ -137,7 +137,7 @@ function TransactionDetailsContent() {
       router.back();
       queryClient.invalidateQueries({ queryKey: ['history'] });
     } catch (err: any) {
-      console.error('[TransactionDetails] Failed to delete transaction:', err);
+      console.error('[TransactionDetails] Failed to delete transaction:');
       toast.showFeedback(interactionCopy.failedToDeleteTransaction);
     }
   };
@@ -161,7 +161,7 @@ function TransactionDetailsContent() {
           }
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load by ID from historyRepository:', err);
+        console.warn('[TransactionDetails] Failed to load by ID from historyRepository:');
       }
 
       // 2. If it's a quoteId, try to find by quoteId or matching ID in repository entries
@@ -175,7 +175,7 @@ function TransactionDetailsContent() {
           }
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load by quoteId from historyRepository:', err);
+        console.warn('[TransactionDetails] Failed to load by quoteId from historyRepository:');
       }
 
       // 3. Fallback to core historyService
@@ -205,7 +205,7 @@ function TransactionDetailsContent() {
           return quote;
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load mint quote from repository:', err);
+        console.warn('[TransactionDetails] Failed to load mint quote from repository:');
       }
       return null;
     },
@@ -368,10 +368,10 @@ function TransactionDetailsContent() {
           await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
         }
       } catch (e) {
-        console.warn('[TransactionDetails] Failed to delete inflight proofs during reclaim:', e);
+        console.warn('[TransactionDetails] Failed to delete inflight proofs during reclaim:');
       }
     } catch (err: any) {
-      console.error('[TransactionDetails] Reclaim failed:', err);
+      console.error('[TransactionDetails] Reclaim failed:');
       toast.showFeedback(interactionCopy.couldNotConfirmReclaimCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
@@ -405,7 +405,7 @@ function TransactionDetailsContent() {
           }
         }
       } catch (e) {
-        console.error('[TransactionDetails] Failed to read saved invoice:', e);
+        console.error('[TransactionDetails] Failed to read saved invoice:');
       }
     }
   }, [entry, isPendingMint, onchain, receiptSnapshot?.request]);
@@ -511,7 +511,7 @@ function TransactionDetailsContent() {
             // Refresh updates the visible receipt; it is not a fresh arrival.
           }
         } catch (err) {
-          console.warn('[TransactionDetails] Failed to refresh proof states:', err);
+          console.warn('[TransactionDetails] Failed to refresh proof states:');
         }
       }
 
@@ -601,7 +601,7 @@ function TransactionDetailsContent() {
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
     } catch (err: any) {
-      console.error('[TransactionDetails] Claim failed:', err);
+      console.error('[TransactionDetails] Claim failed:');
       toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
@@ -960,7 +960,7 @@ function TransactionDetailsContent() {
                 await handleRefresh();
               }
             } catch (e) {
-              console.warn('[TransactionDetails] Failed to cancel quote:', e);
+              console.warn('[TransactionDetails] Failed to cancel quote:');
             }
           }}
           onPaid={handleCollectMint}

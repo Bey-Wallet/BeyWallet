@@ -62,7 +62,7 @@ export const mintManager = {
         await db.run('DELETE FROM coco_cashu_melt_quotes WHERE mintUrl = ?', [mintUrl]);
       }
     } catch (dbErr) {
-      console.error('[MintManager] Failed to wipe DB tables for removed mint:', dbErr);
+      console.error('[MintManager] Failed to wipe DB tables for removed mint:');
     }
 
     console.log(`[MintManager] Mint removed: ${mintUrl}`);

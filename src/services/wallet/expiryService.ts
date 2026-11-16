@@ -64,7 +64,7 @@ export const expiryService = {
                 const tokenObj = JSON.parse(row.tokenJson);
                 tokenStr = encodeToken(tokenObj);
               } catch (e) {
-                console.warn(`[ExpiryService] Failed to parse/encode token for row ${row.id}:`, e);
+                console.warn(`[ExpiryService] Failed to parse/encode token for row ${row.id}:`);
               }
             }
 
@@ -129,19 +129,16 @@ export const expiryService = {
                   }
                 } catch (e) {}
               } catch (sweepErr: any) {
-                console.error(
-                  `[ExpiryService] Sweep failed for row ${row.id}:`,
-                  sweepErr?.message || sweepErr,
-                );
+                console.error(`[ExpiryService] Sweep failed for row ${row.id}:`);
               }
             }
           }
         } catch (rowErr) {
-          console.error(`[ExpiryService] Error processing row ${row.id}:`, rowErr);
+          console.error(`[ExpiryService] Error processing row ${row.id}:`);
         }
       }
     } catch (err) {
-      console.error('[ExpiryService] Background sweep error:', err);
+      console.error('[ExpiryService] Background sweep error:');
     } finally {
       sweeping = false;
     }
@@ -183,7 +180,7 @@ export const expiryService = {
         } catch {}
       }
     } catch (e) {
-      console.warn('[ExpiryService] getExpiryBySecrets failed:', e);
+      console.warn('[ExpiryService] getExpiryBySecrets failed:');
     }
     return null;
   },
@@ -207,14 +204,14 @@ export const expiryService = {
         try {
           await sweep();
         } catch (e) {
-          console.error('[ExpiryService] Sweep error (scheduling next):', e);
+          console.error('[ExpiryService] Sweep error (scheduling next):');
         }
         scheduleNext();
       }, intervalMs);
     };
 
     // Initial run — fire immediately, then schedule periodic checks
-    sweep().catch((e) => console.error('[ExpiryService] Initial sweep error:', e));
+    sweep().catch((e) => console.error('[ExpiryService] Initial sweep error:'));
     scheduleNext();
     console.log(`[ExpiryService] Expiry sweeper started with interval ${intervalMs}ms`);
   },

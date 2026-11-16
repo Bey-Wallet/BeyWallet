@@ -114,7 +114,7 @@ export const historyService = {
       await db.run(`UPDATE coco_cashu_history SET metadata = ? WHERE id = ?`, [updated, row.id]);
     } catch (err) {
       // Non-critical — never crash the app for a metadata tag
-      console.warn('[HistoryService] tagHistoryVia failed:', err);
+      console.warn('[HistoryService] tagHistoryVia failed:');
     }
   },
 };

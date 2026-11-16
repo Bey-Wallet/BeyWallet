@@ -115,7 +115,7 @@ export function ConfirmStage({
           }
         }
       } catch (e) {
-        console.warn('[ConfirmStage] Failed to check local token expiry:', e);
+        console.warn('[ConfirmStage] Failed to check local token expiry:');
       }
     })();
     return () => {

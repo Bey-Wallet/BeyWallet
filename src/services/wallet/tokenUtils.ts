@@ -453,7 +453,7 @@ export function decodePaymentRequest(requestString: string) {
       transports: req.transport,
     };
   } catch (e: any) {
-    console.warn('[tokenUtils] PaymentRequest.fromEncoded failed:', e?.message);
-    throw new Error(`Invalid payment request format: ${e?.message || 'Failed to decode creq'}`);
+    console.warn('[tokenUtils] PaymentRequest.fromEncoded failed');
+    throw new Error('Invalid payment request format.');
   }
 }

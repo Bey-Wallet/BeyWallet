@@ -157,7 +157,7 @@ export function PendingTokenLayout({
         }
       }
     } catch (e) {
-      console.error('[PendingTokenLayout] Failed to decode token:', e);
+      console.error('[PendingTokenLayout] Failed to decode token:');
     }
   }, [currentToken, lockedToNpub]);
 

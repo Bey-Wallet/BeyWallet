@@ -26,6 +26,7 @@ import { OfflineChangePlugin } from '~/services/wallet/plugins/OfflineChangePlug
 import { LocalSendEventsPlugin } from '~/services/wallet/plugins/LocalSendEventsPlugin';
 import { ChangePreparationPlugin } from '~/services/wallet/plugins/ChangePreparationPlugin';
 import { nostrService } from '~/services/wallet/nostrService';
+import { walletLogger as customLogger } from './walletLogger';
 import { Keyset } from '@cashu/cashu-ts';
 
 // ─── Runtime Compatibility Patches ───────────────────────────
@@ -114,7 +115,7 @@ export async function purgeCorruptedKeysets(mintUrl: string, keysetId?: string):
     await db.runAsync(`DELETE FROM coco_cashu_counters WHERE mintUrl = ?`, mintUrl);
     console.log(`[InitService] 🧹 Cleared counters for ${mintUrl}`);
   } catch (err) {
-    console.warn('[InitService] purgeCorruptedKeysets failed:', err);
+    console.warn('[InitService] purgeCorruptedKeysets failed:');
   }
 }
 
@@ -143,7 +144,7 @@ function setupAppStateListener(): void {
           await manager.resumeSubscriptions();
         }
       } catch (err) {
-        console.error('[InitService] Subscription lifecycle error:', err);
+        console.error('[InitService] Subscription lifecycle error:');
       }
     },
   );
@@ -165,7 +166,7 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
     });
     console.log('[InitService] ✅ Mint quote watcher enabled');
   } catch (error) {
-    console.warn('[InitService] Mint quote watcher failed:', error);
+    console.warn('[InitService] Mint quote watcher failed:');
   }
 
   // Delay between watchers to avoid DB contention
@@ -181,7 +182,7 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
     });
     console.log('[InitService] ✅ Mint quote processor enabled');
   } catch (error) {
-    console.warn('[InitService] Mint quote processor failed:', error);
+    console.warn('[InitService] Mint quote processor failed:');
   }
 
   if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
@@ -191,13 +192,13 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
     await mgr.enableProofStateWatcher();
     console.log('[InitService] ✅ Proof state watcher enabled');
   } catch (error) {
-    console.warn('[InitService] Proof state watcher failed, retrying once...', error);
+    console.warn('[InitService] Proof state watcher failed, retrying once...');
     try {
       if (delay > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
       await mgr.enableProofStateWatcher();
       console.log('[InitService] ✅ Proof state watcher enabled on retry');
     } catch (retryError) {
-      console.error('[InitService] Proof state watcher failed on retry:', retryError);
+      console.error('[InitService] Proof state watcher failed on retry:');
     }
   }
 }
@@ -209,61 +210,19 @@ async function disableWatchers(mgr: Manager): Promise<void> {
   try {
     await mgr.disableProofStateWatcher();
   } catch (e) {
-    console.warn('[InitService] Failed to disable proof state watcher:', e);
+    console.warn('[InitService] Failed to disable proof state watcher:');
   }
   try {
     await mgr.disableMintQuoteProcessor();
   } catch (e) {
-    console.warn('[InitService] Failed to disable mint quote processor:', e);
+    console.warn('[InitService] Failed to disable mint quote processor:');
   }
   try {
     await mgr.disableMintQuoteWatcher();
   } catch (e) {
-    console.warn('[InitService] Failed to disable mint quote watcher:', e);
+    console.warn('[InitService] Failed to disable mint quote watcher:');
   }
 }
-
-// Custom logger to suppress expected keyset/WS/polling errors that are handled gracefully by the SDK/wallet wrappers
-const customLogger = {
-  error: (msg: string, ...meta: any[]) => {
-    if (
-      msg.includes('Keyset restore failed') ||
-      msg.includes('Restore completed with failures') ||
-      msg === 'WS error' ||
-      msg.includes('WS request error') ||
-      msg.includes('Polling task error') ||
-      msg.includes('Failed to process mint quote') ||
-      msg.includes('Failed to redeem mint quote') ||
-      msg.includes('had undefined amount') ||
-      msg.includes('Quote amount undefined')
-    ) {
-      // Suppress noisy expected background/network errors
-      return;
-    }
-    if (msg.includes('Failed to fetch mint info')) {
-      const mintUrl = meta[0]?.mintUrl;
-      console.warn(`[Coco] Mint unavailable while refreshing info${mintUrl ? `: ${mintUrl}` : ''}`);
-      return;
-    }
-    console.error(`[Coco] ${msg}`, ...meta);
-  },
-  warn: (msg: string, ...meta: any[]) => {
-    if (
-      msg.includes('WS request error') ||
-      msg.includes('Polling task error') ||
-      msg.includes('had undefined amount') ||
-      msg.includes('Quote amount undefined') ||
-      msg.includes('Failed to process mint quote') ||
-      msg.includes('Failed to redeem mint quote')
-    ) {
-      // Suppress noisy expected background/network warnings
-      return;
-    }
-    console.warn(`[Coco] ${msg}`, ...meta);
-  },
-  info: () => {},
-  debug: () => {},
-};
 
 /**
  * Core initialization with a mnemonic. Opens DB, creates repos,
@@ -754,13 +713,13 @@ export const initService = {
         await SQLite.deleteDatabaseAsync('coco_wallet.db');
         console.log('[InitService] Main database deleted');
       } catch (e) {
-        console.warn('[InitService] DB delete error (may not exist):', e);
+        console.warn('[InitService] DB delete error (may not exist):');
       }
       try {
         await SQLite.deleteDatabaseAsync('cashu_wallet_restore.db');
         console.log('[InitService] Restore database deleted');
       } catch (e) {
-        console.warn('[InitService] Restore DB delete error (may not exist):', e);
+        console.warn('[InitService] Restore DB delete error (may not exist):');
       }
 
       // 3. Clear the seed from secure storage
