@@ -112,10 +112,31 @@ const withHce = (config) => {
   config = withMainActivity(config, (config) => {
     if (config.modResults.language !== 'kt') throw new Error('NFC launch routing requires Kotlin');
     let source = config.modResults.contents;
-    if (!source.includes('private fun routeNfcIntent(')) {
-      for (const name of ['android.content.Intent', 'android.net.Uri', 'android.nfc.NfcAdapter']) {
+    const nfcRouting = `  private fun routeNfcIntent(incoming: Intent?) {
+    if (incoming?.action == NfcAdapter.ACTION_NDEF_DISCOVERED) {
+      val launchId = incoming.getStringExtra("bey.nfc.launchId") ?: UUID.randomUUID().toString()
+      incoming.putExtra("bey.nfc.launchId", launchId)
+      incoming.data = Uri.parse("bey-wallet:///(modals)/nfc-receive")
+        .buildUpon().appendQueryParameter("launchId", launchId).build()
+    }
+  }`;
+    for (const name of [
+      'android.content.Intent',
+      'android.net.Uri',
+      'android.nfc.NfcAdapter',
+      'java.util.UUID',
+    ]) {
+      if (!source.includes(`import ${name}`))
         source = source.replace(/^(package .*\r?\n)/, `$1import ${name}\n`);
-      }
+    }
+    if (source.includes('private fun routeNfcIntent(') && !source.includes('"bey.nfc.launchId"')) {
+      const legacyRouting =
+        /  private fun routeNfcIntent\(incoming: Intent\?\) \{\r?\n    if \(incoming\?\.action == NfcAdapter\.ACTION_NDEF_DISCOVERED\) \{\r?\n      incoming\.data = Uri\.parse\("bey-wallet:\/\/\/\(modals\)\/nfc-receive"\)\r?\n    \}\r?\n  \}/;
+      if (!legacyRouting.test(source))
+        throw new Error('Cannot update NFC launch replay protection');
+      source = source.replace(legacyRouting, nfcRouting);
+    }
+    if (!source.includes('private fun routeNfcIntent(')) {
       source = source.replace(
         '    super.onCreate(null)',
         '    routeNfcIntent(intent)\n    super.onCreate(null)',
@@ -128,11 +149,7 @@ const withHce = (config) => {
       source = source.replace(
         'class MainActivity : ReactActivity() {',
         `class MainActivity : ReactActivity() {
-  private fun routeNfcIntent(incoming: Intent?) {
-    if (incoming?.action == NfcAdapter.ACTION_NDEF_DISCOVERED) {
-      incoming.data = Uri.parse("bey-wallet:///(modals)/nfc-receive")
-    }
-  }
+${nfcRouting}
 
   override fun onNewIntent(intent: Intent) {
     routeNfcIntent(intent)

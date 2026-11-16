@@ -97,6 +97,7 @@ let write: jest.Mock;
 let deliver: jest.Mock;
 let refresh: jest.Mock;
 let events: Record<string, () => void>;
+let diagnostics: jest.SpyInstance;
 it('keeps reader and send sessions closed while a saved request payment is processing', () => {
   const snapshot = jest
     .spyOn(nfcReceiveCoordinator, 'getSnapshot')
@@ -112,6 +113,7 @@ it('keeps reader and send sessions closed while a saved request payment is proce
   }
 });
 beforeEach(() => {
+  diagnostics = jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.clearAllMocks();
   mockMintTrusted = true;
   jest
@@ -153,6 +155,7 @@ afterEach(async () => {
   flow.background();
   await flush();
   jest.useRealTimers();
+  diagnostics.mockRestore();
 });
 
 it('keeps NFC starting until Android reader registration reports readiness', async () => {
@@ -525,6 +528,320 @@ it('submits the existing Lightning flow once and reconciles on reopening', async
   expect(pay).toHaveBeenCalledTimes(1);
   expect(flow.getSnapshot().status).toBe('pending');
 });
+
+it('keeps the iOS Lightning result visible after closing the NFC radio session', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  jest.mocked(parsePaymentInput).mockReturnValue({
+    matched: true,
+    ok: true,
+    value: { primary: { type: 'lightning_invoice', value: 'synthetic-invoice' } },
+  } as any);
+  const pay = jest.fn(async () => 'paid');
+  jest.mocked(LightningPayment).mockImplementation(
+    () =>
+      ({
+        preview: async () => ({ amount: 4, fee_reserve: 1 }),
+        pay,
+        refresh: async () => 'paid',
+        dispose: async () => {},
+      }) as any,
+  );
+  flow.openReader();
+  await flush();
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(pay).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot()).toMatchObject({ status: 'confirmed', visible: true });
+  const events = diagnostics.mock.calls
+    .filter(([prefix]) => prefix === '[NFC]')
+    .map(([, data]) => data.event);
+  expect(events).toEqual(
+    expect.arrayContaining([
+      'read_complete',
+      'lightning_detected',
+      'lightning_preview',
+      'lightning_submit',
+    ]),
+  );
+  expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('synthetic-invoice');
+});
+
+function interruptedLightningHarness(submitted = false) {
+  const ActualLightning = jest.requireActual('~/services/wallet/lightningPayment').LightningPayment;
+  let release!: (value: any) => void;
+  let count = 0;
+  const operations = new Map<string, any>();
+  const quotes = {
+    prepareMeltBolt11: jest.fn(async () => {
+      const op = {
+        id: `operation-${++count}`,
+        quoteId: `quote-${count}`,
+        state: 'prepared',
+        amount: 4,
+        fee_reserve: 1,
+        swap_fee: 0,
+      };
+      operations.set(op.id, op);
+      return op;
+    }),
+    rollbackMelt: jest.fn(async (id: string) => {
+      operations.get(id).state = 'rolled_back';
+    }),
+    executeMelt: jest.fn(async (id: string) => {
+      if (submitted)
+        return new Promise((resolve) => {
+          release = () => {
+            operations.get(id).state = 'finalized';
+            resolve(operations.get(id));
+          };
+        });
+      operations.get(id).state = 'finalized';
+      return operations.get(id);
+    }),
+    getMeltOperation: jest.fn(async (id: string) => operations.get(id)),
+    checkPendingMelt: jest.fn(),
+  };
+  const check = jest.fn(async () => ({ expiry: Date.now() / 1000 + 60 }));
+  if (!submitted)
+    check.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+  const manager = {
+    quotes,
+    walletService: { getWallet: async () => ({ checkMeltQuoteBolt11: check }) },
+  };
+  jest.mocked(LightningPayment).mockImplementation(
+    (mint, invoice) =>
+      new ActualLightning(
+        mint,
+        invoice,
+        async () => manager,
+        () => ({
+          walletService: manager.walletService,
+          meltOperationService: {
+            init: async () => ({ id: `operation-${count + 1}`, state: 'init' }),
+            prepare: quotes.prepareMeltBolt11,
+          },
+        }),
+      ),
+  );
+  jest.mocked(parsePaymentInput).mockReturnValue({
+    matched: true,
+    ok: true,
+    value: { primary: { type: 'lightning_invoice', value: 'synthetic-invoice' } },
+  } as any);
+  return { quotes, check, release: () => release({ expiry: Date.now() / 1000 + 60 }) };
+}
+
+it('keeps Android reader ownership from the first Lightning tap through settlement until dismissal', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot().status).toBe('paying');
+  expect(close).not.toHaveBeenCalled();
+  release();
+  await flush();
+  await flush();
+  expect(flow.getSnapshot().status).toBe('confirmed');
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(close).not.toHaveBeenCalled();
+  expect(flow.dismiss()).toBe(true);
+  await flush();
+  expect(close).toHaveBeenCalledTimes(1);
+});
+
+it('releases the iOS system scanning prompt before preparing Lightning payment', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  flow.openReader();
+  await flush();
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot().status).toBe('paying');
+  release();
+  await flush();
+  await flush();
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(flow.getSnapshot().status).toBe('confirmed');
+});
+
+it('recovers the observed background interruption and retries a cancelled invoice without another NFC scan', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot().status).toBe('paying');
+  await flow.background();
+  await flow.background();
+  flow.foreground();
+  expect(flow.getSnapshot().visible).toBe(false);
+  flow.sheetClosed();
+  expect(flow.getSnapshot()).toMatchObject({ visible: true, status: 'pausing', locked: true });
+  expect(flow.dismiss()).toBe(false);
+  flow.setReady(false);
+  expect(flow.getSnapshot().visible).toBe(false);
+  flow.sheetClosed();
+  release();
+  await flush();
+  await flush();
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+  expect(quotes.rollbackMelt).toHaveBeenCalledTimes(1);
+  flow.setReady(true);
+  expect(flow.getSnapshot()).toMatchObject({
+    visible: true,
+    canRetryLightning: true,
+    hasPayment: false,
+  });
+  await Promise.all([flow.retry(), flow.retry()]);
+  await flush();
+  expect(nfcService.openPaymentSession).toHaveBeenCalledTimes(1);
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(quotes.prepareMeltBolt11).toHaveBeenCalledTimes(2);
+  expect(flow.getSnapshot()).toMatchObject({ visible: true, status: 'confirmed' });
+});
+
+it('does not offer a new Lightning submission when cancellation could not release its reservation', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  quotes.rollbackMelt.mockRejectedValue(new Error('offline'));
+  flow.openReader();
+  await flush();
+  await flow.background();
+  flow.sheetClosed();
+  flow.foreground();
+  release();
+  await flush();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    visible: true,
+    canRetryLightning: false,
+    hasPayment: true,
+  });
+  await flow.retry();
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+  expect(quotes.prepareMeltBolt11).toHaveBeenCalledTimes(1);
+});
+
+it('recovers a failed preparation after Refresh and a repeated scan without trapping the invoice', async () => {
+  const { quotes, check } = interruptedLightningHarness();
+  check.mockReset();
+  check.mockResolvedValue({ expiry: Date.now() / 1000 + 60 });
+  quotes.prepareMeltBolt11.mockRejectedValueOnce(
+    new Error('Insufficient balance: synthetic-private'),
+  );
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'error',
+    hasPayment: false,
+    canRetryLightning: true,
+    error: 'This mint does not have enough balance, including fees.',
+  });
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+  await flow.refresh();
+  expect(flow.getSnapshot().canRetryLightning).toBe(true);
+  await flow.newPayment();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'error',
+    canRetryLightning: true,
+    hasPayment: false,
+  });
+  expect(quotes.prepareMeltBolt11).toHaveBeenCalledTimes(1);
+  await flow.retry();
+  expect(flow.getSnapshot().status).toBe('confirmed');
+  expect(quotes.prepareMeltBolt11).toHaveBeenCalledTimes(2);
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('synthetic-private');
+});
+
+it('lets Refresh recover a previously failed rollback without submitting a payment', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  quotes.rollbackMelt.mockRejectedValue(new Error('offline'));
+  flow.openReader();
+  await flush();
+  await flow.background();
+  flow.sheetClosed();
+  flow.foreground();
+  release();
+  await flush();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ hasPayment: true, canRetryLightning: false });
+  quotes.rollbackMelt.mockImplementation(async () => {});
+  await flow.refresh();
+  expect(flow.getSnapshot()).toMatchObject({
+    status: 'error',
+    hasPayment: false,
+    canRetryLightning: true,
+  });
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+});
+
+it('does not reopen a removed wallet host with an old interrupted payment', async () => {
+  const { quotes, release } = interruptedLightningHarness();
+  flow.openReader();
+  await flush();
+  await flow.background();
+  await flow.background('host_unmount');
+  flow.sheetClosed();
+  flow.foreground();
+  release();
+  await flush();
+  await flush();
+  expect(flow.getSnapshot().visible).toBe(false);
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+});
+
+it('reconciles an already-submitted interrupted Lightning payment without a fresh quote or submission', async () => {
+  const { quotes, release } = interruptedLightningHarness(true);
+  flow.openReader();
+  await flush();
+  await flush();
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+  await flow.background();
+  flow.sheetClosed();
+  flow.foreground();
+  release();
+  await flush();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({
+    visible: true,
+    status: 'confirmed',
+    canRetryLightning: false,
+  });
+  expect(quotes.rollbackMelt).not.toHaveBeenCalled();
+  expect(quotes.prepareMeltBolt11).toHaveBeenCalledTimes(1);
+  await flow.retry();
+  expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
+});
+
+it('reports lifecycle/dismissal reasons without logging a failed invoice or native error', async () => {
+  jest.mocked(parsePaymentInput).mockReturnValue({
+    matched: true,
+    ok: true,
+    value: { primary: { type: 'lightning_invoice', value: 'synthetic-private-invoice' } },
+  } as any);
+  jest.mocked(LightningPayment).mockImplementation(
+    () =>
+      ({
+        preview: async () => {
+          throw new Error('synthetic-private-native-error');
+        },
+        dispose: async () => {},
+      }) as any,
+  );
+  flow.openReader();
+  await flush();
+  expect(flow.getSnapshot()).toMatchObject({ status: 'error', visible: true });
+  flow.dismiss();
+  await flow.background('host_unmount');
+  const events = diagnostics.mock.calls
+    .filter(([prefix]) => prefix === '[NFC]')
+    .map(([, data]) => data.event);
+  expect(events).toEqual(
+    expect.arrayContaining(['lightning_prepare_failed', 'dismiss_requested', 'host_unmount']),
+  );
+  expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('synthetic-private');
+});
 it.each([
   { states: [] },
   { states: [{ state: 'SPENT' }] },
@@ -571,7 +888,7 @@ it('times out as unconfirmed and preserves the controller when closed', async ()
   await flush();
   expect(PaymentRequestPayment).toHaveBeenCalledTimes(1);
 });
-it('queues cold launches behind readiness and preserves warm navigation', async () => {
+it('ignores old cold NFC links, preserves warm navigation and gates manual NFC behind readiness', async () => {
   const open = jest.spyOn(nfcFlow, 'openReader').mockImplementation(() => {});
   expect(redirectNfcIntent({ path: 'bey-wallet:///(modals)/nfc-receive', initial: true })).toBe(
     '/(tabs)',
@@ -579,7 +896,7 @@ it('queues cold launches behind readiness and preserves warm navigation', async 
   expect(
     redirectNfcIntent({ path: 'bey-wallet:///(modals)/nfc-send?token=old', initial: false }),
   ).toBe('');
-  expect(open).toHaveBeenCalledTimes(2);
+  expect(open).toHaveBeenCalledTimes(1);
   open.mockRestore();
   flow.setReady(false);
   flow.openReader();

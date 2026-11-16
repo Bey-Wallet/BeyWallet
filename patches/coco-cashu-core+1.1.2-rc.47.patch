@@ -1,5 +1,18 @@
+diff --git a/node_modules/coco-cashu-core/dist/index.cjs b/node_modules/coco-cashu-core/dist/index.cjs
+index c6ab327..dfdf287 100644
+--- a/node_modules/coco-cashu-core/dist/index.cjs
++++ b/node_modules/coco-cashu-core/dist/index.cjs
+@@ -1129,7 +1129,7 @@ var ProofService = class {
+ 	* @throws ProofValidationError if insufficient balance to cover the amount
+ 	*/
+ 	async selectProofsToSend(mintUrl, amount, includeFees = true) {
+-		const proofs = await this.getReadyProofs(mintUrl);
++		const proofs = await this.proofRepository.getAvailableProofs(mintUrl);
+ 		if (proofs.reduce((acc, proof) => acc + proof.amount, 0) < amount) throw new ProofValidationError("Not enough proofs to send");
+ 		const selectedProofs = (await this.walletService.getWallet(mintUrl)).selectProofsToSend(proofs, amount, includeFees);
+ 		this.logger?.debug("Selected proofs to send", {
 diff --git a/node_modules/coco-cashu-core/dist/index.js b/node_modules/coco-cashu-core/dist/index.js
-index e300880..d637643 100644
+index e300880..60b05b2 100644
 --- a/node_modules/coco-cashu-core/dist/index.js
 +++ b/node_modules/coco-cashu-core/dist/index.js
 @@ -763,7 +763,13 @@ var WalletService = class {
@@ -17,3 +30,12 @@ index e300880..d637643 100644
  		const keysetCache = validKeysets.map((keyset) => ({
  			id: keyset.id,
  			unit: keyset.unit,
+@@ -1129,7 +1135,7 @@ var ProofService = class {
+ 	* @throws ProofValidationError if insufficient balance to cover the amount
+ 	*/
+ 	async selectProofsToSend(mintUrl, amount, includeFees = true) {
+-		const proofs = await this.getReadyProofs(mintUrl);
++		const proofs = await this.proofRepository.getAvailableProofs(mintUrl);
+ 		if (proofs.reduce((acc, proof) => acc + proof.amount, 0) < amount) throw new ProofValidationError("Not enough proofs to send");
+ 		const selectedProofs = (await this.walletService.getWallet(mintUrl)).selectProofsToSend(proofs, amount, includeFees);
+ 		this.logger?.debug("Selected proofs to send", {
