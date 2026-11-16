@@ -395,7 +395,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-1}
+                        letterSpacing={-0.15}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
@@ -424,7 +424,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-1}
+                        letterSpacing={-0.15}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {fiatValue || '—'}
@@ -639,7 +639,7 @@ function PendingTab({
                 <YStack items="flex-end" justify="center">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
-                      <Text fontSize={13} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
+                      <Text fontSize={13} fontWeight="900" color="$accent11" letterSpacing={0}>
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
                         {showBitcoinSymbol ? '' : ' sat'}
@@ -650,7 +650,7 @@ function PendingTab({
                     </>
                   ) : (
                     <>
-                      <Text fontSize={13} fontWeight="900" color="$accent11" letterSpacing={-0.3}>
+                      <Text fontSize={13} fontWeight="900" color="$accent11" letterSpacing={0}>
                         +{formattedFiat}
                       </Text>
                       <Text fontSize={9} fontWeight="700" color="$accent10">
@@ -751,7 +751,7 @@ function ReceivedTab({
                 <YStack items="flex-end" justify="center">
                   {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                     <>
-                      <Text fontSize={14} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                      <Text fontSize={14} fontWeight="800" color="$green10" letterSpacing={0}>
                         +{showBitcoinSymbol ? '₿' : ''}
                         {item.amount.toLocaleString()}
                         {showBitcoinSymbol ? '' : ' sat'}
@@ -762,7 +762,7 @@ function ReceivedTab({
                     </>
                   ) : (
                     <>
-                      <Text fontSize={14} fontWeight="800" color="$green10" letterSpacing={-0.3}>
+                      <Text fontSize={14} fontWeight="800" color="$green10" letterSpacing={0}>
                         +{formattedFiat}
                       </Text>
                       <Text fontSize={11} fontWeight="600" color="$gray10">
@@ -859,7 +859,7 @@ function SentTab({
               <YStack items="flex-end" justify="center">
                 {primaryCurrency === 'SATS' || secondaryCurrency === 'NONE' ? (
                   <>
-                    <Text fontSize={14} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                    <Text fontSize={14} fontWeight="800" color="$red10" letterSpacing={0}>
                       -{showBitcoinSymbol ? '₿' : ''}
                       {(entry.amount ?? 0).toLocaleString()}
                       {showBitcoinSymbol ? '' : ' sat'}
@@ -870,7 +870,7 @@ function SentTab({
                   </>
                 ) : (
                   <>
-                    <Text fontSize={14} fontWeight="800" color="$red10" letterSpacing={-0.3}>
+                    <Text fontSize={14} fontWeight="800" color="$red10" letterSpacing={0}>
                       -{formattedFiat}
                     </Text>
                     <Text fontSize={11} fontWeight="600" color="$gray10">

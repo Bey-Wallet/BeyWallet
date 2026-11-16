@@ -254,7 +254,7 @@ export const SUPPORT_ITEMS: SupportItem[] = [
     icon: AlertCircle,
     content: (
       <YStack gap="$3">
-        <H4 color="$red10" fontWeight="800" letterSpacing={-0.5}>
+        <H4 color="$red10" fontWeight="800" letterSpacing={-0.05}>
           Risk Disclosure
         </H4>
         <Paragraph fontSize="$4" lineHeight={20} color="$gray12">

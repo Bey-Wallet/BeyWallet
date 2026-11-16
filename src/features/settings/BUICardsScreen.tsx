@@ -423,7 +423,7 @@ export function BUICardsScreen() {
             )}
           </BUISection>
           <BUIWarningCard>
-            Illustrations are Lucide placeholders. Inter, native text layout and press feedback
+            Illustrations are Lucide placeholders. Allo, native text layout and press feedback
             differ from the source and need Android visual review.
           </BUIWarningCard>
         </>

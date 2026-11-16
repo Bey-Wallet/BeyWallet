@@ -140,7 +140,7 @@ export function PermissionsStep({
     >
       {/* Header */}
       <YStack gap="$0" mt="$2">
-        <H1 fontSize="$8" text="center" fontWeight="800" letterSpacing={-0.5} color="$color">
+        <H1 fontSize="$8" text="center" fontWeight="800" letterSpacing={-0.1} color="$color">
           Profile & Security
         </H1>
       </YStack>

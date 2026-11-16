@@ -79,7 +79,7 @@ export function WelcomeStep({
         <YStack items="center" gap="$2">
           <H1
             fontSize="$9"
-            letterSpacing={-0.5}
+            letterSpacing={-0.1}
             text="center"
             lineHeight="$9"
             fontWeight="700"

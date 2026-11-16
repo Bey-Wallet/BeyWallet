@@ -73,7 +73,7 @@ Android reference70abb50: `MoonTextFieldCell.kt`, `MoonEditText.kt`,
 Material radio measurements were checked against the official
 [AndroidX implementation](https://raw.githubusercontent.com/androidx/androidx/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/RadioButton.kt).
 
-This is not a pixel-identical native port: Inter and Lucide are intentional
+This is not a pixel-identical native port: Allo and Lucide are intentional
 substitutions. Text baselines/intrinsic measurements, native secure entry,
 keyboard/caret behavior, suffix alignment and spring rendering remain React Native
 implementations. Focused tests verify clear gating, editing guards, password

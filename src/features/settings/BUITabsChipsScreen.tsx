@@ -257,7 +257,7 @@ export function BUITabsChipsScreen() {
           >
             <YStack px={16}>
               <BUIText kind="body2" color={c.muted}>
-                Inter and Lucide remain BUI’s fonts and icons. Native text metrics, ripple and popup
+                Allo and Lucide remain BUI’s fonts and icons. Native text metrics, ripple and popup
                 focus need Android visual review.
               </BUIText>
             </YStack>

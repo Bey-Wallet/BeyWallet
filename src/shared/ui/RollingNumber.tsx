@@ -8,6 +8,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Text, type TextProps } from 'tamagui';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface RollingDigitProps {
   digit: string | number;
@@ -145,6 +146,11 @@ export const RollingNumber = ({
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
   const itemHeight = Math.round(lineHeight || fontSize * 1.1);
   const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
+  // Glyphs occupy separate cells. Allow the measured compact balance tracking,
+  // scaled to this size, but prevent older aggressive margins from merging cells.
+  const minimumSpacing =
+    appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize);
+  const characterSpacing = Math.max(minimumSpacing, letterSpacing);
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -172,7 +178,7 @@ export const RollingNumber = ({
               fontWeight={fontWeight}
               fontFamily={resolvedFamily}
               fontSize={fontSize}
-              letterSpacing={letterSpacing}
+              letterSpacing={characterSpacing}
             />
           );
         } else {
@@ -183,7 +189,7 @@ export const RollingNumber = ({
                 height: itemHeight,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginRight: letterSpacing,
+                marginRight: characterSpacing,
               }}
             >
               <Text

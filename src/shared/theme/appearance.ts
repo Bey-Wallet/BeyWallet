@@ -153,7 +153,7 @@ export const appTypography = {
     fontSize: 40,
     lineHeight: 50,
     fontWeight: '600',
-    letterSpacing: -1.5,
+    letterSpacing: -0.25,
   },
   amount: {
     fontFamily: '$display',

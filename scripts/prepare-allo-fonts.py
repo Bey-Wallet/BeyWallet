@@ -1,14 +1,14 @@
-"""Prepare Inter Text/Display with consistent defaults on native and web.
+"""Prepare Bey's approved Allo Text/Display faces from the Allo 1.0 variable TTF.
 
-uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-inter-fonts.py
-No runtime dependency is added. Source download is pinned and hash checked.
+uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt>
+No app dependency is added; the downloaded source folder is never modified.
 """
 
+import argparse
 import hashlib
 import io
 import json
 from pathlib import Path
-from urllib.request import urlopen
 
 import uharfbuzz as hb
 from fontTools.ttLib import TTFont
@@ -16,11 +16,8 @@ from fontTools.varLib.instancer import instantiateVariableFont
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / 'src/assets/fonts'
-CACHE = ROOT / '.tmp/inter-fonts'
-SOURCE = 'https://raw.githubusercontent.com/rsms/inter/v4.1/docs/font-files/InterVariable.ttf'
-SOURCE_HASH = '4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf'
-# ss04 preserves ss02's disambiguation without substituting a slashed zero.
-FEATURES = {'tnum': 1, 'ss01': 1, 'ss04': 1}
+SOURCE_HASH = 'bc26a56fd707fb463f99a51fba67bfb57ab66c341c710efb7419919de9b85330'
+FEATURES = {'tnum': 1, 'cv01': 1, 'cv03': 1, 'cv04': 1}
 WEIGHTS = {'Regular': 400, 'Medium': 500, 'SemiBold': 600}
 SAMPLES = ['0123456789', 'Il1O0 3469', '$€£¥₿₹₽₩₺₦฿₱₫', 'Balance 10,346.90',
            'Illegal busineß βeta', 'éà ÎÏĪ ł ƚ', 'A -> B 12:34']
@@ -42,21 +39,21 @@ def shape(data, text, features=None):
             for info, pos in zip(buffer.glyph_infos, buffer.glyph_positions)]
 
 
-def prepare():
-    CACHE.mkdir(parents=True, exist_ok=True)
-    source_path = CACHE / 'InterVariable.ttf'
-    if not source_path.exists():
-        source_path.write_bytes(urlopen(SOURCE).read())
+def prepare(source_path, license_path):
     source = source_path.read_bytes()
-    assert hashlib.sha256(source).hexdigest() == SOURCE_HASH, 'Unexpected Inter source'
-    manifest = {'source': SOURCE, 'sourceSha256': SOURCE_HASH, 'features': list(FEATURES), 'fonts': {}}
+    assert hashlib.sha256(source).hexdigest() == SOURCE_HASH, 'Unexpected Allo 1.0 source'
+    manifest = {
+        'source': 'Allo 1.0 / fonts/variable/AlloVariable.ttf',
+        'sourceSha256': SOURCE_HASH,
+        'roundness': 0,
+        'features': list(FEATURES),
+        'fonts': {},
+    }
     for optical, size in [('Text', 14), ('Display', 32)]:
         for style, weight in WEIGHTS.items():
             font = instantiateVariableFont(TTFont(io.BytesIO(source), recalcTimestamp=False),
-                                           {'opsz': size, 'wght': weight}, inplace=True)
+                                           {'opsz': size, 'wght': weight, 'ROND': 0}, inplace=True)
             reference = serialize(font)
-            # Activate the existing upstream lookups through default-on ccmp.
-            # No outlines are redrawn. Lookup order follows the upstream GSUB order.
             records = font['GSUB'].table.FeatureList.FeatureRecord
             defaults = next(r.Feature for r in records if r.FeatureTag == 'ccmp')
             indexes = set(defaults.LookupListIndex)
@@ -65,15 +62,14 @@ def prepare():
                     indexes.update(record.Feature.LookupListIndex)
             defaults.LookupListIndex = sorted(indexes)
             defaults.LookupCount = len(indexes)
-            runtime = f'Inter{optical}{style}'
+            runtime = f'Allo{optical}{style}'
             names = font['name']
-            # Distinguish the feature-default derivative from upstream Inter.
             for record in list(names.names):
                 if record.nameID in (1, 2, 3, 4, 6, 16, 17):
                     names.names.remove(record)
-            for name_id, value in {1: runtime, 2: 'Regular', 3: f'Bey Inter 4.1 {runtime}',
-                                   4: f'Bey Inter {optical} {style}', 6: runtime,
-                                   16: f'Bey Inter {optical}', 17: style}.items():
+            for name_id, value in {1: runtime, 2: 'Regular', 3: f'Bey Allo 1.0 {runtime}',
+                                   4: f'Bey Allo {optical} {style}', 6: runtime,
+                                   16: f'Bey Allo {optical}', 17: style}.items():
                 names.setName(value, name_id, 3, 1, 0x409)
                 names.setName(value, name_id, 1, 0, 0)
             result = serialize(font)
@@ -83,27 +79,31 @@ def prepare():
                 assert shape(result, sample, FEATURES) == expected, (runtime, sample, 'not idempotent')
             digits = shape(result, '0123456789')
             assert len({item[1] for item in digits}) == 1, 'Digits must be tabular'
-            zero_id = digits[0][0]
-            zero_name = font.getGlyphName(zero_id)
+            zero_name = font.getGlyphName(digits[0][0])
+            one_name = font.getGlyphName(digits[1][0])
             assert zero_name == 'zero.tf', zero_name
+            assert one_name == 'one.foot.tf', one_name
             cmap = font.getBestCmap()
-            # Inter has no full-width yen. Alias it to its own yen, preserving
-            # wallet currency coverage without importing another typeface.
             for table in font['cmap'].tables:
                 if table.isUnicode():
                     table.cmap[0xFFE5] = cmap[0x00A5]
+            assert 'fvar' not in font, 'Runtime fonts must be static'
             result = serialize(font)
-            filename = f'Inter{optical}-{style}.ttf'
+            filename = f'Allo{optical}-{style}.ttf'
             (ASSETS / filename).write_bytes(result)
-            manifest['fonts'][filename] = {'sha256': hashlib.sha256(result).hexdigest(),
-                                          'weight': weight, 'opticalSize': size,
-                                          'digitAdvance': digits[0][1], 'zeroGlyph': zero_name,
-                                          'defaultLookups': sorted(indexes)}
-            print(f'{filename}: opsz={size}, weight={weight}, zero={zero_name}')
-    (ASSETS / 'inter-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    license_text = urlopen('https://raw.githubusercontent.com/rsms/inter/v4.1/LICENSE.txt').read()
-    (ASSETS / 'Inter-OFL.txt').write_bytes(license_text)
+            manifest['fonts'][filename] = {
+                'sha256': hashlib.sha256(result).hexdigest(), 'weight': weight,
+                'opticalSize': size, 'roundness': 0, 'digitAdvance': digits[0][1],
+                'zeroGlyph': zero_name, 'oneGlyph': one_name, 'defaultLookups': sorted(indexes),
+            }
+            print(f'{filename}: opsz={size}, weight={weight}, ROND=0, tabular/footed-1 verified')
+    (ASSETS / 'allo-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    (ASSETS / 'Allo-OFL.txt').write_bytes(license_path.read_bytes())
 
 
 if __name__ == '__main__':
-    prepare()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--license', type=Path, required=True)
+    args = parser.parse_args()
+    prepare(args.source, args.license)

@@ -24,7 +24,7 @@ isolated from production wallet screens.
 
 ## Type, geometry and rhythm
 
-- Use AppText with existing Inter Text UI and Inter Display amount/large-text roles. Keep the
+- Use AppText with existing Allo Text UI and Allo Display amount/large-text roles. Keep the
   current Home balance size, weight, letter spacing and primary color.
 - Compact lists: 14-point primary labels, 13-point descriptions; section labels may use 600. Keep
   system text scaling and wrapping, with minimum 48-point touch targets.

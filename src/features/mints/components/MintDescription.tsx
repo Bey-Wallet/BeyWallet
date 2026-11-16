@@ -73,12 +73,12 @@ export function MintDescription({ description }: { description: string }) {
 
 const styles = StyleSheet.create({
   body: {
-    fontFamily: 'InterTextRegular',
+    fontFamily: 'AlloTextRegular',
     fontSize: buiTypography.body2.fontSize,
     lineHeight: buiTypography.body2.lineHeight,
     letterSpacing: buiTypography.body2.letterSpacing,
     includeFontPadding: false,
   },
-  link: { fontFamily: 'InterTextMedium' },
+  link: { fontFamily: 'AlloTextMedium' },
   measurement: { position: 'absolute', left: 0, right: 0, opacity: 0 },
 });

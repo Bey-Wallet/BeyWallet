@@ -39,7 +39,7 @@ IDs distinguish duplicate titles. Empty selectors do not open a popup. Multi-sel
 chips and read-only tags are BUI compositions.
 
 Compact visuals retain at least48-point touch targets through hit areas. Reduced
-motion snaps animations and scrolling. Inter and Lucide remain BUI substitutes,
+motion snaps animations and scrolling. Allo and Lucide remain BUI substitutes,
 so glyph metrics, natural outline-chip height, wrapping, ripple and native popup
 focus are not pixel-identical to Compose. React Native's scrolling and animation
 engines also differ. Android visual review remains; pixel equivalence is unverified.

@@ -4,6 +4,9 @@
 > that baseline; see the [current screen inventory](typography-10-percent.md). Numeric sizes below
 > describe the original snapshot.
 
+> Font update: Allo Text/Display with tuned tracking supersedes this snapshot's
+> Inter font setup as of 17 November 2026. See [fonts.md](fonts.md) for current policy.
+
 Date: **2 November 2026**. Scope: the current Bey working tree. No commit or push.
 
 ## Result and scope

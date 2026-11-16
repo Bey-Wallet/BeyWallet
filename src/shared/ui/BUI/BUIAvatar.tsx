@@ -122,7 +122,7 @@ function AvatarContent({
               x={size / 2}
               y={size / 2}
               dy="0.35em"
-              fontFamily="InterTextMedium"
+              fontFamily="AlloTextMedium"
               fontSize={10}
               fill={c.pressed}
               textAnchor="middle"

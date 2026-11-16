@@ -88,7 +88,7 @@ export function BUITooltip({
         <NativeText
           style={{
             width: 100000,
-            fontFamily: 'InterTextRegular',
+            fontFamily: 'AlloTextRegular',
             fontSize: 14,
             letterSpacing: 0.07,
             includeFontPadding: false,
@@ -107,7 +107,7 @@ export function BUITooltip({
             numberOfLines={1}
             style={{
               width: 100000,
-              fontFamily: 'InterTextMedium',
+              fontFamily: 'AlloTextMedium',
               fontSize: 10,
               letterSpacing: 0.1,
               includeFontPadding: false,

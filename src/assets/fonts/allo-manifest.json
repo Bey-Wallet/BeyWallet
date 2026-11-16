@@ -1,0 +1,68 @@
+{
+  "source": "Allo 1.0 / fonts/variable/AlloVariable.ttf",
+  "sourceSha256": "bc26a56fd707fb463f99a51fba67bfb57ab66c341c710efb7419919de9b85330",
+  "roundness": 0,
+  "features": ["tnum", "cv01", "cv03", "cv04"],
+  "fonts": {
+    "AlloText-Regular.ttf": {
+      "sha256": "889acabcf72efffb951ab0571609da03056f298a0e59014a1adeace51a53c57f",
+      "weight": 400,
+      "opticalSize": 14,
+      "roundness": 0,
+      "digitAdvance": 1293,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    },
+    "AlloText-Medium.ttf": {
+      "sha256": "471893b7b0e8d7520104d5062745e0ec874ec784b9dc192d8c1bab1a2f2bd043",
+      "weight": 500,
+      "opticalSize": 14,
+      "roundness": 0,
+      "digitAdvance": 1314,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    },
+    "AlloText-SemiBold.ttf": {
+      "sha256": "0baea88f6cd98297c22657ca322e21156bf4971b5531e1e5b11f23979d638ad2",
+      "weight": 600,
+      "opticalSize": 14,
+      "roundness": 0,
+      "digitAdvance": 1334,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    },
+    "AlloDisplay-Regular.ttf": {
+      "sha256": "f9ed2186ab08b1ca2d968e2a3611684dc3d1fb83e683406a077bc466d464fcc0",
+      "weight": 400,
+      "opticalSize": 32,
+      "roundness": 0,
+      "digitAdvance": 1211,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    },
+    "AlloDisplay-Medium.ttf": {
+      "sha256": "9c1902e2a771bd6bbbed583d4e821ccc7ee1d4182e30a3079fef25c74e4651e8",
+      "weight": 500,
+      "opticalSize": 32,
+      "roundness": 0,
+      "digitAdvance": 1238,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    },
+    "AlloDisplay-SemiBold.ttf": {
+      "sha256": "29aa1eae5b56b8085a5d3ee2e94eb2a0dcb88f68fcb1cf7064501f2bdda3187b",
+      "weight": 600,
+      "opticalSize": 32,
+      "roundness": 0,
+      "digitAdvance": 1264,
+      "zeroGlyph": "zero.tf",
+      "oneGlyph": "one.foot.tf",
+      "defaultLookups": [0, 23, 28, 30, 31]
+    }
+  }
+}

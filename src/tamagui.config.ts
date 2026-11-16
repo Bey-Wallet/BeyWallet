@@ -57,9 +57,9 @@ const textDefaults: Record<
 
 const animations = createAnimations(appMotion.animations);
 
-const createInterFont = (optical: 'Text' | 'Display') =>
+const createAlloFont = (optical: 'Text' | 'Display') =>
   createFont({
-    family: `Inter${optical}Regular`,
+    family: `Allo${optical}Regular`,
     size: {
       1: appTypography.caption.fontSize,
       2: 11,
@@ -108,22 +108,22 @@ const createInterFont = (optical: 'Text' | 'Display') =>
       8: appTypography.title2.letterSpacing,
     },
     face: {
-      100: { normal: `Inter${optical}Regular` },
-      200: { normal: `Inter${optical}Regular` },
-      300: { normal: `Inter${optical}Regular` },
-      400: { normal: `Inter${optical}Regular` },
-      500: { normal: `Inter${optical}Medium` },
-      600: { normal: `Inter${optical}SemiBold` },
-      700: { normal: `Inter${optical}SemiBold` },
-      800: { normal: `Inter${optical}SemiBold` },
-      900: { normal: `Inter${optical}SemiBold` },
-      1000: { normal: `Inter${optical}SemiBold` },
-      bold: { normal: `Inter${optical}SemiBold` },
+      100: { normal: `Allo${optical}Regular` },
+      200: { normal: `Allo${optical}Regular` },
+      300: { normal: `Allo${optical}Regular` },
+      400: { normal: `Allo${optical}Regular` },
+      500: { normal: `Allo${optical}Medium` },
+      600: { normal: `Allo${optical}SemiBold` },
+      700: { normal: `Allo${optical}SemiBold` },
+      800: { normal: `Allo${optical}SemiBold` },
+      900: { normal: `Allo${optical}SemiBold` },
+      1000: { normal: `Allo${optical}SemiBold` },
+      bold: { normal: `Allo${optical}SemiBold` },
     },
   });
 
-const interTextFont = createInterFont('Text');
-const interDisplayFont = createInterFont('Display');
+const alloTextFont = createAlloFont('Text');
+const alloDisplayFont = createAlloFont('Display');
 for (const name of ['H1', 'H2', 'H3']) textDefaults[name].fontFamily = '$display';
 
 const superblueColors = {
@@ -233,10 +233,10 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: interTextFont,
-    body: interTextFont,
-    display: interDisplayFont,
-    mono: interTextFont,
+    heading: alloTextFont,
+    body: alloTextFont,
+    display: alloDisplayFont,
+    mono: alloTextFont,
   },
   themes: {
     ...defaultConfig.themes,

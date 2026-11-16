@@ -51,8 +51,8 @@ from Android Google Play. Recheck those external facts before future reuse.
 | Layer transform at rest | `translateY = depth * 6`, `scale = 1 - depth * 0.045`                                   |
 | Dismiss control         | Shared `HeaderIconButton`, top/right 4 dp, 22-point X, minimum 48 dp touch area         |
 
-Use Inter Text for UI copy and Inter Display for large text/amounts, in 400/500/600 with
-`tnum`, `ss01` and `ss04` defaults (normal zero). Keep native text scaling, wrap
+Use Allo Text for UI copy and Allo Display for large text/amounts, in 400/500/600 with
+`tnum`, `cv01`, `cv03` and `cv04` defaults (footed 1, normal zero) and `ROND=0`. Keep native text scaling, wrap
 metadata where necessary, and validate small phones and larger accessibility sizes. The fixed
 art slot and reserved dismiss area must not compress or obscure the headline. See
 [appearance conventions](../appearance.md) for the rest of the design system.

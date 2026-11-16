@@ -20,8 +20,8 @@ verification on 27 October 2026. Quotes remain estimates fetched through the exi
 provider/fallback path.
 
 NGN (Nigerian Naira) and THB (Thai Baht) remain selectable. The naira symbol uses
-Inter's original U+20A6 glyph; its shape has not been customized. The only added cmap
-alias in the prepared Inter assets is full-width yen to Inter's existing yen glyph.
+Allo's original U+20A6 glyph; its shape has not been customized. The only added cmap
+alias in the prepared Allo assets is full-width yen to Allo's existing yen glyph.
 
 `SELECTABLE_CURRENCIES` controls the Settings choices. The full currency metadata is
 retained in `SUPPORTED_CURRENCIES` so saved preferences and imported backups using

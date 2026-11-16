@@ -78,7 +78,9 @@ export function BouncyAmount({
       fontSize={fontSize}
       fontVariant={['tabular-nums']}
       fontWeight="600"
-      letterSpacing={-1}
+      letterSpacing={
+        appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize)
+      }
       py="$2"
       lineHeight={fontSize + 2}
       color={color}

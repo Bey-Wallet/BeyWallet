@@ -116,7 +116,7 @@ export const BUIInput = forwardRef<TextInput, BUIInputProps>(function BUIInput(
     return () => animation.stop();
   }, [floating, progress, reducedMotion]);
   const textStyle = {
-    fontFamily: 'InterTextRegular',
+    fontFamily: 'AlloTextRegular',
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: 0.08,
@@ -387,7 +387,7 @@ export const BUISearchInput = forwardRef<
           style={{
             flex: 1,
             minWidth: 0,
-            fontFamily: 'InterTextRegular',
+            fontFamily: 'AlloTextRegular',
             fontSize: 16,
             lineHeight: 24,
             letterSpacing: 0.08,

@@ -1,7 +1,7 @@
 # Bey design system
 
 Bey's design system is a mobile foundation built on the existing Tamagui provider. It preserves
-the monochrome brand, Inter Text/Display, compact lists, full-width separators, and native wallet
+the monochrome brand, Allo Text/Display, compact lists, full-width separators, and native wallet
 flows. The recorded [surface consistency rules](design-system-proposal.md) and
 [screen adoption inventory](design-system-screens.md) guide future visual work.
 
@@ -55,7 +55,7 @@ icon sizes and system accessibility scaling are unchanged. `variant` accepts eve
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.
 
-Inter Text remains the UI family; Inter Display remains the large-title/amount family. The six
+Allo Text remains the UI family; Allo Display remains the large-title/amount family. The six
 prepared static faces and existing Tamagui face mappings resolve 400/500/600 without new font
 downloads. Larger/lighter weight requests retain their established mappings. Tabular numerals,
 the prepared font features, and system font scaling remain enabled. Do not cap text scaling as a
@@ -122,6 +122,6 @@ findings. Candidates require review: artwork, QR codes, optical corrections and 
 can have intentional literals. The audit is informational, not a replacement for accessibility
 or visual review. Migrate one screen or complete shared component at a time.
 
-Validation includes Inter rendering, light/dark/POS theme resolution, button state behavior,
+Validation includes Allo rendering, light/dark/POS theme resolution, button state behavior,
 switches, full-width groups, reduced motion, large system text and device keyboard/safe areas.
 See `docs/design-system-audit.md` for the current baseline and remaining migration targets.
